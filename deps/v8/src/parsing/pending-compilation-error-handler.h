@@ -25,9 +25,7 @@ class Script;
 // compilation phases.
 class PendingCompilationErrorHandler {
  public:
-  PendingCompilationErrorHandler()
-      : has_pending_error_(false), stack_overflow_(false) {}
-
+  PendingCompilationErrorHandler() = default;
   PendingCompilationErrorHandler(const PendingCompilationErrorHandler&) =
       delete;
   PendingCompilationErrorHandler& operator=(
@@ -38,6 +36,10 @@ class PendingCompilationErrorHandler {
 
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate message, const AstRawString* arg);
+
+  void ReportMessageAt(int start_position, int end_position,
+                       MessageTemplate message, const AstRawString* arg0,
+                       const char* arg1);
 
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
@@ -53,15 +55,15 @@ class PendingCompilationErrorHandler {
   bool has_pending_warnings() const { return !warning_messages_.empty(); }
 
   // Handle errors detected during parsing.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void PrepareErrors(LocalIsolate* isolate, AstValueFactory* ast_value_factory);
+  void PrepareErrors(IsolateT* isolate, AstValueFactory* ast_value_factory);
   V8_EXPORT_PRIVATE void ReportErrors(Isolate* isolate,
                                       Handle<Script> script) const;
 
   // Handle warnings detected during compilation.
-  template <typename LocalIsolate>
-  void PrepareWarnings(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void PrepareWarnings(IsolateT* isolate);
   void ReportWarnings(Isolate* isolate, Handle<Script> script) const;
 
   V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(Isolate* isolate);
@@ -85,29 +87,50 @@ class PendingCompilationErrorHandler {
     MessageDetails()
         : start_position_(-1),
           end_position_(-1),
-          message_(MessageTemplate::kNone),
-          type_(kNone) {}
+          message_(MessageTemplate::kNone) {}
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate message, const AstRawString* arg)
+                   MessageTemplate message, const AstRawString* arg0)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          arg_(arg),
-          type_(arg ? kAstRawString : kNone) {}
+          args_{MessageArgument{arg0}, MessageArgument{}} {}
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate message, const char* char_arg)
+                   MessageTemplate message, const AstRawString* arg0,
+                   const char* arg1)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          char_arg_(char_arg),
-          type_(char_arg_ ? kConstCharString : kNone) {}
+          args_{MessageArgument{arg0}, MessageArgument{arg1}} {
+      DCHECK_NOT_NULL(arg0);
+      DCHECK_NOT_NULL(arg1);
+    }
+    MessageDetails(int start_position, int end_position,
+                   MessageTemplate message, const char* arg0)
+        : start_position_(start_position),
+          end_position_(end_position),
+          message_(message),
+          args_{MessageArgument{arg0}, MessageArgument{}} {}
 
-    Handle<String> ArgumentString(Isolate* isolate) const;
+    Handle<String> ArgString(Isolate* isolate, int index) const;
+    int ArgCount() const {
+      int argc = 0;
+      for (int i = 0; i < kMaxArgumentCount; i++) {
+        if (args_[i].type == kNone) break;
+        argc++;
+      }
+#ifdef DEBUG
+      for (int i = argc; i < kMaxArgumentCount; i++) {
+        DCHECK_EQ(args_[i].type, kNone);
+      }
+#endif  // DEBUG
+      return argc;
+    }
+
     MessageLocation GetLocation(Handle<Script> script) const;
     MessageTemplate message() const { return message_; }
 
-    template <typename LocalIsolate>
-    void Prepare(LocalIsolate* isolate);
+    template <typename IsolateT>
+    void Prepare(IsolateT* isolate);
 
    private:
     enum Type { kNone, kAstRawString, kConstCharString, kMainThreadHandle };
@@ -117,19 +140,32 @@ class PendingCompilationErrorHandler {
 
     int start_position_;
     int end_position_;
+
     MessageTemplate message_;
-    union {
-      const AstRawString* arg_;
-      const char* char_arg_;
-      Handle<String> arg_handle_;
+
+    struct MessageArgument final {
+      constexpr MessageArgument() : ast_string(nullptr), type(kNone) {}
+      explicit constexpr MessageArgument(const AstRawString* s)
+          : ast_string(s), type(s == nullptr ? kNone : kAstRawString) {}
+      explicit constexpr MessageArgument(const char* s)
+          : c_string(s), type(s == nullptr ? kNone : kConstCharString) {}
+
+      union {
+        const AstRawString* ast_string;
+        const char* c_string;
+        Handle<String> js_string;
+      };
+      Type type;
     };
-    Type type_;
+
+    static constexpr int kMaxArgumentCount = 2;
+    MessageArgument args_[kMaxArgumentCount];
   };
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script) const;
 
-  bool has_pending_error_;
-  bool stack_overflow_;
+  bool has_pending_error_ = false;
+  bool stack_overflow_ = false;
   bool unidentifiable_error_ = false;
 
   MessageDetails error_details_;

@@ -1,8 +1,9 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
@@ -80,6 +81,51 @@ new RuleTester({
       {
         code: 'const { Map } = primordials; new Map()',
         options: [{ name: 'Map', into: 'Safe' }],
+      },
+      {
+        code: `
+          const { Function } = primordials;
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
+      {
+        code: `
+          const { Function } = primordials;
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
+      {
+        code: 'function identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'function* identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'class identifier {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'new class { identifier(){} }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'const a = { identifier: \'4\' }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'identifier:{const a = 4}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'switch(0){case identifier:}',
+        options: [{ name: 'identifier' }]
       },
     ],
     invalid: [
@@ -159,6 +205,16 @@ new RuleTester({
         errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
       },
       {
+        code: `
+          const { Reflect } = primordials;
+          module.exports = function() {
+            const { ownKeys } = Reflect;
+          }
+        `,
+        options: [{ name: 'Reflect' }],
+        errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
+      },
+      {
         code: 'new Map()',
         options: [{ name: 'Map', into: 'Safe' }],
         errors: [{ message: /const { SafeMap } = primordials/ }]
@@ -170,6 +226,37 @@ new RuleTester({
         `,
         options: [{ name: 'Function' }],
         errors: [{ message: /const { FunctionPrototype } = primordials/ }]
+      },
+      {
+        code: `
+          const obj = { Function };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
       },
     ]
   });

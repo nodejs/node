@@ -81,13 +81,13 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
         return;
     }
 
-    // Accomodate the longest possible name plus padding
+    // Accommodate the longest possible name plus padding
     char* buf = (char*) uprv_malloc(maxLen);
     if (buf == NULL) {
         offsets.start = offsets.limit;
         return;
     }
-
+    
     int32_t cursor = offsets.start;
     int32_t limit = offsets.limit;
 

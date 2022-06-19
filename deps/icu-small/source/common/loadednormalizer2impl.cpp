@@ -157,7 +157,7 @@ static void U_CALLCONV initSingletons(const char *what, UErrorCode &errorCode) {
     } else if (uprv_strcmp(what, "nfkc_cf") == 0) {
         nfkc_cfSingleton = Norm2AllModes::createInstance(NULL, "nfkc_cf", errorCode);
     } else {
-        UPRV_UNREACHABLE;   // Unknown singleton
+        UPRV_UNREACHABLE_EXIT;   // Unknown singleton
     }
     ucln_common_registerCleanup(UCLN_COMMON_LOADED_NORMALIZER2, uprv_loaded_normalizer2_cleanup);
 }

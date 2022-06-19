@@ -45,6 +45,7 @@
 
 /* swapping implementations in common */
 
+#include "emojiprops.h"
 #include "uresdata.h"
 #include "ucnv_io.h"
 #include "uprops.h"
@@ -741,6 +742,115 @@ ulayout_swap(const UDataSwapper *ds,
     return headerSize + size;
 }
 
+// Unicode emoji properties data swapping --------------------------------------
+
+static int32_t U_CALLCONV
+uemoji_swap(const UDataSwapper *ds,
+            const void *inData, int32_t length, void *outData,
+            UErrorCode *pErrorCode) {
+    // udata_swapDataHeader checks the arguments.
+    int32_t headerSize = udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
+    if (pErrorCode == nullptr || U_FAILURE(*pErrorCode)) {
+        return 0;
+    }
+
+    // Check data format and format version.
+    const UDataInfo *pInfo = (const UDataInfo *)((const char *)inData + 4);
+    if (!(
+            pInfo->dataFormat[0] == u'E' &&
+            pInfo->dataFormat[1] == u'm' &&
+            pInfo->dataFormat[2] == u'o' &&
+            pInfo->dataFormat[3] == u'j' &&
+            pInfo->formatVersion[0] == 1)) {
+        udata_printError(ds,
+            "uemoji_swap(): data format %02x.%02x.%02x.%02x (format version %02x) "
+            "is not recognized as emoji properties data\n",
+            pInfo->dataFormat[0], pInfo->dataFormat[1],
+            pInfo->dataFormat[2], pInfo->dataFormat[3],
+            pInfo->formatVersion[0]);
+        *pErrorCode = U_UNSUPPORTED_ERROR;
+        return 0;
+    }
+
+    const uint8_t *inBytes = (const uint8_t *)inData + headerSize;
+    uint8_t *outBytes = (uint8_t *)outData + headerSize;
+
+    const int32_t *inIndexes = (const int32_t *)inBytes;
+
+    if (length >= 0) {
+        length -= headerSize;
+        // We expect to read at least EmojiProps::IX_TOTAL_SIZE.
+        if (length < 14 * 4) {
+            udata_printError(ds,
+                "uemoji_swap(): too few bytes (%d after header) for emoji properties data\n",
+                length);
+            *pErrorCode = U_INDEX_OUTOFBOUNDS_ERROR;
+            return 0;
+        }
+    }
+
+    // First offset after indexes[].
+    int32_t cpTrieOffset = udata_readInt32(ds, inIndexes[EmojiProps::IX_CPTRIE_OFFSET]);
+    int32_t indexesLength = cpTrieOffset / 4;
+    if (indexesLength < 14) {
+        udata_printError(ds,
+            "uemoji_swap(): too few indexes (%d) for emoji properties data\n",
+            indexesLength);
+        *pErrorCode = U_INDEX_OUTOFBOUNDS_ERROR;
+        return 0;
+    }
+
+    // Read the data offsets before swapping anything.
+    int32_t indexes[EmojiProps::IX_TOTAL_SIZE + 1];
+    indexes[0] = cpTrieOffset;
+    for (int32_t i = 1; i <= EmojiProps::IX_TOTAL_SIZE; ++i) {
+        indexes[i] = udata_readInt32(ds, inIndexes[i]);
+    }
+    int32_t size = indexes[EmojiProps::IX_TOTAL_SIZE];
+
+    if (length >= 0) {
+        if (length < size) {
+            udata_printError(ds,
+                "uemoji_swap(): too few bytes (%d after header) "
+                "for all of emoji properties data\n",
+                length);
+            *pErrorCode = U_INDEX_OUTOFBOUNDS_ERROR;
+            return 0;
+        }
+
+        // Copy the data for inaccessible bytes.
+        if (inBytes != outBytes) {
+            uprv_memcpy(outBytes, inBytes, size);
+        }
+
+        // Swap the int32_t indexes[].
+        int32_t offset = 0;
+        int32_t top = cpTrieOffset;
+        ds->swapArray32(ds, inBytes, top - offset, outBytes, pErrorCode);
+        offset = top;
+
+        // Swap the code point trie.
+        top = indexes[EmojiProps::IX_CPTRIE_OFFSET + 1];
+        int32_t count = top - offset;
+        U_ASSERT(count >= 0);
+        if (count >= 16) {
+            utrie_swapAnyVersion(ds, inBytes + offset, count, outBytes + offset, pErrorCode);
+        }
+        offset = top;
+
+        // Swap all of the string tries.
+        // They are all serialized as arrays of 16-bit units.
+        offset = indexes[EmojiProps::IX_BASIC_EMOJI_TRIE_OFFSET];
+        top = indexes[EmojiProps::IX_RGI_EMOJI_ZWJ_SEQUENCE_TRIE_OFFSET + 1];
+        ds->swapArray16(ds, inBytes + offset, top - offset, outBytes + offset, pErrorCode);
+        offset = top;
+
+        U_ASSERT(offset == size);
+    }
+
+    return headerSize + size;
+}
+
 /* Swap 'Test' data from gentest */
 static int32_t U_CALLCONV
 test_swap(const UDataSwapper *ds,
@@ -835,6 +945,8 @@ static const struct {
 
     { { ULAYOUT_FMT_0, ULAYOUT_FMT_1, ULAYOUT_FMT_2, ULAYOUT_FMT_3 },
                                   ulayout_swap },       // dataFormat="Layo"
+
+    { { u'E', u'm', u'o', u'j' }, uemoji_swap },
 
 #if !UCONFIG_NO_COLLATION
     { { 0x55, 0x43, 0x6f, 0x6c }, ucol_swap },          /* dataFormat="UCol" */

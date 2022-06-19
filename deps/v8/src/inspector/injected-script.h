@@ -35,14 +35,15 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-persistent-handle.h"
 #include "src/base/macros.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger.h"
-
-#include "include/v8.h"
 
 namespace v8_inspector {
 
@@ -76,13 +77,15 @@ class InjectedScript final {
 
   Response getProperties(
       v8::Local<v8::Object>, const String16& groupName, bool ownProperties,
-      bool accessorPropertiesOnly, WrapMode wrapMode,
+      bool accessorPropertiesOnly, bool nonIndexedPropertiesOnly,
+      WrapMode wrapMode,
       std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>*
           result,
       Maybe<protocol::Runtime::ExceptionDetails>*);
 
   Response getInternalAndPrivateProperties(
       v8::Local<v8::Value>, const String16& groupName,
+      bool accessorPropertiesOnly,
       std::unique_ptr<
           protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>*
           internalProperties,
@@ -173,7 +176,8 @@ class InjectedScript final {
     int m_sessionId;
   };
 
-  class ContextScope : public Scope {
+  class ContextScope : public Scope,
+                       public V8InspectorSession::CommandLineAPIScope {
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope() override;

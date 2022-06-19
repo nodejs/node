@@ -120,6 +120,7 @@ interface HTMLElement : Element {
   [CEReactions] attribute DOMString autocapitalize;
 
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString innerText;
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerText;
 
   ElementInternals attachInternals();
 };
@@ -695,7 +696,7 @@ interface TextTrackCue : EventTarget {
 
   attribute DOMString id;
   attribute double startTime;
-  attribute double endTime;
+  attribute unrestricted double endTime;
   attribute boolean pauseOnExit;
 
   attribute EventHandler onenter;
@@ -1231,6 +1232,7 @@ interface HTMLSlotElement : HTMLElement {
   [CEReactions] attribute DOMString name;
   sequence<Node> assignedNodes(optional AssignedNodesOptions options = {});
   sequence<Element> assignedElements(optional AssignedNodesOptions options = {});
+  undefined assign((Element or Text)... nodes);
 };
 
 dictionary AssignedNodesOptions {
@@ -1264,11 +1266,14 @@ typedef (HTMLOrSVGImageElement or
          ImageBitmap or
          OffscreenCanvas) CanvasImageSource;
 
+enum PredefinedColorSpace { "srgb", "display-p3" };
+
 enum CanvasFillRule { "nonzero", "evenodd" };
 
 dictionary CanvasRenderingContext2DSettings {
   boolean alpha = true;
   boolean desynchronized = false;
+  PredefinedColorSpace colorSpace = "srgb";
 };
 
 enum ImageSmoothingQuality { "low", "medium", "high" };
@@ -1301,6 +1306,7 @@ interface mixin CanvasState {
   // state
   undefined save(); // push state on state stack
   undefined restore(); // pop state stack and restore state
+  undefined reset(); // reset the rendering context to its default state
 };
 
 interface mixin CanvasTransform {
@@ -1336,6 +1342,7 @@ interface mixin CanvasFillStrokeStyles {
   attribute (DOMString or CanvasGradient or CanvasPattern) fillStyle; // (default black)
   CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1);
   CanvasGradient createRadialGradient(double x0, double y0, double r0, double x1, double y1, double r1);
+  CanvasGradient createConicGradient(double startAngle, double x, double y);
   CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString] DOMString repetition);
 
 };
@@ -1398,9 +1405,9 @@ interface mixin CanvasDrawImage {
 
 interface mixin CanvasImageData {
   // pixel manipulation
-  ImageData createImageData([EnforceRange] long sw, [EnforceRange] long sh);
+  ImageData createImageData([EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
   ImageData createImageData(ImageData imagedata);
-  ImageData getImageData([EnforceRange] long sx, [EnforceRange] long sy, [EnforceRange] long sw, [EnforceRange] long sh);
+  ImageData getImageData([EnforceRange] long sx, [EnforceRange] long sy, [EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
   undefined putImageData(ImageData imagedata, [EnforceRange] long dx, [EnforceRange] long dy);
   undefined putImageData(ImageData imagedata, [EnforceRange] long dx, [EnforceRange] long dy, [EnforceRange] long dirtyX, [EnforceRange] long dirtyY, [EnforceRange] long dirtyWidth, [EnforceRange] long dirtyHeight);
 };
@@ -1410,6 +1417,10 @@ enum CanvasLineJoin { "round", "bevel", "miter" };
 enum CanvasTextAlign { "start", "end", "left", "right", "center" };
 enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };
 enum CanvasDirection { "ltr", "rtl", "inherit" };
+enum CanvasFontKerning { "auto", "normal", "none" };
+enum CanvasFontStretch { "ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "normal", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded" };
+enum CanvasFontVariantCaps { "normal", "small-caps", "all-small-caps", "petite-caps", "all-petite-caps", "unicase", "titling-caps" };
+enum CanvasTextRendering { "auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision" };
 
 interface mixin CanvasPathDrawingStyles {
   // line caps/joins
@@ -1430,6 +1441,12 @@ interface mixin CanvasTextDrawingStyles {
   attribute CanvasTextAlign textAlign; // (default: "start")
   attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")
   attribute CanvasDirection direction; // (default: "inherit")
+  attribute double textLetterSpacing; // (default: 0)
+  attribute double textWordSpacing; // (default: 0)
+  attribute CanvasFontKerning fontKerning; // (default: "auto")
+  attribute CanvasFontStretch fontStretch; // (default: "normal")
+  attribute CanvasFontVariantCaps fontVariantCaps; // (default: "normal")
+  attribute CanvasTextRendering textRendering; // (default: "normal")
 };
 
 interface mixin CanvasPath {
@@ -1476,15 +1493,20 @@ interface TextMetrics {
   readonly attribute double ideographicBaseline;
 };
 
+dictionary ImageDataSettings {
+  PredefinedColorSpace colorSpace;
+};
+
 [Exposed=(Window,Worker),
  Serializable]
 interface ImageData {
-  constructor(unsigned long sw, unsigned long sh);
-  constructor(Uint8ClampedArray data, unsigned long sw, optional unsigned long sh);
+  constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
+  constructor(Uint8ClampedArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
 
   readonly attribute unsigned long width;
   readonly attribute unsigned long height;
   readonly attribute Uint8ClampedArray data;
+  readonly attribute PredefinedColorSpace colorSpace;
 };
 
 [Exposed=(Window,Worker)]
@@ -1738,8 +1760,8 @@ interface History {
   undefined go(optional long delta = 0);
   undefined back();
   undefined forward();
-  undefined pushState(any data, DOMString title, optional USVString? url = null);
-  undefined replaceState(any data, DOMString title, optional USVString? url = null);
+  undefined pushState(any data, DOMString unused, optional USVString? url = null);
+  undefined replaceState(any data, DOMString unused, optional USVString? url = null);
 };
 
 [Exposed=Window]

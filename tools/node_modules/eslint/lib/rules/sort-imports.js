@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce sorted import declarations within modules",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-imports"
         },

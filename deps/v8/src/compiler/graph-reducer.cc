@@ -75,7 +75,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.front();
+      node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
@@ -112,7 +112,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
         if (FLAG_trace_turbo_reduction) {
           UnparkedScopeIfNeeded unparked(broker_);
           // TODO(neis): Disallow racy handle dereference once we stop
-          // supporting --no-local-heaps --no-turbo-direct-heap-access.
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- In-place update of #" << *node << " by reducer "
                          << (*i)->reducer_name() << std::endl;
@@ -125,7 +125,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
         if (FLAG_trace_turbo_reduction) {
           UnparkedScopeIfNeeded unparked(broker_);
           // TODO(neis): Disallow racy handle dereference once we stop
-          // supporting --no-local-heaps --no-turbo-direct-heap-access.
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- Replacement of #" << *node << " with #"
                          << *(reduction.replacement()) << " by reducer "
@@ -189,7 +189,7 @@ void GraphReducer::ReduceTop() {
     }
 
     // In-place update of {node}, may need to recurse on an input.
-    Node::Inputs node_inputs = node->inputs();
+    node_inputs = node->inputs();
     for (int i = 0; i < node_inputs.count(); ++i) {
       Node* input = node_inputs[i];
       if (input != node && Recurse(input)) {

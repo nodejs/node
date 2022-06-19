@@ -1,8 +1,11 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
 const { Blob } = require('buffer');
+const { inspect } = require('util');
+const { EOL } = require('os');
 
 {
   const b = new Blob();
@@ -45,15 +48,6 @@ assert.throws(() => new Blob({}), {
 }
 
 {
-  const b = new Blob(['616263'], { encoding: 'hex', type: 'foo' });
-  assert.strictEqual(b.size, 3);
-  assert.strictEqual(b.type, 'foo');
-  b.text().then(common.mustCall((text) => {
-    assert.strictEqual(text, 'abc');
-  }));
-}
-
-{
   const b = new Blob([Buffer.from('abc')]);
   assert.strictEqual(b.size, 3);
   b.text().then(common.mustCall((text) => {
@@ -90,6 +84,15 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(b.size, 10);
   b.text().then(common.mustCall((text) => {
     assert.strictEqual(text, 'helloworld');
+  }));
+}
+
+{
+  const b = new Blob(['hello', new Uint8Array([0xed, 0xa0, 0x88])]);
+  assert.strictEqual(b.size, 8);
+  b.text().then(common.mustCall((text) => {
+    assert.strictEqual(text, 'hello\ufffd\ufffd\ufffd');
+    assert.strictEqual(text.length, 8);
   }));
 }
 
@@ -190,3 +193,80 @@ assert.throws(() => new Blob({}), {
     assert.strictEqual(text, 'test42');
   }));
 }
+
+{
+  const b = new Blob();
+  assert.strictEqual(inspect(b, { depth: null }),
+                     'Blob { size: 0, type: \'\' }');
+  assert.strictEqual(inspect(b, { depth: 1 }),
+                     'Blob { size: 0, type: \'\' }');
+  assert.strictEqual(inspect(b, { depth: -1 }), '[Blob]');
+}
+
+{
+  // The Blob has to be over a specific size for the data to
+  // be copied asynchronously..
+  const b = new Blob(['hello', 'there'.repeat(820)]);
+  assert.strictEqual(b.arrayBuffer(), b.arrayBuffer());
+  b.arrayBuffer().then(common.mustCall());
+}
+
+(async () => {
+  const b = new Blob(['hello']);
+  const reader = b.stream().getReader();
+  let res = await reader.read();
+  assert.strictEqual(res.value.byteLength, 5);
+  assert(!res.done);
+  res = await reader.read();
+  assert(res.done);
+})().then(common.mustCall());
+
+{
+  const b = new Blob(['hello\n'], { endings: 'native' });
+  assert.strictEqual(b.size, EOL.length + 5);
+
+  [1, {}, 'foo'].forEach((endings) => {
+    assert.throws(() => new Blob([], { endings }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+  });
+}
+
+{
+  assert.throws(() => Reflect.get(Blob.prototype, 'type', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Reflect.get(Blob.prototype, 'size', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.slice(Blob.prototype, 0, 1), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.stream.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+}
+
+(async () => {
+  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.rejects(async () => Blob.prototype.text.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+})().then(common.mustCall());
+
+(async () => {
+  const blob = new Blob([
+    new Uint8Array([0x50, 0x41, 0x53, 0x53]),
+    new Int8Array([0x50, 0x41, 0x53, 0x53]),
+    new Uint16Array([0x4150, 0x5353]),
+    new Int16Array([0x4150, 0x5353]),
+    new Uint32Array([0x53534150]),
+    new Int32Array([0x53534150]),
+    new Float32Array([0xD341500000]),
+  ]);
+
+  assert.strictEqual(blob.size, 28);
+  assert.strictEqual(blob.type, '');
+})().then(common.mustCall());

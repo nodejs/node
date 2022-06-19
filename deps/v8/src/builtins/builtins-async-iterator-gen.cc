@@ -137,9 +137,9 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   {
     Label has_sent_value(this), no_sent_value(this), merge(this);
     ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
-    Branch(
-        IntPtrGreaterThan(args->GetLength(), IntPtrConstant(kValueOrReasonArg)),
-        &has_sent_value, &no_sent_value);
+    Branch(IntPtrGreaterThan(args->GetLengthWithoutReceiver(),
+                             IntPtrConstant(kValueOrReasonArg)),
+           &has_sent_value, &no_sent_value);
     BIND(&has_sent_value);
     {
       iter_result = Call(context, method, sync_iterator, sent_value);
@@ -161,14 +161,14 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  CSA_ASSERT(this, IsConstructor(promise_fun));
+  CSA_DCHECK(this, IsConstructor(promise_fun));
 
   // Let valueWrapper be PromiseResolve(%Promise%, « value »).
   // IfAbruptRejectPromise(valueWrapper, promiseCapability).
   TNode<Object> value_wrapper;
   {
     ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
-    value_wrapper = CallBuiltin(Builtins::kPromiseResolve, native_context,
+    value_wrapper = CallBuiltin(Builtin::kPromiseResolve, native_context,
                                 promise_fun, value);
   }
 
@@ -180,14 +180,14 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, undefined, promiseCapability).
-  args->PopAndReturn(CallBuiltin(Builtins::kPerformPromiseThen, context,
+  args->PopAndReturn(CallBuiltin(Builtin::kPerformPromiseThen, context,
                                  value_wrapper, on_fulfilled,
                                  UndefinedConstant(), promise));
 
   BIND(&reject_promise);
   {
     const TNode<Object> exception = var_exception.value();
-    CallBuiltin(Builtins::kRejectPromise, context, promise, exception,
+    CallBuiltin(Builtin::kRejectPromise, context, promise, exception,
                 TrueConstant());
     args->PopAndReturn(promise);
   }
@@ -228,16 +228,16 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 
     // Let nextDone be IteratorComplete(nextResult).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
-    const TNode<Object> done =
+    const TNode<Object> iter_result_done =
         GetProperty(context, iter_result, factory()->done_string());
 
     // Let nextValue be IteratorValue(nextResult).
     // IfAbruptRejectPromise(nextValue, promiseCapability).
-    const TNode<Object> value =
+    const TNode<Object> iter_result_value =
         GetProperty(context, iter_result, factory()->value_string());
 
-    var_value = value;
-    var_done = done;
+    var_value = iter_result_value;
+    var_done = iter_result_done;
     Goto(&merge);
   }
 
@@ -259,7 +259,7 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   BIND(&to_boolean);
   {
     const TNode<Object> result =
-        CallBuiltin(Builtins::kToBoolean, context, var_done.value());
+        CallBuiltin(Builtin::kToBoolean, context, var_done.value());
     var_done = result;
     Goto(&done);
   }
@@ -309,12 +309,12 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
     // If return is undefined, then
     // Let iterResult be ! CreateIterResultObject(value, true)
     const TNode<Object> iter_result = CallBuiltin(
-        Builtins::kCreateIterResultObject, context, value, TrueConstant());
+        Builtin::kCreateIterResultObject, context, value, TrueConstant());
 
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
     // Return promiseCapability.[[Promise]].
-    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+    CallBuiltin(Builtin::kResolvePromise, context, promise, iter_result);
     args.PopAndReturn(promise);
   };
 

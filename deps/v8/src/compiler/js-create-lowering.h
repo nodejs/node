@@ -97,6 +97,14 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     Node* arguments_length,
                                     const SharedFunctionInfoRef& shared,
                                     bool* has_aliased_arguments);
+  base::Optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
+                                               JSObjectRef boilerplate,
+                                               AllocationType allocation,
+                                               int max_depth,
+                                               int* max_properties);
+  base::Optional<Node*> TryAllocateFastLiteralElements(
+      Node* effect, Node* control, JSObjectRef boilerplate,
+      AllocationType allocation, int max_depth, int* max_properties);
 
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, int capacity,
@@ -107,11 +115,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          ElementsKind elements_kind,
                          std::vector<Node*> const& values,
                          AllocationType allocation);
-  Node* AllocateFastLiteral(Node* effect, Node* control,
-                            JSObjectRef boilerplate, AllocationType allocation);
-  Node* AllocateFastLiteralElements(Node* effect, Node* control,
-                                    JSObjectRef boilerplate,
-                                    AllocationType allocation);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               RegExpBoilerplateDescriptionRef boilerplate);
 

@@ -1,8 +1,9 @@
 .text
-.globl	_md5_block_asm_data_order
+.globl	_ossl_md5_block_asm_data_order
 .align	4
-_md5_block_asm_data_order:
-L_md5_block_asm_data_order_begin:
+_ossl_md5_block_asm_data_order:
+L_ossl_md5_block_asm_data_order_begin:
+.byte	243,15,30,251
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%edi

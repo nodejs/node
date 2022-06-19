@@ -29,6 +29,7 @@ class JSONTraceWriter : public TraceWriter {
   bool append_comma_ = false;
 };
 
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 class SystemInstrumentationTraceWriter : public TraceWriter {
  public:
   SystemInstrumentationTraceWriter();
@@ -39,6 +40,7 @@ class SystemInstrumentationTraceWriter : public TraceWriter {
  private:
   std::unique_ptr<Recorder> recorder_;
 };
+#endif
 
 }  // namespace tracing
 }  // namespace platform

@@ -22,6 +22,7 @@ class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
+class IgnitionStatisticsTester;
 class Isolate;
 class LocalIsolate;
 class ParseInfo;
@@ -45,7 +46,7 @@ class Interpreter {
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.
   static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
+      ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals,
       LocalIsolate* local_isolate);
@@ -61,17 +62,17 @@ class Interpreter {
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  V8_EXPORT_PRIVATE Code GetBytecodeHandler(Bytecode bytecode,
-                                            OperandScale operand_scale);
+  V8_EXPORT_PRIVATE CodeT GetBytecodeHandler(Bytecode bytecode,
+                                             OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
-                          Code handler);
+                          CodeT handler);
 
   // Disassembler support.
   V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 
-  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 
@@ -95,8 +96,11 @@ class Interpreter {
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
+  friend class v8::internal::IgnitionStatisticsTester;
 
-  uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
+  V8_EXPORT_PRIVATE void InitDispatchCounters();
+  V8_EXPORT_PRIVATE uintptr_t GetDispatchCounter(Bytecode from,
+                                                 Bytecode to) const;
 
   // Get dispatch table index of bytecode.
   static size_t GetDispatchTableIndex(Bytecode bytecode,
@@ -111,6 +115,12 @@ class Interpreter {
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
   Address interpreter_entry_trampoline_instruction_start_;
 };
+
+#ifdef V8_IGNITION_DISPATCH_COUNTING
+#define V8_IGNITION_DISPATCH_COUNTING_BOOL true
+#else
+#define V8_IGNITION_DISPATCH_COUNTING_BOOL false
+#endif
 
 }  // namespace interpreter
 }  // namespace internal

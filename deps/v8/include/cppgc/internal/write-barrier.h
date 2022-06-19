@@ -5,9 +5,13 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_WRITE_BARRIER_H_
 #define INCLUDE_CPPGC_INTERNAL_WRITE_BARRIER_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/atomic-entry-flag.h"
+#include "cppgc/platform.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -22,8 +26,11 @@ class HeapHandle;
 
 namespace internal {
 
+#if defined(CPPGC_CAGED_HEAP)
 class WriteBarrierTypeForCagedHeapPolicy;
+#else   // !CPPGC_CAGED_HEAP
 class WriteBarrierTypeForNonCagedHeapPolicy;
+#endif  // !CPPGC_CAGED_HEAP
 
 class V8_EXPORT WriteBarrier final {
  public:
@@ -60,10 +67,8 @@ class V8_EXPORT WriteBarrier final {
   template <typename HeapHandleCallback>
   static V8_INLINE Type GetWriteBarrierType(const void* slot, Params& params,
                                             HeapHandleCallback callback);
-
-  template <typename HeapHandleCallback>
-  static V8_INLINE Type GetWriteBarrierTypeForExternallyReferencedObject(
-      const void* value, Params& params, HeapHandleCallback callback);
+  // Returns the required write barrier for a given  `value`.
+  static V8_INLINE Type GetWriteBarrierType(const void* value, Params& params);
 
   static V8_INLINE void DijkstraMarkingBarrier(const Params& params,
                                                const void* object);
@@ -75,9 +80,13 @@ class V8_EXPORT WriteBarrier final {
 #if defined(CPPGC_YOUNG_GENERATION)
   static V8_INLINE void GenerationalBarrier(const Params& params,
                                             const void* slot);
-#else   // !CPPGC_YOUNG_GENERATION
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const Params& params, const void* inner_pointer);
+#else  // !CPPGC_YOUNG_GENERATION
   static V8_INLINE void GenerationalBarrier(const Params& params,
                                             const void* slot) {}
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const Params& params, const void* inner_pointer) {}
 #endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS
@@ -115,8 +124,10 @@ class V8_EXPORT WriteBarrier final {
 #if defined(CPPGC_YOUNG_GENERATION)
   static CagedHeapLocalData& GetLocalData(HeapHandle&);
   static void GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
-                                      const AgeTable& ageTable,
+                                      const AgeTable& age_table,
                                       const void* slot, uintptr_t value_offset);
+  static void GenerationalBarrierForSourceObjectSlow(
+      const CagedHeapLocalData& local_data, const void* object);
 #endif  // CPPGC_YOUNG_GENERATION
 
   static AtomicEntryFlag incremental_or_concurrent_marking_flag_;
@@ -141,9 +152,20 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
   }
 
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
+    return GetNoSlot(value, params, callback);
+  }
+
+ private:
+  WriteBarrierTypeForCagedHeapPolicy() = delete;
+
   template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
-      const void* value, WriteBarrier::Params& params, HeapHandleCallback) {
+  static V8_INLINE WriteBarrier::Type GetNoSlot(const void* value,
+                                                WriteBarrier::Params& params,
+                                                HeapHandleCallback) {
     if (!TryGetCagedHeap(value, value, params)) {
       return WriteBarrier::Type::kNone;
     }
@@ -153,14 +175,14 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     return SetAndReturnType<WriteBarrier::Type::kNone>(params);
   }
 
- private:
-  WriteBarrierTypeForCagedHeapPolicy() = delete;
-
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
 
   static V8_INLINE bool TryGetCagedHeap(const void* slot, const void* value,
                                         WriteBarrier::Params& params) {
+    // TODO(chromium:1056170): Check if the null check can be folded in with
+    // the rest of the write barrier.
+    if (!value) return false;
     params.start = reinterpret_cast<uintptr_t>(value) &
                    ~(api_constants::kCagedHeapReservationAlignment - 1);
     const uintptr_t slot_offset =
@@ -187,6 +209,11 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
+#if !defined(CPPGC_YOUNG_GENERATION)
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
+#endif  // !CPPGC_YOUNG_GENERATION
     bool within_cage = TryGetCagedHeap(slot, value, params);
     if (!within_cage) {
       return WriteBarrier::Type::kNone;
@@ -251,10 +278,10 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
     return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
   }
 
-  template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
-      const void* value, WriteBarrier::Params& params,
-      HeapHandleCallback callback) {
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
     // The slot will never be used in `Get()` below.
     return Get<WriteBarrier::ValueMode::kValuePresent>(nullptr, value, params,
                                                        callback);
@@ -281,7 +308,10 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
                                           HeapHandleCallback callback) {
     // The following check covers nullptr as well as sentinel pointer.
     if (object <= static_cast<void*>(kSentinelPointer)) {
-      return WriteBarrier::Type::kNone;
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
     if (IsMarking(object, &params.heap)) {
       return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
@@ -325,12 +355,10 @@ WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
 }
 
 // static
-template <typename HeapHandleCallback>
-WriteBarrier::Type
-WriteBarrier::GetWriteBarrierTypeForExternallyReferencedObject(
-    const void* value, Params& params, HeapHandleCallback callback) {
-  return WriteBarrierTypePolicy::GetForExternallyReferenced(value, params,
-                                                            callback);
+WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
+    const void* value, WriteBarrier::Params& params) {
+  return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(value, params,
+                                                               []() {});
 }
 
 // static
@@ -377,9 +405,26 @@ void WriteBarrier::GenerationalBarrier(const Params& params, const void* slot) {
   const AgeTable& age_table = local_data.age_table;
 
   // Bail out if the slot is in young generation.
-  if (V8_LIKELY(age_table[params.slot_offset] == AgeTable::Age::kYoung)) return;
+  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
+    return;
 
   GenerationalBarrierSlow(local_data, age_table, slot, params.value_offset);
+}
+
+// static
+void WriteBarrier::GenerationalBarrierForSourceObject(
+    const Params& params, const void* inner_pointer) {
+  CheckParams(Type::kGenerational, params);
+
+  const CagedHeapLocalData& local_data = params.caged_heap();
+  const AgeTable& age_table = local_data.age_table;
+
+  // Assume that if the first element is in young generation, the whole range is
+  // in young generation.
+  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
+    return;
+
+  GenerationalBarrierForSourceObjectSlow(local_data, inner_pointer);
 }
 
 #endif  // !CPPGC_YOUNG_GENERATION

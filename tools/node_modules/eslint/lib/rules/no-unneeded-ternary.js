@@ -23,13 +23,13 @@ const OR_PRECEDENCE = astUtils.getPrecedence({ type: "LogicalExpression", operat
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow ternary operators when simpler alternatives exist",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unneeded-ternary"
         },

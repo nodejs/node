@@ -5,8 +5,8 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
 #define INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -38,6 +38,14 @@ static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 #endif
+
+static constexpr size_t kDefaultAlignment = sizeof(void*);
+
+// Maximum support alignment for a type as in `alignof(T)`.
+static constexpr size_t kMaxSupportedAlignment = 2 * kDefaultAlignment;
+
+// Granularity of heap allocations.
+constexpr size_t kAllocationGranularity = sizeof(void*);
 
 }  // namespace api_constants
 

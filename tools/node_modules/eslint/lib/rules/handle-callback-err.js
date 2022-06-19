@@ -1,6 +1,7 @@
 /**
  * @fileoverview Ensure handling of errors when we know they exist.
  * @author Jamund Ferguson
+ * @deprecated in ESLint v7.0.0
  */
 
 "use strict";
@@ -9,6 +10,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -19,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "require error handling in callbacks",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/handle-callback-err"
         },

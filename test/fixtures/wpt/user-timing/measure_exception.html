@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>exception test of window.performance.measure</title>
+<link rel="author" title="Intel" href="http://www.intel.com/" />
+<link rel="help" href="http://www.w3.org/TR/user-timing/#extensions-performance-interface"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/performance-timeline-utils.js"></script>
+<script src="resources/webperftestharness.js"></script>
+<script src="resources/webperftestharnessextension.js"></script>
+</head>
+
+<body>
+<h1>Description</h1>
+<p>This test validates all exception scenarios of method window.performance.measure in User Timing API</p>
+
+<div id="log"></div>
+<script>
+performance.mark('ExistMark');
+test_method_throw_exception('performance.measure()', TypeError);
+test_method_throw_exception('performance.measure("Exception1", "NonExistMark1")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception2", "NonExistMark1", "navigationStart")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception3", "navigationStart", "NonExistMark1")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception4", "NonExistMark1", "ExistMark")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception5", "ExistMark", "NonExistMark1")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception6", "NonExistMark1", "NonExistMark2")', 'SYNTAX_ERR');
+test_method_throw_exception('performance.measure("Exception7", "redirectStart")', 'INVALID_ACCESS_ERR');
+test_method_throw_exception('performance.measure("Exception8", {"detail": "non-empty"})', TypeError);
+test_method_throw_exception('performance.measure("Exception9", {"start": 1, "duration": 2, "end": 3})', TypeError);
+</script>
+</body>
+</html>

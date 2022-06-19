@@ -11,13 +11,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow reassigning exceptions in `catch` clauses",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-ex-assign"
         },

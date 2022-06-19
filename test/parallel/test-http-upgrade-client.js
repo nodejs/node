@@ -49,7 +49,7 @@ const server = net.createServer(function(c) {
   });
 });
 
-server.listen(0, '127.0.0.1', common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   const port = this.address().port;
   const headers = [
     {
@@ -82,7 +82,6 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
         assert.strictEqual(recvData.toString(), expectedRecvData);
       }));
 
-      console.log(res.headers);
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',

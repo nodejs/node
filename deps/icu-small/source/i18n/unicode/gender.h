@@ -67,7 +67,7 @@ public:
     /**
      * Determines the gender of a list as a whole given the gender of each
      * of the elements.
-     *
+     * 
      * @param genders the gender of each element in the list.
      * @param length the length of gender array.
      * @param status  Output param set to success/failure code on exit, which

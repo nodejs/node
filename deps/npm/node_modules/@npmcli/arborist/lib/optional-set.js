@@ -10,8 +10,9 @@
 
 const gatherDepSet = require('./gather-dep-set.js')
 const optionalSet = node => {
-  if (!node.optional)
+  if (!node.optional) {
     return new Set()
+  }
 
   // start with the node, then walk up the dependency graph until we
   // get to the boundaries that define the optional set.  since the
@@ -21,8 +22,9 @@ const optionalSet = node => {
   const set = new Set([node])
   for (const node of set) {
     for (const edge of node.edgesIn) {
-      if (!edge.optional)
+      if (!edge.optional) {
         set.add(edge.from)
+      }
     }
   }
 

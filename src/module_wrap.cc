@@ -5,7 +5,7 @@
 #include "node_contextify.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
@@ -46,7 +46,6 @@ using v8::PrimitiveArray;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
-using v8::ScriptOrModule;
 using v8::String;
 using v8::UnboundModuleScript;
 using v8::Undefined;
@@ -253,6 +252,21 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(that);
 }
 
+static Local<Object> createImportAssertionContainer(Environment* env,
+  Isolate* isolate, Local<FixedArray> raw_assertions) {
+  Local<Object> assertions =
+        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+  for (int i = 0; i < raw_assertions->Length(); i += 3) {
+      assertions
+          ->Set(env->context(),
+                raw_assertions->Get(env->context(), i).As<String>(),
+                raw_assertions->Get(env->context(), i + 1).As<Value>())
+          .ToChecked();
+  }
+
+  return assertions;
+}
+
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -288,14 +302,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     Local<FixedArray> raw_assertions = module_request->GetImportAssertions();
     Local<Object> assertions =
-        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
-    for (int i = 0; i < raw_assertions->Length(); i += 3) {
-      assertions
-          ->Set(env->context(),
-                Local<String>::Cast(raw_assertions->Get(env->context(), i)),
-                Local<Value>::Cast(raw_assertions->Get(env->context(), i + 1)))
-          .ToChecked();
-    }
+      createImportAssertionContainer(env, isolate, raw_assertions);
 
     Local<Value> argv[] = {
         specifier,
@@ -421,13 +428,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // If TLA is enabled, `result` is the evaluation's promise.
-  // Otherwise, `result` is the last evaluated value of the module,
-  // which could be a promise, which would result in it being incorrectly
-  // unwrapped when the higher level code awaits the evaluation.
-  if (env->isolate_data()->options()->experimental_top_level_await) {
-    args.GetReturnValue().Set(result.ToLocalChecked());
-  }
+  args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
 void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
@@ -551,7 +552,8 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
 
 static MaybeLocal<Promise> ImportModuleDynamically(
     Local<Context> context,
-    Local<ScriptOrModule> referrer,
+    Local<v8::Data> host_defined_options,
+    Local<Value> resource_name,
     Local<String> specifier,
     Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
@@ -566,7 +568,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Local<Function> import_callback =
     env->host_import_module_dynamically_callback();
 
-  Local<PrimitiveArray> options = referrer->GetHostDefinedOptions();
+  Local<FixedArray> options = host_defined_options.As<FixedArray>();
   if (options->Length() != HostDefinedOptions::kLength) {
     Local<Promise::Resolver> resolver;
     if (!Promise::Resolver::New(context).ToLocal(&resolver)) return {};
@@ -580,11 +582,11 @@ static MaybeLocal<Promise> ImportModuleDynamically(
 
   Local<Value> object;
 
-  int type = options->Get(isolate, HostDefinedOptions::kType)
+  int type = options->Get(context, HostDefinedOptions::kType)
                  .As<Number>()
                  ->Int32Value(context)
                  .ToChecked();
-  uint32_t id = options->Get(isolate, HostDefinedOptions::kID)
+  uint32_t id = options->Get(context, HostDefinedOptions::kID)
                     .As<Number>()
                     ->Uint32Value(context)
                     .ToChecked();
@@ -602,9 +604,13 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     UNREACHABLE();
   }
 
+  Local<Object> assertions =
+    createImportAssertionContainer(env, isolate, import_assertions);
+
   Local<Value> import_args[] = {
     object,
     Local<Value>(specifier),
+    assertions,
   };
 
   Local<Value> result;

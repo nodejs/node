@@ -46,13 +46,23 @@ exit /b 1
 
 :found-python
 echo Python found in %p%\python.exe
+call :check-python "%p%\python.exe"
+if errorlevel 1 goto :no-python
 endlocal ^
   & set "pt=%p%" ^
   & set "need_path_ext=%need_path%"
-set "VCBUILD_PYTHON_LOCATION=%pt%\python.exe"
 if %need_path_ext%==1 set "PATH=%pt%;%PATH%"
 set "pt="
 set "need_path_ext="
+exit /b 0
+
+:check-python
+%1 -V
+:: 9009 means error file not found
+if %errorlevel% equ 9009 (
+  echo Not an executable Python program
+  exit /b 1
+)
 exit /b 0
 
 :no-python

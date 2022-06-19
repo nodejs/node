@@ -10,7 +10,6 @@
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/wasm-compiler.h"
 #include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
@@ -19,6 +18,11 @@
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -84,8 +88,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter<Object>(1));
-  params.push_back(__ HeapConstant(
-      BuildTeardownFunction(isolate, call_descriptor, parameters)));
+  params.push_back(__ HeapConstant(ToCodeT(
+      BuildTeardownFunction(isolate, call_descriptor, parameters), isolate)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -110,7 +114,6 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
   params.push_back(state_out);
@@ -147,7 +150,6 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
     params.push_back(element);
   }
@@ -229,12 +231,12 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
-          TNode<Smi> lane_value =
-              __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
+          TNode<Smi> lane_value = __ SmiFromInt32(__ UncheckedCast<Int32T>(
+              tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
                       ->I32x4ExtractLane(lane),
-                  param));
+                  param)));
           __ StoreFixedArrayElement(vector, lane, lane_value,
                                     UNSAFE_SKIP_WRITE_BARRIER);
         }
@@ -242,7 +244,6 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
   __ Return(result_array);
@@ -440,12 +441,13 @@ class TestEnvironment : public HandleAndZoneScope {
     DCHECK_LE(kGeneralRegisterCount,
               GetRegConfig()->num_allocatable_general_registers() - 2);
 
-    int32_t general_mask = GetRegConfig()->allocatable_general_codes_mask();
+    RegList general_mask =
+        RegList::FromBits(GetRegConfig()->allocatable_general_codes_mask());
     // kReturnRegister0 is used to hold the "teardown" code object, do not
     // generate moves using it.
+    general_mask.clear(kReturnRegister0);
     std::unique_ptr<const RegisterConfiguration> registers(
-        RegisterConfiguration::RestrictGeneralRegisters(
-            general_mask & ~kReturnRegister0.bit()));
+        RegisterConfiguration::RestrictGeneralRegisters(general_mask));
 
     for (int i = 0; i < kGeneralRegisterCount; i++) {
       int code = registers->GetAllocatableGeneralCode(i);
@@ -459,7 +461,7 @@ class TestEnvironment : public HandleAndZoneScope {
         ((kDoubleRegisterCount % 2) == 0) && ((kDoubleRegisterCount % 3) == 0),
         "kDoubleRegisterCount should be a multiple of two and three.");
     for (int i = 0; i < kDoubleRegisterCount; i += 2) {
-      if (kSimpleFPAliasing) {
+      if (kFPAliasing != AliasingKind::kCombine) {
         // Allocate three registers at once if kSimd128 is supported, else
         // allocate in pairs.
         AddRegister(&test_signature, MachineRepresentation::kFloat32,
@@ -576,7 +578,7 @@ class TestEnvironment : public HandleAndZoneScope {
         kTotalStackParameterCount,      // stack_parameter_count
         Operator::kNoProperties,        // properties
         kNoCalleeSaved,                 // callee-saved registers
-        kNoCalleeSaved,                 // callee-saved fp
+        kNoCalleeSavedFp,               // callee-saved fp
         CallDescriptor::kNoFlags);      // flags
   }
 
@@ -668,7 +670,6 @@ class TestEnvironment : public HandleAndZoneScope {
         }
         default:
           UNREACHABLE();
-          break;
       }
     }
     return state;
@@ -696,7 +697,8 @@ class TestEnvironment : public HandleAndZoneScope {
       // return value will be freed along with it. Copy the result into
       // state_out.
       FunctionTester ft(setup, 2);
-      Handle<FixedArray> result = ft.CallChecked<FixedArray>(test, state_in);
+      Handle<FixedArray> result =
+          ft.CallChecked<FixedArray>(ToCodeT(test, main_isolate()), state_in);
       CHECK_EQ(result->length(), state_in->length());
       result->CopyTo(0, *state_out, 0, result->length());
     }
@@ -753,7 +755,6 @@ class TestEnvironment : public HandleAndZoneScope {
             break;
           default:
             UNREACHABLE();
-            break;
         }
         state_out->set(to_index, *constant_value);
       } else {
@@ -824,7 +825,6 @@ class TestEnvironment : public HandleAndZoneScope {
         return true;
       default:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -967,7 +967,7 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(),
+        info_(base::ArrayVector("test"), environment->main_zone(),
               CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
@@ -1004,9 +1004,8 @@ class CodeGeneratorTester {
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
-        Builtins::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
+        Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
     generator_->tasm()->CodeEntry();
@@ -1058,9 +1057,8 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, stack_slot_delta)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1081,8 +1079,7 @@ class CodeGeneratorTester {
     defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
     bool supported = ((push_type & CodeGenerator::kRegisterPush) == push_type);
-#elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \
-    defined(V8_TARGET_ARCH_X87)
+#elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
     bool supported = ((push_type & CodeGenerator::kScalarPush) == push_type);
 #else
     bool supported = false;
@@ -1147,9 +1144,9 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         first_unused_stack_slot)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1432,6 +1429,7 @@ TEST(AssembleTailCallGap) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
@@ -1441,7 +1439,7 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
+  auto native_module = wasm::GetWasmEngine()->NewNativeModule(
       isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
@@ -1484,8 +1482,8 @@ TEST(Regress_1171759) {
 
   m.Return(m.Int32Constant(0));
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                CodeKind::WASM_FUNCTION);
+  OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                handles.main_zone(), CodeKind::WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(
           &info, handles.main_isolate(), desc, m.graph(),
@@ -1531,6 +1529,7 @@ TEST(Regress_1171759) {
 
   CHECK_EQ(0, mt.Call());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

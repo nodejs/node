@@ -90,8 +90,8 @@ Running test: testScopesPaused
         scopeChain : [
             [0] : {
                 endLocation : {
-                    columnNumber : 13
-                    lineNumber : 14
+                    columnNumber : 3
+                    lineNumber : 15
                     scriptId : <scriptId>
                 }
                 name : run
@@ -102,8 +102,8 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 4
-                    lineNumber : 12
+                    columnNumber : 2
+                    lineNumber : 11
                     scriptId : <scriptId>
                 }
                 type : local
@@ -183,8 +183,8 @@ Running test: testScopesPaused
     [0] : {
         callFrameId : <callFrameId>
         functionLocation : {
-            columnNumber : 4
-            lineNumber : 12
+            columnNumber : 2
+            lineNumber : 11
             scriptId : <scriptId>
         }
         functionName : <instance_members_initializer>
@@ -364,8 +364,8 @@ Running test: testScopesPaused
     [0] : {
         callFrameId : <callFrameId>
         functionLocation : {
-            columnNumber : 4
-            lineNumber : 12
+            columnNumber : 2
+            lineNumber : 11
             scriptId : <scriptId>
         }
         functionName : <instance_members_initializer>
@@ -545,8 +545,8 @@ Running test: testScopesPaused
     [0] : {
         callFrameId : <callFrameId>
         functionLocation : {
-            columnNumber : 4
-            lineNumber : 12
+            columnNumber : 2
+            lineNumber : 11
             scriptId : <scriptId>
         }
         functionName : <instance_members_initializer>
@@ -798,8 +798,8 @@ Running test: testScopesPaused
     [1] : {
         callFrameId : <callFrameId>
         functionLocation : {
-            columnNumber : 4
-            lineNumber : 12
+            columnNumber : 2
+            lineNumber : 11
             scriptId : <scriptId>
         }
         functionName : <instance_members_initializer>

@@ -7,6 +7,8 @@
     'openssl/crypto/modes/',
     'openssl/crypto/ec/curve448',
     'openssl/crypto/ec/curve448/arch_32',
+    'openssl/providers/common/include',
+    'openssl/providers/implementations/include',
     'config/',
   ],
   # build options specific to OS
@@ -47,7 +49,6 @@
         'WARNING_CFLAGS': ['-Wno-missing-field-initializers']
       },
       'defines': [
-        'OPENSSLDIR="/System/Library/OpenSSL/"',
         'ENGINESDIR="/dev/null"',
       ],
     }, 'OS=="solaris"', {
@@ -60,7 +61,6 @@
       # linux and others
       'cflags': ['-Wno-missing-field-initializers',],
       'defines': [
-        'OPENSSLDIR="/etc/ssl"',
         'ENGINESDIR="/dev/null"',
         'TERMIOS',
       ],

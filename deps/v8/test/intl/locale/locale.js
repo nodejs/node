@@ -12,7 +12,7 @@ assertEquals("hr", (new Intl.Locale("scr")).toString());
 
 assertEquals("sr-Latn", (new Intl.Locale("sh")).toString());
 assertEquals("sr-ME", (new Intl.Locale("cnr")).toString());
-assertEquals("nb", (new Intl.Locale("no")).toString());
+assertEquals("no", (new Intl.Locale("no")).toString());
 assertEquals("fil", (new Intl.Locale("tl")).toString());
 
 assertEquals("hy-AM", (new Intl.Locale("hy-SU")).toString());

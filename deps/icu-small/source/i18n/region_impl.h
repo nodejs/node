@@ -17,7 +17,7 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
-
+    
 #include "uvector.h"
 #include "unicode/strenum.h"
 
@@ -26,13 +26,17 @@ U_NAMESPACE_BEGIN
 
 class RegionNameEnumeration : public StringEnumeration {
 public:
-    RegionNameEnumeration(UVector *fNameList, UErrorCode& status);
+    /**
+     * Construct an string enumeration over the supplied name list.
+     * Makes a copy of the supplied input name list; does not retain a reference to the original.
+     */
+    RegionNameEnumeration(UVector *nameList, UErrorCode& status);
     virtual ~RegionNameEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
-    virtual const UnicodeString* snext(UErrorCode& status);
-    virtual void reset(UErrorCode& status);
-    virtual int32_t count(UErrorCode& status) const;
+    virtual UClassID getDynamicClassID(void) const override;
+    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual void reset(UErrorCode& status) override;
+    virtual int32_t count(UErrorCode& status) const override;
 private:
     int32_t pos;
     UVector *fRegionNames;

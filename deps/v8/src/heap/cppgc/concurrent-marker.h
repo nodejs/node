@@ -24,9 +24,10 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
   ConcurrentMarkerBase& operator=(const ConcurrentMarkerBase&) = delete;
 
   void Start();
-  void Cancel();
-
-  void JoinForTesting();
+  // Returns whether the job has been joined.
+  bool Join();
+  // Returns whether the job has been cancelled.
+  bool Cancel();
 
   void NotifyIncrementalMutatorStepCompleted();
 

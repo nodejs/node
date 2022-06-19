@@ -46,6 +46,10 @@ ENGINE_unregister_digests
 
  #include <openssl/engine.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  ENGINE *ENGINE_get_first(void);
  ENGINE *ENGINE_get_last(void);
  ENGINE *ENGINE_get_next(ENGINE *e);
@@ -154,13 +158,16 @@ ENGINE_unregister_digests
  EVP_PKEY *ENGINE_load_public_key(ENGINE *e, const char *key_id,
                                   UI_METHOD *ui_method, void *callback_data);
 
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
- #if OPENSSL_API_COMPAT < 0x10100000L
- void ENGINE_cleanup(void)
- #endif
+ void ENGINE_cleanup(void);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use the provider APIs.
 
 These functions create, manipulate, and use cryptographic modules in the
 form of B<ENGINE> objects. These objects act as containers for
@@ -240,7 +247,7 @@ released on behalf of the caller.
 
 To clarify a particular function's handling of references, one should
 always consult that function's documentation "man" page, or failing that
-the openssl/engine.h header file includes some hints.
+the F<< <openssl/engine.h> >> header file includes some hints.
 
 I<Functional references>
 
@@ -333,7 +340,7 @@ acceleration hardware attached to the machine or some such thing. There are
 probably numerous other ways in which applications may prefer to handle
 things, so we will simply illustrate the consequences as they apply to a
 couple of simple cases and leave developers to consider these and the
-source code to openssl's builtin utilities as guides.
+source code to openssl's built-in utilities as guides.
 
 If no ENGINE API functions are called within an application, then OpenSSL
 will not allocate any internal resources.  Prior to OpenSSL 1.1.0, however,
@@ -346,7 +353,7 @@ Here we'll assume an application has been configured by its user or admin
 to want to use the "ACME" ENGINE if it is available in the version of
 OpenSSL the application was compiled with. If it is available, it should be
 used by default for all RSA, DSA, and symmetric cipher operations, otherwise
-OpenSSL should use its builtin software as per usual. The following code
+OpenSSL should use its built-in software as per usual. The following code
 illustrates how to approach this;
 
  ENGINE *e;
@@ -374,7 +381,7 @@ illustrates how to approach this;
  /* Release the structural reference from ENGINE_by_id() */
  ENGINE_free(e);
 
-I<Automatically using builtin ENGINE implementations>
+I<Automatically using built-in ENGINE implementations>
 
 Here we'll assume we want to load and register all ENGINE implementations
 bundled with OpenSSL, such that for any cryptographic algorithm required by
@@ -422,7 +429,7 @@ calling ENGINE_init(). The other class of commands consist of settings or
 operations that tweak certain behaviour or cause certain operations to take
 place, and these commands may work either before or after ENGINE_init(), or
 in some cases both. ENGINE implementations should provide indications of
-this in the descriptions attached to builtin control commands and/or in
+this in the descriptions attached to built-in control commands and/or in
 external product documentation.
 
 I<Issuing control commands to an ENGINE>
@@ -491,10 +498,10 @@ and input parameters of the control commands supported by an ENGINE using a
 structural reference. Note that some control commands are defined by OpenSSL
 itself and it will intercept and handle these control commands on behalf of the
 ENGINE, i.e. the ENGINE's ctrl() handler is not used for the control command.
-openssl/engine.h defines an index, ENGINE_CMD_BASE, that all control commands
-implemented by ENGINEs should be numbered from. Any command value lower than
-this symbol is considered a "generic" command is handled directly by the
-OpenSSL core routines.
+F<< <openssl/engine.h> >> defines an index, ENGINE_CMD_BASE, that all control
+commands implemented by ENGINEs should be numbered from. Any command value
+lower than this symbol is considered a "generic" command is handled directly
+by the OpenSSL core routines.
 
 It is using these "core" control commands that one can discover the control
 commands implemented by a given ENGINE, specifically the commands:
@@ -597,8 +604,7 @@ B<ENGINE> implementations.
 
 All ENGINE_register_TYPE() functions return 1 on success or 0 on error.
 
-ENGINE_register_complete() and ENGINE_register_all_complete() return 1 on success
-or 0 on error.
+ENGINE_register_complete() and ENGINE_register_all_complete() always return 1.
 
 ENGINE_ctrl() returns a positive value on success or others on error.
 
@@ -609,7 +615,7 @@ ENGINE_ctrl_cmd() and ENGINE_ctrl_cmd_string() return 1 on success or 0 on error
 ENGINE_new() returns a valid B<ENGINE> structure on success or NULL if an error
 occurred.
 
-ENGINE_free() returns 1 on success or 0 on error.
+ENGINE_free() always returns 1.
 
 ENGINE_up_ref() returns 1 on success or 0 on error.
 
@@ -651,15 +657,17 @@ L<RAND_bytes(3)>, L<config(5)>
 
 =head1 HISTORY
 
+All of these functions were deprecated in OpenSSL 3.0.
+
 ENGINE_cleanup() was deprecated in OpenSSL 1.1.0 by the automatic cleanup
 done by OPENSSL_cleanup()
 and should not be used.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

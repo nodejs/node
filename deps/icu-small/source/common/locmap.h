@@ -9,7 +9,7 @@
 ******************************************************************************
 *
 * File locmap.h      : Locale Mapping Classes
-*
+* 
 *
 * Created by: Helena Shih
 *
@@ -37,3 +37,4 @@ U_CAPI uint32_t uprv_convertToLCIDPlatform(const char* localeID, UErrorCode* sta
 U_CAPI uint32_t uprv_convertToLCID(const char* langID, const char* posixID, UErrorCode* status);
 
 #endif /* LOCMAP_H */
+

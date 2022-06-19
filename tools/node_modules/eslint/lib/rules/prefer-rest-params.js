@@ -59,13 +59,13 @@ function isNotNormalMemberAccess(reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require rest parameters instead of `arguments`",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-rest-params"
         },

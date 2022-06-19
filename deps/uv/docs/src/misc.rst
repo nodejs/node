@@ -377,6 +377,10 @@ API
 
     Convert a binary structure containing an IPv6 address to a string.
 
+.. c:function:: int uv_ip_name(const struct sockaddr *src, char *dst, size_t size)
+
+    Convert a binary structure containing an IPv4 address or an IPv6 address to a string.
+
 .. c:function:: int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
 .. c:function:: int uv_inet_pton(int af, const char* src, void* dst)
 
@@ -533,7 +537,7 @@ API
 
     .. note::
         This function currently only returns a non-zero value on Linux, based
-        on cgroups if it is present.
+        on cgroups if it is present, and on z/OS based on RLIMIT_MEMLIMIT.
 
     .. versionadded:: 1.29.0
 
@@ -732,7 +736,7 @@ API
       :man:`sysctl(2)`.
     - FreeBSD: `getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_`,
       or `/dev/urandom` after reading from `/dev/random` once.
-    - NetBSD: `KERN_ARND` `sysctl(3) <https://netbsd.gw.com/cgi-bin/man-cgi?sysctl+3+NetBSD-current>_`
+    - NetBSD: `KERN_ARND` `sysctl(7) <https://man.netbsd.org/sysctl.7>_`
     - macOS, OpenBSD: `getentropy(2) <https://man.openbsd.org/getentropy.2>_`
       if available, or `/dev/urandom` after reading from `/dev/random` once.
     - AIX: `/dev/random`.

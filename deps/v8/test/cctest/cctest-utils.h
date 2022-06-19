@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "src/base/build_config.h"
+#include "src/base/sanitizer/asan.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -45,6 +46,9 @@ namespace internal {
 #elif V8_TARGET_ARCH_RISCV64
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("add %0, sp, x0" : "=r"(sp_addr))
+#elif V8_HOST_ARCH_LOONG64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("st.d $sp, %0" : "=m"(sp_addr))
 #else
 #error Host architecture was not detected as supported by v8
 #endif

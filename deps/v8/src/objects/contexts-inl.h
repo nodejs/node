@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
@@ -30,13 +31,16 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
 CAST_ACCESSOR(ScriptContextTable)
 
-int ScriptContextTable::synchronized_used() const {
-  return Smi::ToInt(get(kUsedSlotIndex, kAcquireLoad));
+int ScriptContextTable::used(AcquireLoadTag tag) const {
+  return Smi::ToInt(get(kUsedSlotIndex, tag));
 }
 
-void ScriptContextTable::synchronized_set_used(int used) {
-  set(kUsedSlotIndex, Smi::FromInt(used), kReleaseStore);
+void ScriptContextTable::set_used(int used, ReleaseStoreTag tag) {
+  set(kUsedSlotIndex, Smi::FromInt(used), tag);
 }
+
+ACCESSORS(ScriptContextTable, names_to_context_index, NameToIndexHashTable,
+          kHashTableOffset)
 
 // static
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
@@ -46,8 +50,13 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 }
 
 Context ScriptContextTable::get_context(int i) const {
-  DCHECK_LT(i, synchronized_used());
-  return Context::cast(this->get(i + kFirstContextSlotIndex));
+  DCHECK_LT(i, used(kAcquireLoad));
+  return Context::cast(get(i + kFirstContextSlotIndex));
+}
+
+Context ScriptContextTable::get_context(int i, AcquireLoadTag tag) const {
+  DCHECK_LT(i, used(kAcquireLoad));
+  return Context::cast(get(i + kFirstContextSlotIndex, tag));
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
@@ -55,63 +64,78 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 CAST_ACCESSOR(NativeContext)
 
-V8_INLINE Object Context::get(int index) const { return elements(index); }
-V8_INLINE Object Context::get(IsolateRoot isolate, int index) const {
-  return elements(isolate, index);
-}
-V8_INLINE void Context::set(int index, Object value) {
-  set_elements(index, value);
-}
-V8_INLINE void Context::set(int index, Object value, WriteBarrierMode mode) {
-  set_elements(index, value, mode);
+RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
+
+Object Context::get(int index) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-void Context::set_scope_info(ScopeInfo scope_info) {
-  set(SCOPE_INFO_INDEX, scope_info);
-}
-
-Object Context::synchronized_get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return synchronized_get(isolate, index);
-}
-
-Object Context::synchronized_get(IsolateRoot isolate, int index) const {
+Object Context::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(this->length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
+                                           OffsetOfElementAt(index));
+}
+
+void Context::set(int index, Object value, WriteBarrierMode mode) {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(length(kRelaxedLoad)));
+  const int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+Object Context::get(int index, AcquireLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index, tag);
+}
+
+Object Context::get(PtrComprCageBase cage_base, int index,
+                    AcquireLoadTag) const {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
-void Context::synchronized_set(int index, Object value) {
+void Context::set(int index, Object value, WriteBarrierMode mode,
+                  ReleaseStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(this->length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   const int offset = OffsetOfElementAt(index);
   RELEASE_WRITE_FIELD(*this, offset, value);
-  WRITE_BARRIER(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-Object Context::unchecked_previous() { return get(PREVIOUS_INDEX); }
+void NativeContext::set(int index, Object value, WriteBarrierMode mode,
+                        ReleaseStoreTag tag) {
+  Context::set(index, value, mode, tag);
+}
 
-Context Context::previous() {
+ACCESSORS(Context, scope_info, ScopeInfo, kScopeInfoOffset)
+
+Object Context::unchecked_previous() const { return get(PREVIOUS_INDEX); }
+
+Context Context::previous() const {
   Object result = get(PREVIOUS_INDEX);
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
   return Context::unchecked_cast(result);
 }
-void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
+void Context::set_previous(Context context, WriteBarrierMode mode) {
+  set(PREVIOUS_INDEX, context, mode);
+}
 
-Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
+Object Context::next_context_link() const {
+  return get(Context::NEXT_CONTEXT_LINK);
+}
 
-bool Context::has_extension() {
+bool Context::has_extension() const {
   return scope_info().HasContextExtensionSlot() && !extension().IsUndefined();
 }
 
-HeapObject Context::extension() {
+HeapObject Context::extension() const {
   DCHECK(scope_info().HasContextExtensionSlot());
   return HeapObject::cast(get(EXTENSION_INDEX));
-}
-
-void Context::set_extension(HeapObject object) {
-  DCHECK(scope_info().HasContextExtensionSlot());
-  set(EXTENSION_INDEX, object);
 }
 
 NativeContext Context::native_context() const {
@@ -159,18 +183,22 @@ bool Context::HasSameSecurityTokenAs(Context that) const {
          that.native_context().security_token();
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void Context::set_##name(type value) {                  \
-    DCHECK(IsNativeContext());                            \
-    set(index, value);                                    \
-  }                                                       \
-  bool Context::is_##name(type value) const {             \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index)) == value;               \
-  }                                                       \
-  type Context::name() const {                            \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index));                        \
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
+  void Context::set_##name(type value) {                    \
+    DCHECK(IsNativeContext());                              \
+    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore); \
+  }                                                         \
+  bool Context::is_##name(type value) const {               \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index)) == value;                 \
+  }                                                         \
+  type Context::name() const {                              \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index));                          \
+  }                                                         \
+  type Context::name(AcquireLoadTag tag) const {            \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index, tag));                     \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
@@ -240,12 +268,14 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 }
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
   return reinterpret_cast<MicrotaskQueue*>(ReadExternalPointerField(
       kMicrotaskQueueOffset, isolate, kNativeContextMicrotaskQueueTag));
 }
 
 void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kMicrotaskQueueOffset, isolate);
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate,
+                           kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,
@@ -257,15 +287,29 @@ void NativeContext::set_microtask_queue(Isolate* isolate,
 
 void NativeContext::synchronized_set_script_context_table(
     ScriptContextTable script_context_table) {
-  synchronized_set(SCRIPT_CONTEXT_TABLE_INDEX, script_context_table);
+  set(SCRIPT_CONTEXT_TABLE_INDEX, script_context_table, UPDATE_WRITE_BARRIER,
+      kReleaseStore);
 }
 
 ScriptContextTable NativeContext::synchronized_script_context_table() const {
-  return ScriptContextTable::cast(synchronized_get(SCRIPT_CONTEXT_TABLE_INDEX));
+  return ScriptContextTable::cast(
+      get(SCRIPT_CONTEXT_TABLE_INDEX, kAcquireLoad));
 }
 
-OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
-  return OSROptimizedCodeCache::cast(osr_code_cache());
+void NativeContext::SetOptimizedCodeListHead(Object head) {
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+}
+
+Object NativeContext::OptimizedCodeListHead() {
+  return get(OPTIMIZED_CODE_LIST);
+}
+
+void NativeContext::SetDeoptimizedCodeListHead(Object head) {
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+}
+
+Object NativeContext::DeoptimizedCodeListHead() {
+  return get(DEOPTIMIZED_CODE_LIST);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

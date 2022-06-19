@@ -2,7 +2,8 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_process.h"
+#include "node_i18n.h"
+#include "node_process-inl.h"
 
 #include <time.h>  // tzset(), _tzset()
 
@@ -27,6 +28,7 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
+using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
 using v8::ReadOnly;
 using v8::String;
@@ -69,15 +71,32 @@ std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
 template <typename T>
-void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
+void DateTimeConfigurationChangeNotification(
+    Isolate* isolate,
+    const T& key,
+    const char* val = nullptr) {
   if (key.length() == 2 && key[0] == 'T' && key[1] == 'Z') {
 #ifdef __POSIX__
     tzset();
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
 #else
     _tzset();
+
+# if defined(NODE_HAVE_I18N_SUPPORT)
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kSkip);
+
+    // On windows, the TZ environment is not supported out of the box.
+    // By default, v8 will only be able to detect the system configured
+    // timezone. This supports using the TZ environment variable to set
+    // the default timezone instead.
+    if (val != nullptr) i18n::SetDefaultTimeZone(val);
+# else
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
+# endif
 #endif
-    auto constexpr time_zone_detection = Isolate::TimeZoneDetection::kRedetect;
-    isolate->DateTimeConfigurationChangeNotification(time_zone_detection);
   }
 }
 
@@ -128,7 +147,7 @@ void RealEnvStore::Set(Isolate* isolate,
   if (key.length() > 0 && key[0] == '=') return;
 #endif
   uv_os_setenv(*key, *val);
-  DateTimeConfigurationChangeNotification(isolate, key);
+  DateTimeConfigurationChangeNotification(isolate, key, *val);
 }
 
 int32_t RealEnvStore::Query(const char* key) const {
@@ -378,11 +397,57 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       env->env_vars()->Enumerate(env->isolate()));
 }
 
+static void EnvDefiner(Local<Name> property,
+                       const PropertyDescriptor& desc,
+                       const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (desc.has_value()) {
+    if (!desc.has_writable() ||
+        !desc.has_enumerable() ||
+        !desc.has_configurable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+    } else if (!desc.configurable() ||
+               !desc.enumerable() ||
+               !desc.writable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+    } else {
+      return EnvSetter(property, desc.value(), info);
+    }
+  } else if (desc.has_get() || desc.has_set()) {
+    // we don't accept a getter/setter in 'process.env'
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                             "'process.env' does not accept an"
+                                             "accessor(getter/setter)"
+                                             " descriptor");
+  } else {
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                             "'process.env' only accepts a "
+                                             "configurable, writable,"
+                                             " and enumerable "
+                                             "data descriptor");
+  }
+}
+
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
-      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Local<Value>(),
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
@@ -393,6 +458,7 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvQuery);
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
+  registry->Register(EnvDefiner);
 }
 }  // namespace node
 

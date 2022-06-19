@@ -5,10 +5,12 @@
 #include "src/compiler/escape-analysis.h"
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/handles/handles-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/map-inl.h"
@@ -223,6 +225,11 @@ class EscapeAnalysisTracker : public ZoneObject {
     Node* ContextInput() {
       return tracker_->ResolveReplacement(
           NodeProperties::GetContextInput(current_node()));
+    }
+    // Accessing the current node is fine for `FrameState nodes.
+    Node* CurrentNode() {
+      DCHECK_EQ(current_node()->opcode(), IrOpcode::kFrameState);
+      return current_node();
     }
 
     void SetReplacement(Node* replacement) {
@@ -510,12 +517,15 @@ int OffsetOfFieldAccess(const Operator* op) {
   return access.offset;
 }
 
-int OffsetOfElementAt(ElementAccess const& access, int index) {
+Maybe<int> OffsetOfElementAt(ElementAccess const& access, int index) {
+  MachineRepresentation representation = access.machine_type.representation();
+  // Double elements accesses are not yet supported. See chromium:1237821.
+  if (representation == MachineRepresentation::kFloat64) return Nothing<int>();
+
   DCHECK_GE(index, 0);
-  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-            kTaggedSizeLog2);
-  return access.header_size +
-         (index << ElementSizeLog2Of(access.machine_type.representation()));
+  DCHECK_GE(ElementSizeLog2Of(representation), kTaggedSizeLog2);
+  return Just(access.header_size +
+              (index << ElementSizeLog2Of(representation)));
 }
 
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
@@ -527,7 +537,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   double min = index_type.Min();
   int index = static_cast<int>(min);
   if (index < 0 || index != min || index != max) return Nothing<int>();
-  return Just(OffsetOfElementAt(ElementAccessOf(op), index));
+  return OffsetOfElementAt(ElementAccessOf(op), index);
 }
 
 Node* LowerCompareMapsWithoutLoad(Node* checked_map,
@@ -796,9 +806,25 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kStateValues:
-    case IrOpcode::kFrameState:
       // These uses are always safe.
       break;
+    case IrOpcode::kFrameState: {
+      // We mark the receiver as escaping due to the non-standard `.getThis`
+      // API.
+      FrameState frame_state{current->CurrentNode()};
+      if (frame_state.frame_state_info().type() !=
+          FrameStateType::kUnoptimizedFunction)
+        break;
+      StateValuesAccess::iterator it =
+          StateValuesAccess(frame_state.parameters()).begin();
+      if (!it.done()) {
+        if (Node* receiver = it.node()) {
+          current->SetEscaped(receiver);
+        }
+        current->SetEscaped(frame_state.function());
+      }
+      break;
+    }
     default: {
       // For unknown nodes, treat all value inputs as escaping.
       int value_input_count = op->ValueInputCount();

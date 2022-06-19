@@ -8,6 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -134,9 +135,9 @@ struct RawPreparseData {};
 
 void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
   uint8_t* raw_zone_data = zone->NewArray<uint8_t, RawPreparseData>(index_);
-  base::Memcpy(raw_zone_data, byte_data_->data(), index_);
+  memcpy(raw_zone_data, byte_data_->data(), index_);
   byte_data_->resize(0);
-  zone_byte_data_ = Vector<uint8_t>(raw_zone_data, index_);
+  zone_byte_data_ = base::Vector<uint8_t>(raw_zone_data, index_);
 #ifdef DEBUG
   is_finalized_ = true;
 #endif
@@ -255,7 +256,7 @@ void PreparseDataBuilder::AddChild(PreparseDataBuilder* child) {
 
 void PreparseDataBuilder::FinalizeChildren(Zone* zone) {
   DCHECK(!finalized_children_);
-  Vector<PreparseDataBuilder*> children =
+  base::Vector<PreparseDataBuilder*> children =
       CloneVector(zone, children_buffer_.ToConstVector());
   children_buffer_.Rewind();
   children_ = children;
@@ -528,8 +529,10 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
   }
 
   Handle<PreparseData> Serialize(LocalIsolate* isolate) final {
-    // Not required.
-    UNREACHABLE();
+    DCHECK(!data_->is_null());
+    DCHECK_IMPLIES(!isolate->is_main_thread(),
+                   isolate->heap()->ContainsLocalHandle(data_.location()));
+    return data_;
   }
 
   ZonePreparseData* Serialize(Zone* zone) final {
@@ -553,7 +556,11 @@ class ZoneProducedPreparseData final : public ProducedPreparseData {
     return data_->Serialize(isolate);
   }
 
-  ZonePreparseData* Serialize(Zone* zone) final { return data_; }
+  ZonePreparseData* Serialize(Zone* zone) final {
+    base::Vector<uint8_t> data(data_->byte_data()->data(),
+                               data_->byte_data()->size());
+    return zone->New<ZonePreparseData>(zone, &data, data_->children_length());
+  }
 
  private:
   ZonePreparseData* data_;
@@ -666,12 +673,13 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();
   }
   if (ShouldSaveClassVariableIndexField::decode(scope_data_flags)) {
-    Variable* var;
-    // An anonymous class whose class variable needs to be saved do not
+    Variable* var = scope->AsClassScope()->class_variable();
+    // An anonymous class whose class variable needs to be saved might not
     // have the class variable created during reparse since we skip parsing
     // the inner scopes that contain potential access to static private
     // methods. So create it now.
-    if (scope->AsClassScope()->is_anonymous_class()) {
+    if (var == nullptr) {
+      DCHECK(scope->AsClassScope()->is_anonymous_class());
       var = scope->AsClassScope()->DeclareClassVariable(
           ast_value_factory, nullptr, kNoSourcePosition);
       AstNodeFactory factory(ast_value_factory, zone);
@@ -679,9 +687,6 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
           factory.NewVariableDeclaration(kNoSourcePosition);
       scope->declarations()->Add(declaration);
       declaration->set_var(var);
-    } else {
-      var = scope->AsClassScope()->class_variable();
-      DCHECK_NOT_NULL(var);
     }
     var->set_is_used();
     var->ForceContextAllocation();
@@ -767,14 +772,14 @@ ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
 }
 
 OnHeapConsumedPreparseData::OnHeapConsumedPreparseData(
-    Isolate* isolate, Handle<PreparseData> data)
+    LocalIsolate* isolate, Handle<PreparseData> data)
     : BaseConsumedPreparseData<PreparseData>(), isolate_(isolate), data_(data) {
   DCHECK_NOT_NULL(isolate);
   DCHECK(data->IsPreparseData());
   DCHECK(VerifyDataStart());
 }
 
-ZonePreparseData::ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
+ZonePreparseData::ZonePreparseData(Zone* zone, base::Vector<uint8_t>* byte_data,
                                    int children_length)
     : byte_data_(byte_data->begin(), byte_data->end(), zone),
       children_(children_length, zone) {}
@@ -831,6 +836,11 @@ ProducedPreparseData* ZoneConsumedPreparseData::GetChildData(Zone* zone,
 
 std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
     Isolate* isolate, Handle<PreparseData> data) {
+  return ConsumedPreparseData::For(isolate->main_thread_local_isolate(), data);
+}
+
+std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
+    LocalIsolate* isolate, Handle<PreparseData> data) {
   DCHECK(!data.is_null());
   return std::make_unique<OnHeapConsumedPreparseData>(isolate, data);
 }

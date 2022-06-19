@@ -33,9 +33,9 @@ TEST_IMPL(handle_type_name) {
   ASSERT(strcmp(uv_handle_type_name(UV_NAMED_PIPE), "pipe") == 0);
   ASSERT(strcmp(uv_handle_type_name(UV_UDP), "udp") == 0);
   ASSERT(strcmp(uv_handle_type_name(UV_FILE), "file") == 0);
-  ASSERT(uv_handle_type_name(UV_HANDLE_TYPE_MAX) == NULL);
-  ASSERT(uv_handle_type_name(UV_HANDLE_TYPE_MAX + 1) == NULL);
-  ASSERT(uv_handle_type_name(UV_UNKNOWN_HANDLE) == NULL);
+  ASSERT_NULL(uv_handle_type_name(UV_HANDLE_TYPE_MAX));
+  ASSERT_NULL(uv_handle_type_name(UV_HANDLE_TYPE_MAX + 1));
+  ASSERT_NULL(uv_handle_type_name(UV_UNKNOWN_HANDLE));
   return 0;
 }
 
@@ -44,9 +44,9 @@ TEST_IMPL(req_type_name) {
   ASSERT(strcmp(uv_req_type_name(UV_REQ), "req") == 0);
   ASSERT(strcmp(uv_req_type_name(UV_UDP_SEND), "udp_send") == 0);
   ASSERT(strcmp(uv_req_type_name(UV_WORK), "work") == 0);
-  ASSERT(uv_req_type_name(UV_REQ_TYPE_MAX) == NULL);
-  ASSERT(uv_req_type_name(UV_REQ_TYPE_MAX + 1) == NULL);
-  ASSERT(uv_req_type_name(UV_UNKNOWN_REQ) == NULL);
+  ASSERT_NULL(uv_req_type_name(UV_REQ_TYPE_MAX));
+  ASSERT_NULL(uv_req_type_name(UV_REQ_TYPE_MAX + 1));
+  ASSERT_NULL(uv_req_type_name(UV_UNKNOWN_REQ));
   return 0;
 }
 
@@ -58,7 +58,7 @@ TEST_IMPL(getters_setters) {
   int r;
 
   loop = malloc(uv_loop_size());
-  ASSERT(loop != NULL);
+  ASSERT_NOT_NULL(loop);
   r = uv_loop_init(loop);
   ASSERT(r == 0);
 

@@ -1243,10 +1243,11 @@ assert.throws(
 {
   let threw = false;
   try {
+    // eslint-disable-next-line no-restricted-syntax
     assert.deepStrictEqual(Array(100).fill(1), 'foobar');
   } catch (err) {
     threw = true;
-    assert(/actual: \[Array],\n  expected: 'foobar',/.test(inspect(err)));
+    assert.match(inspect(err), /actual: \[Array],\n {2}expected: 'foobar',/);
   }
   assert(threw);
 }

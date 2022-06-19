@@ -25,13 +25,13 @@ const OVERRIDE_SCHEMA = {
     ]
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent spacing around `*` operators in generator functions",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/generator-star-spacing"
         },

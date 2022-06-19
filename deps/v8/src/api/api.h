@@ -7,6 +7,11 @@
 
 #include <memory>
 
+#include "include/v8-container.h"
+#include "include/v8-external.h"
+#include "include/v8-proxy.h"
+#include "include/v8-typed-array.h"
+#include "include/v8-wasm.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/bigint.h"
@@ -18,11 +23,15 @@
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/templates.h"
 #include "src/utils/detachable-vector.h"
 
-#include "src/objects/templates.h"
-
 namespace v8 {
+
+class AccessorSignature;
+class Extension;
+class Signature;
+class Template;
 
 namespace internal {
 class JSArrayBufferView;
@@ -32,8 +41,9 @@ class JSFinalizationRegistry;
 namespace debug {
 class AccessorPair;
 class GeneratorObject;
+class ScriptSource;
 class Script;
-class WeakMap;
+class EphemeronTable;
 }  // namespace debug
 
 // Constants used in the implementation of the API.  The most natural thing
@@ -125,17 +135,18 @@ class RegisteredExtension {
   V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
+  V(debug::ScriptSource, HeapObject)           \
   V(debug::Script, Script)                     \
-  V(debug::WeakMap, JSWeakMap)                 \
+  V(debug::EphemeronTable, EphemeronHashTable) \
   V(debug::AccessorPair, AccessorPair)         \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)                    \
+  V(ScriptOrModule, ScriptOrModule)            \
   V(FixedArray, FixedArray)                    \
   V(ModuleRequest, ModuleRequest)              \
-  V(WasmMemoryObject, WasmMemoryObject)
+  IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
  public:
@@ -245,8 +256,8 @@ class Utils {
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
-      v8::internal::Handle<v8::internal::Script> obj);
+  static inline Local<ScriptOrModule> ToLocal(
+      v8::internal::Handle<v8::internal::ScriptOrModule> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To)                              \
   static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
@@ -458,14 +469,9 @@ bool HandleScopeImplementer::HasSavedContexts() {
   return !saved_contexts_.empty();
 }
 
-void HandleScopeImplementer::EnterContext(Context context) {
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(0);
-}
-
 void HandleScopeImplementer::LeaveContext() {
   DCHECK(!entered_contexts_.empty());
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.pop_back();
   is_microtask_context_.pop_back();
@@ -473,12 +479,6 @@ void HandleScopeImplementer::LeaveContext() {
 
 bool HandleScopeImplementer::LastEnteredContextWas(Context context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == context;
-}
-
-void HandleScopeImplementer::EnterMicrotaskContext(Context context) {
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(1);
 }
 
 // If there's a spare block, use it for growing the current scope.
@@ -535,6 +535,10 @@ void InvokeFinalizationRegistryCleanupFromTask(
     Handle<Context> context,
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+T ConvertDouble(double d);
 
 }  // namespace internal
 }  // namespace v8

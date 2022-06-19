@@ -6,7 +6,7 @@
 // Compile functions 0 and 2 with Turbofan, the rest with Liftoff:
 // Flags: --wasm-tier-mask-for-testing=5
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_functions = 5;
 

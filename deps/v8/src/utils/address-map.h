@@ -5,7 +5,6 @@
 #ifndef V8_UTILS_ADDRESS_MAP_H_
 #define V8_UTILS_ADDRESS_MAP_H_
 
-#include "include/v8.h"
 #include "src/base/hashmap.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/heap-object.h"

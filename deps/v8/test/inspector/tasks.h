@@ -7,8 +7,11 @@
 
 #include <vector>
 
+#include "include/v8-context.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
-#include "include/v8.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-primitive.h"
 #include "src/base/platform/semaphore.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
@@ -27,7 +30,7 @@ void RunSyncTask(TaskRunner* task_runner, T callback) {
     bool is_priority_task() final { return true; }
 
    private:
-    void Run(IsolateData* data) override {
+    void Run(InspectorIsolateData* data) override {
       callback_(data);
       if (ready_semaphore_) ready_semaphore_->Signal();
     }
@@ -48,7 +51,7 @@ class SendMessageToBackendTask : public TaskRunner::Task {
   bool is_priority_task() final { return true; }
 
  private:
-  void Run(IsolateData* data) override {
+  void Run(InspectorIsolateData* data) override {
     v8_inspector::StringView message_view(message_.data(), message_.size());
     data->SendMessage(session_id_, message_view);
   }
@@ -68,7 +71,7 @@ inline void RunAsyncTask(TaskRunner* task_runner,
     AsyncTask(const AsyncTask&) = delete;
     AsyncTask& operator=(const AsyncTask&) = delete;
     bool is_priority_task() override { return inner_->is_priority_task(); }
-    void Run(IsolateData* data) override {
+    void Run(InspectorIsolateData* data) override {
       data->AsyncTaskStarted(inner_.get());
       inner_->Run(data);
       data->AsyncTaskFinished(inner_.get());
@@ -104,7 +107,7 @@ class ExecuteStringTask : public TaskRunner::Task {
   ExecuteStringTask(const ExecuteStringTask&) = delete;
   ExecuteStringTask& operator=(const ExecuteStringTask&) = delete;
   bool is_priority_task() override { return false; }
-  void Run(IsolateData* data) override;
+  void Run(InspectorIsolateData* data) override;
 
  private:
   std::vector<uint16_t> expression_;
@@ -125,7 +128,7 @@ class SetTimeoutTask : public TaskRunner::Task {
   bool is_priority_task() final { return false; }
 
  private:
-  void Run(IsolateData* data) override {
+  void Run(InspectorIsolateData* data) override {
     v8::MicrotasksScope microtasks_scope(data->isolate(),
                                          v8::MicrotasksScope::kRunMicrotasks);
     v8::HandleScope handle_scope(data->isolate());
@@ -141,7 +144,7 @@ class SetTimeoutTask : public TaskRunner::Task {
   int context_group_id_;
 };
 
-class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
+class SetTimeoutExtension : public InspectorIsolateData::SetupGlobalTask {
  public:
   void Run(v8::Isolate* isolate,
            v8::Local<v8::ObjectTemplate> global) override {
@@ -159,7 +162,7 @@ class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
     }
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    IsolateData* data = IsolateData::FromContext(context);
+    InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
     const char* task_name = "setTimeout";
     v8_inspector::StringView task_name_view(

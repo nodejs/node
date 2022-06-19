@@ -23,12 +23,12 @@ struct OtherNoName : public GarbageCollected<OtherNoName> {
   virtual void Trace(Visitor*) const {}
 };
 
-class ClassWithName final : public GarbageCollected<OtherNoName>,
+class ClassWithName final : public GarbageCollected<ClassWithName>,
                             public NameProvider {
  public:
   explicit ClassWithName(const char* name) : name_(name) {}
   virtual void Trace(Visitor*) const {}
-  const char* GetName() const final { return name_; }
+  const char* GetHumanReadableName() const final { return name_; }
 
  private:
   const char* name_;
@@ -98,7 +98,7 @@ class HeapObjectHeaderNameTest : public testing::TestWithHeap {};
 
 TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
   auto* no_name = MakeGarbageCollected<NoName>(GetAllocationHandle());
-  auto no_name_tuple = HeapObjectHeader::FromPayload(no_name).GetName();
+  auto no_name_tuple = HeapObjectHeader::FromObject(no_name).GetName();
   if (NameProvider::HideInternalNames()) {
     EXPECT_STREQ(NameProvider::kHiddenName, no_name_tuple.value);
     EXPECT_TRUE(no_name_tuple.name_was_hidden);
@@ -111,7 +111,7 @@ TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
   auto* other_no_name =
       MakeGarbageCollected<OtherNoName>(GetAllocationHandle());
   auto other_no_name_tuple =
-      HeapObjectHeader::FromPayload(other_no_name).GetName();
+      HeapObjectHeader::FromObject(other_no_name).GetName();
   if (NameProvider::HideInternalNames()) {
     EXPECT_STREQ(NameProvider::kHiddenName, no_name_tuple.value);
     EXPECT_TRUE(no_name_tuple.name_was_hidden);
@@ -124,7 +124,7 @@ TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
   auto* class_with_name =
       MakeGarbageCollected<ClassWithName>(GetAllocationHandle(), "CustomName");
   auto class_with_name_tuple =
-      HeapObjectHeader::FromPayload(class_with_name).GetName();
+      HeapObjectHeader::FromObject(class_with_name).GetName();
   EXPECT_STREQ("CustomName", class_with_name_tuple.value);
   EXPECT_FALSE(class_with_name_tuple.name_was_hidden);
 }

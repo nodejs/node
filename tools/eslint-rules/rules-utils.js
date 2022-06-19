@@ -20,6 +20,14 @@ module.exports.isDefiningError = function(node) {
          node.expression.arguments.length !== 0;
 };
 
+module.exports.isDefiningDeprecation = function(node) {
+  return node.expression &&
+         node.expression.type === 'CallExpression' &&
+         node.expression.callee &&
+         node.expression.callee.name.endsWith('deprecate') &&
+         node.expression.arguments.length !== 0;
+};
+
 /**
  * Returns true if any of the passed in modules are used in
  * require calls.
@@ -30,9 +38,9 @@ module.exports.isRequired = function(node, modules) {
 };
 
 /**
-* Return true if common module is required
-* in AST Node under inspection
-*/
+ * Return true if common module is required
+ * in AST Node under inspection
+ */
 const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
   return isRequireCall(node) &&

@@ -1,8 +1,0 @@
-file:///*/test/fixtures/es-module-loaders/syntax-error-import.mjs:1
-import { foo, notfound } from './module-named-exports.mjs';
-              ^^^^^^^^
-SyntaxError: The requested module './module-named-exports.mjs' does not provide an export named 'notfound'
-    at ModuleJob._instantiate (node:internal/modules/esm/module_job:*:*)
-    at async ModuleJob.run (node:internal/modules/esm/module_job:*:*)
-    at async Loader.import (node:internal/modules/esm/loader:*:*)
-    at async Object.loadESM (node:internal/process/esm_loader:*:*)

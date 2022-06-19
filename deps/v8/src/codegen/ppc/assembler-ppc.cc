@@ -54,6 +54,14 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
+  return CpuFeatures::IsSupported(PPC_9_PLUS);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 128;
@@ -61,55 +69,39 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-// Detect whether frim instruction is supported (POWER5+)
-// For now we will just check for processors we know do not
-// support it
-#ifndef USE_SIMULATOR
-  // Probe for additional features at runtime.
+// Probe for additional features at runtime.
+#ifdef USE_SIMULATOR
+  // Simulator
+  supported_ |= (1u << PPC_10_PLUS);
+#else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::PPC_POWER9) {
-    supported_ |= (1u << MODULO);
-  }
-#if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
-    supported_ |= (1u << FPR_GPR_MOV);
-  }
+  if (cpu.part() == base::CPU::kPPCPower10) {
+// IBMi does not yet support prefixed instructions introduced on Power10.
+// Run on P9 mode until OS adds support.
+#if defined(__PASE__)
+    supported_ |= (1u << PPC_9_PLUS);
+#else
+    supported_ |= (1u << PPC_10_PLUS);
 #endif
-  if (cpu.part() == base::CPU::PPC_POWER6 ||
-      cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
-    supported_ |= (1u << LWSYNC);
-  }
-  if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8 ||
-      cpu.part() == base::CPU::PPC_POWER9) {
-    supported_ |= (1u << ISELECT);
-    supported_ |= (1u << VSX);
+  } else if (cpu.part() == base::CPU::kPPCPower9) {
+    supported_ |= (1u << PPC_9_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower8) {
+    supported_ |= (1u << PPC_8_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower7) {
+    supported_ |= (1u << PPC_7_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower6) {
+    supported_ |= (1u << PPC_6_PLUS);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
-    // Assume support
-    supported_ |= (1u << FPU);
-  }
-  if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
+  if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
     icache_line_size_ = cpu.icache_line_size();
   }
-#elif V8_OS_AIX
-  // Assume support FP support and default cache line size
-  supported_ |= (1u << FPU);
-#endif
-#else  // Simulator
-  supported_ |= (1u << FPU);
-  supported_ |= (1u << LWSYNC);
-  supported_ |= (1u << ISELECT);
-  supported_ |= (1u << VSX);
-  supported_ |= (1u << MODULO);
-#if V8_TARGET_ARCH_PPC64
-  supported_ |= (1u << FPR_GPR_MOV);
 #endif
 #endif
+  if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
+  if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
+  if (supported_ & (1u << PPC_8_PLUS)) supported_ |= (1u << PPC_7_PLUS);
+  if (supported_ & (1u << PPC_7_PLUS)) supported_ |= (1u << PPC_6_PLUS);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -131,12 +123,11 @@ void CpuFeatures::PrintTarget() {
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
-  printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
-  printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
-  printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
-  printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
+  printf("PPC_6_PLUS=%d\n", CpuFeatures::IsSupported(PPC_6_PLUS));
+  printf("PPC_7_PLUS=%d\n", CpuFeatures::IsSupported(PPC_7_PLUS));
+  printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
+  printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
+  printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
 }
 
 Register ToRegister(int num) {
@@ -202,11 +193,14 @@ Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset)
+MemOperand::MemOperand(Register rn, int64_t offset)
     : ra_(rn), offset_(offset), rb_(no_reg) {}
 
 MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
+
+MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
+    : ra_(ra), offset_(offset), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
@@ -238,7 +232,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(ip.bit()),
+      scratch_register_list_({ip}),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -288,7 +282,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -315,7 +309,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 bool Assembler::IsLis(Instr instr) {
@@ -847,6 +840,10 @@ void Assembler::mullw(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | MULLW, dst, src1, src2, o, r);
 }
 
+void Assembler::mulli(Register dst, Register src, const Operand& imm) {
+  d_form(MULLI, dst, src, imm.immediate(), true);
+}
+
 // Multiply hi word
 void Assembler::mulhw(Register dst, Register src1, Register src2, RCBit r) {
   xo_form(EXT2 | MULHWX, dst, src1, src2, LeaveOE, r);
@@ -1144,6 +1141,110 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
+// Prefixed instructions.
+#define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
+  CHECK(is_int34(immediate));                                       \
+  int32_t prefix =                                                  \
+      SIGN_EXT_IMM18((immediate >> 16) & kImm18Mask); /* 18 bits.*/ \
+  int16_t suffix = immediate & kImm16Mask;            /* 16 bits.*/ \
+  DCHECK(is_int18(prefix));
+
+void Assembler::paddi(Register dst, Register src, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  DCHECK(src != r0);  // use pli instead to show intent.
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  addi(dst, src, Operand(lo));
+}
+
+void Assembler::pli(Register dst, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  li(dst, Operand(lo));
+}
+
+void Assembler::psubi(Register dst, Register src, const Operand& imm) {
+  paddi(dst, src, Operand(-(imm.immediate())));
+}
+
+void Assembler::plbz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lbz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plhz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lhz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plha(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lha(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lwz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwa(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLWA | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pld(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLD | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::plfs(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfs(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfd(dst, MemOperand(src.ra(), lo));
+}
+#undef GENERATE_PREFIX_SUFFIX_BITS
+
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
@@ -1171,7 +1272,9 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
 #else
   bool allowOverflow = !(canOptimize || dst == r0);
 #endif
-  if (canOptimize && is_int16(value)) {
+  if (canOptimize &&
+      (is_int16(value) ||
+       (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
     // Prefer a single-instruction load-immediate.
     return false;
   }
@@ -1194,7 +1297,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->options().record_reloc_info_for_serialization;
-  } else if (RelocInfo::IsNone(rmode_)) {
+  } else if (RelocInfo::IsNoInfo(rmode_)) {
     return false;
   }
   return true;
@@ -1218,7 +1321,10 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
 
   canOptimize =
-      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+      !(relocatable ||
+        (is_trampoline_pool_blocked() &&
+         (!is_int16(value) ||
+          !(CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))));
 
   if (!src.IsHeapObjectRequest() &&
       use_constant_pool_for_mov(dst, src, canOptimize)) {
@@ -1248,6 +1354,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   if (canOptimize) {
     if (is_int16(value)) {
       li(dst, Operand(value));
+    } else if (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)) {
+      pli(dst, Operand(value));
     } else {
       uint16_t u16;
 #if V8_TARGET_ARCH_PPC64
@@ -1329,6 +1437,15 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
     addis(dst, src, Operand(SIGN_EXT_IMM16(hi_word)));
     addic(dst, dst, Operand(SIGN_EXT_IMM16(lo_word)));
   }
+}
+
+void Assembler::patch_wasm_cpi_return_address(Register dst, int pc_offset,
+                                              int return_address_offset) {
+  DCHECK(is_int16(return_address_offset));
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + pc_offset, kInstrSize + kGap));
+  patching_assembler.addi(dst, dst, Operand(return_address_offset));
 }
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
@@ -1475,7 +1592,7 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
-void Assembler::mtcrf(unsigned char FXM, Register src) {
+void Assembler::mtcrf(Register src, uint8_t FXM) {
   emit(MTCRF | src.code() * B21 | FXM * B12);
 }
 #if V8_TARGET_ARCH_PPC64
@@ -1625,6 +1742,12 @@ void Assembler::fadd(const DoubleRegister frt, const DoubleRegister fra,
 void Assembler::fmul(const DoubleRegister frt, const DoubleRegister fra,
                      const DoubleRegister frc, RCBit rc) {
   emit(EXT4 | FMUL | frt.code() * B21 | fra.code() * B16 | frc.code() * B6 |
+       rc);
+}
+
+void Assembler::fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
+                       const DoubleRegister frb, RCBit rc) {
+  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        rc);
 }
 
@@ -1805,69 +1928,94 @@ void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
 }
 
 void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
        TX);
 }
 
+void Assembler::lxvx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXVX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
 void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
        TX);
 }
 
 void Assembler::lxsibzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXSIBZX | rt.code() * B21 | src.ra().code() * B16 |
        src.rb().code() * B11 | TX);
 }
 
 void Assembler::lxsihzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXSIHZX | rt.code() * B21 | src.ra().code() * B16 |
        src.rb().code() * B11 | TX);
 }
 
 void Assembler::lxsiwzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXSIWZX | rt.code() * B21 | src.ra().code() * B16 |
        src.rb().code() * B11 | TX);
 }
 
-void Assembler::stxsdx(const Simd128Register rs, const MemOperand& src) {
+void Assembler::stxsdx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
-  emit(STXSDX | rs.code() * B21 | src.ra().code() * B16 |
-       src.rb().code() * B11 | SX);
+  emit(STXSDX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
 }
 
-void Assembler::stxsibx(const Simd128Register rs, const MemOperand& src) {
+void Assembler::stxsibx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
-  emit(STXSIBX | rs.code() * B21 | src.ra().code() * B16 |
-       src.rb().code() * B11 | SX);
+  emit(STXSIBX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
 }
 
-void Assembler::stxsihx(const Simd128Register rs, const MemOperand& src) {
+void Assembler::stxsihx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
-  emit(STXSIHX | rs.code() * B21 | src.ra().code() * B16 |
-       src.rb().code() * B11 | SX);
+  emit(STXSIHX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
 }
 
-void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& src) {
+void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
-  emit(STXSIWX | rs.code() * B21 | src.ra().code() * B16 |
-       src.rb().code() * B11 | SX);
+  emit(STXSIWX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
 }
 
 void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
   emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::stxvx(const Simd128Register rt, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXVX | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
        SX);
 }
 
 void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   int TX = 1;
   CHECK(is_uint8(imm.immediate()));
-  emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
+  emit(XXSPLTIB | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0xFF) * B11 |
+       TX);
 }
 
 // Pseudo instructions.
@@ -1956,8 +2104,9 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint32_t*>(pc_) = data;
@@ -1966,8 +2115,9 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint64_t*>(pc_) = value;
@@ -1976,8 +2126,9 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 
 void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uintptr_t*>(pc_) = data;
@@ -2075,11 +2226,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
 }
 
 }  // namespace internal

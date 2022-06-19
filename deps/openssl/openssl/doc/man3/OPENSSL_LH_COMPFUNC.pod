@@ -6,20 +6,25 @@ LHASH, DECLARE_LHASH_OF,
 OPENSSL_LH_COMPFUNC, OPENSSL_LH_HASHFUNC, OPENSSL_LH_DOALL_FUNC,
 LHASH_DOALL_ARG_FN_TYPE,
 IMPLEMENT_LHASH_HASH_FN, IMPLEMENT_LHASH_COMP_FN,
-lh_TYPE_new, lh_TYPE_free,
+lh_TYPE_new, lh_TYPE_free, lh_TYPE_flush,
 lh_TYPE_insert, lh_TYPE_delete, lh_TYPE_retrieve,
-lh_TYPE_doall, lh_TYPE_doall_arg, lh_TYPE_error - dynamic hash table
+lh_TYPE_doall, lh_TYPE_doall_arg, lh_TYPE_error,
+OPENSSL_LH_new, OPENSSL_LH_free,  OPENSSL_LH_flush,
+OPENSSL_LH_insert, OPENSSL_LH_delete, OPENSSL_LH_retrieve,
+OPENSSL_LH_doall, OPENSSL_LH_doall_arg, OPENSSL_LH_error
+- dynamic hash table
 
 =head1 SYNOPSIS
 
-=for comment generic
+=for openssl generic
 
  #include <openssl/lhash.h>
 
  DECLARE_LHASH_OF(TYPE);
 
- LHASH *lh_TYPE_new(OPENSSL_LH_HASHFUNC hash, OPENSSL_LH_COMPFUNC compare);
+ LHASH_OF(TYPE) *lh_TYPE_new(OPENSSL_LH_HASHFUNC hash, OPENSSL_LH_COMPFUNC compare);
  void lh_TYPE_free(LHASH_OF(TYPE) *table);
+ void lh_TYPE_flush(LHASH_OF(TYPE) *table);
 
  TYPE *lh_TYPE_insert(LHASH_OF(TYPE) *table, TYPE *data);
  TYPE *lh_TYPE_delete(LHASH_OF(TYPE) *table, TYPE *data);
@@ -36,29 +41,42 @@ lh_TYPE_doall, lh_TYPE_doall_arg, lh_TYPE_error - dynamic hash table
  typedef void (*OPENSSL_LH_DOALL_FUNC)(const void *);
  typedef void (*LHASH_DOALL_ARG_FN_TYPE)(const void *, const void *);
 
+ OPENSSL_LHASH *OPENSSL_LH_new(OPENSSL_LH_HASHFUNC h, OPENSSL_LH_COMPFUNC c);
+ void OPENSSL_LH_free(OPENSSL_LHASH *lh);
+ void OPENSSL_LH_flush(OPENSSL_LHASH *lh);
+
+ void *OPENSSL_LH_insert(OPENSSL_LHASH *lh, void *data);
+ void *OPENSSL_LH_delete(OPENSSL_LHASH *lh, const void *data);
+ void *OPENSSL_LH_retrieve(OPENSSL_LHASH *lh, const void *data);
+
+ void OPENSSL_LH_doall(OPENSSL_LHASH *lh, OPENSSL_LH_DOALL_FUNC func);
+ void OPENSSL_LH_doall_arg(OPENSSL_LHASH *lh, OPENSSL_LH_DOALL_FUNCARG func, void *arg);
+
+ int OPENSSL_LH_error(OPENSSL_LHASH *lh);
+
 =head1 DESCRIPTION
 
 This library implements type-checked dynamic hash tables. The hash
 table entries can be arbitrary structures. Usually they consist of key
-and value fields.  In the description here, I<TYPE> is used a placeholder
+and value fields.  In the description here, B<I<TYPE>> is used a placeholder
 for any of the OpenSSL datatypes, such as I<SSL_SESSION>.
 
-lh_TYPE_new() creates a new B<LHASH_OF(TYPE)> structure to store
+B<lh_I<TYPE>_new>() creates a new B<LHASH_OF>(B<I<TYPE>>) structure to store
 arbitrary data entries, and specifies the 'hash' and 'compare'
-callbacks to be used in organising the table's entries.  The B<hash>
+callbacks to be used in organising the table's entries.  The I<hash>
 callback takes a pointer to a table entry as its argument and returns
 an unsigned long hash value for its key field.  The hash value is
 normally truncated to a power of 2, so make sure that your hash
-function returns well mixed low order bits.  The B<compare> callback
+function returns well mixed low order bits.  The I<compare> callback
 takes two arguments (pointers to two hash table entries), and returns
 0 if their keys are equal, nonzero otherwise.
 
 If your hash table
-will contain items of some particular type and the B<hash> and
-B<compare> callbacks hash/compare these types, then the
+will contain items of some particular type and the I<hash> and
+I<compare> callbacks hash/compare these types, then the
 B<IMPLEMENT_LHASH_HASH_FN> and B<IMPLEMENT_LHASH_COMP_FN> macros can be
 used to create callback wrappers of the prototypes required by
-lh_TYPE_new() as shown in this example:
+B<lh_I<TYPE>_new>() as shown in this example:
 
  /*
   * Implement the hash and compare functions; "stuff" can be any word.
@@ -84,30 +102,35 @@ can be used in a common header file to declare the function wrappers:
  DECLARE_LHASH_HASH_FN(stuff, TYPE)
  DECLARE_LHASH_COMP_FN(stuff, TYPE)
 
-Then a hash table of TYPE objects can be created using this:
+Then a hash table of B<I<TYPE>> objects can be created using this:
 
  LHASH_OF(TYPE) *htable;
 
- htable = lh_TYPE_new(LHASH_HASH_FN(stuff), LHASH_COMP_FN(stuff));
+ htable = B<lh_I<TYPE>_new>(LHASH_HASH_FN(stuff), LHASH_COMP_FN(stuff));
 
-lh_TYPE_free() frees the B<LHASH_OF(TYPE)> structure
-B<table>. Allocated hash table entries will not be freed; consider
-using lh_TYPE_doall() to deallocate any remaining entries in the
+B<lh_I<TYPE>_free>() frees the B<LHASH_OF>(B<I<TYPE>>) structure
+I<table>. Allocated hash table entries will not be freed; consider
+using B<lh_I<TYPE>_doall>() to deallocate any remaining entries in the
 hash table (see below).
 
-lh_TYPE_insert() inserts the structure pointed to by B<data> into
-B<table>.  If there already is an entry with the same key, the old
-value is replaced. Note that lh_TYPE_insert() stores pointers, the
+B<lh_I<TYPE>_flush>() empties the B<LHASH_OF>(B<I<TYPE>>) structure I<table>. New
+entries can be added to the flushed table.  Allocated hash table entries
+will not be freed; consider using B<lh_I<TYPE>_doall>() to deallocate any
+remaining entries in the hash table (see below).
+
+B<lh_I<TYPE>_insert>() inserts the structure pointed to by I<data> into
+I<table>.  If there already is an entry with the same key, the old
+value is replaced. Note that B<lh_I<TYPE>_insert>() stores pointers, the
 data are not copied.
 
-lh_TYPE_delete() deletes an entry from B<table>.
+B<lh_I<TYPE>_delete>() deletes an entry from I<table>.
 
-lh_TYPE_retrieve() looks up an entry in B<table>. Normally, B<data>
+B<lh_I<TYPE>_retrieve>() looks up an entry in I<table>. Normally, I<data>
 is a structure with the key field(s) set; the function will return a
 pointer to a fully populated structure.
 
-lh_TYPE_doall() will, for every entry in the hash table, call
-B<func> with the data item as its parameter.
+B<lh_I<TYPE>_doall>() will, for every entry in the hash table, call
+I<func> with the data item as its parameter.
 For example:
 
  /* Cleans up resources belonging to 'a' (this is implemented elsewhere) */
@@ -131,9 +154,9 @@ you start (which will stop the hash table ever decreasing in size).
 The best solution is probably to avoid deleting items from the hash
 table inside a "doall" callback!
 
-lh_TYPE_doall_arg() is the same as lh_TYPE_doall() except that
-B<func> will be called with B<arg> as the second argument and B<func>
-should be of type B<LHASH_DOALL_ARG_FN_TYPE> (a callback prototype
+B<lh_I<TYPE>_doall_arg>() is the same as B<lh_I<TYPE>_doall>() except that
+I<func> will be called with I<arg> as the second argument and I<func>
+should be of type B<LHASH_DOALL_ARG_FN>(B<I<TYPE>>) (a callback prototype
 that is passed both the table entry and an extra argument).  As with
 lh_doall(), you can instead choose to declare your callback with a
 prototype matching the types you are dealing with and use the
@@ -153,36 +176,53 @@ that is provided by the caller):
                    logging_bio);
 
 
-lh_TYPE_error() can be used to determine if an error occurred in the last
+B<lh_I<TYPE>_error>() can be used to determine if an error occurred in the last
 operation.
+
+OPENSSL_LH_new() is the same as the B<lh_I<TYPE>_new>() except that it is not
+type specific. So instead of returning an B<LHASH_OF(I<TYPE>)> value it returns
+a B<void *>. In the same way the functions OPENSSL_LH_free(),
+OPENSSL_LH_flush(), OPENSSL_LH_insert(), OPENSSL_LH_delete(),
+OPENSSL_LH_retrieve(), OPENSSL_LH_doall(), OPENSSL_LH_doall_arg(), and
+OPENSSL_LH_error() are equivalent to the similarly named B<lh_I<TYPE>> functions
+except that they return or use a B<void *> where the equivalent B<lh_I<TYPE>>
+function returns or uses a B<I<TYPE> *> or B<LHASH_OF(I<TYPE>) *>. B<lh_I<TYPE>>
+functions are implemented as type checked wrappers around the B<OPENSSL_LH>
+functions. Most applications should not call the B<OPENSSL_LH> functions
+directly.
 
 =head1 RETURN VALUES
 
-lh_TYPE_new() returns B<NULL> on error, otherwise a pointer to the new
-B<LHASH> structure.
+B<lh_I<TYPE>_new>() and OPENSSL_LH_new() return NULL on error, otherwise a
+pointer to the new B<LHASH> structure.
 
-When a hash table entry is replaced, lh_TYPE_insert() returns the value
-being replaced. B<NULL> is returned on normal operation and on error.
+When a hash table entry is replaced, B<lh_I<TYPE>_insert>() or
+OPENSSL_LH_insert() return the value being replaced. NULL is returned on normal
+operation and on error.
 
-lh_TYPE_delete() returns the entry being deleted.  B<NULL> is returned if
-there is no such value in the hash table.
+B<lh_I<TYPE>_delete>() and OPENSSL_LH_delete() return the entry being deleted.
+NULL is returned if there is no such value in the hash table.
 
-lh_TYPE_retrieve() returns the hash table entry if it has been found,
-B<NULL> otherwise.
+B<lh_I<TYPE>_retrieve>() and OPENSSL_LH_retrieve() return the hash table entry
+if it has been found, NULL otherwise.
 
-lh_TYPE_error() returns 1 if an error occurred in the last operation, 0
-otherwise. It's meaningful only after non-retrieve operations.
+B<lh_I<TYPE>_error>() and OPENSSL_LH_error() return 1 if an error occurred in
+the last operation, 0 otherwise. It's meaningful only after non-retrieve
+operations.
 
-lh_TYPE_free(), lh_TYPE_doall() and lh_TYPE_doall_arg() return no values.
+B<lh_I<TYPE>_free>(), OPENSSL_LH_free(), B<lh_I<TYPE>_flush>(),
+OPENSSL_LH_flush(), B<lh_I<TYPE>_doall>() OPENSSL_LH_doall(),
+B<lh_I<TYPE>_doall_arg>() and OPENSSL_LH_doall_arg() return no values.
 
 =head1 NOTE
 
 The LHASH code is not thread safe. All updating operations, as well as
-lh_TYPE_error call must be performed under a write lock. All retrieve
-operations should be performed under a read lock, I<unless> accurate
-usage statistics are desired. In which case, a write lock should be used
-for retrieve operations as well. For output of the usage statistics,
-using the functions from L<OPENSSL_LH_stats(3)>, a read lock suffices.
+B<lh_I<TYPE>_error>() or OPENSSL_LH_error() calls must be performed under
+a write lock. All retrieve operations should be performed under a read lock,
+I<unless> accurate usage statistics are desired. In which case, a write lock
+should be used for retrieve operations as well. For output of the usage
+statistics, using the functions from L<OPENSSL_LH_stats(3)>, a read lock
+suffices.
 
 The LHASH code regards table entries as constant data.  As such, it
 internally represents lh_insert()'d items with a "const void *"
@@ -216,7 +256,8 @@ without any "const" qualifiers.
 
 =head1 BUGS
 
-lh_TYPE_insert() returns B<NULL> both for success and error.
+B<lh_I<TYPE>_insert>() and OPENSSL_LH_insert() return NULL both for success
+and error.
 
 =head1 SEE ALSO
 
@@ -229,9 +270,9 @@ type checking.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

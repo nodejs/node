@@ -78,7 +78,8 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.initialize(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\._start" property must be undefined/
+        message: 'The "instance.exports._start" property must be' +
+          ' undefined. Received function _start',
       }
     );
   }

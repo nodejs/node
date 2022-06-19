@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-profile</title>
 <style>
 body {
@@ -141,16 +142,21 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm profile get [--json|--parseable] [&lt;property&gt;]
-npm profile set [--json|--parseable] &lt;property&gt; &lt;value&gt;
-npm profile set password
-npm profile enable-2fa [auth-and-writes|auth-only]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm profile enable-2fa [auth-only|auth-and-writes]
 npm profile disable-2fa
+npm profile get [&lt;key&gt;]
+npm profile set &lt;key&gt; &lt;value&gt;
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Change your profile information on the registry.  Note that this command
@@ -190,7 +196,7 @@ homepage, freenode, twitter, github</p>
 </li>
 <li>
 <p><code>npm profile set password</code>: Change your password.  This is interactive,
-you’ll be prompted for your current password and a new password.  You’ll
+you'll be prompted for your current password and a new password.  You'll
 also be prompted for an OTP if you have two-factor authentication
 enabled.</p>
 </li>
@@ -199,7 +205,7 @@ enabled.</p>
 authentication. Defaults to <code>auth-and-writes</code> mode. Modes are:</p>
 <ul>
 <li><code>auth-only</code>: Require an OTP when logging in or making changes to your
-account’s authentication.  The OTP will be required on both the website
+account's authentication.  The OTP will be required on both the website
 and the command line.</li>
 <li><code>auth-and-writes</code>: Requires an OTP at all the times <code>auth-only</code> does,
 and also requires one when publishing a module, setting the <code>latest</code>
@@ -211,14 +217,62 @@ dist-tag, or changing access via <code>npm access</code> and <code>npm owner</co
 </li>
 </ul>
 <h3 id="details">Details</h3>
-<p>All of the <code>npm profile</code> subcommands accept <code>--json</code> and <code>--parseable</code> and
-will tailor their output based on those.  Some of these commands may not be
-available on non npmjs.com registries.</p>
+<p>Some of these commands may not be available on non npmjs.com registries.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="parseable"><code>parseable</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>
-<li><a href="../commands/npm-logout.html">npm logout</a></li>
+<li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+<li><a href="../commands/npm-owner.html">npm owner</a></li>
+<li><a href="../commands/npm-whoami.html">npm whoami</a></li>
+<li><a href="../commands/npm-token.html">npm token</a></li>
 </ul>
 </div>
 

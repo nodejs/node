@@ -40,10 +40,6 @@ class V8_EXPORT_PRIVATE HandlerTable {
     UNCAUGHT,     // The handler will (likely) rethrow the exception.
     CAUGHT,       // The exception will be caught by the handler.
     PROMISE,      // The exception will be caught and cause a promise rejection.
-    DESUGARING,   // The exception will be caught, but both the exception and
-                  // the catching are part of a desugaring and should therefore
-                  // not be visible to the user (we won't notify the debugger of
-                  // such exceptions).
     ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
                   // in the desugaring of an async function, so special
                   // async/await handling in the debugger can take place.
@@ -58,7 +54,9 @@ class V8_EXPORT_PRIVATE HandlerTable {
   // Constructors for the various encodings.
   explicit HandlerTable(Code code);
   explicit HandlerTable(ByteArray byte_array);
+#if V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(const wasm::WasmCode* code);
+#endif  // V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(BytecodeArray bytecode_array);
   HandlerTable(Address handler_table, int handler_table_size,
                EncodingMode encoding_mode);
@@ -95,8 +93,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
   int NumberOfReturnEntries() const;
 
 #ifdef ENABLE_DISASSEMBLER
-  void HandlerTableRangePrint(std::ostream& os);   // NOLINT
-  void HandlerTableReturnPrint(std::ostream& os);  // NOLINT
+  void HandlerTableRangePrint(std::ostream& os);
+  void HandlerTableReturnPrint(std::ostream& os);
 #endif
 
  private:

@@ -4,9 +4,12 @@
 
 #include "src/extensions/statistics-extension.h"
 
+#include "include/v8-template.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/logging/counters.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -96,11 +99,21 @@ void StatisticsExtension::GetCounters(
     const char* name;
   };
 
+  size_t new_space_size = 0;
+  size_t new_space_available = 0;
+  size_t new_space_committed_memory = 0;
+
+  if (heap->new_space()) {
+    new_space_size = heap->new_space()->Size();
+    new_space_available = heap->new_space()->Available();
+    new_space_committed_memory = heap->new_space()->CommittedMemory();
+  }
+
   const StatisticNumber numbers[] = {
       {heap->memory_allocator()->Size(), "total_committed_bytes"},
-      {heap->new_space()->Size(), "new_space_live_bytes"},
-      {heap->new_space()->Available(), "new_space_available_bytes"},
-      {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},
+      {new_space_size, "new_space_live_bytes"},
+      {new_space_available, "new_space_available_bytes"},
+      {new_space_committed_memory, "new_space_commited_bytes"},
       {heap->old_space()->Size(), "old_space_live_bytes"},
       {heap->old_space()->Available(), "old_space_available_bytes"},
       {heap->old_space()->CommittedMemory(), "old_space_commited_bytes"},
@@ -122,24 +135,33 @@ void StatisticsExtension::GetCounters(
 
   AddNumber64(args.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
-  args.GetReturnValue().Set(result);
 
-  HeapObjectIterator iterator(
-      reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
   int reloc_info_total = 0;
   int source_position_table_total = 0;
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (obj.IsCode()) {
-      Code code = Code::cast(obj);
-      reloc_info_total += code.relocation_info().Size();
-      ByteArray source_position_table = code.SourcePositionTable();
-      if (source_position_table.length() > 0) {
-        source_position_table_total += code.SourcePositionTable().Size();
+  {
+    HeapObjectIterator iterator(
+        reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+    DCHECK(!AllowGarbageCollection::IsAllowed());
+    for (HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      Object maybe_source_positions;
+      if (obj.IsCode()) {
+        Code code = Code::cast(obj);
+        reloc_info_total += code.relocation_info().Size();
+        // Baseline code doesn't have source positions since it uses
+        // interpreter code positions.
+        if (code.kind() == CodeKind::BASELINE) continue;
+        maybe_source_positions = code.source_position_table();
+      } else if (obj.IsBytecodeArray()) {
+        maybe_source_positions =
+            BytecodeArray::cast(obj).source_position_table(kAcquireLoad);
+      } else {
+        continue;
       }
-    } else if (obj.IsBytecodeArray()) {
-      source_position_table_total +=
-          BytecodeArray::cast(obj).SourcePositionTable().Size();
+      if (!maybe_source_positions.IsByteArray()) continue;
+      ByteArray source_positions = ByteArray::cast(maybe_source_positions);
+      if (source_positions.length() == 0) continue;
+      source_position_table_total += source_positions.Size();
     }
   }
 
@@ -147,6 +169,7 @@ void StatisticsExtension::GetCounters(
             "reloc_info_total_size");
   AddNumber(args.GetIsolate(), result, source_position_table_total,
             "source_position_table_total_size");
+  args.GetReturnValue().Set(result);
 }
 
 }  // namespace internal

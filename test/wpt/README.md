@@ -15,6 +15,7 @@ WPT harness and have automatic updates. There are also a few
 This folder covers the tests that have been migrated.
 
 <a id="add-tests"></a>
+
 ## How to add tests for a new module
 
 ### 1. Create a status file
@@ -142,6 +143,7 @@ skipping tests that cannot be run because of lack of dependency or
 expected failures.
 
 <a id="status-format"></a>
+
 ## Format of a status JSON file
 
 ```text
@@ -165,4 +167,4 @@ In that case it needs to be marked with `skip` instead of `fail`.
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
-[git node wpt]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
+[git node wpt]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-wpt

@@ -6,7 +6,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "include/v8.h"
+#include "include/libplatform/libplatform.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
@@ -21,18 +25,14 @@
 namespace i = v8::internal;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  i::wasm::fuzzer::OneTimeEnableStagedWasmFeatures();
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
   i::FLAG_wasm_max_mem_pages = 32;
   i::FLAG_wasm_max_table_size = 100;
 
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
@@ -43,6 +43,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  i::wasm::fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
+
   v8::TryCatch try_catch(isolate);
   i::wasm::testing::SetupIsolateForWasmModule(i_isolate);
   i::wasm::ModuleWireBytes wire_bytes(data, data + size);
@@ -52,7 +58,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::Handle<i::WasmModuleObject> module_object;
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   bool compiles =
-      i_isolate->wasm_engine()
+      i::wasm::GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
           .ToHandle(&module_object);
 

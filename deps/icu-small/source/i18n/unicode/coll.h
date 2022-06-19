@@ -253,7 +253,7 @@ public:
      * @return true if other is the same as this.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Collator& other) const;
+    virtual bool operator==(const Collator& other) const;
 
     /**
      * Returns true if "other" is not the same as "this".
@@ -262,7 +262,7 @@ public:
      * @return true if other is not the same as this.
      * @stable ICU 2.0
      */
-    virtual UBool operator!=(const Collator& other) const;
+    virtual bool operator!=(const Collator& other) const;
 
     /**
      * Makes a copy of this object.
@@ -864,7 +864,7 @@ public:
      *         IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
     /**
      * Universal attribute setter
@@ -1094,7 +1094,7 @@ protected:
     /**
     * Default constructor.
     * Constructor is different from the old default Collator constructor.
-    * The task for determing the default collation strength and normalization
+    * The task for determining the default collation strength and normalization
     * mode is left to the child class.
     * @stable ICU 2.0
     */

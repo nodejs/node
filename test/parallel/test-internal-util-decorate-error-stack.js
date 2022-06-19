@@ -31,9 +31,9 @@ function checkStack(stack) {
   // displays the line of code (`var foo bar;`) that is causing a problem.
   // ChakraCore does not display the line of code but includes `;` in the phrase
   // `Expected ';' `.
-  assert.ok(/;/g.test(stack));
+  assert.match(stack, /;/g);
   // Test that it's a multiline string.
-  assert.ok(/\n/g.test(stack));
+  assert.match(stack, /\n/g);
 }
 let err;
 const badSyntaxPath =

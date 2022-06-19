@@ -1,13 +1,13 @@
 #include "crypto/crypto_random.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
 #include <openssl/bn.h>
+#include <openssl/rand.h>
 
 namespace node {
 
@@ -121,11 +121,9 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     }
   }
 
+  // The JS interface already ensures that the (positive) size fits into an int.
   int bits = static_cast<int>(size);
-  if (bits < 0) {
-    THROW_ERR_OUT_OF_RANGE(env, "invalid size");
-    return Nothing<bool>();
-  }
+  CHECK_GT(bits, 0);
 
   if (params->add) {
     if (BN_num_bits(params->add.get()) > bits) {
@@ -224,9 +222,9 @@ bool CheckPrimeTraits::DeriveBits(
             ctx.get(),
             nullptr);
   if (ret < 0) return false;
-  char* data = MallocOpenSSL<char>(1);
-  data[0] = ret;
-  *out = ByteSource::Allocated(data, 1);
+  ByteSource::Builder buf(1);
+  buf.data<char>()[0] = ret;
+  *out = std::move(buf).release();
   return true;
 }
 
@@ -235,7 +233,7 @@ Maybe<bool> CheckPrimeTraits::EncodeOutput(
     const CheckPrimeConfig& params,
     ByteSource* out,
     v8::Local<v8::Value>* result) {
-  *result = out->get()[0] ? True(env->isolate()) : False(env->isolate());
+  *result = out->data<char>()[0] ? True(env->isolate()) : False(env->isolate());
   return Just(true);
 }
 
@@ -244,6 +242,12 @@ void Initialize(Environment* env, Local<Object> target) {
   RandomBytesJob::Initialize(env, target);
   RandomPrimeJob::Initialize(env, target);
   CheckPrimeJob::Initialize(env, target);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  RandomBytesJob::RegisterExternalReferences(registry);
+  RandomPrimeJob::RegisterExternalReferences(registry);
+  CheckPrimeJob::RegisterExternalReferences(registry);
 }
 }  // namespace Random
 }  // namespace crypto

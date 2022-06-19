@@ -3,11 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -16,6 +15,7 @@ namespace node {
 namespace crypto {
 namespace Keygen {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Keygen
 
 enum class KeyGenJobStatus {
@@ -58,6 +58,10 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     CryptoJob<KeyGenTraits>::Initialize(New, env, target);
   }
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<KeyGenTraits>::RegisterExternalReferences(New, registry);
+  }
+
   KeyGenJob(
       Environment* env,
       v8::Local<v8::Object> object,
@@ -71,7 +75,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
             std::move(params)) {}
 
   void DoThreadPoolWork() override {
-    // Make sure the the CSPRNG is properly seeded so the results are secure
+    // Make sure the CSPRNG is properly seeded so the results are secure.
     CheckEntropy();
 
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
@@ -112,7 +116,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(KeyGenJob);
+  SET_SELF_SIZE(KeyGenJob)
 
  private:
   KeyGenJobStatus status_ = KeyGenJobStatus::FAILED;
@@ -296,6 +300,6 @@ using SecretKeyGenJob = KeyGenJob<SecretKeyGenTraits>;
 }  // namespace crypto
 }  // namespace node
 
-#endif  // !defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYGEN_H_
 

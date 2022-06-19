@@ -66,6 +66,11 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   // Clear the object start bitmap.
   inline void Clear();
 
+  // Marks the bitmap as fully populated. Unpopulated bitmaps are in an
+  // inconsistent state and must be populated before they can be used to find
+  // object headers.
+  inline void MarkAsFullyPopulated();
+
  private:
   template <AccessMode = AccessMode::kNonAtomic>
   inline void store(size_t cell_index, uint8_t value);
@@ -83,6 +88,17 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
   const Address offset_;
+  // `fully_populated_` is used to denote that the bitmap is popluated with all
+  // currently allocated objects on the page and is in a consistent state. It is
+  // used to guard against using the bitmap for finding headers during
+  // concurrent sweeping.
+  //
+  // Although this flag can be used by both the main thread and concurrent
+  // sweeping threads, it is not atomic. The flag should never be accessed by
+  // multiple threads at the same time. If data races are observed on this flag,
+  // it likely means that the bitmap is queried while concurrent sweeping is
+  // active, which is not supported and should be avoided.
+  bool fully_populated_ = false;
   // The bitmap contains a bit for every kGranularity aligned address on a
   // a NormalPage, i.e., for a page of size kBlinkPageSize.
   std::array<uint8_t, kReservedForBitmap> object_start_bit_map_;
@@ -90,11 +106,13 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
 ObjectStartBitmap::ObjectStartBitmap(Address offset) : offset_(offset) {
   Clear();
+  MarkAsFullyPopulated();
 }
 
 template <AccessMode mode>
 HeapObjectHeader* ObjectStartBitmap::FindHeader(
     ConstAddress address_maybe_pointing_to_the_middle_of_object) const {
+  DCHECK(fully_populated_);
   DCHECK_LE(offset_, address_maybe_pointing_to_the_middle_of_object);
   size_t object_offset =
       address_maybe_pointing_to_the_middle_of_object - offset_;
@@ -187,7 +205,13 @@ inline void ObjectStartBitmap::Iterate(Callback callback) const {
   }
 }
 
+void ObjectStartBitmap::MarkAsFullyPopulated() {
+  DCHECK(!fully_populated_);
+  fully_populated_ = true;
+}
+
 void ObjectStartBitmap::Clear() {
+  fully_populated_ = false;
   std::fill(object_start_bit_map_.begin(), object_start_bit_map_.end(), 0);
 }
 

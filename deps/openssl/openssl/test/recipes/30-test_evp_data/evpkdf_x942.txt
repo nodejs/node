@@ -1,0 +1,99 @@
+#
+# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = X9.42 KDF tests (RFC3565 2.3.2 Examples)
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes128-wrap
+Output = d6d6b094c1027a7de6e3117294a35364
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexkey = hexkey:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexukm = hexukm:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Output = 8890585C4E281A5C1167CAA530BED59B3230D893CBA8F922BD1B56A0
+
+Title = X9.42 KDF tests (generated tests to test different options)
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexpartyu-info = hexpartyu-info:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Output = 8890585C4E281A5C1167CAA530BED59B3230D893CBA8F922BD1B56A0
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexpartyu-info = hexpartyu-info:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Ctrl.use-keybits = use-keybits:0
+Output = 54bd5dbc1fa4c42c951f6fa51ec59e202b8c622bdb179fb2dd691ffb
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexpartyv-info = hexpartyv-info:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Ctrl.use-keybits = use-keybits:0
+Output = 76d566e948ca9ae61bcd4ce076f0bd5fe6789b5b0f288977235ecb12
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexsupp-pubinfo = hexsupp-pubinfo:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Output = ff368c7addb27d7599f8d49bc8d7fbf804540f119491ea419792c82c
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexsupp-privinfo = hexsupp-privinfo:0123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba98765432010123456789abcdeffedcba9876543201
+Output = 6b68b7affe5efc15e77df56e3dd639b22aa39f12eb0685b33fb39c57
+
+KDF = X942KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexsecret = hexsecret:000102030405060708090a0b0c0d0e0f10111213
+Ctrl.cekalg = cekalg:id-aes256-wrap
+Ctrl.hexpartyu-info = hexpartyu-info:0123456789abcdef
+Ctrl.hexpartyv-info = hexpartyv-info:fedcba9876543210
+Ctrl.hexsupp-pubinfo = hexsupp-pubinfo:12345678
+Ctrl.hexsupp-privinfo = hexsupp-privinfo:87654321
+Output = 2c5c1f028c6d1fc9ba752e41fdb9edb2ea936f1b2449f214acd56d31
+
+Title = X9.42 KDF tests (ACVP test vectors)
+
+KDF = X942KDF-ASN1
+Ctrl.digest = digest:SHA256
+Ctrl.hexsecret = hexsecret:6B
+Ctrl.use-keybits = use-keybits:0
+Ctrl.cekalg = cekalg:id-aes128-wrap
+Ctrl.hexacvp-info = hexacvp-info:a020299D468D60BC6A257E0B6523D691A3FC1602453B35F308C762FBBAC6069A88BCa12080D49BFE5BE01C7D56489AB017663C22B8CBB34C3174D1D71F00CB7505AC759Aa2203C21A5EA5988562C007986E0503D039E7231D9F152FE72A231A1FD98C59BCA6Aa320FD47477542989B51E4A0845DFABD6EEAA465F69B3D75349B2520051782C7F3FC
+Output = C2E6A0978C24AF3932F478583ADBFB5F57D491822592EAD3C538875F46EB057A
+
+# Negative tests
+
+# Fail if both acvp and ukm values are specified.
+KDF = X942KDF-ASN1
+Ctrl.digest = digest:SHA256
+Ctrl.hexsecret = hexsecret:6B
+Ctrl.use-keybits = use-keybits:0
+Ctrl.cekalg = cekalg:id-aes128-wrap
+Ctrl.hexacvp-info = hexacvp-info:a020299D468D60BC6A257E0B6523D691A3FC1602453B35F308C762FBBAC6069A88BCa12080D49BFE5BE01C7D56489AB017663C22B8CBB34C3174D1D71F00CB7505AC759Aa2203C21A5EA5988562C007986E0503D039E7231D9F152FE72A231A1FD98C59BCA6Aa320FD47477542989B51E4A0845DFABD6EEAA465F69B3D75349B2520051782C7F3FC
+Ctrl.hexukm = hexukm:012345
+Output = C2E6A0978C24AF3932F478583ADBFB5F57D491822592EAD3C538875F46EB057A
+Result = KDF_DERIVE_ERROR

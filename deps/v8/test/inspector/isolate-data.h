@@ -8,21 +8,29 @@
 #include <map>
 #include <memory>
 
+#include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
-#include "include/v8.h"
+#include "include/v8-script.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
+
+class Context;
+class Isolate;
+class ObjectTemplate;
+class StartupData;
+
 namespace internal {
 
 class TaskRunner;
 
 enum WithInspector : bool { kWithInspector = true, kNoInspector = false };
 
-class IsolateData : public v8_inspector::V8InspectorClient {
+class InspectorIsolateData : public v8_inspector::V8InspectorClient {
  public:
   class SetupGlobalTask {
    public:
@@ -32,14 +40,16 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   };
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
-  IsolateData(const IsolateData&) = delete;
-  IsolateData& operator=(const IsolateData&) = delete;
-  IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
-              v8::StartupData* startup_data, WithInspector with_inspector);
-  static IsolateData* FromContext(v8::Local<v8::Context> context);
+  InspectorIsolateData(const InspectorIsolateData&) = delete;
+  InspectorIsolateData& operator=(const InspectorIsolateData&) = delete;
+  InspectorIsolateData(TaskRunner* task_runner,
+                       SetupGlobalTasks setup_global_tasks,
+                       v8::StartupData* startup_data,
+                       WithInspector with_inspector);
+  static InspectorIsolateData* FromContext(v8::Local<v8::Context> context);
 
-  ~IsolateData() override {
-    // Enter the isolate before destructing this IsolateData, so that
+  ~InspectorIsolateData() override {
+    // Enter the isolate before destructing this InspectorIsolateData, so that
     // destructors that run before the Isolate's destructor still see it as
     // entered.
     isolate()->Enter();
@@ -50,7 +60,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   // Setting things up.
   int CreateContextGroup();
-  void CreateContext(int context_group_id, v8_inspector::StringView name);
+  V8_NODISCARD bool CreateContext(int context_group_id,
+                                  v8_inspector::StringView name);
   void ResetContextGroup(int context_group_id);
   v8::Local<v8::Context> GetDefaultContext(int context_group_id);
   int GetContextGroupId(v8::Local<v8::Context> context);
@@ -96,6 +107,9 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void FireContextDestroyed(v8::Local<v8::Context> context);
   void FreeContext(v8::Local<v8::Context> context);
   void SetResourceNamePrefix(v8::Local<v8::String> prefix);
+  bool AssociateExceptionData(v8::Local<v8::Value> exception,
+                              v8::Local<v8::Name> key,
+                              v8::Local<v8::Value> value);
 
  private:
   static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
@@ -110,7 +124,6 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   std::vector<int> GetSessionIds(int context_group_id);
 
   // V8InspectorClient implementation.
-  bool formatAccessorsAsProperties(v8::Local<v8::Value>) override;
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int context_group_id) override;
   double currentTimeMS() override;
@@ -138,7 +151,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   // disposed in the right order, relative to other member variables.
   struct IsolateDeleter {
     void operator()(v8::Isolate* isolate) const {
-      // Exit the isolate after it was entered by ~IsolateData.
+      // Exit the isolate after it was entered by ~InspectorIsolateData.
       isolate->Exit();
       isolate->Dispose();
     }

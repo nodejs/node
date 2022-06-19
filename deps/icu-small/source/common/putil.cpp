@@ -727,12 +727,21 @@ static char *gTimeZoneBufferPtr = NULL;
 
 #if !U_PLATFORM_USES_ONLY_WIN32_API
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
+#define isDigit(ch) ('0' <= ch && ch <= '9')
 static UBool isValidOlsonID(const char *id) {
     int32_t idx = 0;
+    int32_t idxMax = 0;
 
     /* Determine if this is something like Iceland (Olson ID)
     or AST4ADT (non-Olson ID) */
     while (id[idx] && isNonDigit(id[idx]) && id[idx] != ',') {
+        idx++;
+    }
+
+    /* Allow at maximum 2 numbers at the end of the id to support zone id's
+    like GMT+11. */
+    idxMax = idx + 2;
+    while (id[idx] && isDigit(id[idx]) && idx < idxMax) {
         idx++;
     }
 
@@ -918,7 +927,7 @@ static UBool compareBinaryFiles(const char* defaultTZFileName, const char* TZFil
         if (sizeFile != tzInfo->defaultTZFileSize) {
             result = FALSE;
         } else {
-            /* Store the data from the files in seperate buffers and
+            /* Store the data from the files in separate buffers and
              * compare each byte to determine equality.
              */
             if (tzInfo->defaultTZBuffer == NULL) {
@@ -1139,7 +1148,7 @@ uprv_tzname(int n)
 #endif
     if (tzid != NULL && isValidOlsonID(tzid)
 #if U_PLATFORM == U_PF_SOLARIS
-    /* When TZ equals localtime on Solaris, check the /etc/localtime file. */
+    /* Don't misinterpret TZ "localtime" on Solaris as a time zone name. */
         && uprv_strcmp(tzid, TZ_ENV_CHECK) != 0
 #endif
     ) {
@@ -1361,7 +1370,7 @@ uprv_pathIsAbsolute(const char *path)
 
 /* Backup setting of ICU_DATA_DIR_PREFIX_ENV_VAR
    (needed for some Darwin ICU build environments) */
-#if U_PLATFORM_IS_DARWIN_BASED && TARGET_OS_SIMULATOR
+#if U_PLATFORM_IS_DARWIN_BASED && defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
 # if !defined(ICU_DATA_DIR_PREFIX_ENV_VAR)
 #  define ICU_DATA_DIR_PREFIX_ENV_VAR "IPHONE_SIMULATOR_ROOT"
 # endif

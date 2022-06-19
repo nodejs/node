@@ -179,7 +179,7 @@ function testError() {
       // The sync error, with individual property echoes
       /^Uncaught Error: ENOENT: no such file or directory, scandir '.*nonexistent\?'/,
       /Object\.readdirSync/,
-      /^  errno: -(2|4058),$/,
+      /^ {2}errno: -(2|4058),$/,
       "  syscall: 'scandir',",
       "  code: 'ENOENT',",
       "  path: '/nonexistent?'",
@@ -199,7 +199,7 @@ function testError() {
       if (typeof expected === 'string')
         assert.strictEqual(line, expected);
       else
-        assert(expected.test(line), `${line} should match ${expected}`);
+        assert.match(line, expected);
     }
     assert.strictEqual(expectedLines.length, 0);
 

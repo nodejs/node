@@ -167,7 +167,7 @@ namespace cbor {
 //   must use a 32 bit wide length.
 // - At the top level, a message must be an indefinite length map
 //   wrapped by an envelope.
-// - Maximal size for messages is 2^32 (4 GB).
+// - Maximal size for messages is 2^32 (4 GiB).
 // - For scalars, we support only the int32_t range, encoded as
 //   UNSIGNED/NEGATIVE (major types 0 / 1).
 // - UTF16 strings, including with unbalanced surrogate pairs, are encoded
@@ -427,7 +427,7 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    std::string* cbor);
 
 namespace internals {  // Exposed only for writing tests.
-int8_t ReadTokenStart(span<uint8_t> bytes,
+size_t ReadTokenStart(span<uint8_t> bytes,
                       cbor::MajorType* type,
                       uint64_t* value);
 

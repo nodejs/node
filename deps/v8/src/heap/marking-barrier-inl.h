@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   DCHECK(is_activated_);
   DCHECK(!marking_state_.IsImpossible(value));
   // Host may have an impossible markbit pattern if manual allocation folding
@@ -27,10 +28,33 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     // visits the host object.
     return false;
   }
-  if (WhiteToGreyAndPush(value) && is_main_thread_barrier_) {
-    incremental_marking_->RestartIfNotMarking();
+  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(value);
+  if (is_shared_heap_ != target_page->InSharedHeap()) return false;
+  if (WhiteToGreyAndPush(value)) {
+    if (is_main_thread_barrier_) {
+      incremental_marking_->RestartIfNotMarking();
+    }
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
+    }
   }
   return true;
+}
+
+template <typename TSlot>
+inline void MarkingBarrier::MarkRange(HeapObject host, TSlot start, TSlot end) {
+  auto* isolate = heap_->isolate();
+  for (TSlot slot = start; slot < end; ++slot) {
+    typename TSlot::TObject object = slot.Relaxed_Load();
+    HeapObject heap_object;
+    // Mark both, weak and strong edges.
+    if (object.GetHeapObject(isolate, &heap_object)) {
+      if (MarkValue(host, heap_object) && is_compacting_) {
+        collector_->RecordSlot(host, HeapObjectSlot(slot), heap_object);
+      }
+    }
+  }
 }
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {

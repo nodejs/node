@@ -2,6 +2,7 @@
 #include "../common.h"
 
 static bool exceptionWasPending = false;
+static int num = 0x23432;
 
 static napi_value returnException(napi_env env, napi_callback_info info) {
   size_t argc = 1;
@@ -13,6 +14,22 @@ static napi_value returnException(napi_env env, napi_callback_info info) {
 
   napi_value result;
   napi_status status = napi_call_function(env, global, args[0], 0, 0, &result);
+  if (status == napi_pending_exception) {
+    napi_value ex;
+    NODE_API_CALL(env, napi_get_and_clear_last_exception(env, &ex));
+    return ex;
+  }
+
+  return NULL;
+}
+
+static napi_value constructReturnException(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  napi_value result;
+  napi_status status = napi_new_instance(env, args[0], 0, 0, &result);
   if (status == napi_pending_exception) {
     napi_value ex;
     NODE_API_CALL(env, napi_get_and_clear_last_exception(env, &ex));
@@ -38,6 +55,19 @@ static napi_value allowException(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+static napi_value constructAllowException(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  napi_value result;
+  napi_new_instance(env, args[0], 0, 0, &result);
+  // Ignore status and check napi_is_exception_pending() instead.
+
+  NODE_API_CALL(env, napi_is_exception_pending(env, &exceptionWasPending));
+  return NULL;
+}
+
 static napi_value wasPending(napi_env env, napi_callback_info info) {
   napi_value result;
   NODE_API_CALL(env, napi_get_boolean(env, exceptionWasPending, &result));
@@ -54,7 +84,7 @@ static napi_value createExternal(napi_env env, napi_callback_info info) {
   napi_value external;
 
   NODE_API_CALL(env,
-      napi_create_external(env, NULL, finalizer, NULL, &external));
+      napi_create_external(env, &num, finalizer, NULL, &external));
 
   return external;
 }
@@ -64,6 +94,8 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NODE_API_PROPERTY("returnException", returnException),
     DECLARE_NODE_API_PROPERTY("allowException", allowException),
+    DECLARE_NODE_API_PROPERTY("constructReturnException", constructReturnException),
+    DECLARE_NODE_API_PROPERTY("constructAllowException", constructAllowException),
     DECLARE_NODE_API_PROPERTY("wasPending", wasPending),
     DECLARE_NODE_API_PROPERTY("createExternal", createExternal),
   };

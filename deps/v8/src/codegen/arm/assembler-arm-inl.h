@@ -49,8 +49,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
-
 int DoubleRegister::SupportedRegisterCount() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
 }
@@ -93,7 +91,7 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return kPointerSize; }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
          IsDataEmbeddedObject(rmode_));
   if (IsDataEmbeddedObject(rmode_)) {
@@ -101,10 +99,6 @@ HeapObject RelocInfo::target_object() {
   }
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
-  return target_object();
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -201,14 +195,14 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi value) : rmode_(RelocInfo::NONE) {
+Operand::Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
   value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 
 Operand::Operand(Register rm) : rm_(rm), shift_op_(LSL), shift_imm_(0) {}
 
 void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
+  if (V8_UNLIKELY(buffer_space() <= kGap)) {
     GrowBuffer();
   }
   MaybeCheckConstPool();

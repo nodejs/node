@@ -24,6 +24,20 @@ macro Subslice<T: type>(slice: MutableSlice<T>, start: intptr, length: intptr):
       slice.object, offset, length);
 }
 
+namespace unsafe {
+
+macro AddOffset<T: type>(ref: &T, offset: intptr): &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+macro AddOffset<T: type>(ref: const &T, offset: intptr): const &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+}  // namespace unsafe
+
 namespace torque_internal {
 // Unsafe is a marker that we require to be passed when calling internal APIs
 // that might lead to unsoundness when used incorrectly. Unsafe markers should
@@ -73,11 +87,14 @@ extern macro GCUnsafeReferenceToRawPtr(
 struct Slice<T: type, Reference: type> {
   macro TryAtIndex(index: intptr): Reference labels OutOfBounds {
     if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
-      return unsafe::NewReference<T>(
-          this.object, this.offset + TimesSizeOf<T>(index));
+      return this.UncheckedAtIndex(index);
     } else {
       goto OutOfBounds;
     }
+  }
+  macro UncheckedAtIndex(index: intptr): Reference {
+    return unsafe::NewReference<T>(
+        this.object, this.offset + TimesSizeOf<T>(index));
   }
 
   macro AtIndex(index: intptr): Reference {
@@ -86,6 +103,10 @@ struct Slice<T: type, Reference: type> {
 
   macro AtIndex(index: uintptr): Reference {
     return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
+  }
+
+  macro AtIndex(index: constexpr IntegerLiteral): Reference {
+    return this.AtIndex(FromConstexpr<uintptr>(index));
   }
 
   macro AtIndex(index: constexpr int31): Reference {
@@ -231,19 +252,20 @@ const kAllocateBaseFlags: constexpr AllocationFlag =
     AllocationFlag::kAllowLargeObjectAllocation;
 macro AllocateFromNew(
     sizeInBytes: intptr, map: Map, pretenured: bool): UninitializedHeapObject {
-  assert(ValidAllocationSize(sizeInBytes, map));
+  dcheck(ValidAllocationSize(sizeInBytes, map));
   if (pretenured) {
     return Allocate(
         sizeInBytes,
         %RawConstexprCast<constexpr AllocationFlag>(
-            kAllocateBaseFlags | AllocationFlag::kPretenured));
+            %RawConstexprCast<constexpr int32>(kAllocateBaseFlags) |
+            %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
   } else {
     return Allocate(sizeInBytes, kAllocateBaseFlags);
   }
 }
 
 macro InitializeFieldsFromIterator<T: type, Iterator: type>(
-    target: MutableSlice<T>, originIterator: Iterator) {
+    target: MutableSlice<T>, originIterator: Iterator): void {
   let targetIterator = target.Iterator();
   let originIterator = originIterator;
   while (true) {
@@ -253,12 +275,14 @@ macro InitializeFieldsFromIterator<T: type, Iterator: type>(
 }
 // Dummy implementations: do not initialize for UninitializedIterator.
 InitializeFieldsFromIterator<char8, UninitializedIterator>(
-    _target: MutableSlice<char8>, _originIterator: UninitializedIterator) {}
+    _target: MutableSlice<char8>,
+    _originIterator: UninitializedIterator): void {}
 InitializeFieldsFromIterator<char16, UninitializedIterator>(
-    _target: MutableSlice<char16>, _originIterator: UninitializedIterator) {}
+    _target: MutableSlice<char16>,
+    _originIterator: UninitializedIterator): void {}
 
 extern macro IsDoubleHole(HeapObject, intptr): bool;
-extern macro StoreDoubleHole(HeapObject, intptr);
+extern macro StoreDoubleHole(HeapObject, intptr): void;
 
 macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
   return float64_or_hole{
@@ -267,7 +291,7 @@ macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
     value: *unsafe::NewReference<float64>(r.object, r.offset)
   };
 }
-macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
+macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole): void {
   if (value.is_hole) {
     StoreDoubleHole(
         %RawDownCast<HeapObject>(r.object), r.offset - kHeapObjectTag);
@@ -297,12 +321,32 @@ macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
   return %RawDownCast<T>(o);
 }
 
-extern macro StaticAssert(bool, constexpr string);
+extern macro StaticAssert(bool, constexpr string): void;
 
 // This is for the implementation of the dot operator. In any context where the
 // dot operator is available, the correct way to get the length of an indexed
 // field x from object o is `(&o.x).length`.
-intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string);
+intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string): intptr;
+
+// If field x is defined as optional, then &o.x returns a reference to the field
+// or crashes the program (unreachable) if the field is not present. Usually
+// that's the most convenient behavior, but in rare cases such as the
+// implementation of the dot operator, we may instead need to get a Slice to the
+// optional field, which is either length zero or one depending on whether the
+// field is present. This intrinsic provides Slices for both indexed fields
+// (equivalent to &o.x) and optional fields.
+intrinsic %FieldSlice<T: type, TSlice: type>(
+    o: T, f: constexpr string): TSlice;
+
+extern macro GetPendingMessage(): TheHole|JSMessageObject;
+extern macro SetPendingMessage(TheHole | JSMessageObject): void;
+
+// This is implicitly performed at the beginning of Torque catch-blocks.
+macro GetAndResetPendingMessage(): TheHole|JSMessageObject {
+  const message = GetPendingMessage();
+  SetPendingMessage(TheHole);
+  return message;
+}
 
 }  // namespace torque_internal
 
@@ -312,7 +356,7 @@ struct UninitializedIterator {}
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
-// type assert()
+// type dcheck()
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 

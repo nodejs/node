@@ -8,17 +8,19 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 // UNIMPLEMENTED_ macro for RISCV.
 #ifdef DEBUG
-#define UNIMPLEMENTED_RISCV()                                              \
-  v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n", \
-                       __FILE__, __LINE__, __func__)
+#define UNIMPLEMENTED_RISCV()                                               \
+  v8::internal::PrintF("%s, \tline %d: \tfunction %s  not implemented. \n", \
+                       __FILE__, __LINE__, __func__);
 #else
 #define UNIMPLEMENTED_RISCV()
 #endif
 
-#define UNSUPPORTED_RISCV() v8::internal::PrintF("Unsupported instruction.\n")
+#define UNSUPPORTED_RISCV() \
+  v8::internal::PrintF("Unsupported instruction %d.\n", __LINE__)
 
 enum Endianness { kLittle, kBig };
 
@@ -55,8 +57,7 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 namespace v8 {
 namespace internal {
 
-// TODO(sigurds): Change this value once we use relative jumps.
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 4094;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -75,6 +76,9 @@ const int kPCRegister = 34;
 const int kNumFPURegisters = 32;
 const int kInvalidFPURegister = -1;
 
+// Number vectotr registers
+const int kNumVRegisters = 32;
+const int kInvalidVRegister = -1;
 // 'pref' instruction hints
 const int32_t kPrefHintLoad = 0;
 const int32_t kPrefHintStore = 1;
@@ -131,6 +135,24 @@ class FPURegisters {
   static const RegisterAlias aliases_[];
 };
 
+class VRegisters {
+ public:
+  // Return the name of the register.
+  static const char* Name(int reg);
+
+  // Lookup the register number for the name provided.
+  static int Number(const char* name);
+
+  struct RegisterAlias {
+    int creg;
+    const char* name;
+  };
+
+ private:
+  static const char* names_[kNumVRegisters];
+  static const RegisterAlias aliases_[];
+};
+
 // -----------------------------------------------------------------------------
 // Instructions encoding constants.
 
@@ -170,6 +192,12 @@ const int kFunct2Shift = 25;
 const int kFunct2Bits = 2;
 const int kRs1Shift = 15;
 const int kRs1Bits = 5;
+const int kVs1Shift = 15;
+const int kVs1Bits = 5;
+const int kVs2Shift = 20;
+const int kVs2Bits = 5;
+const int kVdShift = 7;
+const int kVdBits = 5;
 const int kRs2Shift = 20;
 const int kRs2Bits = 5;
 const int kRs3Shift = 27;
@@ -210,59 +238,135 @@ const int kRvcRs1sBits = 3;
 const int kRvcRs2sShift = 2;
 const int kRvcRs2sBits = 3;
 const int kRvcFunct2Shift = 5;
+const int kRvcFunct2BShift = 10;
 const int kRvcFunct2Bits = 2;
 const int kRvcFunct6Shift = 10;
 const int kRvcFunct6Bits = 6;
 
+// for RVV extension
+constexpr int kRvvELEN = 64;
+constexpr int kRvvVLEN = 128;
+constexpr int kRvvSLEN = kRvvVLEN;
+const int kRvvFunct6Shift = 26;
+const int kRvvFunct6Bits = 6;
+const uint32_t kRvvFunct6Mask =
+    (((1 << kRvvFunct6Bits) - 1) << kRvvFunct6Shift);
+
+const int kRvvVmBits = 1;
+const int kRvvVmShift = 25;
+const uint32_t kRvvVmMask = (((1 << kRvvVmBits) - 1) << kRvvVmShift);
+
+const int kRvvVs2Bits = 5;
+const int kRvvVs2Shift = 20;
+const uint32_t kRvvVs2Mask = (((1 << kRvvVs2Bits) - 1) << kRvvVs2Shift);
+
+const int kRvvVs1Bits = 5;
+const int kRvvVs1Shift = 15;
+const uint32_t kRvvVs1Mask = (((1 << kRvvVs1Bits) - 1) << kRvvVs1Shift);
+
+const int kRvvRs1Bits = kRvvVs1Bits;
+const int kRvvRs1Shift = kRvvVs1Shift;
+const uint32_t kRvvRs1Mask = (((1 << kRvvRs1Bits) - 1) << kRvvRs1Shift);
+
+const int kRvvRs2Bits = 5;
+const int kRvvRs2Shift = 20;
+const uint32_t kRvvRs2Mask = (((1 << kRvvRs2Bits) - 1) << kRvvRs2Shift);
+
+const int kRvvImm5Bits = kRvvVs1Bits;
+const int kRvvImm5Shift = kRvvVs1Shift;
+const uint32_t kRvvImm5Mask = (((1 << kRvvImm5Bits) - 1) << kRvvImm5Shift);
+
+const int kRvvVdBits = 5;
+const int kRvvVdShift = 7;
+const uint32_t kRvvVdMask = (((1 << kRvvVdBits) - 1) << kRvvVdShift);
+
+const int kRvvRdBits = kRvvVdBits;
+const int kRvvRdShift = kRvvVdShift;
+const uint32_t kRvvRdMask = (((1 << kRvvRdBits) - 1) << kRvvRdShift);
+
+const int kRvvZimmBits = 11;
+const int kRvvZimmShift = 20;
+const uint32_t kRvvZimmMask = (((1 << kRvvZimmBits) - 1) << kRvvZimmShift);
+
+const int kRvvUimmShift = kRvvRs1Shift;
+const int kRvvUimmBits = kRvvRs1Bits;
+const uint32_t kRvvUimmMask = (((1 << kRvvUimmBits) - 1) << kRvvUimmShift);
+
+const int kRvvWidthBits = 3;
+const int kRvvWidthShift = 12;
+const uint32_t kRvvWidthMask = (((1 << kRvvWidthBits) - 1) << kRvvWidthShift);
+
+const int kRvvMopBits = 2;
+const int kRvvMopShift = 26;
+const uint32_t kRvvMopMask = (((1 << kRvvMopBits) - 1) << kRvvMopShift);
+
+const int kRvvMewBits = 1;
+const int kRvvMewShift = 28;
+const uint32_t kRvvMewMask = (((1 << kRvvMewBits) - 1) << kRvvMewShift);
+
+const int kRvvNfBits = 3;
+const int kRvvNfShift = 29;
+const uint32_t kRvvNfMask = (((1 << kRvvNfBits) - 1) << kRvvNfShift);
+
 // RISCV Instruction bit masks
-const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
-const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
-const int kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
-const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
-const int kFunct2Mask = 0b11 << kFunct7Shift;
-const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
-const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
-const int kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
-const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
-const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kUTypeMask = kBaseOpcodeMask;
-const int kJTypeMask = kBaseOpcodeMask;
-const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
-const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
-const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
-const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
-const int kBImm12Mask = kFunct7Mask | kRdFieldMask;
-const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
-const int kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
-const int kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
-const int kImm31_12Mask = ((1 << 20) - 1) << 12;
-const int kImm19_0Mask = ((1 << 20) - 1);
-const int kRvcOpcodeMask =
+const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1)
+                                 << kBaseOpcodeShift;
+const uint32_t kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+const uint32_t kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
+const uint32_t kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
+const uint32_t kFunct2Mask = 0b11 << kFunct7Shift;
+const uint32_t kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+const uint32_t kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
+const uint32_t kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
+const uint32_t kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
+const uint32_t kITypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kUTypeMask = kBaseOpcodeMask;
+const uint32_t kJTypeMask = kBaseOpcodeMask;
+const uint32_t kVTypeMask = kRvvFunct6Mask | kFunct3Mask | kBaseOpcodeMask;
+const uint32_t kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
+const uint32_t kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
+const uint32_t kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
+const uint32_t kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
+const uint32_t kBImm12Mask = kFunct7Mask | kRdFieldMask;
+const uint32_t kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
+const uint32_t kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
+const uint32_t kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
+const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
+const uint32_t kImm19_0Mask = ((1 << 20) - 1);
+const uint32_t kRvcOpcodeMask =
     0b11 | (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const int kRvcFunct3Mask = (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const int kRvcFunct4Mask = (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
-const int kRvcFunct6Mask = (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
-const int kRvcFunct2Mask = (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
-const int kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
-const int kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
-const int kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+const uint32_t kRvcFunct3Mask =
+    (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
+const uint32_t kRvcFunct4Mask =
+    (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
+const uint32_t kRvcFunct6Mask =
+    (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
+const uint32_t kRvcFunct2Mask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
+const uint32_t kRvcFunct2BMask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2BShift);
+const uint32_t kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
+const uint32_t kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
+const uint32_t kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+const uint32_t kRvcBImm8Mask = (((1 << 5) - 1) << 2) | (((1 << 3) - 1) << 10);
 
 // RISCV CSR related bit mask and shift
 const int kFcsrFlagsBits = 5;
-const int kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
+const uint32_t kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
 const int kFcsrFrmBits = 3;
 const int kFcsrFrmShift = kFcsrFlagsBits;
-const int kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
+const uint32_t kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
 const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
-const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
+const uint32_t kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
+const int kNopByte = 0x00000013;
 // Original MIPS constants
 // TODO(RISCV): to be cleaned up
 const int kImm16Shift = 0;
 const int kImm16Bits = 16;
-const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
+const uint32_t kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
 // end of TODO(RISCV): to be cleaned up
 
 // ----- RISCV Base Opcodes
@@ -525,6 +629,485 @@ enum Opcode : uint32_t {
   RO_C_FSDSP = C2 | (0b101 << kRvcFunct3Shift),
   RO_C_SWSP = C2 | (0b110 << kRvcFunct3Shift),
   RO_C_SDSP = C2 | (0b111 << kRvcFunct3Shift),
+
+  // RVV Extension
+  OP_V = 0b1010111,
+  OP_IVV = OP_V | (0b000 << kFunct3Shift),
+  OP_FVV = OP_V | (0b001 << kFunct3Shift),
+  OP_MVV = OP_V | (0b010 << kFunct3Shift),
+  OP_IVI = OP_V | (0b011 << kFunct3Shift),
+  OP_IVX = OP_V | (0b100 << kFunct3Shift),
+  OP_FVF = OP_V | (0b101 << kFunct3Shift),
+  OP_MVX = OP_V | (0b110 << kFunct3Shift),
+
+  RO_V_VSETVLI = OP_V | (0b111 << kFunct3Shift) | 0b0 << 31,
+  RO_V_VSETIVLI = OP_V | (0b111 << kFunct3Shift) | 0b11 << 30,
+  RO_V_VSETVL = OP_V | (0b111 << kFunct3Shift) | 0b1 << 31,
+
+  // RVV LOAD/STORE
+  RO_V_VL = LOAD_FP | (0b00 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  RO_V_VLS = LOAD_FP | (0b10 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  RO_V_VLX = LOAD_FP | (0b11 << kRvvMopShift) | (0b000 << kRvvNfShift),
+
+  RO_V_VS = STORE_FP | (0b00 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  RO_V_VSS = STORE_FP | (0b10 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  RO_V_VSX = STORE_FP | (0b11 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  RO_V_VSU = STORE_FP | (0b01 << kRvvMopShift) | (0b000 << kRvvNfShift),
+  // THE kFunct6Shift is mop
+  RO_V_VLSEG2 = LOAD_FP | (0b00 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VLSEG3 = LOAD_FP | (0b00 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VLSEG4 = LOAD_FP | (0b00 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VLSEG5 = LOAD_FP | (0b00 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VLSEG6 = LOAD_FP | (0b00 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VLSEG7 = LOAD_FP | (0b00 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VLSEG8 = LOAD_FP | (0b00 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  RO_V_VSSEG2 = STORE_FP | (0b00 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VSSEG3 = STORE_FP | (0b00 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VSSEG4 = STORE_FP | (0b00 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VSSEG5 = STORE_FP | (0b00 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VSSEG6 = STORE_FP | (0b00 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VSSEG7 = STORE_FP | (0b00 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VSSEG8 = STORE_FP | (0b00 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  RO_V_VLSSEG2 = LOAD_FP | (0b10 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VLSSEG3 = LOAD_FP | (0b10 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VLSSEG4 = LOAD_FP | (0b10 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VLSSEG5 = LOAD_FP | (0b10 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VLSSEG6 = LOAD_FP | (0b10 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VLSSEG7 = LOAD_FP | (0b10 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VLSSEG8 = LOAD_FP | (0b10 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  RO_V_VSSSEG2 = STORE_FP | (0b10 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VSSSEG3 = STORE_FP | (0b10 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VSSSEG4 = STORE_FP | (0b10 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VSSSEG5 = STORE_FP | (0b10 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VSSSEG6 = STORE_FP | (0b10 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VSSSEG7 = STORE_FP | (0b10 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VSSSEG8 = STORE_FP | (0b10 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  RO_V_VLXSEG2 = LOAD_FP | (0b11 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VLXSEG3 = LOAD_FP | (0b11 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VLXSEG4 = LOAD_FP | (0b11 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VLXSEG5 = LOAD_FP | (0b11 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VLXSEG6 = LOAD_FP | (0b11 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VLXSEG7 = LOAD_FP | (0b11 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VLXSEG8 = LOAD_FP | (0b11 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  RO_V_VSXSEG2 = STORE_FP | (0b11 << kRvvMopShift) | (0b001 << kRvvNfShift),
+  RO_V_VSXSEG3 = STORE_FP | (0b11 << kRvvMopShift) | (0b010 << kRvvNfShift),
+  RO_V_VSXSEG4 = STORE_FP | (0b11 << kRvvMopShift) | (0b011 << kRvvNfShift),
+  RO_V_VSXSEG5 = STORE_FP | (0b11 << kRvvMopShift) | (0b100 << kRvvNfShift),
+  RO_V_VSXSEG6 = STORE_FP | (0b11 << kRvvMopShift) | (0b101 << kRvvNfShift),
+  RO_V_VSXSEG7 = STORE_FP | (0b11 << kRvvMopShift) | (0b110 << kRvvNfShift),
+  RO_V_VSXSEG8 = STORE_FP | (0b11 << kRvvMopShift) | (0b111 << kRvvNfShift),
+
+  // RVV Vector Arithmetic Instruction
+  VADD_FUNCT6 = 0b000000,
+  RO_V_VADD_VI = OP_IVI | (VADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADD_VV = OP_IVV | (VADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADD_VX = OP_IVX | (VADD_FUNCT6 << kRvvFunct6Shift),
+
+  VSUB_FUNCT6 = 0b000010,
+  RO_V_VSUB_VX = OP_IVX | (VSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSUB_VV = OP_IVV | (VSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VDIVU_FUNCT6 = 0b100000,
+  RO_V_VDIVU_VX = OP_MVX | (VDIVU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VDIVU_VV = OP_MVV | (VDIVU_FUNCT6 << kRvvFunct6Shift),
+
+  VDIV_FUNCT6 = 0b100001,
+  RO_V_VDIV_VX = OP_MVX | (VDIV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VDIV_VV = OP_MVV | (VDIV_FUNCT6 << kRvvFunct6Shift),
+
+  VREMU_FUNCT6 = 0b100010,
+  RO_V_VREMU_VX = OP_MVX | (VREMU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VREMU_VV = OP_MVV | (VREMU_FUNCT6 << kRvvFunct6Shift),
+
+  VREM_FUNCT6 = 0b100011,
+  RO_V_VREM_VX = OP_MVX | (VREM_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VREM_VV = OP_MVV | (VREM_FUNCT6 << kRvvFunct6Shift),
+
+  VMULHU_FUNCT6 = 0b100100,
+  RO_V_VMULHU_VX = OP_MVX | (VMULHU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULHU_VV = OP_MVV | (VMULHU_FUNCT6 << kRvvFunct6Shift),
+
+  VMUL_FUNCT6 = 0b100101,
+  RO_V_VMUL_VX = OP_MVX | (VMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMUL_VV = OP_MVV | (VMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VWMUL_FUNCT6 = 0b111011,
+  RO_V_VWMUL_VX = OP_MVX | (VWMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWMUL_VV = OP_MVV | (VWMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VWMULU_FUNCT6 = 0b111000,
+  RO_V_VWMULU_VX = OP_MVX | (VWMULU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWMULU_VV = OP_MVV | (VWMULU_FUNCT6 << kRvvFunct6Shift),
+
+  VMULHSU_FUNCT6 = 0b100110,
+  RO_V_VMULHSU_VX = OP_MVX | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULHSU_VV = OP_MVV | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
+
+  VMULH_FUNCT6 = 0b100111,
+  RO_V_VMULH_VX = OP_MVX | (VMULH_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULH_VV = OP_MVV | (VMULH_FUNCT6 << kRvvFunct6Shift),
+
+  VWADD_FUNCT6 = 0b110001,
+  RO_V_VWADD_VV = OP_MVV | (VWADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADD_VX = OP_MVX | (VWADD_FUNCT6 << kRvvFunct6Shift),
+
+  VWADDU_FUNCT6 = 0b110000,
+  RO_V_VWADDU_VV = OP_MVV | (VWADDU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADDU_VX = OP_MVX | (VWADDU_FUNCT6 << kRvvFunct6Shift),
+
+  VWADDUW_FUNCT6 = 0b110101,
+  RO_V_VWADDUW_VX = OP_MVX | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADDUW_VV = OP_MVV | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
+
+  VCOMPRESS_FUNCT6 = 0b010111,
+  RO_V_VCOMPRESS_VV = OP_MVV | (VCOMPRESS_FUNCT6 << kRvvFunct6Shift),
+
+  VSADDU_FUNCT6 = 0b100000,
+  RO_V_VSADDU_VI = OP_IVI | (VSADDU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSADDU_VV = OP_IVV | (VSADDU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSADDU_VX = OP_IVX | (VSADDU_FUNCT6 << kRvvFunct6Shift),
+
+  VSADD_FUNCT6 = 0b100001,
+  RO_V_VSADD_VI = OP_IVI | (VSADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSADD_VV = OP_IVV | (VSADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSADD_VX = OP_IVX | (VSADD_FUNCT6 << kRvvFunct6Shift),
+
+  VSSUB_FUNCT6 = 0b100011,
+  RO_V_VSSUB_VV = OP_IVV | (VSSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSSUB_VX = OP_IVX | (VSSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VSSUBU_FUNCT6 = 0b100010,
+  RO_V_VSSUBU_VV = OP_IVV | (VSSUBU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSSUBU_VX = OP_IVX | (VSSUBU_FUNCT6 << kRvvFunct6Shift),
+
+  VRSUB_FUNCT6 = 0b000011,
+  RO_V_VRSUB_VX = OP_IVX | (VRSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VRSUB_VI = OP_IVI | (VRSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VMINU_FUNCT6 = 0b000100,
+  RO_V_VMINU_VX = OP_IVX | (VMINU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMINU_VV = OP_IVV | (VMINU_FUNCT6 << kRvvFunct6Shift),
+
+  VMIN_FUNCT6 = 0b000101,
+  RO_V_VMIN_VX = OP_IVX | (VMIN_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMIN_VV = OP_IVV | (VMIN_FUNCT6 << kRvvFunct6Shift),
+
+  VMAXU_FUNCT6 = 0b000110,
+  RO_V_VMAXU_VX = OP_IVX | (VMAXU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMAXU_VV = OP_IVV | (VMAXU_FUNCT6 << kRvvFunct6Shift),
+
+  VMAX_FUNCT6 = 0b000111,
+  RO_V_VMAX_VX = OP_IVX | (VMAX_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMAX_VV = OP_IVV | (VMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VAND_FUNCT6 = 0b001001,
+  RO_V_VAND_VI = OP_IVI | (VAND_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VAND_VV = OP_IVV | (VAND_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VAND_VX = OP_IVX | (VAND_FUNCT6 << kRvvFunct6Shift),
+
+  VOR_FUNCT6 = 0b001010,
+  RO_V_VOR_VI = OP_IVI | (VOR_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VOR_VV = OP_IVV | (VOR_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VOR_VX = OP_IVX | (VOR_FUNCT6 << kRvvFunct6Shift),
+
+  VXOR_FUNCT6 = 0b001011,
+  RO_V_VXOR_VI = OP_IVI | (VXOR_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VXOR_VV = OP_IVV | (VXOR_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VXOR_VX = OP_IVX | (VXOR_FUNCT6 << kRvvFunct6Shift),
+
+  VRGATHER_FUNCT6 = 0b001100,
+  RO_V_VRGATHER_VI = OP_IVI | (VRGATHER_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VRGATHER_VV = OP_IVV | (VRGATHER_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VRGATHER_VX = OP_IVX | (VRGATHER_FUNCT6 << kRvvFunct6Shift),
+
+  VMV_FUNCT6 = 0b010111,
+  RO_V_VMV_VI = OP_IVI | (VMV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMV_VV = OP_IVV | (VMV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMV_VX = OP_IVX | (VMV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMV_VF = OP_FVF | (VMV_FUNCT6 << kRvvFunct6Shift),
+
+  RO_V_VMERGE_VI = RO_V_VMV_VI,
+  RO_V_VMERGE_VV = RO_V_VMV_VV,
+  RO_V_VMERGE_VX = RO_V_VMV_VX,
+
+  VMSEQ_FUNCT6 = 0b011000,
+  RO_V_VMSEQ_VI = OP_IVI | (VMSEQ_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSEQ_VV = OP_IVV | (VMSEQ_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSEQ_VX = OP_IVX | (VMSEQ_FUNCT6 << kRvvFunct6Shift),
+
+  VMSNE_FUNCT6 = 0b011001,
+  RO_V_VMSNE_VI = OP_IVI | (VMSNE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSNE_VV = OP_IVV | (VMSNE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSNE_VX = OP_IVX | (VMSNE_FUNCT6 << kRvvFunct6Shift),
+
+  VMSLTU_FUNCT6 = 0b011010,
+  RO_V_VMSLTU_VV = OP_IVV | (VMSLTU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLTU_VX = OP_IVX | (VMSLTU_FUNCT6 << kRvvFunct6Shift),
+
+  VMSLT_FUNCT6 = 0b011011,
+  RO_V_VMSLT_VV = OP_IVV | (VMSLT_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLT_VX = OP_IVX | (VMSLT_FUNCT6 << kRvvFunct6Shift),
+
+  VMSLE_FUNCT6 = 0b011101,
+  RO_V_VMSLE_VI = OP_IVI | (VMSLE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLE_VV = OP_IVV | (VMSLE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLE_VX = OP_IVX | (VMSLE_FUNCT6 << kRvvFunct6Shift),
+
+  VMSLEU_FUNCT6 = 0b011100,
+  RO_V_VMSLEU_VI = OP_IVI | (VMSLEU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLEU_VV = OP_IVV | (VMSLEU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSLEU_VX = OP_IVX | (VMSLEU_FUNCT6 << kRvvFunct6Shift),
+
+  VMSGTU_FUNCT6 = 0b011110,
+  RO_V_VMSGTU_VI = OP_IVI | (VMSGTU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSGTU_VX = OP_IVX | (VMSGTU_FUNCT6 << kRvvFunct6Shift),
+
+  VMSGT_FUNCT6 = 0b011111,
+  RO_V_VMSGT_VI = OP_IVI | (VMSGT_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMSGT_VX = OP_IVX | (VMSGT_FUNCT6 << kRvvFunct6Shift),
+
+  VSLIDEUP_FUNCT6 = 0b001110,
+  RO_V_VSLIDEUP_VI = OP_IVI | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLIDEUP_VX = OP_IVX | (VSLIDEUP_FUNCT6 << kRvvFunct6Shift),
+
+  VSLIDEDOWN_FUNCT6 = 0b001111,
+  RO_V_VSLIDEDOWN_VI = OP_IVI | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLIDEDOWN_VX = OP_IVX | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift),
+
+  VSRL_FUNCT6 = 0b101000,
+  RO_V_VSRL_VI = OP_IVI | (VSRL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRL_VV = OP_IVV | (VSRL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRL_VX = OP_IVX | (VSRL_FUNCT6 << kRvvFunct6Shift),
+
+  VSRA_FUNCT6 = 0b101001,
+  RO_V_VSRA_VI = OP_IVI | (VSRA_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRA_VV = OP_IVV | (VSRA_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRA_VX = OP_IVX | (VSRA_FUNCT6 << kRvvFunct6Shift),
+
+  VSLL_FUNCT6 = 0b100101,
+  RO_V_VSLL_VI = OP_IVI | (VSLL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLL_VV = OP_IVV | (VSLL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLL_VX = OP_IVX | (VSLL_FUNCT6 << kRvvFunct6Shift),
+
+  VSMUL_FUNCT6 = 0b100111,
+  RO_V_VSMUL_VV = OP_IVV | (VSMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSMUL_VX = OP_IVX | (VSMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VADC_FUNCT6 = 0b010000,
+  RO_V_VADC_VI = OP_IVI | (VADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADC_VV = OP_IVV | (VADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADC_VX = OP_IVX | (VADC_FUNCT6 << kRvvFunct6Shift),
+
+  VMADC_FUNCT6 = 0b010001,
+  RO_V_VMADC_VI = OP_IVI | (VMADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMADC_VV = OP_IVV | (VMADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMADC_VX = OP_IVX | (VMADC_FUNCT6 << kRvvFunct6Shift),
+
+  VWXUNARY0_FUNCT6 = 0b010000,
+  VRXUNARY0_FUNCT6 = 0b010000,
+  VMUNARY0_FUNCT6 = 0b010100,
+
+  RO_V_VWXUNARY0 = OP_MVV | (VWXUNARY0_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VRXUNARY0 = OP_MVX | (VRXUNARY0_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMUNARY0 = OP_MVV | (VMUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VID_V = 0b10001,
+
+  VXUNARY0_FUNCT6 = 0b010010,
+  RO_V_VXUNARY0 = OP_MVV | (VXUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VWFUNARY0_FUNCT6 = 0b010000,
+  RO_V_VFMV_FS = OP_FVV | (VWFUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VRFUNARY0_FUNCT6 = 0b010000,
+  RO_V_VFMV_SF = OP_FVF | (VRFUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VREDMAXU_FUNCT6 = 0b000110,
+  RO_V_VREDMAXU = OP_MVV | (VREDMAXU_FUNCT6 << kRvvFunct6Shift),
+  VREDMAX_FUNCT6 = 0b000111,
+  RO_V_VREDMAX = OP_MVV | (VREDMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VREDMINU_FUNCT6 = 0b000100,
+  RO_V_VREDMINU = OP_MVV | (VREDMINU_FUNCT6 << kRvvFunct6Shift),
+  VREDMIN_FUNCT6 = 0b000101,
+  RO_V_VREDMIN = OP_MVV | (VREDMIN_FUNCT6 << kRvvFunct6Shift),
+
+  VFUNARY0_FUNCT6 = 0b010010,
+  RO_V_VFUNARY0 = OP_FVV | (VFUNARY0_FUNCT6 << kRvvFunct6Shift),
+  VFUNARY1_FUNCT6 = 0b010011,
+  RO_V_VFUNARY1 = OP_FVV | (VFUNARY1_FUNCT6 << kRvvFunct6Shift),
+
+  VFCVT_XU_F_V = 0b00000,
+  VFCVT_X_F_V = 0b00001,
+  VFCVT_F_XU_V = 0b00010,
+  VFCVT_F_X_V = 0b00011,
+  VFWCVT_XU_F_V = 0b01000,
+  VFWCVT_X_F_V = 0b01001,
+  VFWCVT_F_XU_V = 0b01010,
+  VFWCVT_F_X_V = 0b01011,
+  VFWCVT_F_F_V = 0b01100,
+  VFNCVT_F_F_W = 0b10100,
+  VFNCVT_X_F_W = 0b10001,
+  VFNCVT_XU_F_W = 0b10000,
+
+  VFCLASS_V = 0b10000,
+  VFSQRT_V = 0b00000,
+  VFRSQRT7_V = 0b00100,
+  VFREC7_V = 0b00101,
+
+  VFADD_FUNCT6 = 0b000000,
+  RO_V_VFADD_VV = OP_FVV | (VFADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFADD_VF = OP_FVF | (VFADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFSUB_FUNCT6 = 0b000010,
+  RO_V_VFSUB_VV = OP_FVV | (VFSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFSUB_VF = OP_FVF | (VFSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFDIV_FUNCT6 = 0b100000,
+  RO_V_VFDIV_VV = OP_FVV | (VFDIV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFDIV_VF = OP_FVF | (VFDIV_FUNCT6 << kRvvFunct6Shift),
+
+  VFMUL_FUNCT6 = 0b100100,
+  RO_V_VFMUL_VV = OP_FVV | (VFMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMUL_VF = OP_FVF | (VFMUL_FUNCT6 << kRvvFunct6Shift),
+
+  // Vector Widening Floating-Point Add/Subtract Instructions
+  VFWADD_FUNCT6 = 0b110000,
+  RO_V_VFWADD_VV = OP_FVV | (VFWADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWADD_VF = OP_FVF | (VFWADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFWSUB_FUNCT6 = 0b110010,
+  RO_V_VFWSUB_VV = OP_FVV | (VFWSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWSUB_VF = OP_FVF | (VFWSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFWADD_W_FUNCT6 = 0b110100,
+  RO_V_VFWADD_W_VV = OP_FVV | (VFWADD_W_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWADD_W_VF = OP_FVF | (VFWADD_W_FUNCT6 << kRvvFunct6Shift),
+
+  VFWSUB_W_FUNCT6 = 0b110110,
+  RO_V_VFWSUB_W_VV = OP_FVV | (VFWSUB_W_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWSUB_W_VF = OP_FVF | (VFWSUB_W_FUNCT6 << kRvvFunct6Shift),
+
+  // Vector Widening Floating-Point Reduction Instructions
+  VFWREDUSUM_FUNCT6 = 0b110001,
+  RO_V_VFWREDUSUM_VV = OP_FVV | (VFWREDUSUM_FUNCT6 << kRvvFunct6Shift),
+
+  VFWREDOSUM_FUNCT6 = 0b110011,
+  RO_V_VFWREDOSUM_VV = OP_FVV | (VFWREDOSUM_FUNCT6 << kRvvFunct6Shift),
+
+  // Vector Widening Floating-Point Multiply
+  VFWMUL_FUNCT6 = 0b111000,
+  RO_V_VFWMUL_VV = OP_FVV | (VFWMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWMUL_VF = OP_FVF | (VFWMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VMFEQ_FUNCT6 = 0b011000,
+  RO_V_VMFEQ_VV = OP_FVV | (VMFEQ_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMFEQ_VF = OP_FVF | (VMFEQ_FUNCT6 << kRvvFunct6Shift),
+
+  VMFNE_FUNCT6 = 0b011100,
+  RO_V_VMFNE_VV = OP_FVV | (VMFNE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMFNE_VF = OP_FVF | (VMFNE_FUNCT6 << kRvvFunct6Shift),
+
+  VMFLT_FUNCT6 = 0b011011,
+  RO_V_VMFLT_VV = OP_FVV | (VMFLT_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMFLT_VF = OP_FVF | (VMFLT_FUNCT6 << kRvvFunct6Shift),
+
+  VMFLE_FUNCT6 = 0b011001,
+  RO_V_VMFLE_VV = OP_FVV | (VMFLE_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMFLE_VF = OP_FVF | (VMFLE_FUNCT6 << kRvvFunct6Shift),
+
+  VMFGE_FUNCT6 = 0b011111,
+  RO_V_VMFGE_VF = OP_FVF | (VMFGE_FUNCT6 << kRvvFunct6Shift),
+
+  VMFGT_FUNCT6 = 0b011101,
+  RO_V_VMFGT_VF = OP_FVF | (VMFGT_FUNCT6 << kRvvFunct6Shift),
+
+  VFMAX_FUNCT6 = 0b000110,
+  RO_V_VFMAX_VV = OP_FVV | (VFMAX_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMAX_VF = OP_FVF | (VFMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VFREDMAX_FUNCT6 = 0b0001111,
+  RO_V_VFREDMAX_VV = OP_FVV | (VFREDMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VFMIN_FUNCT6 = 0b000100,
+  RO_V_VFMIN_VV = OP_FVV | (VFMIN_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMIN_VF = OP_FVF | (VFMIN_FUNCT6 << kRvvFunct6Shift),
+
+  VFSGNJ_FUNCT6 = 0b001000,
+  RO_V_VFSGNJ_VV = OP_FVV | (VFSGNJ_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFSGNJ_VF = OP_FVF | (VFSGNJ_FUNCT6 << kRvvFunct6Shift),
+
+  VFSGNJN_FUNCT6 = 0b001001,
+  RO_V_VFSGNJN_VV = OP_FVV | (VFSGNJN_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFSGNJN_VF = OP_FVF | (VFSGNJN_FUNCT6 << kRvvFunct6Shift),
+
+  VFSGNJX_FUNCT6 = 0b001010,
+  RO_V_VFSGNJX_VV = OP_FVV | (VFSGNJX_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFSGNJX_VF = OP_FVF | (VFSGNJX_FUNCT6 << kRvvFunct6Shift),
+
+  VFMADD_FUNCT6 = 0b101000,
+  RO_V_VFMADD_VV = OP_FVV | (VFMADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMADD_VF = OP_FVF | (VFMADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMADD_FUNCT6 = 0b101001,
+  RO_V_VFNMADD_VV = OP_FVV | (VFNMADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMADD_VF = OP_FVF | (VFNMADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFMSUB_FUNCT6 = 0b101010,
+  RO_V_VFMSUB_VV = OP_FVV | (VFMSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMSUB_VF = OP_FVF | (VFMSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMSUB_FUNCT6 = 0b101011,
+  RO_V_VFNMSUB_VV = OP_FVV | (VFNMSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMSUB_VF = OP_FVF | (VFNMSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFMACC_FUNCT6 = 0b101100,
+  RO_V_VFMACC_VV = OP_FVV | (VFMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMACC_VF = OP_FVF | (VFMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMACC_FUNCT6 = 0b101101,
+  RO_V_VFNMACC_VV = OP_FVV | (VFNMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMACC_VF = OP_FVF | (VFNMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFMSAC_FUNCT6 = 0b101110,
+  RO_V_VFMSAC_VV = OP_FVV | (VFMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMSAC_VF = OP_FVF | (VFMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMSAC_FUNCT6 = 0b101111,
+  RO_V_VFNMSAC_VV = OP_FVV | (VFNMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMSAC_VF = OP_FVF | (VFNMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  // Vector Widening Floating-Point Fused Multiply-Add Instructions
+  VFWMACC_FUNCT6 = 0b111100,
+  RO_V_VFWMACC_VV = OP_FVV | (VFWMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWMACC_VF = OP_FVF | (VFWMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFWNMACC_FUNCT6 = 0b111101,
+  RO_V_VFWNMACC_VV = OP_FVV | (VFWNMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWNMACC_VF = OP_FVF | (VFWNMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFWMSAC_FUNCT6 = 0b111110,
+  RO_V_VFWMSAC_VV = OP_FVV | (VFWMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWMSAC_VF = OP_FVF | (VFWMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  VFWNMSAC_FUNCT6 = 0b111111,
+  RO_V_VFWNMSAC_VV = OP_FVV | (VFWNMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFWNMSAC_VF = OP_FVF | (VFWNMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  VNCLIP_FUNCT6 = 0b101111,
+  RO_V_VNCLIP_WV = OP_IVV | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIP_WX = OP_IVX | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIP_WI = OP_IVI | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+
+  VNCLIPU_FUNCT6 = 0b101110,
+  RO_V_VNCLIPU_WV = OP_IVV | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIPU_WX = OP_IVX | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIPU_WI = OP_IVI | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
 };
 
 // ----- Emulated conditions.
@@ -658,6 +1241,13 @@ enum MemoryOdering {
   PSIORW = PSI | PSO | PSR | PSW
 };
 
+const int kFloat32ExponentBias = 127;
+const int kFloat32MantissaBits = 23;
+const int kFloat32ExponentBits = 8;
+const int kFloat64ExponentBias = 1023;
+const int kFloat64MantissaBits = 52;
+const int kFloat64ExponentBits = 11;
+
 enum FClassFlag {
   kNegativeInfinity = 1,
   kNegativeNormalNumber = 1 << 1,
@@ -669,6 +1259,48 @@ enum FClassFlag {
   kPositiveInfinity = 1 << 7,
   kSignalingNaN = 1 << 8,
   kQuietNaN = 1 << 9
+};
+
+#define RVV_SEW(V) \
+  V(E8)            \
+  V(E16)           \
+  V(E32)           \
+  V(E64)
+
+#define DEFINE_FLAG(name) name,
+enum VSew {
+  RVV_SEW(DEFINE_FLAG)
+#undef DEFINE_FLAG
+};
+
+#define RVV_LMUL(V) \
+  V(m1)             \
+  V(m2)             \
+  V(m4)             \
+  V(m8)             \
+  V(RESERVERD)      \
+  V(mf8)            \
+  V(mf4)            \
+  V(mf2)
+
+enum Vlmul {
+#define DEFINE_FLAG(name) name,
+  RVV_LMUL(DEFINE_FLAG)
+#undef DEFINE_FLAG
+};
+
+enum TailAgnosticType {
+  ta = 0x1,  // Tail agnostic
+  tu = 0x0,  // Tail undisturbed
+};
+
+enum MaskAgnosticType {
+  ma = 0x1,  // Mask agnostic
+  mu = 0x0,  // Mask undisturbed
+};
+enum MaskType {
+  Mask = 0x0,  // use the mask
+  NoMask = 0x1,
 };
 
 // -----------------------------------------------------------------------------
@@ -724,8 +1356,26 @@ class InstructionBase {
     kCAType,
     kCBType,
     kCJType,
+    // V extension
+    kVType,
+    kVLType,
+    kVSType,
+    kVAMOType,
+    kVIVVType,
+    kVFVVType,
+    kVMVVType,
+    kVIVIType,
+    kVIVXType,
+    kVFVFType,
+    kVMVXType,
+    kVSETType,
     kUnsupported = -1
   };
+
+  inline bool IsIllegalInstruction() const {
+    uint16_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
+    return FirstHalfWord == 0;
+  }
 
   inline bool IsShortInstruction() const {
     uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
@@ -733,12 +1383,14 @@ class InstructionBase {
   }
 
   inline uint8_t InstructionSize() const {
-    return this->IsShortInstruction() ? kShortInstrSize : kInstrSize;
+    return (FLAG_riscv_c_extension && this->IsShortInstruction())
+               ? kShortInstrSize
+               : kInstrSize;
   }
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
-    if (this->IsShortInstruction()) {
+    if (FLAG_riscv_c_extension && this->IsShortInstruction()) {
       return 0x0000FFFF & (*reinterpret_cast<const ShortInstr*>(this));
     }
     return *reinterpret_cast<const Instr*>(this);
@@ -823,7 +1475,9 @@ class InstructionGetters : public T {
            this->InstructionType() == InstructionBase::kR4Type ||
            this->InstructionType() == InstructionBase::kIType ||
            this->InstructionType() == InstructionBase::kSType ||
-           this->InstructionType() == InstructionBase::kBType);
+           this->InstructionType() == InstructionBase::kBType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kVType);
     return this->Bits(kRs1Shift + kRs1Bits - 1, kRs1Shift);
   }
 
@@ -831,7 +1485,9 @@ class InstructionGetters : public T {
     DCHECK(this->InstructionType() == InstructionBase::kRType ||
            this->InstructionType() == InstructionBase::kR4Type ||
            this->InstructionType() == InstructionBase::kSType ||
-           this->InstructionType() == InstructionBase::kBType);
+           this->InstructionType() == InstructionBase::kBType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kVType);
     return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
   }
 
@@ -840,12 +1496,35 @@ class InstructionGetters : public T {
     return this->Bits(kRs3Shift + kRs3Bits - 1, kRs3Shift);
   }
 
+  inline int Vs1Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType);
+    return this->Bits(kVs1Shift + kVs1Bits - 1, kVs1Shift);
+  }
+
+  inline int Vs2Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType);
+    return this->Bits(kVs2Shift + kVs2Bits - 1, kVs2Shift);
+  }
+
+  inline int VdValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType);
+    return this->Bits(kVdShift + kVdBits - 1, kVdShift);
+  }
+
   inline int RdValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kRType ||
            this->InstructionType() == InstructionBase::kR4Type ||
            this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType ||
            this->InstructionType() == InstructionBase::kUType ||
-           this->InstructionType() == InstructionBase::kJType);
+           this->InstructionType() == InstructionBase::kJType ||
+           this->InstructionType() == InstructionBase::kVType);
     return this->Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
@@ -908,6 +1587,11 @@ class InstructionGetters : public T {
   inline int RvcFunct2Value() const {
     DCHECK(this->IsShortInstruction());
     return this->Bits(kRvcFunct2Shift + kRvcFunct2Bits - 1, kRvcFunct2Shift);
+  }
+
+  inline int RvcFunct2BValue() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct2BShift + kRvcFunct2Bits - 1, kRvcFunct2BShift);
   }
 
   inline int CsrValue() const {
@@ -1011,8 +1695,6 @@ class InstructionGetters : public T {
     DCHECK(this->IsShortInstruction());
     // | funct3 | imm[5] | rs1/rd | imm[4:0] | opcode |
     //  15         12              6        2
-    // | funct3 | nzimm[17] | rs1/rd | nzimm[16:12] | opcode |
-    //  15         12                 6            2
     uint32_t Bits = this->InstructionBits();
     int32_t imm6 = ((Bits & 0x1000) >> 7) | ((Bits & 0x7c) >> 2);
     return imm6 << 26 >> 26;
@@ -1118,6 +1800,140 @@ class InstructionGetters : public T {
     return imm12 << 20 >> 20;
   }
 
+  inline int RvcImm8BValue() const {
+    DCHECK(this->IsShortInstruction());
+    // | funct3 | imm[8|4:3] | rs1` | imm[7:6|2:1|5]  | opcode |
+    //  15       12        10       7                 2
+    uint32_t Bits = this->InstructionBits();
+    int32_t imm9 = ((Bits & 0x4) << 3) | ((Bits & 0x18) >> 2) |
+                   ((Bits & 0x60) << 1) | ((Bits & 0xc00) >> 7) |
+                   ((Bits & 0x1000) >> 4);
+    return imm9 << 23 >> 23;
+  }
+
+  inline int vl_vs_width() {
+    int width = 0;
+    if ((this->InstructionBits() & kBaseOpcodeMask) != LOAD_FP &&
+        (this->InstructionBits() & kBaseOpcodeMask) != STORE_FP)
+      return -1;
+    switch (this->InstructionBits() & (kRvvWidthMask | kRvvMewMask)) {
+      case 0x0:
+        width = 8;
+        break;
+      case 0x00005000:
+        width = 16;
+        break;
+      case 0x00006000:
+        width = 32;
+        break;
+      case 0x00007000:
+        width = 64;
+        break;
+      case 0x10000000:
+        width = 128;
+        break;
+      case 0x10005000:
+        width = 256;
+        break;
+      case 0x10006000:
+        width = 512;
+        break;
+      case 0x10007000:
+        width = 1024;
+        break;
+      default:
+        width = -1;
+        break;
+    }
+    return width;
+  }
+
+  inline uint32_t Rvvzimm() const {
+    if ((this->InstructionBits() &
+         (kBaseOpcodeMask | kFunct3Mask | 0x80000000)) == RO_V_VSETVLI) {
+      uint32_t Bits = this->InstructionBits();
+      uint32_t zimm = Bits & kRvvZimmMask;
+      return zimm >> kRvvZimmShift;
+    } else {
+      DCHECK_EQ(this->InstructionBits() &
+                    (kBaseOpcodeMask | kFunct3Mask | 0xC0000000),
+                RO_V_VSETIVLI);
+      uint32_t Bits = this->InstructionBits();
+      uint32_t zimm = Bits & kRvvZimmMask;
+      return (zimm >> kRvvZimmShift) & 0x3FF;
+    }
+  }
+
+  inline uint32_t Rvvuimm() const {
+    DCHECK_EQ(
+        this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask | 0xC0000000),
+        RO_V_VSETIVLI);
+    uint32_t Bits = this->InstructionBits();
+    uint32_t uimm = Bits & kRvvUimmMask;
+    return uimm >> kRvvUimmShift;
+  }
+
+  inline uint32_t RvvVsew() const {
+    uint32_t zimm = this->Rvvzimm();
+    uint32_t vsew = (zimm >> 3) & 0x7;
+    return vsew;
+  }
+
+  inline uint32_t RvvVlmul() const {
+    uint32_t zimm = this->Rvvzimm();
+    uint32_t vlmul = zimm & 0x7;
+    return vlmul;
+  }
+
+  inline uint8_t RvvVM() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType);
+    return this->Bits(kRvvVmShift + kRvvVmBits - 1, kRvvVmShift);
+  }
+
+  inline const char* RvvSEW() const {
+    uint32_t vsew = this->RvvVsew();
+    switch (vsew) {
+#define CAST_VSEW(name) \
+  case name:            \
+    return #name;
+      RVV_SEW(CAST_VSEW)
+      default:
+        return "unknown";
+#undef CAST_VSEW
+    }
+  }
+
+  inline const char* RvvLMUL() const {
+    uint32_t vlmul = this->RvvVlmul();
+    switch (vlmul) {
+#define CAST_VLMUL(name) \
+  case name:             \
+    return #name;
+      RVV_LMUL(CAST_VLMUL)
+      default:
+        return "unknown";
+#undef CAST_VLMUL
+    }
+  }
+
+#define sext(x, len) (((int32_t)(x) << (32 - len)) >> (32 - len))
+#define zext(x, len) (((uint32_t)(x) << (32 - len)) >> (32 - len))
+
+  inline int32_t RvvSimm5() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType);
+    return sext(this->Bits(kRvvImm5Shift + kRvvImm5Bits - 1, kRvvImm5Shift),
+                kRvvImm5Bits);
+  }
+
+  inline uint32_t RvvUimm5() const {
+    DCHECK(this->InstructionType() == InstructionBase::kVType);
+    uint32_t imm = this->Bits(kRvvImm5Shift + kRvvImm5Bits - 1, kRvvImm5Shift);
+    return zext(imm, kRvvImm5Bits);
+  }
+#undef sext
+#undef zext
   inline bool AqValue() const { return this->Bits(kAqShift, kAqShift); }
 
   inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
@@ -1147,7 +1963,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 0;
 
-// TODO(plind): below should be based on kPointerSize
+// TODO(plind): below should be based on kSystemPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
 

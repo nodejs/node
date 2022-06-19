@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/utils/utils.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -114,21 +115,18 @@ static void RunInt32AddTest(TestExecutionTier execution_tier, const byte* code,
 }
 
 WASM_EXEC_TEST(Int32Add_P2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block1) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), kExprBr, DEPTH_0),
       kExprI32Add};
@@ -136,7 +134,6 @@ WASM_EXEC_TEST(Int32Add_block2) {
 }
 
 WASM_EXEC_TEST(Int32Add_multi_if) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_IF_ELSE_X(1, WASM_LOCAL_GET(0),
                      WASM_SEQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
@@ -181,6 +178,65 @@ static void TestInt32Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
       FOR_INT32_INPUTS(j) {
         CHECK_EQ(expected(i, j), r.Call(i, j));
       }
+    }
+  }
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter.
+    BUILD(r, WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0)));
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(expected(i, j), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant.
+    BUILD(r, WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j)));
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(expected(i, j), r.Call(i));
+    }
+  }
+  auto to_bool = [](ctype value) -> ctype {
+    return value == static_cast<ctype>(0xDEADBEEF) ? value : !!value;
+  };
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter, followed by {if}.
+    BUILD(r, WASM_IF(WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0)),
+                     WASM_RETURN(WASM_ONE)),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant, followed by {if}.
+    BUILD(r, WASM_IF(WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j)),
+                     WASM_RETURN(WASM_ONE)),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(i));
+    }
+  }
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter, followed by {br_if}.
+    BUILD(r, WASM_BR_IFD(0, WASM_ONE,
+                         WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0))),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant, followed by {br_if}.
+    BUILD(r, WASM_BR_IFD(0, WASM_ONE,
+                         WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j))),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(i));
     }
   }
 }
@@ -731,8 +787,8 @@ WASM_EXEC_TEST(Select_s128_parameters) {
   int32_t* output = r.builder().AddGlobal<int32_t>(kWasmS128);
   // select(v128(0, 1, 2, 3), v128(4, 5, 6, 7), 1) == v128(0, 1, 2, 3)
   for (int i = 0; i < 4; i++) {
-    WriteLittleEndianValue<int32_t>(&g0[i], i);
-    WriteLittleEndianValue<int32_t>(&g1[i], i + 4);
+    LANE(g0, i) = i;
+    LANE(g1, i) = i + 4;
   }
   BUILD(r,
         WASM_GLOBAL_SET(2, WASM_SELECT(WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1),
@@ -740,12 +796,11 @@ WASM_EXEC_TEST(Select_s128_parameters) {
         WASM_ONE);
   r.Call(1);
   for (int i = 0; i < 4; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int32_t>(&output[i]));
+    CHECK_EQ(i, LANE(output, i));
   }
 }
 
 WASM_EXEC_TEST(SelectWithType_float_parameters) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<float, float, float, int32_t> r(execution_tier);
   BUILD(r,
         WASM_SELECT_F(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)));
@@ -763,7 +818,6 @@ WASM_EXEC_TEST(Select) {
 }
 
 WASM_EXEC_TEST(SelectWithType) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // return select(11, 22, a);
   BUILD(r, WASM_SELECT_I(WASM_I32V_1(11), WASM_I32V_1(22), WASM_LOCAL_GET(0)));
@@ -785,7 +839,6 @@ WASM_EXEC_TEST(Select_strict1) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict1) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // select(a=0, a=1, a=2); return a
   BUILD(r,
@@ -810,7 +863,6 @@ WASM_EXEC_TEST(Select_strict2) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict2) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -838,7 +890,6 @@ WASM_EXEC_TEST(Select_strict3) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict3) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -864,7 +915,7 @@ WASM_EXEC_TEST(Br_height) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   BUILD(r, WASM_BLOCK_I(
                WASM_BLOCK(WASM_BRV_IFD(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(0)),
-                          WASM_RETURN1(WASM_I32V_1(9))),
+                          WASM_RETURN(WASM_I32V_1(9))),
                WASM_BRV(0, WASM_I32V_1(8))));
 
   for (int32_t i = 0; i < 5; i++) {
@@ -1057,35 +1108,41 @@ WASM_EXEC_TEST(BrTable_loop_target) {
   CHECK_EQ(1, r.Call(0));
 }
 
-WASM_EXEC_TEST(F32ReinterpretI32) {
+WASM_EXEC_TEST(I32ReinterpretF32) {
   WasmRunner<int32_t> r(execution_tier);
-  int32_t* memory =
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
 
   BUILD(r, WASM_I32_REINTERPRET_F32(
                WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)));
 
-  FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    r.builder().WriteMemory(&memory[0], expected);
+  FOR_FLOAT32_INPUTS(i) {
+    float input = i;
+    int32_t expected = bit_cast<int32_t, float>(input);
+    r.builder().WriteMemory(&memory[0], input);
     CHECK_EQ(expected, r.Call());
   }
 }
 
-WASM_EXEC_TEST(I32ReinterpretF32) {
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+WASM_EXEC_TEST(F32ReinterpretI32) {
+  WasmRunner<float> r(execution_tier);
   int32_t* memory =
       r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
 
-  BUILD(r,
-        WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO,
-                       WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0))),
-        WASM_I32V_2(107));
+  BUILD(r, WASM_F32_REINTERPRET_I32(
+               WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)));
 
   FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    CHECK_EQ(107, r.Call(expected));
-    CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+    int32_t input = i;
+    float expected = bit_cast<float, int32_t>(input);
+    r.builder().WriteMemory(&memory[0], input);
+    float result = r.Call();
+    if (std::isnan(expected)) {
+      CHECK(std::isnan(result));
+      CHECK(IsSameNan(expected, result));
+    } else {
+      CHECK_EQ(expected, result);
+    }
   }
 }
 
@@ -1411,7 +1468,7 @@ WASM_EXEC_TEST(ExprIf_P) {
 WASM_EXEC_TEST(CountDown) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   BUILD(r,
-        WASM_LOOP(WASM_IFB(
+        WASM_LOOP(WASM_IF(
             WASM_LOCAL_GET(0),
             WASM_LOCAL_SET(0, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V_1(1))),
             WASM_BR(1))),
@@ -1586,10 +1643,10 @@ WASM_EXEC_TEST(LoadMem_offset_oob) {
     r.builder().AddMemoryElems<byte>(num_bytes);
     r.builder().RandomizeMemory(1116 + static_cast<int>(m));
 
-    constexpr byte offset = 8;
-    uint32_t boundary = num_bytes - offset - machineTypes[m].MemSize();
+    constexpr byte kOffset = 8;
+    uint32_t boundary = num_bytes - kOffset - machineTypes[m].MemSize();
 
-    BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], offset, WASM_LOCAL_GET(0)),
+    BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], kOffset, WASM_LOCAL_GET(0)),
           WASM_DROP, WASM_ZERO);
 
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
@@ -2123,11 +2180,11 @@ WASM_EXEC_TEST(Int32Global) {
         WASM_GLOBAL_SET(0, WASM_I32_ADD(WASM_GLOBAL_GET(0), WASM_LOCAL_GET(0))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<int32_t>(global, 116);
+  *global = 116;
   for (int i = 9; i < 444444; i += 111111) {
-    int32_t expected = ReadLittleEndianValue<int32_t>(global) + i;
+    int32_t expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2146,17 +2203,16 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
         WASM_GLOBAL_GET(g));
 
     // Check that reading/writing global number {g} doesn't alter the others.
-    WriteLittleEndianValue<int32_t>(globals[g], 116 * g);
+    *(globals[g]) = 116 * g;
     int32_t before[kNumGlobals];
     for (int i = 9; i < 444444; i += 111113) {
-      int32_t sum = ReadLittleEndianValue<int32_t>(globals[g]) + i;
-      for (int j = 0; j < kNumGlobals; ++j)
-        before[j] = ReadLittleEndianValue<int32_t>(globals[j]);
+      int32_t sum = *(globals[g]) + i;
+      for (int j = 0; j < kNumGlobals; ++j) before[j] = *(globals[j]);
       int32_t result = r.Call(i);
       CHECK_EQ(sum, result);
       for (int j = 0; j < kNumGlobals; ++j) {
         int32_t expected = j == g ? sum : before[j];
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(globals[j]));
+        CHECK_EQ(expected, *(globals[j]));
       }
     }
   }
@@ -2172,11 +2228,11 @@ WASM_EXEC_TEST(Float32Global) {
                                      WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<float>(global, 1.25);
+  *global = 1.25;
   for (int i = 9; i < 4444; i += 1111) {
-    volatile float expected = ReadLittleEndianValue<float>(global) + i;
+    volatile float expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<float>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2190,11 +2246,11 @@ WASM_EXEC_TEST(Float64Global) {
                                      WASM_F64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<double>(global, 1.25);
+  *global = 1.25;
   for (int i = 9; i < 4444; i += 1111) {
-    volatile double expected = ReadLittleEndianValue<double>(global) + i;
+    volatile double expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<double>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2225,13 +2281,10 @@ WASM_EXEC_TEST(MixedGlobals) {
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK(static_cast<int32_t>(0xEE55CCAA) ==
-        ReadLittleEndianValue<int32_t>(var_int32));
-  CHECK(static_cast<uint32_t>(0xEE55CCAA) ==
-        ReadLittleEndianValue<uint32_t>(var_uint32));
-  CHECK(bit_cast<float>(0xEE55CCAA) == ReadLittleEndianValue<float>(var_float));
-  CHECK(bit_cast<double>(0x99112233EE55CCAAULL) ==
-        ReadLittleEndianValue<double>(var_double));
+  CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
+  CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
+  CHECK_EQ(bit_cast<float>(0xEE55CCAA), *var_float);
+  CHECK_EQ(bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
 
   USE(unused);
 }
@@ -2425,18 +2478,47 @@ WASM_EXEC_TEST(Regular_Factorial) {
   }
 }
 
+namespace {
+// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+class IsolateScope {
+ public:
+  IsolateScope() {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    isolate_ = v8::Isolate::New(create_params);
+    isolate_->Enter();
+  }
+
+  ~IsolateScope() {
+    isolate_->Exit();
+    isolate_->Dispose();
+  }
+
+  v8::Isolate* isolate() { return isolate_; }
+  Isolate* i_isolate() { return reinterpret_cast<Isolate*>(isolate_); }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // namespace
+
 // Tail-recursive variation on factorial:
 // fact(N) => f(N,1).
 //
 // f(N,X) where N=<1 => X
 // f(N,X) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_Factorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport, kMemory32,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
@@ -2464,12 +2546,17 @@ WASM_EXEC_TEST(ReturnCall_Factorial) {
 // g(X,0) => X.
 // g(X,N) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport, kMemory32,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
   WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
@@ -2506,12 +2593,17 @@ WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 // f(N,X,_) where N=<1 => X
 // f(N,X,F) => F(N-1,X*N,F).
 
-WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport, kMemory32,
+                                   isolate_scope.i_isolate());
 
   TestSignatures sigs;
 
@@ -2550,12 +2642,17 @@ WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 // sum(N,k) where N<1 =>k.
 // sum(N,k) => sum(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport, kMemory32,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
@@ -2587,12 +2684,17 @@ WASM_EXEC_TEST(ReturnCall_Sum) {
 // b3(N,_,_,k) where N<1 =>k.
 // b3(N,_,_,k) => b1(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport, kMemory32,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");
@@ -2636,12 +2738,6 @@ WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   }
 }
 
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); ++i) vec.push_back(__buf[i]); \
-  } while (false)
-
 static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
@@ -2671,8 +2767,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; ++i) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& t = r.NewFunction(b.Build());
-    BUILD(t, WASM_LOCAL_GET(which));
+    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    BUILD(f, WASM_LOCAL_GET(which));
 
     // =========================================================================
     // Build the calling function.
@@ -2686,7 +2782,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     }
 
     // Call the selector function.
-    ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
+    ADD_CODE(code, WASM_CALL_FUNCTION0(f.function_index()));
 
     // Store the result in a local.
     byte local_index = r.AllocateLocal(ValueType::For(result));
@@ -2710,8 +2806,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
       for (int i = 0; i < size; ++i) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
-        byte result = r.builder().raw_mem_at<byte>(i);
-        CHECK_EQ(expected, result);
+        byte actual = r.builder().raw_mem_at<byte>(i);
+        CHECK_EQ(expected, actual);
       }
     }
   }
@@ -2741,7 +2837,6 @@ WASM_EXEC_TEST(AddCall) {
 }
 
 WASM_EXEC_TEST(MultiReturnSub) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
 
   ValueType storage[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32};
@@ -2763,7 +2858,6 @@ WASM_EXEC_TEST(MultiReturnSub) {
 
 template <typename T>
 void RunMultiReturnSelect(TestExecutionTier execution_tier, const T* inputs) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType type = ValueType::For(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;
@@ -3083,6 +3177,46 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
   CHECK_TRAP(r.Call(5));
 }
 
+WASM_EXEC_TEST(Regress_PushReturns) {
+  ValueType kSigTypes[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(12, 0, kSigTypes);
+  WasmRunner<int32_t> r(execution_tier);
+
+  WasmFunctionCompiler& f1 = r.NewFunction(&sig);
+  BUILD(f1, WASM_I32V(1), WASM_I32V(2), WASM_I32V(3), WASM_I32V(4),
+        WASM_I32V(5), WASM_I32V(6), WASM_I32V(7), WASM_I32V(8), WASM_I32V(9),
+        WASM_I32V(10), WASM_I32V(11), WASM_I32V(12));
+
+  BUILD(r, WASM_CALL_FUNCTION0(f1.function_index()), WASM_DROP, WASM_DROP,
+        WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+        WASM_DROP, WASM_DROP, WASM_DROP);
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_EXEC_TEST(Regress_EnsureArguments) {
+  ValueType kSigTypes[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(0, 12, kSigTypes);
+  WasmRunner<int32_t> r(execution_tier);
+
+  WasmFunctionCompiler& f2 = r.NewFunction(&sig);
+  BUILD(f2, kExprReturn);
+
+  BUILD(r, WASM_I32V(42), kExprReturn,
+        WASM_CALL_FUNCTION(f2.function_index(), WASM_I32V(1)));
+  CHECK_EQ(42, r.Call());
+}
+
+WASM_EXEC_TEST(Regress_PushControl) {
+  WasmRunner<int32_t> r(execution_tier);
+  BUILD(r, WASM_I32V(42),
+        WASM_IF(WASM_I32V(0), WASM_UNREACHABLE, kExprIf, kVoidCode, kExprEnd));
+  CHECK_EQ(42, r.Call());
+}
+
 WASM_EXEC_TEST(F32Floor) {
   WasmRunner<float, float> r(execution_tier);
   BUILD(r, WASM_F32_FLOOR(WASM_LOCAL_GET(0)));
@@ -3108,7 +3242,13 @@ WASM_EXEC_TEST(F32NearestInt) {
   WasmRunner<float, float> r(execution_tier);
   BUILD(r, WASM_F32_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(nearbyintf(i), r.Call(i)); }
+  FOR_FLOAT32_INPUTS(i) {
+    float value = nearbyintf(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<float>(i, value);
+#endif
+    CHECK_FLOAT_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F64Floor) {
@@ -3136,7 +3276,13 @@ WASM_EXEC_TEST(F64NearestInt) {
   WasmRunner<double, double> r(execution_tier);
   BUILD(r, WASM_F64_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(nearbyint(i), r.Call(i)); }
+  FOR_FLOAT64_INPUTS(i) {
+    double value = nearbyint(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<double>(i, value);
+#endif
+    CHECK_DOUBLE_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F32Min) {
@@ -3341,7 +3487,7 @@ static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; ++num_params) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
+    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);
@@ -3436,7 +3582,7 @@ WASM_EXEC_TEST(InvalidStackAfterBr) {
 
 WASM_EXEC_TEST(InvalidStackAfterReturn) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), kExprI32Add);
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)), kExprI32Add);
   CHECK_EQ(17, r.Call());
 }
 
@@ -3494,15 +3640,14 @@ WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop2) {
 
 WASM_EXEC_TEST(BlockInsideUnreachable) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
   CHECK_EQ(17, r.Call());
 }
 
 WASM_EXEC_TEST(IfInsideUnreachable) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(
-      r, WASM_RETURN1(WASM_I32V_1(17)),
-      WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN1(WASM_ONE)));
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)),
+        WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN(WASM_ONE)));
   CHECK_EQ(17, r.Call());
 }
 
@@ -3537,7 +3682,7 @@ WASM_EXEC_TEST(IndirectNullTyped) {
 template <typename ctype>
 void BinOpOnDifferentRegisters(
     TestExecutionTier execution_tier, ValueType type,
-    Vector<const ctype> inputs, WasmOpcode opcode,
+    base::Vector<const ctype> inputs, WasmOpcode opcode,
     std::function<ctype(ctype, ctype, bool*)> expect_fn) {
   static constexpr int kMaxNumLocals = 8;
   for (int num_locals = 1; num_locals < kMaxNumLocals; ++num_locals) {
@@ -3610,56 +3755,60 @@ void BinOpOnDifferentRegisters(
 
 // Keep this list small, the BinOpOnDifferentRegisters test is running long
 // enough already.
-static constexpr int32_t kSome32BitInputs[] = {0, 1, -1, 31, 0xff112233};
+static constexpr int32_t kSome32BitInputs[] = {
+    0, 1, -1, 31, static_cast<int32_t>(0xff112233)};
 static constexpr int64_t kSome64BitInputs[] = {
-    0, 1, -1, 31, 63, 0x100000000, 0xff11223344556677};
+    0, 1, -1, 31, 63, 0x100000000, static_cast<int64_t>(0xff11223344556677)};
 
 WASM_EXEC_TEST(I32AddOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Add,
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32Add,
       [](int32_t lhs, int32_t rhs, bool* trap) { return lhs + rhs; });
 }
 
 WASM_EXEC_TEST(I32SubOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Sub,
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32Sub,
       [](int32_t lhs, int32_t rhs, bool* trap) { return lhs - rhs; });
 }
 
 WASM_EXEC_TEST(I32MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int32_t>(execution_tier, kWasmI32,
-                                     ArrayVector(kSome32BitInputs), kExprI32Mul,
-                                     [](int32_t lhs, int32_t rhs, bool* trap) {
-                                       return base::MulWithWraparound(lhs, rhs);
-                                     });
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32Mul, [](int32_t lhs, int32_t rhs, bool* trap) {
+        return base::MulWithWraparound(lhs, rhs);
+      });
 }
 
 WASM_EXEC_TEST(I32ShlOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int32_t>(execution_tier, kWasmI32,
-                                     ArrayVector(kSome32BitInputs), kExprI32Shl,
-                                     [](int32_t lhs, int32_t rhs, bool* trap) {
-                                       return base::ShlWithWraparound(lhs, rhs);
-                                     });
+  BinOpOnDifferentRegisters<int32_t>(
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32Shl, [](int32_t lhs, int32_t rhs, bool* trap) {
+        return base::ShlWithWraparound(lhs, rhs);
+      });
 }
 
 WASM_EXEC_TEST(I32ShrSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32ShrS,
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32ShrS,
       [](int32_t lhs, int32_t rhs, bool* trap) { return lhs >> (rhs & 31); });
 }
 
 WASM_EXEC_TEST(I32ShrUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32ShrU,
-      [](int32_t lhs, int32_t rhs, bool* trap) {
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32ShrU, [](int32_t lhs, int32_t rhs, bool* trap) {
         return static_cast<uint32_t>(lhs) >> (rhs & 31);
       });
 }
 
 WASM_EXEC_TEST(I32DivSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32DivS,
-      [](int32_t lhs, int32_t rhs, bool* trap) {
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32DivS, [](int32_t lhs, int32_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap ? 0 : lhs / rhs;
       });
@@ -3667,8 +3816,8 @@ WASM_EXEC_TEST(I32DivSOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I32DivUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32DivU,
-      [](uint32_t lhs, uint32_t rhs, bool* trap) {
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32DivU, [](uint32_t lhs, uint32_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap ? 0 : lhs / rhs;
       });
@@ -3676,8 +3825,8 @@ WASM_EXEC_TEST(I32DivUOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I32RemSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32RemS,
-      [](int32_t lhs, int32_t rhs, bool* trap) {
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32RemS, [](int32_t lhs, int32_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap || rhs == -1 ? 0 : lhs % rhs;
       });
@@ -3685,8 +3834,8 @@ WASM_EXEC_TEST(I32RemSOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I32RemUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32RemU,
-      [](uint32_t lhs, uint32_t rhs, bool* trap) {
+      execution_tier, kWasmI32, base::ArrayVector(kSome32BitInputs),
+      kExprI32RemU, [](uint32_t lhs, uint32_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap ? 0 : lhs % rhs;
       });
@@ -3694,50 +3843,53 @@ WASM_EXEC_TEST(I32RemUOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I64AddOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Add,
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64Add,
       [](int64_t lhs, int64_t rhs, bool* trap) { return lhs + rhs; });
 }
 
 WASM_EXEC_TEST(I64SubOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Sub,
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64Sub,
       [](int64_t lhs, int64_t rhs, bool* trap) { return lhs - rhs; });
 }
 
 WASM_EXEC_TEST(I64MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int64_t>(execution_tier, kWasmI64,
-                                     ArrayVector(kSome64BitInputs), kExprI64Mul,
-                                     [](int64_t lhs, int64_t rhs, bool* trap) {
-                                       return base::MulWithWraparound(lhs, rhs);
-                                     });
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64Mul, [](int64_t lhs, int64_t rhs, bool* trap) {
+        return base::MulWithWraparound(lhs, rhs);
+      });
 }
 
 WASM_EXEC_TEST(I64ShlOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int64_t>(execution_tier, kWasmI64,
-                                     ArrayVector(kSome64BitInputs), kExprI64Shl,
-                                     [](int64_t lhs, int64_t rhs, bool* trap) {
-                                       return base::ShlWithWraparound(lhs, rhs);
-                                     });
+  BinOpOnDifferentRegisters<int64_t>(
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64Shl, [](int64_t lhs, int64_t rhs, bool* trap) {
+        return base::ShlWithWraparound(lhs, rhs);
+      });
 }
 
 WASM_EXEC_TEST(I64ShrSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64ShrS,
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64ShrS,
       [](int64_t lhs, int64_t rhs, bool* trap) { return lhs >> (rhs & 63); });
 }
 
 WASM_EXEC_TEST(I64ShrUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64ShrU,
-      [](int64_t lhs, int64_t rhs, bool* trap) {
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64ShrU, [](int64_t lhs, int64_t rhs, bool* trap) {
         return static_cast<uint64_t>(lhs) >> (rhs & 63);
       });
 }
 
 WASM_EXEC_TEST(I64DivSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64DivS,
-      [](int64_t lhs, int64_t rhs, bool* trap) {
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64DivS, [](int64_t lhs, int64_t rhs, bool* trap) {
         *trap = rhs == 0 ||
                 (rhs == -1 && lhs == std::numeric_limits<int64_t>::min());
         return *trap ? 0 : lhs / rhs;
@@ -3746,8 +3898,8 @@ WASM_EXEC_TEST(I64DivSOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I64DivUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64DivU,
-      [](uint64_t lhs, uint64_t rhs, bool* trap) {
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64DivU, [](uint64_t lhs, uint64_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap ? 0 : lhs / rhs;
       });
@@ -3755,8 +3907,8 @@ WASM_EXEC_TEST(I64DivUOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I64RemSOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64RemS,
-      [](int64_t lhs, int64_t rhs, bool* trap) {
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64RemS, [](int64_t lhs, int64_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap || rhs == -1 ? 0 : lhs % rhs;
       });
@@ -3764,8 +3916,8 @@ WASM_EXEC_TEST(I64RemSOnDifferentRegisters) {
 
 WASM_EXEC_TEST(I64RemUOnDifferentRegisters) {
   BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64RemU,
-      [](uint64_t lhs, uint64_t rhs, bool* trap) {
+      execution_tier, kWasmI64, base::ArrayVector(kSome64BitInputs),
+      kExprI64RemU, [](uint64_t lhs, uint64_t rhs, bool* trap) {
         *trap = rhs == 0;
         return *trap ? 0 : lhs % rhs;
       });
@@ -3788,32 +3940,34 @@ TEST(Liftoff_tier_up) {
       r.builder().instance_object()->module_object().native_module();
 
   // This test only works if we managed to compile with Liftoff.
-  if (native_module->GetCode(add.function_index())->is_liftoff()) {
-    // First run should execute {add}.
-    CHECK_EQ(18, r.Call(11, 7));
+  if (!native_module->GetCode(add.function_index())->is_liftoff()) return;
 
-    // Now make a copy of the {sub} function, and add it to the native module at
-    // the index of {add}.
-    CodeDesc desc;
-    memset(&desc, 0, sizeof(CodeDesc));
-    WasmCode* sub_code = native_module->GetCode(sub.function_index());
-    size_t sub_size = sub_code->instructions().size();
-    std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
-    memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
-    desc.buffer = buffer.get();
-    desc.instr_size = static_cast<int>(sub_size);
+  // First run should execute {add}.
+  CHECK_EQ(18, r.Call(11, 7));
+
+  // Now make a copy of the {sub} function, and add it to the native module at
+  // the index of {add}.
+  CodeDesc desc;
+  memset(&desc, 0, sizeof(CodeDesc));
+  WasmCode* sub_code = native_module->GetCode(sub.function_index());
+  size_t sub_size = sub_code->instructions().size();
+  std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
+  memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
+  desc.buffer = buffer.get();
+  desc.instr_size = static_cast<int>(sub_size);
+  {
+    CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(
-        add.function_index(), desc, 0, 0, {}, {}, WasmCode::kFunction,
+        add.function_index(), desc, 0, 0, {}, {}, WasmCode::kWasmFunction,
         ExecutionTier::kTurbofan, kNoDebugging);
     native_module->PublishCode(std::move(new_code));
-
-    // Second run should now execute {sub}.
-    CHECK_EQ(4, r.Call(11, 7));
   }
+
+  // Second run should now execute {sub}.
+  CHECK_EQ(4, r.Call(11, 7));
 }
 
 TEST(Regression_1085507) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   TestSignatures sigs;
   uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());
@@ -3821,11 +3975,22 @@ TEST(Regression_1085507) {
         WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd, WASM_I32V_1(0));
 }
 
+TEST(Regression_1185323_1185492) {
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+  BUILD(r, WASM_I32V_1(0),
+        // Use a long leb128 encoding of kExprTableSize instruction.
+        // This exercises a bug in the interpreter which tries to read the
+        // immediate at pc+2 (it should be pc+4).
+        kNumericPrefix, 0x90, 0x80, 0x00, 0x00,  // table.size 0.
+        WASM_UNREACHABLE, kExprTableSet, 0x00);  // Hits a DCHECK if reached.
+  r.Call();
+}
+
 #undef B1
 #undef B2
 #undef RET
 #undef RET_I8
-#undef ADD_CODE
 
 }  // namespace test_run_wasm
 }  // namespace wasm

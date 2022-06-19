@@ -37,7 +37,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       result = primary_offset;
     } else {
       CHECK_EQ(StubCache::kSecondary, table);
-      result = m.StubCacheSecondaryOffsetForTesting(name, primary_offset);
+      result = m.StubCacheSecondaryOffsetForTesting(name, map);
     }
     m.Return(m.SmiTag(result));
   }
@@ -83,8 +83,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
         if (table == StubCache::kPrimary) {
           expected_result = primary_offset;
         } else {
-          expected_result =
-              StubCache::SecondaryOffsetForTesting(*name, primary_offset);
+          expected_result = StubCache::SecondaryOffsetForTesting(*name, *map);
         }
       }
       Handle<Object> result = ft.Call(name, map).ToHandleChecked();
@@ -217,7 +216,8 @@ TEST(TryProbeStubCache) {
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<Code> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
+    stub_cache.Set(*name, receiver->map(),
+                   MaybeObject::FromObject(ToCodeT(*handler)));
   }
 
   // Perform some queries.

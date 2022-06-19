@@ -579,7 +579,7 @@ static bool Grisu3(double v,
   // the difference between w and boundary_minus/plus (a power of 2) and to
   // compute scaled_boundary_minus/plus by subtracting/adding from
   // scaled_w. However the code becomes much less readable and the speed
-  // enhancements are not terriffic.
+  // enhancements are not terrific.
   DiyFp scaled_boundary_minus = DiyFp::Times(boundary_minus, ten_mk);
   DiyFp scaled_boundary_plus  = DiyFp::Times(boundary_plus,  ten_mk);
 
@@ -587,7 +587,7 @@ static bool Grisu3(double v,
   // v == (double) (scaled_w * 10^-mk).
   // Set decimal_exponent == -mk and pass it to DigitGen. If scaled_w is not an
   // integer than it will be updated. For instance if scaled_w == 1.23 then
-  // the buffer will be filled with "123" und the decimal_exponent will be
+  // the buffer will be filled with "123" and the decimal_exponent will be
   // decreased by 2.
   int kappa;
   bool result = DigitGen(scaled_boundary_minus, scaled_w, scaled_boundary_plus,

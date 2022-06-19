@@ -1,0 +1,56 @@
+=pod
+
+=head1 NAME
+
+openssl/core_dispatch.h
+- OpenSSL provider dispatch numbers and function types
+
+=head1 SYNOPSIS
+
+ #include <openssl/core_dispatch.h>
+
+=head1 DESCRIPTION
+
+The F<< <openssl/core_dispatch.h> >> header defines all the operation
+numbers, dispatch numbers and provider interface function types
+currently available.
+
+The operation and dispatch numbers are represented with macros, which
+are named as follows:
+
+=over 4
+
+=item operation numbers
+
+These macros have the form C<OSSL_OP_I<opname>>.
+
+=item dipatch numbers
+
+These macros have the form C<OSSL_FUNC_I<opname>_I<funcname>>, where
+C<I<opname>> is the same as in the macro for the operation this
+function belongs to.
+
+=back
+
+With every dispatch number, there is an associated function type.
+
+For further information, please see the L<provider(7)>
+
+=head1 SEE ALSO
+
+L<provider(7)>
+
+=head1 HISTORY
+
+The types and macros described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

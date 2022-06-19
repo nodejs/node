@@ -8,7 +8,7 @@
 *
 *  uspoof_impl.h
 *
-*    Implemenation header for spoof detection
+*    Implementation header for spoof detection
 *
 */
 
@@ -31,7 +31,7 @@
 
 U_NAMESPACE_BEGIN
 
-// The maximium length (in UTF-16 UChars) of the skeleton replacement string resulting from
+// The maximum length (in UTF-16 UChars) of the skeleton replacement string resulting from
 //   a single input code point.  This is function of the unicode.org data.
 #define USPOOF_MAX_SKELETON_EXPANSION 20
 
@@ -66,7 +66,7 @@ public:
     /** Copy constructor, used by the user level uspoof_clone() function.
      */
     SpoofImpl(const SpoofImpl &src, UErrorCode &status);
-
+    
     USpoofChecker *asUSpoofChecker();
     static SpoofImpl *validateThis(USpoofChecker *sc, UErrorCode &status);
     static const SpoofImpl *validateThis(const USpoofChecker *sc, UErrorCode &status);
@@ -93,7 +93,7 @@ public:
     static UChar32 ScanHex(const UChar *s, int32_t start, int32_t limit, UErrorCode &status);
 
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
     //
     // Data Members
@@ -102,7 +102,7 @@ public:
     int32_t           fChecks;            // Bit vector of checks to perform.
 
     SpoofData        *fSpoofData;
-
+    
     const UnicodeSet *fAllowedCharsSet;   // The UnicodeSet of allowed characters.
                                           //   for this Spoof Checker.  Defaults to all chars.
 
@@ -157,7 +157,7 @@ public:
 //
 //    String Table:
 //       The strings table contains all of the value strings (those of length two or greater)
-//       concatentated together into one long UChar (UTF-16) array.
+//       concatenated together into one long UChar (UTF-16) array.
 //
 //       There is no nul character or other mark between adjacent strings.
 //
@@ -211,7 +211,7 @@ class SpoofData: public UMemory {
 
     SpoofData(UErrorCode &status);   // Create new spoof data wrapper.
                                      // Only used when building new data from rules.
-
+    
     // Constructor for use when creating from prebuilt default data.
     //   A UDataMemory is what the ICU internal data loading functions provide.
     //   The udm is adopted by the SpoofData.
@@ -231,7 +231,7 @@ class SpoofData: public UMemory {
     //    Clone of a user-level spoof detector increments the ref count on the data.
     //    Close of a user-level spoof detector decrements the ref count.
     //    If the data is owned by us, it will be deleted when count goes to zero.
-    SpoofData *addReference();
+    SpoofData *addReference(); 
     void removeReference();
 
     // Reset all fields to an initial state.
@@ -248,7 +248,7 @@ class SpoofData: public UMemory {
     // Get the confusable skeleton transform for a single code point.
     // The result is a string with a length between 1 and 18 as of Unicode 9.
     // This is the main public endpoint for this class.
-    // @return   The length in UTF-16 code units of the substition string.
+    // @return   The length in UTF-16 code units of the substitution string.
     int32_t confusableLookup(UChar32 inChar, UnicodeString &dest) const;
 
     // Get the number of confusable entries in this SpoofData.
@@ -301,7 +301,7 @@ struct SpoofDataHeader {
     int32_t       fMagic;                // (0x3845fdef)
     uint8_t       fFormatVersion[4];     // Data Format. Same as the value in struct UDataInfo
                                          //   if there is one associated with this data.
-    int32_t       fLength;               // Total lenght in bytes of this spoof data,
+    int32_t       fLength;               // Total length in bytes of this spoof data,
                                          //   including all sections, not just the header.
 
     // The following four sections refer to data representing the confusable data
@@ -340,3 +340,4 @@ uspoof_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *ou
 #endif
 
 #endif  /* USPOOFIM_H */
+

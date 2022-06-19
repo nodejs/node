@@ -24,90 +24,6 @@ namespace internal {
 
 namespace {
 
-// ES6 section 20.3.1.1 Time Values and Time Range
-const double kMinYear = -1000000.0;
-const double kMaxYear = -kMinYear;
-const double kMinMonth = -10000000.0;
-const double kMaxMonth = -kMinMonth;
-
-// 20.3.1.2 Day Number and Time within Day
-const double kMsPerDay = 86400000.0;
-
-// ES6 section 20.3.1.11 Hours, Minutes, Second, and Milliseconds
-const double kMsPerSecond = 1000.0;
-const double kMsPerMinute = 60000.0;
-const double kMsPerHour = 3600000.0;
-
-// ES6 section 20.3.1.14 MakeDate (day, time)
-double MakeDate(double day, double time) {
-  if (std::isfinite(day) && std::isfinite(time)) {
-    return time + day * kMsPerDay;
-  }
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-// ES6 section 20.3.1.13 MakeDay (year, month, date)
-double MakeDay(double year, double month, double date) {
-  if ((kMinYear <= year && year <= kMaxYear) &&
-      (kMinMonth <= month && month <= kMaxMonth) && std::isfinite(date)) {
-    int y = FastD2I(year);
-    int m = FastD2I(month);
-    y += m / 12;
-    m %= 12;
-    if (m < 0) {
-      m += 12;
-      y -= 1;
-    }
-    DCHECK_LE(0, m);
-    DCHECK_LT(m, 12);
-
-    // kYearDelta is an arbitrary number such that:
-    // a) kYearDelta = -1 (mod 400)
-    // b) year + kYearDelta > 0 for years in the range defined by
-    //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
-    //    Jan 1 1970. This is required so that we don't run into integer
-    //    division of negative numbers.
-    // c) there shouldn't be an overflow for 32-bit integers in the following
-    //    operations.
-    static const int kYearDelta = 399999;
-    static const int kBaseDay =
-        365 * (1970 + kYearDelta) + (1970 + kYearDelta) / 4 -
-        (1970 + kYearDelta) / 100 + (1970 + kYearDelta) / 400;
-    int day_from_year = 365 * (y + kYearDelta) + (y + kYearDelta) / 4 -
-                        (y + kYearDelta) / 100 + (y + kYearDelta) / 400 -
-                        kBaseDay;
-    if ((y % 4 != 0) || (y % 100 == 0 && y % 400 != 0)) {
-      static const int kDayFromMonth[] = {0,   31,  59,  90,  120, 151,
-                                          181, 212, 243, 273, 304, 334};
-      day_from_year += kDayFromMonth[m];
-    } else {
-      static const int kDayFromMonth[] = {0,   31,  60,  91,  121, 152,
-                                          182, 213, 244, 274, 305, 335};
-      day_from_year += kDayFromMonth[m];
-    }
-    return static_cast<double>(day_from_year - 1) + DoubleToInteger(date);
-  }
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-// ES6 section 20.3.1.12 MakeTime (hour, min, sec, ms)
-double MakeTime(double hour, double min, double sec, double ms) {
-  if (std::isfinite(hour) && std::isfinite(min) && std::isfinite(sec) &&
-      std::isfinite(ms)) {
-    double const h = DoubleToInteger(hour);
-    double const m = DoubleToInteger(min);
-    double const s = DoubleToInteger(sec);
-    double const milli = DoubleToInteger(ms);
-    return h * kMsPerHour + m * kMsPerMinute + s * kMsPerSecond + milli;
-  }
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-const char* kShortWeekDays[] = {"Sun", "Mon", "Tue", "Wed",
-                                "Thu", "Fri", "Sat"};
-const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-
 // ES6 section 20.3.1.16 Date Time String Format
 double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   str = String::Flatten(isolate, str);
@@ -140,55 +56,6 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   return DateCache::TimeClip(date);
 }
 
-enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
-
-using DateBuffer = base::SmallVector<char, 128>;
-
-template <class... Args>
-DateBuffer FormatDate(const char* format, Args... args) {
-  DateBuffer buffer;
-  SmallStringOptimizedAllocator<DateBuffer::kInlineSize> allocator(&buffer);
-  StringStream sstream(&allocator);
-  sstream.Add(format, args...);
-  buffer.resize_no_init(sstream.length());
-  return buffer;
-}
-
-// ES6 section 20.3.4.41.1 ToDateString(tv)
-DateBuffer ToDateString(double time_val, DateCache* date_cache,
-                        ToDateStringMode mode = kDateAndTime) {
-  if (std::isnan(time_val)) {
-    return FormatDate("Invalid Date");
-  }
-  int64_t time_ms = static_cast<int64_t>(time_val);
-  int64_t local_time_ms = date_cache->ToLocal(time_ms);
-  int year, month, day, weekday, hour, min, sec, ms;
-  date_cache->BreakDownTime(local_time_ms, &year, &month, &day, &weekday, &hour,
-                            &min, &sec, &ms);
-  int timezone_offset = -date_cache->TimezoneOffset(time_ms);
-  int timezone_hour = std::abs(timezone_offset) / 60;
-  int timezone_min = std::abs(timezone_offset) % 60;
-  const char* local_timezone = date_cache->LocalTimezone(time_ms);
-  switch (mode) {
-    case kDateOnly:
-      return FormatDate((year < 0) ? "%s %s %02d %05d" : "%s %s %02d %04d",
-                        kShortWeekDays[weekday], kShortMonths[month], day,
-                        year);
-    case kTimeOnly:
-      return FormatDate("%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
-                        (timezone_offset < 0) ? '-' : '+', timezone_hour,
-                        timezone_min, local_timezone);
-    case kDateAndTime:
-      return FormatDate(
-          (year < 0) ? "%s %s %02d %05d %02d:%02d:%02d GMT%c%02d%02d (%s)"
-                     : "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
-          kShortWeekDays[weekday], kShortMonths[month], day, year, hour, min,
-          sec, (timezone_offset < 0) ? '-' : '+', timezone_hour, timezone_min,
-          local_timezone);
-  }
-  UNREACHABLE();
-}
-
 Object SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
                          double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
@@ -207,9 +74,10 @@ BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {
     double const time_val = JSDate::CurrentTimeValue(isolate);
-    DateBuffer buffer = ToDateString(time_val, isolate->date_cache());
+    DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
+                                     ToDateStringMode::kLocalDateAndTime);
     RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+        isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
   }
   // [Construct]
   int const argc = args.length() - 1;
@@ -224,7 +92,7 @@ BUILTIN(DateConstructor) {
       time_val = Handle<JSDate>::cast(value)->value().Number();
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                         Object::ToPrimitive(value));
+                                         Object::ToPrimitive(isolate, value));
       if (value->IsString()) {
         time_val = ParseDateTimeString(isolate, Handle<String>::cast(value));
       } else {
@@ -394,31 +262,33 @@ BUILTIN(DatePrototypeSetFullYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double y = year->Number(), m = 0.0, dt = 1.0;
+  double year_double = year->Number(), month_double = 0.0, day_double = 1.0;
   int time_within_day = 0;
   if (!std::isnan(date->value().Number())) {
     int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
   if (argc >= 2) {
     Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                        Object::ToNumber(isolate, month));
-    m = month->Number();
+    month_double = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at(3);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = date->Number();
+      Handle<Object> day = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, day,
+                                         Object::ToNumber(isolate, day));
+      day_double = day->Number();
     }
   }
-  double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -522,12 +392,12 @@ BUILTIN(DatePrototypeSetMinutes) {
 // ES6 section 20.3.4.25 Date.prototype.setMonth ( month, date )
 BUILTIN(DatePrototypeSetMonth) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.setMonth");
+  CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setMonth");
   int const argc = args.length() - 1;
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value().Number();
+  double time_val = this_date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -545,7 +415,7 @@ BUILTIN(DatePrototypeSetMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return SetLocalDateValue(isolate, date, time_val);
+  return SetLocalDateValue(isolate, this_date, time_val);
 }
 
 // ES6 section 20.3.4.26 Date.prototype.setSeconds ( sec, ms )
@@ -613,30 +483,32 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double y = year->Number(), m = 0.0, dt = 1.0;
+  double year_double = year->Number(), month_double = 0.0, day_double = 1.0;
   int time_within_day = 0;
   if (!std::isnan(date->value().Number())) {
     int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int const days = isolate->date_cache()->DaysFromTime(time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
   if (argc >= 2) {
     Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                        Object::ToNumber(isolate, month));
-    m = month->Number();
+    month_double = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at(3);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = date->Number();
+      Handle<Object> day = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, day,
+                                         Object::ToNumber(isolate, day));
+      day_double = day->Number();
     }
   }
-  double const time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double const time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
@@ -737,12 +609,12 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
 // ES6 section 20.3.4.31 Date.prototype.setUTCMonth ( month, date )
 BUILTIN(DatePrototypeSetUTCMonth) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCMonth");
+  CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setUTCMonth");
   int const argc = args.length() - 1;
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value().Number();
+  double time_val = this_date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int days = isolate->date_cache()->DaysFromTime(time_ms);
@@ -759,7 +631,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
+  return *JSDate::SetValue(this_date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.34 Date.prototype.setUTCSeconds ( sec, ms )
@@ -795,9 +667,10 @@ BUILTIN(DatePrototypeToDateString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toDateString");
   DateBuffer buffer =
-      ToDateString(date->value().Number(), isolate->date_cache(), kDateOnly);
+      ToDateString(date->value().Number(), isolate->date_cache(),
+                   ToDateStringMode::kLocalDate);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.36 Date.prototype.toISOString ( )
@@ -815,14 +688,14 @@ BUILTIN(DatePrototypeToISOString) {
                                        &hour, &min, &sec, &ms);
   char buffer[128];
   if (year >= 0 && year <= 9999) {
-    SNPrintF(ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             year, month + 1, day, hour, min, sec, ms);
   } else if (year < 0) {
-    SNPrintF(ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", -year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             -year, month + 1, day, hour, min, sec, ms);
   } else {
-    SNPrintF(ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             year, month + 1, day, hour, min, sec, ms);
   }
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
@@ -832,9 +705,10 @@ BUILTIN(DatePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toString");
   DateBuffer buffer =
-      ToDateString(date->value().Number(), isolate->date_cache());
+      ToDateString(date->value().Number(), isolate->date_cache(),
+                   ToDateStringMode::kLocalDateAndTime);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.42 Date.prototype.toTimeString ( )
@@ -842,9 +716,10 @@ BUILTIN(DatePrototypeToTimeString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTimeString");
   DateBuffer buffer =
-      ToDateString(date->value().Number(), isolate->date_cache(), kTimeOnly);
+      ToDateString(date->value().Number(), isolate->date_cache(),
+                   ToDateStringMode::kLocalTime);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -854,8 +729,8 @@ BUILTIN(DatePrototypeToLocaleDateString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleDateString);
 
-  const char* method = "Date.prototype.toLocaleDateString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleDateString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -865,7 +740,7 @@ BUILTIN(DatePrototypeToLocaleDateString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kDate,  // required
                    JSDateTimeFormat::DefaultsOption::kDate,  // defaults
-                   method));                                 // method
+                   method_name));                            // method_name
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -874,8 +749,8 @@ BUILTIN(DatePrototypeToLocaleString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleString);
 
-  const char* method = "Date.prototype.toLocaleString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -885,7 +760,7 @@ BUILTIN(DatePrototypeToLocaleString) {
                    args.atOrUndefined(isolate, 2),          // options
                    JSDateTimeFormat::RequiredOption::kAny,  // required
                    JSDateTimeFormat::DefaultsOption::kAll,  // defaults
-                   method));                                // method
+                   method_name));                           // method_name
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -894,8 +769,8 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleTimeString);
 
-  const char* method = "Date.prototype.toLocaleTimeString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleTimeString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -905,7 +780,7 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kTime,  // required
                    JSDateTimeFormat::DefaultsOption::kTime,  // defaults
-                   method));                                 // method
+                   method_name));                            // method_name
 }
 #endif  // V8_INTL_SUPPORT
 
@@ -913,21 +788,11 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
 BUILTIN(DatePrototypeToUTCString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toUTCString");
-  double const time_val = date->value().Number();
-  if (std::isnan(time_val)) {
-    return *isolate->factory()->NewStringFromAsciiChecked("Invalid Date");
-  }
-  char buffer[128];
-  int64_t time_ms = static_cast<int64_t>(time_val);
-  int year, month, day, weekday, hour, min, sec, ms;
-  isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
-                                       &hour, &min, &sec, &ms);
-  SNPrintF(ArrayVector(buffer),
-           (year < 0) ? "%s, %02d %s %05d %02d:%02d:%02d GMT"
-                      : "%s, %02d %s %04d %02d:%02d:%02d GMT",
-           kShortWeekDays[weekday], day, kShortMonths[month], year, hour, min,
-           sec);
-  return *isolate->factory()->NewStringFromAsciiChecked(buffer);
+  DateBuffer buffer =
+      ToDateString(date->value().Number(), isolate->date_cache(),
+                   ToDateStringMode::kUTCDateAndTime);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section B.2.4.1 Date.prototype.getYear ( )
@@ -951,11 +816,11 @@ BUILTIN(DatePrototypeSetYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double m = 0.0, dt = 1.0, y = year->Number();
-  if (!std::isnan(y)) {
-    double y_int = DoubleToInteger(y);
-    if (0.0 <= y_int && y_int <= 99.0) {
-      y = 1900.0 + y_int;
+  double month_double = 0.0, day_double = 1.0, year_double = year->Number();
+  if (!std::isnan(year_double)) {
+    double year_int = DoubleToInteger(year_double);
+    if (0.0 <= year_int && year_int <= 99.0) {
+      year_double = 1900.0 + year_int;
     }
   }
   int time_within_day = 0;
@@ -964,12 +829,14 @@ BUILTIN(DatePrototypeSetYear) {
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
-  double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -983,7 +850,7 @@ BUILTIN(DatePrototypeToJson) {
   Handle<Object> primitive;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, primitive,
-      Object::ToPrimitive(receiver_obj, ToPrimitiveHint::kNumber));
+      Object::ToPrimitive(isolate, receiver_obj, ToPrimitiveHint::kNumber));
   if (primitive->IsNumber() && !std::isfinite(primitive->Number())) {
     return ReadOnlyRoots(isolate).null_value();
   } else {

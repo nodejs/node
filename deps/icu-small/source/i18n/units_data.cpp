@@ -59,7 +59,7 @@ class ConversionRateDataSink : public ResourceSink {
      * @param noFallback Ignored.
      * @param status The standard ICU error code output parameter.
      */
-    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(source, "convertUnits") != 0) {
             // This is very strict, however it is the cheapest way to be sure
@@ -146,7 +146,7 @@ class UnitPreferencesSink : public ResourceSink {
      * @param status The standard ICU error code output parameter. Note: if an
      * error is returned, outPrefs and outMetadata may be inconsistent.
      */
-    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(key, "unitPreferenceData") != 0) {
             // This is very strict, however it is the cheapest way to be sure
@@ -282,6 +282,10 @@ int32_t getPreferenceMetadataIndex(const MaybeStackVector<UnitPreferenceMetadata
     if (U_FAILURE(status)) { return -1; }
     if (idx >= 0) { return idx; }
     if (!foundCategory) {
+        // TODO: failures can happen if units::getUnitCategory returns a category
+        // that does not appear in unitPreferenceData. Do we want a unit test that
+        // checks unitPreferenceData has full coverage of categories? Or just trust
+        // CLDR?
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
@@ -360,29 +364,6 @@ int32_t UnitPreferenceMetadata::compareTo(const UnitPreferenceMetadata &other, b
     return cmp;
 }
 
-CharString U_I18N_API getUnitCategory(const char *baseUnitIdentifier, UErrorCode &status) {
-    CharString result;
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
-    LocalUResourceBundlePointer unitQuantities(
-        ures_getByKey(unitsBundle.getAlias(), "unitQuantities", NULL, &status));
-    int32_t categoryLength;
-    if (U_FAILURE(status)) { return result; }
-    const UChar *uCategory =
-        ures_getStringByKey(unitQuantities.getAlias(), baseUnitIdentifier, &categoryLength, &status);
-    if (U_FAILURE(status)) {
-        // TODO(CLDR-13787,hugovdm): special-casing the consumption-inverse
-        // case. Once CLDR-13787 is clarified, this should be generalised (or
-        // possibly removed):
-        if (uprv_strcmp(baseUnitIdentifier, "meter-per-cubic-meter") == 0) {
-            status = U_ZERO_ERROR;
-            result.append("consumption-inverse", status);
-            return result;
-        }
-    }
-    result.appendInvariantChars(uCategory, categoryLength, status);
-    return result;
-}
-
 // TODO: this may be unnecessary. Fold into ConversionRates class? Or move to anonymous namespace?
 void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &result, UErrorCode &status) {
     LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
@@ -415,7 +396,11 @@ void U_I18N_API UnitPreferences::getPreferencesFor(StringPiece category, StringP
                                                    const UnitPreference *const *&outPreferences,
                                                    int32_t &preferenceCount, UErrorCode &status) const {
     int32_t idx = getPreferenceMetadataIndex(&metadata_, category, usage, region, status);
-    if (U_FAILURE(status)) { return; }
+    if (U_FAILURE(status)) {
+        outPreferences = nullptr;
+        preferenceCount = 0;
+        return;
+    }
     U_ASSERT(idx >= 0); // Failures should have been taken care of by `status`.
     const UnitPreferenceMetadata *m = metadata_[idx];
     outPreferences = unitPrefs_.getAlias() + m->prefsOffset;

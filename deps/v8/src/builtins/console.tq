@@ -12,7 +12,8 @@ javascript builtin FastConsoleAssert(
   if (ToBoolean(arguments[0])) {
     return Undefined;
   } else {
-    tail ConsoleAssert(target, newTarget, Convert<int32>(arguments.length));
+    tail ConsoleAssert(
+        target, newTarget, Convert<int32>(arguments.actual_count));
   }
 }
 }

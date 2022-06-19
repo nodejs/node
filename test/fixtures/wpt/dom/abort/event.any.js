@@ -64,9 +64,4 @@ test(t => {
   controller.abort();
 }, "the abort event should have the right properties");
 
-test(t => {
-  const signal = AbortSignal.abort();
-  assert_true(signal.aborted);
-}, "the AbortSignal.abort() static returns an already aborted signal");
-
 done();

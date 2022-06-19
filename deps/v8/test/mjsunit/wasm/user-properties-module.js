@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --verify-heap
 
-load("test/mjsunit/wasm/user-properties-common.js");
+d8.file.execute("test/mjsunit/wasm/user-properties-common.js");
 
 (function ModuleTest() {
   for (f of [x => (x + 19 + globalCounter), minus18]) {

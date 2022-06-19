@@ -1,7 +1,7 @@
 /*
  * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -13,11 +13,16 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <openssl/crypto.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 #include "internal/cryptlib.h"
 
 #include "arm_arch.h"
 
 unsigned int OPENSSL_armcap_P = 0;
+unsigned int OPENSSL_arm_midr = 0;
+unsigned int OPENSSL_armv8_rsa_neonized = 0;
 
 #if __ARM_MAX_ARCH__<7
 void OPENSSL_cpuid_setup(void)
@@ -48,6 +53,7 @@ void _armv8_sha256_probe(void);
 void _armv8_pmull_probe(void);
 # ifdef __aarch64__
 void _armv8_sha512_probe(void);
+unsigned int _armv8_cpuid_probe(void);
 # endif
 uint32_t _armv7_tick(void);
 
@@ -65,6 +71,12 @@ void OPENSSL_cpuid_setup(void) __attribute__ ((constructor));
 
 # if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
 #  if __GLIBC_PREREQ(2, 16)
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
+# elif defined(__ANDROID_API__)
+/* see https://developer.android.google.cn/ndk/guides/cpu-features */
+#  if __ANDROID_API__ >= 18
 #   include <sys/auxv.h>
 #   define OSSL_IMPLEMENT_GETAUXVAL
 #  endif
@@ -88,23 +100,35 @@ static unsigned long getauxval(unsigned long key)
 # endif
 
 /*
+ * Android: according to https://developer.android.com/ndk/guides/cpu-features,
+ * getauxval is supported starting with API level 18
+ */
+#  if defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ >= 18
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
+
+/*
  * ARM puts the feature bits for Crypto Extensions in AT_HWCAP2, whereas
  * AArch64 used AT_HWCAP.
  */
+# ifndef AT_HWCAP
+#  define AT_HWCAP               16
+# endif
+# ifndef AT_HWCAP2
+#  define AT_HWCAP2              26
+# endif
 # if defined(__arm__) || defined (__arm)
-#  define HWCAP                  16
-                                  /* AT_HWCAP */
+#  define HWCAP                  AT_HWCAP
 #  define HWCAP_NEON             (1 << 12)
 
-#  define HWCAP_CE               26
-                                  /* AT_HWCAP2 */
+#  define HWCAP_CE               AT_HWCAP2
 #  define HWCAP_CE_AES           (1 << 0)
 #  define HWCAP_CE_PMULL         (1 << 1)
 #  define HWCAP_CE_SHA1          (1 << 2)
 #  define HWCAP_CE_SHA256        (1 << 3)
 # elif defined(__aarch64__)
-#  define HWCAP                  16
-                                  /* AT_HWCAP */
+#  define HWCAP                  AT_HWCAP
 #  define HWCAP_NEON             (1 << 1)
 
 #  define HWCAP_CE               HWCAP
@@ -112,6 +136,7 @@ static unsigned long getauxval(unsigned long key)
 #  define HWCAP_CE_PMULL         (1 << 4)
 #  define HWCAP_CE_SHA1          (1 << 5)
 #  define HWCAP_CE_SHA256        (1 << 6)
+#  define HWCAP_CPUID            (1 << 11)
 #  define HWCAP_CE_SHA512        (1 << 21)
 # endif
 
@@ -126,12 +151,15 @@ void OPENSSL_cpuid_setup(void)
         return;
     trigger = 1;
 
+    OPENSSL_armcap_P = 0;
+
     if ((e = getenv("OPENSSL_armcap"))) {
         OPENSSL_armcap_P = (unsigned int)strtoul(e, NULL, 0);
         return;
     }
 
-# if defined(__APPLE__) && !defined(__aarch64__)
+# if defined(__APPLE__)
+#   if !defined(__aarch64__)
     /*
      * Capability probing by catching SIGILL appears to be problematic
      * on iOS. But since Apple universe is "monocultural", it's actually
@@ -147,9 +175,16 @@ void OPENSSL_cpuid_setup(void)
      * Unified code works because it never triggers SIGILL on Apple
      * devices...
      */
-# endif
+#   else
+    {
+        unsigned int sha512;
+        size_t len = sizeof(sha512);
 
-    OPENSSL_armcap_P = 0;
+        if (sysctlbyname("hw.optional.armv8_2_sha512", &sha512, &len, NULL, 0) == 0 && sha512 == 1)
+            OPENSSL_armcap_P |= ARMV8_SHA512;
+    }
+#   endif
+# endif
 
 # ifdef OSSL_IMPLEMENT_GETAUXVAL
     if (getauxval(HWCAP) & HWCAP_NEON) {
@@ -172,6 +207,9 @@ void OPENSSL_cpuid_setup(void)
 #  ifdef __aarch64__
         if (hwcap & HWCAP_CE_SHA512)
             OPENSSL_armcap_P |= ARMV8_SHA512;
+
+        if (hwcap & HWCAP_CPUID)
+            OPENSSL_armcap_P |= ARMV8_CPUID;
 #  endif
     }
 # endif
@@ -227,5 +265,16 @@ void OPENSSL_cpuid_setup(void)
 
     sigaction(SIGILL, &ill_oact, NULL);
     sigprocmask(SIG_SETMASK, &oset, NULL);
+
+# ifdef __aarch64__
+    if (OPENSSL_armcap_P & ARMV8_CPUID)
+        OPENSSL_arm_midr = _armv8_cpuid_probe();
+
+    if ((MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A72) ||
+         MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_N1)) &&
+        (OPENSSL_armcap_P & ARMV7_NEON)) {
+            OPENSSL_armv8_rsa_neonized = 1;
+    }
+# endif
 }
 #endif

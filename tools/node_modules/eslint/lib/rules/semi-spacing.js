@@ -11,13 +11,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent spacing before and after semicolons",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi-spacing"
         },
@@ -238,7 +238,8 @@ module.exports = {
                 if (node.test) {
                     checkSemicolonSpacing(sourceCode.getTokenAfter(node.test), node);
                 }
-            }
+            },
+            PropertyDefinition: checkNode
         };
     }
 };

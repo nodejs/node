@@ -10,6 +10,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
+#include "src/strings/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -453,6 +454,144 @@ DateCache::DST* DateCache::LeastRecentlyUsedDST(DST* skip) {
   }
   ClearSegment(result);
   return result;
+}
+
+namespace {
+
+// ES6 section 20.3.1.1 Time Values and Time Range
+const double kMinYear = -1000000.0;
+const double kMaxYear = -kMinYear;
+const double kMinMonth = -10000000.0;
+const double kMaxMonth = -kMinMonth;
+
+const double kMsPerDay = 86400000.0;
+
+const double kMsPerSecond = 1000.0;
+const double kMsPerMinute = 60000.0;
+const double kMsPerHour = 3600000.0;
+
+}  // namespace
+
+double MakeDate(double day, double time) {
+  if (std::isfinite(day) && std::isfinite(time)) {
+    return time + day * kMsPerDay;
+  }
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+double MakeDay(double year, double month, double date) {
+  if ((kMinYear <= year && year <= kMaxYear) &&
+      (kMinMonth <= month && month <= kMaxMonth) && std::isfinite(date)) {
+    int y = FastD2I(year);
+    int m = FastD2I(month);
+    y += m / 12;
+    m %= 12;
+    if (m < 0) {
+      m += 12;
+      y -= 1;
+    }
+    DCHECK_LE(0, m);
+    DCHECK_LT(m, 12);
+
+    // kYearDelta is an arbitrary number such that:
+    // a) kYearDelta = -1 (mod 400)
+    // b) year + kYearDelta > 0 for years in the range defined by
+    //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
+    //    Jan 1 1970. This is required so that we don't run into integer
+    //    division of negative numbers.
+    // c) there shouldn't be an overflow for 32-bit integers in the following
+    //    operations.
+    static const int kYearDelta = 399999;
+    static const int kBaseDay =
+        365 * (1970 + kYearDelta) + (1970 + kYearDelta) / 4 -
+        (1970 + kYearDelta) / 100 + (1970 + kYearDelta) / 400;
+    int day_from_year = 365 * (y + kYearDelta) + (y + kYearDelta) / 4 -
+                        (y + kYearDelta) / 100 + (y + kYearDelta) / 400 -
+                        kBaseDay;
+    if ((y % 4 != 0) || (y % 100 == 0 && y % 400 != 0)) {
+      static const int kDayFromMonth[] = {0,   31,  59,  90,  120, 151,
+                                          181, 212, 243, 273, 304, 334};
+      day_from_year += kDayFromMonth[m];
+    } else {
+      static const int kDayFromMonth[] = {0,   31,  60,  91,  121, 152,
+                                          182, 213, 244, 274, 305, 335};
+      day_from_year += kDayFromMonth[m];
+    }
+    return static_cast<double>(day_from_year - 1) + DoubleToInteger(date);
+  }
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+double MakeTime(double hour, double min, double sec, double ms) {
+  if (std::isfinite(hour) && std::isfinite(min) && std::isfinite(sec) &&
+      std::isfinite(ms)) {
+    double const h = DoubleToInteger(hour);
+    double const m = DoubleToInteger(min);
+    double const s = DoubleToInteger(sec);
+    double const milli = DoubleToInteger(ms);
+    return h * kMsPerHour + m * kMsPerMinute + s * kMsPerSecond + milli;
+  }
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+namespace {
+
+const char* kShortWeekDays[] = {"Sun", "Mon", "Tue", "Wed",
+                                "Thu", "Fri", "Sat"};
+const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+template <class... Args>
+DateBuffer FormatDate(const char* format, Args... args) {
+  DateBuffer buffer;
+  SmallStringOptimizedAllocator<DateBuffer::kInlineSize> allocator(&buffer);
+  StringStream sstream(&allocator);
+  sstream.Add(format, args...);
+  buffer.resize_no_init(sstream.length());
+  return buffer;
+}
+
+}  // namespace
+
+DateBuffer ToDateString(double time_val, DateCache* date_cache,
+                        ToDateStringMode mode) {
+  if (std::isnan(time_val)) {
+    return FormatDate("Invalid Date");
+  }
+  int64_t time_ms = static_cast<int64_t>(time_val);
+  int64_t local_time_ms = mode != ToDateStringMode::kUTCDateAndTime
+                              ? date_cache->ToLocal(time_ms)
+                              : time_ms;
+  int year, month, day, weekday, hour, min, sec, ms;
+  date_cache->BreakDownTime(local_time_ms, &year, &month, &day, &weekday, &hour,
+                            &min, &sec, &ms);
+  int timezone_offset = -date_cache->TimezoneOffset(time_ms);
+  int timezone_hour = std::abs(timezone_offset) / 60;
+  int timezone_min = std::abs(timezone_offset) % 60;
+  const char* local_timezone = date_cache->LocalTimezone(time_ms);
+  switch (mode) {
+    case ToDateStringMode::kLocalDate:
+      return FormatDate((year < 0) ? "%s %s %02d %05d" : "%s %s %02d %04d",
+                        kShortWeekDays[weekday], kShortMonths[month], day,
+                        year);
+    case ToDateStringMode::kLocalTime:
+      return FormatDate("%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
+                        (timezone_offset < 0) ? '-' : '+', timezone_hour,
+                        timezone_min, local_timezone);
+    case ToDateStringMode::kLocalDateAndTime:
+      return FormatDate(
+          (year < 0) ? "%s %s %02d %05d %02d:%02d:%02d GMT%c%02d%02d (%s)"
+                     : "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
+          kShortWeekDays[weekday], kShortMonths[month], day, year, hour, min,
+          sec, (timezone_offset < 0) ? '-' : '+', timezone_hour, timezone_min,
+          local_timezone);
+    case ToDateStringMode::kUTCDateAndTime:
+      return FormatDate((year < 0) ? "%s, %02d %s %05d %02d:%02d:%02d GMT"
+                                   : "%s, %02d %s %04d %02d:%02d:%02d GMT",
+                        kShortWeekDays[weekday], day, kShortMonths[month], year,
+                        hour, min, sec);
+  }
+  UNREACHABLE();
 }
 
 }  // namespace internal

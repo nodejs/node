@@ -28,13 +28,6 @@ NEVER_READ_ONLY_SPACE_IMPL(AccessorPair)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(ClassPositions)
 
-void Struct::InitializeBody(int object_size) {
-  Object value = GetReadOnlyRoots().undefined_value();
-  for (int offset = kHeaderSize; offset < object_size; offset += kTaggedSize) {
-    WRITE_FIELD(*this, offset, value);
-  }
-}
-
 Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }
@@ -46,6 +39,18 @@ void AccessorPair::set(AccessorComponent component, Object value) {
     set_setter(value);
   }
 }
+
+void AccessorPair::set(AccessorComponent component, Object value,
+                       ReleaseStoreTag tag) {
+  if (component == ACCESSOR_GETTER) {
+    set_getter(value, tag);
+  } else {
+    set_setter(value, tag);
+  }
+}
+
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
 void AccessorPair::SetComponents(Object getter, Object setter) {
   if (!getter.IsNull()) set_getter(getter);

@@ -5,12 +5,11 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 
-#include "src/objects/descriptor-array.h"
-
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
@@ -106,15 +105,16 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
 }
 
 Name DescriptorArray::GetKey(InternalIndex descriptor_number) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return GetKey(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetKey(IsolateRoot isolate,
+Name DescriptorArray::GetKey(PtrComprCageBase cage_base,
                              InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Name::cast(EntryKeyField::Relaxed_Load(isolate, *this, entry_offset));
+  return Name::cast(
+      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
 }
 
 void DescriptorArray::SetKey(InternalIndex descriptor_number, Name key) {
@@ -129,12 +129,13 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 Name DescriptorArray::GetSortedKey(int descriptor_number) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return GetSortedKey(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetSortedKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetSortedKey(IsolateRoot isolate, int descriptor_number) {
-  return GetKey(isolate, InternalIndex(GetSortedKeyIndex(descriptor_number)));
+Name DescriptorArray::GetSortedKey(PtrComprCageBase cage_base,
+                                   int descriptor_number) {
+  return GetKey(cage_base, InternalIndex(GetSortedKeyIndex(descriptor_number)));
 }
 
 void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
@@ -143,13 +144,13 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
 }
 
 Object DescriptorArray::GetStrongValue(InternalIndex descriptor_number) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return GetStrongValue(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetStrongValue(cage_base, descriptor_number);
 }
 
-Object DescriptorArray::GetStrongValue(IsolateRoot isolate,
+Object DescriptorArray::GetStrongValue(PtrComprCageBase cage_base,
                                        InternalIndex descriptor_number) {
-  return GetValue(isolate, descriptor_number).cast<Object>();
+  return GetValue(cage_base, descriptor_number).cast<Object>();
 }
 
 void DescriptorArray::SetValue(InternalIndex descriptor_number,
@@ -161,15 +162,15 @@ void DescriptorArray::SetValue(InternalIndex descriptor_number,
 }
 
 MaybeObject DescriptorArray::GetValue(InternalIndex descriptor_number) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return GetValue(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetValue(cage_base, descriptor_number);
 }
 
-MaybeObject DescriptorArray::GetValue(IsolateRoot isolate,
+MaybeObject DescriptorArray::GetValue(PtrComprCageBase cage_base,
                                       InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return EntryValueField::Relaxed_Load(isolate, *this, entry_offset);
+  return EntryValueField::Relaxed_Load(cage_base, *this, entry_offset);
 }
 
 PropertyDetails DescriptorArray::GetDetails(InternalIndex descriptor_number) {
@@ -187,19 +188,19 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
 }
 
 int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
-  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
   return GetDetails(descriptor_number).field_index();
 }
 
 FieldType DescriptorArray::GetFieldType(InternalIndex descriptor_number) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return GetFieldType(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetFieldType(cage_base, descriptor_number);
 }
 
-FieldType DescriptorArray::GetFieldType(IsolateRoot isolate,
+FieldType DescriptorArray::GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number) {
-  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
-  MaybeObject wrapped_type = GetValue(isolate, descriptor_number);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
+  MaybeObject wrapped_type = GetValue(cage_base, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 

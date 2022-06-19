@@ -5,8 +5,6 @@ const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 
-common.disableCrashOnUnhandledRejection();
-
 // Verify that unhandled rejections always trigger uncaught exceptions instead
 // of triggering unhandled rejections.
 

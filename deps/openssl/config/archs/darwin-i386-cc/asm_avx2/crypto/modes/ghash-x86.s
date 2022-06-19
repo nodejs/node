@@ -3,6 +3,7 @@
 .align	4
 _gcm_gmult_4bit_x86:
 L_gcm_gmult_4bit_x86_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -95,6 +96,7 @@ L001x86_break:
 .align	4
 _gcm_ghash_4bit_x86:
 L_gcm_ghash_4bit_x86_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -202,6 +204,7 @@ L004x86_break:
 .align	4
 _gcm_gmult_4bit_mmx:
 L_gcm_gmult_4bit_mmx_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -299,6 +302,7 @@ L007mmx_break:
 .align	4
 _gcm_ghash_4bit_mmx:
 L_gcm_ghash_4bit_mmx_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -901,6 +905,7 @@ L009outer:
 .align	4
 _gcm_init_clmul:
 L_gcm_init_clmul_begin:
+.byte	243,15,30,251
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	call	L010pic
@@ -968,6 +973,7 @@ L010pic:
 .align	4
 _gcm_gmult_clmul:
 L_gcm_gmult_clmul_begin:
+.byte	243,15,30,251
 	movl	4(%esp),%eax
 	movl	8(%esp),%edx
 	call	L011pic
@@ -1019,6 +1025,7 @@ L011pic:
 .align	4
 _gcm_ghash_clmul:
 L_gcm_ghash_clmul_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

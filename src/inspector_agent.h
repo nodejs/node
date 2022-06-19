@@ -59,8 +59,6 @@ class Agent {
   // --inspect command line flag) or if inspector JS API had been used.
   bool IsActive();
 
-  // Option is set to wait for session connection
-  bool WillWaitForConnect();
   // Blocks till frontend connects and sends "runIfWaitingForDebugger"
   void WaitForConnect();
   // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
@@ -119,8 +117,7 @@ class Agent {
   inline Environment* env() const { return parent_env_; }
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate,
-                       const v8::Global<v8::Function>& fn);
+  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality
@@ -139,8 +136,6 @@ class Agent {
 
   bool pending_enable_async_hook_ = false;
   bool pending_disable_async_hook_ = false;
-  v8::Global<v8::Function> enable_async_hook_function_;
-  v8::Global<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector

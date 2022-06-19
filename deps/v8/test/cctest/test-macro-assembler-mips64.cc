@@ -26,8 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <iostream>  // NOLINT(readability/streams)
 
+#include <iostream>
+
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -1688,8 +1690,6 @@ TEST(macro_float_minmax_f64) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -1700,22 +1700,12 @@ TEST(DeoptExitSizeIsFixed) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
     masm.bind(&before_exit);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicCheckMaps);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeBeforeArgsSize);
-    } else {
-      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               kind == DeoptimizeKind::kLazy
-                   ? Deoptimizer::kLazyDeoptExitSize
-                   : Deoptimizer::kNonLazyDeoptExitSize);
-    }
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               nullptr);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
 }
 

@@ -181,20 +181,22 @@ uint64_t DecimalQuantity::getPositionFingerprint() const {
     return fingerprint;
 }
 
-void DecimalQuantity::roundToIncrement(double roundingIncrement, RoundingMode roundingMode,
-                                       UErrorCode& status) {
+void DecimalQuantity::roundToIncrement(
+        uint64_t increment,
+        digits_t magnitude,
+        RoundingMode roundingMode,
+        UErrorCode& status) {
     // Do not call this method with an increment having only a 1 or a 5 digit!
     // Use a more efficient call to either roundToMagnitude() or roundToNickel().
     // Check a few popular rounding increments; a more thorough check is in Java.
-    U_ASSERT(roundingIncrement != 0.01);
-    U_ASSERT(roundingIncrement != 0.05);
-    U_ASSERT(roundingIncrement != 0.1);
-    U_ASSERT(roundingIncrement != 0.5);
-    U_ASSERT(roundingIncrement != 1);
-    U_ASSERT(roundingIncrement != 5);
+    U_ASSERT(increment != 1);
+    U_ASSERT(increment != 5);
 
+    DecimalQuantity incrementDQ;
+    incrementDQ.setToLong(increment);
+    incrementDQ.adjustMagnitude(magnitude);
     DecNum incrementDN;
-    incrementDN.setTo(roundingIncrement, status);
+    incrementDQ.toDecNum(incrementDN, status);
     if (U_FAILURE(status)) { return; }
 
     // Divide this DecimalQuantity by the increment, round, then multiply back.
@@ -254,6 +256,12 @@ bool DecimalQuantity::adjustMagnitude(int32_t delta) {
     return false;
 }
 
+int32_t DecimalQuantity::adjustToZeroScale() {
+    int32_t retval = scale;
+    scale = 0;
+    return retval;
+}
+
 double DecimalQuantity::getPluralOperand(PluralOperand operand) const {
     // If this assertion fails, you need to call roundToInfinity() or some other rounding method.
     // See the comment at the top of this file explaining the "isApproximate" field.
@@ -273,6 +281,9 @@ double DecimalQuantity::getPluralOperand(PluralOperand operand) const {
             return fractionCountWithoutTrailingZeros();
         case PLURAL_OPERAND_E:
             return static_cast<double>(getExponent());
+        case PLURAL_OPERAND_C:
+            // Plural operand `c` is currently an alias for `e`.
+            return static_cast<double>(getExponent());
         default:
             return std::abs(toDouble());
     }
@@ -284,6 +295,11 @@ int32_t DecimalQuantity::getExponent() const {
 
 void DecimalQuantity::adjustExponent(int delta) {
     exponent = exponent + delta;
+}
+
+void DecimalQuantity::resetExponent() {
+    adjustMagnitude(exponent);
+    exponent = 0;
 }
 
 bool DecimalQuantity::hasIntegerValue() const {
@@ -531,9 +547,72 @@ void DecimalQuantity::_setToDecNum(const DecNum& decnum, UErrorCode& status) {
     if (decnum.isNegative()) {
         flags |= NEGATIVE_FLAG;
     }
-    if (!decnum.isZero()) {
+    if (decnum.isNaN()) {
+        flags |= NAN_FLAG;
+    } else if (decnum.isInfinity()) {
+        flags |= INFINITY_FLAG;
+    } else if (!decnum.isZero()) {
         readDecNumberToBcd(decnum);
         compact();
+    }
+}
+
+DecimalQuantity DecimalQuantity::fromExponentString(UnicodeString num, UErrorCode& status) {
+    if (num.indexOf(u'e') >= 0 || num.indexOf(u'c') >= 0
+                || num.indexOf(u'E') >= 0 || num.indexOf(u'C') >= 0) {
+        int32_t ePos = num.lastIndexOf('e');
+        if (ePos < 0) {
+            ePos = num.lastIndexOf('c');
+        }
+        if (ePos < 0) {
+            ePos = num.lastIndexOf('E');
+        }
+        if (ePos < 0) {
+            ePos = num.lastIndexOf('C');
+        }
+        int32_t expNumPos = ePos + 1;
+        UnicodeString exponentStr = num.tempSubString(expNumPos, num.length() - expNumPos);
+
+        // parse exponentStr into exponent, but note that parseAsciiInteger doesn't handle the minus sign
+        bool isExpStrNeg = num[expNumPos] == u'-';
+        int32_t exponentParsePos = isExpStrNeg ? 1 : 0;
+        int32_t exponent = ICU_Utility::parseAsciiInteger(exponentStr, exponentParsePos);
+        exponent = isExpStrNeg ? -exponent : exponent;
+
+        // Compute the decNumber representation
+        UnicodeString fractionStr = num.tempSubString(0, ePos);
+        CharString fracCharStr = CharString();
+        fracCharStr.appendInvariantChars(fractionStr, status);
+        DecNum decnum;
+        decnum.setTo(fracCharStr.toStringPiece(), status);
+
+        // Clear and set this DecimalQuantity instance
+        DecimalQuantity dq;
+        dq.setToDecNum(decnum, status);
+        int32_t numFracDigit = getVisibleFractionCount(fractionStr);
+        dq.setMinFraction(numFracDigit);
+        dq.adjustExponent(exponent);
+
+        return dq;
+    } else {
+        DecimalQuantity dq;
+        int numFracDigit = getVisibleFractionCount(num);
+
+        CharString numCharStr = CharString();
+        numCharStr.appendInvariantChars(num, status);
+        dq.setToDecNumber(numCharStr.toStringPiece(), status);
+
+        dq.setMinFraction(numFracDigit);
+        return dq;
+    }
+}
+
+int32_t DecimalQuantity::getVisibleFractionCount(UnicodeString value) {
+    int decimalPos = value.indexOf('.') + 1;
+    if (decimalPos == 0) {
+        return 0;
+    } else {
+        return value.length() - decimalPos;
     }
 }
 
@@ -631,6 +710,7 @@ DecNum& DecimalQuantity::toDecNum(DecNum& output, UErrorCode& status) const {
     // Special handling for zero
     if (precision == 0) {
         output.setTo("0", status);
+        return output;
     }
 
     // Use the BCD constructor. We need to do a little bit of work to convert, though.
@@ -819,6 +899,7 @@ void DecimalQuantity::roundToMagnitude(int32_t magnitude, RoundingMode roundingM
 
         // Perform truncation
         if (position >= precision) {
+            U_ASSERT(trailingDigit == 0);
             setBcdToZero();
             scale = magnitude;
         } else {
@@ -836,6 +917,10 @@ void DecimalQuantity::roundToMagnitude(int32_t magnitude, RoundingMode roundingM
                 // do not return: use the bubbling logic below
             } else {
                 setDigitPos(0, 5);
+                // If the quantity was set to 0, we may need to restore a digit.
+                if (precision == 0) {
+                    precision = 1;
+                }
                 // compact not necessary: digit at position 0 is nonzero
                 return;
             }
@@ -913,7 +998,7 @@ UnicodeString DecimalQuantity::toPlainString() const {
     }
     if (lower > rReqPos) {
         lower = rReqPos;
-    }
+    }    
     int32_t p = upper;
     if (p < 0) {
         sb.append(u'0');
@@ -927,6 +1012,44 @@ UnicodeString DecimalQuantity::toPlainString() const {
     for(; p >= lower; p--) {
         sb.append(u'0' + getDigitPos(p - scale - exponent));
     }
+    return sb;
+}
+
+
+UnicodeString DecimalQuantity::toExponentString() const {
+    U_ASSERT(!isApproximate);
+    UnicodeString sb;
+    if (isNegative()) {
+        sb.append(u'-');
+    }
+
+    int32_t upper = scale + precision - 1;
+    int32_t lower = scale;
+    if (upper < lReqPos - 1) {
+        upper = lReqPos - 1;
+    }
+    if (lower > rReqPos) {
+        lower = rReqPos;
+    }    
+    int32_t p = upper;
+    if (p < 0) {
+        sb.append(u'0');
+    }
+    for (; p >= 0; p--) {
+        sb.append(u'0' + getDigitPos(p - scale));
+    }
+    if (lower < 0) {
+        sb.append(u'.');
+    }
+    for(; p >= lower; p--) {
+        sb.append(u'0' + getDigitPos(p - scale));
+    }
+
+    if (exponent != 0) {
+        sb.append(u'c');
+        ICU_Utility::appendNumber(sb, exponent);        
+    }
+
     return sb;
 }
 

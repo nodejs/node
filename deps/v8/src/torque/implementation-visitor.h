@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/torque/ast.h"
 #include "src/torque/cfg.h"
+#include "src/torque/cpp-builder.h"
 #include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
@@ -227,6 +228,8 @@ struct LayoutForInitialization {
   VisitResult size;
 };
 
+extern uint64_t next_unique_binding_index;
+
 template <class T>
 class Binding;
 
@@ -234,7 +237,7 @@ template <class T>
 class BindingsManager {
  public:
   base::Optional<Binding<T>*> TryLookup(const std::string& name) {
-    if (name.length() >= 2 && name[0] == '_' && name[1] != '_') {
+    if (StartsWithSingleUnderscore(name)) {
       Error("Trying to reference '", name, "' which is marked as unused.")
           .Throw();
     }
@@ -261,7 +264,8 @@ class Binding : public T {
         name_(name),
         previous_binding_(this),
         used_(false),
-        written_(false) {
+        written_(false),
+        unique_index_(next_unique_binding_index++) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
   template <class... Args>
@@ -299,6 +303,8 @@ class Binding : public T {
   bool Written() const { return written_; }
   void SetWritten() { written_ = true; }
 
+  uint64_t unique_index() const { return unique_index_; }
+
  private:
   bool SkipLintCheck() const { return name_.length() > 0 && name_[0] == '_'; }
 
@@ -308,26 +314,31 @@ class Binding : public T {
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
   bool used_;
   bool written_;
+  uint64_t unique_index_;
 };
 
 template <class T>
 class BlockBindings {
  public:
   explicit BlockBindings(BindingsManager<T>* manager) : manager_(manager) {}
-  void Add(std::string name, T value, bool mark_as_used = false) {
+  Binding<T>* Add(std::string name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name);
     auto binding =
         std::make_unique<Binding<T>>(manager_, name, std::move(value));
+    Binding<T>* result = binding.get();
     if (mark_as_used) binding->SetUsed();
     bindings_.push_back(std::move(binding));
+    return result;
   }
 
-  void Add(const Identifier* name, T value, bool mark_as_used = false) {
+  Binding<T>* Add(const Identifier* name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name->value);
     auto binding =
         std::make_unique<Binding<T>>(manager_, name, std::move(value));
+    Binding<T>* result = binding.get();
     if (mark_as_used) binding->SetUsed();
     bindings_.push_back(std::move(binding));
+    return result;
   }
 
   std::vector<Binding<T>*> bindings() const {
@@ -361,6 +372,8 @@ class LocalValue {
       : value(std::move(reference)) {}
   explicit LocalValue(std::string inaccessible_explanation)
       : inaccessible_explanation(std::move(inaccessible_explanation)) {}
+  explicit LocalValue(std::function<LocationReference()> lazy)
+      : lazy(std::move(lazy)) {}
 
   LocationReference GetLocationReference(Binding<LocalValue>* binding) {
     if (value) {
@@ -370,16 +383,19 @@ class LocalValue {
         return LocationReference::VariableAccess(ref.GetVisitResult(), binding);
       }
       return ref;
+    } else if (lazy) {
+      return (*lazy)();
     } else {
       Error("Cannot access ", binding->name(), ": ", inaccessible_explanation)
           .Throw();
     }
   }
 
-  bool IsAccessible() const { return value.has_value(); }
+  bool IsAccessibleNonLazy() const { return value.has_value(); }
 
  private:
   base::Optional<LocationReference> value;
+  base::Optional<std::function<LocationReference()>> lazy;
   std::string inaccessible_explanation;
 };
 
@@ -400,7 +416,7 @@ template <>
 inline bool Binding<LocalValue>::CheckWritten() const {
   // Do the check only for non-const variables and non struct types.
   auto binding = *manager_->current_bindings_[name_];
-  if (!binding->IsAccessible()) return false;
+  if (!binding->IsAccessibleNonLazy()) return false;
   const LocationReference& ref = binding->GetLocationReference(binding);
   if (!ref.IsVariableAccess()) return false;
   return !ref.GetVisitResult().type()->StructSupertype();
@@ -427,7 +443,7 @@ class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       const std::string& output_directory);
-  void GenerateClassFieldOffsets(const std::string& output_directory);
+  void GenerateVisitorLists(const std::string& output_directory);
   void GenerateBitFields(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);
@@ -469,9 +485,9 @@ class ImplementationVisitor {
   InitializerResults VisitInitializerResults(
       const ClassType* class_type,
       const std::vector<NameAndExpression>& expressions);
-  LocationReference GenerateFieldReference(VisitResult object,
-                                           const Field& field,
-                                           const ClassType* class_type);
+  LocationReference GenerateFieldReference(
+      VisitResult object, const Field& field, const ClassType* class_type,
+      bool treat_optional_as_indexed = false);
   LocationReference GenerateFieldReferenceForInit(
       VisitResult object, const Field& field,
       const LayoutForInitialization& layout);
@@ -502,6 +518,8 @@ class ImplementationVisitor {
       bool ignore_stuct_field_constness = false,
       base::Optional<SourcePosition> pos = {});
   LocationReference GetLocationReference(ElementAccessExpression* expr);
+  LocationReference GenerateReferenceToItemInHeapSlice(LocationReference slice,
+                                                       VisitResult index);
 
   VisitResult GenerateFetchFromLocation(const LocationReference& reference);
 
@@ -537,7 +555,8 @@ class ImplementationVisitor {
   VisitResult Visit(IncrementDecrementExpression* expr);
   VisitResult Visit(AssignmentExpression* expr);
   VisitResult Visit(StringLiteralExpression* expr);
-  VisitResult Visit(NumberLiteralExpression* expr);
+  VisitResult Visit(FloatingPointLiteralExpression* expr);
+  VisitResult Visit(IntegerLiteralExpression* expr);
   VisitResult Visit(AssumeTypeImpossibleExpression* expr);
   VisitResult Visit(TryLabelExpression* expr);
   VisitResult Visit(StatementExpression* expr);
@@ -735,12 +754,12 @@ class ImplementationVisitor {
   void GenerateExpressionBranch(Expression* expression, Block* true_block,
                                 Block* false_block);
 
-  void GenerateMacroFunctionDeclaration(std::ostream& o,
-                                        Macro* macro);
-  std::vector<std::string> GenerateFunctionDeclaration(
-      std::ostream& o, const std::string& macro_prefix, const std::string& name,
-      const Signature& signature, const NameVector& parameter_names,
-      bool pass_code_assembler_state = true);
+  cpp::Function GenerateMacroFunctionDeclaration(Macro* macro);
+
+  cpp::Function GenerateFunction(
+      cpp::Class* owner, const std::string& name, const Signature& signature,
+      const NameVector& parameter_names, bool pass_code_assembler_state = true,
+      std::vector<std::string>* generated_parameter_names = nullptr);
 
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);
@@ -834,6 +853,8 @@ class ImplementationVisitor {
     }
   }
 
+  class MacroInliningScope;
+
   base::Optional<CfgAssembler> assembler_;
   NullOStream null_stream_;
   bool is_dry_run_;
@@ -845,6 +866,10 @@ class ImplementationVisitor {
   // the value to load.
   std::unordered_map<const Expression*, const Identifier*>
       bitfield_expressions_;
+
+  // For emitting warnings. Contains the current set of macros being inlined in
+  // calls to InlineMacro.
+  std::unordered_set<const Macro*> inlining_macros_;
 
   // The contents of the debug macros output files. These contain all Torque
   // macros that have been generated using the C++ backend with debug purpose.

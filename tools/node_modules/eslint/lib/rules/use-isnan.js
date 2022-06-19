@@ -21,20 +21,23 @@ const astUtils = require("./utils/ast-utils");
  * @returns {boolean} `true` if the node is 'NaN' identifier.
  */
 function isNaNIdentifier(node) {
-    return Boolean(node) && node.type === "Identifier" && node.name === "NaN";
+    return Boolean(node) && (
+        astUtils.isSpecificId(node, "NaN") ||
+        astUtils.isSpecificMemberAccess(node, "Number", "NaN")
+    );
 }
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "require calls to `isNaN()` when checking for `NaN`",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/use-isnan"
         },

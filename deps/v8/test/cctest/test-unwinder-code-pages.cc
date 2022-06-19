@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-unwinder-state.h"
-#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/isolate.h"
@@ -124,7 +126,7 @@ void CheckCalleeSavedRegisters(const RegisterState& register_state) {
 static const void* fake_stack_base = nullptr;
 
 TEST(Unwind_BadState_Fail_CodePagesAPI) {
-  JSEntryStubs entry_stubs;  // Fields are intialized to nullptr.
+  JSEntryStubs entry_stubs;  // Fields are initialized to nullptr.
   RegisterState register_state;
   size_t pages_length = 0;
   MemoryRange* code_pages = nullptr;
@@ -166,7 +168,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   register_state.fp = stack;
 
   // Put the current PC inside of a valid builtin.
-  Code builtin = i_isolate->builtins()->builtin(Builtins::kStringEqual);
+  Code builtin = FromCodeT(i_isolate->builtins()->code(Builtin::kStringEqual));
   const uintptr_t offset = 40;
   CHECK_LT(offset, builtin.InstructionSize());
   register_state.pc =
@@ -223,7 +225,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
 
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
-  Code builtin = i_isolate->builtins()->builtin(Builtins::kStringEqual);
+  Code builtin = FromCodeT(i_isolate->builtins()->code(Builtin::kStringEqual));
   register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -454,7 +456,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
-  Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
+  Code js_entry = FromCodeT(i_isolate->builtins()->code(Builtin::kJSEntry));
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   register_state.pc = start + 10;
 
@@ -636,7 +638,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
       isolate->CopyCodePages(arraysize(code_pages), code_pages);
   CHECK_LE(pages_length, arraysize(code_pages));
 
-  Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
+  Code js_entry = FromCodeT(i_isolate->builtins()->code(Builtin::kJSEntry));
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   size_t length = js_entry.InstructionSize();
 

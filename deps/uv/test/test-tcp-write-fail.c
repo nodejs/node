@@ -52,13 +52,13 @@ static void close_socket(uv_tcp_t* sock) {
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
 
   ASSERT(status != 0);
   fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));

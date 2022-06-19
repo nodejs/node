@@ -5,9 +5,10 @@
 #ifndef V8_IC_HANDLER_CONFIGURATION_INL_H_
 #define V8_IC_HANDLER_CONFIGURATION_INL_H_
 
-#include "src/ic/handler-configuration.h"
-
+#include "src/builtins/builtins.h"
+#include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/objects-inl.h"
@@ -19,6 +20,10 @@
 namespace v8 {
 namespace internal {
 
+inline Handle<Object> MakeCodeHandler(Isolate* isolate, Builtin builtin) {
+  return isolate->builtins()->code_handle(builtin);
+}
+
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
 
 CAST_ACCESSOR(LoadHandler)
@@ -29,72 +34,80 @@ LoadHandler::Kind LoadHandler::GetHandlerKind(Smi smi_handler) {
 }
 
 Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
-  int config = KindBits::encode(kNormal);
+  int config = KindBits::encode(Kind::kNormal);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadGlobal(Isolate* isolate) {
-  int config = KindBits::encode(kGlobal);
+  int config = KindBits::encode(Kind::kGlobal);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadInterceptor(Isolate* isolate) {
-  int config = KindBits::encode(kInterceptor);
+  int config = KindBits::encode(Kind::kInterceptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
-  int config = KindBits::encode(kSlow);
+  int config = KindBits::encode(Kind::kSlow);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
-  int config = KindBits::encode(kField) |
+  int config = KindBits::encode(Kind::kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |
                IsDoubleBits::encode(field_index.is_double()) |
                FieldIndexBits::encode(field_index.index());
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
+                                             WasmValueType type, int offset) {
+  int config = KindBits::encode(Kind::kField) | IsWasmStructBits::encode(true) |
+               WasmFieldTypeBits::encode(type) |
+               WasmFieldOffsetBits::encode(offset);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
-  int config = KindBits::encode(kConstantFromPrototype);
+  int config = KindBits::encode(Kind::kConstantFromPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kAccessor) | DescriptorBits::encode(descriptor);
+  int config =
+      KindBits::encode(Kind::kAccessor) | DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadProxy(Isolate* isolate) {
-  int config = KindBits::encode(kProxy);
+  int config = KindBits::encode(Kind::kProxy);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadNativeDataProperty(Isolate* isolate,
                                                 int descriptor) {
-  int config = KindBits::encode(kNativeDataProperty) |
+  int config = KindBits::encode(Kind::kNativeDataProperty) |
                DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate,
                                        bool holder_is_receiver) {
-  int config = KindBits::encode(
-      holder_is_receiver ? kApiGetter : kApiGetterHolderIsPrototype);
+  int config =
+      KindBits::encode(holder_is_receiver ? Kind::kApiGetter
+                                          : Kind::kApiGetterHolderIsPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadModuleExport(Isolate* isolate, int index) {
   int config =
-      KindBits::encode(kModuleExport) | ExportsIndexBits::encode(index);
+      KindBits::encode(Kind::kModuleExport) | ExportsIndexBits::encode(index);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadNonExistent(Isolate* isolate) {
-  int config = KindBits::encode(kNonExistent);
+  int config = KindBits::encode(Kind::kNonExistent);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -104,7 +117,7 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
                                      bool is_js_array,
                                      KeyedAccessLoadMode load_mode) {
   int config =
-      KindBits::encode(kElement) |
+      KindBits::encode(Kind::kElement) |
       AllowOutOfBoundsBits::encode(load_mode == LOAD_IGNORE_OUT_OF_BOUNDS) |
       ElementsKindBits::encode(elements_kind) |
       ConvertHoleBits::encode(convert_hole_to_undefined) |
@@ -115,8 +128,15 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
 Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
                                            KeyedAccessLoadMode load_mode) {
   int config =
-      KindBits::encode(kIndexedString) |
+      KindBits::encode(Kind::kIndexedString) |
       AllowOutOfBoundsBits::encode(load_mode == LOAD_IGNORE_OUT_OF_BOUNDS);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
+                                              WasmValueType type) {
+  int config = KindBits::encode(Kind::kElement) |
+               IsWasmArrayBits::encode(true) | WasmArrayTypeBits::encode(type);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -125,39 +145,88 @@ OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 CAST_ACCESSOR(StoreHandler)
 
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
-  int config = KindBits::encode(kGlobalProxy);
+  int config = KindBits::encode(Kind::kGlobalProxy);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
-  int config = KindBits::encode(kNormal);
+  int config = KindBits::encode(Kind::kNormal);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
-  int config = KindBits::encode(kInterceptor);
+  int config = KindBits::encode(Kind::kInterceptor);
   return handle(Smi::FromInt(config), isolate);
+}
+
+Builtin StoreHandler::StoreSloppyArgumentsBuiltin(KeyedAccessStoreMode mode) {
+  switch (mode) {
+    case STANDARD_STORE:
+      return Builtin::kKeyedStoreIC_SloppyArguments_Standard;
+    case STORE_AND_GROW_HANDLE_COW:
+      return Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW;
+    case STORE_IGNORE_OUT_OF_BOUNDS:
+      return Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB;
+    case STORE_HANDLE_COW:
+      return Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW;
+    default:
+      UNREACHABLE();
+  }
+}
+
+Builtin StoreHandler::StoreFastElementBuiltin(KeyedAccessStoreMode mode) {
+  switch (mode) {
+    case STANDARD_STORE:
+      return Builtin::kStoreFastElementIC_Standard;
+    case STORE_AND_GROW_HANDLE_COW:
+      return Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW;
+    case STORE_IGNORE_OUT_OF_BOUNDS:
+      return Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB;
+    case STORE_HANDLE_COW:
+      return Builtin::kStoreFastElementIC_NoTransitionHandleCOW;
+    default:
+      UNREACHABLE();
+  }
+}
+
+Builtin StoreHandler::ElementsTransitionAndStoreBuiltin(
+    KeyedAccessStoreMode mode) {
+  switch (mode) {
+    case STANDARD_STORE:
+      return Builtin::kElementsTransitionAndStore_Standard;
+    case STORE_AND_GROW_HANDLE_COW:
+      return Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW;
+    case STORE_IGNORE_OUT_OF_BOUNDS:
+      return Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB;
+    case STORE_HANDLE_COW:
+      return Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW;
+    default:
+      UNREACHABLE();
+  }
 }
 
 Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
                                     KeyedAccessStoreMode store_mode) {
-  int config =
-      KindBits::encode(kSlow) | KeyedAccessStoreModeBits::encode(store_mode);
+  int config = KindBits::encode(Kind::kSlow) |
+               KeyedAccessStoreModeBits::encode(store_mode);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
-  int config = KindBits::encode(kProxy);
-  return handle(Smi::FromInt(config), isolate);
+  return handle(StoreProxy(), isolate);
+}
+
+Smi StoreHandler::StoreProxy() {
+  int config = KindBits::encode(Kind::kProxy);
+  return Smi::FromInt(config);
 }
 
 Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                      int descriptor, FieldIndex field_index,
                                      Representation representation) {
   DCHECK(!representation.IsNone());
-  DCHECK(kind == kField || kind == kConstField);
+  DCHECK(kind == Kind::kField || kind == Kind::kConstField ||
+         kind == Kind::kSharedStructField);
 
   int config = KindBits::encode(kind) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -171,27 +240,67 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
                                      FieldIndex field_index,
                                      PropertyConstness constness,
                                      Representation representation) {
-  Kind kind = constness == PropertyConstness::kMutable ? kField : kConstField;
+  Kind kind = constness == PropertyConstness::kMutable ? Kind::kField
+                                                       : Kind::kConstField;
   return StoreField(isolate, kind, descriptor, field_index, representation);
+}
+
+Handle<Smi> StoreHandler::StoreSharedStructField(
+    Isolate* isolate, int descriptor, FieldIndex field_index,
+    Representation representation) {
+  DCHECK(representation.Equals(Representation::Tagged()));
+  return StoreField(isolate, Kind::kSharedStructField, descriptor, field_index,
+                    representation);
 }
 
 Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,
                                                   int descriptor) {
-  int config = KindBits::encode(kNativeDataProperty) |
+  int config = KindBits::encode(Kind::kNativeDataProperty) |
                DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreAccessor(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kAccessor) | DescriptorBits::encode(descriptor);
+  int config =
+      KindBits::encode(Kind::kAccessor) | DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
                                          bool holder_is_receiver) {
-  int config = KindBits::encode(
-      holder_is_receiver ? kApiSetter : kApiSetterHolderIsPrototype);
+  int config =
+      KindBits::encode(holder_is_receiver ? Kind::kApiSetter
+                                          : Kind::kApiSetterHolderIsPrototype);
   return handle(Smi::FromInt(config), isolate);
+}
+
+inline const char* WasmValueType2String(WasmValueType type) {
+  switch (type) {
+    case WasmValueType::kI8:
+      return "i8";
+    case WasmValueType::kI16:
+      return "i16";
+    case WasmValueType::kI32:
+      return "i32";
+    case WasmValueType::kU32:
+      return "u32";
+    case WasmValueType::kI64:
+      return "i64";
+    case WasmValueType::kF32:
+      return "f32";
+    case WasmValueType::kF64:
+      return "f64";
+    case WasmValueType::kS128:
+      return "s128";
+
+    case WasmValueType::kRef:
+      return "Ref";
+    case WasmValueType::kOptRef:
+      return "OptRef";
+
+    case WasmValueType::kNumTypes:
+      return "???";
+  }
 }
 
 }  // namespace internal

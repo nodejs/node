@@ -16,6 +16,8 @@
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
 
+// LongNameHandler takes care of formatting currency and measurement unit names,
+// as well as populating the gender of measure units.
 class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public UMemory {
   public:
     static UnicodeString getUnitDisplayName(
@@ -24,6 +26,8 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
         UNumberUnitWidth width,
         UErrorCode& status);
 
+    // This function does not support inflections or other newer NumberFormatter
+    // features: it exists to support the older not-recommended MeasureFormat.
     static UnicodeString getUnitPattern(
         const Locale& loc,
         const MeasureUnit& unit,
@@ -38,27 +42,28 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     /**
      * Construct a localized LongNameHandler for the specified MeasureUnit.
      *
-     * Compound units can be constructed via `unit` and `perUnit`. Both of these
-     * must then be built-in units.
-     *
      * Mixed units are not supported, use MixedUnitLongNameHandler::forMeasureUnit.
      *
-     * This function uses a fillIn intead of returning a pointer, because we
+     * This function uses a fillIn instead of returning a pointer, because we
      * want to fill in instances in a MemoryPool (which cannot adopt pointers it
      * didn't create itself).
      *
      * @param loc The desired locale.
-     * @param unit The measure unit to construct a LongNameHandler for. If
-     *     `perUnit` is also defined, `unit` must not be a mixed unit.
-     * @param perUnit If `unit` is a mixed unit, `perUnit` must be "none".
+     * @param unitRef The measure unit to construct a LongNameHandler for.
      * @param width Specifies the desired unit rendering.
+     * @param unitDisplayCase Specifies the desired grammatical case. If the
+     *     specified case is not found, we fall back to nominative or no-case.
      * @param rules Does not take ownership.
      * @param parent Does not take ownership.
      * @param fillIn Required.
      */
-    static void forMeasureUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
-                               const UNumberUnitWidth &width, const PluralRules *rules,
-                               const MicroPropsGenerator *parent, LongNameHandler *fillIn,
+    static void forMeasureUnit(const Locale &loc,
+                               const MeasureUnit &unitRef,
+                               const UNumberUnitWidth &width,
+                               const char *unitDisplayCase,
+                               const PluralRules *rules,
+                               const MicroPropsGenerator *parent,
+                               LongNameHandler *fillIn,
                                UErrorCode &status);
 
     /**
@@ -68,10 +73,6 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     void
     processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
 
-    // TODO(units): investigate whether we might run into Mixed Unit trouble
-    // with this. This override for ModifierStore::getModifier does not support
-    // mixed units: investigate under which circumstances it gets called (check
-    // both ImmutablePatternModifier and in NumberRangeFormatterImpl).
     const Modifier* getModifier(Signum signum, StandardPlural::Form plural) const U_OVERRIDE;
 
   private:
@@ -81,6 +82,9 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     const PluralRules *rules;
     // Not owned
     const MicroPropsGenerator *parent;
+    // Grammatical gender of the formatted result. Not owned: must point at
+    // static or global strings.
+    const char *gender = "";
 
     LongNameHandler(const PluralRules *rules, const MicroPropsGenerator *parent)
         : rules(rules), parent(parent) {
@@ -96,13 +100,25 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     // Allow macrosToMicroGenerator to call the private default constructor.
     friend class NumberFormatterImpl;
 
-    // Fills in LongNameHandler fields for formatting compound units identified
-    // via `unit` and `perUnit`. Both `unit` and `perUnit` need to be built-in
-    // units (for which data exists).
-    static void forCompoundUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
-                                const UNumberUnitWidth &width, const PluralRules *rules,
-                                const MicroPropsGenerator *parent, LongNameHandler *fillIn,
-                                UErrorCode &status);
+    // Fills in LongNameHandler fields for formatting units identified `unit`.
+    static void forArbitraryUnit(const Locale &loc,
+                                 const MeasureUnit &unit,
+                                 const UNumberUnitWidth &width,
+                                 const char *unitDisplayCase,
+                                 LongNameHandler *fillIn,
+                                 UErrorCode &status);
+
+    // Roughly corresponds to patternTimes(...) in the spec:
+    // https://unicode.org/reports/tr35/tr35-general.html#compound-units
+    //
+    // productUnit is an rvalue reference to indicate this function consumes it,
+    // leaving it in a not-useful / undefined state.
+    static void processPatternTimes(MeasureUnitImpl &&productUnit,
+                                    Locale loc,
+                                    const UNumberUnitWidth &width,
+                                    const char *caseVariant,
+                                    UnicodeString *outArray,
+                                    UErrorCode &status);
 
     // Sets fModifiers to use the patterns from `simpleFormats`.
     void simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field, UErrorCode &status);
@@ -111,7 +127,7 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     // and `trailFormat` appended to each.
     //
     // With a leadFormat of "{0}m" and a trailFormat of "{0}/s", it produces a
-    // pattern of "{0}m/s" by inserting the leadFormat pattern into trailFormat.
+    // pattern of "{0}m/s" by inserting each leadFormat pattern into trailFormat.
     void multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
                                        Field field, UErrorCode &status);
 };
@@ -123,7 +139,7 @@ class MixedUnitLongNameHandler : public MicroPropsGenerator, public ModifierStor
      * Construct a localized MixedUnitLongNameHandler for the specified
      * MeasureUnit. It must be a MIXED unit.
      *
-     * This function uses a fillIn intead of returning a pointer, because we
+     * This function uses a fillIn instead of returning a pointer, because we
      * want to fill in instances in a MemoryPool (which cannot adopt pointers it
      * didn't create itself).
      *
@@ -131,13 +147,19 @@ class MixedUnitLongNameHandler : public MicroPropsGenerator, public ModifierStor
      * @param mixedUnit The mixed measure unit to construct a
      *     MixedUnitLongNameHandler for.
      * @param width Specifies the desired unit rendering.
+     * @param unitDisplayCase Specifies the desired grammatical case. If the
+     *     specified case is not found, we fall back to nominative or no-case.
      * @param rules Does not take ownership.
      * @param parent Does not take ownership.
      * @param fillIn Required.
      */
-    static void forMeasureUnit(const Locale &loc, const MeasureUnit &mixedUnit,
-                               const UNumberUnitWidth &width, const PluralRules *rules,
-                               const MicroPropsGenerator *parent, MixedUnitLongNameHandler *fillIn,
+    static void forMeasureUnit(const Locale &loc,
+                               const MeasureUnit &mixedUnit,
+                               const UNumberUnitWidth &width,
+                               const char *unitDisplayCase,
+                               const PluralRules *rules,
+                               const MicroPropsGenerator *parent,
+                               MixedUnitLongNameHandler *fillIn,
                                UErrorCode &status);
 
     /**
@@ -156,21 +178,24 @@ class MixedUnitLongNameHandler : public MicroPropsGenerator, public ModifierStor
   private:
     // Not owned
     const PluralRules *rules;
+
     // Not owned
     const MicroPropsGenerator *parent;
 
     // Total number of units in the MeasureUnit this handler was configured for:
     // for "foot-and-inch", this will be 2.
     int32_t fMixedUnitCount = 1;
+
     // Stores unit data for each of the individual units. For each unit, it
     // stores ARRAY_LENGTH strings, as returned by getMeasureData. (Each unit
     // with index `i` has ARRAY_LENGTH strings starting at index
     // `i*ARRAY_LENGTH` in this array.)
     LocalArray<UnicodeString> fMixedUnitData;
-    // A localized NumberFormatter used to format the integer-valued bigger
-    // units of Mixed Unit measurements.
-    LocalizedNumberFormatter fIntegerFormatter;
-    // A localised list formatter for joining mixed units together.
+
+    // Formats the larger units of Mixed Unit measurements.
+    LocalizedNumberFormatter fNumberFormatter;
+
+    // Joins mixed units together.
     LocalPointer<ListFormatter> fListFormatter;
 
     MixedUnitLongNameHandler(const PluralRules *rules, const MicroPropsGenerator *parent)
@@ -207,8 +232,11 @@ class LongNameMultiplexer : public MicroPropsGenerator, public UMemory {
     // `units`. An individual unit might be a mixed unit.
     static LongNameMultiplexer *forMeasureUnits(const Locale &loc,
                                                 const MaybeStackVector<MeasureUnit> &units,
-                                                const UNumberUnitWidth &width, const PluralRules *rules,
-                                                const MicroPropsGenerator *parent, UErrorCode &status);
+                                                const UNumberUnitWidth &width,
+                                                const char *unitDisplayCase,
+                                                const PluralRules *rules,
+                                                const MicroPropsGenerator *parent,
+                                                UErrorCode &status);
 
     // The output unit must be provided via `micros.outputUnit`, it must match
     // one of the units provided to the factory function.

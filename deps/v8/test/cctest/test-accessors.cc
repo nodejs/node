@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/strings/string-stream.h"
@@ -315,7 +316,7 @@ THREADED_TEST(HandleScopePop) {
   int count_before =
       i::HandleScope::NumberOfHandles(reinterpret_cast<i::Isolate*>(isolate));
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     CompileRun(
         "for (var i = 0; i < 1000; i++) {"
         "  obj.one;"
@@ -527,13 +528,14 @@ THREADED_TEST(Gc) {
 
 static void StackCheck(Local<String> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  i::StackFrameIterator iter(isolate);
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     i::Code code = frame->LookupCode();
     CHECK(code.IsCode());
-    CHECK(code.contains(frame->pc()));
+    CHECK(code.contains(isolate, frame->pc()));
     iter.Advance();
   }
 }
@@ -901,4 +903,37 @@ TEST(ObjectSetLazyDataPropertyForIndex) {
     ExpectInt32("obj[1]", 1);
     CHECK_EQ(1, getter_call_count);
   }
+}
+
+TEST(ObjectTemplateSetLazyPropertySurvivesIC) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  static int getter_call_count = 0;
+  templ->SetLazyDataProperty(
+      v8_str("foo"), [](v8::Local<v8::Name> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+
+  v8::Local<v8::Function> f = CompileRun(
+                                  "function f(obj) {"
+                                  "  obj.foo;"
+                                  "  obj.foo;"
+                                  "};"
+                                  "%PrepareFunctionForOptimization(f);"
+                                  "f")
+                                  .As<v8::Function>();
+  v8::Local<v8::Value> obj = templ->NewInstance(context).ToLocalChecked();
+  f->Call(context, context->Global(), 1, &obj).ToLocalChecked();
+  CHECK_EQ(getter_call_count, 1);
+
+  obj = templ->NewInstance(context).ToLocalChecked();
+  f->Call(context, context->Global(), 1, &obj).ToLocalChecked();
+  CHECK_EQ(getter_call_count, 2);
 }

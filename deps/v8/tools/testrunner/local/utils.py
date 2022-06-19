@@ -25,9 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 from os.path import exists
 from os.path import isdir
 from os.path import join
@@ -97,6 +94,70 @@ def GuessOS():
     return None
 
 
+# Check if Vector Enhancement Facility 1 is available on the
+# host S390 machine. This facility is required for supporting Simd on V8.
+def IsS390SimdSupported():
+  import subprocess
+  cpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True)
+  cpuinfo_list = cpuinfo.strip().decode("utf-8").splitlines()
+  facilities = "".join(x for x in cpuinfo_list if x.startswith("facilities"))
+  facilities_list = facilities.split(" ")
+  # Having bit 135 set indicates VEF1 is available.
+  return "135" in facilities_list
+
+
+# Returns power processor version, taking compatibility mode into account.
+# (Power9 running in Power8 compatibility mode returns 8)
+# Only useful if arch is ppc64
+def GuessPowerProcessorVersion():
+  import ctypes, ctypes.util
+  os = GuessOS()
+  if os == 'linux':
+    AT_PLATFORM = 15 # from linux/auxvec.h
+    _LIBC = ctypes.CDLL(ctypes.util.find_library('c'))
+    _LIBC.getauxval.argtypes = [ctypes.c_ulong]
+    _LIBC.getauxval.restype = ctypes.c_char_p
+    at_platform = _LIBC.getauxval(AT_PLATFORM).decode('utf-8').lower()
+    if at_platform.startswith('power6'):
+      return 6
+    elif at_platform.startswith('power7'):
+      return 7
+    elif at_platform.startswith('power8'):
+      return 8
+    elif at_platform.startswith('power9'):
+      return 9
+    elif at_platform.startswith('power10'):
+      return 10
+    else:
+      raise Exception('Unable to guess power processor version')
+  elif os == 'aix':
+    # covers aix and os400
+    RTLD_MEMBER = 0x00040000
+    _LIBC = ctypes.CDLL(ctypes.util.find_library('c'),
+                        ctypes.DEFAULT_MODE | RTLD_MEMBER)
+    class _system_configuration(ctypes.Structure):
+      _fields_ = [
+        ('architecture', ctypes.c_int),
+        ('implementation', ctypes.c_int),
+      ]
+    cfg = _system_configuration.in_dll(_LIBC, '_system_configuration')
+    # Values found in sys/systemcfg.h
+    if cfg.implementation == 0x4000:
+      return 6
+    elif cfg.implementation == 0x8000:
+      return 7
+    elif cfg.implementation == 0x10000:
+      return 8
+    elif cfg.implementation == 0x20000:
+      return 9
+    elif cfg.implementation == 0x40000:
+      return 10
+    else:
+      raise Exception('Unable to guess power processor version')
+  else:
+    raise Exception('Unable to guess power processor version')
+
+
 def UseSimulator(arch):
   machine = platform.machine()
   return (machine and
@@ -148,7 +209,7 @@ class FrozenDict(dict):
 
 def Freeze(obj):
   if isinstance(obj, dict):
-    return FrozenDict((k, Freeze(v)) for k, v in obj.iteritems())
+    return FrozenDict((k, Freeze(v)) for k, v in list(obj.items()))
   elif isinstance(obj, set):
     return frozenset(obj)
   elif isinstance(obj, list):

@@ -1,5 +1,6 @@
 #include "env.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options.h"
 #include "node_report.h"
@@ -32,7 +33,7 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
   std::string filename;
-  Local<Object> error;
+  Local<Value> error;
 
   CHECK_EQ(info.Length(), 4);
   String::Utf8Value message(isolate, info[0].As<String>());
@@ -40,10 +41,10 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
 
   if (info[2]->IsString())
     filename = *String::Utf8Value(isolate, info[2]);
-  if (!info[3].IsEmpty() && info[3]->IsObject())
-    error = info[3].As<Object>();
+  if (!info[3].IsEmpty())
+    error = info[3];
   else
-    error = Local<Object>();
+    error = Local<Value>();
 
   filename = TriggerNodeReport(
       isolate, env, *message, *trigger, filename, error);
@@ -196,6 +197,26 @@ static void Initialize(Local<Object> exports,
                  SetReportOnUncaughtException);
 }
 
+void RegisterExternalReferences(node::ExternalReferenceRegistry* registry) {
+  registry->Register(WriteReport);
+  registry->Register(GetReport);
+  registry->Register(GetCompact);
+  registry->Register(SetCompact);
+  registry->Register(GetDirectory);
+  registry->Register(SetDirectory);
+  registry->Register(GetFilename);
+  registry->Register(SetFilename);
+  registry->Register(GetSignal);
+  registry->Register(SetSignal);
+  registry->Register(ShouldReportOnFatalError);
+  registry->Register(SetReportOnFatalError);
+  registry->Register(ShouldReportOnSignal);
+  registry->Register(SetReportOnSignal);
+  registry->Register(ShouldReportOnUncaughtException);
+  registry->Register(SetReportOnUncaughtException);
+}
+
 }  // namespace report
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(report, report::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(report, report::RegisterExternalReferences)

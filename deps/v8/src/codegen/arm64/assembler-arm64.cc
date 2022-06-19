@@ -32,6 +32,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/small-vector.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/safepoint-table.h"
@@ -72,7 +73,7 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   features |= 1u << JSCVT;
 #endif
   return features;
@@ -82,6 +83,7 @@ constexpr unsigned CpuFeaturesFromTargetOS() {
 
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
+bool CpuFeatures::SupportsWasmSimd128() { return true; }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
@@ -226,18 +228,18 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   int number_of_valid_regs = 0;
   int number_of_valid_fpregs = 0;
 
-  RegList unique_regs = 0;
-  RegList unique_fpregs = 0;
+  uint64_t unique_regs = 0;
+  uint64_t unique_fpregs = 0;
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].bit();
+      unique_regs |= (uint64_t{1} << regs[i].code());
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].bit();
+      unique_fpregs |= (uint64_t{1} << regs[i].code());
     } else {
       DCHECK(!regs[i].is_valid());
     }
@@ -312,7 +314,7 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
     return assembler->options().record_reloc_info_for_serialization;
   }
 
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 // Assembler
@@ -418,7 +420,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -580,7 +582,7 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      base::Memcpy(link, &pc_, kSystemPointerSize);
+      memcpy(link, &pc_, kSystemPointerSize);
     } else {
       link->SetImmPCOffsetTarget(options(),
                                  reinterpret_cast<Instruction*>(pc_));
@@ -1426,37 +1428,6 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rn.Is64Bits());
   DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
-}
-
-void Assembler::prfm(int prfop, const MemOperand& addr) {
-  // Restricted support for prfm, only register offset.
-  // This can probably be merged with Assembler::LoadStore as we expand support.
-  DCHECK(addr.IsRegisterOffset());
-  DCHECK(is_uint5(prfop));
-  Instr memop = PRFM | prfop | RnSP(addr.base());
-
-  Extend ext = addr.extend();
-  Shift shift = addr.shift();
-  unsigned shift_amount = addr.shift_amount();
-
-  // LSL is encoded in the option field as UXTX.
-  if (shift == LSL) {
-    ext = UXTX;
-  }
-
-  // Shifts are encoded in one bit, indicating a left shift by the memory
-  // access size.
-  DCHECK((shift_amount == 0) ||
-         (shift_amount == static_cast<unsigned>(CalcLSDataSize(PRFM))));
-
-  Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
-       ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
-}
-
-void Assembler::prfm(PrefetchOperation prfop, const MemOperand& addr) {
-  // Restricted support for prfm, only register offset.
-  // This can probably be merged with Assembler::LoadStore as we expand support.
-  prfm(static_cast<int>(prfop), addr);
 }
 
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,
@@ -2656,7 +2627,7 @@ void Assembler::fmov(const VRegister& vd, float imm) {
     DCHECK(vd.Is1S());
     Emit(FMOV_s_imm | Rd(vd) | ImmFP(imm));
   } else {
-    DCHECK(vd.Is2S() | vd.Is4S());
+    DCHECK(vd.Is2S() || vd.Is4S());
     Instr op = NEONModifiedImmediate_MOVI;
     Instr q = vd.Is4S() ? NEON_Q : 0;
     Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
@@ -3725,9 +3696,12 @@ void Assembler::EmitStringData(const char* string) {
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
   if (options().enable_simulator_code) {
+    size_t size_of_debug_sequence =
+        4 * kInstrSize + RoundUp<kInstrSize>(strlen(message) + 1);
+
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
-    BlockPoolsScope scope(this);
+    BlockPoolsScope scope(this, size_of_debug_sequence);
 
     Label start;
     bind(&start);
@@ -3742,6 +3716,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), size_of_debug_sequence);
 
     return;
   }
@@ -4357,12 +4332,16 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
-      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
+      (rmode == RelocInfo::LITERAL_CONSTANT) ||
+      (rmode == RelocInfo::DEOPT_NODE_ID)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
+           RelocInfo::IsDeoptNodeId(rmode) ||
            RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
@@ -4400,20 +4379,22 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_b_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
 }
 
 void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_bl_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   bl(offset);
 }
 
 void Assembler::near_call(HeapObjectRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapObject(request);
-  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<Code>());
+  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));
   bl(static_cast<int>(index));
@@ -4502,12 +4483,15 @@ const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
 const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
 const size_t ConstantPool::kApproxMaxEntryCount = 512;
 
-bool Assembler::ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
-  // Account for the branch around the veneers and the guard.
-  int protection_offset = 2 * kInstrSize;
-  return static_cast<intptr_t>(pc_offset() + margin + protection_offset +
-                               unresolved_branches_.size() *
-                                   kMaxVeneerCodeSize) >= max_reachable_pc;
+intptr_t Assembler::MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) {
+  // Account for the branch and guard around the veneers.
+  static constexpr int kBranchSizeInBytes = kInstrSize;
+  static constexpr int kGuardSizeInBytes = kInstrSize;
+  const size_t max_veneer_size_in_bytes =
+      unresolved_branches_.size() * kVeneerCodeSize;
+  return static_cast<intptr_t>(pc_offset() + kBranchSizeInBytes +
+                               kGuardSizeInBytes + max_veneer_size_in_bytes +
+                               margin);
 }
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
@@ -4519,8 +4503,8 @@ void Assembler::RecordVeneerPool(int location_offset, int size) {
 
 void Assembler::EmitVeneers(bool force_emit, bool need_protection,
                             size_t margin) {
+  ASM_CODE_COMMENT(this);
   BlockPoolsScope scope(this, PoolEmissionCheck::kSkip);
-  RecordComment("[ Veneers");
 
   // The exact size of the veneer pool must be recorded (see the comment at the
   // declaration site of RecordConstPool()), but computing the number of
@@ -4538,44 +4522,42 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
 
   EmitVeneersGuard();
 
-#ifdef DEBUG
-  Label veneer_size_check;
-#endif
+  // We only emit veneers if needed (unless emission is forced), i.e. when the
+  // max-reachable-pc of the branch has been exhausted by the current codegen
+  // state. Specifically, we emit when the max-reachable-pc of the branch <= the
+  // max-pc-after-veneers (over-approximated).
+  const intptr_t max_pc_after_veneers =
+      MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
 
-  std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
+  // The `unresolved_branches_` multimap is sorted by max-reachable-pc in
+  // ascending order. For efficiency reasons, we want to call
+  // RemoveBranchFromLabelLinkChain in descending order. The actual veneers are
+  // then generated in ascending order.
+  // TODO(jgruber): This is still inefficient in multiple ways, thoughts on how
+  // we could improve in the future:
+  // - Don't erase individual elements from the multimap, erase a range instead.
+  // - Replace the multimap by a simpler data structure (like a plain vector or
+  //   a circular array).
+  // - Refactor s.t. RemoveBranchFromLabelLinkChain does not need the linear
+  //   lookup in the link chain.
 
-  it = unresolved_branches_.begin();
-  while (it != unresolved_branches_.end()) {
-    if (force_emit || ShouldEmitVeneer(it->first, margin)) {
-      Instruction* branch = InstructionAt(it->second.pc_offset_);
-      Label* label = it->second.label_;
+  static constexpr int kStaticTasksSize = 16;  // Arbitrary.
+  base::SmallVector<FarBranchInfo, kStaticTasksSize> tasks;
 
-#ifdef DEBUG
-      bind(&veneer_size_check);
-#endif
-      // Patch the branch to point to the current position, and emit a branch
-      // to the label.
-      Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
-      RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(options(), veneer);
-      b(label);
-#ifdef DEBUG
-      DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=
-             static_cast<uint64_t>(kMaxVeneerCodeSize));
-      veneer_size_check.Unuse();
-#endif
+  {
+    auto it = unresolved_branches_.begin();
+    while (it != unresolved_branches_.end()) {
+      const int max_reachable_pc = it->first;
+      if (!force_emit && max_reachable_pc > max_pc_after_veneers) break;
 
-      it_to_delete = it++;
-      unresolved_branches_.erase(it_to_delete);
-    } else {
-      ++it;
+      // Found a task. We'll emit a veneer for this.
+      tasks.emplace_back(it->second);
+      auto eraser_it = it++;
+      unresolved_branches_.erase(eraser_it);
     }
   }
 
-  // Record the veneer pool size.
-  int pool_size = static_cast<int>(SizeOfCodeGeneratedSince(&size_check));
-  RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
-
+  // Update next_veneer_pool_check_ (tightly coupled with unresolved_branches_).
   if (unresolved_branches_.empty()) {
     next_veneer_pool_check_ = kMaxInt;
   } else {
@@ -4583,9 +4565,38 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
         unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
   }
 
-  bind(&end);
+  // Reminder: We iterate in reverse order to avoid duplicate linked-list
+  // iteration in RemoveBranchFromLabelLinkChain (which starts at the target
+  // label, and iterates backwards through linked branch instructions).
 
-  RecordComment("]");
+  const int tasks_size = static_cast<int>(tasks.size());
+  for (int i = tasks_size - 1; i >= 0; i--) {
+    Instruction* branch = InstructionAt(tasks[i].pc_offset_);
+    Instruction* veneer = reinterpret_cast<Instruction*>(
+        reinterpret_cast<uintptr_t>(pc_) + i * kVeneerCodeSize);
+    RemoveBranchFromLabelLinkChain(branch, tasks[i].label_, veneer);
+  }
+
+  // Now emit the actual veneer and patch up the incoming branch.
+
+  for (const FarBranchInfo& info : tasks) {
+#ifdef DEBUG
+    Label veneer_size_check;
+    bind(&veneer_size_check);
+#endif
+    Instruction* branch = InstructionAt(info.pc_offset_);
+    Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
+    branch->SetImmPCOffsetTarget(options(), veneer);
+    b(info.label_);  // This may end up pointing at yet another veneer later on.
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&veneer_size_check),
+              static_cast<uint64_t>(kVeneerCodeSize));
+  }
+
+  // Record the veneer pool size.
+  int pool_size = static_cast<int>(SizeOfCodeGeneratedSince(&size_check));
+  RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
+
+  bind(&end);
 }
 
 void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,

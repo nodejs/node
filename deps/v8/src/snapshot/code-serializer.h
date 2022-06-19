@@ -12,20 +12,24 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE ScriptData {
+class PersistentHandles;
+
+class V8_EXPORT_PRIVATE AlignedCachedData {
  public:
-  ScriptData(const byte* data, int length);
-  ~ScriptData() {
+  AlignedCachedData(const byte* data, int length);
+  ~AlignedCachedData() {
     if (owns_data_) DeleteArray(data_);
   }
-  ScriptData(const ScriptData&) = delete;
-  ScriptData& operator=(const ScriptData&) = delete;
+  AlignedCachedData(const AlignedCachedData&) = delete;
+  AlignedCachedData& operator=(const AlignedCachedData&) = delete;
 
   const byte* data() const { return data_; }
   int length() const { return length_; }
   bool rejected() const { return rejected_; }
 
   void Reject() { rejected_ = true; }
+
+  bool HasDataOwnership() const { return owns_data_; }
 
   void AcquireDataOwnership() {
     DCHECK(!owns_data_);
@@ -44,18 +48,49 @@ class V8_EXPORT_PRIVATE ScriptData {
   int length_;
 };
 
+enum class SerializedCodeSanityCheckResult {
+  kSuccess = 0,
+  kMagicNumberMismatch = 1,
+  kVersionMismatch = 2,
+  kSourceMismatch = 3,
+  kFlagsMismatch = 5,
+  kChecksumMismatch = 6,
+  kInvalidHeader = 7,
+  kLengthMismatch = 8
+};
+
 class CodeSerializer : public Serializer {
  public:
+  struct OffThreadDeserializeData {
+   private:
+    friend class CodeSerializer;
+    MaybeHandle<SharedFunctionInfo> maybe_result;
+    std::vector<Handle<Script>> scripts;
+    std::unique_ptr<PersistentHandles> persistent_handles;
+    SerializedCodeSanityCheckResult sanity_check_result;
+  };
+
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
       Handle<SharedFunctionInfo> info);
 
-  ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+  AlignedCachedData* SerializeSharedFunctionInfo(
+      Handle<SharedFunctionInfo> info);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
-      Isolate* isolate, ScriptData* cached_data, Handle<String> source,
+      Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
       ScriptOriginOptions origin_options);
+
+  V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
+  StartDeserializeOffThread(LocalIsolate* isolate,
+                            AlignedCachedData* cached_data);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  FinishOffThreadDeserialize(Isolate* isolate, OffThreadDeserializeData&& data,
+                             AlignedCachedData* cached_data,
+                             Handle<String> source,
+                             ScriptOriginOptions origin_options);
 
   uint32_t source_hash() const { return source_hash_; }
 
@@ -69,7 +104,8 @@ class CodeSerializer : public Serializer {
  private:
   void SerializeObjectImpl(Handle<HeapObject> o) override;
 
-  bool SerializeReadOnlyObject(Handle<HeapObject> obj);
+  bool SerializeReadOnlyObject(HeapObject obj,
+                               const DisallowGarbageCollection& no_gc);
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
@@ -78,17 +114,6 @@ class CodeSerializer : public Serializer {
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
 class SerializedCodeData : public SerializedData {
  public:
-  enum SanityCheckResult {
-    CHECK_SUCCESS = 0,
-    MAGIC_NUMBER_MISMATCH = 1,
-    VERSION_MISMATCH = 2,
-    SOURCE_MISMATCH = 3,
-    FLAGS_MISMATCH = 5,
-    CHECKSUM_MISMATCH = 6,
-    INVALID_HEADER = 7,
-    LENGTH_MISMATCH = 8
-  };
-
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internally provided) external reference count
   // [1] version hash
@@ -106,32 +131,47 @@ class SerializedCodeData : public SerializedData {
   static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
-  static SerializedCodeData FromCachedData(ScriptData* cached_data,
-                                           uint32_t expected_source_hash,
-                                           SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedData(
+      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      SerializedCodeSanityCheckResult* rejection_result);
+  // For cached data which is consumed before the source is available (e.g.
+  // off-thread).
+  static SerializedCodeData FromCachedDataWithoutSource(
+      AlignedCachedData* cached_data,
+      SerializedCodeSanityCheckResult* rejection_result);
+  // For cached data which was previously already sanity checked by
+  // FromCachedDataWithoutSource. The rejection result from that call should be
+  // passed into this one.
+  static SerializedCodeData FromPartiallySanityCheckedCachedData(
+      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      SerializedCodeSanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const std::vector<byte>* payload,
                      const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
-  ScriptData* GetScriptData();
+  AlignedCachedData* GetScriptData();
 
-  Vector<const byte> Payload() const;
+  base::Vector<const byte> Payload() const;
 
   static uint32_t SourceHash(Handle<String> source,
                              ScriptOriginOptions origin_options);
 
  private:
-  explicit SerializedCodeData(ScriptData* data);
+  explicit SerializedCodeData(AlignedCachedData* data);
   SerializedCodeData(const byte* data, int size)
       : SerializedData(const_cast<byte*>(data), size) {}
 
-  Vector<const byte> ChecksummedContent() const {
-    return Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
+  base::Vector<const byte> ChecksummedContent() const {
+    return base::Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
   }
 
-  SanityCheckResult SanityCheck(uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheck(
+      uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheckJustSource(
+      uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheckWithoutSource() const;
 };
 
 }  // namespace internal

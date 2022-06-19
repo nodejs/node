@@ -59,8 +59,8 @@ def PrepareBuildDir(arch, mode):
 
 def AddTargetsForArch(arch, combined):
   build_dir = PrepareBuildDir(arch, "debug")
-  commands = compile_db.ProcessCompileDatabaseIfNeeded(
-                compile_db.GenerateWithNinja(build_dir, ["all"]))
+  commands = compile_db.ProcessCompileDatabase(
+                compile_db.GenerateWithNinja(build_dir, ["all"]), [])
   added = 0
   for c in commands:
     key = c["file"]

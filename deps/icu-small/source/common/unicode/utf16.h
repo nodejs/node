@@ -19,7 +19,7 @@
 /**
  * \file
  * \brief C API: 16-bit Unicode handling macros
- *
+ * 
  * This file defines macros to deal with 16-bit Unicode (UTF-16) code units and strings.
  *
  * For more information see utf.h and the ICU User Guide Strings chapter
@@ -27,7 +27,7 @@
  *
  * <em>Usage:</em>
  * ICU coding guidelines for if() statements should be followed when using these macros.
- * Compound statements (curly braces {}) must be used  for if-else-while...
+ * Compound statements (curly braces {}) must be used  for if-else-while... 
  * bodies and all macro statements should be terminated with semicolon.
  */
 

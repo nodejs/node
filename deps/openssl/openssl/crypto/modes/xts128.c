@@ -1,15 +1,16 @@
 /*
  * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#include <openssl/crypto.h>
-#include "modes_local.h"
 #include <string.h>
+#include <openssl/crypto.h>
+#include "internal/endian.h"
+#include "crypto/modes.h"
 
 #ifndef STRICT_ALIGNMENT
 # ifdef __GNUC__
@@ -24,12 +25,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
                           const unsigned char *inp, unsigned char *out,
                           size_t len, int enc)
 {
-    const union {
-        long one;
-        char little;
-    } is_endian = {
-        1
-    };
+    DECLARE_IS_ENDIAN;
     union {
         u64 u[2];
         u32 d[4];
@@ -72,7 +68,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         if (len == 0)
             return 0;
 
-        if (is_endian.little) {
+        if (IS_LITTLE_ENDIAN) {
             unsigned int carry, res;
 
             res = 0x87 & (((int)tweak.d[3]) >> 31);
@@ -111,7 +107,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
             u8 c[16];
         } tweak1;
 
-        if (is_endian.little) {
+        if (IS_LITTLE_ENDIAN) {
             unsigned int carry, res;
 
             res = 0x87 & (((int)tweak.d[3]) >> 31);

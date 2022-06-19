@@ -9,7 +9,6 @@
 #include <openssl/x509v3.h>
 
 #include <string>
-#include <unordered_map>
 
 namespace node {
 namespace crypto {
@@ -26,7 +25,7 @@ struct StackOfXASN1Deleter {
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
-int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
 
 void LogSecret(
     const SSLPointer& ssl,
@@ -45,27 +44,15 @@ v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
 
 bool SetTLSSession(
     const SSLPointer& ssl,
-    const unsigned char* buf,
-    size_t length);
-
-bool SetTLSSession(
-    const SSLPointer& ssl,
     const SSLSessionPointer& session);
 
-SSLSessionPointer GetTLSSession(v8::Local<v8::Value> val);
-
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length);
-
-std::unordered_multimap<std::string, std::string>
-GetCertificateAltNames(X509* cert);
-
-std::string GetCertificateCN(X509* cert);
 
 long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
 
-int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
+bool UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
 
 const char* GetClientHelloALPN(const SSLPointer& ssl);
 
@@ -86,18 +73,6 @@ v8::MaybeLocal<v8::Value> GetValidationErrorReason(Environment* env, int err);
 v8::MaybeLocal<v8::Value> GetValidationErrorCode(Environment* env, int err);
 
 v8::MaybeLocal<v8::Value> GetCert(Environment* env, const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherVersion(
-    Environment* env,
-    const SSLPointer& ssl);
 
 v8::MaybeLocal<v8::Object> GetCipherInfo(
     Environment* env,
@@ -146,7 +121,7 @@ v8::MaybeLocal<v8::Value> GetSerialNumber(Environment* env, X509* cert);
 v8::MaybeLocal<v8::Object> GetRawDERCertificate(Environment* env, X509* cert);
 
 v8::Local<v8::Value> ToV8Value(Environment* env, const BIOPointer& bio);
-bool SafeX509ExtPrint(const BIOPointer& out, X509_EXTENSION* ext);
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
 
 v8::MaybeLocal<v8::Value> GetSubject(
     Environment* env,
@@ -158,26 +133,15 @@ v8::MaybeLocal<v8::Value> GetIssuerString(
     const BIOPointer& bio,
     X509* cert);
 
-template <int nid>
-v8::MaybeLocal<v8::Value> GetInfoString(
+v8::MaybeLocal<v8::Value> GetSubjectAltNameString(
     Environment* env,
     const BIOPointer& bio,
-    X509* cert) {
-  int index = X509_get_ext_by_NID(cert, nid, -1);
-  if (index < 0)
-    return Undefined(env->isolate());
+    X509* cert);
 
-  X509_EXTENSION* ext = X509_get_ext(cert, index);
-  CHECK_NOT_NULL(ext);
-
-  if (!SafeX509ExtPrint(bio, ext) &&
-      X509V3_EXT_print(bio.get(), ext, 0, 0) != 1) {
-    USE(BIO_reset(bio.get()));
-    return v8::Null(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
+v8::MaybeLocal<v8::Value> GetInfoAccessString(
+    Environment* env,
+    const BIOPointer& bio,
+    X509* cert);
 
 }  // namespace crypto
 }  // namespace node

@@ -1,18 +1,18 @@
 const { resolve } = require('path')
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let prefix
 let globalDir = 'MISSING_GLOBAL_DIR'
 const _flatOptions = {
   depth: Infinity,
   global: false,
+  workspacesEnabled: true,
   get prefix () {
     return prefix
   },
 }
 const p = '../../../../lib/utils/completion/installed-deep.js'
-const installedDeep = requireInject(p)
+const installedDeep = require(p)
 const npm = {
   flatOptions: _flatOptions,
   get prefix () {
@@ -63,6 +63,15 @@ const fixture = {
     c: {
       'package.json': JSON.stringify({
         name: 'c',
+        version: '1.0.0',
+        dependencies: {
+          ch: '1.0.0',
+        },
+      }),
+    },
+    ch: {
+      'package.json': JSON.stringify({
+        name: 'ch',
         version: '1.0.0',
       }),
     },
@@ -144,7 +153,7 @@ const globalFixture = {
   },
 }
 
-test('get list of package names', async t => {
+t.test('get list of package names', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -154,22 +163,22 @@ test('get list of package names', async t => {
   globalDir = resolve(fix, 'global/node_modules')
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       ['bar', '-g'],
       ['foo', '-g'],
       ['a-bar', '-g'],
       'a', 'b', 'c',
-      'd', 'e', 'f',
-      'g', 'bb',
+      'ch', 'd', 'e',
+      'f', 'g', 'bb',
     ],
     'should return list of package names and global flag'
   )
   t.end()
 })
 
-test('get list of package names as global', async t => {
+t.test('get list of package names as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -181,7 +190,7 @@ test('get list of package names as global', async t => {
   _flatOptions.global = true
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       'bar',
@@ -194,7 +203,7 @@ test('get list of package names as global', async t => {
   t.end()
 })
 
-test('limit depth', async t => {
+t.test('limit depth', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -206,15 +215,17 @@ test('limit depth', async t => {
   _flatOptions.depth = 0
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       ['bar', '-g'],
       ['foo', '-g'],
+      // XXX https://github.com/npm/statusboard/issues/380
+      ['a-bar', '-g'],
       'a', 'b',
-      'c', 'd',
-      'e', 'f',
-      'g',
+      'c', 'ch',
+      'd', 'e',
+      'f', 'g',
     ],
     'should print only packages up to the specified depth'
   )
@@ -222,7 +233,7 @@ test('limit depth', async t => {
   t.end()
 })
 
-test('limit depth as global', async t => {
+t.test('limit depth as global', async t => {
   const fix = t.testdir({
     local: fixture,
     global: globalFixture,
@@ -235,11 +246,13 @@ test('limit depth as global', async t => {
   _flatOptions.depth = 0
 
   const res = await installedDeep(npm, null)
-  t.deepEqual(
+  t.same(
     res,
     [
       'bar',
       'foo',
+      // https://github.com/npm/statusboard/issues/380
+      'a-bar',
     ],
     'should reorder so that packages above that level depth goes last'
   )

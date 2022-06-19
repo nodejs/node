@@ -9,7 +9,6 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -31,10 +30,10 @@ TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstance(
                                      WasmInstanceObject::kTablesOffset);
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     TNode<WasmInstanceObject> instance) {
   return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
+      instance, WasmInstanceObject::kWasmInternalFunctionsOffset);
 }
 
 TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(

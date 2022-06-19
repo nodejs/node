@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,7 +7,14 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, CryptoKey } = require('crypto').webcrypto;
+const { types: { isCryptoKey } } = require('util');
+const {
+  webcrypto: { subtle, CryptoKey },
+  createSecretKey,
+  KeyObject,
+} = require('crypto');
+
+const { bigIntArrayToUnsignedBigInt } = require('internal/crypto/util');
 
 const allUsages = [
   'encrypt',
@@ -65,7 +73,7 @@ const vectors = {
     ],
     mandatoryUsages: []
   },
-  'RSASSA-PKCS1-V1_5': {
+  'RSASSA-PKCS1-v1_5': {
     algorithm: {
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
@@ -125,17 +133,40 @@ const vectors = {
       'deriveBits',
     ]
   },
-  'NODE-DSA': {
-    algorithm: { modulusLength: 1024, hash: 'SHA-256' },
+  'Ed25519': {
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: [
+    mandatoryUsages: ['sign']
+  },
+  'Ed448': {
+    usages: [
       'sign',
       'verify',
+    ],
+    mandatoryUsages: ['sign']
+  },
+  'X25519': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
     ]
-  }
+  },
+  'X448': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
+    ]
+  },
 };
 
 // Test invalid algorithms
@@ -179,19 +210,30 @@ const vectors = {
 // Test bad usages
 {
   async function test(name) {
-    const invalidUsages = [];
-    allUsages.forEach((usage) => {
-      if (!vectors[name].usages.includes(usage))
-        invalidUsages.push(usage);
-    });
-    return assert.rejects(
+    await assert.rejects(
       subtle.generateKey(
         {
           name, ...vectors[name].algorithm
         },
         true,
-        invalidUsages),
-      { message: /Unsupported key usage/ });
+        []),
+      { message: /Usages cannot be empty/ });
+
+    const invalidUsages = [];
+    allUsages.forEach((usage) => {
+      if (!vectors[name].usages.includes(usage))
+        invalidUsages.push(usage);
+    });
+    for (const invalidUsage of invalidUsages) {
+      await assert.rejects(
+        subtle.generateKey(
+          {
+            name, ...vectors[name].algorithm
+          },
+          true,
+          [...vectors[name].usages, invalidUsage]),
+        { message: /Unsupported key usage/ });
+    }
   }
 
   const tests = Object.keys(vectors).map(test);
@@ -220,6 +262,8 @@ const vectors = {
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert(publicKey instanceof CryptoKey);
     assert(privateKey instanceof CryptoKey);
@@ -233,10 +277,16 @@ const vectors = {
     assert.strictEqual(publicKey.algorithm.name, name);
     assert.strictEqual(publicKey.algorithm.modulusLength, modulusLength);
     assert.deepStrictEqual(publicKey.algorithm.publicExponent, publicExponent);
+    assert.strictEqual(
+      KeyObject.from(publicKey).asymmetricKeyDetails.publicExponent,
+      bigIntArrayToUnsignedBigInt(publicExponent));
     assert.strictEqual(publicKey.algorithm.hash.name, hash);
     assert.strictEqual(privateKey.algorithm.name, name);
     assert.strictEqual(privateKey.algorithm.modulusLength, modulusLength);
     assert.deepStrictEqual(privateKey.algorithm.publicExponent, publicExponent);
+    assert.strictEqual(
+      KeyObject.from(privateKey).asymmetricKeyDetails.publicExponent,
+      bigIntArrayToUnsignedBigInt(publicExponent));
     assert.strictEqual(privateKey.algorithm.hash.name, hash);
 
     // Missing parameters
@@ -313,11 +363,22 @@ const vectors = {
         code: 'ERR_INVALID_ARG_TYPE'
       });
     }));
+
+    await Promise.all([[1], [1, 0, 0]].map((publicExponent) => {
+      return assert.rejects(subtle.generateKey({
+        name,
+        modulusLength,
+        publicExponent: new Uint8Array(publicExponent),
+        hash
+      }, true, usages), {
+        name: 'OperationError',
+      });
+    }));
   }
 
   const kTests = [
     [
-      'RSASSA-PKCS1-V1_5',
+      'RSASSA-PKCS1-v1_5',
       1024,
       Buffer.from([1, 0, 1]),
       'SHA-256',
@@ -366,6 +427,8 @@ const vectors = {
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
@@ -430,6 +493,7 @@ const vectors = {
     }, true, usages);
 
     assert(key);
+    assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
     assert.strictEqual(key.extractable, true);
@@ -488,6 +552,7 @@ const vectors = {
     }
 
     assert(key);
+    assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
     assert.strictEqual(key.extractable, true);
@@ -525,25 +590,35 @@ const vectors = {
   tests.then(common.mustCall());
 }
 
-// Test NODE-DSA key generation
+// End user code cannot create CryptoKey directly
+assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
+
+{
+  const buffer = Buffer.from('Hello World');
+  const keyObject = createSecretKey(buffer);
+  assert(!isCryptoKey(buffer));
+  assert(!isCryptoKey(keyObject));
+}
+
+// Test OKP Key Generation
 {
   async function test(
     name,
-    modulusLength,
-    hash,
     privateUsages,
     publicUsages = privateUsages) {
+
     let usages = privateUsages;
     if (publicUsages !== privateUsages)
       usages = usages.concat(publicUsages);
+
     const { publicKey, privateKey } = await subtle.generateKey({
       name,
-      modulusLength,
-      hash
     }, true, usages);
 
     assert(publicKey);
     assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
@@ -552,97 +627,35 @@ const vectors = {
     assert.deepStrictEqual(publicKey.usages, publicUsages);
     assert.deepStrictEqual(privateKey.usages, privateUsages);
     assert.strictEqual(publicKey.algorithm.name, name);
-    assert.strictEqual(publicKey.algorithm.modulusLength, modulusLength);
-    assert.strictEqual(publicKey.algorithm.hash.name, hash);
     assert.strictEqual(privateKey.algorithm.name, name);
-    assert.strictEqual(privateKey.algorithm.modulusLength, modulusLength);
-    assert.strictEqual(privateKey.algorithm.hash.name, hash);
-
-    // Missing parameters
-    await assert.rejects(
-      subtle.generateKey({ name, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-
-    await assert.rejects(
-      subtle.generateKey({ name, modulusLength }, true, usages), {
-        code: 'ERR_MISSING_OPTION'
-      });
-
-    await Promise.all(['', true, {}].map((modulusLength) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
-
-    await Promise.all([true, {}, 1, []].map((hash) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        message: /Unrecognized name/
-      });
-    }));
-
-    await Promise.all(['', {}, 1, []].map((extractable) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, extractable, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
-
-    await Promise.all(['', {}, 1, false].map((usages) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
   }
 
   const kTests = [
     [
-      'NODE-DSA',
-      1024,
-      'SHA-256',
+      'Ed25519',
       ['sign'],
       ['verify'],
+    ],
+    [
+      'Ed448',
+      ['sign'],
+      ['verify'],
+    ],
+    [
+      'X25519',
+      ['deriveKey', 'deriveBits'],
+      [],
+    ],
+    [
+      'X448',
+      ['deriveKey', 'deriveBits'],
+      [],
     ],
   ];
 
   const tests = kTests.map((args) => test(...args));
 
+  // Test bad parameters
+
   Promise.all(tests).then(common.mustCall());
 }
-
-// Test NODE-DH key generation
-(async function() {
-  const { publicKey, privateKey } =
-    await subtle.generateKey({
-      name: 'NODE-DH',
-      group: 'modp15'
-    }, true, ['deriveKey']);
-  assert(publicKey);
-  assert(privateKey);
-  assert.strictEqual(publicKey.type, 'public');
-  assert.strictEqual(privateKey.type, 'private');
-  assert.strictEqual(publicKey.algorithm.name, 'NODE-DH');
-  assert.strictEqual(privateKey.algorithm.name, 'NODE-DH');
-  assert.strictEqual(publicKey.algorithm.group, 'modp15');
-  assert.strictEqual(privateKey.algorithm.group, 'modp15');
-})().then(common.mustCall());
-
-// End user code cannot create CryptoKey directly
-assert.throws(() => new CryptoKey(), {
-  code: 'ERR_OPERATION_FAILED'
-});

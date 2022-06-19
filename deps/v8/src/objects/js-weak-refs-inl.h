@@ -21,18 +21,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
-OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry, JSObject)
-
-ACCESSORS(JSFinalizationRegistry, native_context, NativeContext,
-          kNativeContextOffset)
-ACCESSORS(JSFinalizationRegistry, cleanup, Object, kCleanupOffset)
-ACCESSORS(JSFinalizationRegistry, active_cells, HeapObject, kActiveCellsOffset)
-ACCESSORS(JSFinalizationRegistry, cleared_cells, HeapObject,
-          kClearedCellsOffset)
-ACCESSORS(JSFinalizationRegistry, key_map, Object, kKeyMapOffset)
-SMI_ACCESSORS(JSFinalizationRegistry, flags, kFlagsOffset)
-ACCESSORS(JSFinalizationRegistry, next_dirty, Object, kNextDirtyOffset)
-CAST_ACCESSOR(JSFinalizationRegistry)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry)
 
 BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
                     JSFinalizationRegistry::ScheduledForCleanupBit)
@@ -161,6 +150,10 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
 
 HeapObject WeakCell::relaxed_target() const {
   return TaggedField<HeapObject>::Relaxed_Load(*this, kTargetOffset);
+}
+
+HeapObject WeakCell::relaxed_unregister_token() const {
+  return TaggedField<HeapObject>::Relaxed_Load(*this, kUnregisterTokenOffset);
 }
 
 template <typename GCNotifyUpdatedSlotCallback>

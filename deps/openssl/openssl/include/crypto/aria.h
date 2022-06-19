@@ -1,8 +1,8 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,7 @@
 
 #ifndef OSSL_CRYPTO_ARIA_H
 # define OSSL_CRYPTO_ARIA_H
+# pragma once
 
 # include <openssl/opensslconf.h>
 
@@ -39,12 +40,12 @@ struct aria_key_st {
 typedef struct aria_key_st ARIA_KEY;
 
 
-int aria_set_encrypt_key(const unsigned char *userKey, const int bits,
-                         ARIA_KEY *key);
-int aria_set_decrypt_key(const unsigned char *userKey, const int bits,
-                         ARIA_KEY *key);
+int ossl_aria_set_encrypt_key(const unsigned char *userKey, const int bits,
+                              ARIA_KEY *key);
+int ossl_aria_set_decrypt_key(const unsigned char *userKey, const int bits,
+                              ARIA_KEY *key);
 
-void aria_encrypt(const unsigned char *in, unsigned char *out,
-                  const ARIA_KEY *key);
+void ossl_aria_encrypt(const unsigned char *in, unsigned char *out,
+                       const ARIA_KEY *key);
 
 #endif

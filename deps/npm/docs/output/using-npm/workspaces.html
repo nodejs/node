@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>workspaces</title>
 <style>
 body {
@@ -141,57 +142,88 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#installing-workspaces">Installing workspaces</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#defining-workspaces">Defining workspaces</a></li><li><a href="#getting-started-with-workspaces">Getting started with workspaces</a></li><li><a href="#adding-dependencies-to-a-workspace">Adding dependencies to a workspace</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#ignoring-missing-scripts">Ignoring missing scripts</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
 <p><strong>Workspaces</strong> is a generic term that refers to the set of features in the
 npm cli that provides support to managing multiple packages from your local
-files system from within a singular top-level, root package.</p>
+file system from within a singular top-level, root package.</p>
 <p>This set of features makes up for a much more streamlined workflow handling
 linked packages from the local file system. Automating the linking process
 as part of <code>npm install</code> and avoiding manually having to use <code>npm link</code> in
 order to add references to packages that should be symlinked into the current
 <code>node_modules</code> folder.</p>
 <p>We also refer to these packages being auto-symlinked during <code>npm install</code> as a
-single <strong>workspace</strong>, meaning it’s a nested package within the current local
+single <strong>workspace</strong>, meaning it's a nested package within the current local
 file system that is explicitly defined in the <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a>
 <code>workspaces</code> configuration.</p>
-<h3 id="installing-workspaces">Installing workspaces</h3>
+<h3 id="defining-workspaces">Defining workspaces</h3>
 <p>Workspaces are usually defined via the <code>workspaces</code> property of the
 <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a> file, e.g:</p>
 <pre lang="json"><code>{
   "name": "my-workspaces-powered-project",
   "workspaces": [
-    "workspace-a"
+    "packages/a"
   ]
 }
 </code></pre>
 <p>Given the above <code>package.json</code> example living at a current working
-directory <code>.</code> that contains a folder named <code>workspace-a</code> that disposes
-of a <code>package.json</code> inside it, defining a nodejs package, e.g:</p>
+directory <code>.</code> that contains a folder named <code>packages/a</code> that itself contains
+a <code>package.json</code> inside it, defining a Node.js package, e.g:</p>
 <pre><code>.
 +-- package.json
-`-- workspace-a
-   `-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
 </code></pre>
 <p>The expected result once running <code>npm install</code> in this current working
-directory <code>.</code> is that the folder <code>workspace-a</code> will get symlinked to the
+directory <code>.</code> is that the folder <code>packages/a</code> will get symlinked to the
 <code>node_modules</code> folder of the current working dir.</p>
 <p>Below is a post <code>npm install</code> example, given that same previous example
 structure of files and folders:</p>
 <pre><code>.
 +-- node_modules
-|  `-- workspace-a -&gt; ../workspace-a
+|  `-- packages/a -&gt; ../packages/a
 +-- package-lock.json
 +-- package.json
-`-- workspace-a
-   `-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
 </code></pre>
+<h3 id="getting-started-with-workspaces">Getting started with workspaces</h3>
+<p>You may automate the required steps to define a new workspace using
+<a href="../commands/npm-init.html">npm init</a>. For example in a project that already has a
+<code>package.json</code> defined you can run:</p>
+<pre><code>npm init -w ./packages/a
+</code></pre>
+<p>This command will create the missing folders and a new <code>package.json</code>
+file (if needed) while also making sure to properly configure the
+<code>"workspaces"</code> property of your root project <code>package.json</code>.</p>
+<h3 id="adding-dependencies-to-a-workspace">Adding dependencies to a workspace</h3>
+<p>It's possible to directly add/remove/update dependencies of your workspaces
+using the <a href="../using-npm/config#workspace.html"><code>workspace</code> config</a>.</p>
+<p>For example, assuming the following structure:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- b
+       `-- package.json
+</code></pre>
+<p>If you want to add a dependency named <code>abbrev</code> from the registry as a
+dependency of your workspace <strong>a</strong>, you may use the workspace config to tell
+the npm installer that package should be added as a dependency of the provided
+workspace:</p>
+<pre><code>npm install abbrev -w a
+</code></pre>
+<p>Note: other installing commands such as <code>uninstall</code>, <code>ci</code>, etc will also
+respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
-<p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it’s possible to consume any defined workspace
-by it’s declared <code>package.json</code> <code>name</code>. Continuing from the example defined
-above, let’s also create a Node.js script that will require the <code>workspace-a</code>
+<p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it's possible to consume any defined workspace
+by its declared <code>package.json</code> <code>name</code>. Continuing from the example defined
+above, let's also create a Node.js script that will require the <code>workspace-a</code>
 example module, e.g:</p>
 <pre><code>// ./workspace-a/index.js
 module.exports = 'a'
@@ -219,7 +251,7 @@ of nested workspaces. For a project containing multiple workspaces, e.g:</p>
    `-- b
        `-- package.json
 </code></pre>
-<p>By running a command using the <code>workspace</code> option, it’s possible to run the
+<p>By running a command using the <code>workspace</code> option, it's possible to run the
 given command in the context of that specific workspace. e.g:</p>
 <pre><code>npm run test --workspace=a
 </code></pre>
@@ -229,17 +261,33 @@ given command in the context of that specific workspace. e.g:</p>
 command-line in order to target multiple workspaces, e.g:</p>
 <pre><code>npm run test --workspace=a --workspace=b
 </code></pre>
-<p>It’s also possible to use the <code>workspaces</code> (plural) configuration option to
+<p>It's also possible to use the <code>workspaces</code> (plural) configuration option to
 enable the same behavior but running that command in the context of <strong>all</strong>
 configured workspaces. e.g:</p>
 <pre><code>npm run test --workspaces
 </code></pre>
 <p>Will run the <code>test</code> script in both <code>./packages/a</code> and <code>./packages/b</code>.</p>
+<p>Commands will be run in each workspace in the order they appear in your <code>package.json</code></p>
+<pre><code>{
+  "workspaces": [ "packages/a", "packages/b" ]
+}
+</code></pre>
+<p>Order of run is different with:</p>
+<pre><code>{
+  "workspaces": [ "packages/b", "packages/a" ]
+}
+</code></pre>
+<h3 id="ignoring-missing-scripts">Ignoring missing scripts</h3>
+<p>It is not required for all of the workspaces to implement scripts run with the <code>npm run</code> command.</p>
+<p>By running the command with the <code>--if-present</code> flag, npm will ignore workspaces missing target script.</p>
+<pre><code>npm run test --workspaces --if-present
+</code></pre>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>
+<li><a href="../using-npm/config.html">config</a></li>
 </ul>
 </div>
 

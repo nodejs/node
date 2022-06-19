@@ -55,7 +55,7 @@ UChar32 CaseFoldingUTextIterator::next() {
     }
     return foldedC;
 }
-
+    
 
 UBool CaseFoldingUTextIterator::inExpansion() {
     return fFoldChars != NULL;
@@ -103,7 +103,7 @@ UChar32 CaseFoldingUCharIterator::next() {
     }
     return foldedC;
 }
-
+    
 
 UBool CaseFoldingUCharIterator::inExpansion() {
     return fFoldChars != NULL;
@@ -117,3 +117,4 @@ int64_t CaseFoldingUCharIterator::getIndex() {
 U_NAMESPACE_END
 
 #endif
+

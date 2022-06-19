@@ -26,25 +26,28 @@ const runScriptPkg = async options => {
     signalTimeout = 500,
   } = options
 
-  const {scripts = {}, gypfile} = pkg
+  const { scripts = {}, gypfile } = pkg
   let cmd = null
-  if (options.cmd)
+  if (options.cmd) {
     cmd = options.cmd
-  else if (pkg.scripts && pkg.scripts[event])
+  } else if (pkg.scripts && pkg.scripts[event]) {
     cmd = pkg.scripts[event] + args.map(a => ` ${JSON.stringify(a)}`).join('')
-  else if ( // If there is no preinstall or install script, default to rebuilding node-gyp packages.
+  } else if (
+    // If there is no preinstall or install script, default to rebuilding node-gyp packages.
     event === 'install' &&
     !scripts.install &&
     !scripts.preinstall &&
     gypfile !== false &&
     await isNodeGypPackage(path)
-  )
+  ) {
     cmd = defaultGypInstallScript
-  else if (event === 'start' && await isServerPackage(path))
+  } else if (event === 'start' && await isServerPackage(path)) {
     cmd = 'node server.js' + args.map(a => ` ${JSON.stringify(a)}`).join('')
+  }
 
-  if (!cmd)
+  if (!cmd) {
     return { code: 0, signal: null }
+  }
 
   if (stdio === 'inherit' && banner !== false) {
     // we're dumping to the parent's stdout, so print the banner
@@ -66,11 +69,13 @@ const runScriptPkg = async options => {
     path,
   })
 
-  if (stdio === 'inherit')
+  if (stdio === 'inherit') {
     signalManager.add(p.process)
+  }
 
-  if (p.stdin)
+  if (p.stdin) {
     p.stdin.end()
+  }
 
   return p.catch(er => {
     const { signal } = er
@@ -80,8 +85,9 @@ const runScriptPkg = async options => {
       // this also keeps the node process open long enough to actually
       // get the signal, rather than terminating gracefully.
       return new Promise((res, rej) => setTimeout(() => rej(er), signalTimeout))
-    } else
+    } else {
       throw er
+    }
   })
 }
 

@@ -38,7 +38,7 @@ U_NAMESPACE_USE
 
 
 U_CAPI UNumberFormat* U_EXPORT2
-unum_open(  UNumberFormatStyle    style,
+unum_open(  UNumberFormatStyle    style,  
             const    UChar*    pattern,
             int32_t            patternLength,
             const    char*     locale,
@@ -93,11 +93,11 @@ unum_open(  UNumberFormatStyle    style,
         UParseError tErr;
         /* UnicodeString can handle the case when patternLength = -1. */
         const UnicodeString pat(pattern, patternLength);
-
+        
         if(parseErr==NULL){
             parseErr = &tErr;
         }
-
+        
         retVal = new RuleBasedNumberFormat(pat, Locale(locale), *parseErr, *status);
     } break;
 
@@ -155,7 +155,7 @@ unum_clone(const UNumberFormat *fmt,
 {
     if(U_FAILURE(*status))
         return 0;
-
+    
     Format *res = 0;
     const NumberFormat* nf = reinterpret_cast<const NumberFormat*>(fmt);
     const DecimalFormat* df = dynamic_cast<const DecimalFormat*>(nf);
@@ -171,7 +171,7 @@ unum_clone(const UNumberFormat *fmt,
         *status = U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
-
+    
     return (UNumberFormat*) res;
 }
 
@@ -196,26 +196,26 @@ unum_formatInt64(const UNumberFormat* fmt,
 {
     if(U_FAILURE(*status))
         return -1;
-
+    
     UnicodeString res;
     if(!(result==NULL && resultLength==0)) {
         // NULL destination for pure preflighting: empty dummy string
         // otherwise, alias the destination buffer
         res.setTo(result, 0, resultLength);
     }
-
+    
     FieldPosition fp;
-
+    
     if(pos != 0)
         fp.setField(pos->field);
-
+    
     ((const NumberFormat*)fmt)->format(number, res, fp, *status);
 
     if(pos != 0) {
         pos->beginIndex = fp.getBeginIndex();
         pos->endIndex = fp.getEndIndex();
     }
-
+    
     return res.extract(result, resultLength, *status);
 }
 
@@ -227,7 +227,7 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
             UFieldPosition  *pos, /* 0 if ignore */
             UErrorCode*     status)
 {
-
+ 
   if(U_FAILURE(*status)) return -1;
 
   UnicodeString res;
@@ -238,17 +238,17 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
   }
 
   FieldPosition fp;
-
+  
   if(pos != 0)
     fp.setField(pos->field);
-
+  
   ((const NumberFormat*)fmt)->format(number, res, fp, *status);
-
+  
   if(pos != 0) {
     pos->beginIndex = fp.getBeginIndex();
     pos->endIndex = fp.getEndIndex();
   }
-
+  
   return res.extract(result, resultLength, *status);
 }
 
@@ -280,7 +280,7 @@ unum_formatDoubleForFields(const UNumberFormat* format,
     return res.extract(result, resultLength, *status);
 }
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 unum_formatDecimal(const    UNumberFormat*  fmt,
             const char *    number,
             int32_t         length,
@@ -324,7 +324,7 @@ unum_formatDecimal(const    UNumberFormat*  fmt,
 
 
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 unum_formatDoubleCurrency(const UNumberFormat* fmt,
                           double number,
                           UChar* currency,
@@ -340,7 +340,7 @@ unum_formatDoubleCurrency(const UNumberFormat* fmt,
         // otherwise, alias the destination buffer
         res.setTo(result, 0, resultLength);
     }
-
+    
     FieldPosition fp;
     if (pos != 0) {
         fp.setField(pos->field);
@@ -353,12 +353,12 @@ unum_formatDoubleCurrency(const UNumberFormat* fmt,
     }
     Formattable n(tempCurrAmnt);
     ((const NumberFormat*)fmt)->format(n, res, fp, *status);
-
+    
     if (pos != 0) {
         pos->beginIndex = fp.getBeginIndex();
         pos->endIndex = fp.getEndIndex();
     }
-
+  
     return res.extract(result, resultLength, *status);
 }
 
@@ -372,15 +372,15 @@ parseRes(Formattable& res,
 {
     if(U_FAILURE(*status))
         return;
-
+    
     const UnicodeString src((UBool)(textLength == -1), text, textLength);
     ParsePosition pp;
-
+    
     if(parsePos != 0)
         pp.setIndex(*parsePos);
-
+    
     ((const NumberFormat*)fmt)->parse(src, res, pp);
-
+    
     if(pp.getErrorIndex() != -1) {
         *status = U_PARSE_ERROR;
         if(parsePos != 0) {
@@ -614,7 +614,7 @@ unum_setDoubleAttribute(    UNumberFormat*          fmt,
 {
     NumberFormat* nf = reinterpret_cast<NumberFormat*>(fmt);
     DecimalFormat* df = dynamic_cast<DecimalFormat*>(nf);
-    if (df != NULL && attr == UNUM_ROUNDING_INCREMENT) {
+    if (df != NULL && attr == UNUM_ROUNDING_INCREMENT) {   
         df->setRoundingIncrement(newValue);
     }
 }
@@ -706,27 +706,27 @@ unum_setTextAttribute(    UNumberFormat*                    fmt,
       case UNUM_POSITIVE_PREFIX:
         df->setPositivePrefix(val);
         break;
-
+        
       case UNUM_POSITIVE_SUFFIX:
         df->setPositiveSuffix(val);
         break;
-
+        
       case UNUM_NEGATIVE_PREFIX:
         df->setNegativePrefix(val);
         break;
-
+        
       case UNUM_NEGATIVE_SUFFIX:
         df->setNegativeSuffix(val);
         break;
-
+        
       case UNUM_PADDING_CHARACTER:
         df->setPadCharacter(val);
         break;
-
+        
       case UNUM_CURRENCY_CODE:
         df->setCurrency(val.getTerminatedBuffer(), *status);
         break;
-
+        
       default:
         *status = U_UNSUPPORTED_ERROR;
         break;
@@ -751,7 +751,7 @@ unum_toPattern(    const    UNumberFormat*          fmt,
 {
     if(U_FAILURE(*status))
         return -1;
-
+    
     UnicodeString pat;
     if(!(result==NULL && resultLength==0)) {
         // NULL destination for pure preflighting: empty dummy string
@@ -838,15 +838,15 @@ unum_applyPattern(  UNumberFormat  *fmt,
 {
     UErrorCode tStatus = U_ZERO_ERROR;
     UParseError tParseError;
-
+    
     if(parseError == NULL){
         parseError = &tParseError;
     }
-
+    
     if(status==NULL){
         status = &tStatus;
     }
-
+    
     int32_t len = (patternLength == -1 ? u_strlen(pattern) : patternLength);
     const UnicodeString pat((UChar*)pattern, len, len);
 

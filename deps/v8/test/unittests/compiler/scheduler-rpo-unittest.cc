@@ -106,8 +106,8 @@ TEST_F(SchedulerRPOTest, Line) {
     BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
     CheckRPONumbers(order, 1 + i, false);
 
-    for (size_t i = 0; i < schedule.BasicBlockCount(); i++) {
-      BasicBlock* block = schedule.GetBlockById(BasicBlock::Id::FromSize(i));
+    for (size_t j = 0; j < schedule.BasicBlockCount(); j++) {
+      BasicBlock* block = schedule.GetBlockById(BasicBlock::Id::FromSize(j));
       if (block->rpo_number() >= 0 && block->SuccessorCount() == 1) {
         EXPECT_EQ(block->rpo_number() + 1, block->SuccessorAt(0)->rpo_number());
       }

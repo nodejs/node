@@ -199,6 +199,7 @@ Handle<FixedArray> AllocateArrayOnEvacuationCandidate(Isolate* isolate,
 }
 
 HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -218,7 +219,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -230,6 +231,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -255,7 +257,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -267,6 +269,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -286,7 +289,7 @@ HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -298,6 +301,7 @@ HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
 }
 
 HEAP_TEST(InvalidatedSlotsFastToSlow) {
+  if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
   ManualGCScope manual_gc_scope;
@@ -335,7 +339,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   Object::SetProperty(isolate, obj, prop_name3, evacuated).Check();
 
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     Object::SetProperty(isolate, obj, prop_name1, dead).Check();
     Object::SetProperty(isolate, obj, prop_name2, dead).Check();

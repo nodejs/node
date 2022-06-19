@@ -1169,7 +1169,7 @@ uregex_replaceAll(URegularExpression    *regexp2,
 
     uregex_reset(regexp2, 0, status);
 
-    // Note: Seperate error code variables for findNext() and appendReplacement()
+    // Note: Separate error code variables for findNext() and appendReplacement()
     //       are used so that destination buffer overflow errors
     //       in appendReplacement won't stop findNext() from working.
     //       appendReplacement() and appendTail() special case incoming buffer
@@ -1353,7 +1353,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     }
 
     //
-    // Validate all paramters
+    // Validate all parameters
     //
     if (validateRE(regexp, TRUE, status) == FALSE) {
         return 0;
@@ -1497,7 +1497,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
             // Scan for Named Capture Group, ${name}.
             UnicodeString groupName;
             U16_FWD_1(replacementText, replIdx, replacementLength);
-            while (U_SUCCESS(*status) && c32 != RIGHTBRACKET) {
+            while (U_SUCCESS(*status) && c32 != RIGHTBRACKET) { 
                 if (replIdx >= replacementLength) {
                     *status = U_REGEX_INVALID_CAPTURE_GROUP_NAME;
                     break;
@@ -1977,3 +1977,4 @@ uregex_splitUText(URegularExpression    *regexp2,
 
 
 #endif   // !UCONFIG_NO_REGULAR_EXPRESSIONS
+

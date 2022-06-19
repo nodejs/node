@@ -281,3 +281,13 @@ for (const [ value, _method ] of [
   await m.evaluate();
   assert.ok(types.isModuleNamespaceObject(m.namespace));
 })().then(common.mustCall());
+
+{
+  // eslint-disable-next-line node-core/crypto-check
+  if (common.hasCrypto) {
+    const crypto = require('crypto');
+    assert.ok(!types.isKeyObject(crypto.createHash('sha1')));
+  }
+  assert.ok(!types.isCryptoKey());
+  assert.ok(!types.isKeyObject());
+}

@@ -37,6 +37,10 @@ asm(
     "  stp x23, x24, [sp, #-16]!                        \n"
     "  stp x25, x26, [sp, #-16]!                        \n"
     "  stp x27, x28, [sp, #-16]!                        \n"
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    // Sign return address.
+    "  paciasp                                          \n"
+#endif
     "  stp fp, lr,   [sp, #-16]!                        \n"
     // Maintain frame pointer.
     "  mov fp, sp                                       \n"
@@ -47,8 +51,12 @@ asm(
     // Pass 3rd parameter as sp (stack pointer).
     "  mov x2, sp                                       \n"
     "  blr x7                                           \n"
-    // Load return address.
-    "  ldr lr, [sp, #8]                                 \n"
-    // Restore frame pointer and pop all callee-saved registers.
-    "  ldr fp, [sp], #96                                \n"
+    // Load return address and frame pointer.
+    "  ldp fp, lr, [sp], #16                            \n"
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    // Authenticate return address.
+    "  autiasp                                          \n"
+#endif
+    // Drop all callee-saved registers.
+    "  add sp, sp, #80                                  \n"
     "  ret                                              \n");

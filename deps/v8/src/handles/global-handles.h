@@ -10,10 +10,13 @@
 #include <utility>
 #include <vector>
 
+#include "include/v8-callbacks.h"
+#include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
-#include "include/v8.h"
+#include "include/v8-traced-handle.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/utils/utils.h"
 
@@ -42,6 +45,9 @@ enum WeaknessType {
 // callbacks and finalizers attached to them.
 class V8_EXPORT_PRIVATE GlobalHandles final {
  public:
+  static void EnableMarkingBarrier(Isolate*);
+  static void DisableMarkingBarrier(Isolate*);
+
   GlobalHandles(const GlobalHandles&) = delete;
   GlobalHandles& operator=(const GlobalHandles&) = delete;
 
@@ -84,12 +90,9 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // API for traced handles.
   //
 
-  static void MoveTracedGlobal(Address** from, Address** to);
-  static void CopyTracedGlobal(const Address* const* from, Address** to);
-  static void DestroyTraced(Address* location);
-  static void SetFinalizationCallbackForTraced(
-      Address* location, void* parameter,
-      WeakCallbackInfo<void>::Callback callback);
+  static void MoveTracedReference(Address** from, Address** to);
+  static void CopyTracedReference(const Address* const* from, Address** to);
+  static void DestroyTracedReference(Address* location);
   static void MarkTraced(Address* location);
 
   explicit GlobalHandles(Isolate* isolate);
@@ -100,18 +103,15 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   Handle<Object> Create(Address value);
 
   template <typename T>
-  Handle<T> Create(T value) {
-    static_assert(std::is_base_of<Object, T>::value, "static type violation");
-    // The compiler should only pick this method if T is not Object.
-    static_assert(!std::is_same<Object, T>::value, "compiler error");
-    return Handle<T>::cast(Create(Object(value)));
-  }
+  inline Handle<T> Create(T value);
 
-  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor,
+  Handle<Object> CreateTraced(Object value, Address* slot,
+                              GlobalHandleStoreMode store_mode,
                               bool is_on_stack);
-  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor);
+  Handle<Object> CreateTraced(Object value, Address* slot,
+                              GlobalHandleStoreMode store_mode);
   Handle<Object> CreateTraced(Address value, Address* slot,
-                              bool has_destructor);
+                              GlobalHandleStoreMode store_mode);
 
   void RecordStats(HeapStats* stats);
 
@@ -233,6 +233,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
                                     Node* node);
 
   Isolate* const isolate_;
+  bool is_marking_ = false;
 
   std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding young objects. Note: when the list
@@ -357,11 +358,7 @@ class GlobalHandleVector {
   void Push(T val) { locations_.push_back(val.ptr()); }
   // Handles into the GlobalHandleVector become invalid when they are removed,
   // so "pop" returns a raw object rather than a handle.
-  T Pop() {
-    T obj = T::cast(Object(locations_.back()));
-    locations_.pop_back();
-    return obj;
-  }
+  inline T Pop();
 
   Iterator begin() { return Iterator(locations_.begin()); }
   Iterator end() { return Iterator(locations_.end()); }

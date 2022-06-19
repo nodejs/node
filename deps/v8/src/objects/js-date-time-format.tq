@@ -10,10 +10,16 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;
   date_style: DateTimeStyle: 3 bit;
   time_style: DateTimeStyle: 3 bit;
-  iso8601: bool: 1bit;
+  // ICU report the same type "gregorian" for both "gregorian" calendar and
+  // "iso8601" calendar and the same type "islamic" for both "islamic" and
+  // "islamic-rgsa" calendar. We use the alt_calendar bit to distinguish between
+  // them. When the type is "gregorian" and the alt_calendar bit is set, it is
+  // "iso8601", otherwise the true "gregorian" calendar. While the type is
+  // "islamic" and the alt_calendar bit is set, it is "islamic-rgsa" calendar,
+  // otherwise "islamic" calendar.
+  alt_calendar: bool: 1bit;
 }
 
-@generateCppClass
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>

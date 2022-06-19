@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "March 2021" "" ""
+.TH "SCRIPTS" "7" "June 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -60,7 +60,8 @@ script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and
 the prepare script will be run, before the package is packaged and
 installed\.
 .IP \(bu 2
-As of \fBnpm@7\fP these scripts run in the background
+As of \fBnpm@7\fP these scripts run in the background\.
+To see the output, run with: \fB\-\-foreground\-scripts\fP\|\.
 
 .RE
 .P
@@ -159,13 +160,6 @@ These all run after the actual installation of modules into
 .RS 0
 .IP \(bu 2
 \fBprepare\fP
-
-.RE
-.SS npm help \fBenv\fP
-.RS 0
-.IP \(bu 2
-\fBenv\fP (You can override the default behavior of \fBnpm env\fP by defining
-  a custom \fBenv\fP entry in your \fBscripts\fP object)
 
 .RE
 .SS npm help \fBinstall\fP
@@ -296,6 +290,36 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBposttest\fP
 
 .RE
+.SS npm help \fBversion\fP
+.RS 0
+.IP \(bu 2
+\fBpreversion\fP
+.IP \(bu 2
+\fBversion\fP
+.IP \(bu 2
+\fBpostversion\fP
+
+.RE
+.SS A Note on a lack of npm help \fBuninstall\fP scripts
+.P
+While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
+.P
+Reasons for a package removal include:
+.RS 0
+.IP \(bu 2
+a user directly uninstalled this package
+.IP \(bu 2
+a user uninstalled a dependant package and so this dependency is being uninstalled
+.IP \(bu 2
+a user uninstalled a dependant package but another package also depends on this version
+.IP \(bu 2
+this version has been merged as a duplicate with another version
+.IP \(bu 2
+etc\.
+
+.RE
+.P
+Due to the lack of necessary context, \fBuninstall\fP lifecycle scripts are not implemented and will not function\.
 .SS User
 .P
 When npm is run as root, scripts are always run with the effective uid
@@ -336,46 +360,8 @@ package\.json file, then your package scripts would have the
 \fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
 in your code with \fBprocess\.env\.npm_package_name\fP and
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
-.SS configuration
 .P
-Configuration parameters are put in the environment with the
-\fBnpm_config_\fP prefix\. For instance, you can view the effective \fBroot\fP
-config by checking the \fBnpm_config_root\fP environment variable\.
-.SS Special: package\.json "config" object
-.P
-The package\.json "config" keys are overwritten in the environment if
-there is a config param of \fB<name>[@<version>]:<key>\fP\|\.  For example,
-if the package\.json has this:
-.P
-.RS 2
-.nf
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server\.js"
-  }
-}
-.fi
-.RE
-.P
-and the server\.js is this:
-.P
-.RS 2
-.nf
-http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
-.fi
-.RE
-.P
-then the user could change the behavior by doing:
-.P
-.RS 2
-.nf
-  npm config set foo:port 80
-.fi
-.RE
+See npm help \fBpackage\.json\fP for more on package configs\.
 .SS current lifecycle event
 .P
 Lastly, the \fBnpm_lifecycle_event\fP environment variable is set to
@@ -401,7 +387,7 @@ For example, if your package\.json contains this:
 {
   "scripts" : {
     "install" : "scripts/install\.js",
-    "postinstall" : "scripts/postinstall\.js",
+    "postinstall" : "scripts/install\.js",
     "uninstall" : "scripts/uninstall\.js"
   }
 }
@@ -436,21 +422,9 @@ Scripts are run by passing the line as a script argument to \fBsh\fP\|\.
 If the script exits with a code other than 0, then this will abort the
 process\.
 .P
-Note that these script files don't have to be nodejs or even
-javascript programs\. They just have to be some kind of executable
+Note that these script files don't have to be Node\.js or even
+JavaScript programs\. They just have to be some kind of executable
 file\.
-.SS Hook Scripts
-.P
-If you want to run a specific script at a specific lifecycle event for
-ALL packages, then you can use a hook script\.
-.P
-Place an executable file at \fBnode_modules/\.hooks/{eventname}\fP, and
-it'll get run for all packages when they are going through that point
-in the package lifecycle for any packages installed in that root\.
-.P
-Hook scripts are run exactly the same way as package\.json scripts\.
-That is, they are in a separate child process, with the env described
-above\.
 .SS Best Practices
 .RS 0
 .IP \(bu 2
@@ -474,11 +448,17 @@ Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
 .IP \(bu 2
-Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepublish\fP
+Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepare\fP
 for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
 there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP
 scripts is for compilation which must be done on the target architecture\.
+.IP \(bu 2
+Scripts are run from the root of the package folder, regardless of what the
+current working directory is when \fBnpm\fP is invoked\. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the \fBINIT_CWD\fP environment variable, which holds the full path you
+were in when you ran \fBnpm run\fP\|\.
 
 .RE
 .SS See Also

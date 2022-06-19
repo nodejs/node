@@ -26,11 +26,13 @@ for (var i = 0; i < 100; ++i) {
 %PrepareFunctionForOptimization(testConcurrent);
 testConcurrent(0.5);
 testConcurrent(0.6);
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(testConcurrent, 'concurrent');
 for (var i = 0; i < 100; ++i) {
   testConcurrent(0.7);
 }
 
-%GetOptimizationStatus(testConcurrent, 'sync');
+%FinalizeOptimization();
+%GetOptimizationStatus(testConcurrent);
 
 gc();

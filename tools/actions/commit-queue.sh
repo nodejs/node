@@ -4,90 +4,112 @@ set -xe
 
 OWNER=$1
 REPOSITORY=$2
-GITHUB_TOKEN=$3
-shift 3
+shift 2
 
 UPSTREAM=origin
-DEFAULT_BRANCH=master
+DEFAULT_BRANCH=main
 
-API_URL=https://api.github.com
-COMMIT_QUEUE_LABEL='commit-queue'
-COMMIT_QUEUE_FAILED_LABEL='commit-queue-failed'
+COMMIT_QUEUE_LABEL="commit-queue"
+COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
-issueUrl() {
-  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
+commit_queue_failed() {
+  pr=$1
+
+  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}"
+
+  # shellcheck disable=SC2154
+  cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+  body="<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>"
+  echo "$body"
+
+  gh pr comment "$pr" --body "$body"
+
+  rm output
 }
-
-labelsUrl() {
-  echo "$(issueUrl "${1}")/labels"
-}
-
-commentsUrl() {
-  echo "$(issueUrl "${1}")/comments"
-}
-
-gitHubCurl() {
-  url=$1
-  method=$2
-  shift 2
-
-  curl -fsL --request "$method" \
-       --url "$url" \
-       --header "authorization: Bearer ${GITHUB_TOKEN}" \
-       --header 'content-type: application/json' "$@"
-}
-
 
 # TODO(mmarchini): should this be set with whoever added the label for each PR?
 git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
 
 for pr in "$@"; do
+  gh pr view "$pr" --json labels --jq ".labels" > labels.json
   # Skip PR if CI was requested
-  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("request-ci")'; then
+  if jq -e 'map(.name) | index("request-ci")' < labels.json; then
     echo "pr ${pr} skipped, waiting for CI to start"
     continue
   fi
 
   # Skip PR if CI is still running
-  if ncu-ci url "https://github.com/${OWNER}/${REPOSITORY}/pull/${pr}" 2>&1 | grep "^Result *PENDING"; then
+  if gh pr checks "$pr" | grep -q "\spending\s"; then
     echo "pr ${pr} skipped, CI still running"
     continue
   fi
 
   # Delete the commit queue label
-  gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
+  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
 
-  git node land --autorebase --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
+  if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
+    MULTIPLE_COMMIT_POLICY="--fixupAll"
+  elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
+    MULTIPLE_COMMIT_POLICY=""
+  else
+    MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+  fi
+
+  git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
   # cat here otherwise we'll be supressing the output of git node land
   cat output
 
   # TODO(mmarchini): workaround for ncu not returning the expected status code,
   # if the "Landed in..." message was not on the output we assume land failed
-  if ! tail -n 10 output | grep '. Post "Landed in .*/pull/'"${pr}"; then
-    gitHubCurl "$(labelsUrl "$pr")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
-
-    # shellcheck disable=SC2154
-    cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>" '{body: $content}' > output.json
-    cat output.json
-
-    gitHubCurl "$(commentsUrl "$pr")" POST --data @output.json
-
-    rm output output.json
+  if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
+    commit_queue_failed "$pr"
     # If `git node land --abort` fails, we're in unknown state. Better to stop
     # the script here, current PR was removed from the queue so it shouldn't
-    # interfer again in the future
+    # interfere again in the future.
     git node land --abort --yes
-  else
-    rm output
-
-    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
-
-    git push $UPSTREAM $DEFAULT_BRANCH
-
-    gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
-
-    gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+    continue
   fi
+
+  if [ -z "$MULTIPLE_COMMIT_POLICY" ]; then
+    start_sha=$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)
+    end_sha=$(git rev-parse HEAD)
+    commits="${start_sha}...${end_sha}"
+
+    if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
+      commit_queue_failed "$pr"
+      continue
+    fi
+  else
+    # If there's only one commit, we can use the Squash and Merge feature from GitHub.
+    # TODO: use `gh pr merge` when the GitHub CLI allows to customize the commit title (https://github.com/cli/cli/issues/1023).
+    commit_title=$(git log -1 --pretty='format:%s')
+    commit_body=$(git log -1 --pretty='format:%b')
+    commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
+
+    jq -n \
+      --arg title "${commit_title}" \
+      --arg body "${commit_body}" \
+      --arg head "${commit_head}" \
+      '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
+    cat output.json
+    if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
+      commit_queue_failed "$pr"
+      continue
+    fi
+    cat output
+    if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
+      commit_queue_failed "$pr"
+      continue
+    fi
+    rm output.json
+  fi
+
+  rm output
+
+  gh pr comment "$pr" --body "Landed in $commits"
+
+  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
 done
+
+rm -f labels.json

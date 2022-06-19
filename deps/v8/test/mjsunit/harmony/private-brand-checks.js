@@ -565,3 +565,8 @@ const commonThrowCases = [100, 'foo', undefined, null];
   assertFalse(d.exfilEval(c));
   assertFalse(d.exfilEval(d));
 })();
+
+(function TestBinaryOperatorPrecedenceParseError() {
+  assertThrows(() => eval(`class C { #x; test() { 0 << #x in {} } }`),
+               SyntaxError);
+})();

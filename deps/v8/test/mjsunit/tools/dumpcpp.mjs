@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 import {
-    CppProcessor, UnixCppEntriesProvider
+    CppProcessor, LinuxCppEntriesProvider
   } from "../../../tools/dumpcpp.mjs" ;
 
-(function testProcessSharedLibrary() {
-  var oldLoadSymbols = UnixCppEntriesProvider.prototype.loadSymbols;
+await (async function testProcessSharedLibrary() {
+  var oldLoadSymbols = LinuxCppEntriesProvider.prototype.loadSymbols;
 
-  UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
+  LinuxCppEntriesProvider.prototype.loadSymbols = function(libName) {
     this.symbols = [[
       '00000100 00000001 t v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)',
       '00000110 00000001 T v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)',
@@ -18,9 +18,9 @@ import {
     ].join('\n'), ''];
   };
 
-  var testCppProcessor = new CppProcessor(new UnixCppEntriesProvider(),
+  var testCppProcessor = new CppProcessor(new LinuxCppEntriesProvider(),
                                           false, false);
-  testCppProcessor.processSharedLibrary(
+  await testCppProcessor.processSharedLibrary(
     '/usr/local/google/home/lpy/v8/out/native/d8',
     0x00000100, 0x00000400, 0);
 
@@ -52,5 +52,5 @@ import {
                 }
               ]);
 
-  UnixCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;
+  LinuxCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;
 })();

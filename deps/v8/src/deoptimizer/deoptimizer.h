@@ -15,6 +15,10 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/objects/js-function.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -27,11 +31,15 @@ class Deoptimizer : public Malloced {
  public:
   struct DeoptInfo {
     DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
-              int deopt_id)
-        : position(position), deopt_reason(deopt_reason), deopt_id(deopt_id) {}
+              uint32_t node_id, int deopt_id)
+        : position(position),
+          deopt_reason(deopt_reason),
+          node_id(node_id),
+          deopt_id(deopt_id) {}
 
     const SourcePosition position;
     const DeoptimizeReason deopt_reason;
+    const uint32_t node_id;
     const int deopt_id;
   };
 
@@ -41,17 +49,14 @@ class Deoptimizer : public Malloced {
       Isolate* isolate, SharedFunctionInfo shared,
       BytecodeOffset bytecode_offset);
 
-  static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
+  static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
-  bool should_reuse_code() const;
-
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
-                          unsigned deopt_exit_index, Address from,
-                          int fp_to_sp_delta, Isolate* isolate);
+                          Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
@@ -87,13 +92,7 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-  // Returns the builtin that will perform a check and either eagerly deopt with
-  // |reason| or resume execution in the optimized code.
-  V8_EXPORT_PRIVATE static Builtins::Name GetDeoptWithResumeBuiltin(
-      DeoptimizeReason reason);
-
-  V8_EXPORT_PRIVATE static Builtins::Name GetDeoptimizationEntry(
-      DeoptimizeKind kind);
+  V8_EXPORT_PRIVATE static Builtin GetDeoptimizationEntry(DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
   // {type_out}. Returns false if {addr} is not a deoptimization entry.
@@ -118,26 +117,13 @@ class Deoptimizer : public Malloced {
   static constexpr int kMaxNumberOfEntries = 16384;
 
   // This marker is passed to Deoptimizer::New as {deopt_exit_index} on
-  // platforms that have fixed deopt sizes (see also
-  // kSupportsFixedDeoptExitSizes). The actual deoptimization id is then
+  // platforms that have fixed deopt sizes. The actual deoptimization id is then
   // calculated from the return address.
   static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
-  // Set to true when the architecture supports deoptimization exit sequences
-  // of a fixed size, that can be sorted so that the deoptimization index is
-  // deduced from the address of the deoptimization exit.
-  // TODO(jgruber): Remove this, and support for variable deopt exit sizes,
-  // once all architectures use fixed exit sizes.
-  V8_EXPORT_PRIVATE static const bool kSupportsFixedDeoptExitSizes;
-
-  // Size of deoptimization exit sequence. This is only meaningful when
-  // kSupportsFixedDeoptExitSizes is true.
-  V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
+  // Size of deoptimization exit sequence.
+  V8_EXPORT_PRIVATE static const int kEagerDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeBeforeArgsSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs1PcOffset;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs2PcOffset;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);
@@ -149,7 +135,7 @@ class Deoptimizer : public Malloced {
                                     const TranslatedFrame::iterator& iterator);
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
-              unsigned deopt_exit_index, Address from, int fp_to_sp_delta);
+              Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
   void DeleteFrameDescriptions();
 
@@ -161,11 +147,13 @@ class Deoptimizer : public Malloced {
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
 
-  static Builtins::Name TrampolineForBuiltinContinuation(
-      BuiltinContinuationMode mode, bool must_handle_result);
+  static Builtin TrampolineForBuiltinContinuation(BuiltinContinuationMode mode,
+                                                  bool must_handle_result);
 
-  TranslatedValue TranslatedValueForWasmReturnType(
-      base::Optional<wasm::ValueKind> wasm_call_return_type);
+#if V8_ENABLE_WEBASSEMBLY
+  TranslatedValue TranslatedValueForWasmReturnKind(
+      base::Optional<wasm::ValueKind> wasm_call_return_kind);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index,
@@ -184,11 +172,11 @@ class Deoptimizer : public Malloced {
   Code FindDeoptimizingCode(Address addr);
 
   // Tracing.
-  bool tracing_enabled() const { return static_cast<bool>(trace_scope_); }
+  bool tracing_enabled() const { return trace_scope_ != nullptr; }
   bool verbose_tracing_enabled() const {
-    return FLAG_trace_deopt_verbose && trace_scope_;
+    return FLAG_trace_deopt_verbose && tracing_enabled();
   }
-  CodeTracer::Scope* trace_scope() const { return trace_scope_.get(); }
+  CodeTracer::Scope* trace_scope() const { return trace_scope_; }
   CodeTracer::Scope* verbose_trace_scope() const {
     return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
   }
@@ -241,7 +229,9 @@ class Deoptimizer : public Malloced {
   DisallowGarbageCollection* disallow_garbage_collection_;
 #endif  // DEBUG
 
-  std::unique_ptr<CodeTracer::Scope> trace_scope_;
+  // Note: This is intentionally not a unique_ptr s.t. the Deoptimizer
+  // satisfies is_standard_layout, needed for offsetof().
+  CodeTracer::Scope* const trace_scope_;
 
   friend class DeoptimizedFrameInfo;
   friend class FrameDescription;

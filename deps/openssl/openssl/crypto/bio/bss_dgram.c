@@ -1,11 +1,15 @@
 /*
- * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
 
 #include <stdio.h>
 #include <errno.h>
@@ -53,6 +57,8 @@ static int dgram_sctp_puts(BIO *h, const char *str);
 static long dgram_sctp_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int dgram_sctp_new(BIO *h);
 static int dgram_sctp_free(BIO *data);
+static int dgram_sctp_wait_for_dry(BIO *b);
+static int dgram_sctp_msg_waiting(BIO *b);
 #  ifdef SCTP_AUTHENTICATION_EVENT
 static void dgram_sctp_handle_auth_free_key_event(BIO *b, union sctp_notification
                                                   *snp);
@@ -66,10 +72,8 @@ static void get_current_time(struct timeval *t);
 static const BIO_METHOD methods_dgramp = {
     BIO_TYPE_DGRAM,
     "datagram socket",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     dgram_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     dgram_read,
     dgram_puts,
@@ -84,10 +88,8 @@ static const BIO_METHOD methods_dgramp = {
 static const BIO_METHOD methods_dgramp_sctp = {
     BIO_TYPE_DGRAM_SCTP,
     "datagram sctp socket",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     dgram_sctp_write,
-    /* TODO: Convert to new style write function */
     bread_conv,
     dgram_sctp_read,
     dgram_sctp_puts,
@@ -124,7 +126,7 @@ typedef struct bio_dgram_sctp_data_st {
     struct bio_dgram_sctp_sndinfo sndinfo;
     struct bio_dgram_sctp_rcvinfo rcvinfo;
     struct bio_dgram_sctp_prinfo prinfo;
-    void (*handle_notifications) (BIO *bio, void *context, void *buf);
+    BIO_dgram_sctp_notification_handler_fn handle_notifications;
     void *notification_context;
     int in_handshake;
     int ccs_rcvd;
@@ -841,8 +843,8 @@ BIO *BIO_new_dgram_sctp(int fd, int close_flag)
                    sizeof(struct sctp_authchunk));
     if (ret < 0) {
         BIO_vfree(bio);
-        BIOerr(BIO_F_BIO_NEW_DGRAM_SCTP, ERR_R_SYS_LIB);
-        ERR_add_error_data(1, "Ensure SCTP AUTH chunks are enabled in kernel");
+        ERR_raise_data(ERR_LIB_BIO, ERR_R_SYS_LIB,
+                       "Ensure SCTP AUTH chunks are enabled in kernel");
         return NULL;
     }
     auth.sauth_chunk = OPENSSL_SCTP_FORWARD_CUM_TSN_CHUNK_TYPE;
@@ -851,8 +853,8 @@ BIO *BIO_new_dgram_sctp(int fd, int close_flag)
                    sizeof(struct sctp_authchunk));
     if (ret < 0) {
         BIO_vfree(bio);
-        BIOerr(BIO_F_BIO_NEW_DGRAM_SCTP, ERR_R_SYS_LIB);
-        ERR_add_error_data(1, "Ensure SCTP AUTH chunks are enabled in kernel");
+        ERR_raise_data(ERR_LIB_BIO, ERR_R_SYS_LIB,
+                       "Ensure SCTP AUTH chunks are enabled in kernel");
         return NULL;
     }
 
@@ -889,10 +891,9 @@ BIO *BIO_new_dgram_sctp(int fd, int close_flag)
 
     if (!auth_data || !auth_forward) {
         BIO_vfree(bio);
-        BIOerr(BIO_F_BIO_NEW_DGRAM_SCTP, ERR_R_SYS_LIB);
-        ERR_add_error_data(1,
-                           "Ensure SCTP AUTH chunks are enabled on the "
-                           "underlying socket");
+        ERR_raise_data(ERR_LIB_BIO, ERR_R_SYS_LIB,
+                       "Ensure SCTP AUTH chunks are enabled on the "
+                       "underlying socket");
         return NULL;
     }
 
@@ -956,7 +957,7 @@ static int dgram_sctp_new(BIO *bi)
     bi->init = 0;
     bi->num = 0;
     if ((data = OPENSSL_zalloc(sizeof(*data))) == NULL) {
-        BIOerr(BIO_F_DGRAM_SCTP_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 #  ifdef SCTP_PR_SCTP_NONE
@@ -1007,7 +1008,6 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
     int ret = 0, n = 0, i, optval;
     socklen_t optlen;
     bio_dgram_sctp_data *data = (bio_dgram_sctp_data *) b->ptr;
-    union sctp_notification *snp;
     struct msghdr msg;
     struct iovec iov;
     struct cmsghdr *cmsg;
@@ -1073,8 +1073,10 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
             }
 
             if (msg.msg_flags & MSG_NOTIFICATION) {
-                snp = (union sctp_notification *)out;
-                if (snp->sn_header.sn_type == SCTP_SENDER_DRY_EVENT) {
+                union sctp_notification snp;
+
+                memcpy(&snp, out, sizeof(snp));
+                if (snp.sn_header.sn_type == SCTP_SENDER_DRY_EVENT) {
 #  ifdef SCTP_EVENT
                     struct sctp_event event;
 #  else
@@ -1114,17 +1116,19 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
 #  endif
                 }
 #  ifdef SCTP_AUTHENTICATION_EVENT
-                if (snp->sn_header.sn_type == SCTP_AUTHENTICATION_EVENT)
-                    dgram_sctp_handle_auth_free_key_event(b, snp);
+                if (snp.sn_header.sn_type == SCTP_AUTHENTICATION_EVENT)
+                    dgram_sctp_handle_auth_free_key_event(b, &snp);
 #  endif
 
                 if (data->handle_notifications != NULL)
                     data->handle_notifications(b, data->notification_context,
                                                (void *)out);
 
+                memset(&snp, 0, sizeof(snp));
                 memset(out, 0, outl);
-            } else
+            } else {
                 ret += n;
+            }
         }
         while ((msg.msg_flags & MSG_NOTIFICATION) && (msg.msg_flags & MSG_EOR)
                && (ret < outl));
@@ -1191,7 +1195,7 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
                 (socklen_t) (sizeof(sctp_assoc_t) + 256 * sizeof(uint8_t));
             authchunks = OPENSSL_malloc(optlen);
             if (authchunks == NULL) {
-                BIOerr(BIO_F_DGRAM_SCTP_READ, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
                 return -1;
             }
             memset(authchunks, 0, optlen);
@@ -1211,7 +1215,7 @@ static int dgram_sctp_read(BIO *b, char *out, int outl)
             OPENSSL_free(authchunks);
 
             if (!auth_data || !auth_forward) {
-                BIOerr(BIO_F_DGRAM_SCTP_READ, BIO_R_CONNECT_ERROR);
+                ERR_raise(ERR_LIB_BIO, BIO_R_CONNECT_ERROR);
                 return -1;
             }
 
@@ -1562,6 +1566,10 @@ static long dgram_sctp_ctrl(BIO *b, int cmd, long num, void *ptr)
         else
             data->save_shutdown = 0;
         break;
+    case BIO_CTRL_DGRAM_SCTP_WAIT_FOR_DRY:
+        return dgram_sctp_wait_for_dry(b);
+    case BIO_CTRL_DGRAM_SCTP_MSG_WAITING:
+        return dgram_sctp_msg_waiting(b);
 
     default:
         /*
@@ -1574,11 +1582,8 @@ static long dgram_sctp_ctrl(BIO *b, int cmd, long num, void *ptr)
 }
 
 int BIO_dgram_sctp_notification_cb(BIO *b,
-                                   void (*handle_notifications) (BIO *bio,
-                                                                 void
-                                                                 *context,
-                                                                 void *buf),
-                                   void *context)
+                BIO_dgram_sctp_notification_handler_fn handle_notifications,
+                void *context)
 {
     bio_dgram_sctp_data *data = (bio_dgram_sctp_data *) b->ptr;
 
@@ -1605,6 +1610,11 @@ int BIO_dgram_sctp_notification_cb(BIO *b,
  *  1 when dry
  */
 int BIO_dgram_sctp_wait_for_dry(BIO *b)
+{
+    return (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SCTP_WAIT_FOR_DRY, 0, NULL);
+}
+
+static int dgram_sctp_wait_for_dry(BIO *b)
 {
     int is_dry = 0;
     int sockflags = 0;
@@ -1763,6 +1773,11 @@ int BIO_dgram_sctp_wait_for_dry(BIO *b)
 }
 
 int BIO_dgram_sctp_msg_waiting(BIO *b)
+{
+    return (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SCTP_MSG_WAITING, 0, NULL);
+}
+
+static int dgram_sctp_msg_waiting(BIO *b)
 {
     int n, sockflags;
     union sctp_notification snp;

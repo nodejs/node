@@ -1,9 +1,9 @@
 // Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --allow-natives-syntax --opt --noalways-opt
 
-// Flags: --allow-natives-syntax --concurrent-inlining
-// Flags: --opt --noalways-opt --noturboprop
 class C {};
 const c = new C;
 const getPrototypeOf = Object.getPrototypeOf;

@@ -119,7 +119,7 @@ Transport::~Transport() {
 
 void Transport::CopyFromBuffer(char** dst, int32_t* len) {
   int32_t copy_bytes = std::min(*len, size_ - pos_);
-  base::Memcpy(*dst, buf_.get() + pos_, copy_bytes);
+  memcpy(*dst, buf_.get() + pos_, copy_bytes);
   pos_ += copy_bytes;
   *len -= copy_bytes;
   *dst += copy_bytes;

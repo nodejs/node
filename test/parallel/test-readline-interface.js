@@ -87,34 +87,16 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const input = new FakeInput();
 
   // Constructor throws if completer is not a function or undefined
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: 'string is not valid'
+  ['not an array', 123, 123n, {}, true, Symbol(), null].forEach((invalid) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        completer: invalid
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_VALUE'
     });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: ''
-    });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      completer: false
-    });
-  }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   // Constructor throws if history is not an array
@@ -149,11 +131,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       input,
       tabSize: 0
     }),
-    {
-      message: 'The value of "tabSize" is out of range. ' +
-                'It must be >= 1 && < 4294967296. Received 0',
-      code: 'ERR_OUT_OF_RANGE'
-    }
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 
   assert.throws(
@@ -277,7 +255,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   // ['foo', 'baz', 'bar', bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', (line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
@@ -353,7 +331,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
   const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   let callCount = 0;
-  rli.on('line', function(line) {
+  rli.on('line', (line) => {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
@@ -380,7 +358,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const [rli, fi] = getInterface({ terminal: true });
   const keys = [];
   const err = new Error('bad thing happened');
-  fi.on('keypress', function(key) {
+  fi.on('keypress', (key) => {
     keys.push(key);
     if (key === 'X') {
       throw err;
@@ -692,6 +670,77 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   rli.close();
 }
 
+// yank
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward one char
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 1);
+
+  // Yank
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, 'the quick brown fox');
+  }));
+
+  fi.emit('data', '\n');
+  rli.close();
+}
+
+// yank pop
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward one char
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 1);
+  // Yank
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward four chars
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 4);
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  assertCursorRowsAndCols(rli, 0, 0);
+
+  // Yank: 'quick brown fox|the '
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  // Yank pop: 'he quick brown fox|the'
+  fi.emit('keypress', '.', { meta: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 18);
+
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, 'he quick brown foxthe ');
+  }));
+
+  fi.emit('data', '\n');
+  rli.close();
+}
+
 // Close readline interface
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
@@ -736,6 +785,40 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   fi.columns = 10;
   fi.emit('data', 't');
   assertCursorRowsAndCols(rli, 4, 3);
+  rli.close();
+}
+
+// Undo & Redo
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Delete the last eight chars
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
+
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
+
+  assertCursorRowsAndCols(rli, 0, 11);
+  // Perform undo twice
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown');
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown fox');
+  // Perform redo twice
+  fi.emit('keypress', ',', { sequence: '\x1E' });
+  assert.strictEqual(rli.line, 'the quick brown');
+  fi.emit('keypress', ',', { sequence: '\x1E' });
+  assert.strictEqual(rli.line, 'the quick b');
+  fi.emit('data', '\n');
   rli.close();
 }
 
@@ -795,7 +878,7 @@ for (let i = 0; i < 12; i++) {
   assert.strictEqual(isWarned(process.stdout._events), false);
 }
 
-[true, false].forEach(function(terminal) {
+[true, false].forEach((terminal) => {
   // Disable history
   {
     const [rli, fi] = getInterface({ terminal, historySize: 0 });
@@ -890,7 +973,7 @@ for (let i = 0; i < 12; i++) {
     const buf = Buffer.from('☮', 'utf8');
     const [rli, fi] = getInterface({ terminal });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', (line) => {
       callCount++;
       assert.strictEqual(line, buf.toString('utf8'));
     });
@@ -923,11 +1006,47 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling the question callback with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const { signal } = new AbortController();
+    rli.question('foo?', { signal }, common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Calling the question multiple times
+  {
+    const [rli] = getInterface({ terminal });
+    rli.question('foo?', common.mustCall((answer) => {
+      assert.strictEqual(answer, 'baz');
+    }));
+    rli.question('bar?', common.mustNotCall(() => {
+    }));
+    rli.write('baz\n');
+    rli.close();
+  }
+
   // Calling the promisified question
   {
     const [rli] = getInterface({ terminal });
     const question = util.promisify(rli.question).bind(rli);
     question('foo?')
+    .then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Calling the promisified question with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    const { signal } = new AbortController();
+    question('foo?', { signal })
     .then(common.mustCall((answer) => {
       assert.strictEqual(answer, 'bar');
     }));
@@ -993,6 +1112,40 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Call question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      assert.throws(() => {
+        rli.question('How are you?', common.mustNotCall());
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call promisified question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    question('What\'s your name?').then(common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      question('How are you?')
+        .then(common.mustNotCall(), common.expectsError({
+          code: 'ERR_USE_AFTER_CLOSE',
+          name: 'Error'
+        }));
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
   // Can create a new readline Interface with a null output argument
   {
     const [rli, fi] = getInterface({ output: null, terminal });
@@ -1004,7 +1157,7 @@ for (let i = 0; i < 12; i++) {
     rli.setPrompt('ddd> ');
     rli.prompt();
     rli.write("really shouldn't be seeing this");
-    rli.question('What do you think of node.js? ', function(answer) {
+    rli.question('What do you think of node.js? ', (answer) => {
       console.log('Thank you for your valuable feedback:', answer);
       rli.close();
     });
@@ -1056,7 +1209,7 @@ for (let i = 0; i < 12; i++) {
     const crlfDelay = 200;
     const [rli, fi] = getInterface({ terminal, crlfDelay });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', () => {
       callCount++;
     });
     fi.emit('data', '\r');
@@ -1078,7 +1231,7 @@ for (let i = 0; i < 12; i++) {
     const delay = 200;
     const [rli, fi] = getInterface({ terminal, crlfDelay });
     let callCount = 0;
-    rli.on('line', function(line) {
+    rli.on('line', () => {
       callCount++;
     });
     fi.emit('data', '\r');

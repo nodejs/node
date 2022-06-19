@@ -142,7 +142,7 @@ public:
      * @return Return true if the given Format objects are semantically equal.
      * @stable ICU 50
      */
-    virtual UBool operator==(const TimeZoneNames& other) const = 0;
+    virtual bool operator==(const TimeZoneNames& other) const = 0;
 
     /**
      * Return true if the given TimeZoneNames objects are not semantically
@@ -151,7 +151,7 @@ public:
      * @return Return true if the given Format objects are not semantically equal.
      * @stable ICU 50
      */
-    UBool operator!=(const TimeZoneNames& other) const { return !operator==(other); }
+    bool operator!=(const TimeZoneNames& other) const { return !operator==(other); }
 
     /**
      * Clone this object polymorphically.  The caller is responsible
@@ -193,7 +193,7 @@ public:
 
     /**
      * Returns an enumeration of all available meta zone IDs used by the given time zone.
-     * @param tzID The canoical tiem zone ID.
+     * @param tzID The canonical time zone ID.
      * @param status Receives the status.
      * @return an enumeration object, owned by the caller.
      * @stable ICU 50

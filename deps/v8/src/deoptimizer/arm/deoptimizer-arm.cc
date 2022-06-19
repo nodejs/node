@@ -3,19 +3,23 @@
 // found in the LICENSE file.
 
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 2 * kInstrSize;
+// The deopt exit sizes below depend on the following IsolateData layout
+// guarantees:
+#define ASSERT_OFFSET(BuiltinName)                                       \
+  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+                    Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
+                0x1000)
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
+#undef ASSERT_OFFSET
+
+const int Deoptimizer::kEagerDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 3 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = kInstrSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
-    kInstrSize + kSystemPointerSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   const int kShift = n % 2 == 0 ? 0 : 32;

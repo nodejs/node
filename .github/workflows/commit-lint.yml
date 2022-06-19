@@ -1,0 +1,29 @@
+name: First commit message adheres to guidelines
+
+on: [pull_request]
+
+env:
+  NODE_VERSION: lts/*
+
+jobs:
+  lint-commit-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute number of commits in the PR
+        id: nb-of-commits
+        run: |
+          echo "::set-output name=plusOne::$((${{ github.event.pull_request.commits }} + 1))"
+          echo "::set-output name=minusOne::$((${{ github.event.pull_request.commits }} - 1))"
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: ${{ steps.nb-of-commits.outputs.plusOne }}
+          persist-credentials: false
+      - run: git reset HEAD^2
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate commit message
+        run: |
+          echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
+          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} | xargs npx -q core-validate-commit --no-validate-metadata --tap

@@ -145,7 +145,7 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
       Label if_smi(this), if_heapnumber(this), if_oddball(this);
       Label if_bigint(this, Label::kDeferred);
       Label if_other(this, Label::kDeferred);
-      TNode<Object> value = var_value.value();
+      value = var_value.value();
       GotoIf(TaggedIsSmi(value), &if_smi);
 
       TNode<HeapObject> value_heap_object = CAST(value);
@@ -181,7 +181,7 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(var_feedback.value(),
+        CSA_DCHECK(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         OverwriteFeedback(&var_feedback,
                           BinaryOperationFeedback::kNumberOrOddball);
@@ -195,10 +195,10 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(var_feedback.value(),
+        CSA_DCHECK(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         OverwriteFeedback(&var_feedback, BinaryOperationFeedback::kAny);
-        var_value = CallBuiltin(Builtins::kNonNumberToNumeric, context,
+        var_value = CallBuiltin(Builtin::kNonNumberToNumeric, context,
                                 value_heap_object);
         Goto(&start);
       }

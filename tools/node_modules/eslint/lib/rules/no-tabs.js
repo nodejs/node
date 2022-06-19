@@ -16,13 +16,13 @@ const anyNonWhitespaceRegex = /\S/u;
 // Public Interface
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "disallow all tabs",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-tabs"
         },

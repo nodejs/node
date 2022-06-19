@@ -98,7 +98,7 @@ class SocketAddress : public MemoryRetainer {
   // for this one. The addresses are a match if:
   // 1. They are the same family and match identically
   // 2. They are different family but match semantically (
-  //     for instance, an IPv4 addres in IPv6 notation)
+  //     for instance, an IPv4 address in IPv6 notation)
   bool is_match(const SocketAddress& other) const;
 
   // Compares this SocketAddress to the given other SocketAddress.
@@ -131,7 +131,7 @@ class SocketAddress : public MemoryRetainer {
   static SocketAddress FromPeerName(const uv_udp_t& handle);
   static SocketAddress FromPeerName(const uv_tcp_t& handle);
 
-  inline v8::Local<v8::Object> ToJS(
+  inline v8::MaybeLocal<v8::Object> ToJS(
       Environment* env,
       v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
 
@@ -173,8 +173,8 @@ class SocketAddressBase : public BaseObject {
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(SocketAddressBase);
-  SET_SELF_SIZE(SocketAddressBase);
+  SET_MEMORY_INFO_NAME(SocketAddressBase)
+  SET_SELF_SIZE(SocketAddressBase)
 
   TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
@@ -400,6 +400,6 @@ class SocketAddressBlockListWrap : public BaseObject {
 
 }  // namespace node
 
-#endif  // NOE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_SOCKADDR_H_

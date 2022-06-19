@@ -18,6 +18,7 @@
 #include "number_roundingutils.h"
 #include "decNumber.h"
 #include "charstr.h"
+#include "util.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -36,8 +37,7 @@ class IntMeasures : public MaybeStackArray<int64_t, 2> {
      * Stack Capacity: most mixed units are expected to consist of two or three
      * subunits, so one or two integer measures should be enough.
      */
-    IntMeasures() : MaybeStackArray<int64_t, 2>() {
-    }
+    IntMeasures() : MaybeStackArray<int64_t, 2>() {}
 
     /**
      * Copy constructor.
@@ -84,6 +84,14 @@ struct MicroProps : public MicroPropsGenerator {
     bool useCurrency;
     char nsName[9];
 
+    // Currency symbol to be used as the decimal separator
+    UnicodeString currencyAsDecimal = ICU_Utility::makeBogusString();
+
+    // No ownership: must point at a string which will outlive MicroProps
+    // instances, e.g. a string with static storage duration, or just a string
+    // that will never be deallocated or modified.
+    const char *gender;
+
     // Note: This struct has no direct ownership of the following pointers.
     const DecimalFormatSymbols* symbols;
 
@@ -122,9 +130,14 @@ struct MicroProps : public MicroPropsGenerator {
     // play.
     MeasureUnit outputUnit;
 
-    // In the case of mixed units, this is the set of integer-only units
-    // *preceding* the final unit.
+    // Contains all the values of each unit in mixed units. For quantity (which is the floating value of
+    // the smallest unit in the mixed unit), the value stores in `quantity`.
+    // NOTE: the value of quantity in `mixedMeasures` will be left unset.
     IntMeasures mixedMeasures;
+
+    // Points to quantity position, -1 if the position is not set yet.
+    int32_t indexOfQuantity = -1;
+
     // Number of mixedMeasures that have been populated
     int32_t mixedMeasuresCount = 0;
 

@@ -37,6 +37,7 @@ function instantiate(bytes, imports) {
 
 InspectorTest.runAsyncTestSuite([
   async function testPauseAndStep() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Instantiate');
     const instantiate_code = `var instance = (${instantiate})(${JSON.stringify(module_bytes)}, {'imports': {'pause': () => { %ScheduleBreak() } }});`;
@@ -68,9 +69,16 @@ async function inspect(frame) {
   // Inspect only the top wasm frame.
   for (var scope of frame.scopeChain) {
     if (scope.type == 'module') continue;
-    var scope_properties =
-        await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    let str = (await Promise.all(scope_properties.result.result.map(
+    var { objectId } = scope.object;
+    if (scope.type == 'wasm-expression-stack') {
+      objectId = (await Protocol.Runtime.callFunctionOn({
+        functionDeclaration: 'function() { return this.stack }',
+        objectId
+      })).result.result.objectId;
+    }
+    var properties =
+        await Protocol.Runtime.getProperties({objectId});
+    let str = (await Promise.all(properties.result.result.map(
                    elem => WasmInspectorTest.getWasmValue(elem.value))))
                   .join(', ');
     line.push(`${scope.type}: [${str}]`);

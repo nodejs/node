@@ -32,6 +32,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                   \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                      \
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
+  V(ERR_CLOSED_MESSAGE_PORT, Error)                                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
@@ -48,18 +49,22 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, RangeError)                              \
   V(ERR_CRYPTO_INVALID_STATE, Error)                                           \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, RangeError)                                 \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_CURVE, Error)                                   \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE, Error)                                \
   V(ERR_CRYPTO_OPERATION_FAILED, Error)                                        \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, RangeError)                           \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, Error)                                   \
   V(ERR_CRYPTO_JOB_INIT_FAILED, Error)                                         \
+  V(ERR_DLOPEN_DISABLED, Error)                                                \
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
+  V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
@@ -118,6 +123,7 @@ ERRORS_WITH_CODE(V)
 #define PREDEFINED_ERROR_MESSAGES(V)                                           \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                          \
     "Buffer is not available for the current Context")                         \
+  V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
@@ -134,6 +140,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, "Invalid scrypt params")                 \
   V(ERR_CRYPTO_INVALID_STATE, "Invalid state")                                 \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, "Invalid taglength")                        \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE, "Unsupported JWK Key Type.")          \
   V(ERR_CRYPTO_OPERATION_FAILED, "Operation failed")                           \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH,                                       \
     "Input buffers must have the same byte length")                            \

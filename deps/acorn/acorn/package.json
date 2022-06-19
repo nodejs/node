@@ -6,10 +6,17 @@
   "types": "dist/acorn.d.ts",
   "module": "dist/acorn.mjs",
   "exports": {
-    "import": "./dist/acorn.mjs",
-    "require": "./dist/acorn.js"
+    ".": [
+      {
+        "import": "./dist/acorn.mjs",
+        "require": "./dist/acorn.js",
+        "default": "./dist/acorn.js"
+      },
+      "./dist/acorn.js"
+    ],
+    "./package.json": "./package.json"
   },
-  "version": "8.0.4",
+  "version": "8.7.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {
@@ -33,7 +40,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "prepare": "cd ..; npm run build:main && npm run build:bin"
+    "prepare": "cd ..; npm run build:main"
   },
   "bin": {"acorn": "./bin/acorn"}
 }

@@ -139,6 +139,11 @@ class VirtualObject : public Dependable {
     }
     return Just(fields_.at(offset / kTaggedSize));
   }
+  Maybe<Variable> FieldAt(Maybe<int> maybe_offset) const {
+    int offset;
+    if (!maybe_offset.To(&offset)) return Nothing<Variable>();
+    return FieldAt(offset);
+  }
   Id id() const { return id_; }
   int size() const { return static_cast<int>(kTaggedSize * fields_.size()); }
   // Escaped might mean that the object escaped to untracked memory or that it

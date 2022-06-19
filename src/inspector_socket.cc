@@ -146,8 +146,8 @@ static void generate_accept_string(const std::string& client_key,
   static const char ws_magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
   std::string input(client_key + ws_magic);
   char hash[SHA_DIGEST_LENGTH];
-  SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
-       reinterpret_cast<unsigned char*>(hash));
+  USE(SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
+       reinterpret_cast<unsigned char*>(hash)));
   node::base64_encode(hash, sizeof(hash), *buffer, sizeof(*buffer));
 }
 

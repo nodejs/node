@@ -1,6 +1,7 @@
 # C++ addons
 
 <!--introduced_in=v0.10.0-->
+
 <!-- type=misc -->
 
 _Addons_ are dynamically-linked shared objects written in C++. The
@@ -16,7 +17,7 @@ Node-API.
 When not using Node-API, implementing addons is complicated,
 involving knowledge of several components and APIs:
 
-* V8: the C++ library Node.js uses to provide the
+* [V8][]: the C++ library Node.js uses to provide the
   JavaScript implementation. V8 provides the mechanisms for creating objects,
   calling functions, etc. V8's API is documented mostly in the
   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
@@ -234,6 +235,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 ```
 
 #### Worker support
+
 <!-- YAML
 changes:
   - version:
@@ -456,7 +458,7 @@ in the Node-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by Node-API carries with it certain
-[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
+[implementation considerations][].
 
 To use Node-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
@@ -965,6 +967,10 @@ provided by the underlying V8 JavaScript engine. They are subject to change
 or removal at any time. They are not documented by Node.js or V8, and they
 should never be used outside of testing.
 
+During shutdown of the process or worker threads destructors are not called
+by the JS engine. Therefore it's the responsibility of the user to track
+these objects and ensure proper destruction to avoid resource leaks.
+
 ### Factory of wrapped objects
 
 Alternatively, it is possible to use a factory pattern to avoid explicitly
@@ -1361,15 +1367,17 @@ console.log(result);
 ```
 
 [Electron]: https://electronjs.org/
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
-[Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
+[Embedder's Guide]: https://v8.dev/docs/embed
+[Linking to libraries included with Node.js]: #linking-to-libraries-included-with-nodejs
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
-[`Worker`]: worker_threads.md#worker_threads_class_worker
+[V8]: https://v8.dev/
+[`Worker`]: worker_threads.md#class-worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
 [examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
+[implementation considerations]: n-api.md#implications-of-abi-stability
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.md#modules_require_id
+[require]: modules.md#requireid
 [v8-docs]: https://v8docs.nodesource.com/

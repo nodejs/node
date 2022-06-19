@@ -1,9 +1,9 @@
 {
   "name": "eslint-utils",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Utilities for ESLint plugins.",
   "engines": {
-    "node": ">=6"
+    "node": "^10.0.0 || ^12.0.0 || >= 14.0.0"
   },
   "sideEffects": false,
   "main": "index",
@@ -11,26 +11,37 @@
   "files": [
     "index.*"
   ],
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "dependencies": {
-    "eslint-visitor-keys": "^1.1.0"
+    "eslint-visitor-keys": "^2.0.0"
   },
   "devDependencies": {
-    "@mysticatea/eslint-plugin": "^12.0.0",
+    "@mysticatea/eslint-plugin": "^13.0.0",
     "codecov": "^3.6.1",
     "dot-prop": "^4.2.0",
-    "eslint": "^6.5.1",
+    "eslint": "^7.24.0",
     "esm": "^3.2.25",
-    "espree": "^6.1.1",
+    "espree": "github:eslint/espree#1c744b3a602b783926344811a9459b92afe57444",
     "mocha": "^6.2.2",
     "npm-run-all": "^4.1.5",
     "nyc": "^14.1.1",
     "opener": "^1.5.1",
+    "prettier": "~2.3.0",
     "rimraf": "^3.0.0",
     "rollup": "^1.25.0",
     "rollup-plugin-sourcemaps": "^0.4.2",
     "semver": "^7.3.2",
     "vuepress": "^1.2.0",
     "warun": "^1.0.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=5"
   },
   "scripts": {
     "prebuild": "npm run -s clean",
@@ -40,8 +51,10 @@
     "coverage": "opener ./coverage/lcov-report/index.html",
     "docs:build": "vuepress build docs",
     "docs:watch": "vuepress dev docs",
-    "lint": "eslint src test",
-    "test": "run-s lint build test:mocha",
+    "format": "npm run -s format:prettier -- --write",
+    "format:prettier": "prettier docs/.vuepress/config.js src/**/*.js test/**/*.js rollup.config.js .vscode/*.json *.json .github/**/*.yml *.yml docs/**/*.md *.md",
+    "lint": "eslint docs/.vuepress/config.js src test rollup.config.js",
+    "test": "run-s \"format:prettier -- --check\" lint build test:mocha",
     "test:mocha": "nyc mocha --reporter dot \"test/*.js\"",
     "preversion": "npm test && npm run -s build",
     "postversion": "git push && git push --tags",

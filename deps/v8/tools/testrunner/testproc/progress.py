@@ -2,10 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-from __future__ import absolute_import
-
 import datetime
 import json
 import os
@@ -18,15 +14,15 @@ from . import util
 from ..local import junit_output
 
 
-def print_failure_header(test):
+def print_failure_header(test, is_flaky=False):
+  text = [str(test)]
   if test.output_proc.negative:
-    negative_marker = '[negative] '
-  else:
-    negative_marker = ''
-  print("=== %(label)s %(negative)s===" % {
-    'label': test,
-    'negative': negative_marker,
-  })
+    text.append('[negative]')
+  if is_flaky:
+    text.append('(flaky)')
+  output = '=== %s ===' % ' '.join(text)
+  encoding = sys.stdout.encoding or 'utf-8'
+  print(output.encode(encoding, errors='replace').decode(encoding))
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -75,13 +71,18 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
-      self._failed.append((test, result))
+      self._failed.append((test, result, False))
+    elif result.is_rerun:
+      # Print only the first result of a flaky failure that was rerun.
+      self._failed.append((test, result.results[0], True))
 
   def finished(self):
     crashed = 0
+    flaky = 0
     print()
-    for test, result in self._failed:
-      print_failure_header(test)
+    for test, result, is_flaky in self._failed:
+      flaky += int(is_flaky)
+      print_failure_header(test, is_flaky=is_flaky)
       if result.output.stderr:
         print("--- stderr ---")
         print(result.output.stderr.strip())
@@ -102,9 +103,11 @@ class SimpleProgressIndicator(ProgressIndicator):
     else:
       print()
       print("===")
-      print("=== %i tests failed" % len(self._failed))
+      print("=== %d tests failed" % len(self._failed))
+      if flaky > 0:
+        print("=== %d tests were flaky" % flaky)
       if crashed > 0:
-        print("=== %i tests CRASHED" % crashed)
+        print("=== %d tests CRASHED" % crashed)
       print("===")
 
 
@@ -114,21 +117,32 @@ class StreamProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_OUTPUT
 
   def _on_result_for(self, test, result):
-      if not result.has_unexpected_output:
-        self.print('PASS', test)
-      elif result.output.HasCrashed():
-        self.print("CRASH", test)
-      elif result.output.HasTimedOut():
-        self.print("TIMEOUT", test)
+    if not result.has_unexpected_output:
+      self.print('PASS', test)
+    elif result.output.HasCrashed():
+      self.print("CRASH", test)
+    elif result.output.HasTimedOut():
+      self.print("TIMEOUT", test)
+    else:
+      if test.is_fail:
+        self.print("UNEXPECTED PASS", test)
       else:
-        if test.is_fail:
-          self.print("UNEXPECTED PASS", test)
-        else:
-          self.print("FAIL", test)
+        self.print("FAIL", test)
 
   def print(self, prefix, test):
     print('%s: %ss' % (prefix, test))
     sys.stdout.flush()
+
+
+def format_result_status(result):
+  if result.has_unexpected_output:
+    if result.output.HasCrashed():
+      return 'CRASH'
+    else:
+      return 'FAIL'
+  else:
+    return 'PASS'
+
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
@@ -136,19 +150,17 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     self._last_printed_time = time.time()
 
   def _print(self, text):
-    print(text)
+    encoding = sys.stdout.encoding or 'utf-8'
+    print(text.encode(encoding, errors='replace').decode(encoding))
     sys.stdout.flush()
     self._last_printed_time = time.time()
 
   def _message(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
-    if result.has_unexpected_output:
-      if result.output.HasCrashed():
-        outcome = 'CRASH'
-      else:
-        outcome = 'FAIL'
+    if result.is_rerun:
+      outcome = ' '.join(format_result_status(r) for r in result.results)
     else:
-      outcome = 'pass'
+      outcome = format_result_status(result)
     return '%s %s: %s' % (
       test, test.variant or 'default', outcome)
 
@@ -336,11 +348,11 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
   def __init__(self):
-   templates = {
-     'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
-                     "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
-   }
-   super(MonochromeProgressIndicator, self).__init__(templates)
+    templates = {
+        'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
+                        "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
+    }
+    super(MonochromeProgressIndicator, self).__init__(templates)
 
   def printFormatted(self, format, string):
     print(string)
@@ -356,7 +368,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
-      self.outfile = open(junitout, "w")
+      self.outfile = open(junitout, "wb")
     else:
       self.outfile = sys.stdout
 

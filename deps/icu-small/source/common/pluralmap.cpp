@@ -29,7 +29,7 @@ PluralMapBase::Category
 PluralMapBase::toCategory(const UnicodeString &pluralForm) {
     CharString cCategory;
     UErrorCode status = U_ZERO_ERROR;
-    cCategory.appendInvariantChars(pluralForm, status);
+    cCategory.appendInvariantChars(pluralForm, status);    
     return U_FAILURE(status) ? NONE : toCategory(cCategory.data());
 }
 
@@ -41,3 +41,4 @@ const char *PluralMapBase::getCategoryName(Category c) {
 
 
 U_NAMESPACE_END
+

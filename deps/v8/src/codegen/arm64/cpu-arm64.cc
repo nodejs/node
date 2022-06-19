@@ -9,8 +9,12 @@
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/cpu-features.h"
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <libkern/OSCacheControl.h>
+#endif
+
+#if V8_OS_WIN
+#include <windows.h>
 #endif
 
 namespace v8 {
@@ -23,7 +27,7 @@ class CacheLineSizes {
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.
-    __asm__ __volatile__("mrs %x[ctr], ctr_el0"  // NOLINT
+    __asm__ __volatile__("mrs %x[ctr], ctr_el0"
                          : [ctr] "=r"(cache_type_register_));
 #endif
   }
@@ -45,7 +49,7 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
 #if defined(V8_HOST_ARCH_ARM64)
 #if defined(V8_OS_WIN)
   ::FlushInstructionCache(GetCurrentProcess(), address, length);
-#elif defined(V8_OS_MACOSX)
+#elif defined(V8_OS_DARWIN)
   sys_icache_invalidate(address, length);
 #else
   // The code below assumes user space cache operations are allowed. The goal
@@ -64,9 +68,8 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
   uintptr_t istart = start & ~(isize - 1);
   uintptr_t end = start + length;
 
-  __asm__ __volatile__(  // NOLINT
-                         // Clean every line of the D cache containing the
-                         // target data.
+  __asm__ __volatile__(
+      // Clean every line of the D cache containing the target data.
       "0:                                \n\t"
       // dc       : Data Cache maintenance
       //    c     : Clean
@@ -111,7 +114,7 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
       : [dsize] "r"(dsize), [isize] "r"(isize), [end] "r"(end)
       // This code does not write to memory but without the dependency gcc might
       // move this code before the code is generated.
-      : "cc", "memory");  // NOLINT
+      : "cc", "memory");
 #endif  // V8_OS_WIN
 #endif  // V8_HOST_ARCH_ARM64
 }

@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-function foo() { %_ToLength(42n) }
+function foo() { %ToLength(42n) }
 %PrepareFunctionForOptimization(foo);
 assertThrows(foo, TypeError);
 %OptimizeFunctionOnNextCall(foo);

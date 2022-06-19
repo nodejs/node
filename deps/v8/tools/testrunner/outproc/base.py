@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import itertools
+from itertools import zip_longest
 
 from ..testproc.base import (
     DROP_RESULT, DROP_OUTPUT, DROP_PASS_OUTPUT, DROP_PASS_STDOUT)
@@ -12,8 +12,10 @@ from ..testproc.result import Result
 
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
+OUTCOMES_TIMEOUT = [statusfile.TIMEOUT]
 OUTCOMES_PASS_OR_TIMEOUT = [statusfile.PASS, statusfile.TIMEOUT]
 OUTCOMES_FAIL_OR_TIMEOUT = [statusfile.FAIL, statusfile.TIMEOUT]
+OUTCOMES_FAIL_OR_PASS = [statusfile.FAIL, statusfile.PASS]
 
 
 class BaseOutProc(object):
@@ -138,13 +140,13 @@ class ExpectedOutProc(OutProc):
 
   def _is_failure_output(self, output):
     if output.exit_code != 0:
-        return True
+      return True
 
-    with open(self._expected_filename, 'r') as f:
+    with open(self._expected_filename, 'r', encoding='utf-8') as f:
       expected_lines = f.readlines()
 
     for act_iterator in self._act_block_iterator(output):
-      for expected, actual in itertools.izip_longest(
+      for expected, actual in zip_longest(
           self._expected_iterator(expected_lines),
           act_iterator,
           fillvalue=''

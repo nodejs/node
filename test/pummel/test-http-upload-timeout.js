@@ -44,7 +44,7 @@ server.on('request', function(req, res) {
   req.resume();
 });
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, function() {
   for (let i = 0; i < 10; i++) {
     connections++;
 

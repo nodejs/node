@@ -5,9 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_SCOPES_H_
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
-#include <vector>
-
 #include "src/debug/debug-frames.h"
+#include "src/parsing/parse-info.h"
 
 namespace v8 {
 namespace internal {
@@ -110,6 +109,7 @@ class ScopeIterator {
 
  private:
   Isolate* isolate_;
+  std::unique_ptr<ReusableUnoptimizedCompileState> reusable_compile_state_;
   std::unique_ptr<ParseInfo> info_;
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;

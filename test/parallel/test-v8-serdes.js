@@ -50,7 +50,7 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 {
   const ser = new v8.DefaultSerializer();
   ser._getDataCloneError = common.mustCall((message) => {
-    assert.strictEqual(message, '[object Object] could not be cloned.');
+    assert.strictEqual(message, '#<Object> could not be cloned.');
     return new Error('foobar');
   });
 
@@ -155,18 +155,41 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 }
 
 {
+  // Test that an old serialized value can still be deserialized.
   const buf = Buffer.from('ff0d6f2203666f6f5e007b01', 'hex');
 
   const des = new v8.DefaultDeserializer(buf);
   des.readHeader();
+  assert.strictEqual(des.getWireFormatVersion(), 0x0d);
+
+  const value = des.readValue();
+  assert.strictEqual(value, value.foo);
+}
+
+{
+  const message = `New serialization format.
+
+    This test is expected to fail when V8 changes its serialization format.
+    When that happens, the "desStr" variable must be updated to the new value
+    and the change should be mentioned in the release notes, as it is semver-major.
+
+    Consider opening an issue as a heads up at https://github.com/nodejs/node/issues/new
+  `;
+
+  const desStr = 'ff0f6f2203666f6f5e007b01';
+
+  const desBuf = Buffer.from(desStr, 'hex');
+  const des = new v8.DefaultDeserializer(desBuf);
+  des.readHeader();
+  const value = des.readValue();
 
   const ser = new v8.DefaultSerializer();
   ser.writeHeader();
+  ser.writeValue(value);
 
-  ser.writeValue(des.readValue());
-
-  assert.deepStrictEqual(buf, ser.releaseBuffer());
-  assert.strictEqual(des.getWireFormatVersion(), 0x0d);
+  const serBuf = ser.releaseBuffer();
+  const serStr = serBuf.toString('hex');
+  assert.deepStrictEqual(serStr, desStr, message);
 }
 
 {
@@ -235,4 +258,11 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
     () => new v8.Deserializer(INVALID_SOURCE),
     /^TypeError: buffer must be a TypedArray or a DataView$/,
   );
+}
+
+{
+  // Regression test for https://github.com/nodejs/node/issues/37978
+  assert.throws(() => {
+    new v8.Deserializer(new v8.Serializer().releaseBuffer()).readDouble();
+  }, /ReadDouble\(\) failed/);
 }

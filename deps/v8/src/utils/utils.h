@@ -20,9 +20,9 @@
 #include "src/base/platform/platform.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "src/utils/vector.h"
 
 #if defined(V8_USE_SIPHASH)
 #include "src/third_party/siphash/halfsiphash.h"
@@ -37,22 +37,6 @@ namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
-
-// Returns the value (0 .. 15) of a hexadecimal character c.
-// If c is not a legal hexadecimal character, returns a value < 0.
-inline int HexValue(uc32 c) {
-  c -= '0';
-  if (static_cast<unsigned>(c) <= 9) return c;
-  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
-  if (static_cast<unsigned>(c) <= 5) return c + 10;
-  return -1;
-}
-
-inline char HexCharOfValue(int value) {
-  DCHECK(0 <= value && value <= 16);
-  if (value < 10) return value + '0';
-  return value - 10 + 'A';
-}
 
 template <typename T>
 static T ArithmeticShiftRight(T x, int shift) {
@@ -213,6 +197,13 @@ Wide AddLong(Narrow a, Narrow b) {
   return static_cast<Wide>(a) + static_cast<Wide>(b);
 }
 
+template <typename T>
+inline T RoundingAverageUnsigned(T a, T b) {
+  static_assert(std::is_unsigned<T>::value, "Only for unsiged types");
+  static_assert(sizeof(T) < sizeof(uint64_t), "Must be smaller than uint64_t");
+  return (static_cast<uint64_t>(a) + static_cast<uint64_t>(b) + 1) >> 1;
+}
+
 // Helper macros for defining a contiguous sequence of field offset constants.
 // Example: (backslashes at the ends of respective lines of this multi-line
 // macro definition are omitted here to please the compiler)
@@ -226,7 +217,8 @@ Wide AddLong(Narrow a, Narrow b) {
 //
 // DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
 //
-#define DEFINE_ONE_FIELD_OFFSET(Name, Size) Name, Name##End = Name + (Size)-1,
+#define DEFINE_ONE_FIELD_OFFSET(Name, Size, ...) \
+  Name, Name##End = Name + (Size)-1,
 
 #define DEFINE_FIELD_OFFSET_CONSTANTS(StartOffset, LIST_MACRO) \
   enum {                                                       \
@@ -389,72 +381,6 @@ inline int TenToThe(int exponent) {
   return answer;
 }
 
-// Helper class for building result strings in a character buffer. The
-// purpose of the class is to use safe operations that checks the
-// buffer bounds on all operations in debug mode.
-// This simple base class does not allow formatted output.
-class SimpleStringBuilder {
- public:
-  // Create a string builder with a buffer of the given size. The
-  // buffer is allocated through NewArray<char> and must be
-  // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(int size);
-
-  SimpleStringBuilder(char* buffer, int size)
-      : buffer_(buffer, size), position_(0) {}
-
-  ~SimpleStringBuilder() {
-    if (!is_finalized()) Finalize();
-  }
-
-  int size() const { return buffer_.length(); }
-
-  // Get the current position in the builder.
-  int position() const {
-    DCHECK(!is_finalized());
-    return position_;
-  }
-
-  // Reset the position.
-  void Reset() { position_ = 0; }
-
-  // Add a single character to the builder. It is not allowed to add
-  // 0-characters; use the Finalize() method to terminate the string
-  // instead.
-  void AddCharacter(char c) {
-    DCHECK_NE(c, '\0');
-    DCHECK(!is_finalized() && position_ < buffer_.length());
-    buffer_[position_++] = c;
-  }
-
-  // Add an entire string to the builder. Uses strlen() internally to
-  // compute the length of the input string.
-  void AddString(const char* s);
-
-  // Add the first 'n' characters of the given 0-terminated string 's' to the
-  // builder. The input string must have enough characters.
-  void AddSubstring(const char* s, int n);
-
-  // Add character padding to the builder. If count is non-positive,
-  // nothing is added to the builder.
-  void AddPadding(char c, int count);
-
-  // Add the decimal representation of the value.
-  void AddDecimalInteger(int value);
-
-  // Finalize the string by 0-terminating it and returning the buffer.
-  char* Finalize();
-
- protected:
-  Vector<char> buffer_;
-  int position_;
-
-  bool is_finalized() const { return position_ < 0; }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
-};
-
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {
   return (x >> lsb) & ((1 << (1 + msb - lsb)) - 1);
@@ -564,10 +490,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
 class BytecodeOffset {
  public:
-  explicit BytecodeOffset(int id) : id_(id) {}
-  int ToInt() const { return id_; }
+  explicit constexpr BytecodeOffset(int id) : id_(id) {}
+  constexpr int ToInt() const { return id_; }
 
-  static BytecodeOffset None() { return BytecodeOffset(kNoneId); }
+  static constexpr BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
@@ -580,7 +506,7 @@ class BytecodeOffset {
            id_ == ConstructStubInvoke().ToInt();
   }
 
-  bool IsNone() const { return id_ == kNoneId; }
+  constexpr bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BytecodeOffset& other) const {
     return id_ == other.id_;
   }
@@ -619,15 +545,6 @@ void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);
 // Prepends the current process ID and given isolate pointer to the output.
 void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 
-// Safe formatting print. Ensures that str is always null-terminated.
-// Returns the number of chars written, or -1 if output was truncated.
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 3)
-    SNPrintF(Vector<char> str, const char* format, ...);
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
-    VSNPrintF(Vector<char> str, const char* format, va_list args);
-
-void StrNCpy(Vector<char> dest, const char* src, size_t n);
-
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
 char* ReadLine(const char* prompt);
@@ -648,21 +565,6 @@ V8_EXPORT_PRIVATE std::string ReadFile(const char* filename, bool* exists,
                                        bool verbose = true);
 V8_EXPORT_PRIVATE std::string ReadFile(FILE* file, bool* exists,
                                        bool verbose = true);
-
-class StringBuilder : public SimpleStringBuilder {
- public:
-  explicit StringBuilder(int size) : SimpleStringBuilder(size) {}
-  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) {}
-
-  // Add formatted contents to the builder just like printf().
-  void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
-
-  // Add formatted contents like printf based on a va_list.
-  void PRINTF_FORMAT(2, 0) AddFormattedList(const char* format, va_list list);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
-};
 
 bool DoubleToBoolean(double d);
 
@@ -745,8 +647,8 @@ T FpOpWorkaround(T input, T value) {
 }
 #endif
 
-V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
-                                    Vector<const char> filter);
+V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,
+                                    base::Vector<const char> filter);
 
 // Zap the specified area with a specific byte pattern. This currently defaults
 // to int3 on x64 and ia32. On other architectures this will produce unspecified
@@ -755,6 +657,16 @@ V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
 V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
   static constexpr int kZapByte = 0xCC;
   std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
+}
+
+inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
+                              size_t max_allowed_byte_length, size_t* pages) {
+  size_t bytes_wanted = RoundUp(byte_length, page_size);
+  if (bytes_wanted > max_allowed_byte_length) {
+    return false;
+  }
+  *pages = bytes_wanted / page_size;
+  return true;
 }
 
 }  // namespace internal

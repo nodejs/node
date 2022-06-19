@@ -13,6 +13,10 @@
  */
 function createReferenceMap(scope, outReferenceMap = new Map()) {
     for (const reference of scope.references) {
+        if (reference.resolved === null) {
+            continue;
+        }
+
         outReferenceMap.set(reference.identifier, reference);
     }
     for (const childScope of scope.childScopes) {
@@ -75,6 +79,9 @@ function isLocalVariableWithoutEscape(variable, isMemberAccess) {
         reference.from.variableScope === functionScope);
 }
 
+/**
+ * Represents segment information.
+ */
 class SegmentInfo {
     constructor() {
         this.info = new WeakMap();
@@ -86,42 +93,42 @@ class SegmentInfo {
      * @returns {void}
      */
     initialize(segment) {
-        const outdatedReadVariableNames = new Set();
-        const freshReadVariableNames = new Set();
+        const outdatedReadVariables = new Set();
+        const freshReadVariables = new Set();
 
         for (const prevSegment of segment.prevSegments) {
             const info = this.info.get(prevSegment);
 
             if (info) {
-                info.outdatedReadVariableNames.forEach(Set.prototype.add, outdatedReadVariableNames);
-                info.freshReadVariableNames.forEach(Set.prototype.add, freshReadVariableNames);
+                info.outdatedReadVariables.forEach(Set.prototype.add, outdatedReadVariables);
+                info.freshReadVariables.forEach(Set.prototype.add, freshReadVariables);
             }
         }
 
-        this.info.set(segment, { outdatedReadVariableNames, freshReadVariableNames });
+        this.info.set(segment, { outdatedReadVariables, freshReadVariables });
     }
 
     /**
      * Mark a given variable as read on given segments.
      * @param {PathSegment[]} segments The segments that it read the variable on.
-     * @param {string} variableName The variable name to be read.
+     * @param {Variable} variable The variable to be read.
      * @returns {void}
      */
-    markAsRead(segments, variableName) {
+    markAsRead(segments, variable) {
         for (const segment of segments) {
             const info = this.info.get(segment);
 
             if (info) {
-                info.freshReadVariableNames.add(variableName);
+                info.freshReadVariables.add(variable);
 
                 // If a variable is freshly read again, then it's no more out-dated.
-                info.outdatedReadVariableNames.delete(variableName);
+                info.outdatedReadVariables.delete(variable);
             }
         }
     }
 
     /**
-     * Move `freshReadVariableNames` to `outdatedReadVariableNames`.
+     * Move `freshReadVariables` to `outdatedReadVariables`.
      * @param {PathSegment[]} segments The segments to process.
      * @returns {void}
      */
@@ -130,8 +137,8 @@ class SegmentInfo {
             const info = this.info.get(segment);
 
             if (info) {
-                info.freshReadVariableNames.forEach(Set.prototype.add, info.outdatedReadVariableNames);
-                info.freshReadVariableNames.clear();
+                info.freshReadVariables.forEach(Set.prototype.add, info.outdatedReadVariables);
+                info.freshReadVariables.clear();
             }
         }
     }
@@ -139,14 +146,14 @@ class SegmentInfo {
     /**
      * Check if a given variable is outdated on the current segments.
      * @param {PathSegment[]} segments The current segments.
-     * @param {string} variableName The variable name to check.
+     * @param {Variable} variable The variable to check.
      * @returns {boolean} `true` if the variable is outdated on the segments.
      */
-    isOutdated(segments, variableName) {
+    isOutdated(segments, variable) {
         for (const segment of segments) {
             const info = this.info.get(segment);
 
-            if (info && info.outdatedReadVariableNames.has(variableName)) {
+            if (info && info.outdatedReadVariables.has(variable)) {
                 return true;
             }
         }
@@ -158,26 +165,39 @@ class SegmentInfo {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow assignments that can lead to race conditions due to usage of `await` or `yield`",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-atomic-updates"
         },
 
         fixable: null,
-        schema: [],
+
+        schema: [{
+            type: "object",
+            properties: {
+                allowProperties: {
+                    type: "boolean",
+                    default: false
+                }
+            },
+            additionalProperties: false
+        }],
 
         messages: {
-            nonAtomicUpdate: "Possible race condition: `{{value}}` might be reassigned based on an outdated value of `{{value}}`."
+            nonAtomicUpdate: "Possible race condition: `{{value}}` might be reassigned based on an outdated value of `{{value}}`.",
+            nonAtomicObjectUpdate: "Possible race condition: `{{value}}` might be assigned based on an outdated state of `{{object}}`."
         }
     },
 
     create(context) {
+        const allowProperties = !!context.options[0] && context.options[0].allowProperties;
+
         const sourceCode = context.getSourceCode();
         const assignmentReferences = new Map();
         const segmentInfo = new SegmentInfo();
@@ -214,14 +234,13 @@ module.exports = {
                 if (!reference) {
                     return;
                 }
-                const name = reference.identifier.name;
                 const variable = reference.resolved;
                 const writeExpr = getWriteExpr(reference);
                 const isMemberAccess = reference.identifier.parent.type === "MemberExpression";
 
                 // Add a fresh read variable.
                 if (reference.isRead() && !(writeExpr && writeExpr.parent.operator === "=")) {
-                    segmentInfo.markAsRead(codePath.currentSegments, name);
+                    segmentInfo.markAsRead(codePath.currentSegments, variable);
                 }
 
                 /*
@@ -245,7 +264,7 @@ module.exports = {
 
             /*
              * Verify assignments.
-             * If the reference exists in `outdatedReadVariableNames` list, report it.
+             * If the reference exists in `outdatedReadVariables` list, report it.
              */
             ":expression:exit"(node) {
                 const { codePath, referenceMap } = stack;
@@ -267,16 +286,28 @@ module.exports = {
                     assignmentReferences.delete(node);
 
                     for (const reference of references) {
-                        const name = reference.identifier.name;
+                        const variable = reference.resolved;
 
-                        if (segmentInfo.isOutdated(codePath.currentSegments, name)) {
-                            context.report({
-                                node: node.parent,
-                                messageId: "nonAtomicUpdate",
-                                data: {
-                                    value: sourceCode.getText(node.parent.left)
-                                }
-                            });
+                        if (segmentInfo.isOutdated(codePath.currentSegments, variable)) {
+                            if (node.parent.left === reference.identifier) {
+                                context.report({
+                                    node: node.parent,
+                                    messageId: "nonAtomicUpdate",
+                                    data: {
+                                        value: variable.name
+                                    }
+                                });
+                            } else if (!allowProperties) {
+                                context.report({
+                                    node: node.parent,
+                                    messageId: "nonAtomicObjectUpdate",
+                                    data: {
+                                        value: sourceCode.getText(node.parent.left),
+                                        object: variable.name
+                                    }
+                                });
+                            }
+
                         }
                     }
                 }

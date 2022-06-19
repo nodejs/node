@@ -5,14 +5,18 @@
 #ifndef V8_DEBUG_DEBUG_PROPERTY_ITERATOR_H_
 #define V8_DEBUG_DEBUG_PROPERTY_ITERATOR_H_
 
+#include "include/v8-local-handle.h"
+#include "include/v8-maybe.h"
+#include "include/v8-object.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/prototype.h"
 
-#include "include/v8.h"
-
 namespace v8 {
+
+class Name;
+
 namespace internal {
 
 class JSReceiver;
@@ -20,7 +24,7 @@ class JSReceiver;
 class DebugPropertyIterator final : public debug::PropertyIterator {
  public:
   V8_WARN_UNUSED_RESULT static std::unique_ptr<DebugPropertyIterator> Create(
-      Isolate* isolate, Handle<JSReceiver> receiver);
+      Isolate* isolate, Handle<JSReceiver> receiver, bool skip_indices);
   ~DebugPropertyIterator() override = default;
   DebugPropertyIterator(const DebugPropertyIterator&) = delete;
   DebugPropertyIterator& operator=(const DebugPropertyIterator&) = delete;
@@ -39,26 +43,33 @@ class DebugPropertyIterator final : public debug::PropertyIterator {
   bool is_array_index() override;
 
  private:
-  DebugPropertyIterator(Isolate* isolate, Handle<JSReceiver> receiver);
+  DebugPropertyIterator(Isolate* isolate, Handle<JSReceiver> receiver,
+                        bool skip_indices);
 
   V8_WARN_UNUSED_RESULT bool FillKeysForCurrentPrototypeAndStage();
   bool should_move_to_next_stage() const;
   void CalculateNativeAccessorFlags();
   Handle<Name> raw_name() const;
+  void AdvanceToPrototype();
   V8_WARN_UNUSED_RESULT bool AdvanceInternal();
 
   Isolate* isolate_;
   PrototypeIterator prototype_iterator_;
-  enum Stage { kExoticIndices = 0, kEnumerableStrings = 1, kAllProperties = 2 };
-  Stage stage_ = kExoticIndices;
+  enum {
+    kExoticIndices = 0,
+    kEnumerableStrings = 1,
+    kAllProperties = 2
+  } stage_ = kExoticIndices;
+  bool skip_indices_;
 
-  size_t current_key_index_ = 0;
-  Handle<FixedArray> keys_;
-  size_t exotic_length_ = 0;
+  size_t current_key_index_;
+  Handle<FixedArray> current_keys_;
+  size_t current_keys_length_;
 
   bool calculated_native_accessor_flags_ = false;
   int native_accessor_flags_ = 0;
   bool is_own_ = true;
+  bool is_done_ = false;
 };
 }  // namespace internal
 }  // namespace v8

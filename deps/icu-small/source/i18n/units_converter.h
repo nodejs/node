@@ -20,13 +20,16 @@ namespace units {
 
 /* Internal Structure */
 
+// Constants corresponding to unitConstants in CLDR's units.xml.
 enum Constants {
-    CONSTANT_FT2M,    // ft2m stands for foot to meter.
-    CONSTANT_PI,      // PI
-    CONSTANT_GRAVITY, // Gravity
-    CONSTANT_G,
+    CONSTANT_FT2M,       // ft_to_m
+    CONSTANT_PI,         // PI
+    CONSTANT_GRAVITY,    // Gravity of earth (9.80665 m/s^2), "g".
+    CONSTANT_G,          // Newtonian constant of gravitation, "G".
     CONSTANT_GAL_IMP2M3, // Gallon imp to m3
     CONSTANT_LB2KG,      // Pound to Kilogram
+    CONSTANT_GLUCOSE_MOLAR_MASS,
+    CONSTANT_ITEM_PER_MOLE,
 
     // Must be the last element.
     CONSTANTS_COUNT
@@ -36,6 +39,7 @@ enum Constants {
 // resources file. A unit test checks that all constants in the resource
 // file are at least recognised by the code. Derived constants' values or
 // hard-coded derivations are not checked.
+// In ICU4J, these constants live in UnitConverter.Factor.getConversionRate().
 static const double constantsValues[CONSTANTS_COUNT] = {
     0.3048,                    // CONSTANT_FT2M
     411557987.0 / 131002976.0, // CONSTANT_PI
@@ -43,6 +47,8 @@ static const double constantsValues[CONSTANTS_COUNT] = {
     6.67408E-11,               // CONSTANT_G
     0.00454609,                // CONSTANT_GAL_IMP2M3
     0.45359237,                // CONSTANT_LB2KG
+    180.1557,                  // CONSTANT_GLUCOSE_MOLAR_MASS
+    6.02214076E+23,            // CONSTANT_ITEM_PER_MOLE
 };
 
 typedef enum Signum {
@@ -56,7 +62,9 @@ struct U_I18N_API Factor {
     double factorDen = 1;
     double offset = 0;
     bool reciprocal = false;
-    int32_t constants[CONSTANTS_COUNT] = {};
+
+    // Exponents for the symbolic constants
+    int32_t constantExponents[CONSTANTS_COUNT] = {};
 
     void multiplyBy(const Factor &rhs);
     void divideBy(const Factor &rhs);
@@ -64,12 +72,20 @@ struct U_I18N_API Factor {
     // Apply the power to the factor.
     void power(int32_t power);
 
-    // Flip the `Factor`, for example, factor= 2/3, flippedFactor = 3/2
-    void flip();
+    // Apply SI or binary prefix to the Factor.
+    void applyPrefix(UMeasurePrefix unitPrefix);
 
-    // Apply SI prefix to the `Factor`
-    void applySiPrefix(UMeasureSIPrefix siPrefix);
+    // Does an in-place substitution of the "symbolic constants" based on
+    // constantExponents (resetting the exponents).
+    //
+    // In ICU4J, see UnitConverter.Factor.getConversionRate().
     void substituteConstants();
+};
+
+struct U_I18N_API ConversionInfo {
+    double conversionRate;
+    double offset;
+    bool reciprocal;
 };
 
 /*
@@ -127,8 +143,22 @@ Convertibility U_I18N_API extractConvertibility(const MeasureUnitImpl &source,
  *    Only works with SINGLE and COMPOUND units. If one of the units is a
  *    MIXED unit, an error will occur. For more information, see UMeasureUnitComplexity.
  */
-class U_I18N_API UnitConverter : public UMemory {
+class U_I18N_API UnitsConverter : public UMemory {
   public:
+    /**
+     * Constructor of `UnitConverter`.
+     * NOTE:
+     *   - source and target must be under the same category
+     *      - e.g. meter to mile --> both of them are length units.
+     * NOTE:
+     *    This constructor creates an instance of `ConversionRates` internally.
+     *
+     * @param sourceIdentifier represents the source unit identifier.
+     * @param targetIdentifier represents the target unit identifier.
+     * @param status
+     */
+    UnitsConverter(StringPiece sourceIdentifier, StringPiece targetIdentifier, UErrorCode &status);
+
     /**
      * Constructor of `UnitConverter`.
      * NOTE:
@@ -140,8 +170,18 @@ class U_I18N_API UnitConverter : public UMemory {
      * @param ratesInfo Contains all the needed conversion rates.
      * @param status
      */
-    UnitConverter(const MeasureUnitImpl &source, const MeasureUnitImpl &target,
+    UnitsConverter(const MeasureUnitImpl &source, const MeasureUnitImpl &target,
                   const ConversionRates &ratesInfo, UErrorCode &status);
+
+    /**
+     * Compares two single units and returns 1 if the first one is greater, -1 if the second
+     * one is greater and 0 if they are equal.
+     *
+     * NOTE:
+     *  Compares only single units that are convertible.
+     */
+    static int32_t compareTwoUnits(const MeasureUnitImpl &firstUnit, const MeasureUnitImpl &SecondUnit,
+                                   const ConversionRates &ratesInfo, UErrorCode &status);
 
     /**
      * Convert a measurement expressed in the source unit to a measurement
@@ -161,8 +201,15 @@ class U_I18N_API UnitConverter : public UMemory {
      */
     double convertInverse(double inputValue) const;
 
+    ConversionInfo getConversionInfo() const;
+
   private:
     ConversionRate conversionRate_;
+
+    /**
+     * Initialises the object.
+     */ 
+    void init(const ConversionRates &ratesInfo, UErrorCode &status);
 };
 
 } // namespace units

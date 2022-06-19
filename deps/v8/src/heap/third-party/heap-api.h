@@ -5,13 +5,17 @@
 #ifndef V8_HEAP_THIRD_PARTY_HEAP_API_H_
 #define V8_HEAP_THIRD_PARTY_HEAP_API_H_
 
-#include "include/v8.h"
 #include "src/base/address-region.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
+
+class Isolate;
+
 namespace internal {
 namespace third_party_heap {
+
+class Impl;
 
 class Heap {
  public:
@@ -26,7 +30,11 @@ class Heap {
 
   const base::AddressRegion& GetCodeRange();
 
-  static bool InCodeSpace(Address address);
+  bool IsPendingAllocation(HeapObject object);
+
+  static bool InSpace(Address address, AllocationSpace space);
+
+  static bool InOldSpace(Address address);
 
   static bool InReadOnlySpace(Address address);
 
@@ -34,10 +42,21 @@ class Heap {
 
   static bool IsValidHeapObject(HeapObject object);
 
+  static bool IsImmovable(HeapObject object);
+
+  static bool IsValidCodeObject(HeapObject object);
+
   void ResetIterator();
   HeapObject NextObject();
 
   bool CollectGarbage();
+
+  size_t Capacity();
+
+  V8_INLINE Impl* impl() { return impl_; }
+
+ private:
+  Impl* impl_ = nullptr;
 };
 
 }  // namespace third_party_heap

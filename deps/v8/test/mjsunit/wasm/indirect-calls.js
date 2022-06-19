@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Test1() {
   print("Test1...");
@@ -169,7 +169,8 @@ function AddFunctions(builder) {
       .exportAs("main");
 
     builder.setTableBounds(length, length);
-    builder.addElementSegment(0, base, false, [f.add.index, f.sub.index, f.mul.index]);
+    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(base),
+                                    [f.add.index, f.sub.index, f.mul.index]);
 
     return builder.instantiate();
   }
@@ -207,7 +208,8 @@ function AddFunctions(builder) {
 
   builder.setTableBounds(10, 10);
   var g = builder.addImportedGlobal("fff", "base", kWasmI32);
-  builder.addElementSegment(0, g, true, [f.mul.index, f.add.index, f.sub.index]);
+  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+                                  [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());
 

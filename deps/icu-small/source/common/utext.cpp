@@ -382,7 +382,7 @@ utext_previous32From(UText *ut, int64_t index) {
     //
     UChar32     cPrev;    // The character preceding cCurr, which is what we will return.
 
-    // Address the chunk containg the position preceding the incoming index
+    // Address the chunk containing the position preceding the incoming index
     // A tricky edge case:
     //   We try to test the requested native index against the chunkNativeStart to determine
     //    whether the character preceding the one at the index is in the current chunk.
@@ -689,7 +689,7 @@ utext_close(UText *ut) {
     }
 
     // Zero out function table of the closed UText.  This is a defensive move,
-    //   inteded to cause applications that inadvertantly use a closed
+    //   intended to cause applications that inadvertently use a closed
     //   utext to crash with null pointer errors.
     ut->pFuncs        = NULL;
 
@@ -894,7 +894,7 @@ struct UTF8Buf {
                                                      //    one for a supplementary starting in the last normal position,
                                                      //    and one for an entry for the buffer limit position.
     uint8_t   mapToUChars[UTF8_TEXT_CHUNK_SIZE*3+6]; // Map native offset from bufNativeStart to
-                                                     //   correspoding offset in filled part of buf.
+                                                     //   corresponding offset in filled part of buf.
     int32_t   align;
 };
 
@@ -1046,7 +1046,7 @@ utf8TextAccess(UText *ut, int64_t index, UBool forward) {
 
     //
     // Dispatch to the appropriate action for a
-    //   Backwards Diretion iteration request.
+    //   Backwards Direction iteration request.
     //
     if (ix==ut->chunkNativeStart) {
         // Check for normal sequential iteration cases first.
@@ -1304,7 +1304,7 @@ fillReverse:
         //   If index is at the end, there is no character there to look at.
         if (ix != ut->b) {
             // Note: this function will only move the index back if it is on a trail byte
-            //       and there is a preceding lead byte and the sequence from the lead
+            //       and there is a preceding lead byte and the sequence from the lead 
             //       through this trail could be part of a valid UTF-8 sequence
             //       Otherwise the index remains unchanged.
             U8_SET_CP_START(s8, 0, ix);
@@ -1359,7 +1359,7 @@ fillReverse:
                 int32_t  sIx      = srcIx;  // ix of last byte of multi-byte u8 char
 
                 // Get the full character from the UTF8 string.
-                //   use code derived from tbe macros in utf8.h
+                //   use code derived from the macros in utf8.h
                 //   Leaves srcIx pointing at the first byte of the UTF-8 char.
                 //
                 c=utf8_prevCharSafeBody(s8, 0, &srcIx, c, -3);
@@ -1545,7 +1545,7 @@ utf8TextMapOffsetToNative(const UText *ut) {
 }
 
 //
-// Map a native index to the corrsponding chunk offset
+// Map a native index to the corresponding chunk offset
 //
 static int32_t U_CALLCONV
 utf8TextMapIndexToUTF16(const UText *ut, int64_t index64) {
@@ -1570,7 +1570,7 @@ utf8TextClone(UText *dest, const UText *src, UBool deep, UErrorCode *status)
     // For deep clones, make a copy of the string.
     //  The copied storage is owned by the newly created clone.
     //
-    // TODO:  There is an isssue with using utext_nativeLength().
+    // TODO:  There is an issue with using utext_nativeLength().
     //        That function is non-const in cases where the input was NUL terminated
     //          and the length has not yet been determined.
     //        This function (clone()) is const.
@@ -2394,9 +2394,9 @@ ucstrTextClose(UText *ut) {
 static int64_t U_CALLCONV
 ucstrTextLength(UText *ut) {
     if (ut->a < 0) {
-        // null terminated, we don't yet know the length.  Scan for it.
+        // null terminated, we don't yet know the length. Scan for it.
         //    Access is not convenient for doing this
-        //    because the current interation postion can't be changed.
+        //    because the current iteration position can't be changed.
         const UChar  *str = (const UChar *)ut->context;
         for (;;) {
             if (str[ut->chunkNativeLimit] == 0) {

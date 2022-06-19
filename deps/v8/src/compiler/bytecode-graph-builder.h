@@ -30,7 +30,7 @@ class NodeObserver;
 class SourcePositionTable;
 
 enum class BytecodeGraphBuilderFlag : uint8_t {
-  kSkipFirstStackCheck = 1 << 0,
+  kSkipFirstStackAndTierupCheck = 1 << 0,
   // TODO(neis): Remove liveness flag here when concurrent inlining is always
   // on, because then the serializer will be the only place where we perform
   // bytecode analysis.

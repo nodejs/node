@@ -64,9 +64,11 @@ all: \
   rsa_pss_private_2048.pem \
   rsa_pss_private_2048_sha256_sha256_16.pem \
   rsa_pss_private_2048_sha512_sha256_20.pem \
+  rsa_pss_private_2048_sha1_sha1_20.pem \
   rsa_pss_public_2048.pem \
   rsa_pss_public_2048_sha256_sha256_16.pem \
   rsa_pss_public_2048_sha512_sha256_20.pem \
+  rsa_pss_public_2048_sha1_sha1_20.pem \
   ed25519_private.pem \
   ed25519_public.pem \
   x25519_private.pem \
@@ -83,6 +85,10 @@ all: \
   ec_p521_public.pem \
   ec_secp256k1_private.pem \
   ec_secp256k1_public.pem \
+  incorrect_san_correct_subject-cert.pem \
+  incorrect_san_correct_subject-key.pem \
+  irrelevant_san_correct_subject-cert.pem \
+  irrelevant_san_correct_subject-key.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -708,6 +714,9 @@ rsa_pss_private_2048_sha256_sha256_16.pem:
 rsa_pss_private_2048_sha512_sha256_20.pem:
 	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha512 -pkeyopt rsa_pss_keygen_mgf1_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha512_sha256_20.pem
 
+rsa_pss_private_2048_sha1_sha1_20.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha1 -pkeyopt rsa_pss_keygen_mgf1_md:sha1 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha1_sha1_20.pem
+
 rsa_pss_public_2048.pem: rsa_pss_private_2048.pem
 	openssl pkey -in rsa_pss_private_2048.pem -pubout -out rsa_pss_public_2048.pem
 
@@ -716,6 +725,9 @@ rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.
 
 rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
 	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
+
+rsa_pss_public_2048_sha1_sha1_20.pem: rsa_pss_private_2048_sha1_sha1_20.pem
+	openssl pkey -in rsa_pss_private_2048_sha1_sha1_20.pem -pubout -out rsa_pss_public_2048_sha1_sha1_20.pem
 
 ed25519_private.pem:
 	openssl genpkey -algorithm ED25519 -out ed25519_private.pem
@@ -772,6 +784,30 @@ ec_secp256k1_private.pem:
 
 ec_secp256k1_public.pem: ec_secp256k1_private.pem
 	openssl ec -in ec_secp256k1_private.pem -pubout -out ec_secp256k1_public.pem
+
+incorrect_san_correct_subject-cert.pem: incorrect_san_correct_subject-key.pem
+	openssl req -x509 \
+	            -key incorrect_san_correct_subject-key.pem \
+	            -out incorrect_san_correct_subject-cert.pem \
+	            -sha256 \
+	            -days 3650 \
+	            -subj "/CN=good.example.com" \
+	            -addext "subjectAltName = DNS:evil.example.com"
+
+incorrect_san_correct_subject-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out incorrect_san_correct_subject-key.pem
+
+irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
+	openssl req -x509 \
+	            -key irrelevant_san_correct_subject-key.pem \
+	            -out irrelevant_san_correct_subject-cert.pem \
+	            -sha256 \
+	            -days 3650 \
+	            -subj "/CN=good.example.com" \
+	            -addext "subjectAltName = IP:1.2.3.4"
+
+irrelevant_san_correct_subject-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

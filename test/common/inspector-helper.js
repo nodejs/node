@@ -5,8 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { parse: parseURL } = require('url');
-const { pathToFileURL } = require('url');
+const { URL, pathToFileURL } = require('url');
 const { EventEmitter } = require('events');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
@@ -25,7 +24,6 @@ function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
   const handler = tearDown.bind(null, child);
   process.on('exit', handler);
   process.on('uncaughtException', handler);
-  common.disableCrashOnUnhandledRejection();
   process.on('unhandledRejection', handler);
   process.on('SIGINT', handler);
 
@@ -366,8 +364,7 @@ class NodeInstance extends EventEmitter {
       ['--expose-internals'],
       `${scriptContents}\nprocess._rawDebug('started');`, undefined);
     const msg = 'Timed out waiting for process to start';
-    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !==
-             'started') {}
+    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !== 'started');
     process._debugProcess(instance._process.pid);
     return instance;
   }
@@ -393,7 +390,7 @@ class NodeInstance extends EventEmitter {
     console.log('[test]', `Testing ${path}`);
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, headers }, (res) => {
+      const req = http.get({ host, port, family: 4, path, headers }, (res) => {
         let response = '';
         res.setEncoding('utf8');
         res
@@ -419,7 +416,8 @@ class NodeInstance extends EventEmitter {
     const port = await this.portPromise;
     return http.get({
       port,
-      path: parseURL(devtoolsUrl).path,
+      family: 4,
+      path: new URL(devtoolsUrl).pathname,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',

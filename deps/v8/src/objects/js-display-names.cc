@@ -6,22 +6,23 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
+#include "src/objects/js-display-names.h"
+
 #include <memory>
 #include <vector>
-
-#include "src/objects/js-display-names-inl.h"
-#include "src/objects/js-display-names.h"
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
-#include "src/objects/managed.h"
+#include "src/objects/js-display-names-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
-
+#include "src/objects/option-utils.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/localebuilder.h"
 #include "unicode/locdspnm.h"
+#include "unicode/measfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/tznames.h"
 #include "unicode/uloc.h"
@@ -41,10 +42,7 @@ enum class Type {
   kRegion,
   kScript,
   kCurrency,
-  kWeekday,
-  kMonth,
-  kQuarter,
-  kDayPeriod,
+  kCalendar,
   kDateTimeField
 };
 
@@ -83,7 +81,6 @@ class DisplayNamesInternal {
   virtual icu::Locale locale() const = 0;
   virtual Maybe<icu::UnicodeString> of(Isolate* isolate,
                                        const char* code) const = 0;
-  virtual const char* calendar() const { return nullptr; }
 };
 
 namespace {
@@ -91,12 +88,15 @@ namespace {
 class LocaleDisplayNamesCommon : public DisplayNamesInternal {
  public:
   LocaleDisplayNamesCommon(const icu::Locale& locale,
-                           JSDisplayNames::Style style, bool fallback)
+                           JSDisplayNames::Style style, bool fallback,
+                           bool dialect)
       : style_(style) {
     UDisplayContext sub =
         fallback ? UDISPCTX_SUBSTITUTE : UDISPCTX_NO_SUBSTITUTE;
+    UDisplayContext dialect_context =
+        dialect ? UDISPCTX_DIALECT_NAMES : UDISPCTX_STANDARD_NAMES;
     UDisplayContext display_context[] = {ToUDisplayContext(style_),
-                                         UDISPCTX_DIALECT_NAMES,
+                                         dialect_context,
                                          UDISPCTX_CAPITALIZATION_NONE, sub};
     ldn_.reset(
         icu::LocaleDisplayNames::createInstance(locale, display_context, 4));
@@ -117,10 +117,13 @@ class LocaleDisplayNamesCommon : public DisplayNamesInternal {
 class LanguageNames : public LocaleDisplayNamesCommon {
  public:
   LanguageNames(const icu::Locale& locale, JSDisplayNames::Style style,
-                bool fallback)
-      : LocaleDisplayNamesCommon(locale, style, fallback) {}
+                bool fallback, bool dialect)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~LanguageNames() override = default;
+
   const char* type() const override { return "language"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UErrorCode status = U_ZERO_ERROR;
@@ -151,10 +154,13 @@ class LanguageNames : public LocaleDisplayNamesCommon {
 class RegionNames : public LocaleDisplayNamesCommon {
  public:
   RegionNames(const icu::Locale& locale, JSDisplayNames::Style style,
-              bool fallback)
-      : LocaleDisplayNamesCommon(locale, style, fallback) {}
+              bool fallback, bool dialect)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~RegionNames() override = default;
+
   const char* type() const override { return "region"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -173,10 +179,13 @@ class RegionNames : public LocaleDisplayNamesCommon {
 class ScriptNames : public LocaleDisplayNamesCommon {
  public:
   ScriptNames(const icu::Locale& locale, JSDisplayNames::Style style,
-              bool fallback)
-      : LocaleDisplayNamesCommon(locale, style, fallback) {}
+              bool fallback, bool dialect)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~ScriptNames() override = default;
+
   const char* type() const override { return "script"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -192,13 +201,50 @@ class ScriptNames : public LocaleDisplayNamesCommon {
   }
 };
 
-class CurrencyNames : public LocaleDisplayNamesCommon {
+class KeyValueDisplayNames : public LocaleDisplayNamesCommon {
+ public:
+  KeyValueDisplayNames(const icu::Locale& locale, JSDisplayNames::Style style,
+                       bool fallback, bool dialect, const char* key,
+                       bool prevent_fallback)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect),
+        key_(key),
+        prevent_fallback_(prevent_fallback) {}
+
+  ~KeyValueDisplayNames() override = default;
+
+  const char* type() const override { return key_.c_str(); }
+
+  Maybe<icu::UnicodeString> of(Isolate* isolate,
+                               const char* code) const override {
+    std::string code_str(code);
+    icu::UnicodeString result;
+    locale_display_names()->keyValueDisplayName(key_.c_str(), code_str.c_str(),
+                                                result);
+    // Work around the issue that the keyValueDisplayNames ignore no
+    // substituion and always fallback.
+    if (prevent_fallback_ && (result.length() == 3) &&
+        (code_str.length() == 3) &&
+        (result == icu::UnicodeString(code_str.c_str(), -1, US_INV))) {
+      result.setToBogus();
+    }
+
+    return Just(result);
+  }
+
+ private:
+  std::string key_;
+  bool prevent_fallback_;
+};
+
+class CurrencyNames : public KeyValueDisplayNames {
  public:
   CurrencyNames(const icu::Locale& locale, JSDisplayNames::Style style,
-                bool fallback)
-      : LocaleDisplayNamesCommon(locale, style, fallback) {}
+                bool fallback, bool dialect)
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "currency",
+                             fallback == false) {}
+
   ~CurrencyNames() override = default;
-  const char* type() const override { return "currency"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -207,12 +253,32 @@ class CurrencyNames : public LocaleDisplayNamesCommon {
           isolate, NewRangeError(MessageTemplate::kInvalidArgument),
           Nothing<icu::UnicodeString>());
     }
+    return KeyValueDisplayNames::of(isolate, code);
+  }
+};
 
-    icu::UnicodeString result;
-    locale_display_names()->keyValueDisplayName("currency", code_str.c_str(),
-                                                result);
+class CalendarNames : public KeyValueDisplayNames {
+ public:
+  CalendarNames(const icu::Locale& locale, JSDisplayNames::Style style,
+                bool fallback, bool dialect)
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "calendar",
+                             false) {}
 
-    return Just(result);
+  ~CalendarNames() override = default;
+
+  Maybe<icu::UnicodeString> of(Isolate* isolate,
+                               const char* code) const override {
+    std::string code_str(code);
+    if (!Intl::IsWellFormedCalendar(code_str)) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
+          Nothing<icu::UnicodeString>());
+    }
+    return KeyValueDisplayNames::of(isolate, strcmp(code, "gregory") == 0
+                                                 ? "gregorian"
+                                                 : strcmp(code, "ethioaa") == 0
+                                                       ? "ethiopic-amete-alem"
+                                                       : code);
   }
 };
 
@@ -263,21 +329,26 @@ UDateTimePatternField StringToUDateTimePatternField(const char* code) {
     default:
       break;
   }
-  UNREACHABLE();
+  return UDATPG_FIELD_COUNT;
 }
 
 class DateTimeFieldNames : public DisplayNamesInternal {
  public:
-  DateTimeFieldNames(const icu::Locale& locale, JSDisplayNames::Style style)
+  DateTimeFieldNames(const icu::Locale& locale, JSDisplayNames::Style style,
+                     bool fallback)
       : locale_(locale), width_(StyleToUDateTimePGDisplayWidth(style)) {
     UErrorCode status = U_ZERO_ERROR;
     generator_.reset(
         icu::DateTimePatternGenerator::createInstance(locale_, status));
     DCHECK(U_SUCCESS(status));
   }
+
   ~DateTimeFieldNames() override = default;
+
   const char* type() const override { return "dateTimeField"; }
+
   icu::Locale locale() const override { return locale_; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);
@@ -295,194 +366,22 @@ class DateTimeFieldNames : public DisplayNamesInternal {
   std::unique_ptr<icu::DateTimePatternGenerator> generator_;
 };
 
-icu::DateFormatSymbols::DtWidthType StyleToDtWidthType(
-    JSDisplayNames::Style style, Type type) {
-  switch (style) {
-    case JSDisplayNames::Style::kLong:
-      return icu::DateFormatSymbols::WIDE;
-    case JSDisplayNames::Style::kShort:
-      return icu::DateFormatSymbols::SHORT;
-    case JSDisplayNames::Style::kNarrow:
-      if (type == Type::kQuarter) {
-        return icu::DateFormatSymbols::ABBREVIATED;
-      } else {
-        return icu::DateFormatSymbols::NARROW;
-      }
-  }
-}
-
-class DateFormatSymbolsNames : public DisplayNamesInternal {
- public:
-  DateFormatSymbolsNames(const char* type, const icu::Locale& locale,
-                         const icu::UnicodeString* array, int32_t length,
-                         const char* calendar)
-      : type_(type),
-        locale_(locale),
-        array_(array),
-        length_(length),
-        calendar_(calendar) {}
-
-  ~DateFormatSymbolsNames() override = default;
-
-  const char* type() const override { return type_; }
-
-  icu::Locale locale() const override { return locale_; }
-
-  const char* calendar() const override {
-    if (calendar_.empty()) {
-      return nullptr;
-    }
-    return calendar_.c_str();
-  }
-
-  virtual int32_t ComputeIndex(const char* code) const = 0;
-
-  Maybe<icu::UnicodeString> of(Isolate* isolate,
-                               const char* code) const override {
-    int32_t index = ComputeIndex(code);
-    if (index < 0 || index >= length_) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
-    }
-    return Just(array_[index]);
-  }
-
- private:
-  const char* type_;
-  icu::Locale locale_;
-  const icu::UnicodeString* array_;
-  int32_t length_;
-  std::string calendar_;
-};
-
-class WeekdayNames : public DateFormatSymbolsNames {
- public:
-  WeekdayNames(const char* type, const icu::Locale& locale,
-               const icu::UnicodeString* array, int32_t length,
-               const char* calendar)
-      : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  ~WeekdayNames() override = default;
-
-  int32_t ComputeIndex(const char* code) const override {
-    int32_t i = atoi(code);
-    if (i == 7) return 1;
-    if (i > 0 && i < 7) return i + 1;
-    return -1;
-  }
-};
-
-class MonthNames : public DateFormatSymbolsNames {
- public:
-  MonthNames(const char* type, const icu::Locale& locale,
-             const icu::UnicodeString* array, int32_t length,
-             const char* calendar)
-      : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  ~MonthNames() override = default;
-
-  int32_t ComputeIndex(const char* code) const override {
-    return atoi(code) - 1;
-  }
-};
-
-class QuarterNames : public DateFormatSymbolsNames {
- public:
-  QuarterNames(const char* type, const icu::Locale& locale,
-               const icu::UnicodeString* array, int32_t length,
-               const char* calendar)
-      : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  ~QuarterNames() override = default;
-
-  int32_t ComputeIndex(const char* code) const override {
-    return atoi(code) - 1;
-  }
-};
-
-class DayPeriodNames : public DateFormatSymbolsNames {
- public:
-  DayPeriodNames(const char* type, const icu::Locale& locale,
-                 const icu::UnicodeString* array, int32_t length,
-                 const char* calendar)
-      : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  ~DayPeriodNames() override = default;
-
-  int32_t ComputeIndex(const char* code) const override {
-    if (strcmp("am", code) == 0) {
-      return 0;
-    } else if (strcmp("pm", code) == 0) {
-      return 1;
-    } else {
-      return -1;
-    }
-  }
-};
-
-const char* gWeekday = "weekday";
-const char* gMonth = "month";
-const char* gQuarter = "quarter";
-const char* gDayPeriod = "dayPeriod";
-
-DateFormatSymbolsNames* CreateDateFormatSymbolsNames(
-    const icu::Locale& locale, JSDisplayNames::Style style, Type type) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::DateFormatSymbols> symbols(
-      icu::DateFormatSymbols::createForLocale(locale, status));
-  if (U_FAILURE(status)) {
-    return nullptr;
-  }
-  icu::DateFormatSymbols::DtWidthType width_type =
-      StyleToDtWidthType(style, type);
-  int32_t count = 0;
-  std::string calendar =
-      locale.getUnicodeKeywordValue<std::string>("ca", status);
-
-  switch (type) {
-    case Type::kMonth:
-      return new MonthNames(
-          gMonth, locale,
-          symbols->getMonths(count, icu::DateFormatSymbols::STANDALONE,
-                             width_type),
-          count, calendar.c_str());
-    case Type::kWeekday:
-      return new WeekdayNames(
-          gWeekday, locale,
-          symbols->getWeekdays(count, icu::DateFormatSymbols::STANDALONE,
-                               width_type),
-          count, calendar.c_str());
-    case Type::kQuarter:
-      return new QuarterNames(
-          gQuarter, locale,
-          symbols->getQuarters(count, icu::DateFormatSymbols::STANDALONE,
-                               width_type),
-          count, calendar.c_str());
-    case Type::kDayPeriod:
-      return new DayPeriodNames(gDayPeriod, locale,
-                                symbols->getAmPmStrings(count), count,
-                                calendar.c_str());
-    default:
-      UNREACHABLE();
-  }
-}
-
 DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
                                      JSDisplayNames::Style style, Type type,
-                                     bool fallback) {
+                                     bool fallback, bool dialect) {
   switch (type) {
     case Type::kLanguage:
-      return new LanguageNames(locale, style, fallback);
+      return new LanguageNames(locale, style, fallback, dialect);
     case Type::kRegion:
-      return new RegionNames(locale, style, fallback);
+      return new RegionNames(locale, style, fallback, false);
     case Type::kScript:
-      return new ScriptNames(locale, style, fallback);
+      return new ScriptNames(locale, style, fallback, false);
     case Type::kCurrency:
-      return new CurrencyNames(locale, style, fallback);
+      return new CurrencyNames(locale, style, fallback, false);
+    case Type::kCalendar:
+      return new CalendarNames(locale, style, fallback, false);
     case Type::kDateTimeField:
-      return new DateTimeFieldNames(locale, style);
-    case Type::kMonth:
-    case Type::kWeekday:
-    case Type::kQuarter:
-    case Type::kDayPeriod:
-      return CreateDateFormatSymbolsNames(locale, style, type);
+      return new DateTimeFieldNames(locale, style, fallback);
     default:
       UNREACHABLE();
   }
@@ -506,9 +405,9 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 4. Let options be ? ToObject(options).
+  // 4. Let options be ? GetOptionsObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, input_options),
+                             GetOptionsObject(isolate, input_options, service),
                              JSDisplayNames);
 
   // Note: No need to create a record. It's not observable.
@@ -519,49 +418,21 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // 7. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.DisplayNames");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDisplayNames>());
 
   // 8. Set opt.[[localeMatcher]] to matcher.
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  std::unique_ptr<char[]> calendar_str = nullptr;
-  if (FLAG_harmony_intl_displaynames_date_types) {
-    const std::vector<const char*> empty_values = {};
-    // Let calendar be ? GetOption(options, "calendar",
-    //    "string", undefined, undefined).
-    Maybe<bool> maybe_calendar = Intl::GetStringOption(
-        isolate, options, "calendar", empty_values, service, &calendar_str);
-    MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDisplayNames>());
-    // If calendar is not undefined, then
-    if (maybe_calendar.FromJust() && calendar_str != nullptr) {
-      // a. If calendar does not match the (3*8alphanum) *("-" (3*8alphanum))
-      //    sequence, throw a RangeError exception.
-      if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::kInvalid, factory->calendar_string(),
-                factory->NewStringFromAsciiChecked(calendar_str.get())),
-            JSDisplayNames);
-      }
-    }
-  }
-
-  // Set opt.[[ca]] to calendar.
-
   // ecma402/#sec-Intl.DisplayNames-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
-  // « "ca" ».
-  std::set<std::string> relevant_extension_keys_ca = {"ca"};
+  // «  ».
   std::set<std::string> relevant_extension_keys = {};
   // 9. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale = Intl::ResolveLocale(
-      isolate, JSDisplayNames::GetAvailableLocales(), requested_locales,
-      matcher,
-      FLAG_harmony_intl_displaynames_date_types ? relevant_extension_keys_ca
-                                                : relevant_extension_keys);
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
+      Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
+                          requested_locales, matcher, relevant_extension_keys);
   if (maybe_resolve_locale.IsNothing()) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                     JSDisplayNames);
@@ -569,18 +440,11 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
-  UErrorCode status = U_ZERO_ERROR;
-  if (calendar_str != nullptr &&
-      Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
-    icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
-    DCHECK(U_SUCCESS(status));
-  }
 
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
-      isolate, options, "style", "Intl.DisplayNames",
-      {"long", "short", "narrow"},
+  Maybe<Style> maybe_style = GetStringOption<Style>(
+      isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSDisplayNames>());
   Style style_enum = maybe_style.FromJust();
@@ -588,36 +452,14 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // 11. Set displayNames.[[Style]] to style.
 
   // 12. Let type be ? GetOption(options, "type", "string", « "language",
-  //     "region", "script", "currency", "weekday", "month", "quarter",
-  //     "dayPeriod", "dateTimeField" », undefined).
-  Maybe<Type> maybe_type =
-      FLAG_harmony_intl_displaynames_date_types
-          ? Intl::GetStringOption<Type>(
-                isolate, options, "type", "Intl.DisplayNames",
-                {"language", "region", "script", "currency", "weekday", "month",
-                 "quarter", "dayPeriod", "dateTimeField"},
-                {
-                    Type::kLanguage,
-                    Type::kRegion,
-                    Type::kScript,
-                    Type::kCurrency,
-                    Type::kWeekday,
-                    Type::kMonth,
-                    Type::kQuarter,
-                    Type::kDayPeriod,
-                    Type::kDateTimeField,
-                },
-                Type::kUndefined)
-          : Intl::GetStringOption<Type>(
-                isolate, options, "type", "Intl.DisplayNames",
-                {"language", "region", "script", "currency"},
-                {
-                    Type::kLanguage,
-                    Type::kRegion,
-                    Type::kScript,
-                    Type::kCurrency,
-                },
-                Type::kUndefined);
+  // "region", "script", "currency" , "calendar", "dateTimeField", "unit"»,
+  // undefined).
+  Maybe<Type> maybe_type = GetStringOption<Type>(
+      isolate, options, "type", service,
+      {"language", "region", "script", "currency", "calendar", "dateTimeField"},
+      {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
+       Type::kCalendar, Type::kDateTimeField},
+      Type::kUndefined);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
@@ -631,19 +473,32 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
-  Maybe<Fallback> maybe_fallback = Intl::GetStringOption<Fallback>(
-      isolate, options, "fallback", "Intl.DisplayNames", {"code", "none"},
+  Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
+      isolate, options, "fallback", service, {"code", "none"},
       {Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeHandle<JSDisplayNames>());
   Fallback fallback_enum = maybe_fallback.FromJust();
 
   // 16. Set displayNames.[[Fallback]] to fallback.
 
+  LanguageDisplay language_display_enum = LanguageDisplay::kDialect;
+  // 24. Let languageDisplay be ? GetOption(options, "languageDisplay",
+  // "string", « "dialect", "standard" », "dialect").
+  Maybe<LanguageDisplay> maybe_language_display =
+      GetStringOption<LanguageDisplay>(
+          isolate, options, "languageDisplay", service, {"dialect", "standard"},
+          {LanguageDisplay::kDialect, LanguageDisplay::kStandard},
+          LanguageDisplay::kDialect);
+  MAYBE_RETURN(maybe_language_display, MaybeHandle<JSDisplayNames>());
+  // 25. If type is "language", then
+  if (type_enum == Type::kLanguage) {
+    // a. Set displayNames.[[LanguageDisplay]] to languageDisplay.
+    language_display_enum = maybe_language_display.FromJust();
+  }
+
+  // Set displayNames.[[Fallback]] to fallback.
+
   // 17. Set displayNames.[[Locale]] to the value of r.[[Locale]].
-
-  // Let calendar be r.[[ca]].
-
-  // Set displayNames.[[Calendar]] to calendar.
 
   // Let dataLocale be r.[[dataLocale]].
 
@@ -664,7 +519,8 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // Set displayNames.[[Fields]] to styleFields.
 
   DisplayNamesInternal* internal = CreateInternal(
-      icu_locale, style_enum, type_enum, fallback_enum == Fallback::kCode);
+      icu_locale, style_enum, type_enum, fallback_enum == Fallback::kCode,
+      language_display_enum == LanguageDisplay::kDialect);
   if (internal == nullptr) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
                     JSDisplayNames);
@@ -678,6 +534,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   display_names->set_flags(0);
   display_names->set_style(style_enum);
   display_names->set_fallback(fallback_enum);
+  display_names->set_language_display(language_display_enum);
 
   DisallowGarbageCollection no_gc;
   display_names->set_internal(*managed_internal);
@@ -702,19 +559,13 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
   Handle<String> style = display_names->StyleAsString();
   Handle<String> type = factory->NewStringFromAsciiChecked(internal->type());
   Handle<String> fallback = display_names->FallbackAsString();
+  Handle<String> language_display = display_names->LanguageDisplayAsString();
 
   Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
       isolate, options, factory->locale_string(), locale, Just(kDontThrow));
   DCHECK(maybe_create_locale.FromJust());
   USE(maybe_create_locale);
-  if (internal->calendar() != nullptr) {
-    Maybe<bool> maybe_create_calendar = JSReceiver::CreateDataProperty(
-        isolate, options, factory->calendar_string(),
-        factory->NewStringFromAsciiChecked(internal->calendar()),
-        Just(kDontThrow));
-    DCHECK(maybe_create_calendar.FromJust());
-    USE(maybe_create_calendar);
-  }
+
   Maybe<bool> maybe_create_style = JSReceiver::CreateDataProperty(
       isolate, options, factory->style_string(), style, Just(kDontThrow));
   DCHECK(maybe_create_style.FromJust());
@@ -729,6 +580,15 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
       isolate, options, factory->fallback_string(), fallback, Just(kDontThrow));
   DCHECK(maybe_create_fallback.FromJust());
   USE(maybe_create_fallback);
+
+    if (std::strcmp("language", internal->type()) == 0) {
+      Maybe<bool> maybe_create_language_display =
+          JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->languageDisplay_string(),
+                                         language_display, Just(kDontThrow));
+      DCHECK(maybe_create_language_display.FromJust());
+      USE(maybe_create_language_display);
+    }
 
   return options;
 }
@@ -784,6 +644,16 @@ Handle<String> JSDisplayNames::FallbackAsString() const {
       return GetReadOnlyRoots().code_string_handle();
     case Fallback::kNone:
       return GetReadOnlyRoots().none_string_handle();
+  }
+  UNREACHABLE();
+}
+
+Handle<String> JSDisplayNames::LanguageDisplayAsString() const {
+  switch (language_display()) {
+    case LanguageDisplay::kDialect:
+      return GetReadOnlyRoots().dialect_string_handle();
+    case LanguageDisplay::kStandard:
+      return GetReadOnlyRoots().standard_string_handle();
   }
   UNREACHABLE();
 }

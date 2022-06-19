@@ -17,9 +17,10 @@ namespace internal {
 
 class Cell : public TorqueGeneratedCell<Cell, HeapObject> {
  public:
-  static inline Cell FromValueAddress(Address value);
-
   inline Address ValueAddress() { return address() + kValueOffset; }
+
+  using TorqueGeneratedCell::value;
+  DECL_RELAXED_GETTER(value, Object)
 
   using BodyDescriptor = FixedBodyDescriptor<kValueOffset, kSize, kSize>;
 

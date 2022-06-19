@@ -13,7 +13,7 @@ server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
   const req = session.request();
   req.on('response', (headers, flags) => {
-    assert.deepStrictEqual(headers.date, 'snacks o clock');
+    assert.strictEqual(headers.date, 'snacks o clock');
   });
   req.on('end', () => {
     session.close();

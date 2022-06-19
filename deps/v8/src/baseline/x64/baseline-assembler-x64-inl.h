@@ -5,8 +5,8 @@
 #ifndef V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 #define V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 
+#include "src/base/macros.h"
 #include "src/baseline/baseline-assembler.h"
-#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/x64/register-x64.h"
 
 namespace v8 {
@@ -17,12 +17,11 @@ namespace detail {
 
 // Avoid using kScratchRegister(==r10) since the macro-assembler doesn't use
 // this scope and will conflict.
-static constexpr Register kScratchRegisters[] = {r8, r9, r11, r12, r14, r15};
+static constexpr Register kScratchRegisters[] = {r8, r9, r11, r12, r15};
 static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
 }  // namespace detail
 
-// TODO(v8:11429): Move BaselineAssembler to baseline-assembler-<arch>-inl.h
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
@@ -46,7 +45,7 @@ class BaselineAssembler::ScratchRegisterScope {
 };
 
 // TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint8_t {
+enum class Condition : uint32_t {
   kEqual = equal,
   kNotEqual = not_equal,
 
@@ -87,18 +86,24 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(rbp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  return __ leaq(rscratch, MemOperand(rbp, interpreter_register.ToOperand() *
+                                               kSystemPointerSize));
+}
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(rbp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
+void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
+
+void BaselineAssembler::JumpTarget() {
+  // NOP on x64.
+}
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
-}
-void BaselineAssembler::JumpIf(Condition cc, Label* target,
-                               Label::Distance distance) {
-  __ j(AsMasmCondition(cc), target, distance);
 }
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance distance) {
@@ -117,57 +122,104 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfNotSmi(value, target, distance);
 }
 
-void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Call(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ CallBuiltin(builtin);
+  } else {
+    ASM_CODE_COMMENT_STRING(masm_,
+                            __ CommentForOffHeapTrampoline("call", builtin));
+    __ Call(__ EntryFromBuiltinAsOperand(builtin));
+  }
 }
 
-void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Jump(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative jump.
+    __ TailCallBuiltin(builtin);
+  } else {
+    ASM_CODE_COMMENT_STRING(
+        masm_, __ CommentForOffHeapTrampoline("tail call", builtin));
+    __ Jump(__ EntryFromBuiltinAsOperand(builtin));
+  }
 }
 
-void BaselineAssembler::Test(Register value, int mask) {
+void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
+                                      Label* target, Label::Distance distance) {
   if ((mask & 0xff) == mask) {
     __ testb(value, Immediate(mask));
   } else {
     __ testl(value, Immediate(mask));
   }
+  __ j(AsMasmCondition(cc), target, distance);
 }
 
-void BaselineAssembler::CmpObjectType(Register object,
-                                      InstanceType instance_type,
-                                      Register map) {
+void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
+                               Label* target, Label::Distance distance) {
+  __ cmpq(lhs, rhs);
+  __ j(AsMasmCondition(cc), target, distance);
+}
+void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
+                                         InstanceType instance_type,
+                                         Register map, Label* target,
+                                         Label::Distance distance) {
   __ AssertNotSmi(object);
   __ CmpObjectType(object, instance_type, map);
+  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::CmpInstanceType(Register map,
-                                        InstanceType instance_type) {
-  if (emit_debug_code()) {
+void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
+                                           InstanceType instance_type,
+                                           Label* target,
+                                           Label::Distance distance) {
+  if (FLAG_debug_code) {
     __ AssertNotSmi(map);
     __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
   __ CmpInstanceType(map, instance_type);
+  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::Cmp(Register value, Smi smi) { __ Cmp(value, smi); }
-void BaselineAssembler::ComparePointer(Register value, MemOperand operand) {
+void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
+                                      MemOperand operand, Label* target,
+                                      Label::Distance distance) {
   __ cmpq(value, operand);
+  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::SmiCompare(Register lhs, Register rhs) {
+void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Smi smi,
+                                  Label* target, Label::Distance distance) {
+  __ SmiCompare(lhs, smi);
+  __ j(AsMasmCondition(cc), target, distance);
+}
+void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
+                                  Label* target, Label::Distance distance) {
   __ SmiCompare(lhs, rhs);
+  __ j(AsMasmCondition(cc), target, distance);
 }
+
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  __ cmpq(left, Immediate(right));
+  __ j(AsMasmCondition(cc), target, distance);
+}
+
 // cmp_tagged
-void BaselineAssembler::CompareTagged(Register value, MemOperand operand) {
+void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
+                                     MemOperand operand, Label* target,
+                                     Label::Distance distance) {
   __ cmp_tagged(value, operand);
+  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::CompareTagged(MemOperand operand, Register value) {
+void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
+                                     Register value, Label* target,
+                                     Label::Distance distance) {
   __ cmp_tagged(operand, value);
+  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::CompareByte(Register value, int32_t byte) {
+void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
+                                   Label* target, Label::Distance distance) {
   __ cmpb(value, Immediate(byte));
+  __ j(AsMasmCondition(cc), target, distance);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
@@ -186,7 +238,7 @@ void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
   __ Move(output, value);
 }
 void BaselineAssembler::Move(Register output, int32_t value) {
-  __ Move(output, Immediate(value));
+  __ Move(output, value);
 }
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
   __ mov_tagged(output, source);
@@ -279,7 +331,7 @@ void BaselineAssembler::PushReverse(T... vals) {
 
 template <typename... T>
 void BaselineAssembler::Pop(T... registers) {
-  ITERATE_PACK(__ Pop(registers));
+  (__ Pop(registers), ...);
 }
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
@@ -294,8 +346,12 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ LoadAnyTaggedField(output, FieldOperand(source, offset));
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ movzxwq(output, FieldOperand(source, offset));
+}
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
   __ movb(output, FieldOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
@@ -304,14 +360,12 @@ void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
 }
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
-
                                                          Register value) {
-  BaselineAssembler::ScratchRegisterScope scratch_scope(this);
-  Register scratch = scratch_scope.AcquireScratch();
-  DCHECK_NE(target, scratch);
-  DCHECK_NE(value, scratch);
+  ASM_CODE_COMMENT(masm_);
+  Register scratch = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(target, value, scratch));
   __ StoreTaggedField(FieldOperand(target, offset), value);
-  __ RecordWriteField(target, offset, value, scratch, kDontSaveFPRegs);
+  __ RecordWriteField(target, offset, value, scratch, SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
@@ -319,7 +373,9 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
   __ StoreTaggedField(FieldOperand(target, offset), value);
 }
 
-void BaselineAssembler::AddToInterruptBudget(int32_t weight) {
+void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
+    int32_t weight, Label* skip_interrupt_label) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -327,9 +383,15 @@ void BaselineAssembler::AddToInterruptBudget(int32_t weight) {
                          JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
           Immediate(weight));
+  if (skip_interrupt_label) {
+    DCHECK_LT(weight, 0);
+    __ j(greater_equal, skip_interrupt_label);
+  }
 }
 
-void BaselineAssembler::AddToInterruptBudget(Register weight) {
+void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
+    Register weight, Label* skip_interrupt_label) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -337,6 +399,7 @@ void BaselineAssembler::AddToInterruptBudget(Register weight) {
                          JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
           weight);
+  if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
@@ -351,12 +414,18 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
   }
 }
 
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  Move(output, lhs);
+  __ andq(output, Immediate(rhs));
+}
+
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scope(this);
   Register table = scope.AcquireScratch();
   Label fallthrough, jump_table;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ subq(reg, Immediate(case_value_base));
   }
   __ cmpq(reg, Immediate(num_labels));
@@ -376,31 +445,30 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
 #define __ basm.
 
 void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
+  ASM_CODE_COMMENT(masm);
   BaselineAssembler basm(masm);
 
   Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
 
-  __ RecordComment("[ Update Interrupt Budget");
-  __ AddToInterruptBudget(weight);
-
-  // Use compare flags set by AddToInterruptBudget
-  Label skip_interrupt_label;
-  __ JumpIf(Condition::kGreaterThanEqual, &skip_interrupt_label);
   {
-    __ masm()->SmiTag(params_size);
-    __ Push(params_size, kInterpreterAccumulatorRegister);
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
 
-    __ LoadContext(kContextRegister);
-    __ Push(MemOperand(rbp, InterpreterFrameConstants::kFunctionOffset));
-    __ CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, 1);
+    Label skip_interrupt_label;
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+    {
+      __ masm()->SmiTag(params_size);
+      __ Push(params_size, kInterpreterAccumulatorRegister);
 
-    __ Pop(kInterpreterAccumulatorRegister, params_size);
-    __ masm()->SmiUntag(params_size);
+      __ LoadContext(kContextRegister);
+      __ Push(MemOperand(rbp, InterpreterFrameConstants::kFunctionOffset));
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
+
+      __ Pop(kInterpreterAccumulatorRegister, params_size);
+      __ masm()->SmiUntag(params_size);
+    }
+    __ Bind(&skip_interrupt_label);
   }
-  __ RecordComment("]");
-
-  __ Bind(&skip_interrupt_label);
 
   BaselineAssembler::ScratchRegisterScope scope(&basm);
   Register scratch = scope.AcquireScratch();
@@ -414,7 +482,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // arguments.
   Label corrected_args_count;
   __ masm()->cmpq(params_size, actual_params_size);
-  __ JumpIf(Condition::kGreaterThanEqual, &corrected_args_count, Label::kNear);
+  __ masm()->j(greater_equal, &corrected_args_count);
   __ masm()->movq(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
 
@@ -422,15 +490,19 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  Register return_pc = scratch;
-  __ masm()->PopReturnAddressTo(return_pc);
-  __ masm()->leaq(rsp, MemOperand(rsp, params_size, times_system_pointer_size,
-                                  kSystemPointerSize));
-  __ masm()->PushReturnAddressFrom(return_pc);
+  __ masm()->DropArguments(params_size, scratch,
+                           TurboAssembler::kCountIsInteger,
+                           TurboAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 
 #undef __
+
+inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
+    Register reg) {
+  assembler_->masm()->cmp_tagged(reg, kInterpreterAccumulatorRegister);
+  assembler_->masm()->Assert(equal, AbortReason::kUnexpectedValue);
+}
 
 }  // namespace baseline
 }  // namespace internal

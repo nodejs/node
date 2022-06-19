@@ -29,7 +29,7 @@
     [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
     }],
-    [ 'node_shared=="false" and "<(_type)"=="executable"', {
+    [ '"<(_type)"=="executable"', {
       'msvs_settings': {
         'VCManifestTool': {
           'EmbedManifest': 'true',
@@ -40,6 +40,19 @@
     [ 'node_shared=="true"', {
       'defines': [
         'NODE_SHARED_MODE',
+      ],
+      'conditions': [
+        ['"<(_type)"=="executable"', {
+          'defines': [
+            'USING_UV_SHARED',
+            'USING_V8_SHARED',
+            'BUILDING_NODE_EXTENSION'
+          ],
+          'defines!': [
+            'BUILDING_V8_SHARED=1',
+            'BUILDING_UV_SHARED=1'
+          ]
+        }],
       ],
     }],
     [ 'OS=="win"', {
@@ -320,15 +333,13 @@
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
         [ 'node_shared_openssl=="false"', {
+          'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
 
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
           ],
-          # Set 1.0.0 as the API compability level to avoid the
-          # deprecation warnings when using OpenSSL 3.0.
-	        'defines': ['OPENSSL_API_COMPAT=0x10000000L'],
           'conditions': [
             # -force_load or --whole-archive are not applicable for
             # the static library

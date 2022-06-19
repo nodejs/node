@@ -4,18 +4,6 @@
 import { LogReader, parseString } from "./logreader.mjs";
 import { BaseArgumentsProcessor } from "./arguments.mjs";
 
-/**
- * A thin wrapper around shell's 'read' function showing a file name on error.
- */
-export function readFile(fileName) {
-  try {
-    return read(fileName);
-  } catch (e) {
-    console.log(fileName + ': ' + (e.message || e));
-    throw e;
-  }
-}
-
 // ===========================================================================
 
 // This is the only true formatting, why? For an international audience the
@@ -758,7 +746,7 @@ function startOf(timestamp, time) {
 export class ParseProcessor extends LogReader {
   constructor() {
     super();
-    this.dispatchTable_ = {
+    this.setDispatchTable({
       // Avoid accidental leaking of __proto__ properties and force this object
       // to be in dictionary-mode.
       __proto__: null,
@@ -792,7 +780,7 @@ export class ParseProcessor extends LogReader {
         parsers: [parseInt, parseString, parseString],
         processor: this.processScriptSource
       },
-    };
+    });
     this.functionEventDispatchTable_ = {
       // Avoid accidental leaking of __proto__ properties and force this object
       // to be in dictionary-mode.
@@ -832,20 +820,7 @@ export class ParseProcessor extends LogReader {
   }
 
   processString(string) {
-    let end = string.length;
-    let current = 0;
-    let next = 0;
-    let line;
-    let i = 0;
-    let entry;
-    while (current < end) {
-      next = string.indexOf("\n", current);
-      if (next === -1) break;
-      i++;
-      line = string.substring(current, next);
-      current = next + 1;
-      this.processLogLine(line);
-    }
+    this.processLogChunk(string);
     this.postProcess();
   }
 

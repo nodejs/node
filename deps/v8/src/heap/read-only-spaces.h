@@ -26,6 +26,9 @@ class SnapshotData;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
+  ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+               Address area_start, Address area_end, VirtualMemory reservation);
+
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
@@ -35,10 +38,11 @@ class ReadOnlyPage : public BasicMemoryChunk {
   // Returns the address for a given offset in this page.
   Address OffsetToAddress(size_t offset) const {
     Address address_in_page = address() + offset;
-    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_BOOL) {
-      // Pointer compression with share ReadOnlyPages means that the area_start
-      // and area_end cannot be defined since they are stored within the pages
-      // which can be mapped at multiple memory addresses.
+    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+      // Pointer compression with a per-Isolate cage and shared ReadOnlyPages
+      // means that the area_start and area_end cannot be defined since they are
+      // stored within the pages which can be mapped at multiple memory
+      // addresses.
       DCHECK_LT(offset, size());
     } else {
       DCHECK_GE(address_in_page, area_start());
@@ -131,6 +135,9 @@ class SingleCopyReadOnlyArtifacts : public ReadOnlyArtifacts {
                   const AllocationStats& stats) override;
   void ReinstallReadOnlySpace(Isolate* isolate) override;
   void VerifyHeapAndSpaceRelationships(Isolate* isolate) override;
+
+ private:
+  v8::PageAllocator* page_allocator_ = nullptr;
 };
 
 // -----------------------------------------------------------------------------
@@ -205,27 +212,25 @@ class ReadOnlySpace : public BaseSpace {
   // to write it into the free space nodes that were already created.
   void RepairFreeSpacesAfterDeserialization();
 
-  size_t Size() override { return accounting_stats_.Size(); }
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() override;
+  size_t Size() const override { return accounting_stats_.Size(); }
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;
 
   const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
   Address limit() const { return limit_; }
   size_t Capacity() const { return capacity_; }
 
-  bool ContainsSlow(Address addr);
+  bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate);
+  void Verify(Isolate* isolate) const;
 #ifdef DEBUG
-  void VerifyCounters(Heap* heap);
+  void VerifyCounters(Heap* heap) const;
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 
   // Return size of allocatable area on a page in this space.
   int AreaSize() const { return static_cast<int>(area_size_); }
-
-  ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
 

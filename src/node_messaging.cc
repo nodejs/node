@@ -7,7 +7,7 @@
 #include "node_contextify.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 
 using node::contextify::ContextifyContext;
@@ -98,19 +98,19 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     uint32_t id;
     if (!deserializer->ReadUint32(&id))
       return MaybeLocal<Object>();
-    CHECK_LE(id, host_objects_.size());
+    CHECK_LT(id, host_objects_.size());
     return host_objects_[id]->object(isolate);
   }
 
   MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
       Isolate* isolate, uint32_t clone_id) override {
-    CHECK_LE(clone_id, shared_array_buffers_.size());
+    CHECK_LT(clone_id, shared_array_buffers_.size());
     return shared_array_buffers_[clone_id];
   }
 
   MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
-    CHECK_LE(transfer_id, wasm_modules_.size());
+    CHECK_LT(transfer_id, wasm_modules_.size());
     return WasmModuleObject::FromCompiledModule(
         isolate, wasm_modules_[transfer_id]);
   }
@@ -162,7 +162,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       // If we gather a list of all message ports, and this transferred object
       // is a message port, add it to that list. This is a bit of an odd case
       // of special handling for MessagePorts (as opposed to applying to all
-      // transferables), but it's required for spec compliancy.
+      // transferables), but it's required for spec compliance.
       DCHECK((*port_list)->IsArray());
       Local<Array> port_list_array = port_list->As<Array>();
       Local<Object> obj = host_objects[i]->object();
@@ -749,7 +749,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       // interruption that were already present when the OnMessage() call was
       // first triggered, but at least 1000 messages because otherwise the
       // overhead of repeatedly triggering the uv_async_t instance becomes
-      // noticable, at least on Windows.
+      // noticeable, at least on Windows.
       // (That might require more investigation by somebody more familiar with
       // Windows.)
       TriggerAsync();
@@ -840,11 +840,11 @@ BaseObjectPtr<BaseObject> MessagePortData::Deserialize(
 }
 
 Maybe<bool> MessagePort::PostMessage(Environment* env,
+                                     Local<Context> context,
                                      Local<Value> message_v,
                                      const TransferList& transfer_v) {
   Isolate* isolate = env->isolate();
   Local<Object> obj = object(isolate);
-  Local<Context> context = obj->GetCreationContext().ToLocalChecked();
 
   std::shared_ptr<Message> msg = std::make_shared<Message>();
 
@@ -980,13 +980,13 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   // Even if the backing MessagePort object has already been deleted, we still
   // want to serialize the message to ensure spec-compliant behavior w.r.t.
   // transfers.
-  if (port == nullptr) {
+  if (port == nullptr || port->IsHandleClosing()) {
     Message msg;
     USE(msg.Serialize(env, context, args[0], transfer_list, obj));
     return;
   }
 
-  Maybe<bool> res = port->PostMessage(env, args[0], transfer_list);
+  Maybe<bool> res = port->PostMessage(env, context, args[0], transfer_list);
   if (res.IsJust())
     args.GetReturnValue().Set(res.FromJust());
 }
@@ -1065,7 +1065,11 @@ void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
         "The \"port\" argument must be a MessagePort instance");
   }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
-  CHECK_NOT_NULL(port);
+  if (port == nullptr || port->IsHandleClosing()) {
+    Isolate* isolate = env->isolate();
+    THROW_ERR_CLOSED_MESSAGE_PORT(isolate);
+    return;
+  }
 
   Local<Value> context_arg = args[1];
   ContextifyContext* context_wrapper;
@@ -1327,7 +1331,7 @@ Maybe<bool> SiblingGroup::Dispatch(
     std::shared_ptr<Message> message,
     std::string* error) {
 
-  Mutex::ScopedLock lock(group_mutex_);
+  RwLock::ScopedReadLock lock(group_mutex_);
 
   // The source MessagePortData is not part of this group.
   if (ports_.find(source) == ports_.end()) {
@@ -1372,7 +1376,7 @@ void SiblingGroup::Entangle(MessagePortData* port) {
 }
 
 void SiblingGroup::Entangle(std::initializer_list<MessagePortData*> ports) {
-  Mutex::ScopedLock lock(group_mutex_);
+  RwLock::ScopedWriteLock lock(group_mutex_);
   for (MessagePortData* data : ports) {
     ports_.insert(data);
     CHECK(!data->group_);
@@ -1382,7 +1386,7 @@ void SiblingGroup::Entangle(std::initializer_list<MessagePortData*> ports) {
 
 void SiblingGroup::Disentangle(MessagePortData* data) {
   auto self = shared_from_this();  // Keep alive until end of function.
-  Mutex::ScopedLock lock(group_mutex_);
+  RwLock::ScopedWriteLock lock(group_mutex_);
   ports_.erase(data);
   data->group_.reset();
 

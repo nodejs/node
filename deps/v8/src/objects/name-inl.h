@@ -10,6 +10,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -56,7 +57,7 @@ void Symbol::set_is_private_name() {
 }
 
 DEF_GETTER(Name, IsUniqueName, bool) {
-  uint32_t type = map(isolate).instance_type();
+  uint32_t type = map(cage_base).instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
@@ -87,40 +88,67 @@ bool Name::IsHashFieldComputed(uint32_t raw_hash_field) {
   return (raw_hash_field & kHashNotComputedMask) == 0;
 }
 
+bool Name::IsHash(uint32_t raw_hash_field) {
+  return HashFieldTypeBits::decode(raw_hash_field) == HashFieldType::kHash;
+}
+
+bool Name::IsIntegerIndex(uint32_t raw_hash_field) {
+  return HashFieldTypeBits::decode(raw_hash_field) ==
+         HashFieldType::kIntegerIndex;
+}
+
+bool Name::IsForwardingIndex(uint32_t raw_hash_field) {
+  return HashFieldTypeBits::decode(raw_hash_field) ==
+         HashFieldType::kForwardingIndex;
+}
+
+uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
+  return HashBits::encode(hash & HashBits::kMax) |
+         HashFieldTypeBits::encode(type);
+}
+
 bool Name::HasHashCode() const { return IsHashFieldComputed(raw_hash_field()); }
 
 uint32_t Name::EnsureHash() {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field();
-  if (IsHashFieldComputed(field)) return field >> kHashShift;
+  if (IsHashFieldComputed(field)) return HashBits::decode(field);
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(*this).ComputeAndSetHash();
+}
+
+uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
+  // Fast case: has hash code already been computed?
+  uint32_t field = raw_hash_field();
+  if (IsHashFieldComputed(field)) return HashBits::decode(field);
+  // Slow case: compute hash code and set it. Has to be a string.
+  return String::cast(*this).ComputeAndSetHash(access_guard);
 }
 
 uint32_t Name::hash() const {
   uint32_t field = raw_hash_field();
   DCHECK(IsHashFieldComputed(field));
-  return field >> kHashShift;
+  return HashBits::decode(field);
 }
 
 DEF_GETTER(Name, IsInterestingSymbol, bool) {
-  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
+  return IsSymbol(cage_base) && Symbol::cast(*this).is_interesting_symbol();
 }
 
 DEF_GETTER(Name, IsPrivate, bool) {
-  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
+  return this->IsSymbol(cage_base) && Symbol::cast(*this).is_private();
 }
 
 DEF_GETTER(Name, IsPrivateName, bool) {
   bool is_private_name =
-      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
+      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
 DEF_GETTER(Name, IsPrivateBrand, bool) {
   bool is_private_brand =
-      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_brand();
+      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsPrivateName());
   return is_private_brand;
 }

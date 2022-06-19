@@ -106,6 +106,9 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 void LibuvStreamWrap::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IsConstructCallCallback);
+  registry->Register(GetWriteQueueSize);
+  registry->Register(SetBlocking);
+  StreamBase::RegisterExternalReferences(registry);
 }
 
 LibuvStreamWrap::LibuvStreamWrap(Environment* env,
@@ -264,12 +267,12 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
       CHECK_EQ(type, UV_UNKNOWN_HANDLE);
     }
 
-    if (!pending_obj.IsEmpty()) {
-      object()
-          ->Set(env()->context(),
-                env()->pending_handle_string(),
-                pending_obj.ToLocalChecked())
-          .Check();
+    Local<Object> local_pending_obj;
+    if (pending_obj.ToLocal(&local_pending_obj) &&
+          object()->Set(env()->context(),
+                        env()->pending_handle_string(),
+                        local_pending_obj).IsNothing()) {
+      return;
     }
   }
 

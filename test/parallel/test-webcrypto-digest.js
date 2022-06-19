@@ -168,3 +168,9 @@ async function testDigest(size, name) {
 
   await Promise.all(variations);
 })().then(common.mustCall());
+
+(async () => {
+  await assert.rejects(subtle.digest('RSA-OAEP', Buffer.alloc(1)), {
+    name: 'NotSupportedError',
+  });
+})().then(common.mustCall());

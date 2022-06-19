@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
-#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
 #include <set>
 #include <string>
@@ -16,7 +16,6 @@
 #include "src/execution/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
-#include "torque-generated/field-offsets.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -26,6 +25,7 @@ namespace U_ICU_NAMESPACE {
 class DateIntervalFormat;
 class Locale;
 class SimpleDateFormat;
+class TimeZone;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -41,6 +41,12 @@ class JSDateTimeFormat
       Handle<Object> options, const char* service);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static Handle<String> Calendar(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static Handle<Object> TimeZone(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
 
   // ecma402/#sec-unwrapdatetimeformat
@@ -60,7 +66,7 @@ class JSDateTimeFormat
   // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double date_value);
+      double date_value, bool output_source);
 
   // ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatRange(
@@ -82,9 +88,15 @@ class JSDateTimeFormat
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-      const char* method);
+      const char* method_name);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  Handle<Object> static TimeZoneId(Isolate* isolate, const icu::TimeZone& tz);
+  std::unique_ptr<icu::TimeZone> static CreateTimeZone(const char* timezone);
+
+  V8_EXPORT_PRIVATE static std::string CanonicalizeTimeZoneID(
+      const std::string& input);
 
   Handle<String> HourCycleAsString() const;
 
@@ -128,7 +140,7 @@ class JSDateTimeFormat
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
 
-  DECL_BOOLEAN_ACCESSORS(iso8601)
+  DECL_BOOLEAN_ACCESSORS(alt_calendar)
 
   DECL_PRINTER(JSDateTimeFormat)
 

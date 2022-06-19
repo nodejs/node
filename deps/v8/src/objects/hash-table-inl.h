@@ -35,6 +35,11 @@ ObjectHashTable::ObjectHashTable(Address ptr)
   SLOW_DCHECK(IsObjectHashTable());
 }
 
+RegisteredSymbolTable::RegisteredSymbolTable(Address ptr)
+    : HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape>(ptr) {
+  SLOW_DCHECK(IsRegisteredSymbolTable());
+}
+
 EphemeronHashTable::EphemeronHashTable(Address ptr)
     : ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>(ptr) {
   SLOW_DCHECK(IsEphemeronHashTable());
@@ -45,9 +50,16 @@ ObjectHashSet::ObjectHashSet(Address ptr)
   SLOW_DCHECK(IsObjectHashSet());
 }
 
+NameToIndexHashTable::NameToIndexHashTable(Address ptr)
+    : HashTable<NameToIndexHashTable, NameToIndexShape>(ptr) {
+  SLOW_DCHECK(IsNameToIndexHashTable());
+}
+
 CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(RegisteredSymbolTable)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(ObjectHashSet)
+CAST_ACCESSOR(NameToIndexHashTable)
 
 void EphemeronHashTable::set_key(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
@@ -125,21 +137,30 @@ Handle<Map> HashTable<Derived, Shape>::GetMap(ReadOnlyRoots roots) {
 }
 
 // static
+Handle<Map> NameToIndexHashTable::GetMap(ReadOnlyRoots roots) {
+  return roots.name_to_index_hash_table_map_handle();
+}
+
+// static
+Handle<Map> RegisteredSymbolTable::GetMap(ReadOnlyRoots roots) {
+  return roots.registered_symbol_table_map_handle();
+}
+
+// static
 Handle<Map> EphemeronHashTable::GetMap(ReadOnlyRoots roots) {
   return roots.ephemeron_hash_table_map_handle();
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-InternalIndex HashTable<Derived, Shape>::FindEntry(LocalIsolate* isolate,
-                                                   Key key) {
+template <typename IsolateT>
+InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateT* isolate, Key key) {
   ReadOnlyRoots roots(isolate);
   return FindEntry(isolate, roots, key, Shape::Hash(roots, key));
 }
 
 // Find entry for key otherwise return kNotFound.
 template <typename Derived, typename Shape>
-InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
+InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
   DisallowGarbageCollection no_gc;
@@ -147,17 +168,23 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
   uint32_t count = 1;
   Object undefined = roots.undefined_value();
   Object the_hole = roots.the_hole_value();
-  USE(the_hole);
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
-    Object element = KeyAt(isolate, entry);
+    Object element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) return InternalIndex::NotFound();
     if (Shape::kMatchNeedsHoleCheck && element == the_hole) continue;
     if (Shape::IsMatch(key, element)) return entry;
   }
+}
+
+template <typename Derived, typename Shape>
+template <typename IsolateT>
+InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
+                                                            uint32_t hash) {
+  return FindInsertionEntry(isolate, ReadOnlyRoots(isolate), hash);
 }
 
 // static
@@ -177,24 +204,38 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::ToKey(IsolateRoot isolate, InternalIndex entry,
-                                      Object* out_k) {
-  Object k = KeyAt(isolate, entry);
-  if (!IsKey(GetReadOnlyRoots(isolate), k)) return false;
+bool HashTable<Derived, Shape>::ToKey(PtrComprCageBase cage_base,
+                                      InternalIndex entry, Object* out_k) {
+  Object k = KeyAt(cage_base, entry);
+  if (!IsKey(GetReadOnlyRoots(cage_base), k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }
 
 template <typename Derived, typename Shape>
 Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return KeyAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return KeyAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(IsolateRoot isolate,
+Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                         InternalIndex entry) {
-  return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
+  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex);
+}
+
+template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry,
+                                        RelaxedLoadTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return KeyAt(cage_base, entry, tag);
+}
+
+template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
+                                        InternalIndex entry,
+                                        RelaxedLoadTag tag) {
+  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex, tag);
 }
 
 template <typename Derived, typename Shape>
@@ -235,6 +276,33 @@ bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
   return key->SameValue(other);
 }
 
+bool RegisteredSymbolTableShape::IsMatch(Handle<String> key, Object value) {
+  DCHECK(value.IsString());
+  return key->Equals(String::cast(value));
+}
+
+uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
+                                          Handle<String> key) {
+  return key->EnsureHash();
+}
+
+uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
+                                                   Object object) {
+  return String::cast(object).EnsureHash();
+}
+
+bool NameToIndexShape::IsMatch(Handle<Name> key, Object other) {
+  return *key == other;
+}
+
+uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots, Object other) {
+  return Name::cast(other).hash();
+}
+
+uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
+  return key->hash();
+}
+
 uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
@@ -242,6 +310,24 @@ uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
 uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
                                              Object other) {
   return Smi::ToInt(other.GetHash());
+}
+
+template <typename IsolateT>
+Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
+    IsolateT* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
+    int32_t index) {
+  DCHECK_GE(index, 0);
+  // Validate that the key is absent.
+  SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
+  // Check whether the dictionary should be extended.
+  table = EnsureCapacity(isolate, table);
+
+  // Compute the key object.
+  InternalIndex entry = table->FindInsertionEntry(isolate, key->hash());
+  table->set(EntryToIndex(entry), *key);
+  table->set(EntryToValueIndex(entry), Smi::FromInt(index));
+  table->ElementAdded();
+  return table;
 }
 
 }  // namespace internal

@@ -1,13 +1,14 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #include <string.h>
+#include <openssl/types.h>
 #include "testutil.h"
 #include "internal/numbers.h"
 
@@ -76,17 +77,56 @@ static int test_sanity_unsigned_conversion(void)
 
 static int test_sanity_range(void)
 {
+    /* Verify some types are the correct size */
+    if (!TEST_size_t_eq(sizeof(int8_t), 1)
+            || !TEST_size_t_eq(sizeof(uint8_t), 1)
+            || !TEST_size_t_eq(sizeof(int16_t), 2)
+            || !TEST_size_t_eq(sizeof(uint16_t), 2)
+            || !TEST_size_t_eq(sizeof(int32_t), 4)
+            || !TEST_size_t_eq(sizeof(uint32_t), 4)
+            || !TEST_size_t_eq(sizeof(int64_t), 8)
+            || !TEST_size_t_eq(sizeof(uint64_t), 8)
+#ifdef UINT128_MAX
+            || !TEST_size_t_eq(sizeof(int128_t), 16)
+            || !TEST_size_t_eq(sizeof(uint128_t), 16)
+#endif
+            || !TEST_size_t_eq(sizeof(char), 1)
+            || !TEST_size_t_eq(sizeof(unsigned char), 1))
+        return 0;
+
+    /* We want our long longs to be at least 64 bits */
+    if (!TEST_size_t_ge(sizeof(long long int), 8)
+            || !TEST_size_t_ge(sizeof(unsigned long long int), 8))
+        return 0;
+
+    /*
+     * Verify intmax_t.
+     * Some platforms defined intmax_t to be 64 bits but still support
+     * an int128_t, so this check is for at least 64 bits.
+     */
+    if (!TEST_size_t_ge(sizeof(ossl_intmax_t), 8)
+            || !TEST_size_t_ge(sizeof(ossl_uintmax_t), 8)
+            || !TEST_size_t_ge(sizeof(ossl_uintmax_t), sizeof(size_t)))
+        return 0;
+
     /* This isn't possible to check using the framework functions */
     if (SIZE_MAX < INT_MAX) {
         TEST_error("int must not be wider than size_t");
         return 0;
     }
+
+    /* SIZE_MAX is always greater than 2*INT_MAX */
+    if (SIZE_MAX - INT_MAX <= INT_MAX) {
+        TEST_error("SIZE_MAX must exceed 2*INT_MAX");
+        return 0;
+    }
+
     return 1;
 }
 
 static int test_sanity_memcmp(void)
 {
-    return CRYPTO_memcmp("ab","cd",2);
+    return CRYPTO_memcmp("ab", "cd", 2);
 }
 
 int setup_tests(void)

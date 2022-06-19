@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -49,23 +50,38 @@ inline size_t hash_value(StackCheckKind kind) {
   return static_cast<size_t>(kind);
 }
 
-// The CallFeedbackRelation states whether the target feedback stored with a
-// JSCall is related to the call. If, during lowering, a JSCall (e.g. of a
-// higher order function) is replaced by a JSCall with another target, the
-// feedback has to be kept but is now unrelated.
-enum class CallFeedbackRelation { kRelated, kUnrelated };
+// The CallFeedbackRelation provides the meaning of the call feedback for a
+// TurboFan JSCall operator
+// - kReceiver: The call target was Function.prototype.apply and its receiver
+//   was recorded as the feedback value.
+// - kTarget: The call target was recorded as the feedback value.
+// - kUnrelated: The feedback is no longer related to the call. If, during
+//   lowering, a JSCall (e.g. of a higher order function) is replaced by a
+//   JSCall with another target, the feedback has to be kept but is now
+//   unrelated.
+enum class CallFeedbackRelation { kReceiver, kTarget, kUnrelated };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 CallFeedbackRelation call_feedback_relation) {
   switch (call_feedback_relation) {
-    case CallFeedbackRelation::kRelated:
-      return os << "CallFeedbackRelation::kRelated";
+    case CallFeedbackRelation::kReceiver:
+      return os << "CallFeedbackRelation::kReceiver";
+    case CallFeedbackRelation::kTarget:
+      return os << "CallFeedbackRelation::kTarget";
     case CallFeedbackRelation::kUnrelated:
       return os << "CallFeedbackRelation::kUnrelated";
   }
   UNREACHABLE();
   return os;
 }
+
+// Maximum depth and total number of elements and properties for literal
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
+const int kMaxFastLiteralDepth = 3;
+const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
 }  // namespace compiler
 }  // namespace internal
@@ -76,7 +92,8 @@ inline std::ostream& operator<<(std::ostream& os,
 // to add support for IA32, because it has a totally different approach
 // (using FP stack). As support is added to more platforms, please make sure
 // to list them here in order to enable tests of this functionality.
-#if defined(V8_TARGET_ARCH_X64)
+// Make sure to sync the following with src/d8/d8-test.cc.
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 

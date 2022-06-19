@@ -174,13 +174,13 @@ function getWriteNode(id) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow assigning to imported bindings",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-import-assign"
         },

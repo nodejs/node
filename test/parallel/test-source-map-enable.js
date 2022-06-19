@@ -250,7 +250,7 @@ function nextdir() {
     'istanbul-throw.js',
     coverageDirectory
   );
-  if (common.isWindows) {
+  if (common.checkoutEOL === '\r\n') {
     assert.deepStrictEqual(sourceMap.lineLengths, [1086, 31, 185, 649, 0]);
   } else {
     assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
@@ -305,6 +305,58 @@ function nextdir() {
   assert.match(output.stderr.toString(), /throw-on-require\.ts:9:9/);
   // Source map should have been serialized.
   assert.ok(sourceMap);
+}
+
+// Does not throw TypeError when primitive value is thrown.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-string.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'throw-string.js',
+    coverageDirectory
+  );
+  // Original stack trace.
+  assert.match(output.stderr.toString(), /goodbye/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
+// Does not throw TypeError when exception occurs as result of missing named
+// export.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/esm-export-missing.mjs'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'esm-export-missing.mjs',
+    coverageDirectory
+  );
+  // Module loader error displayed.
+  assert.match(output.stderr.toString(),
+               /does not provide an export named 'Something'/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
+// Does not include null for async/await with esm
+// Refs: https://github.com/nodejs/node/issues/42417
+{
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-async.mjs'),
+  ]);
+  // Error in original context of source content:
+  assert.match(
+    output.stderr.toString(),
+    /throw new Error\(message\)\r?\n.*\^/
+  );
+  // Rewritten stack trace:
+  assert.match(output.stderr.toString(), /at Throw \([^)]+throw-async\.ts:4:9\)/);
 }
 
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {

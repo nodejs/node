@@ -6,7 +6,11 @@
 struct Arguments {
   const frame: FrameWithArguments;
   const base: RawPtr;
+  // length is the number of arguments without the receiver.
   const length: intptr;
+  // actual_count is the actual number of arguments on the stack (including the
+  // receiver).
+  const actual_count: intptr;
 }
 
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
@@ -35,7 +39,7 @@ struct FrameWithArgumentsInfo {
 // This macro is should only be used in builtins that can be called from
 // interpreted or JITted code, not from CSA/Torque builtins (the number of
 // returned formal parameters would be wrong).
-// It is difficult to actually check/assert this, since interpreted or JITted
+// It is difficult to actually check/dcheck this, since interpreted or JITted
 // frames are StandardFrames, but so are hand-written builtins. Doing that
 // more refined check would be prohibitively expensive.
 macro GetFrameWithArgumentsInfo(implicit context: Context)():
@@ -45,8 +49,8 @@ macro GetFrameWithArgumentsInfo(implicit context: Context)():
   const f: JSFunction = frame.function;
 
   const shared: SharedFunctionInfo = f.shared_function_info;
-  const formalParameterCount: bint =
-      Convert<bint>(Convert<int32>(shared.formal_parameter_count));
+  const formalParameterCount: bint = Convert<bint>(Convert<int32>(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared)));
   // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
   // FrameWithArgumentsInfo can be simplified, since the frame field already
   // contains the argument count.

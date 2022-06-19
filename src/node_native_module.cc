@@ -1,4 +1,6 @@
 #include "node_native_module.h"
+#include "debug_utils-inl.h"
+#include "node_internals.h"
 #include "util-inl.h"
 
 namespace node {
@@ -69,6 +71,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
   std::vector<std::string> prefixes = {
 #if !HAVE_OPENSSL
     "internal/crypto/",
+    "internal/debugger/",
 #endif  // !HAVE_OPENSSL
 
     "internal/bootstrap/",
@@ -88,7 +91,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
       "trace_events",
-#endif  // !NODE_USE_V8_PLATFORM
+#endif  // !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
 
 #if !HAVE_OPENSSL
       "crypto",
@@ -98,6 +101,9 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "tls",
       "_tls_common",
       "_tls_wrap",
+      "internal/tls/secure-pair",
+      "internal/tls/parse-cert-string",
+      "internal/tls/secure-context",
       "internal/http2/core",
       "internal/http2/compat",
       "internal/policy/manifest",
@@ -202,41 +208,31 @@ static std::string OnDiskFileName(const char* id) {
 MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
                                                                const char* id) {
 #ifdef NODE_BUILTIN_MODULES_PATH
+  if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+#endif  // NODE_BUILTIN_MODULES_PATH
+    const auto source_it = source_.find(id);
+    if (UNLIKELY(source_it == source_.end())) {
+      fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
+      ABORT();
+    }
+    return source_it->second.ToStringChecked(isolate);
+#ifdef NODE_BUILTIN_MODULES_PATH
+  }
   std::string filename = OnDiskFileName(id);
 
-  uv_fs_t req;
-  uv_file file =
-      uv_fs_open(nullptr, &req, filename.c_str(), O_RDONLY, 0, nullptr);
-  CHECK_GE(req.result, 0);
-  uv_fs_req_cleanup(&req);
-
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
   std::string contents;
-  char buffer[4096];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  while (true) {
-    const int r =
-        uv_fs_read(nullptr, &req, file, &buf, 1, contents.length(), nullptr);
-    CHECK_GE(req.result, 0);
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    contents.append(buf.base, r);
+  int r = ReadFileSync(&contents, filename.c_str());
+  if (r != 0) {
+    const std::string buf = SPrintF("Cannot read local builtin. %s: %s \"%s\"",
+                                    uv_err_name(r),
+                                    uv_strerror(r),
+                                    filename);
+    Local<String> message = OneByteString(isolate, buf.c_str());
+    isolate->ThrowException(v8::Exception::Error(message));
+    return MaybeLocal<String>();
   }
-
   return String::NewFromUtf8(
       isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
-#else
-  const auto source_it = source_.find(id);
-  CHECK_NE(source_it, source_.end());
-  return source_it->second.ToStringChecked(isolate);
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
 
@@ -282,6 +278,11 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
                 : ScriptCompiler::kEagerCompile;
   ScriptCompiler::Source script_source(source, origin, cached_data);
 
+  per_process::Debug(DebugCategory::CODE_CACHE,
+                     "Compiling %s %s code cache\n",
+                     id,
+                     has_cache ? "with" : "without");
+
   MaybeLocal<Function> maybe_fun =
       ScriptCompiler::CompileFunctionInContext(context,
                                                &script_source,
@@ -309,6 +310,19 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   *result = (has_cache && !script_source.GetCachedData()->rejected)
                 ? Result::kWithCache
                 : Result::kWithoutCache;
+
+  if (has_cache) {
+    per_process::Debug(DebugCategory::CODE_CACHE,
+                       "Code cache of %s (%s) %s\n",
+                       id,
+                       script_source.GetCachedData()->buffer_policy ==
+                               ScriptCompiler::CachedData::BufferNotOwned
+                           ? "BufferNotOwned"
+                           : "BufferOwned",
+                       script_source.GetCachedData()->rejected ? "is rejected"
+                                                               : "is accepted");
+  }
+
   // Generate new cache for next compilation
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data(
       ScriptCompiler::CreateCodeCacheForFunction(fun));
@@ -316,10 +330,14 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
 
   {
     Mutex::ScopedLock lock(code_cache_mutex_);
-    // The old entry should've been erased by now so we can just emplace.
-    // If another thread did the same thing in the meantime, that should not
-    // be an issue.
-    code_cache_.emplace(id, std::move(new_cached_data));
+    const auto it = code_cache_.find(id);
+    // TODO(joyeecheung): it's safer for each thread to have its own
+    // copy of the code cache map.
+    if (it == code_cache_.end()) {
+      code_cache_.emplace(id, std::move(new_cached_data));
+    } else {
+      it->second.reset(new_cached_data.release());
+    }
   }
 
   return scope.Escape(fun);

@@ -69,7 +69,7 @@ class V8_BASE_EXPORT ConditionVariable final {
 #if V8_OS_POSIX
   using NativeHandle = pthread_cond_t;
 #elif V8_OS_WIN
-  using NativeHandle = CONDITION_VARIABLE;
+  using NativeHandle = V8_CONDITION_VARIABLE;
 #elif V8_OS_STARBOARD
   using NativeHandle = SbConditionVariable;
 #endif

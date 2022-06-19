@@ -8,9 +8,6 @@
   "Blob-slice.any.js": {
     "skip": "Depends on File API"
   },
-  "Blob-stream.any.js": {
-    "skip": "Depends on Web Streams API"
-  },
   "Blob-in-worker.worker.js": {
     "skip": "Depends on Web Workers API"
   }

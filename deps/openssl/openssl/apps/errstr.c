@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -22,8 +22,12 @@ typedef enum OPTION_choice {
 
 const OPTIONS errstr_options[] = {
     {OPT_HELP_STR, 1, '-', "Usage: %s [options] errnum...\n"},
-    {OPT_HELP_STR, 1, '-', "  errnum  Error number\n"},
+
+    OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
+
+    OPT_PARAMETERS(),
+    {"errnum", 0, 0, "Error number(s) to decode"},
     {NULL}
 };
 
@@ -48,16 +52,19 @@ int errstr_main(int argc, char **argv)
         }
     }
 
+    /*
+     * We're not really an SSL application so this won't auto-init, but
+     * we're still interested in SSL error strings
+     */
+    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS
+                    | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+
+    /* All remaining arg are error code. */
     ret = 0;
-    for (argv = opt_rest(); *argv; argv++) {
+    for (argv = opt_rest(); *argv != NULL; argv++) {
         if (sscanf(*argv, "%lx", &l) == 0) {
             ret++;
         } else {
-            /* We're not really an SSL application so this won't auto-init, but
-             * we're still interested in SSL error strings
-             */
-            OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS
-                             | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
             ERR_error_string_n(l, buf, sizeof(buf));
             BIO_printf(bio_out, "%s\n", buf);
         }

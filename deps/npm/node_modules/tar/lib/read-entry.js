@@ -1,5 +1,6 @@
 'use strict'
 const MiniPass = require('minipass')
+const normPath = require('./normalize-windows-path.js')
 
 const SLURP = Symbol('slurp')
 module.exports = class ReadEntry extends MiniPass {
@@ -46,7 +47,7 @@ module.exports = class ReadEntry extends MiniPass {
         this.ignore = true
     }
 
-    this.path = header.path
+    this.path = normPath(header.path)
     this.mode = header.mode
     if (this.mode)
       this.mode = this.mode & 0o7777
@@ -58,7 +59,7 @@ module.exports = class ReadEntry extends MiniPass {
     this.mtime = header.mtime
     this.atime = header.atime
     this.ctime = header.ctime
-    this.linkpath = header.linkpath
+    this.linkpath = normPath(header.linkpath)
     this.uname = header.uname
     this.gname = header.gname
 
@@ -93,7 +94,7 @@ module.exports = class ReadEntry extends MiniPass {
       // a global extended header, because that's weird.
       if (ex[k] !== null && ex[k] !== undefined &&
           !(global && k === 'path'))
-        this[k] = ex[k]
+        this[k] = k === 'path' || k === 'linkpath' ? normPath(ex[k]) : ex[k]
     }
   }
 }

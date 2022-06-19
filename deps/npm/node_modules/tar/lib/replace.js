@@ -170,7 +170,8 @@ const replace = (opt, files, cb) => {
 
       fs.fstat(fd, (er, st) => {
         if (er)
-          return reject(er)
+          return fs.close(fd, () => reject(er))
+
         getPos(fd, st.size, (er, position) => {
           if (er)
             return reject(er)

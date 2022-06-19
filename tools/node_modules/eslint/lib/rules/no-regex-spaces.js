@@ -33,13 +33,13 @@ function isString(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow multiple spaces in regular expressions",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-regex-spaces"
         },

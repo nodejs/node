@@ -24,6 +24,7 @@ InstructionSequenceTest::InstructionSequenceTest()
     : sequence_(nullptr),
       num_general_registers_(Register::kNumRegisters),
       num_double_registers_(DoubleRegister::kNumRegisters),
+      num_simd128_registers_(Simd128Register::kNumRegisters),
       instruction_blocks_(zone()),
       current_block_(nullptr),
       block_returns_(false) {}
@@ -69,11 +70,10 @@ int InstructionSequenceTest::GetAllocatableCode(int index,
 const RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
-        num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, kAllocatableCodes.data(),
-        kAllocatableCodes.data(),
-        kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
-                          : RegisterConfiguration::COMBINE));
+        kFPAliasing, num_general_registers_, num_double_registers_,
+        num_simd128_registers_, num_general_registers_, num_double_registers_,
+        num_simd128_registers_, kAllocatableCodes.data(),
+        kAllocatableCodes.data(), kAllocatableCodes.data()));
   }
   return config_.get();
 }
@@ -344,7 +344,7 @@ InstructionOperand* InstructionSequenceTest::ConvertInputs(
 InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
   if (op.type_ == kImmediate) {
     CHECK_EQ(op.vreg_.value_, kNoValue);
-    return ImmediateOperand(ImmediateOperand::INLINE, op.value_);
+    return ImmediateOperand(ImmediateOperand::INLINE_INT32, op.value_);
   }
   CHECK_NE(op.vreg_.value_, kNoValue);
   switch (op.type_) {
@@ -394,8 +394,8 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
   CHECK_EQ(op.vreg_.value_, kNoValue);
   op.vreg_ = vreg;
   switch (op.type_) {
-    case kSameAsFirst:
-      return Unallocated(op, UnallocatedOperand::SAME_AS_FIRST_INPUT);
+    case kSameAsInput:
+      return Unallocated(op, UnallocatedOperand::SAME_AS_INPUT);
     case kRegister:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_REGISTER);
     case kFixedSlot:

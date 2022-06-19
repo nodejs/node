@@ -184,7 +184,7 @@ StringSearch::clone() const {
 // operator overloading ---------------------------------------------
 StringSearch & StringSearch::operator=(const StringSearch &that)
 {
-    if ((*this) != that) {
+    if (this != &that) {
         UErrorCode status = U_ZERO_ERROR;
         m_text_          = that.m_text_;
         m_breakiterator_ = that.m_breakiterator_;
@@ -205,17 +205,17 @@ StringSearch & StringSearch::operator=(const StringSearch &that)
     return *this;
 }
 
-UBool StringSearch::operator==(const SearchIterator &that) const
+bool StringSearch::operator==(const SearchIterator &that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (SearchIterator::operator ==(that)) {
         StringSearch &thatsrch = (StringSearch &)that;
         return (this->m_pattern_ == thatsrch.m_pattern_ &&
                 this->m_strsrch_->collator == thatsrch.m_strsrch_->collator);
     }
-    return FALSE;
+    return false;
 }
 
 // public get and set methods ----------------------------------------
@@ -335,14 +335,14 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
                 // the flipping direction issue has already been handled
                 // in next()
                 // for boundary check purposes. this will ensure that the
-                // next match will not preceed the current offset
+                // next match will not precede the current offset
                 // note search->matchedIndex will always be set to something
                 // in the code
                 m_search_->matchedIndex = position - 1;
             }
 
             ucol_setOffset(m_strsrch_->textIter, position, &status);
-
+            
 #if 0
             for (;;) {
                 if (m_search_->isCanonicalMatch) {
@@ -380,22 +380,22 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
             // then we don't need to check the match boundaries here because
             // usearch_handleNextXXX will already have done it.
             if (m_search_->isCanonicalMatch) {
-		// *could* actually use exact here 'cause no extra accents allowed...
-		usearch_handleNextCanonical(m_strsrch_, &status);
+            	// *could* actually use exact here 'cause no extra accents allowed...
+            	usearch_handleNextCanonical(m_strsrch_, &status);
             } else {
-		usearch_handleNextExact(m_strsrch_, &status);
+            	usearch_handleNextExact(m_strsrch_, &status);
             }
-
+            
             if (U_FAILURE(status)) {
-		return USEARCH_DONE;
+            	return USEARCH_DONE;
             }
-
+            
             if (m_search_->matchedIndex == USEARCH_DONE) {
-		ucol_setOffset(m_strsrch_->textIter, m_search_->textLength, &status);
+            	ucol_setOffset(m_strsrch_->textIter, m_search_->textLength, &status);
             } else {
-		ucol_setOffset(m_strsrch_->textIter, m_search_->matchedIndex, &status);
+            	ucol_setOffset(m_strsrch_->textIter, m_search_->matchedIndex, &status);
             }
-
+            
             return m_search_->matchedIndex;
 #endif
         }
@@ -431,7 +431,7 @@ int32_t StringSearch::handlePrev(int32_t position, UErrorCode &status)
                 setMatchNotFound();
                 return USEARCH_DONE;
             }
-
+            
             for (;;) {
                 if (m_search_->isCanonicalMatch) {
                     // can't use exact here since extra accents are allowed.
@@ -457,18 +457,18 @@ int32_t StringSearch::handlePrev(int32_t position, UErrorCode &status)
             }
 #else
             ucol_setOffset(m_strsrch_->textIter, position, &status);
-
+            
             if (m_search_->isCanonicalMatch) {
-		// *could* use exact match here since extra accents *not* allowed!
-		usearch_handlePreviousCanonical(m_strsrch_, &status);
+            	// *could* use exact match here since extra accents *not* allowed!
+            	usearch_handlePreviousCanonical(m_strsrch_, &status);
             } else {
-		usearch_handlePreviousExact(m_strsrch_, &status);
+            	usearch_handlePreviousExact(m_strsrch_, &status);
             }
-
+            
             if (U_FAILURE(status)) {
-		return USEARCH_DONE;
+            	return USEARCH_DONE;
             }
-
+            
             return m_search_->matchedIndex;
 #endif
         }

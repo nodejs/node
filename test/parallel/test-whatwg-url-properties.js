@@ -68,7 +68,7 @@ function testMethod(target, name, methodName = stringifyName(name)) {
   assert.strictEqual(typeof value, 'function');
   assert.strictEqual(value.name, methodName);
   assert.strictEqual(
-    Object.prototype.hasOwnProperty.call(value, 'prototype'),
+    Object.hasOwn(value, 'prototype'),
     false,
   );
 }
@@ -83,7 +83,7 @@ function testAccessor(target, name, readonly = false) {
   assert.strictEqual(typeof get, 'function');
   assert.strictEqual(get.name, `get ${methodName}`);
   assert.strictEqual(
-    Object.prototype.hasOwnProperty.call(get, 'prototype'),
+    Object.hasOwn(get, 'prototype'),
     false,
   );
 
@@ -93,7 +93,7 @@ function testAccessor(target, name, readonly = false) {
     assert.strictEqual(typeof set, 'function');
     assert.strictEqual(set.name, `set ${methodName}`);
     assert.strictEqual(
-      Object.prototype.hasOwnProperty.call(set, 'prototype'),
+      Object.hasOwn(set, 'prototype'),
       false,
     );
   }

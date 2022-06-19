@@ -28,10 +28,10 @@
 #ifndef GAY_PRECISION_H_
 #define GAY_PRECISION_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 struct PrecomputedPrecision {
   double v;
@@ -44,7 +44,7 @@ struct PrecomputedPrecision {
 // Gay's dtoa in mode "precision".
 Vector<const PrecomputedPrecision> PrecomputedPrecisionRepresentations();
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
 #endif  // GAY_PRECISION_H_

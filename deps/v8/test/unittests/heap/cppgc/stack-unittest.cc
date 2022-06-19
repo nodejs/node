@@ -24,12 +24,9 @@ using heap::base::StackVisitor;
 namespace {
 
 class GCStackTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    stack_.reset(new Stack(v8::base::Stack::GetStackStart()));
-  }
-
-  void TearDown() override { stack_.reset(); }
+ public:
+  GCStackTest()
+      : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())) {}
 
   Stack* GetStack() const { return stack_.get(); }
 
@@ -39,10 +36,12 @@ class GCStackTest : public ::testing::Test {
 
 }  // namespace
 
+#if !V8_OS_FUCHSIA
 TEST_F(GCStackTest, IsOnStackForStackValue) {
   void* dummy;
   EXPECT_TRUE(GetStack()->IsOnStack(&dummy));
 }
+#endif  // !V8_OS_FUCHSIA
 
 TEST_F(GCStackTest, IsOnStackForHeapValue) {
   auto dummy = std::make_unique<int>();
@@ -109,7 +108,7 @@ namespace {
 // Prevent inlining as that would allow the compiler to prove that the parameter
 // must not actually be materialized.
 //
-// Parameter positiosn are explicit to test various calling conventions.
+// Parameter positions are explicit to test various calling conventions.
 V8_NOINLINE void* RecursivelyPassOnParameterImpl(void* p1, void* p2, void* p3,
                                                  void* p4, void* p5, void* p6,
                                                  void* p7, void* p8,
@@ -272,8 +271,32 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
 }
 #endif  // !_MSC_VER || __clang__
 
-// The following test uses inline assembly and has been checked to work on clang
-// to verify that the stack-scanning trampoline pushes callee-saved registers.
+namespace {
+// We manually call into this function from inline assembly. Therefore we need
+// to make sure that:
+// 1) there is no .plt indirection (i.e. visibility is hidden);
+// 2) stack is realigned in the function prologue.
+extern "C" V8_NOINLINE
+#if defined(__clang__)
+    __attribute__((used))
+#if !defined(V8_OS_WIN)
+    __attribute__((visibility("hidden")))
+#endif  // !defined(V8_OS_WIN)
+#ifdef __has_attribute
+#if __has_attribute(force_align_arg_pointer)
+    __attribute__((force_align_arg_pointer))
+#endif  // __has_attribute(force_align_arg_pointer)
+#endif  //  __has_attribute
+#endif  // defined(__clang__)
+    void
+    IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
+  stack->IteratePointers(visitor);
+}
+}  // namespace
+
+// The following tests use inline assembly and have been checked to work on
+// clang to verify that the stack-scanning trampoline pushes callee-saved
+// registers.
 //
 // The test uses a macro loop as asm() can only be passed string literals.
 #ifdef __clang__
@@ -322,26 +345,116 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto* local_stack = GetStack();
   auto* local_scanner = scanner.get();
 
+#define MOVE_TO_REG_AND_CALL_IMPL(needle_reg, arg1, arg2)           \
+  asm volatile("mov %0, %%" needle_reg "\n mov %1, %%" arg1         \
+               "\n mov %2, %%" arg2                                 \
+               "\n call %P3"                                        \
+               "\n mov $0, %%" needle_reg                           \
+               :                                                    \
+               : "r"(local_scanner->needle()), "r"(local_stack),    \
+                 "r"(local_scanner), "i"(IteratePointersNoMangling) \
+               : "memory", needle_reg, arg1, arg2, "cc");
+
+#ifdef V8_OS_WIN
+#define MOVE_TO_REG_AND_CALL(reg) MOVE_TO_REG_AND_CALL_IMPL(reg, "rcx", "rdx")
+#else  // !V8_OS_WIN
+#define MOVE_TO_REG_AND_CALL(reg) MOVE_TO_REG_AND_CALL_IMPL(reg, "rdi", "rsi")
+#endif  // V8_OS_WIN
+
 // Moves |local_scanner->needle()| into a callee-saved register, leaving the
 // callee-saved register as the only register referencing the needle.
 // (Ignoring implementation-dependent dirty registers/stack.)
-#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                \
-  local_scanner->Reset();                                                \
-  /* This moves the temporary into the calee-saved register. */          \
-  asm("mov %0, %%" reg : : "r"(local_scanner->needle()) : reg);          \
-  /* Register is unprotected from here till the actual invocation. */    \
-  local_stack->IteratePointers(local_scanner);                           \
-  EXPECT_TRUE(local_scanner->found())                                    \
-      << "pointer in callee-saved register not found. register: " << reg \
-      << std::endl;                                                      \
-  /* Clear out the register again */                                     \
-  asm("mov $0, %%" reg : : : reg);
+#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                     \
+  local_scanner->Reset();                                                     \
+  /* Wrap the inline assembly in a lambda to rely on the compiler for saving  \
+  caller-saved registers. */                                                  \
+  [local_stack, local_scanner]() V8_NOINLINE { MOVE_TO_REG_AND_CALL(reg) }(); \
+  EXPECT_TRUE(local_scanner->found())                                         \
+      << "pointer in callee-saved register not found. register: " << reg      \
+      << std::endl;
 
   FOR_ALL_CALLEE_SAVED_REGS(KEEP_ALIVE_FROM_CALLEE_SAVED)
+#undef MOVE_TO_REG_AND_CALL
+#undef MOVE_TO_REG_AND_CALL_IMPL
 #undef KEEP_ALIVE_FROM_CALLEE_SAVED
 #undef FOR_ALL_CALLEE_SAVED_REGS
 }
 #endif  // FOR_ALL_CALLEE_SAVED_REGS
+
+#if defined(__clang__) && defined(V8_TARGET_ARCH_X64) && defined(V8_OS_WIN)
+
+#define FOR_ALL_XMM_CALLEE_SAVED_REGS(V) \
+  V("xmm6")                              \
+  V("xmm7")                              \
+  V("xmm8")                              \
+  V("xmm9")                              \
+  V("xmm10")                             \
+  V("xmm11")                             \
+  V("xmm12")                             \
+  V("xmm13")                             \
+  V("xmm14")                             \
+  V("xmm15")
+
+TEST_F(GCStackTest, IteratePointersFindsCalleeSavedXMMRegisters) {
+  auto scanner = std::make_unique<StackScanner>();
+
+  // No check that the needle is initially not found as on some platforms it
+  // may be part of  temporaries after setting it up through StackScanner.
+
+// First, clear all callee-saved xmm registers.
+#define CLEAR_REGISTER(reg) asm("pxor %%" reg ", %%" reg : : : reg);
+
+  FOR_ALL_XMM_CALLEE_SAVED_REGS(CLEAR_REGISTER)
+#undef CLEAR_REGISTER
+
+  // Keep local raw pointers to keep instruction sequences small below.
+  auto* local_stack = GetStack();
+  auto* local_scanner = scanner.get();
+
+// Moves |local_scanner->needle()| into a callee-saved register, leaving the
+// callee-saved register as the only register referencing the needle.
+// (Ignoring implementation-dependent dirty registers/stack.)
+#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                     \
+  local_scanner->Reset();                                                     \
+  [local_stack, local_scanner]() V8_NOINLINE { MOVE_TO_REG_AND_CALL(reg) }(); \
+  EXPECT_TRUE(local_scanner->found())                                         \
+      << "pointer in callee-saved xmm register not found. register: " << reg  \
+      << std::endl;
+
+  // First, test the pointer in the low quadword.
+#define MOVE_TO_REG_AND_CALL(reg)                                   \
+  asm volatile("mov %0, %%rax \n movq %%rax, %%" reg                \
+               "\n mov %1, %%rcx \n mov %2, %%rdx"                  \
+               "\n call %P3"                                        \
+               "\n pxor %%" reg ", %%" reg                          \
+               :                                                    \
+               : "r"(local_scanner->needle()), "r"(local_stack),    \
+                 "r"(local_scanner), "i"(IteratePointersNoMangling) \
+               : "memory", "rax", reg, "rcx", "rdx", "cc");
+
+  FOR_ALL_XMM_CALLEE_SAVED_REGS(KEEP_ALIVE_FROM_CALLEE_SAVED)
+
+#undef MOVE_TO_REG_AND_CALL
+  // Then, test the pointer in the upper quadword.
+#define MOVE_TO_REG_AND_CALL(reg)                                   \
+  asm volatile("mov %0, %%rax \n movq %%rax, %%" reg                \
+               "\n pshufd $0b01001110, %%" reg ", %%" reg           \
+               "\n mov %1, %%rcx \n mov %2, %%rdx"                  \
+               "\n call %P3"                                        \
+               "\n pxor %%" reg ", %%" reg                          \
+               :                                                    \
+               : "r"(local_scanner->needle()), "r"(local_stack),    \
+                 "r"(local_scanner), "i"(IteratePointersNoMangling) \
+               : "memory", "rax", reg, "rcx", "rdx", "cc");
+
+  FOR_ALL_XMM_CALLEE_SAVED_REGS(KEEP_ALIVE_FROM_CALLEE_SAVED)
+#undef MOVE_TO_REG_AND_CALL
+#undef KEEP_ALIVE_FROM_CALLEE_SAVED
+#undef FOR_ALL_XMM_CALLEE_SAVED_REGS
+}
+
+#endif  // defined(__clang__) && defined(V8_TARGET_ARCH_X64) &&
+        // defined(V8_OS_WIN)
 
 #if V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 class CheckStackAlignmentVisitor final : public StackVisitor {

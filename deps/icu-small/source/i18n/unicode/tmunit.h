@@ -73,7 +73,7 @@ public:
      * Override clone.
      * @stable ICU 4.2
      */
-    virtual TimeUnit* clone() const;
+    virtual TimeUnit* clone() const override;
 
     /**
      * Copy operator.
@@ -95,7 +95,7 @@ public:
      * different class IDs.
      * @stable ICU 4.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Returns the class ID for this class. This is used to compare to

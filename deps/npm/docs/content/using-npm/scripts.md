@@ -54,7 +54,8 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
  the prepare script will be run, before the package is packaged and
  installed.
 
-* As of `npm@7` these scripts run in the background
+* As of `npm@7` these scripts run in the background.
+  To see the output, run with: `--foreground-scripts`.
 
 **prepublish** (DEPRECATED)
 * Does not run during `npm publish`, but does run during `npm ci`
@@ -118,11 +119,6 @@ The advantage of doing these things at `prepublish` time is that they can be don
 
 * `prepare`
 
-#### [`npm env`](/commands/npm-env)
-
-* `env` (You can override the default behavior of `npm env` by defining
-    a custom `env` entry in your `scripts` object)
-
 #### [`npm install`](/commands/npm-install)
 
 These also run when you run `npm install -g <pkg-name>`
@@ -179,7 +175,7 @@ If there is a `restart` script defined, these events are run, otherwise
 * `restart`
 * `postrestart`
 
-#### [`npm run <user defined>`](/commands/npm-run)
+#### [`npm run <user defined>`](/commands/npm-run-script)
 
 * `pre<user-defined>`
 * `<user-defined>`
@@ -207,6 +203,25 @@ will default the `start` command to `node server.js`.  `prestart` and
 * `test`
 * `posttest`
 
+#### [`npm version`](/commands/npm-version)
+
+* `preversion`
+* `version`
+* `postversion`
+
+#### A Note on a lack of [`npm uninstall`](/commands/npm-uninstall) scripts
+
+While npm v6 had `uninstall` lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful.
+
+Reasons for a package removal include:
+
+* a user directly uninstalled this package
+* a user uninstalled a dependant package and so this dependency is being uninstalled
+* a user uninstalled a dependant package but another package also depends on this version
+* this version has been merged as a duplicate with another version
+* etc.
+
+Due to the lack of necessary context, `uninstall` lifecycle scripts are not implemented and will not function.
 
 ### User
 
@@ -250,41 +265,7 @@ package.json file, then your package scripts would have the
 in your code with `process.env.npm_package_name` and
 `process.env.npm_package_version`, and so on for other fields.
 
-#### configuration
-
-Configuration parameters are put in the environment with the
-`npm_config_` prefix. For instance, you can view the effective `root`
-config by checking the `npm_config_root` environment variable.
-
-#### Special: package.json "config" object
-
-The package.json "config" keys are overwritten in the environment if
-there is a config param of `<name>[@<version>]:<key>`.  For example,
-if the package.json has this:
-
-```json
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server.js"
-  }
-}
-```
-
-and the server.js is this:
-
-```javascript
-http.createServer(...).listen(process.env.npm_package_config_port)
-```
-
-then the user could change the behavior by doing:
-
-```bash
-  npm config set foo:port 80
-  ```
+See [`package.json`](/configuring-npm/package-json) for more on package configs.
 
 #### current lifecycle event
 
@@ -309,7 +290,7 @@ For example, if your package.json contains this:
 {
   "scripts" : {
     "install" : "scripts/install.js",
-    "postinstall" : "scripts/postinstall.js",
+    "postinstall" : "scripts/install.js",
     "uninstall" : "scripts/uninstall.js"
   }
 }
@@ -342,22 +323,9 @@ Scripts are run by passing the line as a script argument to `sh`.
 If the script exits with a code other than 0, then this will abort the
 process.
 
-Note that these script files don't have to be nodejs or even
-javascript programs. They just have to be some kind of executable
+Note that these script files don't have to be Node.js or even
+JavaScript programs. They just have to be some kind of executable
 file.
-
-### Hook Scripts
-
-If you want to run a specific script at a specific lifecycle event for
-ALL packages, then you can use a hook script.
-
-Place an executable file at `node_modules/.hooks/{eventname}`, and
-it'll get run for all packages when they are going through that point
-in the package lifecycle for any packages installed in that root.
-
-Hook scripts are run exactly the same way as package.json scripts.
-That is, they are in a separate child process, with the env described
-above.
 
 ### Best Practices
 
@@ -377,11 +345,16 @@ above.
 * Don't prefix your script commands with "sudo".  If root permissions
   are required for some reason, then it'll fail with that error, and
   the user will sudo the npm command in question.
-* Don't use `install`. Use a `.gyp` file for compilation, and `prepublish`
+* Don't use `install`. Use a `.gyp` file for compilation, and `prepare`
   for anything else. You should almost never have to explicitly set a
   preinstall or install script. If you are doing this, please consider if
   there is another option. The only valid use of `install` or `preinstall`
   scripts is for compilation which must be done on the target architecture.
+* Scripts are run from the root of the package folder, regardless of what the
+  current working directory is when `npm` is invoked. If you want your
+  script to use different behavior based on what subdirectory you're in, you
+  can use the `INIT_CWD` environment variable, which holds the full path you
+  were in when you ran `npm run`.
 
 ### See Also
 

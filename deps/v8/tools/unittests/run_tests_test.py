@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -17,9 +17,6 @@ with different test suite extensions and build configurations.
 # TODO(machenbach): Coverage data from multiprocessing doesn't work.
 # TODO(majeski): Add some tests for the fuzzers.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import collections
 import contextlib
 import json
@@ -30,7 +27,7 @@ import sys
 import tempfile
 import unittest
 
-from cStringIO import StringIO
+from io import StringIO
 
 TOOLS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DATA_ROOT = os.path.join(TOOLS_ROOT, 'unittests', 'testdata')
@@ -177,10 +174,23 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('sweet/bananas default: pass', result.stdout, result)
+      self.assertIn('sweet/bananas default: PASS', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
+      self.assertEqual(0, result.returncode, result)
+
+  def testPassHeavy(self):
+    """Test running with some tests marked heavy."""
+    with temp_base(baseroot='testroot3') as basedir:
+      result = run_tests(
+          basedir,
+          '--progress=verbose',
+          '--variants=nooptimization',
+          '-j2',
+          'sweet',
+      )
+      self.assertIn('7 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testShardedProc(self):
@@ -264,7 +274,9 @@ class SystemTest(unittest.TestCase):
     # We need lexicographic sorting here to avoid non-deterministic behaviour
     # The original sorting key is duration, but in our fake test we have
     # non-deterministic durations before we reset them to 1
-    json_output['slowest_tests'].sort(key= lambda x: str(x))
+    def sort_key(x):
+      return str(sorted(x.items()))
+    json_output['slowest_tests'].sort(key=sort_key)
 
     with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
       expected_test_results = json.load(f)
@@ -315,8 +327,10 @@ class SystemTest(unittest.TestCase):
           'sweet',
           infra_staging=False,
       )
-      self.assertIn('sweet/bananaflakes default: pass', result.stdout, result)
-      self.assertIn('All tests succeeded', result.stdout, result)
+      self.assertIn('sweet/bananaflakes default: FAIL PASS', result.stdout, result)
+      self.assertIn('=== sweet/bananaflakes (flaky) ===', result.stdout, result)
+      self.assertIn('1 tests failed', result.stdout, result)
+      self.assertIn('1 tests were flaky', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
       self.check_cleaned_json_output(
@@ -334,7 +348,10 @@ class SystemTest(unittest.TestCase):
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
           v8_enable_verify_csa=False, v8_enable_lite_mode=False,
-          v8_enable_pointer_compression=False)
+          v8_enable_pointer_compression=False,
+          v8_enable_pointer_compression_shared_cage=False,
+          v8_enable_shared_ro_heap=False,
+          v8_enable_sandbox=False)
       result = run_tests(
           basedir,
           '--progress=verbose',
@@ -617,7 +634,7 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('sweet/mangoes default: pass', result.stdout, result)
+      self.assertIn('sweet/mangoes default: PASS', result.stdout, result)
       self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
       self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-eh --experimental-wasm-reftypes --allow-natives-syntax
+// Flags: --experimental-wasm-eh --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 // Test the encoding of a thrown exception with a null-ref value.
 (function TestThrowRefNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_null", kSig_v_v)
       .addBody([
-        kExprRefNull, kWasmExternRef,
+        kExprRefNull, kExternRefCode,
         kExprThrow, except,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -26,14 +26,14 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowCatchRefNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_catch_null", kSig_i_i)
       .addBody([
         kExprTry, kWasmI32,
           kExprLocalGet, 0,
           kExprI32Eqz,
           kExprIf, kWasmI32,
-            kExprRefNull, kWasmExternRef,
+            kExprRefNull, kExternRefCode,
             kExprThrow, except,
           kExprElse,
             kExprI32Const, 42,
@@ -57,7 +57,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowRefParam() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_param", kSig_v_r)
       .addBody([
         kExprLocalGet, 0,
@@ -76,10 +76,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowCatchRefParam() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_catch_param", kSig_r_r)
       .addBody([
-        kExprTry, kWasmExternRef,
+        kExprTry, kExternRefCode,
           kExprLocalGet, 0,
           kExprThrow, except,
         kExprCatch, except,

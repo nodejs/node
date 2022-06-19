@@ -15,20 +15,17 @@ NodePlugin.RULES_DIR = path.resolve(__dirname, 'tools', 'eslint-rules');
 const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
+  'eslint-plugin-jsdoc',
   'eslint-plugin-markdown',
   '@babel/eslint-parser',
-  '@babel/plugin-syntax-class-properties',
-  '@babel/plugin-syntax-top-level-await',
+  '@babel/plugin-syntax-import-assertions',
 ];
 Module._findPath = (request, paths, isMain) => {
   const r = ModuleFindPath(request, paths, isMain);
   if (!r && hacks.includes(request)) {
     try {
       return require.resolve(`./tools/node_modules/${request}`);
-    // Keep the variable in place to ensure that ESLint started by older Node.js
-    // versions work as expected.
-    // eslint-disable-next-line no-unused-vars
-    } catch (e) {
+    } catch {
       return require.resolve(
         `./tools/node_modules/eslint/node_modules/${request}`);
     }
@@ -38,13 +35,16 @@ Module._findPath = (request, paths, isMain) => {
 
 module.exports = {
   root: true,
-  plugins: ['markdown', 'node-core'],
+  env: {
+    es2022: true,
+  },
+  extends: ['eslint:recommended', 'plugin:jsdoc/recommended'],
+  plugins: ['jsdoc', 'markdown', 'node-core'],
   parser: '@babel/eslint-parser',
   parserOptions: {
     babelOptions: {
       plugins: [
-        Module._findPath('@babel/plugin-syntax-class-properties'),
-        Module._findPath('@babel/plugin-syntax-top-level-await'),
+        Module._findPath('@babel/plugin-syntax-import-assertions'),
       ],
     },
     requireConfigFile: false,
@@ -79,6 +79,37 @@ module.exports = {
         'doc/api/packages.md/*.js',
       ],
       parserOptions: { sourceType: 'module' },
+      rules: { 'no-restricted-globals': [
+        'error',
+        {
+          name: '__filename',
+          message: 'Use import.meta.url instead',
+        },
+        {
+          name: '__dirname',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'exports',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'module',
+          message: 'Not available in ESM',
+        },
+        {
+          name: 'require',
+          message: 'Use import instead',
+        },
+        {
+          name: 'Buffer',
+          message: 'Import Buffer instead of using the global'
+        },
+        {
+          name: 'process',
+          message: 'Import process instead of using the global'
+        },
+      ] },
     },
   ],
   rules: {
@@ -114,17 +145,14 @@ module.exports = {
     'comma-spacing': 'error',
     'comma-style': 'error',
     'computed-property-spacing': 'error',
-    'constructor-super': 'error',
     'default-case-last': 'error',
     'dot-location': ['error', 'property'],
     'dot-notation': 'error',
     'eol-last': 'error',
     'eqeqeq': ['error', 'smart'],
-    'for-direction': 'error',
     'func-call-spacing': 'error',
     'func-name-matching': 'error',
     'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
-    'getter-return': 'error',
     'indent': ['error', 2, {
       ArrayExpression: 'first',
       CallExpression: { arguments: 'first' },
@@ -138,54 +166,29 @@ module.exports = {
     'keyword-spacing': 'error',
     'linebreak-style': ['error', 'unix'],
     'max-len': ['error', {
-      code: 80,
+      code: 120,
       ignorePattern: '^// Flags:',
       ignoreRegExpLiterals: true,
+      ignoreTemplateLiterals: true,
       ignoreUrls: true,
       tabWidth: 2,
     }],
     'new-parens': 'error',
-    'no-async-promise-executor': 'error',
-    'no-class-assign': 'error',
     'no-confusing-arrow': 'error',
-    'no-const-assign': 'error',
+    'no-constant-condition': ['error', { checkLoops: false }],
     'no-constructor-return': 'error',
-    'no-control-regex': 'error',
-    'no-debugger': 'error',
-    'no-delete-var': 'error',
-    'no-dupe-args': 'error',
-    'no-dupe-class-members': 'error',
-    'no-dupe-keys': 'error',
-    'no-dupe-else-if': 'error',
-    'no-duplicate-case': 'error',
     'no-duplicate-imports': 'error',
     'no-else-return': ['error', { allowElseIf: true }],
-    'no-empty-character-class': 'error',
-    'no-ex-assign': 'error',
-    'no-extra-boolean-cast': 'error',
     'no-extra-parens': ['error', 'functions'],
-    'no-extra-semi': 'error',
-    'no-fallthrough': 'error',
-    'no-func-assign': 'error',
-    'no-global-assign': 'error',
-    'no-invalid-regexp': 'error',
-    'no-irregular-whitespace': 'error',
     'no-lonely-if': 'error',
-    'no-misleading-character-class': 'error',
     'no-mixed-requires': 'error',
-    'no-mixed-spaces-and-tabs': 'error',
     'no-multi-spaces': ['error', { ignoreEOLComments: true }],
     'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 0, maxBOF: 0 }],
     'no-new-require': 'error',
-    'no-new-symbol': 'error',
-    'no-nonoctal-decimal-escape': 'error',
-    'no-obj-calls': 'error',
-    'no-octal': 'error',
     'no-path-concat': 'error',
     'no-proto': 'error',
     'no-redeclare': ['error', { 'builtinGlobals': false }],
     'no-restricted-modules': ['error', 'sys'],
-    /* eslint-disable max-len */
     'no-restricted-properties': [
       'error',
       {
@@ -238,42 +241,28 @@ module.exports = {
         message: 'Use Number.isNaN() instead of the global isNaN() function.',
       },
     ],
-    /* eslint-enable max-len */
     'no-return-await': 'error',
-    'no-self-assign': 'error',
     'no-self-compare': 'error',
-    'no-setter-return': 'error',
-    'no-shadow-restricted-names': 'error',
     'no-tabs': 'error',
     'no-template-curly-in-string': 'error',
-    'no-this-before-super': 'error',
     'no-throw-literal': 'error',
     'no-trailing-spaces': 'error',
     'no-undef': ['error', { typeof: true }],
     'no-undef-init': 'error',
-    'no-unexpected-multiline': 'error',
-    'no-unreachable': 'error',
-    'no-unsafe-finally': 'error',
-    'no-unsafe-negation': 'error',
-    'no-unsafe-optional-chaining': 'error',
     'no-unused-expressions': ['error', { allowShortCircuit: true }],
-    'no-unused-labels': 'error',
     'no-unused-vars': ['error', { args: 'none', caughtErrors: 'all' }],
     'no-use-before-define': ['error', {
       classes: true,
       functions: false,
       variables: false,
     }],
-    'no-useless-backreference': 'error',
     'no-useless-call': 'error',
-    'no-useless-catch': 'error',
     'no-useless-concat': 'error',
     'no-useless-constructor': 'error',
-    'no-useless-escape': 'error',
     'no-useless-return': 'error',
+    'no-var': 'error',
     'no-void': 'error',
     'no-whitespace-before-property': 'error',
-    'no-with': 'error',
     'object-curly-newline': 'error',
     'object-curly-spacing': ['error', 'always'],
     'one-var': ['error', { initialized: 'never' }],
@@ -284,6 +273,7 @@ module.exports = {
       { blankLine: 'always', prev: 'function', next: 'function' },
     ],
     'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
+    'prefer-object-has-own': 'error',
     'quotes': ['error', 'single', { avoidEscape: true }],
     'quote-props': ['error', 'consistent'],
     'rest-spread-spacing': 'error',
@@ -306,31 +296,51 @@ module.exports = {
     'symbol-description': 'error',
     'template-curly-spacing': 'error',
     'unicode-bom': 'error',
-    'use-isnan': 'error',
     'valid-typeof': ['error', { requireStringLiterals: true }],
+
+    // ESLint recommended rules that we disable
+    'no-inner-declarations': 'off',
+
+    // JSDoc recommended rules that we disable
+    'jsdoc/require-jsdoc': 'off',
+    'jsdoc/require-param-description': 'off',
+    'jsdoc/newline-after-description': 'off',
+    'jsdoc/require-returns-description': 'off',
+    'jsdoc/valid-types': 'off',
+    'jsdoc/no-undefined-types': 'off',
+    'jsdoc/require-param': 'off',
+    'jsdoc/check-tag-names': 'off',
+    'jsdoc/require-returns': 'off',
+    'jsdoc/require-property-description': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
     'node-core/no-duplicate-requires': 'error',
   },
   globals: {
-    AbortController: 'readable',
-    AbortSignal: 'readable',
-    Atomics: 'readable',
-    BigInt: 'readable',
-    BigInt64Array: 'readable',
-    BigUint64Array: 'readable',
-    Event: 'readable',
-    EventTarget: 'readable',
-    MessageChannel: 'readable',
-    MessageEvent: 'readable',
-    MessagePort: 'readable',
-    TextEncoder: 'readable',
-    TextDecoder: 'readable',
-    queueMicrotask: 'readable',
-    globalThis: 'readable',
-    btoa: 'readable',
-    atob: 'readable',
-    performance: 'readable',
+    ByteLengthQueuingStrategy: 'readable',
+    CompressionStream: 'readable',
+    CountQueuingStrategy: 'readable',
+    Crypto: 'readable',
+    CryptoKey: 'readable',
+    DecompressionStream: 'readable',
+    fetch: 'readable',
+    FormData: 'readable',
+    ReadableStream: 'readable',
+    ReadableStreamDefaultReader: 'readable',
+    ReadableStreamBYOBReader: 'readable',
+    ReadableStreamBYOBRequest: 'readable',
+    ReadableByteStreamController: 'readable',
+    ReadableStreamDefaultController: 'readable',
+    Response: 'readable',
+    TextDecoderStream: 'readable',
+    TextEncoderStream: 'readable',
+    TransformStream: 'readable',
+    TransformStreamDefaultController: 'readable',
+    ShadowRealm: 'readable',
+    SubtleCrypto: 'readable',
+    WritableStream: 'readable',
+    WritableStreamDefaultWriter: 'readable',
+    WritableStreamDefaultController: 'readable',
   },
 };

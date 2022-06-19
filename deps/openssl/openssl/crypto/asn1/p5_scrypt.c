@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -10,10 +10,12 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
+#include <openssl/core_names.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/rand.h>
+#include "crypto/evp.h"
 
 #ifndef OPENSSL_NO_SCRYPT
 /* PKCS#5 scrypt password based encryption structures */
@@ -49,20 +51,18 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     PBE2PARAM *pbe2 = NULL;
 
     if (!cipher) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
         goto err;
     }
 
     if (EVP_PBE_scrypt(NULL, 0, NULL, 0, N, r, p, 0, NULL, 0) == 0) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT,
-                ASN1_R_INVALID_SCRYPT_PARAMETERS);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_INVALID_SCRYPT_PARAMETERS);
         goto err;
     }
 
-    alg_nid = EVP_CIPHER_type(cipher);
+    alg_nid = EVP_CIPHER_get_type(cipher);
     if (alg_nid == NID_undef) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT,
-                ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
         goto err;
     }
 
@@ -79,10 +79,10 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
         goto merr;
 
     /* Create random IV */
-    if (EVP_CIPHER_iv_length(cipher)) {
+    if (EVP_CIPHER_get_iv_length(cipher)) {
         if (aiv)
-            memcpy(iv, aiv, EVP_CIPHER_iv_length(cipher));
-        else if (RAND_bytes(iv, EVP_CIPHER_iv_length(cipher)) <= 0)
+            memcpy(iv, aiv, EVP_CIPHER_get_iv_length(cipher));
+        else if (RAND_bytes(iv, EVP_CIPHER_get_iv_length(cipher)) <= 0)
             goto err;
     }
 
@@ -94,8 +94,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     if (EVP_CipherInit_ex(ctx, cipher, NULL, NULL, iv, 0) == 0)
         goto err;
     if (EVP_CIPHER_param_to_asn1(ctx, scheme->parameter) <= 0) {
-        ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT,
-                ASN1_R_ERROR_SETTING_CIPHER_PARAMS);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_ERROR_SETTING_CIPHER_PARAMS);
         goto err;
     }
     EVP_CIPHER_CTX_free(ctx);
@@ -104,7 +103,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     /* If its RC2 then we'd better setup the key length */
 
     if (alg_nid == NID_rc2_cbc)
-        keylen = EVP_CIPHER_key_length(cipher);
+        keylen = EVP_CIPHER_get_key_length(cipher);
 
     /* Setup keyfunc */
 
@@ -135,7 +134,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     return ret;
 
  merr:
-    ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
 
  err:
     PBE2PARAM_free(pbe2);
@@ -202,26 +201,27 @@ static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, size_t saltlen,
     return keyfunc;
 
  merr:
-    ASN1err(ASN1_F_PKCS5_SCRYPT_SET, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
  err:
     SCRYPT_PARAMS_free(sparam);
     X509_ALGOR_free(keyfunc);
     return NULL;
 }
 
-int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
-                             int passlen, ASN1_TYPE *param,
-                             const EVP_CIPHER *c, const EVP_MD *md, int en_de)
+int PKCS5_v2_scrypt_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
+                                int passlen, ASN1_TYPE *param,
+                                const EVP_CIPHER *c, const EVP_MD *md, int en_de,
+                                OSSL_LIB_CTX *libctx, const char *propq)
 {
     unsigned char *salt, key[EVP_MAX_KEY_LENGTH];
     uint64_t p, r, N;
     size_t saltlen;
     size_t keylen = 0;
-    int rv = 0;
+    int t, rv = 0;
     SCRYPT_PARAMS *sparam = NULL;
 
-    if (EVP_CIPHER_CTX_cipher(ctx) == NULL) {
-        EVPerr(EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN, EVP_R_NO_CIPHER_SET);
+    if (EVP_CIPHER_CTX_get0_cipher(ctx) == NULL) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_NO_CIPHER_SET);
         goto err;
     }
 
@@ -230,11 +230,16 @@ int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
     sparam = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(SCRYPT_PARAMS), param);
 
     if (sparam == NULL) {
-        EVPerr(EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN, EVP_R_DECODE_ERROR);
+        ERR_raise(ERR_LIB_EVP, EVP_R_DECODE_ERROR);
         goto err;
     }
 
-    keylen = EVP_CIPHER_CTX_key_length(ctx);
+    t = EVP_CIPHER_CTX_get_key_length(ctx);
+    if (t < 0) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY_LENGTH);
+        goto err;
+    }
+    keylen = t;
 
     /* Now check the parameters of sparam */
 
@@ -242,8 +247,7 @@ int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
         uint64_t spkeylen;
         if ((ASN1_INTEGER_get_uint64(&spkeylen, sparam->keyLength) == 0)
             || (spkeylen != keylen)) {
-            EVPerr(EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN,
-                   EVP_R_UNSUPPORTED_KEYLENGTH);
+            ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_KEYLENGTH);
             goto err;
         }
     }
@@ -251,9 +255,9 @@ int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
     if (ASN1_INTEGER_get_uint64(&N, sparam->costParameter) == 0
         || ASN1_INTEGER_get_uint64(&r, sparam->blockSize) == 0
         || ASN1_INTEGER_get_uint64(&p, sparam->parallelizationParameter) == 0
-        || EVP_PBE_scrypt(NULL, 0, NULL, 0, N, r, p, 0, NULL, 0) == 0) {
-        EVPerr(EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN,
-               EVP_R_ILLEGAL_SCRYPT_PARAMETERS);
+        || EVP_PBE_scrypt_ex(NULL, 0, NULL, 0, N, r, p, 0, NULL, 0,
+                             libctx, propq) == 0) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_ILLEGAL_SCRYPT_PARAMETERS);
         goto err;
     }
 
@@ -261,8 +265,8 @@ int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
 
     salt = sparam->salt->data;
     saltlen = sparam->salt->length;
-    if (EVP_PBE_scrypt(pass, passlen, salt, saltlen, N, r, p, 0, key, keylen)
-        == 0)
+    if (EVP_PBE_scrypt_ex(pass, passlen, salt, saltlen, N, r, p, 0, key,
+                          keylen, libctx, propq) == 0)
         goto err;
     rv = EVP_CipherInit_ex(ctx, NULL, NULL, key, NULL, en_de);
  err:
@@ -271,4 +275,12 @@ int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
     SCRYPT_PARAMS_free(sparam);
     return rv;
 }
+
+int PKCS5_v2_scrypt_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
+                             int passlen, ASN1_TYPE *param,
+                             const EVP_CIPHER *c, const EVP_MD *md, int en_de)
+{
+    return PKCS5_v2_scrypt_keyivgen_ex(ctx, pass, passlen, param, c, md, en_de, NULL, NULL);
+}
+
 #endif /* OPENSSL_NO_SCRYPT */

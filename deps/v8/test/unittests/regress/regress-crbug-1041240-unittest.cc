@@ -12,8 +12,8 @@ namespace internal {
 using NewUninitializedFixedArrayTest = TestWithIsolateAndZone;
 
 TEST_F(NewUninitializedFixedArrayTest, ThrowOnNegativeLength) {
-  ASSERT_DEATH_IF_SUPPORTED({ factory()->NewUninitializedFixedArray(-1); },
-                            "Fatal javascript OOM in invalid array length");
+  ASSERT_DEATH_IF_SUPPORTED({ factory()->NewFixedArray(-1); },
+                            "Fatal JavaScript invalid size error -1");
 }
 
 }  // namespace internal

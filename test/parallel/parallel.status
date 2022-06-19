@@ -5,16 +5,27 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/41123
+test-repl-sigint-nested-eval: PASS, FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23277
-test-worker-memory: PASS,FLAKY
+# https://github.com/nodejs/node/issues/41206
+test-crypto-keygen: PASS,FLAKY
+# https://github.com/nodejs/node/issues/41201
+test-fs-rmdir-recursive: PASS, FLAKY
+# https://github.com/nodejs/node/issues/43084
+test-worker-http2-stream-terminate: PASS, FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/39368
+test-domain-error-types: PASS,FLAKY
 
 [$system==macos]
+# https://github.com/nodejs/node/issues/42741
+test-http-server-headers-timeout-keepalive: PASS,FLAKY
+test-http-server-request-timeout-keepalive: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
@@ -22,16 +33,24 @@ test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/pull/43054
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-tcp-wrap-listen: SKIP
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
 test-fs-stat-bigint: PASS,FLAKY
-# https://github.com/nodejs/node/issues/28803
-test-stdout-close-catch: PASS,FLAKY
 # https://github.com/nodejs/node/issues/31280
 test-worker-message-port-message-before-close: PASS,FLAKY
 
 [$system==aix]
+# https://github.com/nodejs/node/pull/43054
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-tcp-wrap-listen: SKIP
 
 [$system==ibmi]
 # https://github.com/nodejs/node/pull/30819
@@ -55,5 +74,11 @@ test-tls-env-extra-ca: SKIP
 test-dgram-error-message-address: SKIP
 # https://github.com/nodejs/node/issues/36929
 test-crypto-secure-heap: SKIP
-# https://github.com/nodejs/node/issues/36925
-test-fs-read-type: SKIP
+# https://github.com/nodejs/node/issues/39683
+test-dgram-connect: PASS, FLAKY
+test-http-client-parse-error: PASS, FLAKY
+test-http-multi-line-headers: PASS, FLAKY
+test-http-server-unconsume: PASS, FLAKY
+test-http-upgrade-advertise: PASS, FLAKY
+test-tls-client-mindhsize: PASS, FLAKY
+test-tls-write-error: PASS, FLAKY

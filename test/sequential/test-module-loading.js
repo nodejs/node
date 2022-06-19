@@ -214,9 +214,9 @@ assert.throws(
     (e) => {
       // Not a real .node module, but we know we require'd the right thing.
       if (common.isOpenBSD) { // OpenBSD errors with non-ELF object error
-        assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /File not an ELF object/);
       } else {
-        assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /file3\.node/);
       }
       return true;
     }
@@ -229,9 +229,9 @@ assert.throws(
     () => require(`${loadOrder}file7`),
     (e) => {
       if (common.isOpenBSD) {
-        assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /File not an ELF object/);
       } else {
-        assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message.replace(backslash, '/'), /file7\/index\.node/);
       }
       return true;
     }

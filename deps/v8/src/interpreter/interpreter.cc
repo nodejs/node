@@ -12,13 +12,14 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/logging/counters-inl.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
@@ -34,6 +35,7 @@ namespace interpreter {
 class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
+                            Handle<Script> script,
                             AccountingAllocator* allocator,
                             std::vector<FunctionLiteral*>* eager_inner_literals,
                             LocalIsolate* local_isolate);
@@ -50,14 +52,13 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
-  template <typename LocalIsolate>
-  void CheckAndPrintBytecodeMismatch(LocalIsolate* isolate,
-                                     Handle<Script> script,
+  template <typename IsolateT>
+  void CheckAndPrintBytecodeMismatch(IsolateT* isolate, Handle<Script> script,
                                      Handle<BytecodeArray> bytecode);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                           LocalIsolate* isolate);
+                           IsolateT* isolate);
 
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
@@ -70,18 +71,23 @@ Interpreter::Interpreter(Isolate* isolate)
       interpreter_entry_trampoline_instruction_start_(kNullAddress) {
   memset(dispatch_table_, 0, sizeof(dispatch_table_));
 
-  if (FLAG_trace_ignition_dispatches) {
-    static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
-    bytecode_dispatch_counters_table_.reset(
-        new uintptr_t[kBytecodeCount * kBytecodeCount]);
-    memset(bytecode_dispatch_counters_table_.get(), 0,
-           sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
+    InitDispatchCounters();
   }
+}
+
+void Interpreter::InitDispatchCounters() {
+  static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
+  bytecode_dispatch_counters_table_.reset(
+      new uintptr_t[kBytecodeCount * kBytecodeCount]);
+  memset(bytecode_dispatch_counters_table_.get(), 0,
+         sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
 }
 
 namespace {
 
-int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
+Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
+                                 OperandScale operand_scale) {
   int index = static_cast<int>(bytecode);
   if (operand_scale == OperandScale::kSingle) {
     if (Bytecodes::IsShortStar(bytecode)) {
@@ -95,7 +101,7 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
     // kIllegalBytecodeHandlerEncoding for illegal bytecode/scale combinations.
     uint8_t offset = kWideBytecodeToBuiltinsMapping[index];
     if (offset == kIllegalBytecodeHandlerEncoding) {
-      return Builtins::kIllegalHandler;
+      return Builtin::kIllegalHandler;
     } else {
       index = kNumberOfBytecodeHandlers + offset;
       if (operand_scale == OperandScale::kQuadruple) {
@@ -103,20 +109,21 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
       }
     }
   }
-  return Builtins::kFirstBytecodeHandler + index;
+  return Builtins::FromInt(static_cast<int>(Builtin::kFirstBytecodeHandler) +
+                           index);
 }
 
 }  // namespace
 
-Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale) {
-  int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
-  Builtins* builtins = isolate_->builtins();
-  return builtins->builtin(builtin_index);
+CodeT Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                      OperandScale operand_scale) {
+  Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
+  return isolate_->builtins()->code(builtin);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale, Code handler) {
+                                     OperandScale operand_scale,
+                                     CodeT handler) {
   DCHECK(handler.is_off_heap_trampoline());
   DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
@@ -154,7 +161,8 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 
   // Checks whether function passed the filter.
   if (shared->is_toplevel()) {
-    Vector<const char> filter = CStrVector(FLAG_print_bytecode_filter);
+    base::Vector<const char> filter =
+        base::CStrVector(FLAG_print_bytecode_filter);
     return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
   } else {
     return shared->PassesFilter(FLAG_print_bytecode_filter);
@@ -164,7 +172,7 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 }  // namespace
 
 InterpreterCompilationJob::InterpreterCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate)
@@ -173,23 +181,25 @@ InterpreterCompilationJob::InterpreterCompilationJob(
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
       local_isolate_(local_isolate),
-      generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
-                 eager_inner_literals) {}
+      generator_(local_isolate, &zone_, &compilation_info_,
+                 parse_info->ast_string_constants(), eager_inner_literals,
+                 script) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileIgnition,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(parse_info()->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileIgnition,
+            RuntimeCallStats::kThreadSpecific);
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
-  MaybePrintAst(parse_info(), compilation_info());
+  {
+    DisallowGarbageCollection no_heap_access;
+    MaybePrintAst(parse_info(), compilation_info());
+  }
 
-  base::Optional<ParkedScope> parked_scope;
-  if (local_isolate_) parked_scope.emplace(local_isolate_);
+  ParkedScope parked_scope(local_isolate_);
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -200,10 +210,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 #ifdef DEBUG
-template <typename LocalIsolate>
+template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    LocalIsolate* isolate, Handle<Script> script,
-    Handle<BytecodeArray> bytecode) {
+    IsolateT* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
@@ -240,9 +249,8 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileIgnitionFinalization);
+  RCS_SCOPE(parse_info()->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
@@ -250,17 +258,16 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileBackgroundIgnitionFinalization);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
+            RuntimeCallStats::kThreadSpecific);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    Handle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
@@ -298,12 +305,13 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 }
 
 std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
   return std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, eager_inner_literals, local_isolate);
+      parse_info, literal, script, allocator, eager_inner_literals,
+      local_isolate);
 }
 
 std::unique_ptr<UnoptimizedCompilationJob>
@@ -312,7 +320,7 @@ Interpreter::NewSourcePositionCollectionJob(
     Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator,
     LocalIsolate* local_isolate) {
   auto job = std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, nullptr, local_isolate);
+      parse_info, literal, Handle<Script>(), allocator, nullptr, local_isolate);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
   return job;
 }
@@ -337,19 +345,19 @@ void Interpreter::Initialize() {
 
   // Set the interpreter entry trampoline entry point now that builtins are
   // initialized.
-  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  Handle<CodeT> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
   DCHECK(code->is_off_heap_trampoline() ||
-         isolate_->heap()->IsImmovable(*code));
+         isolate_->heap()->IsImmovable(FromCodeT(*code)));
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    int builtin_id = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    Code handler = builtins->builtin(builtin_id);
+    Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
+    CodeT handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
-      std::string builtin_name(Builtins::name(builtin_id));
+      std::string builtin_name(Builtins::name(builtin));
       std::string expected_name =
           (Bytecodes::IsShortStar(bytecode)
                ? "ShortStar"
@@ -370,7 +378,7 @@ bool Interpreter::IsDispatchTableInitialized() const {
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
   if (code.kind() == CodeKind::BYTECODE_HANDLER) {
-    return Builtins::name(code.builtin_index());
+    return Builtins::name(code.builtin_id());
   }
   return nullptr;
 }
@@ -378,15 +386,16 @@ const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
 uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
   int from_index = Bytecodes::ToByte(from);
   int to_index = Bytecodes::ToByte(to);
+  CHECK_WITH_MSG(bytecode_dispatch_counters_table_ != nullptr,
+                 "Dispatch counters require building with "
+                 "v8_enable_ignition_dispatch_counting");
   return bytecode_dispatch_counters_table_[from_index * kNumberOfBytecodes +
                                            to_index];
 }
 
-Local<v8::Object> Interpreter::GetDispatchCountersObject() {
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  Local<v8::Context> context = isolate->GetCurrentContext();
-
-  Local<v8::Object> counters_map = v8::Object::New(isolate);
+Handle<JSObject> Interpreter::GetDispatchCountersObject() {
+  Handle<JSObject> counters_map =
+      isolate_->factory()->NewJSObjectWithNullProto();
 
   // Output is a JSON-encoded object of objects.
   //
@@ -401,30 +410,23 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
 
   for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
     Bytecode from_bytecode = Bytecodes::FromByte(from_index);
-    Local<v8::Object> counters_row = v8::Object::New(isolate);
+    Handle<JSObject> counters_row =
+        isolate_->factory()->NewJSObjectWithNullProto();
 
     for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {
       Bytecode to_bytecode = Bytecodes::FromByte(to_index);
       uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
 
       if (counter > 0) {
-        std::string to_name = Bytecodes::ToString(to_bytecode);
-        Local<v8::String> to_name_object =
-            v8::String::NewFromUtf8(isolate, to_name.c_str()).ToLocalChecked();
-        Local<v8::Number> counter_object = v8::Number::New(isolate, counter);
-        CHECK(counters_row
-                  ->DefineOwnProperty(context, to_name_object, counter_object)
-                  .IsJust());
+        Handle<Object> value = isolate_->factory()->NewNumberFromSize(counter);
+        JSObject::AddProperty(isolate_, counters_row,
+                              Bytecodes::ToString(to_bytecode), value, NONE);
       }
     }
 
-    std::string from_name = Bytecodes::ToString(from_bytecode);
-    Local<v8::String> from_name_object =
-        v8::String::NewFromUtf8(isolate, from_name.c_str()).ToLocalChecked();
-
-    CHECK(
-        counters_map->DefineOwnProperty(context, from_name_object, counters_row)
-            .IsJust());
+    JSObject::AddProperty(isolate_, counters_map,
+                          Bytecodes::ToString(from_bytecode), counters_row,
+                          NONE);
   }
 
   return counters_map;

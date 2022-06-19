@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/d8/d8-platforms.h"
+
 #include <memory>
 #include <unordered_map>
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -12,7 +15,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/d8/d8-platforms.h"
 
 namespace v8 {
 
@@ -43,7 +45,12 @@ class PredictablePlatform final : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  int NumberOfWorkerThreads() override { return 0; }
+  int NumberOfWorkerThreads() override {
+    // The predictable platform executes everything on the main thread, but we
+    // still pretend to have the default number of worker threads to not
+    // unnecessarily change behaviour of the platform.
+    return platform_->NumberOfWorkerThreads();
+  }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // We post worker tasks on the foreground task runner of the
@@ -68,11 +75,21 @@ class PredictablePlatform final : public Platform {
 
   std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->PostJob(priority, std::move(job_task));
+    // Do not call {platform_->PostJob} here, as this would create a job that
+    // posts tasks directly to the underlying default platform.
+    return platform::NewDefaultJobHandle(this, priority, std::move(job_task),
+                                         NumberOfWorkerThreads());
   }
 
   double MonotonicallyIncreasingTime() override {
-    return synthetic_time_in_sec_ += 0.00001;
+    // In predictable mode, there should be no (observable) concurrency, but we
+    // still run some tests that explicitly specify '--predictable' in the
+    // '--isolates' variant, where several threads run the same test in
+    // different isolates. To avoid TSan issues in that scenario we use atomic
+    // increments here.
+    uint64_t synthetic_time =
+        synthetic_time_.fetch_add(1, std::memory_order_relaxed);
+    return 1e-5 * synthetic_time;
   }
 
   double CurrentClockTimeMillis() override {
@@ -86,7 +103,7 @@ class PredictablePlatform final : public Platform {
   Platform* platform() const { return platform_.get(); }
 
  private:
-  double synthetic_time_in_sec_ = 0.0;
+  std::atomic<uint64_t> synthetic_time_{0};
   std::unique_ptr<Platform> platform_;
 };
 

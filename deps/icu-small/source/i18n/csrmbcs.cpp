@@ -23,7 +23,7 @@ U_NAMESPACE_BEGIN
 
 static const uint16_t commonChars_sjis [] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0x8140, 0x8141, 0x8142, 0x8145, 0x815b, 0x8169, 0x816a, 0x8175, 0x8176, 0x82a0,
 0x82a2, 0x82a4, 0x82a9, 0x82aa, 0x82ab, 0x82ad, 0x82af, 0x82b1, 0x82b3, 0x82b5,
@@ -34,7 +34,7 @@ static const uint16_t commonChars_sjis [] = {
 
 static const uint16_t commonChars_euc_jp[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa1a1, 0xa1a2, 0xa1a3, 0xa1a6, 0xa1bc, 0xa1ca, 0xa1cb, 0xa1d6, 0xa1d7, 0xa4a2,
 0xa4a4, 0xa4a6, 0xa4a8, 0xa4aa, 0xa4ab, 0xa4ac, 0xa4ad, 0xa4af, 0xa4b1, 0xa4b3,
@@ -49,7 +49,7 @@ static const uint16_t commonChars_euc_jp[] = {
 
 static const uint16_t commonChars_euc_kr[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xb0a1, 0xb0b3, 0xb0c5, 0xb0cd, 0xb0d4, 0xb0e6, 0xb0ed, 0xb0f8, 0xb0fa, 0xb0fc,
 0xb1b8, 0xb1b9, 0xb1c7, 0xb1d7, 0xb1e2, 0xb3aa, 0xb3bb, 0xb4c2, 0xb4cf, 0xb4d9,
@@ -64,7 +64,7 @@ static const uint16_t commonChars_euc_kr[] = {
 
 static const uint16_t commonChars_big5[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa140, 0xa141, 0xa142, 0xa143, 0xa147, 0xa149, 0xa175, 0xa176, 0xa440, 0xa446,
 0xa447, 0xa448, 0xa451, 0xa454, 0xa457, 0xa464, 0xa46a, 0xa46c, 0xa477, 0xa4a3,
@@ -79,7 +79,7 @@ static const uint16_t commonChars_big5[] = {
 
 static const uint16_t commonChars_gb_18030[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa1a1, 0xa1a2, 0xa1a3, 0xa1a4, 0xa1b0, 0xa1b1, 0xa1f1, 0xa1f3, 0xa3a1, 0xa3ac,
 0xa3ba, 0xb1a8, 0xb1b8, 0xb1be, 0xb2bb, 0xb3c9, 0xb3f6, 0xb4f3, 0xb5bd, 0xb5c4,
@@ -114,7 +114,7 @@ static int32_t binarySearch(const uint16_t *array, int32_t len, uint16_t value)
     return -1;
 }
 
-IteratedChar::IteratedChar() :
+IteratedChar::IteratedChar() : 
 charValue(0), index(-1), nextIndex(0), error(FALSE), done(FALSE)
 {
     // nothing else to do.
@@ -186,7 +186,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         if (doubleByteCharCount == 0 && totalCharCount < 10) {
             // There weren't any multibyte sequences, and there was a low density of non-ASCII single bytes.
             // We don't have enough data to have any confidence.
-            // Statistical analysis of single byte non-ASCII charcters would probably help here.
+            // Statistical analysis of single byte non-ASCII characters would probably help here.
             confidence = 0;
         }
         else {
@@ -209,7 +209,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
     }
 
     if (commonChars == 0) {
-        // We have no statistics on frequently occuring characters.
+        // We have no statistics on frequently occurring characters.
         //  Assess confidence purely on having a reasonable number of
         //  multi-byte characters (the more the better)
         confidence = 30 + doubleByteCharCount - 20*badCharCount;
@@ -219,7 +219,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         }
     } else {
         //
-        // Frequency of occurence statistics exist.
+        // Frequency of occurrence statistics exist.
         //
 
         double maxVal = log((double)doubleByteCharCount / 4); /*(float)?*/

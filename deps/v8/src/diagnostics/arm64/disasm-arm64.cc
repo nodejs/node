@@ -13,6 +13,8 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -3952,7 +3954,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -3995,7 +3996,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return 0;
           }
           UNIMPLEMENTED();
-          return 0;
         }
         case 'L': {  // IVLSLane[0123] - suffix indicates access size shift.
           AppendToOutput("%d", instr->NEONLSIndex(format[8] - '0'));
@@ -4040,12 +4040,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
-            return 0;
           }
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -4268,19 +4266,12 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
-  const std::array<std::string, 3> hints = {"ld", "li", "st"};
-  unsigned hint = instr->PrefetchHint();
-  unsigned target = instr->PrefetchTarget() + 1;
 
-  if (hint >= hints.size() || target > 3) {
-    std::bitset<5> prefetch_mode(instr->ImmPrefetchOperation());
-    AppendToOutput("#0b%s", prefetch_mode.to_string().c_str());
-  } else {
-    const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
+  const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
+  int level = (prefetch_mode >> 1) + 1;
+  const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
 
-    AppendToOutput("p%sl%d%s", hints[hint].c_str(), target, ks);
-  }
-
+  AppendToOutput("p%sl%d%s", ls, level, ks);
   return 6;
 }
 
@@ -4325,7 +4316,7 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -4341,18 +4332,16 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.begin();
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have the concept of a byte register
-  return "nobytereg";
 }
 
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
-  return "noxmmreg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {
@@ -4365,21 +4354,21 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 class BufferDisassembler : public v8::internal::DisassemblingDecoder {
  public:
-  explicit BufferDisassembler(v8::internal::Vector<char> out_buffer)
+  explicit BufferDisassembler(v8::base::Vector<char> out_buffer)
       : out_buffer_(out_buffer) {}
 
   ~BufferDisassembler() {}
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
-                           instr->InstructionBits(), GetOutput());
+    v8::base::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
+                       instr->InstructionBits(), GetOutput());
   }
 
  private:
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
 };
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;

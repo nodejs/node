@@ -15,13 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require the use of `===` and `!==`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/eqeqeq"
         },
@@ -78,7 +78,7 @@ module.exports = {
 
         /**
          * Checks if an expression is a typeof expression
-         * @param  {ASTNode} node The node to check
+         * @param {ASTNode} node The node to check
          * @returns {boolean} if the node is a typeof expression
          */
         function isTypeOf(node) {

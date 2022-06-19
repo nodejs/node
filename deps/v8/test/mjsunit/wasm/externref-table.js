@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes --experimental-wasm-bulk-memory
+// Flags: --experimental-wasm-typed-funcref --experimental-wasm-type-reflection
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestExternRefTableSetWithMultipleTypes() {
   print(arguments.callee.name);
   let table = new WebAssembly.Table({element: "externref", initial: 10});
 
-  // Table should be initialized with null.
-  assertEquals(null, table.get(1));
+  // Table should be initialized with undefined.
+  assertEquals(undefined, table.get(1));
   let obj = {'hello' : 'world'};
   table.set(2, obj);
   assertSame(obj, table.get(2));
@@ -50,7 +50,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  builder.addDeclarativeElementSegment([null]);
+  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+                                        kWasmFuncRef);
   builder.addFunction('drop', kSig_v_v)
       .addBody([kNumericPrefix, kExprElemDrop, 0])
       .exportFunc();
@@ -66,7 +67,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   const table = builder.addTable(kWasmAnyFunc, 10);
-  builder.addDeclarativeElementSegment([null]);
+  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+                                       kWasmFuncRef);
   builder.addFunction('init', kSig_v_v)
       .addBody([
         kExprI32Const, 0, kExprI32Const, 0, kExprI32Const, 1, kNumericPrefix,
@@ -76,4 +78,127 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const instance = builder.instantiate();
 
   assertTraps(kTrapTableOutOfBounds, () => instance.exports.init());
+})();
+
+
+(function TestExternRefTableConstructorWithDefaultValue() {
+  print(arguments.callee.name);
+  const testObject = {};
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, testObject);
+  assertEquals(table.length, 3);
+  assertEquals(table.get(0), testObject);
+  assertEquals(table.get(1), testObject);
+  assertEquals(table.get(2), testObject);
+})();
+
+function getDummy(val) {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('dummy', kSig_i_v)
+      .addBody([kExprI32Const, val])
+      .exportAs('dummy');
+  return builder.instantiate().exports.dummy;
+}
+
+(function TestFuncRefTableConstructorWithDefaultValue() {
+  print(arguments.callee.name);
+
+  const expected = 6;
+  let dummy = getDummy(expected);
+
+  const argument = { "element": "anyfunc", "initial": 3 };
+  const table = new WebAssembly.Table(argument, dummy);
+  assertEquals(table.length, 3);
+  assertEquals(table.get(0)(), expected);
+  assertEquals(table.get(1)(), expected);
+  assertEquals(table.get(2)(), expected);
+})();
+
+(function TestExternFuncTableSetWithoutValue() {
+  print(arguments.callee.name);
+
+  const expected = 6;
+  const dummy = getDummy(expected);
+  const argument = { "element": "anyfunc", "initial": 3 };
+  const table = new WebAssembly.Table(argument, dummy);
+  assertEquals(table.get(1)(), expected);
+  table.set(1);
+  assertEquals(table.get(1), null);
+})();
+
+(function TestExternRefTableSetWithoutValue() {
+  print(arguments.callee.name);
+
+  const testObject = {};
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, testObject);
+  assertEquals(table.get(1), testObject);
+  table.set(1);
+  assertEquals(table.get(1), undefined);
+})();
+
+(function TestFunctionExternRefTableRoundtrip() {
+  // Test that
+  // - initialization, setting, and growing an externref table, and
+  // - (imported) externref globals
+  // preserve function references.
+  print(arguments.callee.name);
+
+  const js_function = function (i) { return i + 1; };
+  const wasm_js_function = new WebAssembly.Function(
+    {parameters:['i32', 'i32'], results: ['i32']},
+    function(a, b) { return a * b; })
+
+  let extern_type = wasmRefType(kWasmExternRef);
+
+  let builder = new WasmModuleBuilder();
+  let imported_global = builder.addImportedGlobal('m', 'n', extern_type, false);
+  let global = builder.addGlobal(kWasmExternRef, true).exportAs('global');
+  let table = builder.addTable(extern_type, 2, 10,
+                               WasmInitExpr.GlobalGet(imported_global))
+  builder.addFunction(
+      'setup', makeSig([extern_type, extern_type], []))
+    .addBody([
+      kExprLocalGet, 0, kExprGlobalSet, global.index,
+      kExprI32Const, 1, kExprLocalGet, 0, kExprTableSet, table.index,
+      kExprLocalGet, 1, kExprI32Const, 1, kNumericPrefix,
+      kExprTableGrow, table.index, kExprDrop])
+    .exportFunc();
+  builder.addFunction('get', makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
+    .exportFunc();
+  let instance = builder.instantiate({m : {n : js_function}});
+
+  instance.exports.setup(wasm_js_function, instance.exports.setup);
+
+  assertEquals(instance.exports.global.value, wasm_js_function);
+  assertEquals(instance.exports.get(0), js_function);
+  assertEquals(instance.exports.get(1), wasm_js_function);
+  assertEquals(instance.exports.get(2), instance.exports.setup);
+})();
+
+(function TestFunctionExternRefTableRoundtrip2() {
+  // Test that initialization, setting, and growing an externref table in the JS
+  // API preserves function references.
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('dummy', kSig_i_v)
+      .addBody([kExprI32Const, 0])
+      .exportAs('dummy');
+  let instance = builder.instantiate();
+  const js_function = function (i) { return i + 1; };
+  const wasm_js_function = new WebAssembly.Function(
+    {parameters:['i32', 'i32'], results: ['i32']},
+    function(a, b) { return a * b; })
+
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, js_function);
+  table.set(1, wasm_js_function);
+  table.set(2, instance.exports.dummy);
+  table.grow(1, wasm_js_function);
+  assertEquals(table.get(0), js_function);
+  assertEquals(table.get(1), wasm_js_function);
+  assertEquals(table.get(2), instance.exports.dummy);
+  assertEquals(table.get(3), wasm_js_function);
 })();

@@ -386,7 +386,7 @@ static void printHex(UFILE *out, uint8_t what) {
 static void printOutAlias(UFILE *out,  UResourceBundle *parent, Resource r, const char *key, int32_t indent, const char *pname, UErrorCode *status) {
     static const UChar cr[] = { 0xA };  // LF
     int32_t len = 0;
-    const UChar* thestr = res_getAlias(&(parent->fResData), r, &len);
+    const UChar* thestr = res_getAlias(&(parent->getResData()), r, &len);
     UChar *string = quotedString(thestr);
     if(opt_truncate && len > truncsize) {
         char msg[128];
@@ -594,9 +594,9 @@ static void printOutBundle(UFILE *out, UResourceBundle *resource, int32_t indent
               for(i = 0; i < resSize; i++) {
                 /* need to know if it's an alias */
                 if(isTable) {
-                  r = res_getTableItemByIndex(&resource->fResData, resource->fRes, i, &key);
+                  r = res_getTableItemByIndex(&resource->getResData(), resource->fRes, i, &key);
                 } else {
-                  r = res_getArrayItem(&resource->fResData, resource->fRes, i);
+                  r = res_getArrayItem(&resource->getResData(), resource->fRes, i);
                 }
                 if(U_SUCCESS(*status)) {
                   if(res_getPublicType(r) == URES_ALIAS) {

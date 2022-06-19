@@ -26,33 +26,21 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // stack and the arguments count is passed via register) which currently
   // can't be expressed in CallInterfaceDescriptor. Therefore only the code
   // is exported here.
-  static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
+  static Handle<CodeT> RuntimeCEntry(Isolate* isolate, int result_size = 1);
 
-  static Handle<Code> CEntry(Isolate* isolate, int result_size = 1,
-                             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                             ArgvMode argv_mode = kArgvOnStack,
-                             bool builtin_exit_frame = false);
+  static Handle<CodeT> CEntry(
+      Isolate* isolate, int result_size = 1,
+      SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore,
+      ArgvMode argv_mode = ArgvMode::kStack, bool builtin_exit_frame = false);
 
   // Initial states for ICs.
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
-  static Callable StoreOwnIC(Isolate* isolate);
-  static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
-
-  static Callable KeyedStoreIC_SloppyArguments(Isolate* isolate,
-                                               KeyedAccessStoreMode mode);
-  static Callable ElementsTransitionAndStore(Isolate* isolate,
-                                             KeyedAccessStoreMode mode);
-  static Callable StoreFastElementIC(Isolate* isolate,
-                                     KeyedAccessStoreMode mode);
+  static Callable DefineNamedOwnIC(Isolate* isolate);
+  static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
 
   static Callable ResumeGenerator(Isolate* isolate);
-
-  static Callable FrameDropperTrampoline(Isolate* isolate);
-  static Callable HandleDebuggerStatement(Isolate* isolate);
-
-  static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
   static Callable CallApiCallback(Isolate* isolate);
@@ -92,6 +80,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       Isolate* isolate, InterpreterPushArgsMode mode);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
+  static Callable InterpreterOnStackReplacement_ToBaseline(Isolate* isolate);
 
   static Callable ArrayNoArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
@@ -99,6 +88,12 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArraySingleArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode);
+
+#ifdef V8_IS_TSAN
+  static Builtin GetTSANStoreStub(SaveFPRegsMode fp_mode, int size,
+                                  std::memory_order order);
+  static Builtin GetTSANRelaxedLoadStub(SaveFPRegsMode fp_mode, int size);
+#endif  // V8_IS_TSAN
 };
 
 }  // namespace internal

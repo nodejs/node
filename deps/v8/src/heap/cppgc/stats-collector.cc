@@ -5,9 +5,12 @@
 #include "src/heap/cppgc/stats-collector.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
+#include "src/base/platform/time.h"
 #include "src/heap/cppgc/metric-recorder.h"
 
 namespace cppgc {
@@ -16,9 +19,7 @@ namespace internal {
 // static
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
 
-StatsCollector::StatsCollector(
-    std::unique_ptr<MetricRecorder> histogram_recorder, Platform* platform)
-    : metric_recorder_(std::move(histogram_recorder)), platform_(platform) {
+StatsCollector::StatsCollector(Platform* platform) : platform_(platform) {
   USE(platform_);
 }
 
@@ -33,18 +34,27 @@ void StatsCollector::UnregisterObserver(AllocationObserver* observer) {
   auto it = std::find(allocation_observers_.begin(),
                       allocation_observers_.end(), observer);
   DCHECK_NE(allocation_observers_.end(), it);
-  allocation_observers_.erase(it);
+  *it = nullptr;
+  allocation_observer_deleted_ = true;
 }
 
 void StatsCollector::NotifyAllocation(size_t bytes) {
   // The current GC may not have been started. This is ok as recording considers
   // the whole time range between garbage collections.
   allocated_bytes_since_safepoint_ += bytes;
+#ifdef CPPGC_VERIFY_HEAP
+  DCHECK_GE(tracked_live_bytes_ + bytes, tracked_live_bytes_);
+  tracked_live_bytes_ += bytes;
+#endif  // CPPGC_VERIFY_HEAP
 }
 
 void StatsCollector::NotifyExplicitFree(size_t bytes) {
   // See IncreaseAllocatedObjectSize for lifetime of the counter.
   explicitly_freed_bytes_since_safepoint_ += bytes;
+#ifdef CPPGC_VERIFY_HEAP
+  DCHECK_GE(tracked_live_bytes_, bytes);
+  tracked_live_bytes_ -= bytes;
+#endif  // CPPGC_VERIFY_HEAP
 }
 
 void StatsCollector::NotifySafePointForConservativeCollection() {
@@ -55,10 +65,17 @@ void StatsCollector::NotifySafePointForConservativeCollection() {
   }
 }
 
+void StatsCollector::NotifySafePointForTesting() {
+  AllocatedObjectSizeSafepointImpl();
+}
+
 void StatsCollector::AllocatedObjectSizeSafepointImpl() {
   allocated_bytes_since_end_of_marking_ +=
       static_cast<int64_t>(allocated_bytes_since_safepoint_) -
       static_cast<int64_t>(explicitly_freed_bytes_since_safepoint_);
+
+  // Save the epoch to avoid clearing counters when a GC happened, see below.
+  const auto saved_epoch = current_.epoch;
 
   // These observer methods may start or finalize GC. In case they trigger a
   // final GC pause, the delta counters are reset there and the following
@@ -74,8 +91,15 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
       observer->AllocatedObjectSizeIncreased(static_cast<size_t>(delta));
     }
   });
-  allocated_bytes_since_safepoint_ = 0;
-  explicitly_freed_bytes_since_safepoint_ = 0;
+  // Only clear the counters when no garbage collection happened. In case of a
+  // garbage collection in the callbacks, the counters have been cleared by
+  // `NotifyMarkingFinished()`. In addition, atomic sweeping may have already
+  // allocated new memory which would be dropped from accounting in case
+  // of clearing here.
+  if (saved_epoch == current_.epoch) {
+    allocated_bytes_since_safepoint_ = 0;
+    explicitly_freed_bytes_since_safepoint_ = 0;
+  }
 }
 
 StatsCollector::Event::Event() {
@@ -96,19 +120,27 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   gc_state_ = GarbageCollectionState::kSweeping;
   current_.marked_bytes = marked_bytes;
   current_.object_size_before_sweep_bytes =
-      previous_.marked_bytes + allocated_bytes_since_end_of_marking_ +
+      marked_bytes_so_far_ + allocated_bytes_since_end_of_marking_ +
       allocated_bytes_since_safepoint_ -
       explicitly_freed_bytes_since_safepoint_;
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
+
+  if (current_.collection_type == CollectionType::kMajor)
+    marked_bytes_so_far_ = 0;
+  marked_bytes_so_far_ += marked_bytes;
+
+#ifdef CPPGC_VERIFY_HEAP
+  tracked_live_bytes_ = marked_bytes_so_far_;
+#endif  // CPPGC_VERIFY_HEAP
 
   DCHECK_LE(memory_freed_bytes_since_end_of_marking_, memory_allocated_bytes_);
   memory_allocated_bytes_ -= memory_freed_bytes_since_end_of_marking_;
   current_.memory_size_before_sweep_bytes = memory_allocated_bytes_;
   memory_freed_bytes_since_end_of_marking_ = 0;
 
-  ForAllAllocationObservers([marked_bytes](AllocationObserver* observer) {
-    observer->ResetAllocatedObjectSize(marked_bytes);
+  ForAllAllocationObservers([this](AllocationObserver* observer) {
+    observer->ResetAllocatedObjectSize(marked_bytes_so_far_);
   });
 
   // HeapGrowing would use the below fields to estimate allocation rate during
@@ -127,20 +159,23 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 
 namespace {
 
-int64_t SumPhases(const MetricRecorder::CppGCFullCycle::Phases& phases) {
+int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
-MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
-    int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
-    int64_t atomic_sweep_us, int64_t incremental_mark_us,
-    int64_t incremental_sweep_us, int64_t concurrent_mark_us,
-    int64_t concurrent_sweep_us, int64_t objects_before_bytes,
-    int64_t objects_after_bytes, int64_t objects_freed_bytes,
-    int64_t memory_before_bytes, int64_t memory_after_bytes,
-    int64_t memory_freed_bytes) {
-  MetricRecorder::CppGCFullCycle event;
+MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
+    StatsCollector::CollectionType type, int64_t atomic_mark_us,
+    int64_t atomic_weak_us, int64_t atomic_compact_us, int64_t atomic_sweep_us,
+    int64_t incremental_mark_us, int64_t incremental_sweep_us,
+    int64_t concurrent_mark_us, int64_t concurrent_sweep_us,
+    int64_t objects_before_bytes, int64_t objects_after_bytes,
+    int64_t objects_freed_bytes, int64_t memory_before_bytes,
+    int64_t memory_after_bytes, int64_t memory_freed_bytes) {
+  MetricRecorder::GCCycle event;
+  event.type = (type == StatsCollector::CollectionType::kMajor)
+                   ? MetricRecorder::GCCycle::Type::kMajor
+                   : MetricRecorder::GCCycle::Type::kMinor;
   // MainThread.Incremental:
   event.main_thread_incremental.mark_duration_us = incremental_mark_us;
   event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
@@ -196,7 +231,8 @@ void StatsCollector::NotifySweepingCompleted() {
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::CppGCFullCycle event = GetFullCycleEventForMetricRecorder(
+    MetricRecorder::GCCycle event = GetCycleEventForMetricRecorder(
+        previous_.collection_type,
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),
@@ -206,9 +242,9 @@ void StatsCollector::NotifySweepingCompleted() {
         previous_.concurrent_scope_data[kConcurrentMark],
         previous_.concurrent_scope_data[kConcurrentSweep],
         previous_.object_size_before_sweep_bytes /* objects_before */,
-        previous_.marked_bytes /* objects_after */,
+        marked_bytes_so_far_ /* objects_after */,
         previous_.object_size_before_sweep_bytes -
-            previous_.marked_bytes /* objects_freed */,
+            marked_bytes_so_far_ /* objects_freed */,
         previous_.memory_size_before_sweep_bytes /* memory_before */,
         previous_.memory_size_before_sweep_bytes -
             memory_freed_bytes_since_end_of_marking_ /* memory_after */,
@@ -218,48 +254,103 @@ void StatsCollector::NotifySweepingCompleted() {
 }
 
 size_t StatsCollector::allocated_memory_size() const {
-  return memory_allocated_bytes_;
+  return memory_allocated_bytes_ - memory_freed_bytes_since_end_of_marking_;
 }
 
 size_t StatsCollector::allocated_object_size() const {
+  return marked_bytes_so_far_ + allocated_bytes_since_end_of_marking_;
+}
+
+size_t StatsCollector::marked_bytes() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
+  return marked_bytes_so_far_;
+}
+
+size_t StatsCollector::marked_bytes_on_current_cycle() const {
+  DCHECK_NE(GarbageCollectionState::kNotRunning, gc_state_);
+  return current_.marked_bytes;
+}
+
+v8::base::TimeDelta StatsCollector::marking_time() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
   // During sweeping we refer to the current Event as that already holds the
   // correct marking information. In all other phases, the previous event holds
   // the most up-to-date marking information.
   const Event& event =
       gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
-  DCHECK_GE(static_cast<int64_t>(event.marked_bytes) +
-                allocated_bytes_since_end_of_marking_,
-            0);
-  return static_cast<size_t>(static_cast<int64_t>(event.marked_bytes) +
-                             allocated_bytes_since_end_of_marking_);
+  return event.scope_data[kAtomicMark] + event.scope_data[kIncrementalMark] +
+         v8::base::TimeDelta::FromMicroseconds(v8::base::Relaxed_Load(
+             &event.concurrent_scope_data[kConcurrentMark]));
 }
 
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {
   memory_allocated_bytes_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeIncreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeIncreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
 }
 
 void StatsCollector::NotifyFreedMemory(int64_t size) {
   memory_freed_bytes_since_end_of_marking_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeDecreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeDecreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
+}
+
+void StatsCollector::IncrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_add(value, std::memory_order_relaxed);
+  DCHECK_GE(old + value, old);
+  USE(old);
+}
+
+void StatsCollector::DecrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_sub(value, std::memory_order_relaxed);
+  DCHECK_GE(old, old - value);
+  USE(old);
+}
+
+void StatsCollector::ResetDiscardedMemory() {
+  discarded_bytes_.store(0, std::memory_order_relaxed);
+}
+
+size_t StatsCollector::discarded_memory_size() const {
+  return discarded_bytes_.load(std::memory_order_relaxed);
+}
+
+size_t StatsCollector::resident_memory_size() const {
+  const auto allocated = allocated_memory_size();
+  const auto discarded = discarded_memory_size();
+  DCHECK_IMPLIES(allocated == 0, discarded == 0);
+  DCHECK_IMPLIES(allocated > 0, allocated > discarded);
+  return allocated - discarded;
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
                                            v8::base::TimeDelta time) {
   switch (scope_id_) {
     case kIncrementalMark: {
-      MetricRecorder::CppGCMainThreadIncrementalMark event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalMark event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
     case kIncrementalSweep: {
-      MetricRecorder::CppGCMainThreadIncrementalSweep event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalSweep event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }

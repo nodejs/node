@@ -46,12 +46,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder(const BytecodeArrayBuilder&) = delete;
   BytecodeArrayBuilder& operator=(const BytecodeArrayBuilder&) = delete;
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate);
-  template <typename LocalIsolate>
+  Handle<BytecodeArray> ToBytecodeArray(IsolateT* isolate);
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -134,9 +134,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
                                           const AstRawString* name,
                                           int feedback_slot);
-  // Named load property without feedback
-  BytecodeArrayBuilder& LoadNamedPropertyNoFeedback(Register object,
-                                                    const AstRawString* name);
 
   BytecodeArrayBuilder& LoadNamedPropertyFromSuper(Register object,
                                                    const AstRawString* name,
@@ -159,42 +156,50 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
-  BytecodeArrayBuilder& StoreDataPropertyInLiteral(
-      Register object, Register name, DataPropertyInLiteralFlags flags,
-      int feedback_slot);
+  BytecodeArrayBuilder& DefineKeyedOwnPropertyInLiteral(
+      Register object, Register name,
+      DefineKeyedOwnPropertyInLiteralFlags flags, int feedback_slot);
 
   // Collect type information for developer tools. The value for which we
   // record the type is stored in the accumulator.
   BytecodeArrayBuilder& CollectTypeProfile(int position);
 
-  // Store a property named by a property name. The value to be stored should be
+  // Set a property named by a property name, trigger the setters and
+  // set traps if necessary. The value to be set should be in the
+  // accumulator.
+  BytecodeArrayBuilder& SetNamedProperty(Register object,
+                                         const AstRawString* name,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
+
+  // Set a property named by a constant from the constant pool,
+  // trigger the setters and set traps if necessary. The value to be
+  // set should be in the accumulator.
+  BytecodeArrayBuilder& SetNamedProperty(Register object,
+                                         size_t constant_pool_entry,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
+
+  // Define an own property named by a constant from the constant pool,
+  // trigger the defineProperty traps if necessary. The value to be
+  // defined should be in the accumulator.
+  BytecodeArrayBuilder& DefineNamedOwnProperty(Register object,
+                                               const AstRawString* name,
+                                               int feedback_slot);
+
+  // Set a property keyed by a value in a register, trigger the setters and
+  // set traps if necessary. The value to be set should be in the
+  // accumulator.
+  BytecodeArrayBuilder& SetKeyedProperty(Register object, Register key,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
+
+  // Define an own property keyed by a value in a register, trigger the
+  // defineProperty traps if necessary. The value to be defined should be
   // in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object,
-                                           const AstRawString* name,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
+  BytecodeArrayBuilder& DefineKeyedOwnProperty(Register object, Register key,
+                                               int feedback_slot);
 
-  // Store a property named by a property name without feedback slot. The value
-  // to be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedPropertyNoFeedback(
-      Register object, const AstRawString* name, LanguageMode language_mode);
-
-  // Store a property named by a constant from the constant pool. The value to
-  // be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object,
-                                           size_t constant_pool_entry,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
-  // Store an own property named by a constant from the constant pool. The
-  // value to be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedOwnProperty(Register object,
-                                              const AstRawString* name,
-                                              int feedback_slot);
-  // Store a property keyed by a value in a register. The value to be stored
-  // should be in the accumulator.
-  BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
   // Store an own element in an array literal. The value to be stored should be
   // in the accumulator.
   BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
@@ -304,11 +309,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // feedback is recorded in the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& CallAnyReceiver(Register callable, RegisterList args,
                                         int feedback_slot);
-
-  // Call a JS function with an any receiver, possibly (but not necessarily)
-  // undefined. The JSFunction or Callable to be called should be in |callable|.
-  // The arguments should be in |args|, with the receiver in |args[0]|.
-  BytecodeArrayBuilder& CallNoFeedback(Register callable, RegisterList args);
 
   // Tail call into a JS function. The JSFunction or Callable to be called
   // should be in |callable|. The arguments should be in |args|, with the
@@ -508,8 +508,23 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   void InitializeReturnPosition(FunctionLiteral* literal);
 
   void SetStatementPosition(Statement* stmt) {
-    if (stmt->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(stmt->position());
+    SetStatementPosition(stmt->position());
+  }
+
+  BytecodeSourceInfo PopSourcePosition() {
+    BytecodeSourceInfo source_info = latest_source_info_;
+    latest_source_info_.set_invalid();
+    return source_info;
+  }
+
+  void PushSourcePosition(BytecodeSourceInfo source_info) {
+    DCHECK(!latest_source_info_.is_valid());
+    latest_source_info_ = source_info;
+  }
+
+  void SetStatementPosition(int position) {
+    if (position == kNoSourcePosition) return;
+    latest_source_info_.MakeStatementPosition(position);
   }
 
   void SetExpressionPosition(Expression* expr) {
@@ -526,16 +541,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   void SetExpressionAsStatementPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(expr->position());
-  }
-
-  void SetReturnPosition(int source_position, FunctionLiteral* literal) {
-    if (source_position != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(source_position);
-    } else if (literal->return_position() != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(literal->return_position());
-    }
+    SetStatementPosition(expr->position());
   }
 
   bool RemainderOfBlockIsDead() const {

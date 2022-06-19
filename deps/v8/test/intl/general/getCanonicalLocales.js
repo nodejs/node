@@ -24,5 +24,5 @@ assertEquals("ro", Intl.getCanonicalLocales("mo")[0]);
 assertEquals("sr", Intl.getCanonicalLocales("scc")[0]);
 assertEquals("sr-Latn", Intl.getCanonicalLocales("sh")[0]);
 assertEquals("sr-ME", Intl.getCanonicalLocales("cnr")[0]);
-assertEquals("nb", Intl.getCanonicalLocales("no")[0]);
+assertEquals("no", Intl.getCanonicalLocales("no")[0]);
 assertEquals("fil", Intl.getCanonicalLocales("tl")[0]);

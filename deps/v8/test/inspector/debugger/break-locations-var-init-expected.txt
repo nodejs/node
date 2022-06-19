@@ -21,7 +21,7 @@ function testFunction() {
   |_|(async function asyncF() {
     let r = |_|await Promise.|C|resolve(42);
     |_|return r;|R|
-  |R|})|C|();
+  })|C|();
   |_|return promise;|R|
 }
 

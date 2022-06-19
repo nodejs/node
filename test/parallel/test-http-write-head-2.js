@@ -29,7 +29,7 @@ const http = require('http');
     res.end();
   }));
 
-  server.listen(0, common.mustCall(function() {
+  server.listen(0, common.mustCall(() => {
     http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.headers.test, '1');
       assert.strictEqual(res.headers.test2, '2');
@@ -51,7 +51,7 @@ const http = require('http');
     res.end();
   }));
 
-  server.listen(0, common.mustCall(function() {
+  server.listen(0, common.mustCall(() => {
     http.get({ port: server.address().port }, common.mustCall((res) => {
       res.resume().on('end', common.mustCall(() => {
         server.close();

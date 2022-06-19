@@ -34,7 +34,7 @@ class V8_EXPORT_PRIVATE Compactor final {
     return compaction_worklists_.get();
   }
 
-  void EnableForNextGCForTesting() { enable_for_next_gc_for_testing_ = true; }
+  void EnableForNextGCForTesting();
   bool IsEnabledForTesting() const { return is_enabled_; }
 
  private:
@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE Compactor final {
   std::unique_ptr<CompactionWorklists> compaction_worklists_;
 
   bool is_enabled_ = false;
+  bool is_cancelled_ = false;
   bool enable_for_next_gc_for_testing_ = false;
 };
 

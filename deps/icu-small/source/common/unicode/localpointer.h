@@ -35,7 +35,7 @@
  * - Need to be able to orphan/release the pointer and its ownership.
  * - Need variants for normal C++ object pointers, C++ arrays, and ICU C service objects.
  *
- * For details see http://site.icu-project.org/design/cpp/scoped_ptr
+ * For details see https://icu.unicode.org/design/cpp/scoped_ptr
  */
 
 #include "unicode/utypes.h"

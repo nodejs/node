@@ -5,18 +5,23 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 7;
-const int Deoptimizer::kLazyDeoptExitSize = 7;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 12;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = 5;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset = 13;
+// The deopt exit sizes below depend on the following IsolateData layout
+// guarantees:
+#define ASSERT_OFFSET(BuiltinName)                                       \
+  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+                    Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
+                0x7F)
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
+#undef ASSERT_OFFSET
+
+const int Deoptimizer::kEagerDeoptExitSize = 4;
+const int Deoptimizer::kLazyDeoptExitSize = 4;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

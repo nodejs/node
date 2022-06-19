@@ -1,27 +1,50 @@
 {
   "name": "eslint-visitor-keys",
-  "version": "2.0.0",
+  "version": "3.3.0",
   "description": "Constants and utilities about visitor keys to traverse AST.",
-  "main": "lib/index.js",
+  "type": "module",
+  "main": "dist/eslint-visitor-keys.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": [
+      {
+        "import": "./lib/index.js",
+        "require": "./dist/eslint-visitor-keys.cjs"
+      },
+      "./dist/eslint-visitor-keys.cjs"
+    ],
+    "./package.json": "./package.json"
+  },
   "files": [
+    "dist/index.d.ts",
+    "dist/visitor-keys.d.ts",
+    "dist/eslint-visitor-keys.cjs",
     "lib"
   ],
   "engines": {
-    "node": ">=10"
+    "node": "^12.22.0 || ^14.17.0 || >=16.0.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "eslint": "^4.7.2",
-    "eslint-config-eslint": "^4.0.0",
-    "eslint-release": "^1.0.0",
-    "mocha": "^3.5.3",
-    "nyc": "^11.2.1",
-    "opener": "^1.4.3"
+    "c8": "^7.7.3",
+    "eslint": "^7.29.0",
+    "eslint-config-eslint": "^7.0.0",
+    "eslint-plugin-jsdoc": "^35.4.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-release": "^3.2.0",
+    "mocha": "^9.0.1",
+    "opener": "^1.5.2",
+    "rollup": "^2.52.1",
+    "tsd": "^0.19.1",
+    "typescript": "^4.5.5"
   },
   "scripts": {
-    "lint": "eslint lib tests/lib",
-    "test": "nyc mocha tests/lib",
-    "coverage": "nyc report --reporter lcov && opener coverage/lcov-report/index.html",
+    "prepare": "npm run build",
+    "build": "rollup -c && npm run tsc",
+    "lint": "eslint .",
+    "tsc": "tsc",
+    "tsd": "tsd",
+    "test": "mocha tests/lib/**/*.cjs && c8 mocha tests/lib/**/*.js && npm run tsd",
+    "coverage": "c8 report --reporter lcov && opener coverage/lcov-report/index.html",
     "generate-release": "eslint-generate-release",
     "generate-alpharelease": "eslint-generate-prerelease alpha",
     "generate-betarelease": "eslint-generate-prerelease beta",

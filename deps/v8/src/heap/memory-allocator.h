@@ -17,7 +17,9 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
-#include "src/heap/heap.h"
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
+#include "src/heap/code-range.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
@@ -29,27 +31,6 @@ namespace internal {
 class Heap;
 class Isolate;
 class ReadOnlyPage;
-
-// The process-wide singleton that keeps track of code range regions with the
-// intention to reuse free code range regions as a workaround for CFG memory
-// leaks (see crbug.com/870054).
-class CodeRangeAddressHint {
- public:
-  // Returns the most recently freed code range start address for the given
-  // size. If there is no such entry, then a random address is returned.
-  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size);
-
-  V8_EXPORT_PRIVATE void NotifyFreedCodeRange(Address code_range_start,
-                                              size_t code_range_size);
-
- private:
-  base::Mutex mutex_;
-  // A map from code range size to an array of recently freed code range
-  // addresses. There should be O(1) different code range sizes.
-  // The length of each array is limited by the peak number of code ranges,
-  // which should be also O(1).
-  std::unordered_map<size_t, std::vector<Address>> recently_freed_;
-};
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
@@ -65,15 +46,15 @@ class MemoryAllocator {
 
     Unmapper(Heap* heap, MemoryAllocator* allocator)
         : heap_(heap), allocator_(allocator) {
-      chunks_[kRegular].reserve(kReservedQueueingSlots);
-      chunks_[kPooled].reserve(kReservedQueueingSlots);
+      chunks_[ChunkQueueType::kRegular].reserve(kReservedQueueingSlots);
+      chunks_[ChunkQueueType::kPooled].reserve(kReservedQueueingSlots);
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
       if (!chunk->IsLargePage() && chunk->executable() != EXECUTABLE) {
-        AddMemoryChunkSafe<kRegular>(chunk);
+        AddMemoryChunkSafe(ChunkQueueType::kRegular, chunk);
       } else {
-        AddMemoryChunkSafe<kNonRegular>(chunk);
+        AddMemoryChunkSafe(ChunkQueueType::kNonRegular, chunk);
       }
     }
 
@@ -82,10 +63,10 @@ class MemoryAllocator {
       // (1) Try to get a chunk that was declared as pooled and already has
       // been uncommitted.
       // (2) Try to steal any memory chunk of kPageSize that would've been
-      // unmapped.
-      MemoryChunk* chunk = GetMemoryChunkSafe<kPooled>();
+      // uncommitted.
+      MemoryChunk* chunk = GetMemoryChunkSafe(ChunkQueueType::kPooled);
       if (chunk == nullptr) {
-        chunk = GetMemoryChunkSafe<kRegular>();
+        chunk = GetMemoryChunkSafe(ChunkQueueType::kRegular);
         if (chunk != nullptr) {
           // For stolen chunks we need to manually free any allocated memory.
           chunk->ReleaseAllAllocatedMemory();
@@ -111,23 +92,24 @@ class MemoryAllocator {
       kRegular,     // Pages of kPageSize that do not live in a CodeRange and
                     // can thus be used for stealing.
       kNonRegular,  // Large chunks and executable chunks.
-      kPooled,      // Pooled chunks, already uncommited and ready for reuse.
+      kPooled,      // Pooled chunks, already freed and ready for reuse.
       kNumberOfChunkQueues,
     };
 
     enum class FreeMode {
+      // Disables any access on pooled pages before adding them to the pool.
       kUncommitPooled,
-      kReleasePooled,
+
+      // Free pooled pages. Only used on tear down and last-resort GCs.
+      kFreePooled,
     };
 
-    template <ChunkQueueType type>
-    void AddMemoryChunkSafe(MemoryChunk* chunk) {
+    void AddMemoryChunkSafe(ChunkQueueType type, MemoryChunk* chunk) {
       base::MutexGuard guard(&mutex_);
       chunks_[type].push_back(chunk);
     }
 
-    template <ChunkQueueType type>
-    MemoryChunk* GetMemoryChunkSafe() {
+    MemoryChunk* GetMemoryChunkSafe(ChunkQueueType type) {
       base::MutexGuard guard(&mutex_);
       if (chunks_[type].empty()) return nullptr;
       MemoryChunk* chunk = chunks_[type].back();
@@ -137,8 +119,8 @@ class MemoryAllocator {
 
     bool MakeRoomForNewTasks();
 
-    template <FreeMode mode>
-    void PerformFreeMemoryOnQueuedChunks(JobDelegate* delegate = nullptr);
+    void PerformFreeMemoryOnQueuedChunks(FreeMode mode,
+                                         JobDelegate* delegate = nullptr);
 
     void PerformFreeMemoryOnQueuedNonRegularChunks(
         JobDelegate* delegate = nullptr);
@@ -146,25 +128,45 @@ class MemoryAllocator {
     Heap* const heap_;
     MemoryAllocator* const allocator_;
     base::Mutex mutex_;
-    std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
+    std::vector<MemoryChunk*> chunks_[ChunkQueueType::kNumberOfChunkQueues];
     std::unique_ptr<v8::JobHandle> job_handle_;
 
     friend class MemoryAllocator;
   };
 
-  enum AllocationMode {
+  enum class AllocationMode {
+    // Regular allocation path. Does not use pool.
     kRegular,
-    kPooled,
+
+    // Uses the pool for allocation first.
+    kUsePool,
   };
 
-  enum FreeMode {
-    kFull,
-    kAlreadyPooled,
-    kPreFreeAndQueue,
-    kPooledAndQueue,
+  enum class FreeMode {
+    // Frees page immediately on the main thread.
+    kImmediately,
+
+    // Frees page on background thread.
+    kConcurrently,
+
+    // Uncommits but does not free page on background thread. Page is added to
+    // pool. Used to avoid the munmap/mmap-cycle when we quickly reallocate
+    // pages.
+    kConcurrentlyAndPool,
   };
 
-  V8_EXPORT_PRIVATE static intptr_t GetCommitPageSize();
+  // Initialize page sizes field in V8::Initialize.
+  static void InitializeOncePerProcess();
+
+  V8_INLINE static intptr_t GetCommitPageSize() {
+    DCHECK_LT(0, commit_page_size_);
+    return commit_page_size_;
+  }
+
+  V8_INLINE static intptr_t GetCommitPageSizeBits() {
+    DCHECK_LT(0, commit_page_size_bits_);
+    return commit_page_size_bits_;
+  }
 
   // Computes the memory area of discardable memory within a given memory area
   // [addr, addr+size) and returns the result as base::AddressRegion. If the
@@ -172,30 +174,30 @@ class MemoryAllocator {
   V8_EXPORT_PRIVATE static base::AddressRegion ComputeDiscardMemoryArea(
       Address addr, size_t size);
 
-  V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate, size_t max_capacity,
-                                    size_t code_range_size);
+  V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
+                                    v8::PageAllocator* code_page_allocator,
+                                    size_t max_capacity);
 
   V8_EXPORT_PRIVATE void TearDown();
 
   // Allocates a Page from the allocator. AllocationMode is used to indicate
   // whether pooled allocation, which only works for MemoryChunk::kPageSize,
   // should be tried first.
-  template <MemoryAllocator::AllocationMode alloc_mode = kRegular,
-            typename SpaceType>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Page* AllocatePage(size_t size, SpaceType* owner, Executability executable);
+  V8_EXPORT_PRIVATE Page* AllocatePage(
+      MemoryAllocator::AllocationMode alloc_mode, Space* space,
+      Executability executable);
 
-  LargePage* AllocateLargePage(size_t size, LargeObjectSpace* owner,
-                               Executability executable);
+  V8_EXPORT_PRIVATE LargePage* AllocateLargePage(LargeObjectSpace* space,
+                                                 size_t object_size,
+                                                 Executability executable);
 
-  ReadOnlyPage* AllocateReadOnlyPage(size_t size, ReadOnlySpace* owner);
+  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space);
 
   std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
 
-  template <MemoryAllocator::FreeMode mode = kFull>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void Free(MemoryChunk* chunk);
+  V8_EXPORT_PRIVATE void Free(MemoryAllocator::FreeMode mode,
+                              MemoryChunk* chunk);
   void FreeReadOnlyPage(ReadOnlyPage* chunk);
 
   // Returns allocated spaces in bytes.
@@ -217,27 +219,6 @@ class MemoryAllocator {
            address >= highest_ever_allocated_;
   }
 
-  // Returns a BasicMemoryChunk in which the memory region from commit_area_size
-  // to reserve_area_size of the chunk area is reserved but not committed, it
-  // could be committed later by calling MemoryChunk::CommitArea.
-  V8_EXPORT_PRIVATE BasicMemoryChunk* AllocateBasicChunk(
-      size_t reserve_area_size, size_t commit_area_size,
-      Executability executable, BaseSpace* space);
-
-  // Returns a MemoryChunk in which the memory region from commit_area_size to
-  // reserve_area_size of the chunk area is reserved but not committed, it
-  // could be committed later by calling MemoryChunk::CommitArea.
-  V8_EXPORT_PRIVATE MemoryChunk* AllocateChunk(size_t reserve_area_size,
-                                               size_t commit_area_size,
-                                               Executability executable,
-                                               BaseSpace* space);
-
-  Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
-                                size_t alignment, Executability executable,
-                                void* hint, VirtualMemory* controller);
-
-  void FreeMemory(v8::PageAllocator* page_allocator, Address addr, size_t size);
-
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
   // internally memory is freed from |start_free| to the end of the reservation.
   // Additional memory beyond the page is not accounted though, so
@@ -245,28 +226,18 @@ class MemoryAllocator {
   void PartialFreeMemory(BasicMemoryChunk* chunk, Address start_free,
                          size_t bytes_to_free, Address new_area_end);
 
+#ifdef DEBUG
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
   bool IsMemoryChunkExecutable(MemoryChunk* chunk) {
+    base::MutexGuard guard(&executable_memory_mutex_);
     return executable_memory_.find(chunk) != executable_memory_.end();
   }
-
-  // Commit memory region owned by given reservation object.  Returns true if
-  // it succeeded and false otherwise.
-  bool CommitMemory(VirtualMemory* reservation);
-
-  // Uncommit memory region owned by given reservation object. Returns true if
-  // it succeeded and false otherwise.
-  bool UncommitMemory(VirtualMemory* reservation);
+#endif  // DEBUG
 
   // Zaps a contiguous block of memory [start..(start+size)[ with
   // a given zap value.
   void ZapBlock(Address start, size_t size, uintptr_t zap_value);
-
-  V8_WARN_UNUSED_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
-                                                    Address start,
-                                                    size_t commit_size,
-                                                    size_t reserved_size);
 
   // Page allocator instance for allocating non-executable pages.
   // Guaranteed to be a valid pointer.
@@ -283,31 +254,56 @@ class MemoryAllocator {
                                     : data_page_allocator_;
   }
 
-  // A region of memory that may contain executable code including reserved
-  // OS page with read-write access in the beginning.
-  const base::AddressRegion& code_range() const {
-    // |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|
-    DCHECK_IMPLIES(!code_range_.is_empty(), code_page_allocator_instance_);
-    DCHECK_IMPLIES(!code_range_.is_empty(),
-                   code_range_.contains(code_page_allocator_instance_->begin(),
-                                        code_page_allocator_instance_->size()));
-    return code_range_;
-  }
-
   Unmapper* unmapper() { return &unmapper_; }
 
-  // Performs all necessary bookkeeping to free the memory, but does not free
-  // it.
-  void UnregisterMemory(MemoryChunk* chunk);
-  void UnregisterMemory(BasicMemoryChunk* chunk,
-                        Executability executable = NOT_EXECUTABLE);
-  void UnregisterSharedMemory(BasicMemoryChunk* chunk);
+  void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
-  void RegisterReadOnlyMemory(ReadOnlyPage* page);
+  Address HandleAllocationFailure();
 
  private:
-  void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,
-                                   size_t requested);
+  // Used to store all data about MemoryChunk allocation, e.g. in
+  // AllocateUninitializedChunk.
+  struct MemoryChunkAllocationResult {
+    void* start;
+    size_t size;
+    size_t area_start;
+    size_t area_end;
+    VirtualMemory reservation;
+  };
+
+  // Computes the size of a MemoryChunk from the size of the object_area and
+  // whether the chunk is executable or not.
+  static size_t ComputeChunkSize(size_t area_size, Executability executable);
+
+  // Internal allocation method for all pages/memory chunks. Returns data about
+  // the unintialized memory region.
+  V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
+  AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
+                             Executability executable, PageSize page_size);
+
+  // Internal raw allocation method that allocates an aligned MemoryChunk and
+  // sets the right memory permissions.
+  Address AllocateAlignedMemory(size_t chunk_size, size_t area_size,
+                                size_t alignment, Executability executable,
+                                void* hint, VirtualMemory* controller);
+
+  // Commit memory region owned by given reservation object.  Returns true if
+  // it succeeded and false otherwise.
+  bool CommitMemory(VirtualMemory* reservation);
+
+  // Sets memory permissions on executable memory chunks. This entails page
+  // header (RW), guard pages (no access) and the object area (code modification
+  // permissions).
+  V8_WARN_UNUSED_RESULT bool SetPermissionsOnExecutableMemoryChunk(
+      VirtualMemory* vm, Address start, size_t area_size, size_t reserved_size);
+
+  // Disallows any access on memory region owned by given reservation object.
+  // Returns true if it succeeded and false otherwise.
+  bool UncommitMemory(VirtualMemory* reservation);
+
+  // Frees the given memory region.
+  void FreeMemoryRegion(v8::PageAllocator* page_allocator, Address addr,
+                        size_t size);
 
   // PreFreeMemory logically frees the object, i.e., it unregisters the
   // memory, logs a delete event and adds the chunk to remembered unmapped
@@ -320,15 +316,18 @@ class MemoryAllocator {
 
   // See AllocatePage for public interface. Note that currently we only
   // support pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
-  template <typename SpaceType>
-  MemoryChunk* AllocatePagePooled(SpaceType* owner);
+  base::Optional<MemoryChunkAllocationResult> AllocateUninitializedPageFromPool(
+      Space* space);
+
+  // Frees a pooled page. Only used on tear-down and last-resort GCs.
+  void FreePooledChunk(MemoryChunk* chunk);
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact
   // collector to rebuild page headers in the from space, which is
   // used as a marking stack and its page headers are destroyed.
   Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
-                               PagedSpace* owner);
+                               PagedSpace* space);
 
   void UpdateAllocatedSpaceLimits(Address low, Address high) {
     // The use of atomic primitives does not guarantee correctness (wrt.
@@ -344,6 +343,16 @@ class MemoryAllocator {
     }
   }
 
+  // Performs all necessary bookkeeping to free the memory, but does not free
+  // it.
+  void UnregisterMemoryChunk(MemoryChunk* chunk);
+  void UnregisterSharedBasicMemoryChunk(BasicMemoryChunk* chunk);
+  void UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
+                                  Executability executable = NOT_EXECUTABLE);
+
+  void RegisterReadOnlyMemory(ReadOnlyPage* page);
+
+#ifdef DEBUG
   void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
     base::MutexGuard guard(&executable_memory_mutex_);
     DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
@@ -355,14 +364,10 @@ class MemoryAllocator {
     base::MutexGuard guard(&executable_memory_mutex_);
     DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.erase(chunk);
-    chunk->heap()->UnregisterUnprotectedMemoryChunk(chunk);
   }
+#endif  // DEBUG
 
   Isolate* isolate_;
-
-  // This object controls virtual space reserved for code on the V8 heap. This
-  // is only valid for 64-bit architectures where kRequiresCodeRange.
-  VirtualMemory code_reservation_;
 
   // Page allocator used for allocating data pages. Depending on the
   // configuration it may be a page allocator instance provided by
@@ -371,28 +376,11 @@ class MemoryAllocator {
   v8::PageAllocator* data_page_allocator_;
 
   // Page allocator used for allocating code pages. Depending on the
-  // configuration it may be a page allocator instance provided by
-  // v8::Platform or a BoundedPageAllocator (when pointer compression is
-  // enabled or on those 64-bit architectures where pc-relative 32-bit
+  // configuration it may be a page allocator instance provided by v8::Platform
+  // or a BoundedPageAllocator from Heap::code_range_ (when pointer compression
+  // is enabled or on those 64-bit architectures where pc-relative 32-bit
   // displacement can be used for call and jump instructions).
   v8::PageAllocator* code_page_allocator_;
-
-  // A part of the |code_reservation_| that may contain executable code
-  // including reserved page with read-write access in the beginning.
-  // See details below.
-  base::AddressRegion code_range_;
-
-  // This unique pointer owns the instance of bounded code allocator
-  // that controls executable pages allocation. It does not control the
-  // optionally existing page in the beginning of the |code_range_|.
-  // So, summarizing all above, the following conditions hold:
-  // 1) |code_reservation_| >= |code_range_|
-  // 2) |code_range_| >= |optional RW pages| +
-  // |code_page_allocator_instance_|. 3) |code_reservation_| is
-  // AllocatePageSize()-aligned 4) |code_page_allocator_instance_| is
-  // MemoryChunk::kAlignment-aligned 5) |code_range_| is
-  // CommitPageSize()-aligned
-  std::unique_ptr<base::BoundedPageAllocator> code_page_allocator_instance_;
 
   // Maximum space size in bytes.
   size_t capacity_;
@@ -410,41 +398,24 @@ class MemoryAllocator {
   std::atomic<Address> lowest_ever_allocated_;
   std::atomic<Address> highest_ever_allocated_;
 
-  VirtualMemory last_chunk_;
+  base::Optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
   Unmapper unmapper_;
 
+#ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.
+  // This data structure is used only in DCHECKs.
   std::unordered_set<MemoryChunk*> executable_memory_;
   base::Mutex executable_memory_mutex_;
+#endif  // DEBUG
+
+  V8_EXPORT_PRIVATE static size_t commit_page_size_;
+  V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;
 
   friend class heap::TestCodePageAllocatorScope;
   friend class heap::TestMemoryAllocatorScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
-
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-        size_t size, PagedSpace* owner, Executability executable);
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
-        size_t size, SemiSpace* owner, Executability executable);
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
-        size_t size, SemiSpace* owner, Executability executable);
-
-extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void MemoryAllocator::
-    Free<MemoryAllocator::kFull>(MemoryChunk* chunk);
-extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void MemoryAllocator::
-    Free<MemoryAllocator::kAlreadyPooled>(MemoryChunk* chunk);
-extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void MemoryAllocator::
-    Free<MemoryAllocator::kPreFreeAndQueue>(MemoryChunk* chunk);
-extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void MemoryAllocator::
-    Free<MemoryAllocator::kPooledAndQueue>(MemoryChunk* chunk);
 
 }  // namespace internal
 }  // namespace v8

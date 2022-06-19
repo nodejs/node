@@ -1,11 +1,17 @@
 /*
  * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * AES_encrypt/AES_decrypt are deprecated - but we need to use them to implement
+ * these functions
+ */
+#include "internal/deprecated.h"
 
 #include "internal/cryptlib.h"
 
@@ -38,12 +44,13 @@ typedef struct {
 
 /* N.B. The IV for this mode is _twice_ the block size */
 
+/*  Use of this function is deprecated. */
 void AES_ige_encrypt(const unsigned char *in, unsigned char *out,
                      size_t length, const AES_KEY *key,
                      unsigned char *ivec, const int enc)
 {
     size_t n;
-    size_t len = length;
+    size_t len = length / AES_BLOCK_SIZE;
 
     if (length == 0)
         return;
@@ -51,8 +58,6 @@ void AES_ige_encrypt(const unsigned char *in, unsigned char *out,
     OPENSSL_assert(in && out && key && ivec);
     OPENSSL_assert((AES_ENCRYPT == enc) || (AES_DECRYPT == enc));
     OPENSSL_assert((length % AES_BLOCK_SIZE) == 0);
-
-    len = length / AES_BLOCK_SIZE;
 
     if (AES_ENCRYPT == enc) {
         if (in != out &&
@@ -166,6 +171,14 @@ void AES_ige_encrypt(const unsigned char *in, unsigned char *out,
 /*
  * Note that its effectively impossible to do biIGE in anything other
  * than a single pass, so no provision is made for chaining.
+ *
+ * NB: The implementation of AES_bi_ige_encrypt has a bug. It is supposed to use
+ * 2 AES keys, but in fact only one is ever used. This bug has been present
+ * since this code was first implemented. It is believed to have minimal
+ * security impact in practice and has therefore not been fixed for backwards
+ * compatibility reasons.
+ *
+ * Use of this function is deprecated.
  */
 
 /* N.B. The IV for this mode is _four times_ the block size */

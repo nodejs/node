@@ -56,7 +56,9 @@ std::unique_ptr<protocol::DictionaryValue> ParseState(StringView state) {
   if (!cbor.empty()) {
     std::unique_ptr<protocol::Value> value =
         protocol::Value::parseBinary(cbor.data(), cbor.size());
-    if (value) return protocol::DictionaryValue::cast(std::move(value));
+    std::unique_ptr<protocol::DictionaryValue> dictionaryValue =
+        protocol::DictionaryValue::cast(std::move(value));
+    if (dictionaryValue) return dictionaryValue;
   }
   return protocol::DictionaryValue::create();
 }
@@ -153,6 +155,20 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
   m_inspector->disconnect(this);
+}
+
+std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+V8InspectorSessionImpl::initializeCommandLineAPIScope(int executionContextId) {
+  auto scope =
+      std::make_unique<InjectedScript::ContextScope>(this, executionContextId);
+  auto result = scope->initialize();
+  if (!result.IsSuccess()) {
+    return nullptr;
+  }
+
+  scope->installCommandLineAPI();
+
+  return scope;
 }
 
 protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
@@ -482,8 +498,8 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 }
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
-    StringView occassion) {
-  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occassion));
+    StringView occasion) {
+  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
 
 }  // namespace v8_inspector

@@ -13,6 +13,11 @@
 #include "src/init/v8.h"
 
 namespace v8 {
+
+namespace base {
+class BoundedPageAllocator;
+}  // namespace base
+
 namespace internal {
 
 class Isolate;
@@ -85,15 +90,39 @@ class FreeStoreAllocationPolicy {
   }
 };
 
+using MallocFn = void* (*)(size_t);
+
 // Performs a malloc, with retry logic on failure. Returns nullptr on failure.
 // Call free to release memory allocated with this function.
-void* AllocWithRetry(size_t size);
+void* AllocWithRetry(size_t size, MallocFn = base::Malloc);
 
 V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
 V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
+
+// Returns platfrom virtual memory space instance. Guaranteed to be a valid
+// pointer.
+V8_EXPORT_PRIVATE v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace();
+
+#ifdef V8_SANDBOX
+// Returns the page allocator instance for allocating pages inside the sandbox.
+// Guaranteed to be a valid pointer.
+V8_EXPORT_PRIVATE v8::PageAllocator* GetSandboxPageAllocator();
+#endif
+
+// Returns the appropriate page allocator to use for ArrayBuffer backing
+// stores. If the sandbox is enabled, these must be allocated inside the
+// sandbox and so this will be the SandboxPageAllocator. Otherwise it will be
+// the PlatformPageAllocator.
+inline v8::PageAllocator* GetArrayBufferPageAllocator() {
+#ifdef V8_SANDBOX
+  return GetSandboxPageAllocator();
+#else
+  return GetPlatformPageAllocator();
+#endif
+}
 
 // Sets the given page allocator as the platform page allocator and returns
 // the current one. This function *must* be used only for testing purposes.
@@ -127,20 +156,18 @@ V8_WARN_UNUSED_RESULT void* AllocatePages(v8::PageAllocator* page_allocator,
                                           PageAllocator::Permission access);
 
 // Frees memory allocated by a call to AllocatePages. |address| and |size| must
-// be multiples of AllocatePageSize(). Returns true on success, otherwise false.
+// be multiples of AllocatePageSize().
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT bool FreePages(v8::PageAllocator* page_allocator,
-                                     void* address, const size_t size);
+void FreePages(v8::PageAllocator* page_allocator, void* address,
+               const size_t size);
 
 // Releases memory that is no longer needed. The range specified by |address|
 // and |size| must be an allocated memory region. |size| and |new_size| must be
 // multiples of CommitPageSize(). Memory from |new_size| to |size| is released.
 // Released memory is left in an undefined state, so it should not be accessed.
-// Returns true on success, otherwise false.
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT bool ReleasePages(v8::PageAllocator* page_allocator,
-                                        void* address, size_t size,
-                                        size_t new_size);
+void ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
+                  size_t new_size);
 
 // Sets permissions according to |access|. |address| and |size| must be
 // multiples of CommitPageSize(). Setting permission to kNoAccess may
@@ -213,7 +240,7 @@ class VirtualMemory final {
 
   v8::PageAllocator* page_allocator() { return page_allocator_; }
 
-  base::AddressRegion region() const { return region_; }
+  const base::AddressRegion& region() const { return region_; }
 
   // Returns the start address of the reserved memory.
   // If the memory was reserved with an alignment, this address is not
@@ -250,7 +277,7 @@ class VirtualMemory final {
   // can be called on a VirtualMemory that is itself not writable.
   V8_EXPORT_PRIVATE void FreeReadOnly();
 
-  bool InVM(Address address, size_t size) {
+  bool InVM(Address address, size_t size) const {
     return region_.contains(address, size);
   }
 
@@ -258,6 +285,116 @@ class VirtualMemory final {
   // Page allocator that controls the virtual memory.
   v8::PageAllocator* page_allocator_ = nullptr;
   base::AddressRegion region_;
+};
+
+// Represents a VirtualMemory reservation along with a BoundedPageAllocator that
+// can be used to allocate within the reservation.
+//
+// Virtual memory cages are used for both the pointer compression cage and code
+// ranges (on platforms that require code ranges) and are configurable via
+// ReservationParams.
+//
+// +------------+-----------+------------ ~~~ --+- ~~~ -+
+// |     ...    |    ...    |   ...             |  ...  |
+// +------------+-----------+------------ ~~~ --+- ~~~ -+
+// ^            ^           ^
+// start        cage base   allocatable base
+//
+// <------------>           <------------------->
+// base bias size              allocatable size
+//              <------------------------------->
+//                          cage size
+// <---------------------------------------------------->
+//                   reservation size
+//
+// - The reservation is made using ReservationParams::page_allocator.
+// - start is the start of the virtual memory reservation.
+// - cage base is the base address of the cage.
+// - allocatable base is the cage base rounded up to the nearest
+//   ReservationParams::page_size, and is the start of the allocatable area for
+//   the BoundedPageAllocator.
+// - cage size is the size of the area from cage base to the end of the
+//   allocatable area.
+//
+// - The base bias is configured by ReservationParams::base_bias_size.
+// - The reservation size is configured by ReservationParams::reservation_size
+//   but it might be actually bigger if we end up over-reserving the virtual
+//   address space.
+//
+// Additionally,
+// - The alignment of the cage base is configured by
+//   ReservationParams::base_alignment.
+// - The page size of the BoundedPageAllocator is configured by
+//   ReservationParams::page_size.
+// - A hint for the value of start can be passed by
+//   ReservationParams::requested_start_hint.
+//
+// The configuration is subject to the following alignment requirements.
+// Below, AllocatePageSize is short for
+// ReservationParams::page_allocator->AllocatePageSize().
+//
+// - The reservation size must be AllocatePageSize-aligned.
+// - If the base alignment is not kAnyBaseAlignment, both the base alignment
+//   and the base bias size must be AllocatePageSize-aligned.
+// - The base alignment may be kAnyBaseAlignment to denote any alignment is
+//   acceptable. In this case the base bias size does not need to be aligned.
+class VirtualMemoryCage {
+ public:
+  VirtualMemoryCage();
+  virtual ~VirtualMemoryCage();
+
+  VirtualMemoryCage(const VirtualMemoryCage&) = delete;
+  VirtualMemoryCage& operator=(VirtualMemoryCage&) = delete;
+
+  VirtualMemoryCage(VirtualMemoryCage&& other) V8_NOEXCEPT;
+  VirtualMemoryCage& operator=(VirtualMemoryCage&& other) V8_NOEXCEPT;
+
+  Address base() const { return base_; }
+  size_t size() const { return size_; }
+
+  base::BoundedPageAllocator* page_allocator() const {
+    return page_allocator_.get();
+  }
+
+  VirtualMemory* reservation() { return &reservation_; }
+  const VirtualMemory* reservation() const { return &reservation_; }
+
+  bool IsReserved() const {
+    DCHECK_EQ(base_ != kNullAddress, reservation_.IsReserved());
+    DCHECK_EQ(base_ != kNullAddress, size_ != 0);
+    return reservation_.IsReserved();
+  }
+
+  struct ReservationParams {
+    // The allocator to use to reserve the virtual memory.
+    v8::PageAllocator* page_allocator;
+    // See diagram above.
+    size_t reservation_size;
+    size_t base_alignment;
+    size_t base_bias_size;
+    size_t page_size;
+    Address requested_start_hint;
+
+    static constexpr size_t kAnyBaseAlignment = 1;
+  };
+
+  // A number of attempts is made to try to reserve a region that satisfies the
+  // constraints in params, but this may fail. The base address may be different
+  // than the one requested.
+  // If an existing reservation is provided, it will be used for this cage
+  // instead. The caller retains ownership of the reservation and is responsible
+  // for keeping the memory reserved during the lifetime of this object.
+  bool InitReservation(
+      const ReservationParams& params,
+      base::AddressRegion existing_reservation = base::AddressRegion());
+
+  void Free();
+
+ protected:
+  Address base_ = kNullAddress;
+  size_t size_ = 0;
+  std::unique_ptr<base::BoundedPageAllocator> page_allocator_;
+  VirtualMemory reservation_;
 };
 
 }  // namespace internal

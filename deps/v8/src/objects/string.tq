@@ -5,12 +5,15 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 @abstract
-@generateCppClass
-@reserveBitsInInstanceType(6)
+@reserveBitsInInstanceType(7)
 extern class String extends Name {
   macro StringInstanceType(): StringInstanceType {
     return %RawDownCast<StringInstanceType>(
         Convert<uint16>(this.map.instance_type));
+  }
+
+  macro IsNotInternalized(): bool {
+    return this.StringInstanceType().is_not_internalized;
   }
 
   const length: int32;
@@ -29,9 +32,9 @@ bitfield struct StringInstanceType extends uint16 {
   is_one_byte: bool: 1 bit;
   is_uncached: bool: 1 bit;
   is_not_internalized: bool: 1 bit;
+  is_shared: bool: 1 bit;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class ConsString extends String {
@@ -92,30 +95,25 @@ extern class ExternalTwoByteString extends ExternalString {
   }
 }
 
-@generateCppClass
 @doNotGenerateCast
 extern class InternalizedString extends String {
 }
 
 @abstract
-@generateCppClass
 @doNotGenerateCast
 extern class SeqString extends String {
 }
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqOneByteString extends SeqString {
   const chars[length]: char8;
 }
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqTwoByteString extends SeqString {
   const chars[length]: char16;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SlicedString extends String {
@@ -123,7 +121,6 @@ extern class SlicedString extends String {
   offset: Smi;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class ThinString extends String {
@@ -136,7 +133,7 @@ type DirectString extends String;
 
 macro AllocateNonEmptySeqOneByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqOneByteString {
-  assert(length != 0 && length <= kStringMaxLength);
+  dcheck(length != 0 && length <= kStringMaxLength);
   return new SeqOneByteString{
     map: kOneByteStringMap,
     raw_hash_field: kNameEmptyHashField,
@@ -147,7 +144,7 @@ macro AllocateNonEmptySeqOneByteString<Iterator: type>(
 
 macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqTwoByteString {
-  assert(length > 0 && length <= kStringMaxLength);
+  dcheck(length > 0 && length <= kStringMaxLength);
   return new SeqTwoByteString{
     map: kStringMap,
     raw_hash_field: kNameEmptyHashField,
@@ -185,8 +182,10 @@ macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|EmptyString {
   return AllocateSeqTwoByteString(length, UninitializedIterator{});
 }
 
-extern macro StringWriteToFlatOneByte(String, RawPtr<char8>, int32, int32);
-extern macro StringWriteToFlatTwoByte(String, RawPtr<char16>, int32, int32);
+extern macro StringWriteToFlatOneByte(
+    String, RawPtr<char8>, int32, int32): void;
+extern macro StringWriteToFlatTwoByte(
+    String, RawPtr<char16>, int32, int32): void;
 
 // Corresponds to String::SlowFlatten in the C++ runtime.
 builtin StringSlowFlatten(cons: ConsString): String {
@@ -230,7 +229,7 @@ macro Flatten(string: String): String {
       return Flatten(cons);
     }
     case (thin: ThinString): {
-      assert(!Is<ConsString>(thin.actual));
+      dcheck(!Is<ConsString>(thin.actual));
       return thin.actual;
     }
     case (other: String): {

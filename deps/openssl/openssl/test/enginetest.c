@@ -1,11 +1,14 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* We need to use some deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +23,8 @@
 # include <openssl/engine.h>
 # include <openssl/rsa.h>
 # include <openssl/err.h>
+# include <openssl/x509.h>
+# include <openssl/pem.h>
 
 static void display_engine_list(void)
 {
@@ -44,8 +49,9 @@ static void display_engine_list(void)
 static int test_engines(void)
 {
     ENGINE *block[NUMTOADD];
+    char *eid[NUMTOADD];
+    char *ename[NUMTOADD];
     char buf[256];
-    const char *id, *name;
     ENGINE *ptr;
     int loop;
     int to_return = 0;
@@ -142,12 +148,12 @@ static int test_engines(void)
     TEST_info("About to beef up the engine-type list");
     for (loop = 0; loop < NUMTOADD; loop++) {
         sprintf(buf, "id%d", loop);
-        id = OPENSSL_strdup(buf);
+        eid[loop] = OPENSSL_strdup(buf);
         sprintf(buf, "Fake engine type %d", loop);
-        name = OPENSSL_strdup(buf);
+        ename[loop] = OPENSSL_strdup(buf);
         if (!TEST_ptr(block[loop] = ENGINE_new())
-                || !TEST_true(ENGINE_set_id(block[loop], id))
-                || !TEST_true(ENGINE_set_name(block[loop], name)))
+                || !TEST_true(ENGINE_set_id(block[loop], eid[loop]))
+                || !TEST_true(ENGINE_set_name(block[loop], ename[loop])))
             goto end;
     }
     for (loop = 0; loop < NUMTOADD; loop++) {
@@ -166,8 +172,8 @@ static int test_engines(void)
         ENGINE_free(ptr);
     }
     for (loop = 0; loop < NUMTOADD; loop++) {
-        OPENSSL_free((void *)ENGINE_get_id(block[loop]));
-        OPENSSL_free((void *)ENGINE_get_name(block[loop]));
+        OPENSSL_free(eid[loop]);
+        OPENSSL_free(ename[loop]);
     }
     to_return = 1;
 
@@ -256,7 +262,7 @@ static int test_redirect(void)
     if (!TEST_ptr(pkey = get_test_pkey()))
         goto err;
 
-    len = EVP_PKEY_size(pkey);
+    len = EVP_PKEY_get_size(pkey);
     if (!TEST_ptr(tmp = OPENSSL_malloc(len)))
         goto err;
 
@@ -282,7 +288,7 @@ static int test_redirect(void)
      * Try setting test key engine. Both should fail because the
      * engine has no public key methods.
      */
-    if (!TEST_ptr_null(EVP_PKEY_CTX_new(pkey, e))
+    if (!TEST_ptr_null(ctx = EVP_PKEY_CTX_new(pkey, e))
             || !TEST_int_le(EVP_PKEY_set1_engine(pkey, e), 0))
         goto err;
 
@@ -348,6 +354,80 @@ static int test_redirect(void)
     OPENSSL_free(tmp);
     return to_return;
 }
+
+static int test_x509_dup_w_engine(void)
+{
+    ENGINE *e = NULL;
+    X509 *cert = NULL, *dupcert = NULL;
+    X509_PUBKEY *pubkey, *duppubkey = NULL;
+    int ret = 0;
+    BIO *b = NULL;
+    RSA_METHOD *rsameth = NULL;
+
+    if (!TEST_ptr(b = BIO_new_file(test_get_argument(0), "r"))
+        || !TEST_ptr(cert = PEM_read_bio_X509(b, NULL, NULL, NULL)))
+        goto err;
+
+    /* Dup without an engine */
+    if (!TEST_ptr(dupcert = X509_dup(cert)))
+        goto err;
+    X509_free(dupcert);
+    dupcert = NULL;
+
+    if (!TEST_ptr(pubkey = X509_get_X509_PUBKEY(cert))
+        || !TEST_ptr(duppubkey = X509_PUBKEY_dup(pubkey))
+        || !TEST_ptr_ne(duppubkey, pubkey)
+        || !TEST_ptr_ne(X509_PUBKEY_get0(duppubkey), X509_PUBKEY_get0(pubkey)))
+        goto err;
+
+    X509_PUBKEY_free(duppubkey);
+    duppubkey = NULL;
+
+    X509_free(cert);
+    cert = NULL;
+
+    /* Create a test ENGINE */
+    if (!TEST_ptr(e = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(e, "Test dummy engine"))
+            || !TEST_true(ENGINE_set_name(e, "Test dummy engine")))
+        goto err;
+
+    if (!TEST_ptr(rsameth = RSA_meth_dup(RSA_get_default_method())))
+        goto err;
+
+    ENGINE_set_RSA(e, rsameth);
+
+    if (!TEST_true(ENGINE_set_default_RSA(e)))
+        goto err;
+
+    if (!TEST_int_ge(BIO_seek(b, 0), 0)
+        || !TEST_ptr(cert = PEM_read_bio_X509(b, NULL, NULL, NULL)))
+        goto err;
+
+    /* Dup with an engine set on the key */
+    if (!TEST_ptr(dupcert = X509_dup(cert)))
+        goto err;
+
+    if (!TEST_ptr(pubkey = X509_get_X509_PUBKEY(cert))
+        || !TEST_ptr(duppubkey = X509_PUBKEY_dup(pubkey))
+        || !TEST_ptr_ne(duppubkey, pubkey)
+        || !TEST_ptr_ne(X509_PUBKEY_get0(duppubkey), X509_PUBKEY_get0(pubkey)))
+        goto err;
+
+    ret = 1;
+
+ err:
+    X509_free(cert);
+    X509_free(dupcert);
+    X509_PUBKEY_free(duppubkey);
+    if (e != NULL) {
+        ENGINE_unregister_RSA(e);
+        ENGINE_free(e);
+    }
+    RSA_meth_free(rsameth);
+    BIO_free(b);
+    return ret;
+}
 #endif
 
 int global_init(void)
@@ -359,13 +439,27 @@ int global_init(void)
     return OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL);
 }
 
+OPT_TEST_DECLARE_USAGE("certfile\n")
+
 int setup_tests(void)
 {
 #ifdef OPENSSL_NO_ENGINE
     TEST_note("No ENGINE support");
 #else
+    int n;
+
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
+    n = test_get_argument_count();
+    if (n == 0)
+        return 0;
+
     ADD_TEST(test_engines);
     ADD_TEST(test_redirect);
+    ADD_TEST(test_x509_dup_w_engine);
 #endif
     return 1;
 }

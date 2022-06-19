@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const npm = {
   config: {
@@ -11,7 +10,7 @@ const npm = {
 
 const builtinConfMock = {
   loadError: new Error('no builtin config'),
-  raw: { hasBuiltinConfig: true, x: 'y', nested: { foo: 'bar' }},
+  raw: { hasBuiltinConfig: true, x: 'y', nested: { foo: 'bar' } },
 }
 
 const reifyOutput = () => {}
@@ -23,14 +22,15 @@ const fs = {
   promises: realFs.promises && {
     ...realFs.promises,
     writeFile: async (path, data) => {
-      if (!expectWrite)
+      if (!expectWrite) {
         throw new Error('did not expect to write builtin config file')
+      }
       return realFs.promises.writeFile(path, data)
     },
   },
 }
 
-const reifyFinish = requireInject('../../../lib/utils/reify-finish.js', {
+const reifyFinish = t.mock('../../../lib/utils/reify-finish.js', {
   fs,
   '../../../lib/utils/reify-output.js': reifyOutput,
 })
@@ -70,18 +70,10 @@ t.test('should write if everything above passes', async t => {
   await reifyFinish(npm, {
     options: { global: true },
     actualTree: {
-      inventory: new Map([['node_modules/npm', {path}]]),
+      inventory: new Map([['node_modules/npm', { path }]]),
     },
   })
   // windowwwwwwssss!!!!!
   const data = fs.readFileSync(`${path}/npmrc`, 'utf8').replace(/\r\n/g, '\n')
   t.matchSnapshot(data, 'written config')
-})
-
-t.test('works without fs.promises', async t => {
-  t.doesNotThrow(() => requireInject('../../../lib/utils/reify-finish.js', {
-    fs: { ...fs, promises: null },
-    '../../../lib/npm.js': npm,
-    '../../../lib/utils/reify-output.js': reifyOutput,
-  }))
 })

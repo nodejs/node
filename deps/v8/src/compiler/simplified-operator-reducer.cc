@@ -4,9 +4,12 @@
 
 #include "src/compiler/simplified-operator-reducer.h"
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
@@ -32,16 +35,18 @@ Decision DecideObjectIsSmi(Node* const input) {
 
 }  // namespace
 
-SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
-                                                     JSGraph* jsgraph,
-                                                     JSHeapBroker* broker)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
+SimplifiedOperatorReducer::SimplifiedOperatorReducer(
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+    BranchSemantics branch_semantics)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      broker_(broker),
+      branch_semantics_(branch_semantics) {}
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));
@@ -60,7 +65,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        return ReplaceInt32(m.Ref(broker()).BooleanValue());
+        base::Optional<bool> maybe_result =
+            m.Ref(broker()).TryGetBooleanValue();
+        if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
@@ -75,7 +82,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeInt32ToTagged: {
       Int32Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) return ReplaceNumber(m.ResolvedValue());
-      if (m.IsChangeTaggedToInt32() || m.IsChangeTaggedSignedToInt32()) {
+      if (m.IsChangeTaggedSignedToInt32()) {
         return Replace(m.InputAt(0));
       }
       break;
@@ -275,7 +282,11 @@ Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceBoolean(bool value) {
-  return Replace(jsgraph()->BooleanConstant(value));
+  if (branch_semantics_ == BranchSemantics::kJS) {
+    return Replace(jsgraph()->BooleanConstant(value));
+  } else {
+    return ReplaceInt32(value);
+  }
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceFloat64(double value) {

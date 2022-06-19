@@ -32,3 +32,5 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   expected: { bar: true },
   operator: 'throws'
 }
+
+Node.js *

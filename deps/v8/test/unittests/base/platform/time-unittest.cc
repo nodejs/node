@@ -4,7 +4,7 @@
 
 #include "src/base/platform/time.h"
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach_time.h>
 #endif
 #if V8_OS_POSIX
@@ -12,6 +12,8 @@
 #endif
 
 #if V8_OS_WIN
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 #endif
 
@@ -199,8 +201,7 @@ TEST(TimeDelta, FromAndIn) {
             TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
-
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 TEST(TimeDelta, MachTimespec) {
   TimeDelta null = TimeDelta();
   EXPECT_EQ(null, TimeDelta::FromMachTimespec(null.ToMachTimespec()));
@@ -361,22 +362,126 @@ TEST(TimeTicks, NowResolution) {
 }
 
 TEST(TimeTicks, IsMonotonic) {
-  TimeTicks previous_normal_ticks;
-  TimeTicks previous_highres_ticks;
+  TimeTicks previous_ticks;
   ElapsedTimer timer;
   timer.Start();
   while (!timer.HasExpired(TimeDelta::FromMilliseconds(100))) {
-    TimeTicks normal_ticks = TimeTicks::Now();
-    TimeTicks highres_ticks = TimeTicks::HighResolutionNow();
-    EXPECT_GE(normal_ticks, previous_normal_ticks);
-    EXPECT_GE((normal_ticks - previous_normal_ticks).InMicroseconds(), 0);
-    EXPECT_GE(highres_ticks, previous_highres_ticks);
-    EXPECT_GE((highres_ticks - previous_highres_ticks).InMicroseconds(), 0);
-    previous_normal_ticks = normal_ticks;
-    previous_highres_ticks = highres_ticks;
+    TimeTicks ticks = TimeTicks::Now();
+    EXPECT_GE(ticks, previous_ticks);
+    EXPECT_GE((ticks - previous_ticks).InMicroseconds(), 0);
+    previous_ticks = ticks;
   }
 }
 
+namespace {
+void Sleep(TimeDelta wait_time) {
+  ElapsedTimer waiter;
+  waiter.Start();
+  while (!waiter.HasExpired(wait_time)) {
+    OS::Sleep(TimeDelta::FromMilliseconds(1));
+  }
+}
+}  // namespace
+
+TEST(ElapsedTimer, StartStop) {
+  TimeDelta wait_time = TimeDelta::FromMilliseconds(100);
+  TimeDelta noise = TimeDelta::FromMilliseconds(100);
+  ElapsedTimer timer;
+  DCHECK(!timer.IsStarted());
+
+  timer.Start();
+  DCHECK(timer.IsStarted());
+
+  Sleep(wait_time);
+  TimeDelta delta = timer.Elapsed();
+  DCHECK(timer.IsStarted());
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  DCHECK(!timer.IsPaused());
+  timer.Pause();
+  DCHECK(timer.IsPaused());
+  Sleep(wait_time);
+
+  timer.Resume();
+  DCHECK(timer.IsStarted());
+  delta = timer.Elapsed();
+  DCHECK(!timer.IsPaused());
+  timer.Pause();
+  DCHECK(timer.IsPaused());
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  Sleep(wait_time);
+  timer.Resume();
+  DCHECK(!timer.IsPaused());
+  DCHECK(timer.IsStarted());
+  delta = timer.Elapsed();
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  timer.Stop();
+  DCHECK(!timer.IsStarted());
+}
+
+TEST(ElapsedTimer, StartStopArgs) {
+  TimeDelta wait_time = TimeDelta::FromMilliseconds(100);
+  ElapsedTimer timer1;
+  ElapsedTimer timer2;
+  DCHECK(!timer1.IsStarted());
+  DCHECK(!timer2.IsStarted());
+
+  TimeTicks now = TimeTicks::Now();
+  timer1.Start(now);
+  timer2.Start(now);
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+
+  Sleep(wait_time);
+  now = TimeTicks::Now();
+  TimeDelta delta1 = timer1.Elapsed(now);
+  Sleep(wait_time);
+  TimeDelta delta2 = timer2.Elapsed(now);
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+  EXPECT_GE(delta1, delta2);
+  Sleep(wait_time);
+  EXPECT_NE(delta1, timer2.Elapsed());
+
+  TimeTicks now2 = TimeTicks::Now();
+  EXPECT_NE(timer1.Elapsed(now), timer1.Elapsed(now2));
+  EXPECT_NE(delta1, timer1.Elapsed(now2));
+  EXPECT_NE(delta2, timer2.Elapsed(now2));
+  EXPECT_GE(timer1.Elapsed(now2), timer2.Elapsed(now2));
+
+  now = TimeTicks::Now();
+  timer1.Pause(now);
+  timer2.Pause(now);
+  DCHECK(timer1.IsPaused());
+  DCHECK(timer2.IsPaused());
+  Sleep(wait_time);
+
+  now = TimeTicks::Now();
+  timer1.Resume(now);
+  DCHECK(!timer1.IsPaused());
+  DCHECK(timer2.IsPaused());
+  Sleep(wait_time);
+  timer2.Resume(now);
+  DCHECK(!timer1.IsPaused());
+  DCHECK(!timer2.IsPaused());
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+
+  delta1 = timer1.Elapsed(now);
+  Sleep(wait_time);
+  delta2 = timer2.Elapsed(now);
+  EXPECT_GE(delta1, delta2);
+
+  timer1.Stop();
+  timer2.Stop();
+  DCHECK(!timer1.IsStarted());
+  DCHECK(!timer2.IsStarted());
+}
 
 #if V8_OS_ANDROID
 #define MAYBE_ThreadNow DISABLED_ThreadNow

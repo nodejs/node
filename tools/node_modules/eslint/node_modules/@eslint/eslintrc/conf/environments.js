@@ -2,13 +2,12 @@
  * @fileoverview Defines environment settings and globals.
  * @author Elan Shanker
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const globals = require("globals");
+import globals from "globals";
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -55,7 +54,7 @@ const newGlobals2021 = {
 //------------------------------------------------------------------------------
 
 /** @type {Map<string, import("../lib/shared/types").Environment>} */
-module.exports = new Map(Object.entries({
+export default new Map(Object.entries({
 
     // Language
     builtin: {
@@ -73,10 +72,28 @@ module.exports = new Map(Object.entries({
             ecmaVersion: 6
         }
     },
+    es2016: {
+        globals: newGlobals2015,
+        parserOptions: {
+            ecmaVersion: 7
+        }
+    },
     es2017: {
         globals: { ...newGlobals2015, ...newGlobals2017 },
         parserOptions: {
             ecmaVersion: 8
+        }
+    },
+    es2018: {
+        globals: { ...newGlobals2015, ...newGlobals2017 },
+        parserOptions: {
+            ecmaVersion: 9
+        }
+    },
+    es2019: {
+        globals: { ...newGlobals2015, ...newGlobals2017 },
+        parserOptions: {
+            ecmaVersion: 10
         }
     },
     es2020: {
@@ -89,6 +106,12 @@ module.exports = new Map(Object.entries({
         globals: { ...newGlobals2015, ...newGlobals2017, ...newGlobals2020, ...newGlobals2021 },
         parserOptions: {
             ecmaVersion: 12
+        }
+    },
+    es2022: {
+        globals: { ...newGlobals2015, ...newGlobals2017, ...newGlobals2020, ...newGlobals2021 },
+        parserOptions: {
+            ecmaVersion: 13
         }
     },
 

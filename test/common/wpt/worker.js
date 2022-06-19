@@ -1,5 +1,3 @@
-/* eslint-disable node-core/required-modules,node-core/require-common-first */
-
 'use strict';
 
 const { runInThisContext } = require('vm');

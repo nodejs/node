@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 class UnorderedModuleSet;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/source-text-module-tq.inc"
 
@@ -178,10 +179,6 @@ class SourceTextModule
                                            AsyncParentCompletionSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
-      Isolate* isolate, Handle<SourceTextModule> module);
-
-  // Continued implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Isolate* isolate, Handle<SourceTextModule> module);
 
@@ -219,8 +216,8 @@ class SourceTextModuleInfo : public FixedArray {
  public:
   DECL_CAST(SourceTextModuleInfo)
 
-  template <typename LocalIsolate>
-  static Handle<SourceTextModuleInfo> New(LocalIsolate* isolate, Zone* zone,
+  template <typename IsolateT>
+  static Handle<SourceTextModuleInfo> New(IsolateT* isolate, Zone* zone,
                                           SourceTextModuleDescriptor* descr);
 
   inline FixedArray module_requests() const;
@@ -267,15 +264,16 @@ class ModuleRequest
   NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(ModuleRequest)
 
-  template <typename LocalIsolate>
-  static Handle<ModuleRequest> New(LocalIsolate* isolate,
-                                   Handle<String> specifier,
+  template <typename IsolateT>
+  static Handle<ModuleRequest> New(IsolateT* isolate, Handle<String> specifier,
                                    Handle<FixedArray> import_assertions,
                                    int position);
 
   // The number of entries in the import_assertions FixedArray that are used for
   // a single assertion.
   static const size_t kAssertionEntrySize = 3;
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(ModuleRequest)
 };
@@ -284,15 +282,16 @@ class SourceTextModuleInfoEntry
     : public TorqueGeneratedSourceTextModuleInfoEntry<SourceTextModuleInfoEntry,
                                                       Struct> {
  public:
-  DECL_PRINTER(SourceTextModuleInfoEntry)
   DECL_VERIFIER(SourceTextModuleInfoEntry)
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   static Handle<SourceTextModuleInfoEntry> New(
-      LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      IsolateT* isolate, Handle<PrimitiveHeapObject> export_name,
       Handle<PrimitiveHeapObject> local_name,
       Handle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
 };

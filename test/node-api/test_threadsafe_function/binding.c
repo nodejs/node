@@ -7,7 +7,7 @@
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
-#define ARRAY_LENGTH 10
+#define ARRAY_LENGTH 10000
 #define MAX_QUEUE_SIZE 2
 
 static uv_thread_t uv_threads[2];
@@ -72,7 +72,7 @@ static void data_source_thread(void* data) {
   for (index = ARRAY_LENGTH - 1; index > -1 && !queue_was_closing; index--) {
     status = napi_call_threadsafe_function(ts_fn, &ints[index],
         ts_fn_info->block_on_full);
-    if (ts_fn_info->max_queue_size == 0) {
+    if (ts_fn_info->max_queue_size == 0 && (index % 1000 == 0)) {
       // Let's make this thread really busy for 200 ms to give the main thread a
       // chance to abort.
       uint64_t start = uv_hrtime();
@@ -130,7 +130,7 @@ static void call_js(napi_env env, napi_value cb, void* hint, void* data) {
 }
 
 static napi_ref alt_ref;
-// Getting the data into JS with the alternative referece
+// Getting the data into JS with the alternative reference
 static void call_ref(napi_env env, napi_value _, void* hint, void* data) {
   if (!(env == NULL || alt_ref == NULL)) {
     napi_value fn, argv, undefined;
@@ -269,6 +269,35 @@ static napi_value StartThreadNoJsFunc(napi_env env, napi_callback_info info) {
     /** block_on_full */true, /** alt_ref_js_cb */true);
 }
 
+// Testing calling into JavaScript
+static void ThreadSafeFunctionFinalize(napi_env env,
+                              void* finalize_data,
+                              void* finalize_hint) {
+  napi_ref js_func_ref = (napi_ref) finalize_data;
+  napi_value js_func;
+  napi_value recv;
+  NODE_API_CALL_RETURN_VOID(env, napi_get_reference_value(env, js_func_ref, &js_func));
+  NODE_API_CALL_RETURN_VOID(env, napi_get_global(env, &recv));
+  NODE_API_CALL_RETURN_VOID(env, napi_call_function(env, recv, js_func, 0, NULL, NULL));
+  NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, js_func_ref));
+}
+
+// Testing calling into JavaScript
+static napi_value CallIntoModule(napi_env env, napi_callback_info info) {
+  size_t argc = 4;
+  napi_value argv[4];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+
+  napi_ref finalize_func;
+  NODE_API_CALL(env, napi_create_reference(env, argv[3], 1, &finalize_func));
+
+  napi_threadsafe_function tsfn;
+  NODE_API_CALL(env, napi_create_threadsafe_function(env, argv[0], argv[1], argv[2], 0, 1, finalize_func, ThreadSafeFunctionFinalize, NULL, NULL, &tsfn));
+  NODE_API_CALL(env, napi_call_threadsafe_function(tsfn, NULL, napi_tsfn_blocking));
+  NODE_API_CALL(env, napi_release_threadsafe_function(tsfn, napi_tsfn_release));
+  return NULL;
+}
+
 // Module init
 static napi_value Init(napi_env env, napi_value exports) {
   size_t index;
@@ -307,6 +336,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("StopThread", StopThread),
     DECLARE_NODE_API_PROPERTY("Unref", Unref),
     DECLARE_NODE_API_PROPERTY("Release", Release),
+    DECLARE_NODE_API_PROPERTY("CallIntoModule", CallIntoModule),
   };
 
   NODE_API_CALL(env, napi_define_properties(env, exports,

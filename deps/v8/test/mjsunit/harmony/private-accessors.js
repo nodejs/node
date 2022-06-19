@@ -111,3 +111,108 @@
   assertThrows('class C { get #a() {} get #a() {} }', SyntaxError);
   assertThrows('class C { set #a(val) {} set #a(val) {} }', SyntaxError);
 }
+
+// Test that the lhs don't get re-evaluated in the assignment, and it always
+// gets evaluated before the rhs.
+{
+  let objectCount = 0;
+  let operations = [];
+  let lhsObject = {
+    get property() {
+      operations.push('lhsEvaluation');
+      return new Foo();
+    }
+  };
+  let rhs = () => {operations.push('rhsEvaluation'); return 1; };
+  class Foo {
+    id = objectCount++;
+    get #foo() {
+      operations.push('get', this.id);
+      return 0;
+    }
+    set #foo(x) {
+      operations.push('set', this.id);
+    }
+    static compound() {
+      lhsObject.property.#foo += rhs();
+    }
+    static assign() {
+      lhsObject.property.#foo = lhsObject.property.#foo + rhs();
+    }
+  }
+  objectCount = 0;
+  operations = [];
+  Foo.compound();
+  assertEquals(1, objectCount);
+  assertEquals(
+    ['lhsEvaluation', 'get', 0, 'rhsEvaluation', 'set', 0],
+    operations);
+
+  objectCount = 0;
+  operations = [];
+  Foo.assign();
+  assertEquals(2, objectCount);
+  assertEquals(
+    ['lhsEvaluation', 'lhsEvaluation', 'get', 1, 'rhsEvaluation', 'set', 0],
+    operations);
+}
+
+// Test that the brand checks are done on the lhs evaluated before the rhs.
+{
+  let objectCount = 0;
+  let operations = [];
+  let maximumObjects = 1;
+  let lhsObject = {
+    get property() {
+      operations.push('lhsEvaluation');
+      return (objectCount >= maximumObjects) ? {id: -1} : new Foo();
+    }
+  };
+  let rhs = () => {operations.push('rhsEvaluation'); return 1; };
+
+  class Foo {
+    id = objectCount++;
+
+    set #foo(val) {
+      operations.push('set', this.id);
+    }
+
+    get #foo() {
+      operations.push('get', this.id);
+      return 0;
+    }
+
+    static compound() {
+      lhsObject.property.#foo += rhs();
+    }
+
+    static assign() {
+      lhsObject.property.#foo = lhsObject.property.#foo + rhs();
+    }
+  }
+
+  objectCount = 0;
+  operations = [];
+  maximumObjects = 1;
+  Foo.compound();
+  assertEquals(1, objectCount);
+  assertEquals(
+    ['lhsEvaluation', 'get', 0, 'rhsEvaluation', 'set', 0],
+    operations);
+
+  objectCount = 0;
+  operations = [];
+  maximumObjects = 2;
+  Foo.assign();
+  assertEquals(2, objectCount);
+  assertEquals(
+    ['lhsEvaluation', 'lhsEvaluation', 'get', 1, 'rhsEvaluation', 'set', 0],
+    operations);
+
+  objectCount = 0;
+  operations = [];
+  maximumObjects = 1;
+  assertThrows(() => Foo.assign(), TypeError, /Receiver must be an instance of class Foo/);
+  assertEquals(1, objectCount);
+  assertEquals(['lhsEvaluation', 'lhsEvaluation'], operations);
+}

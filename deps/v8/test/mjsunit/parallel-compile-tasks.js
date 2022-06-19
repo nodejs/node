@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --compiler-dispatcher --parallel-compile-tasks --use-external-strings
+// Flags: --compiler-dispatcher --parallel-compile-tasks-for-eager-toplevel --use-external-strings
 
 (function(a) {
  assertEquals(a, "IIFE");

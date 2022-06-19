@@ -53,7 +53,7 @@ namespace v8 {
 namespace internal {
 
 #define DEBUG_PRINTF(...) \
-  if (FLAG_debug_riscv) { \
+  if (FLAG_riscv_debug) { \
     printf(__VA_ARGS__);  \
   }
 
@@ -68,7 +68,7 @@ class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int64_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -78,7 +78,8 @@ class Operand {
   }
   V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi value)
+      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
@@ -158,8 +159,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
 
-  virtual ~Assembler() { CHECK(constpool_.IsEmpty()); }
-
+  virtual ~Assembler();
+  void AbortedCodeGeneration();
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
@@ -197,7 +198,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     kOffset20 = 20,  // RISCV imm20
     kOffset13 = 13,  // RISCV branch
     kOffset32 = 32,  // RISCV auipc + instr_I
-    kOffset11 = 11   // RISCV C_J
+    kOffset11 = 11,  // RISCV C_J
+    kOffset8 = 8     // RISCV compressed branch
   };
 
   // Determines if Label is bound and near enough so that branch instruction
@@ -208,11 +210,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Get offset from instr.
   int BranchOffset(Instr instr);
-  int BrachlongOffset(Instr auipc, Instr jalr);
+  static int BrachlongOffset(Instr auipc, Instr jalr);
+  static int PatchBranchlongOffset(Address pc, Instr auipc, Instr instr_I,
+                                   int32_t offset);
   int JumpOffset(Instr instr);
   int CJumpOffset(Instr instr);
+  int CBranchOffset(Instr instr);
   static int LdOffset(Instr instr);
   static int AuipcOffset(Instr instr);
+  static int JalrOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -226,6 +232,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   inline int16_t cjump_offset(Label* L) {
     return (int16_t)branch_offset_helper(L, OffsetSize::kOffset11);
+  }
+  inline int32_t cbranch_offset(Label* L) {
+    return branch_offset_helper(L, OffsetSize::kOffset8);
   }
 
   uint64_t jump_address(Label* L);
@@ -249,6 +258,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  inline Handle<Object> code_target_object_handle_at(Address pc,
+                                                     Address constant_pool);
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
 
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
@@ -318,6 +339,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Bits available for offset field in compresed jump
   static constexpr int kCJalOffsetBits = 12;
 
+  // Bits available for offset field in compressed branch
+  static constexpr int kCBranchOffsetBits = 9;
+
   // Max offset for b instructions with 12-bit offset field (multiple of 2)
   static constexpr int kMaxBranchOffset = (1 << (13 - 1)) - 1;
 
@@ -340,6 +364,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Different nop operations are used by the code generator to detect certain
   // states of the generated code.
@@ -597,7 +622,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void c_addi4spn(Register rd, int16_t uimm10);
   void c_li(Register rd, int8_t imm6);
   void c_lui(Register rd, int8_t imm6);
-  void c_slli(Register rd, uint8_t uimm6);
+  void c_slli(Register rd, uint8_t shamt6);
   void c_fldsp(FPURegister rd, uint16_t uimm9);
   void c_lwsp(Register rd, uint16_t uimm8);
   void c_ldsp(Register rd, uint16_t uimm9);
@@ -623,6 +648,399 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void c_sw(Register rs2, Register rs1, uint16_t uimm7);
   void c_sd(Register rs2, Register rs1, uint16_t uimm8);
   void c_fsd(FPURegister rs2, Register rs1, uint16_t uimm8);
+  void c_bnez(Register rs1, int16_t imm9);
+  inline void c_bnez(Register rs1, Label* L) { c_bnez(rs1, branch_offset(L)); }
+  void c_beqz(Register rs1, int16_t imm9);
+  inline void c_beqz(Register rs1, Label* L) { c_beqz(rs1, branch_offset(L)); }
+  void c_srli(Register rs1, int8_t shamt6);
+  void c_srai(Register rs1, int8_t shamt6);
+  void c_andi(Register rs1, int8_t imm6);
+  void NOP();
+  void EBREAK();
+
+  // RVV
+  static int32_t GenZimm(VSew vsew, Vlmul vlmul, TailAgnosticType tail = tu,
+                         MaskAgnosticType mask = mu) {
+    return (mask << 7) | (tail << 6) | ((vsew & 0x7) << 3) | (vlmul & 0x7);
+  }
+
+  void vl(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+          MaskType mask = NoMask);
+  void vls(VRegister vd, Register rs1, Register rs2, VSew vsew,
+           MaskType mask = NoMask);
+  void vlx(VRegister vd, Register rs1, VRegister vs3, VSew vsew,
+           MaskType mask = NoMask);
+
+  void vs(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+          MaskType mask = NoMask);
+  void vss(VRegister vd, Register rs1, Register rs2, VSew vsew,
+           MaskType mask = NoMask);
+  void vsx(VRegister vd, Register rs1, VRegister vs3, VSew vsew,
+           MaskType mask = NoMask);
+
+  void vsu(VRegister vd, Register rs1, VRegister vs3, VSew vsew,
+           MaskType mask = NoMask);
+
+#define SegInstr(OP)  \
+  void OP##seg2(ARG); \
+  void OP##seg3(ARG); \
+  void OP##seg4(ARG); \
+  void OP##seg5(ARG); \
+  void OP##seg6(ARG); \
+  void OP##seg7(ARG); \
+  void OP##seg8(ARG);
+
+#define ARG \
+  VRegister vd, Register rs1, uint8_t lumop, VSew vsew, MaskType mask = NoMask
+
+  SegInstr(vl) SegInstr(vs)
+#undef ARG
+
+#define ARG \
+  VRegister vd, Register rs1, Register rs2, VSew vsew, MaskType mask = NoMask
+
+      SegInstr(vls) SegInstr(vss)
+#undef ARG
+
+#define ARG \
+  VRegister vd, Register rs1, VRegister rs2, VSew vsew, MaskType mask = NoMask
+
+          SegInstr(vsx) SegInstr(vlx)
+#undef ARG
+#undef SegInstr
+
+  // RVV Vector Arithmetic Instruction
+
+  void vmv_vv(VRegister vd, VRegister vs1);
+  void vmv_vx(VRegister vd, Register rs1);
+  void vmv_vi(VRegister vd, uint8_t simm5);
+  void vmv_xs(Register rd, VRegister vs2);
+  void vmv_sx(VRegister vd, Register rs1);
+  void vmerge_vv(VRegister vd, VRegister vs1, VRegister vs2);
+  void vmerge_vx(VRegister vd, Register rs1, VRegister vs2);
+  void vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2);
+
+  void vredmaxu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                   MaskType mask = NoMask);
+  void vredmax_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                  MaskType mask = NoMask);
+  void vredmin_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                  MaskType mask = NoMask);
+  void vredminu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                   MaskType mask = NoMask);
+
+  void vadc_vv(VRegister vd, VRegister vs1, VRegister vs2);
+  void vadc_vx(VRegister vd, Register rs1, VRegister vs2);
+  void vadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
+
+  void vmadc_vv(VRegister vd, VRegister vs1, VRegister vs2);
+  void vmadc_vx(VRegister vd, Register rs1, VRegister vs2);
+  void vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
+
+  void vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask = NoMask);
+  void vfmv_fs(FPURegister fd, VRegister vs2);
+  void vfmv_sf(VRegister vd, FPURegister fs);
+
+  void vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
+                 MaskType mask = NoMask);
+  void vid_v(VRegister vd, MaskType mask = Mask);
+
+#define DEFINE_OPIVV(name, funct6)                           \
+  void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPIVX(name, funct6)                          \
+  void name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPIVI(name, funct6)                         \
+  void name##_vi(VRegister vd, VRegister vs2, int8_t imm5, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPMVV(name, funct6)                           \
+  void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPMVX(name, funct6)                          \
+  void name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVV(name, funct6)                           \
+  void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFWV(name, funct6)                           \
+  void name##_wv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFRED(name, funct6)                          \
+  void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVF(name, funct6)                             \
+  void name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFWF(name, funct6)                             \
+  void name##_wf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVV_FMA(name, funct6)                       \
+  void name##_vv(VRegister vd, VRegister vs1, VRegister vs2, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVF_FMA(name, funct6)                         \
+  void name##_vf(VRegister vd, FPURegister fs1, VRegister vs2, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPMVV_VIE(name) \
+  void name(VRegister vd, VRegister vs2, MaskType mask = NoMask);
+
+  DEFINE_OPIVV(vadd, VADD_FUNCT6)
+  DEFINE_OPIVX(vadd, VADD_FUNCT6)
+  DEFINE_OPIVI(vadd, VADD_FUNCT6)
+  DEFINE_OPIVV(vsub, VSUB_FUNCT6)
+  DEFINE_OPIVX(vsub, VSUB_FUNCT6)
+  DEFINE_OPMVX(vdiv, VDIV_FUNCT6)
+  DEFINE_OPMVX(vdivu, VDIVU_FUNCT6)
+  DEFINE_OPMVX(vmul, VMUL_FUNCT6)
+  DEFINE_OPMVX(vmulhu, VMULHU_FUNCT6)
+  DEFINE_OPMVX(vmulhsu, VMULHSU_FUNCT6)
+  DEFINE_OPMVX(vmulh, VMULH_FUNCT6)
+  DEFINE_OPMVV(vdiv, VDIV_FUNCT6)
+  DEFINE_OPMVV(vdivu, VDIVU_FUNCT6)
+  DEFINE_OPMVV(vmul, VMUL_FUNCT6)
+  DEFINE_OPMVV(vmulhu, VMULHU_FUNCT6)
+  DEFINE_OPMVV(vmulhsu, VMULHSU_FUNCT6)
+  DEFINE_OPMVV(vmulh, VMULH_FUNCT6)
+  DEFINE_OPMVV(vwmul, VWMUL_FUNCT6)
+  DEFINE_OPMVV(vwmulu, VWMULU_FUNCT6)
+  DEFINE_OPMVV(vwaddu, VWADDU_FUNCT6)
+  DEFINE_OPMVV(vwadd, VWADD_FUNCT6)
+  DEFINE_OPMVV(vcompress, VCOMPRESS_FUNCT6)
+  DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
+  DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
+  DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
+  DEFINE_OPIVX(vsaddu, VSADD_FUNCT6)
+  DEFINE_OPIVV(vsaddu, VSADDU_FUNCT6)
+  DEFINE_OPIVI(vsaddu, VSADDU_FUNCT6)
+  DEFINE_OPIVX(vssub, VSSUB_FUNCT6)
+  DEFINE_OPIVV(vssub, VSSUB_FUNCT6)
+  DEFINE_OPIVX(vssubu, VSSUBU_FUNCT6)
+  DEFINE_OPIVV(vssubu, VSSUBU_FUNCT6)
+  DEFINE_OPIVX(vrsub, VRSUB_FUNCT6)
+  DEFINE_OPIVI(vrsub, VRSUB_FUNCT6)
+  DEFINE_OPIVV(vminu, VMINU_FUNCT6)
+  DEFINE_OPIVX(vminu, VMINU_FUNCT6)
+  DEFINE_OPIVV(vmin, VMIN_FUNCT6)
+  DEFINE_OPIVX(vmin, VMIN_FUNCT6)
+  DEFINE_OPIVV(vmaxu, VMAXU_FUNCT6)
+  DEFINE_OPIVX(vmaxu, VMAXU_FUNCT6)
+  DEFINE_OPIVV(vmax, VMAX_FUNCT6)
+  DEFINE_OPIVX(vmax, VMAX_FUNCT6)
+  DEFINE_OPIVV(vand, VAND_FUNCT6)
+  DEFINE_OPIVX(vand, VAND_FUNCT6)
+  DEFINE_OPIVI(vand, VAND_FUNCT6)
+  DEFINE_OPIVV(vor, VOR_FUNCT6)
+  DEFINE_OPIVX(vor, VOR_FUNCT6)
+  DEFINE_OPIVI(vor, VOR_FUNCT6)
+  DEFINE_OPIVV(vxor, VXOR_FUNCT6)
+  DEFINE_OPIVX(vxor, VXOR_FUNCT6)
+  DEFINE_OPIVI(vxor, VXOR_FUNCT6)
+  DEFINE_OPIVV(vrgather, VRGATHER_FUNCT6)
+  DEFINE_OPIVX(vrgather, VRGATHER_FUNCT6)
+  DEFINE_OPIVI(vrgather, VRGATHER_FUNCT6)
+
+  DEFINE_OPIVX(vslidedown, VSLIDEDOWN_FUNCT6)
+  DEFINE_OPIVI(vslidedown, VSLIDEDOWN_FUNCT6)
+  DEFINE_OPIVX(vslideup, VSLIDEUP_FUNCT6)
+  DEFINE_OPIVI(vslideup, VSLIDEUP_FUNCT6)
+
+  DEFINE_OPIVV(vmseq, VMSEQ_FUNCT6)
+  DEFINE_OPIVX(vmseq, VMSEQ_FUNCT6)
+  DEFINE_OPIVI(vmseq, VMSEQ_FUNCT6)
+
+  DEFINE_OPIVV(vmsne, VMSNE_FUNCT6)
+  DEFINE_OPIVX(vmsne, VMSNE_FUNCT6)
+  DEFINE_OPIVI(vmsne, VMSNE_FUNCT6)
+
+  DEFINE_OPIVV(vmsltu, VMSLTU_FUNCT6)
+  DEFINE_OPIVX(vmsltu, VMSLTU_FUNCT6)
+
+  DEFINE_OPIVV(vmslt, VMSLT_FUNCT6)
+  DEFINE_OPIVX(vmslt, VMSLT_FUNCT6)
+
+  DEFINE_OPIVV(vmsle, VMSLE_FUNCT6)
+  DEFINE_OPIVX(vmsle, VMSLE_FUNCT6)
+  DEFINE_OPIVI(vmsle, VMSLE_FUNCT6)
+
+  DEFINE_OPIVV(vmsleu, VMSLEU_FUNCT6)
+  DEFINE_OPIVX(vmsleu, VMSLEU_FUNCT6)
+  DEFINE_OPIVI(vmsleu, VMSLEU_FUNCT6)
+
+  DEFINE_OPIVI(vmsgt, VMSGT_FUNCT6)
+  DEFINE_OPIVX(vmsgt, VMSGT_FUNCT6)
+
+  DEFINE_OPIVI(vmsgtu, VMSGTU_FUNCT6)
+  DEFINE_OPIVX(vmsgtu, VMSGTU_FUNCT6)
+
+  DEFINE_OPIVV(vsrl, VSRL_FUNCT6)
+  DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
+  DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
+
+  DEFINE_OPIVV(vsra, VSRA_FUNCT6)
+  DEFINE_OPIVX(vsra, VSRA_FUNCT6)
+  DEFINE_OPIVI(vsra, VSRA_FUNCT6)
+
+  DEFINE_OPIVV(vsll, VSLL_FUNCT6)
+  DEFINE_OPIVX(vsll, VSLL_FUNCT6)
+  DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+
+  DEFINE_OPIVV(vsmul, VSMUL_FUNCT6)
+  DEFINE_OPIVX(vsmul, VSMUL_FUNCT6)
+
+  DEFINE_OPFVV(vfadd, VFADD_FUNCT6)
+  DEFINE_OPFVF(vfadd, VFADD_FUNCT6)
+  DEFINE_OPFVV(vfsub, VFSUB_FUNCT6)
+  DEFINE_OPFVF(vfsub, VFSUB_FUNCT6)
+  DEFINE_OPFVV(vfdiv, VFDIV_FUNCT6)
+  DEFINE_OPFVF(vfdiv, VFDIV_FUNCT6)
+  DEFINE_OPFVV(vfmul, VFMUL_FUNCT6)
+  DEFINE_OPFVF(vfmul, VFMUL_FUNCT6)
+
+  // Vector Widening Floating-Point Add/Subtract Instructions
+  DEFINE_OPFVV(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVF(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVV(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFVF(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFWV(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWF(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWV(vfwsub, VFWSUB_W_FUNCT6)
+  DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
+
+  // Vector Widening Floating-Point Reduction Instructions
+  DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
+  DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+
+  // Vector Widening Floating-Point Multiply
+  DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
+  DEFINE_OPFVF(vfwmul, VFWMUL_FUNCT6)
+
+  DEFINE_OPFVV(vmfeq, VMFEQ_FUNCT6)
+  DEFINE_OPFVV(vmfne, VMFNE_FUNCT6)
+  DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
+  DEFINE_OPFVV(vmfle, VMFLE_FUNCT6)
+  DEFINE_OPFVV(vfmax, VMFMAX_FUNCT6)
+  DEFINE_OPFVV(vfmin, VMFMIN_FUNCT6)
+  DEFINE_OPFRED(vfredmax, VFREDMAX_FUNCT6)
+
+  DEFINE_OPFVV(vfsngj, VFSGNJ_FUNCT6)
+  DEFINE_OPFVF(vfsngj, VFSGNJ_FUNCT6)
+  DEFINE_OPFVV(vfsngjn, VFSGNJN_FUNCT6)
+  DEFINE_OPFVF(vfsngjn, VFSGNJN_FUNCT6)
+  DEFINE_OPFVV(vfsngjx, VFSGNJX_FUNCT6)
+  DEFINE_OPFVF(vfsngjx, VFSGNJX_FUNCT6)
+
+  // Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+  DEFINE_OPFVV_FMA(vfmadd, VFMADD_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmadd, VFMADD_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmsub, VFMSUB_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmsub, VFMSUB_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmacc, VFMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmacc, VFMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmsac, VFMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmsac, VFMSAC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmadd, VFNMADD_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmadd, VFNMADD_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmsub, VFNMSUB_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmsub, VFNMSUB_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmacc, VFNMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmacc, VFNMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
+
+  // Vector Widening Floating-Point Fused Multiply-Add Instructions
+  DEFINE_OPFVV_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+
+  // Vector Narrowing Fixed-Point Clip Instructions
+  DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVI(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVV(vnclipu, VNCLIPU_FUNCT6)
+  DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
+  DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
+
+  // Vector Integer Extension
+  DEFINE_OPMVV_VIE(vzext_vf8)
+  DEFINE_OPMVV_VIE(vsext_vf8)
+  DEFINE_OPMVV_VIE(vzext_vf4)
+  DEFINE_OPMVV_VIE(vsext_vf4)
+  DEFINE_OPMVV_VIE(vzext_vf2)
+  DEFINE_OPMVV_VIE(vsext_vf2)
+
+#undef DEFINE_OPIVI
+#undef DEFINE_OPIVV
+#undef DEFINE_OPIVX
+#undef DEFINE_OPMVV
+#undef DEFINE_OPMVX
+#undef DEFINE_OPFVV
+#undef DEFINE_OPFWV
+#undef DEFINE_OPFVF
+#undef DEFINE_OPFWF
+#undef DEFINE_OPFVV_FMA
+#undef DEFINE_OPFVF_FMA
+#undef DEFINE_OPMVV_VIE
+#undef DEFINE_OPFRED
+
+#define DEFINE_VFUNARY(name, funct6, vs1)                          \
+  void name(VRegister vd, VRegister vs2, MaskType mask = NoMask) { \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                 \
+  }
+
+  DEFINE_VFUNARY(vfcvt_xu_f_v, VFUNARY0_FUNCT6, VFCVT_XU_F_V)
+  DEFINE_VFUNARY(vfcvt_x_f_v, VFUNARY0_FUNCT6, VFCVT_X_F_V)
+  DEFINE_VFUNARY(vfcvt_f_x_v, VFUNARY0_FUNCT6, VFCVT_F_X_V)
+  DEFINE_VFUNARY(vfcvt_f_xu_v, VFUNARY0_FUNCT6, VFCVT_F_XU_V)
+  DEFINE_VFUNARY(vfwcvt_xu_f_v, VFUNARY0_FUNCT6, VFWCVT_XU_F_V)
+  DEFINE_VFUNARY(vfwcvt_x_f_v, VFUNARY0_FUNCT6, VFWCVT_X_F_V)
+  DEFINE_VFUNARY(vfwcvt_f_x_v, VFUNARY0_FUNCT6, VFWCVT_F_X_V)
+  DEFINE_VFUNARY(vfwcvt_f_xu_v, VFUNARY0_FUNCT6, VFWCVT_F_XU_V)
+  DEFINE_VFUNARY(vfwcvt_f_f_v, VFUNARY0_FUNCT6, VFWCVT_F_F_V)
+
+  DEFINE_VFUNARY(vfncvt_f_f_w, VFUNARY0_FUNCT6, VFNCVT_F_F_W)
+  DEFINE_VFUNARY(vfncvt_x_f_w, VFUNARY0_FUNCT6, VFNCVT_X_F_W)
+  DEFINE_VFUNARY(vfncvt_xu_f_w, VFUNARY0_FUNCT6, VFNCVT_XU_F_W)
+
+  DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
+  DEFINE_VFUNARY(vfsqrt_v, VFUNARY1_FUNCT6, VFSQRT_V)
+  DEFINE_VFUNARY(vfrsqrt7_v, VFUNARY1_FUNCT6, VFRSQRT7_V)
+  DEFINE_VFUNARY(vfrec7_v, VFUNARY1_FUNCT6, VFREC7_V)
+#undef DEFINE_VFUNARY
+
+  void vnot_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vxor_vi(dst, src, -1, mask);
+  }
+
+  void vneg_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vrsub_vx(dst, src, zero_reg, mask);
+  }
+
+  void vfneg_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vfsngjn_vv(dst, src, src, mask);
+  }
+  void vfabs_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vfsngjx_vv(dst, src, src, mask);
+  }
+  void vfirst_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
+  void vcpop_m(Register rd, VRegister vs2, MaskType mask = NoMask);
 
   // Privileged
   void uret();
@@ -795,18 +1213,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
+  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dq(data, rmode);
   }
   void dd(Label* label);
@@ -849,6 +1269,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Check if an instruction is a branch of some kind.
   static bool IsBranch(Instr instr);
+  static bool IsCBranch(Instr instr);
+  static bool IsNop(Instr instr);
   static bool IsJump(Instr instr);
   static bool IsJal(Instr instr);
   static bool IsCJal(Instr instr);
@@ -862,7 +1284,113 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsLd(Instr instr);
   void CheckTrampolinePool();
 
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
+
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
+  using BlockPoolsScope = BlockTrampolinePoolScope;
+
+  void RecordConstPool(int size);
+
+  void ForceConstantPoolEmissionWithoutJump() {
+    constpool_.Check(Emission::kForced, Jump::kOmitted);
+  }
+  void ForceConstantPoolEmissionWithJump() {
+    constpool_.Check(Emission::kForced, Jump::kRequired);
+  }
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted.
+  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
+  }
+
+  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
+  }
+
+  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
+
+  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
+
+  friend class VectorUnit;
+  class VectorUnit {
+   public:
+    inline int32_t sew() const { return 2 ^ (sew_ + 3); }
+
+    inline int32_t vlmax() const {
+      if ((lmul_ & 0b100) != 0) {
+        return (kRvvVLEN / sew()) >> (lmul_ & 0b11);
+      } else {
+        return ((kRvvVLEN << lmul_) / sew());
+      }
+    }
+
+    explicit VectorUnit(Assembler* assm) : assm_(assm) {}
+
+    void set(Register rd, VSew sew, Vlmul lmul) {
+      if (sew != sew_ || lmul != lmul_ || vl != vlmax()) {
+        sew_ = sew;
+        lmul_ = lmul;
+        vl = vlmax();
+        assm_->vsetvlmax(rd, sew_, lmul_);
+      }
+    }
+
+    void set(Register rd, int8_t sew, int8_t lmul) {
+      DCHECK_GE(sew, E8);
+      DCHECK_LE(sew, E64);
+      DCHECK_GE(lmul, m1);
+      DCHECK_LE(lmul, mf2);
+      set(rd, VSew(sew), Vlmul(lmul));
+    }
+
+    void set(RoundingMode mode) {
+      if (mode_ != mode) {
+        assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
+        assm_->fscsr(kScratchReg);
+        mode_ = mode;
+      }
+    }
+    void set(Register rd, Register rs1, VSew sew, Vlmul lmul) {
+      if (sew != sew_ || lmul != lmul_) {
+        sew_ = sew;
+        lmul_ = lmul;
+        vl = 0;
+        assm_->vsetvli(rd, rs1, sew_, lmul_);
+      }
+    }
+
+    void set(VSew sew, Vlmul lmul) {
+      if (sew != sew_ || lmul != lmul_) {
+        sew_ = sew;
+        lmul_ = lmul;
+        assm_->vsetvl(sew_, lmul_);
+      }
+    }
+
+   private:
+    VSew sew_ = E8;
+    Vlmul lmul_ = m1;
+    int32_t vl = 0;
+    Assembler* assm_;
+    RoundingMode mode_ = RNE;
+  };
+
+  VectorUnit VU;
+
+  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
+                 next_buffer_check_ - extra_instructions * kInstrSize);
+    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+      CheckTrampolinePool();
+    }
+  }
 
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
@@ -892,7 +1420,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   int target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int pos, int target_pos, bool is_internal);
+  void target_at_put(int pos, int target_pos, bool is_internal,
+                     bool trampoline = false);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -941,43 +1470,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
-  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
-    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - extra_instructions * kInstrSize);
-    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
-      CheckTrampolinePool();
-    }
-  }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
-
-  void RecordConstPool(int size);
-
-  void ForceConstantPoolEmissionWithoutJump() {
-    constpool_.Check(Emission::kForced, Jump::kOmitted);
-  }
-  void ForceConstantPoolEmissionWithJump() {
-    constpool_.Check(Emission::kForced, Jump::kRequired);
-  }
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted.
-  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-
-  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
-  }
-
-  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
-  }
-
-  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
-  }
-
  private:
+  void vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
+               TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
+
+  void vsetivli(Register rd, uint8_t uimm, VSew vsew, Vlmul vlmul,
+                TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
+
+  inline void vsetvlmax(Register rd, VSew vsew, Vlmul vlmul,
+                        TailAgnosticType tail = tu,
+                        MaskAgnosticType mask = mu) {
+    vsetvli(rd, zero_reg, vsew, vlmul, tu, mu);
+  }
+
+  inline void vsetvl(VSew vsew, Vlmul vlmul, TailAgnosticType tail = tu,
+                     MaskAgnosticType mask = mu) {
+    vsetvli(zero_reg, zero_reg, vsew, vlmul, tu, mu);
+  }
+
+  void vsetvl(Register rd, Register rs1, Register rs2);
+
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
 
@@ -1093,6 +1605,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrCS(uint8_t funct3, Opcode opcode, FPURegister rs2, Register rs1,
                   uint8_t uimm5);
   void GenInstrCJ(uint8_t funct3, Opcode opcode, uint16_t uint11);
+  void GenInstrCB(uint8_t funct3, Opcode opcode, Register rs1, uint8_t uimm8);
+  void GenInstrCBA(uint8_t funct3, uint8_t funct2, Opcode opcode, Register rs1,
+                   int8_t imm6);
 
   // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
   void GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
@@ -1130,6 +1645,53 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
                         FPURegister rs1, FPURegister rs2);
 
+  // ----------------------------RVV------------------------------------------
+  // vsetvl
+  void GenInstrV(Register rd, Register rs1, Register rs2);
+  // vsetvli
+  void GenInstrV(Register rd, Register rs1, uint32_t zimm);
+  // OPIVV OPFVV OPMVV
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, int8_t vs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, VRegister vs2,
+                 MaskType mask = NoMask);
+  // OPMVV OPFVV
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  // OPFVV
+  void GenInstrV(uint8_t funct6, Opcode opcode, FPURegister fd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
+
+  // OPIVX OPMVX
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, Register rs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  // OPFVF
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, FPURegister fs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  // OPMVX
+  void GenInstrV(uint8_t funct6, Register rd, Register rs1, VRegister vs2,
+                 MaskType mask = NoMask);
+  // OPIVI
+  void GenInstrV(uint8_t funct6, VRegister vd, int8_t simm5, VRegister vs2,
+                 MaskType mask = NoMask);
+
+  // VL VS
+  void GenInstrV(Opcode opcode, uint8_t width, VRegister vd, Register rs1,
+                 uint8_t umop, MaskType mask, uint8_t IsMop, bool IsMew,
+                 uint8_t Nf);
+
+  void GenInstrV(Opcode opcode, uint8_t width, VRegister vd, Register rs1,
+                 Register rs2, MaskType mask, uint8_t IsMop, bool IsMew,
+                 uint8_t Nf);
+  // VL VS AMO
+  void GenInstrV(Opcode opcode, uint8_t width, VRegister vd, Register rs1,
+                 VRegister vs2, MaskType mask, uint8_t IsMop, bool IsMew,
+                 uint8_t Nf);
+  // vmv_xs vcpop_m vfirst_m
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, uint8_t vs1,
+                 VRegister vs2, MaskType mask);
   // Labels.
   void print(const Label* L);
   void bind_to(Label* L, int pos);
@@ -1231,10 +1793,34 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
 
   Register Acquire();
   bool hasAvailable() const;
+  void Include(const RegList& list) { *available_ |= list; }
+  void Exclude(const RegList& list) {
+    *available_ &= RegList::FromBits(~list.bits());
+  }
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list({reg1, reg2});
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list({reg1, reg2});
+    Exclude(list);
+  }
 
  private:
   RegList* available_;
   RegList old_available_;
+};
+
+class LoadStoreLaneParams {
+ public:
+  int sz;
+  uint8_t laneidx;
+
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, int sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

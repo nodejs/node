@@ -9,7 +9,7 @@ const { emitExperimentalWarning } = require('internal/util');
 // when passed the same feature multiple times.
 
 process.on('warning', common.mustCall((warning) => {
-  assert(/is an experimental feature/.test(warning.message));
+  assert.match(warning.message, /is an experimental feature/);
 }, 2));
 
 emitExperimentalWarning('feature1');

@@ -83,7 +83,8 @@ def trim_and_dcheck_char_table(out):
 def use_isinrange(out):
   # Our IsInRange method is more efficient than checking for min/max length
   return checked_sub(r'if \(len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH\)',
-                     r'if (IsInRange(len, MIN_WORD_LENGTH, MAX_WORD_LENGTH))',
+                     r'if (base::IsInRange(len, MIN_WORD_LENGTH, '
+                     + r'MAX_WORD_LENGTH))',
                      out)
 
 

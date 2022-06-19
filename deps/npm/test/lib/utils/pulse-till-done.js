@@ -1,21 +1,20 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let pulseStarted = null
-const npmlog = {
-  gauge: {
-    pulse: () => {
-      if (pulseStarted)
-        pulseStarted()
+
+const pulseTillDone = t.mock('../../../lib/utils/pulse-till-done.js', {
+  npmlog: {
+    gauge: {
+      pulse: () => {
+        if (pulseStarted) {
+          pulseStarted()
+        }
+      },
     },
   },
-}
-
-const pulseTillDone = requireInject('../../../lib/utils/pulse-till-done.js', {
-  npmlog,
 })
 
-test('pulses (with promise)', async (t) => {
+t.test('pulses (with promise)', async (t) => {
   t.teardown(() => {
     pulseStarted = null
   })

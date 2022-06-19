@@ -1,30 +1,23 @@
-.TH "NPM\-CI" "1" "March 2021" "" ""
+.TH "NPM\-CI" "1" "June 2022" "" ""
 .SH "NAME"
-\fBnpm-ci\fR \- Install a project with a clean slate
+\fBnpm-ci\fR \- Clean install a project
 .SS Synopsis
 .P
 .RS 2
 .nf
 npm ci
+
+aliases: clean\-install, ic, install\-clean, isntall\-clean
 .fi
 .RE
 .SS Description
 .P
-This command is similar to \fBnpm install\fP \fI/cli\-commands/install\fR, except
+This command is similar to npm help \fBinstall\fP, except
 it's meant to be used in automated environments such as test platforms,
 continuous integration, and deployment \-\- or any situation where you want
 to make sure you're doing a clean install of your dependencies\.
 .P
-\fBnpm ci\fP will be significantly faster when:
-.RS 0
-.IP \(bu 2
-There is a \fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\.
-.IP \(bu 2
-The \fBnode_modules\fP folder is missing or empty\.
-
-.RE
-.P
-In short, the main differences between using \fBnpm install\fP and \fBnpm ci\fP are:
+The main differences between using \fBnpm install\fP and \fBnpm ci\fP are:
 .RS 0
 .IP \(bu 2
 The project \fBmust\fR have an existing \fBpackage\-lock\.json\fP or
@@ -43,6 +36,14 @@ It will never write to \fBpackage\.json\fP or any of the package\-locks:
 installs are essentially frozen\.
 
 .RE
+.P
+NOTE: If you create your \fBpackage\-lock\.json\fP file by running \fBnpm install\fP
+with flags that can affect the shape of your dependency tree, such as
+\fB\-\-legacy\-peer\-deps\fP or \fB\-\-install\-links\fP, you \fImust\fR provide the same
+flags to \fBnpm ci\fP or you are likely to encounter errors\. An easy way to do
+this is to run, for example,
+\fBnpm config set legacy\-peer\-deps=true \-\-location=project\fP and commit the
+\fB\|\.npmrc\fP file to your repo\.
 .SS Example
 .P
 Make sure you have a package\-lock and an up\-to\-date install:
@@ -78,6 +79,61 @@ cache:
   \- "$HOME/\.npm"
 .fi
 .RE
+.SS Configuration
+.SS \fBaudit\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes\. See the
+documentation for npm help \fBaudit\fP for details on what is
+submitted\.
+.SS \fBforeground\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBscript\-shell\fP
+.RS 0
+.IP \(bu 2
+Default: '/bin/sh' on POSIX systems, 'cmd\.exe' on Windows
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <pkg>\fP commands\.
 .SS See Also
 .RS 0
 .IP \(bu 2

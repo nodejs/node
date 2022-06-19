@@ -5,7 +5,7 @@
 // Flags: --expose-wasm --liftoff --no-wasm-tier-up --print-code --wasm-staging
 // Flags: --experimental-wasm-threads
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testPrintCode() {
   let builder = new WasmModuleBuilder();

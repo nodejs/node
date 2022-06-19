@@ -85,8 +85,8 @@ assert.throws(() => {
 {
   const myError = new errors.codes.TEST_ERROR_1('foo');
   assert.strictEqual(myError.code, 'TEST_ERROR_1');
-  assert.strictEqual(myError.hasOwnProperty('code'), true);
-  assert.strictEqual(myError.hasOwnProperty('name'), false);
+  assert.strictEqual(Object.hasOwn(myError, 'code'), true);
+  assert.strictEqual(Object.hasOwn(myError, 'name'), false);
   assert.deepStrictEqual(Object.keys(myError), ['code']);
   const initialName = myError.name;
   myError.code = 'FHQWHGADS';

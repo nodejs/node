@@ -26,8 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import glob
 import platform
 import re
+import sys
 
 
 # Reads a .list file into an array of strings
@@ -81,9 +83,7 @@ def GuessOS():
 def GuessArchitecture():
   id = platform.machine()
   id = id.lower()  # Windows 7 capitalizes 'AMD64'.
-  if id.startswith('armv6'): # Can return 'armv6l'.
-    return 'armv6'
-  elif id.startswith('arm') or id == 'aarch64':
+  if id.startswith('arm') or id == 'aarch64':
     return 'arm'
   elif (not id) or (not re.match('(x|i[3-6])86$', id) is None):
     return 'ia32'
@@ -106,3 +106,10 @@ def GuessArchitecture():
 
 def IsWindows():
   return GuessOS() == 'win32'
+
+
+def SearchFiles(dir, ext):
+  list = glob.glob(dir+ '/**/*.' + ext, recursive=True)
+  if sys.platform == 'win32':
+    list = [ x.replace('\\', '/')for x in list]
+  return list

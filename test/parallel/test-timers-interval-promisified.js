@@ -246,3 +246,15 @@ process.on('multipleResolves', common.mustNotCall());
     setPromiseTimeout(time_unit * 3).then(() => post = true),
   ]).then(common.mustCall());
 }
+
+(async () => {
+  const signal = AbortSignal.abort('boom');
+  try {
+    const iterable = timerPromises.setInterval(2, undefined, { signal });
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of iterable) { }
+    assert.fail('should have failed');
+  } catch (err) {
+    assert.strictEqual(err.cause, 'boom');
+  }
+})().then(common.mustCall());

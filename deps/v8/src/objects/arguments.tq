@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
-extern class JSArgumentsObject extends JSObject {
-}
+extern class JSArgumentsObject extends JSObject {}
 
 type JSArgumentsObjectWithLength =
     JSSloppyArgumentsObject|JSStrictArgumentsObject;
@@ -50,7 +48,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 // arguments array is not a fixed array or if key >= elements.arguments.length.
 //
 // Otherwise, t = elements.mapped_entries[key]. If t is the hole, then the
-// entry has been deleted fron the arguments object, and value is looked up in
+// entry has been deleted from the arguments object, and value is looked up in
 // the unmapped arguments array, as described above. Otherwise, t is a Smi
 // index into the context array specified at elements.context, and the return
 // value is elements.context[t].
@@ -80,7 +78,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 class SloppyArgumentsElements extends FixedArrayBase {
   context: Context;
   arguments: FixedArray|NumberDictionary;
-  @relaxedRead mapped_entries[length]: Smi|TheHole;
+  @cppRelaxedLoad mapped_entries[length]: Smi|TheHole;
 }
 
 macro NewSloppyArgumentsElements<Iterator: type>(
@@ -90,11 +88,7 @@ macro NewSloppyArgumentsElements<Iterator: type>(
   SloppyArgumentsElements{length, context, arguments, mapped_entries: ...it};
 }
 
-@generateCppClass
-@generatePrint
-extern class AliasedArgumentsEntry extends Struct {
-  aliased_context_slot: Smi;
-}
+extern class AliasedArgumentsEntry extends Struct { aliased_context_slot: Smi; }
 
 // TODO(danno): This should be a namespace {} once supported
 namespace arguments {
@@ -152,6 +146,10 @@ macro NewParameterMapIterator(
   const flags = context.GetScopeInfo().flags;
   let contextHeaderSize: intptr = ContextSlot::MIN_CONTEXT_SLOTS;
   if (flags.has_context_extension_slot) ++contextHeaderSize;
+  if (flags.receiver_variable ==
+      FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)) {
+    ++contextHeaderSize;
+  }
   // Copy the parameter slots and the holes in the arguments.
   // We need to fill in mapped_count slots. They index the context,
   // where parameters are stored in reverse order, at

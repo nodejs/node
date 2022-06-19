@@ -15,22 +15,22 @@
 namespace {
 
 bool IsTrackedYoung(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_young;
 }
 
 bool IsTrackedOld(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_old;
 }
 
 bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_young || in_old;
 }
@@ -133,7 +133,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_concurrent_array_buffer_sweeping = false;
@@ -188,7 +188,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
     Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
 
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       // Allocate another buffer on the same page to force processing a
       // non-empty set of buffers in the last GC.
       Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
@@ -210,7 +210,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || FLAG_separate_gc_phases) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
@@ -226,7 +226,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should not be promoted as live.
@@ -248,7 +248,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || FLAG_separate_gc_phases) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
@@ -264,11 +264,15 @@ TEST(ArrayBuffer_LivePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
+    // Store array in Global such that it is part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_root(CcTest::isolate(),
+                                  Utils::ToLocal(Handle<Object>::cast(root)));
     heap::SimulateIncrementalMarking(heap, true);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     heap::GcAndSweep(heap, NEW_SPACE);
@@ -301,7 +305,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
@@ -339,7 +343,7 @@ TEST(ArrayBuffer_PagePromotion) {
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     ArrayBufferExtension* extension;
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       extension = buf->extension();
@@ -388,26 +392,29 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const size_t backing_store_before =
-      heap->new_space()->ExternalBackingStoreBytes(type);
+  const Space* space = FLAG_incremental_marking
+                           ? static_cast<Space*>(heap->new_space())
+                           : static_cast<Space*>(heap->old_space());
+  const size_t backing_store_before = space->ExternalBackingStoreBytes(type);
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
-    const size_t backing_store_after =
-        heap->new_space()->ExternalBackingStoreBytes(type);
+    const size_t backing_store_after = space->ExternalBackingStoreBytes(type);
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
+  if (FLAG_single_generation) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -430,7 +437,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_concurrent_array_buffer_sweeping = false;

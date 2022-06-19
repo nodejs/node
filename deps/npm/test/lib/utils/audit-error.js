@@ -3,21 +3,21 @@ const t = require('tap')
 const LOGS = []
 const OUTPUT = []
 const output = (...msg) => OUTPUT.push(msg)
-const auditError = require('../../../lib/utils/audit-error.js')
+const auditError = t.mock('../../../lib/utils/audit-error.js', {
+  'proc-log': {
+    warn: (...msg) => LOGS.push(msg),
+  },
+})
 
 const npm = {
   command: null,
   flatOptions: {},
-  log: {
-    warn: (...msg) => LOGS.push(msg),
-  },
   output,
 }
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.flatOptions = {}
   OUTPUT.length = 0
   LOGS.length = 0
-  cb()
 })
 
 t.test('no error, not audit command', t => {

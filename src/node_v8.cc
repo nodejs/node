@@ -47,19 +47,21 @@ using v8::Uint32;
 using v8::V8;
 using v8::Value;
 
-
-#define HEAP_STATISTICS_PROPERTIES(V)                                         \
-  V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
-  V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)             \
-  V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
-  V(3, total_available_size, kTotalAvailableSize)                             \
-  V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
-  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
-  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
-  V(8, does_zap_garbage, kDoesZapGarbageIndex)                                \
-  V(9, number_of_native_contexts, kNumberOfNativeContextsIndex)               \
-  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)
+#define HEAP_STATISTICS_PROPERTIES(V)                                          \
+  V(0, total_heap_size, kTotalHeapSizeIndex)                                   \
+  V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)              \
+  V(2, total_physical_size, kTotalPhysicalSizeIndex)                           \
+  V(3, total_available_size, kTotalAvailableSize)                              \
+  V(4, used_heap_size, kUsedHeapSizeIndex)                                     \
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                   \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                  \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                         \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)                                 \
+  V(9, number_of_native_contexts, kNumberOfNativeContextsIndex)                \
+  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)           \
+  V(11, total_global_handles_size, kTotalGlobalHandlesSizeIndex)               \
+  V(12, used_global_handles_size, kUsedGlobalHandlesSizeIndex)                 \
+  V(13, external_memory, kExternalMemoryIndex)
 
 #define V(a, b, c) +1
 static constexpr size_t kHeapStatisticsPropertiesCount =
@@ -80,7 +82,8 @@ static constexpr size_t kHeapSpaceStatisticsPropertiesCount =
 #define HEAP_CODE_STATISTICS_PROPERTIES(V)                                     \
   V(0, code_and_metadata_size, kCodeAndMetadataSizeIndex)                      \
   V(1, bytecode_and_metadata_size, kBytecodeAndMetadataSizeIndex)              \
-  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)
+  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)            \
+  V(3, cpu_profiler_metadata_size, kCPUProfilerMetaDataSizeIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapCodeStatisticsPropertiesCount =
@@ -141,9 +144,6 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("heap_code_statistics_buffer",
                       heap_code_statistics_buffer);
 }
-
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::type_name;
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);

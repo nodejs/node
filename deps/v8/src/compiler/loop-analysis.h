@@ -178,13 +178,27 @@ class V8_EXPORT_PRIVATE LoopFinder {
                                  Zone* temp_zone);
 
   static bool HasMarkedExits(LoopTree* loop_tree_, const LoopTree::Loop* loop);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Find all nodes in the loop headed by {loop_header} if it contains no nested
+  // loops.
+  // Assumption: *if* this loop has no nested loops, all exits from the loop are
+  // marked with LoopExit, LoopExitEffect, LoopExitValue, or End nodes.
+  // Returns {nullptr} if
+  // 1) the loop size (in graph nodes) exceeds {max_size},
+  // 2) {calls_are_large} and a function call is found in the loop, excluding
+  //    calls to a set of wasm builtins,
+  // 3) a nested loop is found in the loop.
+  static ZoneUnorderedSet<Node*>* FindSmallInnermostLoopFromHeader(
+      Node* loop_header, Zone* zone, size_t max_size, bool calls_are_large);
+#endif
 };
 
 // Copies a range of nodes any number of times.
 class NodeCopier {
  public:
   // {max}: The maximum number of nodes that this copier will track, including
-  //        The original nodes and all copies.
+  //        the original nodes and all copies.
   // {p}: A vector that holds the original nodes and all copies.
   // {copy_count}: How many times the nodes should be copied.
   NodeCopier(Graph* graph, uint32_t max, NodeVector* p, uint32_t copy_count)
@@ -205,9 +219,34 @@ class NodeCopier {
   // Helper version of {Insert} for one copy.
   void Insert(Node* original, Node* copy);
 
-  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead, NodeRange nodes,
+  template <typename InputIterator>
+  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead,
+                 base::iterator_range<InputIterator> nodes,
                  SourcePositionTable* source_positions,
-                 NodeOriginTable* node_origins);
+                 NodeOriginTable* node_origins) {
+    // Copy all the nodes first.
+    for (Node* original : nodes) {
+      SourcePositionTable::Scope position(
+          source_positions, source_positions->GetSourcePosition(original));
+      NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", original);
+      node_map_.Set(original, copies_->size() + 1);
+      copies_->push_back(original);
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = graph->CloneNode(original);
+        copies_->push_back(copy);
+      }
+    }
+
+    // Fix inputs of the copies.
+    for (Node* original : nodes) {
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = map(original, copy_index);
+        for (int i = 0; i < copy->InputCount(); i++) {
+          copy->ReplaceInput(i, map(original->InputAt(i), copy_index));
+        }
+      }
+    }
+  }
 
   bool Marked(Node* node) { return node_map_.Get(node) > 0; }
 

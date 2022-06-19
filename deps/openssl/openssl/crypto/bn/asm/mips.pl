@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -12,8 +12,7 @@
 # project.
 #
 # Rights for redistribution and usage in source and binary forms are
-# granted according to the OpenSSL license. Warranty of any kind is
-# disclaimed.
+# granted according to the License. Warranty of any kind is disclaimed.
 # ====================================================================
 
 
@@ -55,9 +54,10 @@
 # has to content with 40-85% improvement depending on benchmark and
 # key length, more for longer keys.
 
-$flavour = shift || "o32";
-while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : "o32";
 
 if ($flavour =~ /64|n32/i) {
 	$LD="ld";
@@ -91,6 +91,8 @@ if ($flavour =~ /64|n32/i) {
 	$REG_L="lw";
 	$code="#if !(defined (__mips_isa_rev) && (__mips_isa_rev >= 6))\n.set     mips2\n#endif\n";
 }
+
+$output and open STDOUT,">$output";
 
 # Below is N32/64 register layout used in the original module.
 #
@@ -1984,6 +1986,8 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_1
 	$ADDU	$c_3,$t_2,$at
 	$ST	$c_2,$BNSZ($a0)
+	sltu	$at,$c_3,$t_2
+	$ADDU	$c_1,$at
 	mflo	($t_1,$a_2,$a_0)
 	mfhi	($t_2,$a_2,$a_0)
 ___
@@ -2194,6 +2198,8 @@ $code.=<<___;
 	sltu	$at,$c_2,$t_1
 	$ADDU	$c_3,$t_2,$at
 	$ST	$c_2,$BNSZ($a0)
+	sltu	$at,$c_3,$t_2
+	$ADDU	$c_1,$at
 	mflo	($t_1,$a_2,$a_0)
 	mfhi	($t_2,$a_2,$a_0)
 ___

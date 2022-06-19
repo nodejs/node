@@ -77,6 +77,14 @@ class CustomGCedFinal2 final : public CustomGCedBase {
   ~CustomGCedFinal2() { g_destructor_callcount++; }
 };
 
+constexpr size_t kDoubleWord = 2 * sizeof(void*);
+
+class alignas(kDoubleWord) CustomGCedWithDoubleWordAlignment final
+    : public GarbageCollected<CustomGCedWithDoubleWordAlignment> {
+ public:
+  void Trace(Visitor*) const {}
+};
+
 }  // namespace
 
 }  // namespace internal
@@ -97,6 +105,11 @@ struct SpaceTrait<
   using Space = CustomSpace1;
 };
 
+template <>
+struct SpaceTrait<internal::CustomGCedWithDoubleWordAlignment> {
+  using Space = CustomSpace1;
+};
+
 namespace internal {
 
 TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
@@ -107,11 +120,31 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
   auto* custom2 =
       MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces + 1,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
+}
+
+TEST_F(TestWithHeapWithCustomSpaces, AllocateDoubleWordAlignedOnCustomSpace) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* custom_aligned =
+      MakeGarbageCollected<CustomGCedWithDoubleWordAlignment>(
+          GetHeap()->GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(custom_aligned) & kAlignmentMask);
+}
+
+TEST_F(TestWithHeapWithCustomSpaces, DifferentSpacesUsesDifferentPages) {
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom1));
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom2));
+  EXPECT_NE(NormalPage::FromPayload(custom1), NormalPage::FromPayload(custom2));
 }
 
 TEST_F(TestWithHeapWithCustomSpaces,
@@ -123,11 +156,11 @@ TEST_F(TestWithHeapWithCustomSpaces,
   auto* custom2 =
       MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
@@ -234,11 +267,11 @@ TEST_F(TestWithHeapWithCompactableCustomSpaces,
       GetHeap()->GetAllocationHandle());
   auto* default_compactable = MakeGarbageCollected<DefaultCompactableGCed>(
       GetHeap()->GetAllocationHandle());
-  EXPECT_TRUE(NormalPage::FromPayload(compactable)->space()->is_compactable());
+  EXPECT_TRUE(NormalPage::FromPayload(compactable)->space().is_compactable());
   EXPECT_FALSE(
-      NormalPage::FromPayload(not_compactable)->space()->is_compactable());
+      NormalPage::FromPayload(not_compactable)->space().is_compactable());
   EXPECT_FALSE(
-      NormalPage::FromPayload(default_compactable)->space()->is_compactable());
+      NormalPage::FromPayload(default_compactable)->space().is_compactable());
 }
 
 }  // namespace internal

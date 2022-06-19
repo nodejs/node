@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_
 #define V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_
 
+#include "src/base/strings.h"
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -25,7 +27,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   ~RegExpBytecodeGenerator() override;
   // The byte-code interpreter checks on each push anyway.
   int stack_limit_slack() override { return 1; }
-  bool CanReadUnaligned() override { return false; }
+  bool CanReadUnaligned() const override { return false; }
   void Bind(Label* label) override;
   void AdvanceCurrentPosition(int by) override;  // Signed cp change.
   void PopCurrentPosition() override;
@@ -52,19 +54,36 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void CheckCharacter(unsigned c, Label* on_equal) override;
   void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                               Label* on_equal) override;
-  void CheckCharacterGT(uc16 limit, Label* on_greater) override;
-  void CheckCharacterLT(uc16 limit, Label* on_less) override;
+  void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
   void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
   void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
                                  Label* on_not_equal) override;
-  void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
+  void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                      base::uc16 mask,
                                       Label* on_not_equal) override;
-  void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range) override;
-  void CheckCharacterNotInRange(uc16 from, uc16 to,
+  void CheckCharacterInRange(base::uc16 from, base::uc16 to,
+                             Label* on_in_range) override;
+  void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override {
+    // Disabled in the interpreter, because 1) there is no constant pool that
+    // could store the ByteArray pointer, 2) bytecode size limits are not as
+    // restrictive as code (e.g. branch distances on arm), 3) bytecode for
+    // large character classes is already quite compact.
+    // TODO(jgruber): Consider using BytecodeArrays (with a constant pool)
+    // instead of plain ByteArrays; then we could implement
+    // CheckCharacterInRangeArray in the interpreter.
+    return false;
+  }
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override {
+    return false;
+  }
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
@@ -79,7 +98,8 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   Handle<HeapObject> GetCode(Handle<String> source) override;
 
  private:
-  void Expand();
+  void ExpandBuffer();
+
   // Code and bitmap emission.
   inline void EmitOrLink(Label* label);
   inline void Emit32(uint32_t x);
@@ -92,7 +112,9 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void Copy(byte* a);
 
   // The buffer into which code and relocation info are generated.
-  Vector<byte> buffer_;
+  static constexpr int kInitialBufferSize = 1024;
+  ZoneVector<byte> buffer_;
+
   // The program counter.
   int pc_;
   Label backtrack_;

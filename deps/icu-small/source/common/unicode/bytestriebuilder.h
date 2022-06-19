@@ -30,6 +30,8 @@
 #include "unicode/stringpiece.h"
 #include "unicode/stringtriebuilder.h"
 
+class BytesTrieTest;
+
 U_NAMESPACE_BEGIN
 
 class BytesTrieElement;
@@ -125,26 +127,28 @@ public:
     BytesTrieBuilder &clear();
 
 private:
+    friend class ::BytesTrieTest;
+
     BytesTrieBuilder(const BytesTrieBuilder &other);  // no copy constructor
     BytesTrieBuilder &operator=(const BytesTrieBuilder &other);  // no assignment operator
 
     void buildBytes(UStringTrieBuildOption buildOption, UErrorCode &errorCode);
 
-    virtual int32_t getElementStringLength(int32_t i) const;
-    virtual char16_t getElementUnit(int32_t i, int32_t byteIndex) const;
-    virtual int32_t getElementValue(int32_t i) const;
+    virtual int32_t getElementStringLength(int32_t i) const override;
+    virtual char16_t getElementUnit(int32_t i, int32_t byteIndex) const override;
+    virtual int32_t getElementValue(int32_t i) const override;
 
-    virtual int32_t getLimitOfLinearMatch(int32_t first, int32_t last, int32_t byteIndex) const;
+    virtual int32_t getLimitOfLinearMatch(int32_t first, int32_t last, int32_t byteIndex) const override;
 
-    virtual int32_t countElementUnits(int32_t start, int32_t limit, int32_t byteIndex) const;
-    virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t byteIndex, int32_t count) const;
-    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t byteIndex, char16_t byte) const;
+    virtual int32_t countElementUnits(int32_t start, int32_t limit, int32_t byteIndex) const override;
+    virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t byteIndex, int32_t count) const override;
+    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t byteIndex, char16_t byte) const override;
 
-    virtual UBool matchNodesCanHaveValues() const { return false; }
+    virtual UBool matchNodesCanHaveValues() const override { return false; }
 
-    virtual int32_t getMaxBranchLinearSubNodeLength() const { return BytesTrie::kMaxBranchLinearSubNodeLength; }
-    virtual int32_t getMinLinearMatch() const { return BytesTrie::kMinLinearMatch; }
-    virtual int32_t getMaxLinearMatchLength() const { return BytesTrie::kMaxLinearMatchLength; }
+    virtual int32_t getMaxBranchLinearSubNodeLength() const override { return BytesTrie::kMaxBranchLinearSubNodeLength; }
+    virtual int32_t getMinLinearMatch() const override { return BytesTrie::kMinLinearMatch; }
+    virtual int32_t getMaxLinearMatchLength() const override { return BytesTrie::kMaxLinearMatchLength; }
 
     /**
      * @internal (private)
@@ -152,22 +156,23 @@ private:
     class BTLinearMatchNode : public LinearMatchNode {
     public:
         BTLinearMatchNode(const char *units, int32_t len, Node *nextNode);
-        virtual UBool operator==(const Node &other) const;
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual void write(StringTrieBuilder &builder) override;
     private:
         const char *s;
     };
-
+    
     virtual Node *createLinearMatchNode(int32_t i, int32_t byteIndex, int32_t length,
-                                        Node *nextNode) const;
+                                        Node *nextNode) const override;
 
     UBool ensureCapacity(int32_t length);
-    virtual int32_t write(int32_t byte);
+    virtual int32_t write(int32_t byte) override;
     int32_t write(const char *b, int32_t length);
-    virtual int32_t writeElementUnits(int32_t i, int32_t byteIndex, int32_t length);
-    virtual int32_t writeValueAndFinal(int32_t i, UBool isFinal);
-    virtual int32_t writeValueAndType(UBool hasValue, int32_t value, int32_t node);
-    virtual int32_t writeDeltaTo(int32_t jumpTarget);
+    virtual int32_t writeElementUnits(int32_t i, int32_t byteIndex, int32_t length) override;
+    virtual int32_t writeValueAndFinal(int32_t i, UBool isFinal) override;
+    virtual int32_t writeValueAndType(UBool hasValue, int32_t value, int32_t node) override;
+    virtual int32_t writeDeltaTo(int32_t jumpTarget) override;
+    static int32_t internalEncodeDelta(int32_t i, char intBytes[]);
 
     CharString *strings;  // Pointer not object so we need not #include internal charstr.h.
     BytesTrieElement *elements;

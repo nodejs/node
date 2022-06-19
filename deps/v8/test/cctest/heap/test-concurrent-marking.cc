@@ -10,7 +10,6 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/worklist.h"
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -35,7 +34,8 @@ TEST(ConcurrentMarking) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;
@@ -57,7 +57,8 @@ TEST(ConcurrentMarkingReschedule) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;
@@ -83,7 +84,8 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;
@@ -104,6 +106,7 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
 }
 
 TEST(ConcurrentMarkingMarkedBytes) {
+  if (!FLAG_incremental_marking) return;
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -112,12 +115,19 @@ TEST(ConcurrentMarkingMarkedBytes) {
   Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
+
+  // Store array in Global such that it is part of the root set when
+  // starting incremental marking.
+  v8::Global<Value> global_root(CcTest::isolate(),
+                                Utils::ToLocal(Handle<Object>::cast(root)));
+
   heap::SimulateIncrementalMarking(heap, false);
   heap->concurrent_marking()->Join();
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }
 
 UNINITIALIZED_TEST(ConcurrentMarkingStoppedOnTeardown) {
+  if (!FLAG_incremental_marking) return;
   if (!i::FLAG_concurrent_marking) return;
 
   v8::Isolate::CreateParams create_params;

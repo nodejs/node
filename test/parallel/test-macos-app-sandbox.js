@@ -1,7 +1,9 @@
 'use strict';
 const common = require('../common');
 if (process.platform !== 'darwin')
-  common.skip('App Sandbox is only avaliable on Darwin');
+  common.skip('App Sandbox is only available on Darwin');
+if (process.config.variables.node_builtin_modules_path)
+  common.skip('App Sandbox cannot load modules from outside the sandbox');
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');

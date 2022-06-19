@@ -22,11 +22,21 @@ export class BaseArgumentsProcessor {
 
   result() { return this.result_ }
 
+  static process(args) {
+    const processor = new this(args);
+    if (processor.parse()) {
+      return processor.result();
+    } else {
+      processor.printUsageAndExit();
+      return false;
+    }
+  }
+
   printUsageAndExit() {
-    print('Cmdline args: [options] [log-file-name]\n' +
+    console.log('Cmdline args: [options] [log-file-name]\n' +
           'Default log file name is "' +
           this.result_.logFileName + '".\n');
-    print('Options:');
+          console.log('Options:');
     for (const arg in this.argsDispatch_) {
       const synonyms = [arg];
       const dispatch = this.argsDispatch_[arg];
@@ -36,7 +46,7 @@ export class BaseArgumentsProcessor {
           delete this.argsDispatch_[synArg];
         }
       }
-      print(`  ${synonyms.join(', ').padEnd(20)} ${dispatch[2]}`);
+      console.log(`  ${synonyms.join(', ').padEnd(20)} ${dispatch[2]}`);
     }
     quit(2);
   }

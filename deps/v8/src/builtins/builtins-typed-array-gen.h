@@ -21,18 +21,19 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                     TNode<Map> map, TNode<Smi> length,
                     TNode<UintPtrT> byte_offset);
 
-  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
-                                                 TNode<UintPtrT> byte_length);
+  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
   TNode<BoolT> IsMockArrayBufferAllocatorFlag();
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<UintPtrT> byte_offset);
 
-  // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
+  // Returns true if kind is either UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+  // RAB_GSAB_UINT8_ELEMENTS, or RAB_GSAB_UINT8_CLAMPED_ELEMENTS.
   TNode<BoolT> IsUint8ElementsKind(TNode<Int32T> kind);
 
-  // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
+  // Returns true if kind is either BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS,
+  // RAB_GSAB_BIGINT64_ELEMENTS, or RAB_GSAB_BIGUINT64_ELEMENTS.
   TNode<BoolT> IsBigInt64ElementsKind(TNode<Int32T> kind);
 
   // Returns the byte size of an element for a TypedArray elements kind.
@@ -49,11 +50,21 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<Object> obj,
                                          const char* method_name);
 
+  TNode<UintPtrT> ValidateTypedArrayAndGetLength(TNode<Context> context,
+                                                 TNode<Object> obj,
+                                                 const char* method_name);
+
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
 
+  void CallCRelaxedMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                           TNode<UintPtrT> byte_length);
+
   void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                    TNode<UintPtrT> byte_length);
+
+  void CallCRelaxedMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                          TNode<UintPtrT> byte_length);
 
   void CallCMemset(TNode<RawPtrT> dest_ptr, TNode<IntPtrT> value,
                    TNode<UintPtrT> length);
@@ -77,7 +88,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
-  void AllocateJSTypedArrayExternalPointerEntry(TNode<JSTypedArray> holder);
   void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
                                     TNode<ByteArray> base,
                                     TNode<UintPtrT> offset);

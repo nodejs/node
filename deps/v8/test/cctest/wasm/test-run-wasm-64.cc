@@ -45,7 +45,7 @@ WASM_EXEC_TEST(I64Const_many) {
 WASM_EXEC_TEST(Return_I64) {
   WasmRunner<int64_t, int64_t> r(execution_tier);
 
-  BUILD(r, WASM_RETURN1(WASM_LOCAL_GET(0)));
+  BUILD(r, WASM_RETURN(WASM_LOCAL_GET(0)));
 
   FOR_INT64_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
 }
@@ -67,9 +67,10 @@ const int64_t kHasBit33On = 0x100000000;
 
 WASM_EXEC_TEST(Regress5800_Add) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_ADD(
-                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
-                      WASM_RETURN1(WASM_I32V(0))),
+  BUILD(r,
+        WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_ADD(
+                                     WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                   WASM_RETURN(WASM_I32V(0))),
         WASM_I32V(0));
   CHECK_EQ(0, r.Call());
 }
@@ -86,9 +87,10 @@ WASM_EXEC_TEST(I64Sub) {
 
 WASM_EXEC_TEST(Regress5800_Sub) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_SUB(
-                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
-                      WASM_RETURN1(WASM_I32V(0))),
+  BUILD(r,
+        WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_SUB(
+                                     WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                   WASM_RETURN(WASM_I32V(0))),
         WASM_I32V(0));
   CHECK_EQ(0, r.Call());
 }
@@ -1363,9 +1365,9 @@ WASM_EXEC_TEST(I64Global) {
 
   r.builder().WriteMemory<int64_t>(global, 0xFFFFFFFFFFFFFFFFLL);
   for (int i = 9; i < 444444; i += 111111) {
-    int64_t expected = ReadLittleEndianValue<int64_t>(global) & i;
+    int64_t expected = *global & i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -1479,19 +1481,13 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
   r.Call();
 }
 
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
-  } while (false)
-
 static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
+    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);
@@ -1543,8 +1539,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; i++) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& t = r.NewFunction(b.Build());
-    BUILD(t, WASM_LOCAL_GET(which));
+    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    BUILD(f, WASM_LOCAL_GET(which));
 
     // =========================================================================
     // Build the calling function.
@@ -1558,7 +1554,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     }
 
     // Call the selector function.
-    ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
+    ADD_CODE(code, WASM_CALL_FUNCTION0(f.function_index()));
 
     // Store the result in a local.
     byte local_index = r.AllocateLocal(ValueType::For(result));
@@ -1582,8 +1578,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
       for (int i = 0; i < size; i++) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
-        byte result = r.builder().raw_mem_at<byte>(i);
-        CHECK_EQ(expected, result);
+        byte actual = r.builder().raw_mem_at<byte>(i);
+        CHECK_EQ(expected, actual);
       }
     }
   }
@@ -1616,8 +1612,6 @@ WASM_EXEC_TEST(Regression_6858) {
   int64_t filler = 34;
   CHECK_TRAP64(r.Call(dividend, divisor, filler, filler));
 }
-
-#undef ADD_CODE
 
 // clang-format gets confused about these closing parentheses (wants to change
 // the first comment to "// namespace v8". Disable it.

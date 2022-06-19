@@ -116,13 +116,13 @@ function isPossibleConstructor(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "require `super()` calls in constructors",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/constructor-super"
         },

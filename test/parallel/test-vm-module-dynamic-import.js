@@ -56,6 +56,20 @@ async function test() {
     assert.strictEqual(foo.namespace, await globalThis.fooResult);
     delete globalThis.fooResult;
   }
+
+  {
+    const s = new Script('import("foo", { assert: { key: "value" } })', {
+      importModuleDynamically: common.mustCall((specifier, wrap, assertion) => {
+        assert.strictEqual(specifier, 'foo');
+        assert.strictEqual(wrap, s);
+        assert.deepStrictEqual(assertion, { __proto__: null, key: 'value' });
+        return foo;
+      }),
+    });
+
+    const result = s.runInThisContext();
+    assert.strictEqual(foo.namespace, await result);
+  }
 }
 
 async function testInvalid() {

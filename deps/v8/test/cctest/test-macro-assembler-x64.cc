@@ -60,10 +60,18 @@ using F0 = int();
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ pushq(kRootRegister);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  __ pushq(kPtrComprCageBaseRegister);
+#endif
   __ InitializeRootRegister();
 }
 
-static void ExitCode(MacroAssembler* masm) { __ popq(kRootRegister); }
+static void ExitCode(MacroAssembler* masm) {
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  __ popq(kPtrComprCageBaseRegister);
+#endif
+  __ popq(kRootRegister);
+}
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.
@@ -93,8 +101,8 @@ TEST(Smi) {
 static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
-  __ Set(rdx, static_cast<intptr_t>(value.ptr()));
-  __ cmpq(rcx, rdx);
+  __ Move(rdx, static_cast<intptr_t>(value.ptr()));
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, exit);
 }
 
@@ -250,35 +258,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::zero().ptr());
+  __ Move(rdx, Smi::zero().ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(1024).ptr());
+  __ Move(rdx, Smi::FromInt(1024).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(-1).ptr());
+  __ Move(rdx, Smi::FromInt(-1).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
@@ -287,35 +295,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(6));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::zero().ptr());
+  __ Move(rdx, Smi::zero().ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(1024).ptr());
+  __ Move(rdx, Smi::FromInt(1024).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(-1).ptr());
+  __ Move(rdx, Smi::FromInt(-1).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
@@ -417,7 +425,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
     CHECK(index.reg == rcx || index.reg == rdx);
     __ shlq(index.reg, Immediate(index.scale));
-    __ Set(r8, static_cast<intptr_t>(x) << i);
+    __ Move(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
     __ incq(rax);
@@ -425,7 +433,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     index = masm->SmiToIndex(rcx, rcx, i);
     CHECK(index.reg == rcx);
     __ shlq(rcx, Immediate(index.scale));
-    __ Set(r8, static_cast<intptr_t>(x) << i);
+    __ Move(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);
     __ j(not_equal, exit);
     __ incq(rax);
@@ -434,8 +442,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 
 TEST(EmbeddedObj) {
 #ifdef V8_COMPRESS_POINTERS
-  FLAG_always_compact = true;
-  v8::V8::Initialize();
+  FLAG_compact_on_every_full_gc = true;
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
@@ -472,15 +479,17 @@ TEST(EmbeddedObj) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 
+  PtrComprCageBase cage_base(isolate);
+
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
-      CHECK_EQ(*my_array, it.rinfo()->target_object());
+      CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
-      CHECK_EQ(*old_array, it.rinfo()->target_object());
+      CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));
     }
   }
 #endif  // V8_COMPRESS_POINTERS
@@ -554,7 +563,7 @@ TEST(OperandOffset) {
   __ leaq(r13, Operand(rbp, -3 * kSystemPointerSize));
   __ leaq(rbx, Operand(rbp, -5 * kSystemPointerSize));
   __ movl(rcx, Immediate(2));
-  __ Move(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NONE);
+  __ Move(r8, reinterpret_cast<Address>(&data[128]), RelocInfo::NO_INFO);
   __ movl(rax, Immediate(1));
 
   Operand sp0 = Operand(rsp, 0);
@@ -885,7 +894,7 @@ void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
   __ Movss(Operand(rsp, 3 * kFloatSize), xmm4);
   __ Movups(xmm0, Operand(rsp, 0));
 
-  __ Absps(xmm0);
+  __ Absps(xmm0, xmm0, kScratchRegister);
   __ Movups(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -922,7 +931,7 @@ void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
   __ Movss(Operand(rsp, 3 * kFloatSize), xmm4);
   __ Movups(xmm0, Operand(rsp, 0));
 
-  __ Negps(xmm0);
+  __ Negps(xmm0, xmm0, kScratchRegister);
   __ Movups(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -954,7 +963,7 @@ void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
   __ movupd(xmm0, Operand(rsp, 0));
 
-  __ Abspd(xmm0);
+  __ Abspd(xmm0, xmm0, kScratchRegister);
   __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -978,7 +987,7 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
   __ movupd(xmm0, Operand(rsp, 0));
 
-  __ Negpd(xmm0);
+  __ Negpd(xmm0, xmm0, kScratchRegister);
   __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -1041,8 +1050,6 @@ TEST(AreAliased) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -1054,22 +1061,12 @@ TEST(DeoptExitSizeIsFixed) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
     masm.bind(&before_exit);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicCheckMaps);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeBeforeArgsSize);
-    } else {
-      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               kind == DeoptimizeKind::kLazy
-                   ? Deoptimizer::kLazyDeoptExitSize
-                   : Deoptimizer::kNonLazyDeoptExitSize);
-    }
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               nullptr);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
 }
 

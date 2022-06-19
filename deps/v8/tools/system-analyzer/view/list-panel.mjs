@@ -2,26 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Script, SourcePosition} from '../../profile.mjs';
-import {LogEntry} from '../log/log.mjs';
+import {App} from '../index.mjs'
 
-import {FocusEvent} from './events.mjs';
+import {FocusEvent, ToolTipEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
-import {DOM, V8CustomElement} from './helper.mjs';
+import {CollapsableElement, DOM} from './helper.mjs';
 
 DOM.defineCustomElement('view/list-panel',
                         (templateText) =>
-                            class ListPanel extends V8CustomElement {
+                            class ListPanel extends CollapsableElement {
   _selectedLogEntries = [];
   _displayedLogEntries = [];
   _timeline;
 
   _detailsClickHandler = this._handleDetailsClick.bind(this);
   _logEntryClickHandler = this._handleLogEntryClick.bind(this);
+  _logEntryMouseOverHandler = this._logEntryMouseOverHandler.bind(this);
 
   constructor() {
     super(templateText);
-    this.groupKey.addEventListener('change', e => this.update());
+    this.groupKey.addEventListener('change', e => this.requestUpdate());
     this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
     this.showTimerangeRadio.onclick = _ =>
         this._showEntries(this._timeline.selectionOrSelf);
@@ -72,9 +72,11 @@ DOM.defineCustomElement('view/list-panel',
   get showAllRadio() {
     return this.$('#show-all');
   }
+
   get showTimerangeRadio() {
     return this.$('#show-timerange');
   }
+
   get showSelectionRadio() {
     return this.$('#show-selection');
   }
@@ -95,7 +97,7 @@ DOM.defineCustomElement('view/list-panel',
 
   _showEntries(entries) {
     this._displayedLogEntries = entries;
-    this.update();
+    this.requestUpdate();
   }
 
   _update() {
@@ -110,6 +112,7 @@ DOM.defineCustomElement('view/list-panel',
 
   createSubgroups(group) {
     const map = new Map();
+    const tempGroups = [];
     for (let propertyName of this._propertyNames) {
       map.set(
           propertyName,
@@ -121,6 +124,11 @@ DOM.defineCustomElement('view/list-panel',
   _handleLogEntryClick(e) {
     const group = e.currentTarget.group;
     this.dispatchEvent(new FocusEvent(group.key));
+  }
+
+  _logEntryMouseOverHandler(e) {
+    const group = e.currentTarget.group;
+    this.dispatchEvent(new ToolTipEvent(group.key, e.currentTarget));
   }
 
   _handleDetailsClick(event) {
@@ -169,30 +177,20 @@ DOM.defineCustomElement('view/list-panel',
   _render(groups, table) {
     let last;
     new LazyTable(table, groups, group => {
-      if (last && last.count < group.count) {
-        console.log(last, group);
-      }
       last = group;
       const tr = DOM.tr();
       tr.group = group;
       const details = tr.appendChild(DOM.td('', 'toggle'));
       details.onclick = this._detailsClickHandler;
       tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
-      tr.appendChild(DOM.td(group.count, 'count'));
-      const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
-      if (this._isClickable(group.key)) {
+      tr.appendChild(DOM.td(group.length, 'count'));
+      const valueTd = tr.appendChild(DOM.td(group.key?.toString(), 'key'));
+      if (App.isClickable(group.key)) {
         tr.onclick = this._logEntryClickHandler;
+        tr.onmouseover = this._logEntryMouseOverHandler;
         valueTd.classList.add('clickable');
       }
       return tr;
     }, 10);
-  }
-
-  _isClickable(object) {
-    if (typeof object !== 'object') return false;
-    if (object instanceof LogEntry) return true;
-    if (object instanceof SourcePosition) return true;
-    if (object instanceof Script) return true;
-    return false;
   }
 });

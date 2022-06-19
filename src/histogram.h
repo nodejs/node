@@ -18,26 +18,34 @@
 
 namespace node {
 
+class ExternalReferenceRegistry;
+
 constexpr int kDefaultHistogramFigures = 3;
 
 class Histogram : public MemoryRetainer {
  public:
-  Histogram(
-      int64_t lowest = 1,
-      int64_t highest = std::numeric_limits<int64_t>::max(),
-      int figures = kDefaultHistogramFigures);
+  struct Options {
+    int64_t lowest = 1;
+    int64_t highest = std::numeric_limits<int64_t>::max();
+    int figures = kDefaultHistogramFigures;
+  };
+
+  explicit Histogram(const Options& options);
   virtual ~Histogram() = default;
 
   inline bool Record(int64_t value);
   inline void Reset();
-  inline int64_t Min();
-  inline int64_t Max();
-  inline double Mean();
-  inline double Stddev();
-  inline double Percentile(double percentile);
-  inline int64_t Exceeds() const { return exceeds_; }
+  inline int64_t Min() const;
+  inline int64_t Max() const;
+  inline double Mean() const;
+  inline double Stddev() const;
+  inline int64_t Percentile(double percentile) const;
+  inline size_t Exceeds() const { return exceeds_; }
+  inline size_t Count() const;
 
   inline uint64_t RecordDelta();
+
+  inline double Add(const Histogram& other);
 
   // Iterator is a function type that takes two doubles as argument, one for
   // percentile and one for the value at that percentile.
@@ -53,20 +61,20 @@ class Histogram : public MemoryRetainer {
  private:
   using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
   HistogramPointer histogram_;
-  int64_t exceeds_ = 0;
   uint64_t prev_ = 0;
-
+  size_t exceeds_ = 0;
+  size_t count_ = 0;
   Mutex mutex_;
 };
 
 class HistogramImpl {
  public:
-  HistogramImpl(int64_t lowest, int64_t highest, int figures);
+  explicit HistogramImpl(
+      const Histogram::Options& options = Histogram::Options {});
   explicit HistogramImpl(std::shared_ptr<Histogram> histogram);
 
   Histogram* operator->() { return histogram_.get(); }
 
- protected:
   const std::shared_ptr<Histogram>& histogram() const { return histogram_; }
 
  private:
@@ -78,12 +86,11 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
     Environment* env);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<HistogramBase> Create(
       Environment* env,
-      int64_t lowest = 1,
-      int64_t highest = std::numeric_limits<int64_t>::max(),
-      int figures = kDefaultHistogramFigures);
+      const Histogram::Options& options = Histogram::Options {});
 
   static BaseObjectPtr<HistogramBase> Create(
       Environment* env,
@@ -95,6 +102,12 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   SET_MEMORY_INFO_NAME(HistogramBase)
   SET_SELF_SIZE(HistogramBase)
 
+  static void GetCountBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMinBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMaxBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetExceedsBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void GetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMin(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMax(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMean(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -102,18 +115,21 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   static void GetStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPercentile(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentileBigInt(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPercentiles(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentilesBigInt(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   HistogramBase(
       Environment* env,
       v8::Local<v8::Object> wrap,
-      int64_t lowest = 1,
-      int64_t highest = std::numeric_limits<int64_t>::max(),
-      int figures = kDefaultHistogramFigures);
+      const Histogram::Options& options = Histogram::Options {});
 
   HistogramBase(
       Environment* env,
@@ -154,28 +170,31 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
     RESET
   };
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
   static BaseObjectPtr<IntervalHistogram> Create(
       Environment* env,
-      int64_t lowest = 1,
-      int64_t highest = std::numeric_limits<int64_t>::max(),
-      int figures = kDefaultHistogramFigures);
-
-  virtual void OnInterval() = 0;
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
+      int32_t interval,
+      std::function<void(Histogram&)> on_interval,
+      const Histogram::Options& options);
 
   IntervalHistogram(
       Environment* env,
       v8::Local<v8::Object> wrap,
       AsyncWrap::ProviderType type,
       int32_t interval,
-      int64_t lowest = 1,
-      int64_t highest = std::numeric_limits<int64_t>::max(),
-      int figures = kDefaultHistogramFigures);
+      std::function<void(Histogram&)> on_interval,
+      const Histogram::Options& options = Histogram::Options {});
 
+  static void GetCountBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMinBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMaxBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetExceedsBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void GetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMin(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMax(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMean(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -183,7 +202,11 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
   static void GetStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPercentile(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentileBigInt(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPercentiles(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentilesBigInt(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -194,6 +217,10 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(IntervalHistogram)
+  SET_SELF_SIZE(IntervalHistogram)
+
  private:
   static void TimerCB(uv_timer_t* handle);
   void OnStart(StartFlags flags = StartFlags::RESET);
@@ -201,6 +228,7 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
 
   bool enabled_ = false;
   int32_t interval_ = 0;
+  std::function<void(Histogram&)> on_interval_;
   uv_timer_t timer_;
 };
 

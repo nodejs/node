@@ -8,8 +8,10 @@
 #include <atomic>
 
 #include "src/base/optional.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/local-heap.h"
 #include "src/logging/counters.h"
 
 namespace v8 {
@@ -19,72 +21,57 @@ class Heap;
 
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
-  Heap* heap_;
-  base::Mutex mutex_;
-  base::ConditionVariable cond_;
-  base::ElapsedTimer timer_;
-
-  enum class RequestState {
-    // Default state, no collection requested and tear down wasn't initated
-    // yet.
-    kDefault,
-
-    // Collection was already requested
-    kCollectionRequested,
-
-    // Collection was already started
-    kCollectionStarted,
-
-    // This state is reached after isolate starts to shut down. The main
-    // thread can't perform any GCs anymore, so all allocations need to be
-    // allowed from here on until background thread finishes.
-    kShutdown,
-  };
-
-  // The current state.
-  std::atomic<RequestState> state_;
-
-  // Request GC by activating stack guards and posting a task to perform the
-  // GC.
-  void ActivateStackGuardAndPostTask();
-
-  // Returns true when state was successfully updated from kDefault to
-  // kCollection.
-  bool FirstCollectionRequest() {
-    RequestState expected = RequestState::kDefault;
-    return state_.compare_exchange_strong(expected,
-                                          RequestState::kCollectionRequested);
-  }
-
-  // Sets state back to kDefault - invoked at end of GC.
-  void ClearCollectionRequested() {
-    RequestState old_state =
-        state_.exchange(RequestState::kDefault, std::memory_order_relaxed);
-    USE(old_state);
-    DCHECK_EQ(old_state, RequestState::kCollectionStarted);
-  }
-
  public:
-  explicit CollectionBarrier(Heap* heap)
-      : heap_(heap), state_(RequestState::kDefault) {}
+  explicit CollectionBarrier(Heap* heap) : heap_(heap) {}
 
-  // Checks whether any background thread requested GC.
-  bool CollectionRequested() {
-    return state_.load(std::memory_order_relaxed) ==
-           RequestState::kCollectionRequested;
-  }
+  // Returns true when collection was requested.
+  bool WasGCRequested();
 
+  // Requests a GC from the main thread. Returns whether GC was successfully
+  // requested. Requesting a GC can fail when isolate shutdown was already
+  // initiated.
+  bool TryRequestGC();
+
+  // Resumes all threads waiting for GC when tear down starts.
+  void NotifyShutdownRequested();
+
+  // Stops the TimeToCollection timer when starting the GC.
   void StopTimeToCollectionTimer();
-  void BlockUntilCollected();
 
   // Resumes threads waiting for collection.
   void ResumeThreadsAwaitingCollection();
 
-  // Sets current state to kShutdown.
-  void ShutdownRequested();
+  // Cancels collection if one was requested and resumes threads waiting for GC.
+  void CancelCollectionAndResumeThreads();
 
   // This is the method use by background threads to request and wait for GC.
-  void AwaitCollectionBackground();
+  // Returns whether a GC was performed.
+  bool AwaitCollectionBackground(LocalHeap* local_heap);
+
+ private:
+  // Activate stack guards and posting a task to perform the GC.
+  void ActivateStackGuardAndPostTask();
+
+  Heap* heap_;
+  base::Mutex mutex_;
+  base::ConditionVariable cv_wakeup_;
+  base::ElapsedTimer timer_;
+
+  // Flag that main thread checks whether a GC was requested from the background
+  // thread.
+  std::atomic<bool> collection_requested_{false};
+
+  // This flag is used to detect whether to block for the GC. Only set if the
+  // main thread was actually running and is unset when GC resumes background
+  // threads.
+  bool block_for_collection_ = false;
+
+  // Set to true when a GC was performed, false in case it was canceled because
+  // the main thread parked itself without running the GC.
+  bool collection_performed_ = false;
+
+  // Will be set as soon as Isolate starts tear down.
+  bool shutdown_requested_ = false;
 };
 
 }  // namespace internal

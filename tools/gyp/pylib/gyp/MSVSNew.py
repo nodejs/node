@@ -11,12 +11,9 @@ from operator import attrgetter
 
 import gyp.common
 
-try:
-    cmp
-except NameError:
 
-    def cmp(x, y):
-        return (x > y) - (x < y)
+def cmp(x, y):
+    return (x > y) - (x < y)
 
 
 # Initialize random number generator
@@ -69,7 +66,7 @@ def MakeGuid(name, seed="msvs_new"):
 # ------------------------------------------------------------------------------
 
 
-class MSVSSolutionEntry(object):
+class MSVSSolutionEntry:
     def __cmp__(self, other):
         # Sort by name then guid (so things are in order on vs2008).
         return cmp((self.name, self.get_guid()), (other.name, other.get_guid()))
@@ -190,7 +187,7 @@ class MSVSProject(MSVSSolutionEntry):
 # ------------------------------------------------------------------------------
 
 
-class MSVSSolution(object):
+class MSVSSolution:
     """Visual Studio solution."""
 
     def __init__(
@@ -292,14 +289,14 @@ class MSVSSolution(object):
                 if e.items:
                     f.write("\tProjectSection(SolutionItems) = preProject\r\n")
                     for i in e.items:
-                        f.write("\t\t%s = %s\r\n" % (i, i))
+                        f.write(f"\t\t{i} = {i}\r\n")
                     f.write("\tEndProjectSection\r\n")
 
             if isinstance(e, MSVSProject):
                 if e.dependencies:
                     f.write("\tProjectSection(ProjectDependencies) = postProject\r\n")
                     for d in e.dependencies:
-                        f.write("\t\t%s = %s\r\n" % (d.get_guid(), d.get_guid()))
+                        f.write(f"\t\t{d.get_guid()} = {d.get_guid()}\r\n")
                     f.write("\tEndProjectSection\r\n")
 
             f.write("EndProject\r\n")
@@ -310,7 +307,7 @@ class MSVSSolution(object):
         # Configurations (variants)
         f.write("\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\r\n")
         for v in self.variants:
-            f.write("\t\t%s = %s\r\n" % (v, v))
+            f.write(f"\t\t{v} = {v}\r\n")
         f.write("\tEndGlobalSection\r\n")
 
         # Sort config guids for easier diffing of solution changes.
@@ -362,7 +359,7 @@ class MSVSSolution(object):
                 if not isinstance(e, MSVSFolder):
                     continue  # Does not apply to projects, only folders
                 for subentry in e.entries:
-                    f.write("\t\t%s = %s\r\n" % (subentry.get_guid(), e.get_guid()))
+                    f.write(f"\t\t{subentry.get_guid()} = {e.get_guid()}\r\n")
             f.write("\tEndGlobalSection\r\n")
 
         f.write("EndGlobal\r\n")

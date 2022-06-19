@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,11 +9,8 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
-#include "crypto/evp.h"
-#include "evp_local.h"
 #include "internal/bio.h"
 
 /*
@@ -31,10 +28,8 @@ static long md_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fp);
 static const BIO_METHOD methods_md = {
     BIO_TYPE_MD,
     "message digest",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     md_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     md_read,
     NULL,                       /* md_puts, */
@@ -148,7 +143,7 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
     switch (cmd) {
     case BIO_CTRL_RESET:
         if (BIO_get_init(b))
-            ret = EVP_DigestInit_ex(ctx, ctx->digest, NULL);
+            ret = EVP_DigestInit_ex(ctx, EVP_MD_CTX_get0_md(ctx), NULL);
         else
             ret = 0;
         if (ret > 0)
@@ -157,7 +152,7 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
     case BIO_C_GET_MD:
         if (BIO_get_init(b)) {
             ppmd = ptr;
-            *ppmd = ctx->digest;
+            *ppmd = EVP_MD_CTX_get0_md(ctx);
         } else
             ret = 0;
         break;
@@ -200,7 +195,6 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static long md_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 {
-    long ret = 1;
     BIO *next;
 
     next = BIO_next(b);
@@ -208,12 +202,7 @@ static long md_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
     if (next == NULL)
         return 0;
 
-    switch (cmd) {
-    default:
-        ret = BIO_callback_ctrl(next, cmd, fp);
-        break;
-    }
-    return ret;
+    return BIO_callback_ctrl(next, cmd, fp);
 }
 
 static int md_gets(BIO *bp, char *buf, int size)
@@ -223,7 +212,7 @@ static int md_gets(BIO *bp, char *buf, int size)
 
     ctx = BIO_get_data(bp);
 
-    if (size < ctx->digest->md_size)
+    if (size < EVP_MD_CTX_get_size(ctx))
         return 0;
 
     if (EVP_DigestFinal_ex(ctx, (unsigned char *)buf, &ret) <= 0)

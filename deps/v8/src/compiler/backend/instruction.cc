@@ -7,7 +7,9 @@
 #include <cstddef>
 #include <iomanip>
 
+#include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
@@ -16,8 +18,13 @@
 #include "src/compiler/schedule.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
+#include "src/execution/isolate-utils-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -74,10 +81,15 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  if (kSimpleFPAliasing || !this->IsFPLocationOperand() ||
-      !other.IsFPLocationOperand())
+  const bool kCombineFPAliasing = kFPAliasing == AliasingKind::kCombine &&
+                                  this->IsFPLocationOperand() &&
+                                  other.IsFPLocationOperand();
+  const bool kComplexS128SlotAliasing =
+      (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
+      (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
+  if (!kCombineFPAliasing && !kComplexS128SlotAliasing) {
     return EqualsCanonicalized(other);
-  // Aliasing is complex and both operands are fp locations.
+  }
   const LocationOperand& loc = *LocationOperand::cast(this);
   const LocationOperand& other_loc = LocationOperand::cast(other);
   LocationOperand::LocationKind kind = loc.location_kind();
@@ -85,31 +97,36 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   if (kind != other_kind) return false;
   MachineRepresentation rep = loc.representation();
   MachineRepresentation other_rep = other_loc.representation();
-  if (rep == other_rep) return EqualsCanonicalized(other);
-  if (kind == LocationOperand::REGISTER) {
-    // FP register-register interference.
-    return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
-                                      other_loc.register_code());
-  } else {
-    // FP slot-slot interference. Slots of different FP reps can alias because
-    // the gap resolver may break a move into 2 or 4 equivalent smaller moves.
-    DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
-    int index_hi = loc.index();
-    int index_lo =
-        index_hi - (1 << ElementSizeLog2Of(rep)) / kSystemPointerSize + 1;
-    int other_index_hi = other_loc.index();
-    int other_index_lo =
-        other_index_hi -
-        (1 << ElementSizeLog2Of(other_rep)) / kSystemPointerSize + 1;
-    return other_index_hi >= index_lo && index_hi >= other_index_lo;
+
+  if (kCombineFPAliasing && !kComplexS128SlotAliasing) {
+    if (rep == other_rep) return EqualsCanonicalized(other);
+    if (kind == LocationOperand::REGISTER) {
+      // FP register-register interference.
+      return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
+                                        other_loc.register_code());
+    }
   }
-  return false;
+
+  // Complex multi-slot operand interference:
+  // - slots of different FP reps can alias because the gap resolver may break a
+  // move into 2 or 4 equivalent smaller moves,
+  // - stack layout can be rearranged for tail calls
+  DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
+  int index_hi = loc.index();
+  int index_lo =
+      index_hi -
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(rep)) + 1;
+  int other_index_hi = other_loc.index();
+  int other_index_lo =
+      other_index_hi -
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(other_rep)) + 1;
+  return other_index_hi >= index_lo && index_hi >= other_index_lo;
 }
 
 bool LocationOperand::IsCompatible(LocationOperand* op) {
   if (IsRegister() || IsStackSlot()) {
     return op->IsRegister() || op->IsStackSlot();
-  } else if (kSimpleFPAliasing) {
+  } else if (kFPAliasing != AliasingKind::kCombine) {
     // A backend may choose to generate the same instruction sequence regardless
     // of the FP representation. As a result, we can relax the compatibility and
     // allow a Double to be moved in a Float for example. However, this is only
@@ -145,15 +162,18 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
                     << ")";
         case UnallocatedOperand::FIXED_FP_REGISTER:
           return os << "(="
-                    << DoubleRegister::from_code(
-                           unalloc->fixed_register_index())
+                    << (unalloc->IsSimd128Register()
+                            ? i::RegisterName((Simd128Register::from_code(
+                                  unalloc->fixed_register_index())))
+                            : i::RegisterName(DoubleRegister::from_code(
+                                  unalloc->fixed_register_index())))
                     << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
           return os << "(S)";
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT:
-          return os << "(1)";
+        case UnallocatedOperand::SAME_AS_INPUT:
+          return os << "(" << unalloc->input_index() << ")";
         case UnallocatedOperand::REGISTER_OR_SLOT:
           return os << "(-)";
         case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
@@ -161,14 +181,18 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       }
     }
     case InstructionOperand::CONSTANT:
-      return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
+      return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
                 << "]";
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
       switch (imm.type()) {
-        case ImmediateOperand::INLINE:
-          return os << "#" << imm.inline_value();
-        case ImmediateOperand::INDEXED:
+        case ImmediateOperand::INLINE_INT32:
+          return os << "#" << imm.inline_int32_value();
+        case ImmediateOperand::INLINE_INT64:
+          return os << "#" << imm.inline_int64_value();
+        case ImmediateOperand::INDEXED_RPO:
+          return os << "[rpo_immediate:" << imm.indexed_value() << "]";
+        case ImmediateOperand::INDEXED_IMM:
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
@@ -240,6 +264,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kSandboxedPointer:
+          os << "|sb";
+          break;
+        case MachineRepresentation::kMapWord:
+          UNREACHABLE();
       }
       return os << "]";
     }
@@ -258,7 +287,7 @@ std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   if (!mo.source().Equals(mo.destination())) {
     os << " = " << mo.source();
   }
-  return os << ";";
+  return os;
 }
 
 bool ParallelMove::IsRedundant() const {
@@ -270,8 +299,8 @@ bool ParallelMove::IsRedundant() const {
 
 void ParallelMove::PrepareInsertAfter(
     MoveOperands* move, ZoneVector<MoveOperands*>* to_eliminate) const {
-  bool no_aliasing =
-      kSimpleFPAliasing || !move->destination().IsFPLocationOperand();
+  bool no_aliasing = kFPAliasing != AliasingKind::kCombine ||
+                     !move->destination().IsFPLocationOperand();
   MoveOperands* replacement = nullptr;
   MoveOperands* eliminated = nullptr;
   for (MoveOperands* curr : *this) {
@@ -347,11 +376,11 @@ bool Instruction::AreMovesRedundant() const {
 void Instruction::Print() const { StdoutStream{} << *this << std::endl; }
 
 std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
-  const char* space = "";
+  const char* delimiter = "";
   for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
-    os << space << *move;
-    space = " ";
+    os << delimiter << *move;
+    delimiter = "; ";
   }
   return os;
 }
@@ -403,16 +432,14 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os;
     case kFlags_branch:
       return os << "branch";
-    case kFlags_branch_and_poison:
-      return os << "branch_and_poison";
     case kFlags_deoptimize:
       return os << "deoptimize";
-    case kFlags_deoptimize_and_poison:
-      return os << "deoptimize_and_poison";
     case kFlags_set:
       return os << "set";
     case kFlags_trap:
       return os << "trap";
+    case kFlags_select:
+      return os << "select";
   }
   UNREACHABLE();
 }
@@ -529,9 +556,11 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+Handle<CodeT> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  Handle<CodeT> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 
@@ -596,7 +625,13 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       loop_end_(loop_end),
       dominator_(dominator),
       deferred_(deferred),
-      handler_(handler) {}
+      handler_(handler),
+      switch_target_(false),
+      code_target_alignment_(false),
+      loop_header_alignment_(false),
+      needs_frame_(false),
+      must_construct_frame_(false),
+      must_deconstruct_frame_(false) {}
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;
@@ -788,14 +823,14 @@ void InstructionSequence::ComputeAssemblyOrder() {
           ao_blocks_->push_back(loop_end);
           // This block will be the new machine-level loop header, so align
           // this block instead of the loop header block.
-          loop_end->set_alignment(true);
+          loop_end->set_loop_header_alignment(true);
           header_align = false;
         }
       }
-      block->set_alignment(header_align);
+      block->set_loop_header_alignment(header_align);
     }
     if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
-      block->set_alignment(true);
+      block->set_code_target_alignment(true);
     }
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);
@@ -829,6 +864,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
+      rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
       next_virtual_register_(0),
       reference_maps_(zone()),
@@ -902,8 +938,10 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       break;
   }
 
@@ -936,10 +974,10 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 
 int InstructionSequence::AddDeoptimizationEntry(
     FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-    DeoptimizeReason reason, FeedbackSource const& feedback) {
+    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(
-      DeoptimizationEntry(descriptor, kind, reason, feedback));
+      DeoptimizationEntry(descriptor, kind, reason, node_id, feedback));
   return deoptimization_id;
 }
 
@@ -1012,14 +1050,19 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // The arguments adaptor frame state is only used in the deoptimizer and
       // does not occupy any extra space in the stack. Check out the design doc:
       // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
-      return 0;
+      // We just need to account for the additional parameters we might push
+      // here.
+      return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
+          static_cast<int>(parameters_count));
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -1074,7 +1117,9 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1126,6 +1171,7 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   return count;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -1135,7 +1181,8 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, locals_count, stack_count,
                            shared_info, outer_state),
-      return_type_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+      return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();
@@ -1146,10 +1193,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";
   }
-  int i = 0;
+  int n = 0;
   for (ConstantMap::const_iterator it = code.constants_.begin();
-       it != code.constants_.end(); ++i, ++it) {
-    os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
+       it != code.constants_.end(); ++n, ++it) {
+    os << "CST#" << n << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
     auto* block = code.InstructionBlockAt(RpoNumber::FromInt(i));

@@ -6,8 +6,8 @@
 #define V8_OBJECTS_LOOKUP_CACHE_INL_H_
 
 #include "src/objects/lookup-cache.h"
-
-#include "src/objects/objects-inl.h"
+#include "src/objects/map.h"
+#include "src/objects/name-inl.h"
 
 namespace v8 {
 namespace internal {

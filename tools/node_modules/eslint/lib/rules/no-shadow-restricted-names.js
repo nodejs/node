@@ -21,13 +21,13 @@ function safelyShadowsUndefined(variable) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow identifiers from shadowing restricted names",
-            category: "Variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-shadow-restricted-names"
         },

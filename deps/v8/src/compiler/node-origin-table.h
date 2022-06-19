@@ -34,6 +34,7 @@ class NodeOrigin {
         created_from_(created_from) {}
 
   NodeOrigin(const NodeOrigin& other) V8_NOEXCEPT = default;
+  NodeOrigin& operator=(const NodeOrigin& other) V8_NOEXCEPT = default;
   static NodeOrigin Unknown() { return NodeOrigin(); }
 
   bool IsKnown() { return created_from_ >= 0; }
@@ -135,7 +136,10 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   NodeOrigin current_origin_;
 
   const char* current_phase_name_;
-  NodeAuxData<NodeOrigin, NodeOrigin::Unknown> table_;
+  static NodeOrigin UnknownNodeOrigin(Zone* zone) {
+    return NodeOrigin::Unknown();
+  }
+  NodeAuxData<NodeOrigin, UnknownNodeOrigin> table_;
 };
 
 }  // namespace compiler

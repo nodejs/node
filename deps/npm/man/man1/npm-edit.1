@@ -1,11 +1,11 @@
-.TH "NPM\-EDIT" "1" "March 2021" "" ""
+.TH "NPM\-EDIT" "1" "June 2022" "" ""
 .SH "NAME"
 \fBnpm-edit\fR \- Edit an installed package
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm edit <pkg>
+npm edit <pkg>[/<subpkg>\.\.\.]
 .fi
 .RE
 .P
@@ -23,17 +23,17 @@ For instance, you can do \fBnpm install connect\fP to install connect
 into your package, and then \fBnpm edit connect\fP to make a few
 changes to your locally installed copy\.
 .SS Configuration
-.SS editor
+.SS \fBeditor\fP
 .RS 0
 .IP \(bu 2
-Default: \fBEDITOR\fP environment variable if set, or \fB"vi"\fP on Posix,
-or \fB"notepad"\fP on Windows\.
+Default: The EDITOR or VISUAL environment variables, or 'notepad\.exe' on
+Windows, or 'vim' on Unix systems
 .IP \(bu 2
-Type: path
+Type: String
 
 .RE
 .P
-The command to run for \fBnpm edit\fP or \fBnpm config edit\fP\|\.
+The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
 .SS See Also
 .RS 0
 .IP \(bu 2

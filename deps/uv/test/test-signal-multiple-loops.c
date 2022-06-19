@@ -170,7 +170,7 @@ static void loop_creating_worker(void* context) {
     int r;
 
     loop = malloc(sizeof(*loop));
-    ASSERT(loop != NULL);
+    ASSERT_NOT_NULL(loop);
     ASSERT(0 == uv_loop_init(loop));
 
     r = uv_signal_init(loop, &signal);

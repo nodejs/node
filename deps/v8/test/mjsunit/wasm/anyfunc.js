@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
+// Flags: --expose-wasm --expose-gc
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testAnyFuncIdentityFunction() {
   print(arguments.callee.name);
@@ -152,7 +152,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_a);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc, kExprLocalSet, 0, kExprLocalGet, 0])
+      .addBody([kExprRefNull, kAnyFuncCode, kExprLocalSet, 0, kExprLocalGet, 0])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -164,7 +164,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc])
+      .addBody([kExprRefNull, kAnyFuncCode])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -176,7 +176,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc, kExprReturn])
+      .addBody([kExprRefNull, kAnyFuncCode, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;

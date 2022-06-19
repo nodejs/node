@@ -24,8 +24,11 @@ namespace internal {
 // BasicMember on casting to the right type as needed.
 class MemberBase {
  protected:
-  MemberBase() = default;
+  struct AtomicInitializerTag {};
+
+  MemberBase() : raw_(nullptr) {}
   explicit MemberBase(const void* value) : raw_(value) {}
+  MemberBase(const void* value, AtomicInitializerTag) { SetRawAtomic(value); }
 
   const void** GetRawSlot() const { return &raw_; }
   const void* GetRaw() const { return raw_; }
@@ -43,7 +46,10 @@ class MemberBase {
   void ClearFromGC() const { raw_ = nullptr; }
 
  private:
-  mutable const void* raw_ = nullptr;
+  // All constructors initialize `raw_`. Do not add a default value here as it
+  // results in a non-atomic write on some builds, even when the atomic version
+  // of the constructor is used.
+  mutable const void* raw_;
 };
 
 // The basic class from which all Member classes are 'generated'.
@@ -61,6 +67,20 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
     this->CheckPointer(Get());
   }
   BasicMember(T& raw) : BasicMember(&raw) {}  // NOLINT
+  // Atomic ctor. Using the AtomicInitializerTag forces BasicMember to
+  // initialize using atomic assignments. This is required for preventing
+  // data races with concurrent marking.
+  using AtomicInitializerTag = MemberBase::AtomicInitializerTag;
+  BasicMember(std::nullptr_t, AtomicInitializerTag atomic)
+      : MemberBase(nullptr, atomic) {}
+  BasicMember(SentinelPointer s, AtomicInitializerTag atomic)
+      : MemberBase(s, atomic) {}
+  BasicMember(T* raw, AtomicInitializerTag atomic) : MemberBase(raw, atomic) {
+    InitializingWriteBarrier();
+    this->CheckPointer(Get());
+  }
+  BasicMember(T& raw, AtomicInitializerTag atomic)
+      : BasicMember(&raw, atomic) {}
   // Copy ctor.
   BasicMember(const BasicMember& other) : BasicMember(other.Get()) {}
   // Allow heterogeneous construction.
@@ -79,9 +99,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
             typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicMember(  // NOLINT
-      BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
-                  OtherCheckingPolicy>&& other) noexcept
+  BasicMember(BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+                          OtherCheckingPolicy>&& other) noexcept
       : BasicMember(other.Get()) {
     other.Clear();
   }
@@ -90,10 +109,9 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicMember(  // NOLINT
-      const BasicPersistent<U, PersistentWeaknessPolicy,
-                            PersistentLocationPolicy, PersistentCheckingPolicy>&
-          p)
+  BasicMember(const BasicPersistent<U, PersistentWeaknessPolicy,
+                                    PersistentLocationPolicy,
+                                    PersistentCheckingPolicy>& p)
       : BasicMember(p.Get()) {}
 
   // Copy assignment.
@@ -161,7 +179,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   }
 
   explicit operator bool() const { return Get(); }
-  operator T*() const { return Get(); }  // NOLINT
+  operator T*() const { return Get(); }
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 
@@ -203,6 +221,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 
   void ClearFromGC() const { MemberBase::ClearFromGC(); }
 
+  T* GetFromGC() const { return Get(); }
+
   friend class cppgc::Visitor;
   template <typename U>
   friend struct cppgc::TraceTrait;
@@ -211,20 +231,20 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
           typename CheckingPolicy1, typename T2, typename WeaknessTag2,
           typename WriteBarrierPolicy2, typename CheckingPolicy2>
-bool operator==(
-    BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1> member1,
-    BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>
-        member2) {
+bool operator==(const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1,
+                                  CheckingPolicy1>& member1,
+                const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2,
+                                  CheckingPolicy2>& member2) {
   return member1.Get() == member2.Get();
 }
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
           typename CheckingPolicy1, typename T2, typename WeaknessTag2,
           typename WriteBarrierPolicy2, typename CheckingPolicy2>
-bool operator!=(
-    BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1> member1,
-    BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>
-        member2) {
+bool operator!=(const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1,
+                                  CheckingPolicy1>& member1,
+                const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2,
+                                  CheckingPolicy2>& member2) {
   return !(member1 == member2);
 }
 

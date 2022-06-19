@@ -5,10 +5,9 @@
 #ifndef V8_EXECUTION_POINTER_AUTHENTICATION_H_
 #define V8_EXECUTION_POINTER_AUTHENTICATION_H_
 
-#include "include/v8.h"
+#include "include/v8-internal.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
-#include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
 namespace internal {

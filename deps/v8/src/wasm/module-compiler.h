@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MODULE_COMPILER_H_
 #define V8_WASM_MODULE_COMPILER_H_
 
@@ -9,6 +13,7 @@
 #include <functional>
 #include <memory>
 
+#include "include/v8-metrics.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/logging/metrics.h"
@@ -19,6 +24,12 @@
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T>
+class Vector;
+}  // namespace base
+
 namespace internal {
 
 class JSArrayBuffer;
@@ -27,9 +38,6 @@ class Counters;
 class WasmModuleObject;
 class WasmInstanceObject;
 
-template <typename T>
-class Vector;
-
 namespace wasm {
 
 struct CompilationEnv;
@@ -37,13 +45,16 @@ class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
+class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
 
+V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<FixedArray>* export_wrappers_out, int compilation_id);
+    Handle<FixedArray>* export_wrappers_out, int compilation_id,
+    v8::metrics::Recorder::ContextId context_id);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
@@ -57,16 +68,18 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 // compiled yet.
 V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapper(
-    WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
+    NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    int expected_arity, WasmImportWrapperCache::ModificationScope* cache_scope);
+    int expected_arity, Suspend suspend,
+    WasmImportWrapperCache::ModificationScope* cache_scope);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Handle<WasmModuleObject>, int func_index);
+bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
 
-void TriggerTierUp(Isolate*, NativeModule*, int func_index);
+V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, NativeModule*, int func_index,
+                                     Handle<WasmInstanceObject> instance);
 
 template <typename Key, typename Hash>
 class WrapperQueue {
@@ -202,6 +215,7 @@ class AsyncCompileJob {
   Isolate* const isolate_;
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
+  const DynamicTiering dynamic_tiering_;
   const bool wasm_lazy_compilation_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its

@@ -34,7 +34,11 @@
 #include <unordered_set>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
@@ -245,6 +249,8 @@ class InjectedScript::ProtocolPromiseHandler {
     // we try to capture a fresh stack trace.
     if (maybeMessage.ToLocal(&message)) {
       v8::Local<v8::Value> exception = result;
+      session->inspector()->client()->dispatchError(scope.context(), message,
+                                                    exception);
       protocol::PtrMaybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
@@ -267,7 +273,7 @@ class InjectedScript::ProtocolPromiseHandler {
                            result->ToDetailString(isolate->GetCurrentContext())
                                .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace =
-          v8::debug::GetDetailedStackTrace(isolate, result.As<v8::Object>());
+          v8::Exception::GetStackTrace(result);
       if (!stackTrace.IsEmpty()) {
         stack = m_inspector->debugger()->createStackTrace(stackTrace);
       }
@@ -302,7 +308,8 @@ class InjectedScript::ProtocolPromiseHandler {
       exceptionDetails->setStackTrace(
           stack->buildInspectorObjectImpl(m_inspector->debugger()));
     if (stack && !stack->isEmpty())
-      exceptionDetails->setScriptId(toString16(stack->topScriptId()));
+      exceptionDetails->setScriptId(
+          String16::fromInteger(stack->topScriptId()));
     callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
   }
 
@@ -353,8 +360,8 @@ class PropertyAccumulator : public ValueMirror::PropertyAccumulator {
 
 Response InjectedScript::getProperties(
     v8::Local<v8::Object> object, const String16& groupName, bool ownProperties,
-    bool accessorPropertiesOnly, WrapMode wrapMode,
-    std::unique_ptr<Array<PropertyDescriptor>>* properties,
+    bool accessorPropertiesOnly, bool nonIndexedPropertiesOnly,
+    WrapMode wrapMode, std::unique_ptr<Array<PropertyDescriptor>>* properties,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Context> context = m_context->context();
@@ -366,7 +373,8 @@ Response InjectedScript::getProperties(
   std::vector<PropertyMirror> mirrors;
   PropertyAccumulator accumulator(&mirrors);
   if (!ValueMirror::getProperties(context, object, ownProperties,
-                                  accessorPropertiesOnly, &accumulator)) {
+                                  accessorPropertiesOnly,
+                                  nonIndexedPropertiesOnly, &accumulator)) {
     return createExceptionDetails(tryCatch, groupName, exceptionDetails);
   }
   for (const PropertyMirror& mirror : mirrors) {
@@ -434,6 +442,7 @@ Response InjectedScript::getProperties(
 
 Response InjectedScript::getInternalAndPrivateProperties(
     v8::Local<v8::Value> value, const String16& groupName,
+    bool accessorPropertiesOnly,
     std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>*
         internalProperties,
     std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>*
@@ -447,27 +456,31 @@ Response InjectedScript::getInternalAndPrivateProperties(
 
   v8::Local<v8::Context> context = m_context->context();
   int sessionId = m_sessionId;
-  std::vector<InternalPropertyMirror> internalPropertiesWrappers;
-  ValueMirror::getInternalProperties(m_context->context(), value_obj,
-                                     &internalPropertiesWrappers);
-  for (const auto& internalProperty : internalPropertiesWrappers) {
-    std::unique_ptr<RemoteObject> remoteObject;
-    Response response = internalProperty.value->buildRemoteObject(
-        m_context->context(), WrapMode::kNoPreview, &remoteObject);
-    if (!response.IsSuccess()) return response;
-    response = bindRemoteObjectIfNeeded(sessionId, context,
-                                        internalProperty.value->v8Value(),
-                                        groupName, remoteObject.get());
-    if (!response.IsSuccess()) return response;
-    (*internalProperties)
-        ->emplace_back(InternalPropertyDescriptor::create()
-                           .setName(internalProperty.name)
-                           .setValue(std::move(remoteObject))
-                           .build());
+
+  if (!accessorPropertiesOnly) {
+    std::vector<InternalPropertyMirror> internalPropertiesWrappers;
+    ValueMirror::getInternalProperties(m_context->context(), value_obj,
+                                       &internalPropertiesWrappers);
+    for (const auto& internalProperty : internalPropertiesWrappers) {
+      std::unique_ptr<RemoteObject> remoteObject;
+      Response response = internalProperty.value->buildRemoteObject(
+          m_context->context(), WrapMode::kNoPreview, &remoteObject);
+      if (!response.IsSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          internalProperty.value->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.IsSuccess()) return response;
+      (*internalProperties)
+          ->emplace_back(InternalPropertyDescriptor::create()
+                             .setName(internalProperty.name)
+                             .setValue(std::move(remoteObject))
+                             .build());
+    }
   }
 
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
-      ValueMirror::getPrivateProperties(context, value_obj);
+      ValueMirror::getPrivateProperties(context, value_obj,
+                                        accessorPropertiesOnly);
   for (const auto& privateProperty : privatePropertyWrappers) {
     std::unique_ptr<PrivatePropertyDescriptor> descriptor =
         PrivatePropertyDescriptor::create()
@@ -561,6 +574,14 @@ Response InjectedScript::wrapObjectMirror(
                           &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
+  if (wrapMode == WrapMode::kGenerateWebDriverValue) {
+    int maxDepth = 1;
+    std::unique_ptr<protocol::Runtime::WebDriverValue> webDriverValue;
+    response = mirror.buildWebDriverValue(context, maxDepth, &webDriverValue);
+    if (!response.IsSuccess()) return response;
+    (*result)->setWebDriverValue(std::move(webDriverValue));
+  }
+
   return Response::Success();
 }
 
@@ -603,9 +624,9 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
     }
   }
   if (!selectedColumns.empty()) {
-    for (const std::unique_ptr<PropertyPreview>& column :
+    for (const std::unique_ptr<PropertyPreview>& prop :
          *preview->getProperties()) {
-      ObjectPreview* columnPreview = column->getValuePreview(nullptr);
+      ObjectPreview* columnPreview = prop->getValuePreview(nullptr);
       if (!columnPreview) continue;
       // Use raw pointer here since the lifetime of each PropertyPreview is
       // ensured by columnPreview. This saves an additional clone.
@@ -837,6 +858,8 @@ Response InjectedScript::wrapEvaluateResult(
       return Response::ServerError("Execution was terminated");
     }
     v8::Local<v8::Value> exception = tryCatch.Exception();
+    m_context->inspector()->client()->dispatchError(
+        m_context->context(), tryCatch.Message(), exception);
     Response response =
         wrapObject(exception, objectGroup,
                    exception->IsNativeError() ? WrapMode::kNoPreview

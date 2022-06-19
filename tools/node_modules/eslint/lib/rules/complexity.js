@@ -10,21 +10,20 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
-
 const astUtils = require("./utils/ast-utils");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce a maximum cyclomatic complexity allowed in a program",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/complexity"
         },
@@ -76,60 +75,16 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        // Using a stack to store complexity (handling nested functions)
-        const fns = [];
+        // Using a stack to store complexity per code path
+        const complexities = [];
 
         /**
-         * When parsing a new function, store it in our function stack
-         * @returns {void}
-         * @private
-         */
-        function startFunction() {
-            fns.push(1);
-        }
-
-        /**
-         * Evaluate the node at the end of function
-         * @param {ASTNode} node node to evaluate
-         * @returns {void}
-         * @private
-         */
-        function endFunction(node) {
-            const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(node));
-            const complexity = fns.pop();
-
-            if (complexity > THRESHOLD) {
-                context.report({
-                    node,
-                    messageId: "complex",
-                    data: { name, complexity, max: THRESHOLD }
-                });
-            }
-        }
-
-        /**
-         * Increase the complexity of the function in context
+         * Increase the complexity of the code path in context
          * @returns {void}
          * @private
          */
         function increaseComplexity() {
-            if (fns.length) {
-                fns[fns.length - 1]++;
-            }
-        }
-
-        /**
-         * Increase the switch complexity in context
-         * @param {ASTNode} node node to evaluate
-         * @returns {void}
-         * @private
-         */
-        function increaseSwitchComplexity(node) {
-
-            // Avoiding `default`
-            if (node.test) {
-                increaseComplexity();
-            }
+            complexities[complexities.length - 1]++;
         }
 
         //--------------------------------------------------------------------------
@@ -137,13 +92,14 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            FunctionDeclaration: startFunction,
-            FunctionExpression: startFunction,
-            ArrowFunctionExpression: startFunction,
-            "FunctionDeclaration:exit": endFunction,
-            "FunctionExpression:exit": endFunction,
-            "ArrowFunctionExpression:exit": endFunction,
 
+            onCodePathStart() {
+
+                // The initial complexity is 1, representing one execution path in the CodePath
+                complexities.push(1);
+            },
+
+            // Each branching in the code adds 1 to the complexity
             CatchClause: increaseComplexity,
             ConditionalExpression: increaseComplexity,
             LogicalExpression: increaseComplexity,
@@ -151,13 +107,56 @@ module.exports = {
             ForInStatement: increaseComplexity,
             ForOfStatement: increaseComplexity,
             IfStatement: increaseComplexity,
-            SwitchCase: increaseSwitchComplexity,
             WhileStatement: increaseComplexity,
             DoWhileStatement: increaseComplexity,
 
+            // Avoid `default`
+            "SwitchCase[test]": increaseComplexity,
+
+            // Logical assignment operators have short-circuiting behavior
             AssignmentExpression(node) {
                 if (astUtils.isLogicalAssignmentOperator(node.operator)) {
                     increaseComplexity();
+                }
+            },
+
+            onCodePathEnd(codePath, node) {
+                const complexity = complexities.pop();
+
+                /*
+                 * This rule only evaluates complexity of functions, so "program" is excluded.
+                 * Class field initializers and class static blocks are implicit functions. Therefore,
+                 * they shouldn't contribute to the enclosing function's complexity, but their
+                 * own complexity should be evaluated.
+                 */
+                if (
+                    codePath.origin !== "function" &&
+                    codePath.origin !== "class-field-initializer" &&
+                    codePath.origin !== "class-static-block"
+                ) {
+                    return;
+                }
+
+                if (complexity > THRESHOLD) {
+                    let name;
+
+                    if (codePath.origin === "class-field-initializer") {
+                        name = "class field initializer";
+                    } else if (codePath.origin === "class-static-block") {
+                        name = "class static block";
+                    } else {
+                        name = astUtils.getFunctionNameWithKind(node);
+                    }
+
+                    context.report({
+                        node,
+                        messageId: "complex",
+                        data: {
+                            name: upperCaseFirst(name),
+                            complexity,
+                            max: THRESHOLD
+                        }
+                    });
                 }
             }
         };

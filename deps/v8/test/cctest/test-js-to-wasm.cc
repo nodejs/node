@@ -4,7 +4,10 @@
 
 #include <iomanip>
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-value.h"
 #include "src/api/api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
@@ -67,6 +70,9 @@ struct ExportedFunction {
   static ExportedFunction k_##name = {#name, sig, locals, code};
 
 DECLARE_EXPORTED_FUNCTION(nop, sigs.v_v(), WASM_CODE({WASM_NOP}))
+
+DECLARE_EXPORTED_FUNCTION(unreachable, sigs.v_v(),
+                          WASM_CODE({WASM_UNREACHABLE}))
 
 DECLARE_EXPORTED_FUNCTION(i32_square, sigs.i_i(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
@@ -259,16 +265,19 @@ enum TestMode { kJSToWasmInliningDisabled, kJSToWasmInliningEnabled };
 class FastJSWasmCallTester {
  public:
   FastJSWasmCallTester()
-      : allow_natives_syntax_(&i::FLAG_allow_natives_syntax, true),
-        inline_js_wasm_calls_(&i::FLAG_turbo_inline_js_wasm_calls, true),
-        stress_background_compile_(&i::FLAG_stress_background_compile, false),
-        allocator_(),
+      : allocator_(),
         zone_(&allocator_, ZONE_NAME),
-        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {}
+        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
+    i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inline_js_wasm_calls = true;
+    i::FLAG_stress_background_compile = false;
+    i::FLAG_concurrent_osr = false;  // Seems to mess with %ObserveNode.
+  }
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
-    builder_->AddImport(CStrVector(name), signature, CStrVector(module));
+    builder_->AddImport(base::CStrVector(name), signature,
+                        base::CStrVector(module));
   }
 
   void AddExportedFunction(const ExportedFunction& exported_func) {
@@ -277,7 +286,7 @@ class FastJSWasmCallTester {
     func->EmitCode(exported_func.code.data(),
                    static_cast<uint32_t>(exported_func.code.size()));
     func->Emit(kExprEnd);
-    builder_->AddExport(CStrVector(exported_func.name.c_str()),
+    builder_->AddExport(base::CStrVector(exported_func.name.c_str()),
                         kExternalFunction, func->func_index());
 
     // JS-to-Wasm inlining is disabled when targeting 32 bits if the Wasm
@@ -457,9 +466,9 @@ class FastJSWasmCallTester {
         ";"
         "function test() {"
         "  try {"
-        "    return " +
+        "    return %ObserveNode(" +
         exported_function_name +
-        "(arg);"
+        "(arg));"
         "  } catch (e) {"
         "    return 0;"
         "  }"
@@ -485,13 +494,19 @@ class FastJSWasmCallTester {
 
   // Executes a test function with a try/catch calling a Wasm function returning
   // void.
-  void CallAndCheckWithTryCatch_void(const std::string& exported_function_name,
-                                     const v8::Local<v8::Value> arg0,
-                                     const v8::Local<v8::Value> arg1) {
+  void CallAndCheckWithTryCatch_void(
+      const std::string& exported_function_name,
+      const std::vector<v8::Local<v8::Value>>& args) {
     LocalContext env;
-    CHECK((*env)->Global()->Set(env.local(), v8_str("arg0"), arg0).FromJust());
-    CHECK((*env)->Global()->Set(env.local(), v8_str("arg1"), arg1).FromJust());
+    for (size_t i = 0; i < args.size(); i++) {
+      CHECK((*env)
+                ->Global()
+                ->Set(env.local(), v8_str(("arg" + std::to_string(i)).c_str()),
+                      args[i])
+                .FromJust());
+    }
 
+    std::string js_args = ArgsToString(args.size());
     std::string js_code =
         "const importObj = {"
         "  env: {"
@@ -509,9 +524,9 @@ class FastJSWasmCallTester {
         ";"
         "function test() {"
         "  try {"
-        "    " +
-        exported_function_name +
-        "(arg0, arg1);"
+        "    %ObserveNode(" +
+        exported_function_name + "(" + js_args +
+        "));"
         "    return 1;"
         "  } catch (e) {"
         "    return 0;"
@@ -582,23 +597,25 @@ class FastJSWasmCallTester {
 
   v8::Local<v8::Value> CompileRunWithJSWasmCallNodeObserver(
       const std::string& js_code) {
+    // Note: Make sure to not capture stack locations (e.g. `this`) here since
+    // these lambdas are executed on another thread.
+    const auto test_mode = test_mode_;
     compiler::ModificationObserver js_wasm_call_observer(
         [](const compiler::Node* node) {
           CHECK_EQ(compiler::IrOpcode::kJSCall, node->opcode());
         },
-        [this](const compiler::Node* node,
-               const compiler::ObservableNodeState& old_state)
+        [test_mode](const compiler::Node* node,
+                    const compiler::ObservableNodeState& old_state)
             -> compiler::NodeObserver::Observation {
           if (old_state.opcode() != node->opcode()) {
             CHECK_EQ(compiler::IrOpcode::kJSCall, old_state.opcode());
 
             // JS-to-Wasm inlining is disabled when targeting 32 bits if the
             // Wasm function signature contains an I64.
-            if (test_mode_ == kJSToWasmInliningEnabled) {
-              CHECK_EQ(compiler::IrOpcode::kJSWasmCall, node->opcode());
-            } else {
-              CHECK_EQ(compiler::IrOpcode::kCall, node->opcode());
-            }
+            CHECK_EQ(test_mode == kJSToWasmInliningEnabled
+                         ? compiler::IrOpcode::kJSWasmCall
+                         : compiler::IrOpcode::kCall,
+                     node->opcode());
 
             return compiler::NodeObserver::Observation::kStop;
           }
@@ -731,9 +748,6 @@ class FastJSWasmCallTester {
     return string_stream.str();
   }
 
-  i::FlagScope<bool> allow_natives_syntax_;
-  i::FlagScope<bool> inline_js_wasm_calls_;
-  i::FlagScope<bool> stress_background_compile_;
   AccountingAllocator allocator_;
   Zone zone_;
   WasmModuleBuilder* builder_;
@@ -928,6 +942,13 @@ TEST(TestFastJSWasmCall_EagerDeopt) {
 
 // Exception handling tests
 
+TEST(TestFastJSWasmCall_Unreachable) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  tester.AddExportedFunction(k_unreachable);
+  tester.CallAndCheckWithTryCatch_void("unreachable", {});
+}
+
 TEST(TestFastJSWasmCall_Trap_i32) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
@@ -960,8 +981,8 @@ TEST(TestFastJSWasmCall_Trap_void) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_store_i32);
-  tester.CallAndCheckWithTryCatch_void("store_i32", v8_int(0x7fffffff),
-                                       v8_int(42));
+  tester.CallAndCheckWithTryCatch_void("store_i32",
+                                       {v8_int(0x7fffffff), v8_int(42)});
 }
 
 // BigInt

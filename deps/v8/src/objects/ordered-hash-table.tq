@@ -14,8 +14,8 @@ const kSmallOrderedHashTableNotFound: constexpr int31
 const kSmallOrderedHashTableLoadFactor: constexpr int31
     generates 'SmallOrderedHashTable<int>::kLoadFactor';
 
-@noVerifier
 @abstract
+@doNotGenerateCppClass
 extern class SmallOrderedHashTable extends HeapObject
     generates 'TNode<HeapObject>' {
 }
@@ -23,6 +23,7 @@ extern class SmallOrderedHashTable extends HeapObject
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();
 
+@doNotGenerateCppClass
 extern class SmallOrderedHashSet extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -39,7 +40,7 @@ extern class SmallOrderedHashSet extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashSet(capacity: intptr): SmallOrderedHashSet {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashSet{
     map: kSmallOrderedHashSetMap,
@@ -61,6 +62,7 @@ struct HashMapEntry {
 extern macro SmallOrderedHashMapMapConstant(): Map;
 const kSmallOrderedHashMapMap: Map = SmallOrderedHashMapMapConstant();
 
+@doNotGenerateCppClass
 extern class SmallOrderedHashMap extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -77,7 +79,7 @@ extern class SmallOrderedHashMap extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashMap(capacity: intptr): SmallOrderedHashMap {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashMap{
     map: kSmallOrderedHashMapMap,
@@ -97,6 +99,7 @@ struct NameDictionaryEntry {
   property_details: Smi|TheHole;
 }
 
+@doNotGenerateCppClass
 extern class SmallOrderedNameDictionary extends SmallOrderedHashTable {
   hash: int32;
   @if(TAGGED_SIZE_8_BYTES) padding_0: int32;

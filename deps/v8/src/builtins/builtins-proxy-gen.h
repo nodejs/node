@@ -10,7 +10,6 @@
 
 namespace v8 {
 namespace internal {
-using compiler::Node;
 
 class ProxiesCodeStubAssembler : public CodeStubAssembler {
  public:

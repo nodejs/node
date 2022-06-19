@@ -16,7 +16,7 @@ const options = {
 const server = tls.createServer(options, (c) => {
   assert.fail('Should not be called');
 }).on('tlsClientError', common.mustCall((err, c) => {
-  assert(/SSL_use_certificate:passed a null parameter/i.test(err.message));
+  assert.match(err.message, /SSL_use_certificate:passed a null parameter/i);
   server.close();
 })).listen(0, common.mustCall(() => {
   const c = tls.connect({
@@ -26,6 +26,6 @@ const server = tls.createServer(options, (c) => {
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
-    assert(/Client network socket disconnected/.test(err.message));
+    assert.match(err.message, /Client network socket disconnected/);
   }));
 }));

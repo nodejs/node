@@ -9,6 +9,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 // Implement Atomic accesses to ArrayBuffers and SharedArrayBuffers.
@@ -20,11 +21,48 @@ namespace internal {
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X ||    \
-    V8_TARGET_ARCH_RISCV64
+    V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
 namespace {
 
-#if V8_CC_GNU
+#if defined(V8_OS_STARBOARD)
+
+template <typename T>
+inline T ExchangeSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T AddSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T SubSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T AndSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T OrSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T XorSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+#elif V8_CC_GNU
 
 // GCC/Clang helpfully warn us that using 64-bit atomics on 32-bit platforms
 // can be slow. Good to know, but we don't have a choice.
@@ -359,9 +397,9 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
                                  const char* method_name) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> value_obj = args.at(2);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -407,8 +445,8 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -427,9 +465,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
 RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> value_obj = args.at(2);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -459,10 +497,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> old_value_obj = args.at(2);
+  Handle<Object> new_value_obj = args.at(3);
   CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
@@ -569,6 +607,69 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64
+        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
+
+RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) return *it.GetDataValue(kSeqCstAccess);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) {
+    it.WriteDataValue(shared_value, kSeqCstAccess);
+    return *shared_value;
+  }
+  // Shared structs are non-extensible. Instead of duplicating logic, call
+  // Object::AddDataProperty to handle the error case.
+  Maybe<bool> result =
+      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
+                              StoreOrigin::kMaybeKeyed);
+  DCHECK(result.IsNothing());
+  USE(result);
+  return ReadOnlyRoots(isolate).exception();
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
+  // Shared structs are non-extensible. Instead of duplicating logic, call
+  // Object::AddDataProperty to handle the error case.
+  Maybe<bool> result =
+      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
+                              StoreOrigin::kMaybeKeyed);
+  DCHECK(result.IsNothing());
+  USE(result);
+  return ReadOnlyRoots(isolate).exception();
+}
+
 }  // namespace internal
 }  // namespace v8

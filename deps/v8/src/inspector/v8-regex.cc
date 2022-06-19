@@ -6,10 +6,14 @@
 
 #include <limits.h>
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-regexp.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 

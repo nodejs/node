@@ -45,7 +45,7 @@ const errMessage = /unexpected end of file/;
 
     // Async truncated input test
     zlib[methods.decomp](truncated, function(err, result) {
-      assert(errMessage.test(err.message));
+      assert.match(err.message, errMessage);
     });
 
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };

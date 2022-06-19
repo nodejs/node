@@ -31,16 +31,18 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
+#include "include/v8-initialization.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -51,7 +53,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -73,28 +74,28 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 // Helpers for parsing and checking that the result has no error, implemented as
 // macros to report the correct test error location.
-#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)              \
-  do {                                                                     \
-    (info)->pending_error_handler()->PrepareErrors(                        \
-        (isolate), (info)->ast_value_factory());                           \
-    (info)->pending_error_handler()->ReportErrors((isolate), (script));    \
-                                                                           \
-    i::Handle<i::JSObject> exception_handle(                               \
-        i::JSObject::cast((isolate)->pending_exception()), (isolate));     \
-    i::Handle<i::String> message_string = i::Handle<i::String>::cast(      \
-        i::JSReceiver::GetProperty((isolate), exception_handle, "message") \
-            .ToHandleChecked());                                           \
-    (isolate)->clear_pending_exception();                                  \
-                                                                           \
-    String source = String::cast((script)->source());                      \
-                                                                           \
-    FATAL(                                                                 \
-        "Parser failed on:\n"                                              \
-        "\t%s\n"                                                           \
-        "with error:\n"                                                    \
-        "\t%s\n"                                                           \
-        "However, we expected no error.",                                  \
-        source.ToCString().get(), message_string->ToCString().get());      \
+#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)                \
+  do {                                                                       \
+    (info)->pending_error_handler()->PrepareErrors(                          \
+        (isolate), (info)->ast_value_factory());                             \
+    (info)->pending_error_handler()->ReportErrors((isolate), (script));      \
+                                                                             \
+    i::Handle<i::JSObject> exception_handle(                                 \
+        i::JSObject::cast((isolate)->pending_exception()), (isolate));       \
+    i::Handle<i::String> message_string = i::Handle<i::String>::cast(        \
+        i::JSReceiver::GetProperty((isolate), exception_handle, "message")   \
+            .ToHandleChecked());                                             \
+    (isolate)->clear_pending_exception();                                    \
+                                                                             \
+    String script_source = String::cast((script)->source());                 \
+                                                                             \
+    FATAL(                                                                   \
+        "Parser failed on:\n"                                                \
+        "\t%s\n"                                                             \
+        "with error:\n"                                                      \
+        "\t%s\n"                                                             \
+        "However, we expected no error.",                                    \
+        script_source.ToCString().get(), message_string->ToCString().get()); \
   } while (false)
 
 #define CHECK_PARSE_PROGRAM(info, script, isolate)                        \
@@ -609,9 +610,7 @@ TEST(ScanKeywords) {
   }
 }
 
-
 TEST(ScanHTMLEndComments) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope handles(isolate);
@@ -745,9 +744,7 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-
 TEST(StandAlonePreParser) {
-  v8::V8::Initialize();
   i::Isolate* i_isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(i_isolate);
@@ -784,9 +781,7 @@ TEST(StandAlonePreParser) {
   }
 }
 
-
 TEST(StandAlonePreParserNoNatives) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -819,9 +814,7 @@ TEST(StandAlonePreParserNoNatives) {
   }
 }
 
-
 TEST(RegressChromium62639) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -854,9 +847,7 @@ TEST(RegressChromium62639) {
         pending_error_handler.has_error_unidentifiable_by_preparser());
 }
 
-
 TEST(PreParseOverflow) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -908,9 +899,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
   } while (expected_tokens[i] != i::Token::ILLEGAL);
 }
 
-
 TEST(StreamScanner) {
-  v8::V8::Initialize();
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
@@ -981,17 +970,14 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::DisallowGarbageCollection no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
-  i::Vector<const uint8_t> actual = content.ToOneByteVector();
+  base::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);
   }
 }
 
-
 TEST(RegExpScanning) {
-  v8::V8::Initialize();
-
   // RegExp token with added garbage at the end. The scanner should only
   // scan the RegExp until the terminating slash just before "flipperwald".
   TestScanRegExp("/b/flipperwald", "b");
@@ -1118,19 +1104,20 @@ TEST(ScopeUsesArgumentsSuperThis) {
       int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
-      i::ScopedVector<char> program(kProgramByteSize + 1);
-      i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
-                  source_data[i].body, surroundings[j].suffix);
+      base::ScopedVector<char> program(kProgramByteSize + 1);
+      base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+                     source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
-          factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+          factory->NewStringFromUtf8(base::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       // The information we're checking is only produced when eager parsing.
       flags.set_allow_lazy_parsing(false);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK_PARSE_PROGRAM(&info, script, isolate);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
@@ -1174,7 +1161,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
 }
 
 static void CheckParsesToNumber(const char* source) {
-  v8::V8::Initialize();
   HandleAndZoneScope handles;
 
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1185,17 +1171,18 @@ static void CheckParsesToNumber(const char* source) {
   full_source += "; }";
 
   i::Handle<i::String> source_code =
-      factory->NewStringFromUtf8(i::CStrVector(full_source.c_str()))
+      factory->NewStringFromUtf8(base::CStrVector(full_source.c_str()))
           .ToHandleChecked();
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_allow_lazy_parsing(false);
   flags.set_is_toplevel(true);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
 
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
@@ -1208,7 +1195,6 @@ static void CheckParsesToNumber(const char* source) {
   i::Literal* lit = ret->expression()->AsLiteral();
   CHECK(lit->IsNumberLiteral());
 }
-
 
 TEST(ParseNumbers) {
   CheckParsesToNumber("1.");
@@ -1491,24 +1477,23 @@ TEST(ScopePositions) {
     int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
-    i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s%s%s",
-                         source_data[i].outer_prefix,
-                         source_data[i].inner_source,
-                         source_data[i].outer_suffix);
+    base::ScopedVector<char> program(kProgramByteSize + 1);
+    base::SNPrintF(program, "%s%s%s", source_data[i].outer_prefix,
+                   source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+        factory->NewStringFromUtf8(base::CStrVector(program.begin()))
             .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
 
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_outer_language_mode(source_data[i].language_mode);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
 
     // Check scope types and positions.
@@ -1550,12 +1535,13 @@ TEST(DiscardFunctionBody) {
   for (int i = 0; discard_sources[i]; i++) {
     const char* source = discard_sources[i];
     i::Handle<i::String> source_code =
-        factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
@@ -1619,7 +1605,6 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyLogicalAssignment,
 };
 
 enum ParserSyncTestResult {
@@ -1630,15 +1615,11 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_logical_assignment =
-      flags.contains(kAllowHarmonyLogicalAssignment);
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
                     base::EnumSet<ParserFlag> flags) {
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
-  compile_flags->set_allow_harmony_logical_assignment(
-      flags.contains(kAllowHarmonyLogicalAssignment));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1648,10 +1629,12 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                              bool ignore_error_msg = false) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags compile_flags =
       i::UnoptimizedCompileFlags::ForToplevelCompile(
-          isolate, true, LanguageMode::kSloppy, REPLMode::kNo);
+          isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
+          ScriptType::kClassic, FLAG_lazy);
   SetParserFlags(&compile_flags, flags);
   compile_flags.set_is_module(is_module);
 
@@ -1671,8 +1654,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats(),
                            isolate->logger(), compile_flags);
     scanner.Initialize();
-    i::PreParser::PreParseResult result = preparser.PreParseProgram();
-    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::PreParser::PreParseResult pre_parse_result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, pre_parse_result);
   }
 
   // Parse the data
@@ -1681,7 +1664,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     SetGlobalFlags(flags);
     i::Handle<i::Script> script =
         factory->NewScriptWithId(source, compile_flags.script_id());
-    i::ParseInfo info(isolate, compile_flags, &compile_state);
+    i::ParseInfo info(isolate, compile_flags, &compile_state, &reusable_state);
     if (!i::parsing::ParseProgram(&info, script, isolate,
                                   parsing::ReportStatisticsMode::kYes)) {
       info.pending_error_handler()->PrepareErrors(isolate,
@@ -1773,7 +1756,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
   i::Handle<i::String> str =
       CcTest::i_isolate()
           ->factory()
-          ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
+          ->NewStringFromUtf8(base::Vector<const char>(source, strlen(source)))
           .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
     base::EnumSet<ParserFlag> flags;
@@ -1847,13 +1830,10 @@ TEST(ParserSync) {
                            static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
-        i::ScopedVector<char> program(kProgramSize + 1);
-        int length = i::SNPrintF(program,
-            "label: for (;;) { %s%s%s%s }",
-            context_data[i][0],
-            statement_data[j],
-            termination_data[k],
-            context_data[i][1]);
+        base::ScopedVector<char> program(kProgramSize + 1);
+        int length = base::SNPrintF(program, "label: for (;;) { %s%s%s%s }",
+                                    context_data[i][0], statement_data[j],
+                                    termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), nullptr, 0);
       }
@@ -1874,7 +1854,6 @@ TEST(ParserSync) {
 TEST(StrictOctal) {
   // Test that syntax error caused by octal literal is reported correctly as
   // such (issue 2220).
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));
@@ -1947,12 +1926,9 @@ void RunParserSyncTest(
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::SNPrintF(program,
-                               "%s%s%s",
-                               context_data[i][0],
-                               statement_data[j],
-                               context_data[i][1]);
+      base::ScopedVector<char> program(kProgramSize + 1);
+      int length = base::SNPrintF(program, "%s%s%s", context_data[i][0],
+                                  statement_data[j], context_data[i][1]);
       PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.begin(), flags, flags_len, result,
@@ -3346,8 +3322,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       "};"
       "h();";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3396,8 +3372,8 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "  }"
       "f(0);";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3428,7 +3404,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 TEST(InnerAssignment) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   const char* prefix = "function f() {";
@@ -3552,12 +3528,13 @@ TEST(InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        i::ScopedVector<char> program(len + 1);
+        base::ScopedVector<char> program(len + 1);
 
-        i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
-                    suffix);
+        base::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
+                       suffix);
 
-        UnoptimizedCompileState compile_state(isolate);
+        UnoptimizedCompileState compile_state;
+        ReusableUnoptimizedCompileState reusable_state(isolate);
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
           printf("%s\n", program.begin());
@@ -3568,7 +3545,8 @@ TEST(InnerAssignment) {
               i::handle(f->shared(), isolate);
           i::UnoptimizedCompileFlags flags =
               i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
-          info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state);
+          info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state,
+                                                &reusable_state);
           CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
         } else {
           i::Handle<i::String> source =
@@ -3579,7 +3557,8 @@ TEST(InnerAssignment) {
           i::UnoptimizedCompileFlags flags =
               i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
           flags.set_allow_lazy_parsing(false);
-          info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state);
+          info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state,
+                                                &reusable_state);
           CHECK_PARSE_PROGRAM(info.get(), script, isolate);
         }
 
@@ -3605,7 +3584,7 @@ TEST(InnerAssignment) {
 
 TEST(MaybeAssignedParameters) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   struct {
@@ -3675,28 +3654,28 @@ TEST(MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      i::ScopedVector<char> program(Utf8LengthHelper(source) +
-                                    Utf8LengthHelper(suffix) + 1);
-      i::SNPrintF(program, "%s%s", source, suffix);
-      std::unique_ptr<i::ParseInfo> info;
+      base::ScopedVector<char> program(Utf8LengthHelper(source) +
+                                       Utf8LengthHelper(suffix) + 1);
+      base::SNPrintF(program, "%s%s", source, suffix);
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
-      i::UnoptimizedCompileState state(isolate);
+      i::UnoptimizedCompileState state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
       flags.set_allow_lazy_parsing(allow_lazy);
-      info = std::make_unique<i::ParseInfo>(isolate, flags, &state);
-      CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
+      i::ParseInfo info(isolate, flags, &state, &reusable_state);
+      CHECK_PARSE_FUNCTION(&info, shared, isolate);
 
-      i::Scope* scope = info->literal()->scope();
+      i::Scope* scope = info.literal()->scope();
       CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
       CHECK_NULL(scope->sibling());
       CHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
-          info->ast_value_factory()->GetOneByteString("arg");
+          info.ast_value_factory()->GetOneByteString("arg");
       i::Variable* var = scope->LookupForTesting(var_name);
       CHECK(var->is_used() || !assigned);
       bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
@@ -3721,17 +3700,17 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   printf("\n");
   i::Handle<i::Script> script = factory->NewScript(string);
 
-  i::UnoptimizedCompileState state(isolate);
+  i::UnoptimizedCompileState state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(module);
   flags.set_allow_lazy_parsing(allow_lazy_parsing);
-  std::unique_ptr<i::ParseInfo> info =
-      std::make_unique<i::ParseInfo>(isolate, flags, &state);
+  i::ParseInfo info(isolate, flags, &state, &reusable_state);
 
-  CHECK_PARSE_PROGRAM(info.get(), script, isolate);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
 
-  i::Scope* scope = info->literal()->scope();
+  i::Scope* scope = info.literal()->scope();
   CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
   CHECK_NULL(scope->sibling());
   CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
@@ -3741,7 +3720,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
     // Find the variable.
     scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
-        info->ast_value_factory()->GetOneByteString(variable);
+        info.ast_value_factory()->GetOneByteString(variable);
     var = scope->LookupForTesting(var_name);
   }
 
@@ -4328,6 +4307,7 @@ TEST(MaybeAssignedTopLevel) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
@@ -4370,7 +4350,6 @@ TEST(AsmModuleFlag) {
   CHECK(s->IsAsmModule() && s->AsDeclarationScope()->is_asm_module());
 }
 
-
 TEST(UseAsmUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -4383,7 +4362,7 @@ TEST(UseAsmUseCount) {
              "function bar() { \"use asm\"; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kUseAsm]);
 }
-
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(StrictModeUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -4408,6 +4387,7 @@ TEST(SloppyModeUseCount) {
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4421,8 +4401,8 @@ TEST(BothModesUseCount) {
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -5106,21 +5086,23 @@ TEST(BasicImportAssertionParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       flags.set_is_module(true);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK_PARSE_PROGRAM(&info, script, isolate);
     }
 
     // And that parsing a script does not.
     {
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK(!i::parsing::ParseProgram(&info, script, isolate,
                                       parsing::ReportStatisticsMode::kYes));
       CHECK(info.pending_error_handler()->has_pending_error());
@@ -5173,11 +5155,12 @@ TEST(ImportAssertionParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
                                     parsing::ReportStatisticsMode::kYes));
     CHECK(info.pending_error_handler()->has_pending_error());
@@ -7162,6 +7145,16 @@ TEST(ForOfExpressionError) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ForOfAsync) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {nullptr, nullptr}};
+
+  const char* data[] = {"for(\\u0061sync of []) {}", nullptr};
+
+  RunParserSyncTest(context_data, data, kSuccess);
+}
 
 TEST(InvalidUnicodeEscapes) {
   const char* context_data[][2] = {
@@ -7641,21 +7634,23 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       flags.set_is_module(true);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK_PARSE_PROGRAM(&info, script, isolate);
     }
 
     // And that parsing a script does not.
     {
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK(!i::parsing::ParseProgram(&info, script, isolate,
                                       parsing::ReportStatisticsMode::kYes));
       CHECK(info.pending_error_handler()->has_pending_error());
@@ -7692,11 +7687,12 @@ TEST(NamespaceExportParsing) {
     i::Handle<i::String> source =
         factory->NewStringFromAsciiChecked(kSources[i]);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
   }
 }
@@ -7790,11 +7786,12 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
                                     parsing::ReportStatisticsMode::kYes));
     CHECK(info.pending_error_handler()->has_pending_error());
@@ -7830,11 +7827,12 @@ TEST(ModuleTopLevelFunctionDecl) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
                                     parsing::ReportStatisticsMode::kYes));
     CHECK(info.pending_error_handler()->has_pending_error());
@@ -8031,11 +8029,12 @@ TEST(ModuleParsingInternals) {
       "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(true);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   i::FunctionLiteral* func = info.literal();
@@ -8245,11 +8244,12 @@ TEST(ModuleParsingInternalsWithImportAssertions) {
       "export * from 'm.js' assert { foo: 'bar', foo2: 'bar'};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(true);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   i::FunctionLiteral* func = info.literal();
@@ -8361,11 +8361,12 @@ TEST(ModuleParsingModuleRequestOrdering) {
       "import 'p' assert { 'a': 'c', 'b': 'c' };";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(true);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   i::FunctionLiteral* func = info.literal();
@@ -8611,11 +8612,12 @@ TEST(ModuleParsingImportAssertionKeySorting) {
       "'xxxx\\u0100\\u0101': 'second' };";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(true);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   i::FunctionLiteral* func = info.literal();
@@ -8736,10 +8738,11 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-  i::ParseInfo info(isolate, flags, &compile_state);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
   CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
@@ -9114,36 +9117,35 @@ TEST(DestructuringPositiveTests) {
 
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
-
-  // v8:5201
-  {
-    // clang-format off
-    const char* sloppy_context_data[][2] = {
-      {"var ", " = {};"},
-      {"function f(", ") {}"},
-      {"function f(argument1, ", ") {}"},
-      {"var f = (", ") => {};"},
-      {"var f = (argument1,", ") => {};"},
-      {"try {} catch(", ") {}"},
-      {nullptr, nullptr}
-    };
-
-    const char* data[] = {
-      "{arguments}",
-      "{eval}",
-      "{x: arguments}",
-      "{x: eval}",
-      "{arguments = false}",
-      "{eval = false}",
-      "{...arguments}",
-      "{...eval}",
-      nullptr
-    };
-    // clang-format on
-    RunParserSyncTest(sloppy_context_data, data, kSuccess);
-  }
 }
 
+// v8:5201
+TEST(SloppyContextDestructuringPositiveTests) {
+  // clang-format off
+  const char* sloppy_context_data[][2] = {
+    {"var ", " = {};"},
+    {"function f(", ") {}"},
+    {"function f(argument1, ", ") {}"},
+    {"var f = (", ") => {};"},
+    {"var f = (argument1,", ") => {};"},
+    {"try {} catch(", ") {}"},
+    {nullptr, nullptr}
+  };
+
+  const char* data[] = {
+    "{arguments}",
+    "{eval}",
+    "{x: arguments}",
+    "{x: eval}",
+    "{arguments = false}",
+    "{eval = false}",
+    "{...arguments}",
+    "{...eval}",
+    nullptr
+  };
+  // clang-format on
+  RunParserSyncTest(sloppy_context_data, data, kSuccess);
+}
 
 TEST(DestructuringNegativeTests) {
   {  // All modes.
@@ -11233,7 +11235,7 @@ TEST(ArgumentsRedeclaration) {
 TEST(NoPessimisticContextAllocation) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   const char* prefix = "(function outer() { var my_var; ";
@@ -11485,11 +11487,11 @@ TEST(NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, "%s", prefix);
-      i::SNPrintF(program + prefix_len, inner_function, inners[i].params,
-                  inners[i].source);
-      i::SNPrintF(
+      base::ScopedVector<char> program(len + 1);
+      base::SNPrintF(program, "%s", prefix);
+      base::SNPrintF(program + prefix_len, inner_function, inners[i].params,
+                     inners[i].source);
+      base::SNPrintF(
           program + prefix_len + inner_function_len + params_len + source_len,
           "%s", suffix);
 
@@ -11499,10 +11501,11 @@ TEST(NoPessimisticContextAllocation) {
       printf("\n");
 
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileState compile_state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      i::ParseInfo info(isolate, flags, &compile_state);
+      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
 
       CHECK_PARSE_PROGRAM(&info, script, isolate);
 
@@ -12058,13 +12061,14 @@ TEST(LexicalLoopVariable) {
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_allow_lazy_parsing(false);
-    i::ParseInfo info(isolate, flags, &compile_state);
+    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
 
     i::DeclarationScope::AllocateScopeInfos(&info, isolate);
@@ -12401,9 +12405,7 @@ TEST(LogicalAssignmentDestructuringErrors) {
   };
   // clang-format on
 
-  static const ParserFlag flags[] = {kAllowHarmonyLogicalAssignment};
-  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, flags,
-                    arraysize(flags));
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 }  // namespace test_parsing

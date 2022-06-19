@@ -46,7 +46,7 @@
 #define NGHTTP2_MAX_FRAME_SIZE_MIN (1 << 14)
 
 #define NGHTTP2_MAX_PAYLOADLEN 16384
-/* The one frame buffer length for tranmission.  We may use several of
+/* The one frame buffer length for transmission.  We may use several of
    them to support CONTINUATION.  To account for Pad Length field, we
    allocate extra 1 byte, which saves extra large memcopying. */
 #define NGHTTP2_FRAMEBUF_CHUNKLEN                                              \
@@ -57,7 +57,7 @@
 
 /* Maximum headers block size to send, calculated using
    nghttp2_hd_deflate_bound().  This is the default value, and can be
-   overridden by nghttp2_option_set_max_send_header_block_size(). */
+   overridden by nghttp2_option_set_max_send_header_block_length(). */
 #define NGHTTP2_MAX_HEADERSLEN 65536
 
 /* The number of bytes for each SETTINGS entry */

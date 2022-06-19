@@ -2,18 +2,11 @@
  * @author Toru Nagashima <https://github.com/mysticatea>
  * See LICENSE file in root directory for full license.
  */
-"use strict";
+import KEYS from "./visitor-keys.js";
 
-const KEYS = require("./visitor-keys.json");
-
-// Types.
-const NODE_TYPES = Object.freeze(Object.keys(KEYS));
-
-// Freeze the keys.
-for (const type of NODE_TYPES) {
-    Object.freeze(KEYS[type]);
-}
-Object.freeze(KEYS);
+/**
+ * @typedef {{ readonly [type: string]: ReadonlyArray<string> }} VisitorKeys
+ */
 
 // List to ignore keys.
 const KEY_BLACKLIST = new Set([
@@ -31,51 +24,42 @@ function filterKey(key) {
     return !KEY_BLACKLIST.has(key) && key[0] !== "_";
 }
 
-//------------------------------------------------------------------------------
-// Public interfaces
-//------------------------------------------------------------------------------
+/**
+ * Get visitor keys of a given node.
+ * @param {object} node The AST node to get keys.
+ * @returns {readonly string[]} Visitor keys of the node.
+ */
+export function getKeys(node) {
+    return Object.keys(node).filter(filterKey);
+}
 
-module.exports = Object.freeze({
+// Disable valid-jsdoc rule because it reports syntax error on the type of @returns.
+// eslint-disable-next-line valid-jsdoc
+/**
+ * Make the union set with `KEYS` and given keys.
+ * @param {VisitorKeys} additionalKeys The additional keys.
+ * @returns {VisitorKeys} The union set.
+ */
+export function unionWith(additionalKeys) {
+    const retv = /** @type {{
+        [type: string]: ReadonlyArray<string>
+    }} */ (Object.assign({}, KEYS));
 
-    /**
-     * Visitor keys.
-     * @type {{ [type: string]: string[] | undefined }}
-     */
-    KEYS,
+    for (const type of Object.keys(additionalKeys)) {
+        if (Object.prototype.hasOwnProperty.call(retv, type)) {
+            const keys = new Set(additionalKeys[type]);
 
-    /**
-     * Get visitor keys of a given node.
-     * @param {Object} node The AST node to get keys.
-     * @returns {string[]} Visitor keys of the node.
-     */
-    getKeys(node) {
-        return Object.keys(node).filter(filterKey);
-    },
-
-    // Disable valid-jsdoc rule because it reports syntax error on the type of @returns.
-    // eslint-disable-next-line valid-jsdoc
-    /**
-     * Make the union set with `KEYS` and given keys.
-     * @param {Object} additionalKeys The additional keys.
-     * @returns {{ [type: string]: string[] | undefined }} The union set.
-     */
-    unionWith(additionalKeys) {
-        const retv = Object.assign({}, KEYS);
-
-        for (const type of Object.keys(additionalKeys)) {
-            if (retv.hasOwnProperty(type)) {
-                const keys = new Set(additionalKeys[type]);
-
-                for (const key of retv[type]) {
-                    keys.add(key);
-                }
-
-                retv[type] = Object.freeze(Array.from(keys));
-            } else {
-                retv[type] = Object.freeze(Array.from(additionalKeys[type]));
+            for (const key of retv[type]) {
+                keys.add(key);
             }
-        }
 
-        return Object.freeze(retv);
+            retv[type] = Object.freeze(Array.from(keys));
+        } else {
+            retv[type] = Object.freeze(Array.from(additionalKeys[type]));
+        }
     }
-});
+
+    return Object.freeze(retv);
+}
+
+export { KEYS };

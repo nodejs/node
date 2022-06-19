@@ -33,7 +33,8 @@ const CAPS_ALLOWED = [
  * Ensure that if the key is provided, it must be an array.
  * @param {Object} obj Object to check with `key`.
  * @param {string} key Object key to check on `obj`.
- * @param {*} fallback If obj[key] is not present, this will be returned.
+ * @param {any} fallback If obj[key] is not present, this will be returned.
+ * @throws {TypeError} If key is not an own array type property of `obj`.
  * @returns {string[]} Returns obj[key] if it's an Array, otherwise `fallback`
  */
 function checkArray(obj, key, fallback) {
@@ -75,13 +76,13 @@ function calculateCapIsNewExceptions(config) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require constructor names to begin with a capital letter",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/new-cap"
         },

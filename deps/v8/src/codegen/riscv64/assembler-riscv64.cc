@@ -57,23 +57,31 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
+#if (defined CAN_USE_RVV_INSTRUCTIONS)
+  answer |= 1u << RISCV_SIMD;
+#endif  // def CAN_USE_RVV_INSTRUCTIONS || USE_SIMULATOR
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
-
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
-
   // Probe for additional features at runtime.
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
+  if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+  // Set a static value on whether SIMD is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {}
-
 int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
   const int kNumbers[] = {
@@ -126,7 +134,8 @@ Register ToRegister(int num) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+    RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -204,7 +213,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(t3.bit() | t5.bit()),
+      VU(this),
+      scratch_register_list_({t3, t5}),
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -223,6 +233,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   unbound_labels_count_ = 0;
   block_buffer_growth_ = false;
 }
+
+void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
+Assembler::~Assembler() { CHECK(constpool_.IsEmpty()); }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
@@ -258,7 +271,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -269,7 +282,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+    NOP();
   }
 }
 
@@ -299,10 +312,16 @@ bool Assembler::IsBranch(Instr instr) {
   return (instr & kBaseOpcodeMask) == BRANCH;
 }
 
+bool Assembler::IsCBranch(Instr instr) {
+  int Op = instr & kRvcOpcodeMask;
+  return Op == RO_C_BNEZ || Op == RO_C_BEQZ;
+}
 bool Assembler::IsJump(Instr instr) {
   int Op = instr & kBaseOpcodeMask;
   return Op == JAL || Op == JALR;
 }
+
+bool Assembler::IsNop(Instr instr) { return instr == kNopByte; }
 
 bool Assembler::IsJal(Instr instr) { return (instr & kBaseOpcodeMask) == JAL; }
 
@@ -364,7 +383,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm13;
       }
-    } break;
+    }
     case JAL: {
       int32_t imm21 = JumpOffset(instr);
       if (imm21 == kEndOfJumpChain) {
@@ -373,7 +392,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm21;
       }
-    } break;
+    }
     case JALR: {
       int32_t imm12 = instr >> 20;
       if (imm12 == kEndOfJumpChain) {
@@ -382,7 +401,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm12;
       }
-    } break;
+    }
     case LUI: {
       Address pc = reinterpret_cast<Address>(buffer_start_ + pos);
       pc = target_address_at(pc);
@@ -396,7 +415,7 @@ int Assembler::target_at(int pos, bool is_internal) {
         DCHECK(pos > delta);
         return pos - delta;
       }
-    } break;
+    }
     case AUIPC: {
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
@@ -404,12 +423,18 @@ int Assembler::target_at(int pos, bool is_internal) {
       int32_t offset = BrachlongOffset(instr_auipc, instr_I);
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
-    } break;
+    }
     case RO_C_J: {
       int32_t offset = instruction->RvcImm11CJValue();
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
-    } break;
+    }
+    case RO_C_BNEZ:
+    case RO_C_BEQZ: {
+      int32_t offset = instruction->RvcImm8BValue();
+      if (offset == kEndOfJumpChain) return kEndOfChain;
+      return pos + offset;
+    }
     default: {
       if (instr == kEndOfJumpChain) {
         return kEndOfChain;
@@ -418,7 +443,7 @@ int Assembler::target_at(int pos, bool is_internal) {
             ((instr & static_cast<int32_t>(kImm16Mask)) << 16) >> 14;
         return (imm18 + pos);
       }
-    } break;
+    }
   }
 }
 
@@ -452,6 +477,16 @@ static inline Instr SetAuipcOffset(int32_t offset, Instr instr) {
   return instr;
 }
 
+static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
+  DCHECK(Assembler::IsJalr(instr));
+  DCHECK(is_int12(offset));
+  instr &= ~kImm12Mask;
+  int32_t imm12 = offset << kImm12Shift;
+  DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
+  DCHECK_EQ(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)), offset);
+  return instr | (imm12 & kImm12Mask);
+}
+
 static inline Instr SetJalOffset(int32_t pos, int32_t target_pos, Instr instr) {
   DCHECK(Assembler::IsJal(instr));
   int32_t imm = target_pos - pos;
@@ -482,8 +517,24 @@ static inline ShortInstr SetCJalOffset(int32_t pos, int32_t target_pos,
   DCHECK(Assembler::IsCJal(instr | (imm11 & kImm11Mask)));
   return instr | (imm11 & kImm11Mask);
 }
+static inline Instr SetCBranchOffset(int32_t pos, int32_t target_pos,
+                                     Instr instr) {
+  DCHECK(Assembler::IsCBranch(instr));
+  int32_t imm = target_pos - pos;
+  DCHECK_EQ(imm & 1, 0);
+  DCHECK(is_intn(imm, Assembler::kCBranchOffsetBits));
 
-void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
+  instr &= ~kRvcBImm8Mask;
+  int32_t imm8 = ((imm & 0x20) >> 5) | ((imm & 0x6)) | ((imm & 0xc0) >> 3) |
+                 ((imm & 0x18) << 2) | ((imm & 0x100) >> 1);
+  imm8 = ((imm8 & 0x1f) << 2) | ((imm8 & 0xe0) << 5);
+  DCHECK(Assembler::IsCBranch(instr | imm8 & kRvcBImm8Mask));
+
+  return instr | (imm8 & kRvcBImm8Mask);
+}
+
+void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
+                              bool trampoline) {
   if (is_internal) {
     uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
     *reinterpret_cast<uint64_t*>(buffer_start_ + pos) = imm;
@@ -502,6 +553,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_at_put(pos, instr);
     } break;
     case JAL: {
+      DCHECK(IsJal(instr));
       instr = SetJalOffset(pos, target_pos, instr);
       instr_at_put(pos, instr);
     } break;
@@ -516,23 +568,38 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       int64_t offset = target_pos - pos;
-      DCHECK(is_int32(offset));
+      if (is_int21(offset) && IsJalr(instr_I) && trampoline) {
+        DCHECK(is_int21(offset) && ((offset & 1) == 0));
+        Instr instr = JAL;
+        instr = SetJalOffset(pos, target_pos, instr);
+        DCHECK(IsJal(instr));
+        DCHECK(JumpOffset(instr) == offset);
+        instr_at_put(pos, instr);
+        instr_at_put(pos + 4, kNopByte);
+      } else {
+        CHECK(is_int32(offset + 0x800));
 
-      int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-      int32_t Lo12 = (int32_t)offset << 20 >> 20;
+        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+        int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-      instr_auipc =
-          (instr_auipc & ~kImm31_12Mask) | ((Hi20 & kImm19_0Mask) << 12);
-      instr_at_put(pos, instr_auipc);
+        instr_auipc =
+            (instr_auipc & ~kImm31_12Mask) | ((Hi20 & kImm19_0Mask) << 12);
+        instr_at_put(pos, instr_auipc);
 
-      const int kImm31_20Mask = ((1 << 12) - 1) << 20;
-      const int kImm11_0Mask = ((1 << 12) - 1);
-      instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
-      instr_at_put(pos + 4, instr_I);
+        const int kImm31_20Mask = ((1 << 12) - 1) << 20;
+        const int kImm11_0Mask = ((1 << 12) - 1);
+        instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
+        instr_at_put(pos + 4, instr_I);
+      }
     } break;
     case RO_C_J: {
       ShortInstr short_instr = SetCJalOffset(pos, target_pos, instr);
       instr_at_put(pos, short_instr);
+    } break;
+    case RO_C_BNEZ:
+    case RO_C_BEQZ: {
+      instr = SetCBranchOffset(pos, target_pos, instr);
+      instr_at_put(pos, instr);
     } break;
     default: {
       // Emitted label constant, not part of a branch.
@@ -598,7 +665,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false);
+          target_at_put(fixup_pos, trampoline_pos, false, true);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -610,7 +677,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false);
+          target_at_put(fixup_pos, trampoline_pos, false, true);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -637,7 +704,7 @@ void Assembler::next(Label* L, bool is_internal) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK_GT(link, 0);
+    DCHECK_GE(link, 0);
     DEBUG_PRINTF("next: %p to %p (%d)\n", L,
                  reinterpret_cast<Instr*>(buffer_start_ + link), link);
     L->link_to(link);
@@ -687,23 +754,44 @@ int Assembler::CJumpOffset(Instr instr) {
 int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
   DCHECK(reinterpret_cast<Instruction*>(&instr_I)->InstructionType() ==
          InstructionBase::kIType);
-  const int kImm19_0Mask = ((1 << 20) - 1);
-  int32_t imm_auipc = auipc & (kImm19_0Mask << 12);
-  int32_t imm_12 = instr_I >> 20;
-  int32_t offset = imm_12 + imm_auipc;
+  DCHECK(IsAuipc(auipc));
+  DCHECK_EQ((auipc & kRdFieldMask) >> kRdShift,
+            (instr_I & kRs1FieldMask) >> kRs1Shift);
+  int32_t imm_auipc = AuipcOffset(auipc);
+  int32_t imm12 = static_cast<int32_t>(instr_I & kImm12Mask) >> 20;
+  int32_t offset = imm12 + imm_auipc;
   return offset;
+}
+
+int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
+                                     Instr instr_jalr, int32_t offset) {
+  DCHECK(IsAuipc(instr_auipc));
+  DCHECK(IsJalr(instr_jalr));
+  CHECK(is_int32(offset + 0x800));
+  int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+  int32_t Lo12 = (int32_t)offset << 20 >> 20;
+  instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc));
+  instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr));
+  DCHECK(offset ==
+         BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
+  return 2;
 }
 
 int Assembler::LdOffset(Instr instr) {
   DCHECK(IsLd(instr));
-  int32_t imm12 = (instr & kImm12Mask) >> 20;
-  imm12 = imm12 << 12 >> 12;
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
+  return imm12;
+}
+
+int Assembler::JalrOffset(Instr instr) {
+  DCHECK(IsJalr(instr));
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
   return imm12;
 }
 
 int Assembler::AuipcOffset(Instr instr) {
   DCHECK(IsAuipc(instr));
-  int32_t imm20 = instr & kImm20Mask;
+  int32_t imm20 = static_cast<int32_t>(instr & kImm20Mask);
   return imm20;
 }
 // We have to use a temporary register for things that can be relocated even
@@ -711,14 +799,14 @@ int Assembler::AuipcOffset(Instr instr) {
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 void Assembler::disassembleInstr(Instr instr) {
-  if (!FLAG_debug_riscv) return;
+  if (!FLAG_riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> disasm_buffer;
+  base::EmbeddedVector<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, reinterpret_cast<byte*>(&instr));
   DEBUG_PRINTF("%s\n", disasm_buffer.begin());
@@ -1036,6 +1124,162 @@ void Assembler::GenInstrCS(uint8_t funct3, Opcode opcode, FPURegister rs2,
   emit(instr);
 }
 
+void Assembler::GenInstrCB(uint8_t funct3, Opcode opcode, Register rs1,
+                           uint8_t uimm8) {
+  DCHECK(is_uint3(funct3) && is_uint8(uimm8));
+  ShortInstr instr = opcode | ((uimm8 & 0x1f) << 2) | ((uimm8 & 0xe0) << 5) |
+                     ((rs1.code() & 0x7) << kRvcRs1sShift) |
+                     (funct3 << kRvcFunct3Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrCBA(uint8_t funct3, uint8_t funct2, Opcode opcode,
+                            Register rs1, int8_t imm6) {
+  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_int6(imm6));
+  ShortInstr instr = opcode | ((imm6 & 0x1f) << 2) | ((imm6 & 0x20) << 7) |
+                     ((rs1.code() & 0x7) << kRvcRs1sShift) |
+                     (funct3 << kRvcFunct3Shift) | (funct2 << 10);
+  emit(instr);
+}
+
+// OPIVV OPFVV OPMVV
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          VRegister vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV || opcode == OP_FVV || opcode == OP_IVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1.code() & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          int8_t vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV || opcode == OP_FVV || opcode == OP_IVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1 & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+// OPMVV OPFVV
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
+                          VRegister vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV || opcode == OP_FVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((rd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1.code() & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// OPFVV
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, FPURegister fd,
+                          VRegister vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_FVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((fd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1.code() & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// OPIVX OPMVX
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          Register rs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_IVX || opcode == OP_MVX);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// OPFVF
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          FPURegister fs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_FVF);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((fs1.code() & 0x1F) << kRvvRs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// OPMVX
+void Assembler::GenInstrV(uint8_t funct6, Register rd, Register rs1,
+                          VRegister vs2, MaskType mask) {
+  Instr instr = (funct6 << kRvvFunct6Shift) | OP_MVX | (mask << kRvvVmShift) |
+                ((rd.code() & 0x1F) << kRvvVdShift) |
+                ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+// OPIVI
+void Assembler::GenInstrV(uint8_t funct6, VRegister vd, int8_t imm5,
+                          VRegister vs2, MaskType mask) {
+  DCHECK(is_uint5(imm5) || is_int5(imm5));
+  Instr instr = (funct6 << kRvvFunct6Shift) | OP_IVI | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                (((uint32_t)imm5 << kRvvImm5Shift) & kRvvImm5Mask) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// VL VS
+void Assembler::GenInstrV(Opcode opcode, uint8_t width, VRegister vd,
+                          Register rs1, uint8_t umop, MaskType mask,
+                          uint8_t IsMop, bool IsMew, uint8_t Nf) {
+  DCHECK(opcode == LOAD_FP || opcode == STORE_FP);
+  Instr instr = opcode | ((vd.code() << kRvvVdShift) & kRvvVdMask) |
+                ((width << kRvvWidthShift) & kRvvWidthMask) |
+                ((rs1.code() << kRvvRs1Shift) & kRvvRs1Mask) |
+                ((umop << kRvvRs2Shift) & kRvvRs2Mask) |
+                ((mask << kRvvVmShift) & kRvvVmMask) |
+                ((IsMop << kRvvMopShift) & kRvvMopMask) |
+                ((IsMew << kRvvMewShift) & kRvvMewMask) |
+                ((Nf << kRvvNfShift) & kRvvNfMask);
+  emit(instr);
+}
+void Assembler::GenInstrV(Opcode opcode, uint8_t width, VRegister vd,
+                          Register rs1, Register rs2, MaskType mask,
+                          uint8_t IsMop, bool IsMew, uint8_t Nf) {
+  DCHECK(opcode == LOAD_FP || opcode == STORE_FP);
+  Instr instr = opcode | ((vd.code() << kRvvVdShift) & kRvvVdMask) |
+                ((width << kRvvWidthShift) & kRvvWidthMask) |
+                ((rs1.code() << kRvvRs1Shift) & kRvvRs1Mask) |
+                ((rs2.code() << kRvvRs2Shift) & kRvvRs2Mask) |
+                ((mask << kRvvVmShift) & kRvvVmMask) |
+                ((IsMop << kRvvMopShift) & kRvvMopMask) |
+                ((IsMew << kRvvMewShift) & kRvvMewMask) |
+                ((Nf << kRvvNfShift) & kRvvNfMask);
+  emit(instr);
+}
+// VL VS AMO
+void Assembler::GenInstrV(Opcode opcode, uint8_t width, VRegister vd,
+                          Register rs1, VRegister vs2, MaskType mask,
+                          uint8_t IsMop, bool IsMew, uint8_t Nf) {
+  DCHECK(opcode == LOAD_FP || opcode == STORE_FP || opcode == AMO);
+  Instr instr = opcode | ((vd.code() << kRvvVdShift) & kRvvVdMask) |
+                ((width << kRvvWidthShift) & kRvvWidthMask) |
+                ((rs1.code() << kRvvRs1Shift) & kRvvRs1Mask) |
+                ((vs2.code() << kRvvRs2Shift) & kRvvRs2Mask) |
+                ((mask << kRvvVmShift) & kRvvVmMask) |
+                ((IsMop << kRvvMopShift) & kRvvMopMask) |
+                ((IsMew << kRvvMewShift) & kRvvMewMask) |
+                ((Nf << kRvvNfShift) & kRvvNfMask);
+  emit(instr);
+}
+// vmv_xs vcpop_m vfirst_m
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
+                          uint8_t vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((rd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1 & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
 // ----- Instruction class templates match those in the compiler
 
 void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
@@ -1166,7 +1410,10 @@ uint64_t Assembler::jump_address(Label* L) {
     }
   }
   uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
-  DCHECK_EQ(imm & 3, 0);
+  if (FLAG_riscv_c_extension)
+    DCHECK_EQ(imm & 1, 0);
+  else
+    DCHECK_EQ(imm & 3, 0);
 
   return imm;
 }
@@ -1194,7 +1441,10 @@ uint64_t Assembler::branch_long_offset(Label* L) {
     }
   }
   int64_t offset = target_pos - pc_offset();
-  DCHECK_EQ(offset & 3, 0);
+  if (FLAG_riscv_c_extension)
+    DCHECK_EQ(offset & 1, 0);
+  else
+    DCHECK_EQ(offset & 3, 0);
 
   return static_cast<uint64_t>(offset);
 }
@@ -1245,7 +1495,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       DCHECK_EQ(imm18 & 3, 0);
       int32_t imm16 = imm18 >> 2;
       DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, (imm16 & kImm16Mask));
+      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
     } else {
       target_pos = kEndOfJumpChain;
       instr_at_put(at_offset, target_pos);
@@ -2006,9 +2256,9 @@ void Assembler::c_lui(Register rd, int8_t imm6) {
   GenInstrCI(0b011, C1, rd, imm6);
 }
 
-void Assembler::c_slli(Register rd, uint8_t uimm6) {
-  DCHECK(rd != zero_reg && uimm6 != 0);
-  GenInstrCIU(0b000, C2, rd, uimm6);
+void Assembler::c_slli(Register rd, uint8_t shamt6) {
+  DCHECK(rd != zero_reg && shamt6 != 0);
+  GenInstrCIU(0b000, C2, rd, shamt6);
 }
 
 void Assembler::c_fldsp(FPURegister rd, uint16_t uimm9) {
@@ -2112,7 +2362,8 @@ void Assembler::c_fsdsp(FPURegister rs2, uint16_t uimm9) {
 
 void Assembler::c_lw(Register rd, Register rs1, uint16_t uimm7) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7) &&
+         ((uimm7 & 0x3) == 0));
   uint8_t uimm5 =
       ((uimm7 & 0x4) >> 1) | ((uimm7 & 0x40) >> 6) | ((uimm7 & 0x38) >> 1);
   GenInstrCL(0b010, C0, rd, rs1, uimm5);
@@ -2120,14 +2371,16 @@ void Assembler::c_lw(Register rd, Register rs1, uint16_t uimm7) {
 
 void Assembler::c_ld(Register rd, Register rs1, uint16_t uimm8) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCL(0b011, C0, rd, rs1, uimm5);
 }
 
 void Assembler::c_fld(FPURegister rd, Register rs1, uint16_t uimm8) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCL(0b001, C0, rd, rs1, uimm5);
 }
@@ -2136,7 +2389,8 @@ void Assembler::c_fld(FPURegister rd, Register rs1, uint16_t uimm8) {
 
 void Assembler::c_sw(Register rs2, Register rs1, uint16_t uimm7) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7) &&
+         ((uimm7 & 0x3) == 0));
   uint8_t uimm5 =
       ((uimm7 & 0x4) >> 1) | ((uimm7 & 0x40) >> 6) | ((uimm7 & 0x38) >> 1);
   GenInstrCS(0b110, C0, rs2, rs1, uimm5);
@@ -2144,14 +2398,16 @@ void Assembler::c_sw(Register rs2, Register rs1, uint16_t uimm7) {
 
 void Assembler::c_sd(Register rs2, Register rs1, uint16_t uimm8) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCS(0b111, C0, rs2, rs1, uimm5);
 }
 
 void Assembler::c_fsd(FPURegister rs2, Register rs1, uint16_t uimm8) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCS(0b101, C0, rs2, rs1, uimm5);
 }
@@ -2168,8 +2424,759 @@ void Assembler::c_j(int16_t imm12) {
   BlockTrampolinePoolFor(1);
 }
 
-// Privileged
+// CB Instructions
 
+void Assembler::c_bnez(Register rs1, int16_t imm9) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int9(imm9));
+  uint8_t uimm8 = ((imm9 & 0x20) >> 5) | ((imm9 & 0x6)) | ((imm9 & 0xc0) >> 3) |
+                  ((imm9 & 0x18) << 2) | ((imm9 & 0x100) >> 1);
+  GenInstrCB(0b111, C1, rs1, uimm8);
+}
+
+void Assembler::c_beqz(Register rs1, int16_t imm9) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int9(imm9));
+  uint8_t uimm8 = ((imm9 & 0x20) >> 5) | ((imm9 & 0x6)) | ((imm9 & 0xc0) >> 3) |
+                  ((imm9 & 0x18) << 2) | ((imm9 & 0x100) >> 1);
+  GenInstrCB(0b110, C1, rs1, uimm8);
+}
+
+void Assembler::c_srli(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b00, C1, rs1, shamt6);
+}
+
+void Assembler::c_srai(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b01, C1, rs1, shamt6);
+}
+
+void Assembler::c_andi(Register rs1, int8_t imm6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(imm6));
+  GenInstrCBA(0b100, 0b10, C1, rs1, imm6);
+}
+
+// Definitions for using compressed vs non compressed
+
+void Assembler::NOP() {
+  if (FLAG_riscv_c_extension)
+    c_nop();
+  else
+    nop();
+}
+
+void Assembler::EBREAK() {
+  if (FLAG_riscv_c_extension)
+    c_ebreak();
+  else
+    ebreak();
+}
+
+// RVV
+
+void Assembler::vredmaxu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  GenInstrV(VREDMAXU_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredmax_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                           MaskType mask) {
+  GenInstrV(VREDMAX_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredmin_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                           MaskType mask) {
+  GenInstrV(VREDMIN_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredminu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  GenInstrV(VREDMINU_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vmv_vv(VRegister vd, VRegister vs1) {
+  GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, v0, NoMask);
+}
+
+void Assembler::vmv_vx(VRegister vd, Register rs1) {
+  GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, v0, NoMask);
+}
+
+void Assembler::vmv_vi(VRegister vd, uint8_t simm5) {
+  GenInstrV(VMV_FUNCT6, vd, simm5, v0, NoMask);
+}
+
+void Assembler::vmv_xs(Register rd, VRegister vs2) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b00000, vs2, NoMask);
+}
+
+void Assembler::vmv_sx(VRegister vd, Register rs1) {
+  GenInstrV(VRXUNARY0_FUNCT6, OP_MVX, vd, rs1, v0, NoMask);
+}
+
+void Assembler::vmerge_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vmerge_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, vd, imm5, vs2, Mask);
+}
+
+void Assembler::vadc_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vadc_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, vd, imm5, vs2, Mask);
+}
+
+void Assembler::vmadc_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vmadc_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, vd, imm5, vs2, Mask);
+}
+
+void Assembler::vrgather_vv(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs1);
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, OP_IVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vrgather_vi(VRegister vd, VRegister vs2, int8_t imm5,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, vd, imm5, vs2, mask);
+}
+
+void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, OP_IVX, vd, rs1, vs2, mask);
+}
+
+void Assembler::vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
+                          MaskType mask) {
+  GenInstrV(VWADDUW_FUNCT6, OP_MVX, vd, rs1, vs2, mask);
+}
+
+void Assembler::vid_v(VRegister vd, MaskType mask) {
+  GenInstrV(VMUNARY0_FUNCT6, OP_MVV, vd, VID_V, v0, mask);
+}
+
+#define DEFINE_OPIVV(name, funct6)                                      \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_IVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFVV(name, funct6)                                      \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFWV(name, funct6)                                      \
+  void Assembler::name##_wv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFRED(name, funct6)                                     \
+  void Assembler::name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPIVX(name, funct6)                                     \
+  void Assembler::name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                            MaskType mask) {                           \
+    GenInstrV(funct6, OP_IVX, vd, rs1, vs2, mask);                     \
+  }
+
+#define DEFINE_OPIVI(name, funct6)                                    \
+  void Assembler::name##_vi(VRegister vd, VRegister vs2, int8_t imm5, \
+                            MaskType mask) {                          \
+    GenInstrV(funct6, vd, imm5, vs2, mask);                           \
+  }
+
+#define DEFINE_OPMVV(name, funct6)                                      \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_MVV, vd, vs1, vs2, mask);                      \
+  }
+
+// void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, Register rs1,
+//                  VRegister vs2, MaskType mask = NoMask);
+#define DEFINE_OPMVX(name, funct6)                                     \
+  void Assembler::name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                            MaskType mask) {                           \
+    GenInstrV(funct6, OP_MVX, vd, rs1, vs2, mask);                     \
+  }
+
+#define DEFINE_OPFVF(name, funct6)                                        \
+  void Assembler::name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                            MaskType mask) {                              \
+    GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
+  }
+
+#define DEFINE_OPFWF(name, funct6)                                        \
+  void Assembler::name##_wf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                            MaskType mask) {                              \
+    GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
+  }
+
+#define DEFINE_OPFVV_FMA(name, funct6)                                  \
+  void Assembler::name##_vv(VRegister vd, VRegister vs1, VRegister vs2, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFVF_FMA(name, funct6)                                    \
+  void Assembler::name##_vf(VRegister vd, FPURegister fs1, VRegister vs2, \
+                            MaskType mask) {                              \
+    GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
+  }
+
+// vector integer extension
+#define DEFINE_OPMVV_VIE(name, vs1)                                  \
+  void Assembler::name(VRegister vd, VRegister vs2, MaskType mask) { \
+    GenInstrV(VXUNARY0_FUNCT6, OP_MVV, vd, vs1, vs2, mask);          \
+  }
+
+void Assembler::vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask) {
+  GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, mask);
+}
+
+void Assembler::vfmv_fs(FPURegister fd, VRegister vs2) {
+  GenInstrV(VWFUNARY0_FUNCT6, OP_FVV, fd, v0, vs2, NoMask);
+}
+
+void Assembler::vfmv_sf(VRegister vd, FPURegister fs) {
+  GenInstrV(VRFUNARY0_FUNCT6, OP_FVF, vd, fs, v0, NoMask);
+}
+
+DEFINE_OPIVV(vadd, VADD_FUNCT6)
+DEFINE_OPIVX(vadd, VADD_FUNCT6)
+DEFINE_OPIVI(vadd, VADD_FUNCT6)
+DEFINE_OPIVV(vsub, VSUB_FUNCT6)
+DEFINE_OPIVX(vsub, VSUB_FUNCT6)
+DEFINE_OPMVX(vdiv, VDIV_FUNCT6)
+DEFINE_OPMVX(vdivu, VDIVU_FUNCT6)
+DEFINE_OPMVX(vmul, VMUL_FUNCT6)
+DEFINE_OPMVX(vmulhu, VMULHU_FUNCT6)
+DEFINE_OPMVX(vmulhsu, VMULHSU_FUNCT6)
+DEFINE_OPMVX(vmulh, VMULH_FUNCT6)
+DEFINE_OPMVV(vdiv, VDIV_FUNCT6)
+DEFINE_OPMVV(vdivu, VDIVU_FUNCT6)
+DEFINE_OPMVV(vmul, VMUL_FUNCT6)
+DEFINE_OPMVV(vmulhu, VMULHU_FUNCT6)
+DEFINE_OPMVV(vmulhsu, VMULHSU_FUNCT6)
+DEFINE_OPMVV(vwmul, VWMUL_FUNCT6)
+DEFINE_OPMVV(vwmulu, VWMULU_FUNCT6)
+DEFINE_OPMVV(vmulh, VMULH_FUNCT6)
+DEFINE_OPMVV(vwadd, VWADD_FUNCT6)
+DEFINE_OPMVV(vwaddu, VWADDU_FUNCT6)
+DEFINE_OPMVV(vcompress, VCOMPRESS_FUNCT6)
+DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVX(vsaddu, VSADDU_FUNCT6)
+DEFINE_OPIVV(vsaddu, VSADDU_FUNCT6)
+DEFINE_OPIVI(vsaddu, VSADDU_FUNCT6)
+DEFINE_OPIVX(vssub, VSSUB_FUNCT6)
+DEFINE_OPIVV(vssub, VSSUB_FUNCT6)
+DEFINE_OPIVX(vssubu, VSSUBU_FUNCT6)
+DEFINE_OPIVV(vssubu, VSSUBU_FUNCT6)
+DEFINE_OPIVX(vrsub, VRSUB_FUNCT6)
+DEFINE_OPIVI(vrsub, VRSUB_FUNCT6)
+DEFINE_OPIVV(vminu, VMINU_FUNCT6)
+DEFINE_OPIVX(vminu, VMINU_FUNCT6)
+DEFINE_OPIVV(vmin, VMIN_FUNCT6)
+DEFINE_OPIVX(vmin, VMIN_FUNCT6)
+DEFINE_OPIVV(vmaxu, VMAXU_FUNCT6)
+DEFINE_OPIVX(vmaxu, VMAXU_FUNCT6)
+DEFINE_OPIVV(vmax, VMAX_FUNCT6)
+DEFINE_OPIVX(vmax, VMAX_FUNCT6)
+DEFINE_OPIVV(vand, VAND_FUNCT6)
+DEFINE_OPIVX(vand, VAND_FUNCT6)
+DEFINE_OPIVI(vand, VAND_FUNCT6)
+DEFINE_OPIVV(vor, VOR_FUNCT6)
+DEFINE_OPIVX(vor, VOR_FUNCT6)
+DEFINE_OPIVI(vor, VOR_FUNCT6)
+DEFINE_OPIVV(vxor, VXOR_FUNCT6)
+DEFINE_OPIVX(vxor, VXOR_FUNCT6)
+DEFINE_OPIVI(vxor, VXOR_FUNCT6)
+
+DEFINE_OPIVX(vslidedown, VSLIDEDOWN_FUNCT6)
+DEFINE_OPIVI(vslidedown, VSLIDEDOWN_FUNCT6)
+DEFINE_OPIVX(vslideup, VSLIDEUP_FUNCT6)
+DEFINE_OPIVI(vslideup, VSLIDEUP_FUNCT6)
+
+DEFINE_OPIVV(vmseq, VMSEQ_FUNCT6)
+DEFINE_OPIVX(vmseq, VMSEQ_FUNCT6)
+DEFINE_OPIVI(vmseq, VMSEQ_FUNCT6)
+
+DEFINE_OPIVV(vmsne, VMSNE_FUNCT6)
+DEFINE_OPIVX(vmsne, VMSNE_FUNCT6)
+DEFINE_OPIVI(vmsne, VMSNE_FUNCT6)
+
+DEFINE_OPIVV(vmsltu, VMSLTU_FUNCT6)
+DEFINE_OPIVX(vmsltu, VMSLTU_FUNCT6)
+
+DEFINE_OPIVV(vmslt, VMSLT_FUNCT6)
+DEFINE_OPIVX(vmslt, VMSLT_FUNCT6)
+
+DEFINE_OPIVV(vmsle, VMSLE_FUNCT6)
+DEFINE_OPIVX(vmsle, VMSLE_FUNCT6)
+DEFINE_OPIVI(vmsle, VMSLE_FUNCT6)
+
+DEFINE_OPIVV(vmsleu, VMSLEU_FUNCT6)
+DEFINE_OPIVX(vmsleu, VMSLEU_FUNCT6)
+DEFINE_OPIVI(vmsleu, VMSLEU_FUNCT6)
+
+DEFINE_OPIVI(vmsgt, VMSGT_FUNCT6)
+DEFINE_OPIVX(vmsgt, VMSGT_FUNCT6)
+
+DEFINE_OPIVI(vmsgtu, VMSGTU_FUNCT6)
+DEFINE_OPIVX(vmsgtu, VMSGTU_FUNCT6)
+
+DEFINE_OPIVV(vsrl, VSRL_FUNCT6)
+DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
+DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
+
+DEFINE_OPIVV(vsra, VSRA_FUNCT6)
+DEFINE_OPIVX(vsra, VSRA_FUNCT6)
+DEFINE_OPIVI(vsra, VSRA_FUNCT6)
+
+DEFINE_OPIVV(vsll, VSLL_FUNCT6)
+DEFINE_OPIVX(vsll, VSLL_FUNCT6)
+DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+
+DEFINE_OPIVV(vsmul, VSMUL_FUNCT6)
+DEFINE_OPIVX(vsmul, VSMUL_FUNCT6)
+
+DEFINE_OPFVV(vfadd, VFADD_FUNCT6)
+DEFINE_OPFVF(vfadd, VFADD_FUNCT6)
+DEFINE_OPFVV(vfsub, VFSUB_FUNCT6)
+DEFINE_OPFVF(vfsub, VFSUB_FUNCT6)
+DEFINE_OPFVV(vfdiv, VFDIV_FUNCT6)
+DEFINE_OPFVF(vfdiv, VFDIV_FUNCT6)
+DEFINE_OPFVV(vfmul, VFMUL_FUNCT6)
+DEFINE_OPFVF(vfmul, VFMUL_FUNCT6)
+DEFINE_OPFVV(vmfeq, VMFEQ_FUNCT6)
+DEFINE_OPFVV(vmfne, VMFNE_FUNCT6)
+DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
+DEFINE_OPFVV(vmfle, VMFLE_FUNCT6)
+DEFINE_OPFVV(vfmax, VFMAX_FUNCT6)
+DEFINE_OPFVV(vfmin, VFMIN_FUNCT6)
+
+// Vector Widening Floating-Point Add/Subtract Instructions
+DEFINE_OPFVV(vfwadd, VFWADD_FUNCT6)
+DEFINE_OPFVF(vfwadd, VFWADD_FUNCT6)
+DEFINE_OPFVV(vfwsub, VFWSUB_FUNCT6)
+DEFINE_OPFVF(vfwsub, VFWSUB_FUNCT6)
+DEFINE_OPFWV(vfwadd, VFWADD_W_FUNCT6)
+DEFINE_OPFWF(vfwadd, VFWADD_W_FUNCT6)
+DEFINE_OPFWV(vfwsub, VFWSUB_W_FUNCT6)
+DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
+
+// Vector Widening Floating-Point Reduction Instructions
+DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
+DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+
+// Vector Widening Floating-Point Multiply
+DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
+DEFINE_OPFVF(vfwmul, VFWMUL_FUNCT6)
+
+DEFINE_OPFRED(vfredmax, VFREDMAX_FUNCT6)
+
+DEFINE_OPFVV(vfsngj, VFSGNJ_FUNCT6)
+DEFINE_OPFVF(vfsngj, VFSGNJ_FUNCT6)
+DEFINE_OPFVV(vfsngjn, VFSGNJN_FUNCT6)
+DEFINE_OPFVF(vfsngjn, VFSGNJN_FUNCT6)
+DEFINE_OPFVV(vfsngjx, VFSGNJX_FUNCT6)
+DEFINE_OPFVF(vfsngjx, VFSGNJX_FUNCT6)
+
+// Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+DEFINE_OPFVV_FMA(vfmadd, VFMADD_FUNCT6)
+DEFINE_OPFVF_FMA(vfmadd, VFMADD_FUNCT6)
+DEFINE_OPFVV_FMA(vfmsub, VFMSUB_FUNCT6)
+DEFINE_OPFVF_FMA(vfmsub, VFMSUB_FUNCT6)
+DEFINE_OPFVV_FMA(vfmacc, VFMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfmacc, VFMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfmsac, VFMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfmsac, VFMSAC_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmadd, VFNMADD_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmadd, VFNMADD_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmsub, VFNMSUB_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmsub, VFNMSUB_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmacc, VFNMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmacc, VFNMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
+
+// Vector Widening Floating-Point Fused Multiply-Add Instructions
+DEFINE_OPFVV_FMA(vfwmacc, VFWMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfwmacc, VFWMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfwmsac, VFWMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfwmsac, VFWMSAC_FUNCT6)
+DEFINE_OPFVV_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+
+// Vector Narrowing Fixed-Point Clip Instructions
+DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVI(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVV(vnclipu, VNCLIPU_FUNCT6)
+DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
+DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
+
+// Vector Integer Extension
+DEFINE_OPMVV_VIE(vzext_vf8, 0b00010)
+DEFINE_OPMVV_VIE(vsext_vf8, 0b00011)
+DEFINE_OPMVV_VIE(vzext_vf4, 0b00100)
+DEFINE_OPMVV_VIE(vsext_vf4, 0b00101)
+DEFINE_OPMVV_VIE(vzext_vf2, 0b00110)
+DEFINE_OPMVV_VIE(vsext_vf2, 0b00111)
+
+#undef DEFINE_OPIVI
+#undef DEFINE_OPIVV
+#undef DEFINE_OPIVX
+#undef DEFINE_OPFVV
+#undef DEFINE_OPFWV
+#undef DEFINE_OPFVF
+#undef DEFINE_OPFWF
+#undef DEFINE_OPFVV_FMA
+#undef DEFINE_OPFVF_FMA
+#undef DEFINE_OPMVV_VIE
+
+void Assembler::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
+                        TailAgnosticType tail, MaskAgnosticType mask) {
+  int32_t zimm = GenZimm(vsew, vlmul, tail, mask);
+  Instr instr = OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
+                ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+                (((uint32_t)zimm << kRvvZimmShift) & kRvvZimmMask) | 0x0 << 31;
+  emit(instr);
+}
+
+void Assembler::vsetivli(Register rd, uint8_t uimm, VSew vsew, Vlmul vlmul,
+                         TailAgnosticType tail, MaskAgnosticType mask) {
+  DCHECK(is_uint5(uimm));
+  int32_t zimm = GenZimm(vsew, vlmul, tail, mask) & 0x3FF;
+  Instr instr = OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
+                ((uimm & 0x1F) << kRvvUimmShift) |
+                (((uint32_t)zimm << kRvvZimmShift) & kRvvZimmMask) | 0x3 << 30;
+  emit(instr);
+}
+
+void Assembler::vsetvl(Register rd, Register rs1, Register rs2) {
+  Instr instr = OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
+                ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+                ((rs2.code() & 0x1F) << kRvvRs2Shift) | 0x40 << 25;
+  emit(instr);
+}
+
+uint8_t vsew_switch(VSew vsew) {
+  uint8_t width;
+  switch (vsew) {
+    case E8:
+      width = 0b000;
+      break;
+    case E16:
+      width = 0b101;
+      break;
+    case E32:
+      width = 0b110;
+      break;
+    default:
+      width = 0b111;
+      break;
+  }
+  return width;
+}
+
+void Assembler::vl(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                   MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b000);
+}
+void Assembler::vls(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                    MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b000);
+}
+void Assembler::vlx(VRegister vd, Register rs1, VRegister vs2, VSew vsew,
+                    MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, vs2, mask, 0b11, 0, 0);
+}
+
+void Assembler::vs(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                   MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b000);
+}
+void Assembler::vss(VRegister vs3, Register rs1, Register rs2, VSew vsew,
+                    MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vs3, rs1, rs2, mask, 0b10, 0, 0b000);
+}
+
+void Assembler::vsx(VRegister vd, Register rs1, VRegister vs2, VSew vsew,
+                    MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, vs2, mask, 0b11, 0, 0b000);
+}
+void Assembler::vsu(VRegister vd, Register rs1, VRegister vs2, VSew vsew,
+                    MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, vs2, mask, 0b01, 0, 0b000);
+}
+
+void Assembler::vlseg2(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b001);
+}
+
+void Assembler::vlseg3(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b010);
+}
+
+void Assembler::vlseg4(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b011);
+}
+
+void Assembler::vlseg5(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b100);
+}
+
+void Assembler::vlseg6(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b101);
+}
+
+void Assembler::vlseg7(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b110);
+}
+
+void Assembler::vlseg8(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b111);
+}
+void Assembler::vsseg2(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b001);
+}
+void Assembler::vsseg3(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b010);
+}
+void Assembler::vsseg4(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b011);
+}
+void Assembler::vsseg5(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b100);
+}
+void Assembler::vsseg6(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b101);
+}
+void Assembler::vsseg7(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b110);
+}
+void Assembler::vsseg8(VRegister vd, Register rs1, uint8_t sumop, VSew vsew,
+                       MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, sumop, mask, 0b00, 0, 0b111);
+}
+
+void Assembler::vlsseg2(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b001);
+}
+void Assembler::vlsseg3(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b010);
+}
+void Assembler::vlsseg4(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b011);
+}
+void Assembler::vlsseg5(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b100);
+}
+void Assembler::vlsseg6(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b101);
+}
+void Assembler::vlsseg7(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b110);
+}
+void Assembler::vlsseg8(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b111);
+}
+void Assembler::vssseg2(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b001);
+}
+void Assembler::vssseg3(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b010);
+}
+void Assembler::vssseg4(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b011);
+}
+void Assembler::vssseg5(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b100);
+}
+void Assembler::vssseg6(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b101);
+}
+void Assembler::vssseg7(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b110);
+}
+void Assembler::vssseg8(VRegister vd, Register rs1, Register rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b10, 0, 0b111);
+}
+
+void Assembler::vlxseg2(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b001);
+}
+void Assembler::vlxseg3(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b010);
+}
+void Assembler::vlxseg4(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b011);
+}
+void Assembler::vlxseg5(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b100);
+}
+void Assembler::vlxseg6(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b101);
+}
+void Assembler::vlxseg7(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b110);
+}
+void Assembler::vlxseg8(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(LOAD_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b111);
+}
+void Assembler::vsxseg2(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b001);
+}
+void Assembler::vsxseg3(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b010);
+}
+void Assembler::vsxseg4(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b011);
+}
+void Assembler::vsxseg5(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b100);
+}
+void Assembler::vsxseg6(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b101);
+}
+void Assembler::vsxseg7(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b110);
+}
+void Assembler::vsxseg8(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
+                        MaskType mask) {
+  uint8_t width = vsew_switch(vsew);
+  GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b111);
+}
+
+void Assembler::vfirst_m(Register rd, VRegister vs2, MaskType mask) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b10001, vs2, mask);
+}
+
+void Assembler::vcpop_m(Register rd, VRegister vs2, MaskType mask) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b10000, vs2, mask);
+}
+
+// Privileged
 void Assembler::uret() {
   GenInstrPriv(0b0000000, ToRegister(0), ToRegister(0b00010));
 }
@@ -2442,12 +3449,10 @@ int Assembler::li_estimate(int64_t imm, bool is_get_temp_reg) {
     // plus the number of zeros between the parts. Each part is added after the
     // left shift.
     uint32_t mask = 0x80000000;
-    int32_t shift_val = 0;
     int32_t i;
     for (i = 0; i < 32; i++) {
       if ((low_32 & mask) == 0) {
         mask >>= 1;
-        shift_val++;
         if (i == 31) {
           // rest is zero
           count++;
@@ -2455,21 +3460,17 @@ int Assembler::li_estimate(int64_t imm, bool is_get_temp_reg) {
         continue;
       }
       // The first 1 seen
-      int32_t part;
       if ((i + 11) < 32) {
         // Pick 11 bits
-        part = ((uint32_t)(low_32 << i) >> i) >> (32 - (i + 11));
         count++;
         count++;
         i += 10;
         mask >>= 11;
       } else {
-        part = (uint32_t)(low_32 << i) >> i;
         count++;
         count++;
         break;
       }
-      shift_val = 0;
     }
   }
   return count;
@@ -2480,7 +3481,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   // Pointers are 48 bits
   // 6 fixed instructions are generated
   DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-  int64_t a6 = imm & 0x3f;                      // bits 0:6. 6 bits
+  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
   int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
   int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
@@ -2563,11 +3564,25 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src, Register scratch,
   // for a load/store when the offset doesn't fit into int12.
 
   // Must not overwrite the register 'base' while loading 'offset'.
-  DCHECK(src->rm() != scratch);
-
-  RV_li(scratch, src->offset());
-  add(scratch, scratch, src->rm());
-  src->offset_ = 0;
+  constexpr int32_t kMinOffsetForSimpleAdjustment = 0x7F8;
+  constexpr int32_t kMaxOffsetForSimpleAdjustment =
+      2 * kMinOffsetForSimpleAdjustment;
+  if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
+    addi(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
+    src->offset_ -= kMinOffsetForSimpleAdjustment;
+  } else if (-kMaxOffsetForSimpleAdjustment <= src->offset() &&
+             src->offset() < 0) {
+    addi(scratch, src->rm(), -kMinOffsetForSimpleAdjustment);
+    src->offset_ += kMinOffsetForSimpleAdjustment;
+  } else if (access_type == OffsetAccessType::SINGLE_ACCESS) {
+    RV_li(scratch, (static_cast<int64_t>(src->offset()) + 0x800) >> 12 << 12);
+    add(scratch, scratch, src->rm());
+    src->offset_ = src->offset() << 20 >> 20;
+  } else {
+    RV_li(scratch, src->offset());
+    add(scratch, scratch, src->rm());
+    src->offset_ = 0;
+  }
   src->rm_ = scratch;
 }
 
@@ -2590,7 +3605,22 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     return 8;  // Number of instructions patched.
   } else {
     UNIMPLEMENTED();
-    return 1;
+  }
+}
+
+void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                          intptr_t pc_delta) {
+  Instr instr = instr_at(pc);
+  Instr instr1 = instr_at(pc + 1 * kInstrSize);
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  if (IsAuipc(instr) && IsJalr(instr1)) {
+    int32_t imm;
+    imm = BrachlongOffset(instr, instr1);
+    imm -= pc_delta;
+    PatchBranchlongOffset(pc, instr, instr1, imm);
+    return;
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -2628,14 +3658,16 @@ void Assembler::GrowBuffer() {
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate runtime entries.
-  Vector<byte> instructions{buffer_start_, pc_offset()};
-  Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+  base::Vector<byte> instructions{buffer_start_,
+                                  static_cast<size_t>(pc_offset())};
+  base::Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
   for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE) {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
+
   DCHECK(!overflow());
 }
 
@@ -2646,8 +3678,9 @@ void Assembler::db(uint8_t data) {
 }
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();
@@ -2656,8 +3689,9 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 }
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();
@@ -2732,7 +3766,7 @@ void Assembler::CheckTrampolinePool() {
       for (int i = 0; i < unbound_labels_count_; i++) {
         int64_t imm64;
         imm64 = branch_long_offset(&after_pool);
-        DCHECK(is_int32(imm64));
+        CHECK(is_int32(imm64 + 0x800));
         int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
         int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
         auipc(t6, Hi20);  // Read PC + Hi20 into t6
@@ -2764,12 +3798,23 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       ICacheFlushMode icache_flush_mode) {
   Instr* instr = reinterpret_cast<Instr*>(pc);
   if (IsAuipc(*instr)) {
-    DCHECK(IsLd(*reinterpret_cast<Instr*>(pc + 4)));
-    int32_t Hi20 = AuipcOffset(*instr);
-    int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
-    Memory<Address>(pc + Hi20 + Lo12) = target;
-    if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
+    if (IsLd(*reinterpret_cast<Instr*>(pc + 4))) {
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
+      Memory<Address>(pc + Hi20 + Lo12) = target;
+      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+        FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
+      }
+    } else {
+      DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
+      int64_t imm = (int64_t)target - (int64_t)pc;
+      Instr instr = instr_at(pc);
+      Instr instr1 = instr_at(pc + 1 * kInstrSize);
+      DCHECK(is_int32(imm + 0x800));
+      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm);
+      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+        FlushInstructionCache(pc, num * kInstrSize);
+      }
     }
   } else {
     set_target_address_at(pc, target, icache_flush_mode);
@@ -2779,10 +3824,17 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   Instr* instr = reinterpret_cast<Instr*>(pc);
   if (IsAuipc(*instr)) {
-    DCHECK(IsLd(*reinterpret_cast<Instr*>(pc + 4)));
-    int32_t Hi20 = AuipcOffset(*instr);
-    int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
-    return Memory<Address>(pc + Hi20 + Lo12);
+    if (IsLd(*reinterpret_cast<Instr*>(pc + 4))) {
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = LdOffset(*reinterpret_cast<Instr*>(pc + 4));
+      return Memory<Address>(pc + Hi20 + Lo12);
+    } else {
+      DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
+      int32_t Hi20 = AuipcOffset(*instr);
+      int32_t Lo12 = JalrOffset(*reinterpret_cast<Instr*>(pc + 4));
+      return pc + Hi20 + Lo12;
+    }
+
   } else {
     return target_address_at(pc);
   }
@@ -2876,29 +3928,32 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 
 Register UseScratchRegisterScope::Acquire() {
   DCHECK_NOT_NULL(available_);
-  DCHECK_NE(*available_, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
-  *available_ &= ~(1UL << index);
+  DCHECK(!available_->is_empty());
+  int index =
+      static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
+  *available_ &= RegList::FromBits(~(1U << index));
 
   return Register::from_code(index);
 }
 
-bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
+bool UseScratchRegisterScope::hasAvailable() const {
+  return !available_->is_empty();
+}
 
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ld x0, t3, #offset
+  // 0: ld x0, x0, #offset
   Instr instr_value = *reinterpret_cast<Instr*>(instr);
-
-  bool result = IsLd(instr_value) && (instr->RdValue() == kRegCode_zero_reg);
-  // It is still worth asserting the marker is complete.
-  // 4: j 0
+  bool result = IsLd(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
+                (instr->RdValue() == kRegCode_zero_reg);
 #ifdef DEBUG
-  Instruction* instr_fllowing = instr + kInstrSize;
-  DCHECK(!result || (IsJal(*reinterpret_cast<Instr*>(instr_fllowing)) &&
-                     instr_fllowing->Imm20JValue() == 0 &&
-                     instr_fllowing->RdValue() == kRegCode_zero_reg));
+  // It is still worth asserting the marker is complete.
+  // 1: j 0x0
+  Instruction* instr_following = instr + kInstrSize;
+  DCHECK(!result || (IsJal(*reinterpret_cast<Instr*>(instr_following)) &&
+                     instr_following->Imm20JValue() == 0 &&
+                     instr_following->RdValue() == kRegCode_zero_reg));
 #endif
   return result;
 }
@@ -2939,9 +3994,9 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
-  //   j   over  ;; if require_jump
-  //   ld x0, t3, #pool_size
-  //   j xzr
+  //   j over  ;; if require_jump
+  //   ld x0, x0, #pool_size
+  //   j 0x0
   int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
   prologue_size += 2 * kInstrSize;
   return prologue_size;
@@ -2952,7 +4007,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
                                                  const ConstantPoolKey& key) {
   Instr instr_auipc = assm_->instr_at(load_offset);
   Instr instr_ld = assm_->instr_at(load_offset + 4);
-  // Instruction to patch must be 'ld t3, t3, offset' with offset == kInstrSize.
+  // Instruction to patch must be 'ld rd, offset(rd)' with 'offset == 0'.
   DCHECK(assm_->IsAuipc(instr_auipc));
   DCHECK(assm_->IsLd(instr_ld));
   DCHECK_EQ(assm_->LdOffset(instr_ld), 0);
@@ -2960,9 +4015,9 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   int32_t distance = static_cast<int32_t>(
       reinterpret_cast<Address>(entry_offset) -
       reinterpret_cast<Address>(assm_->toAddress(load_offset)));
+  CHECK(is_int32(distance + 0x800));
   int32_t Hi20 = (((int32_t)distance + 0x800) >> 12);
   int32_t Lo12 = (int32_t)distance << 20 >> 20;
-  CHECK(is_int32(distance));
   assm_->instr_at_put(load_offset, SetAuipcOffset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLdOffset(Lo12, instr_ld));
 }
@@ -2999,6 +4054,26 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
   // Since a constant pool is (now) empty, move the check offset forward by
   // the standard interval.
   SetNextCheckIn(ConstantPool::kCheckInterval);
+}
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      *this = LoadStoreLaneParams(laneidx, 8, kRvvVLEN / 16);
+      break;
+    case MachineRepresentation::kWord16:
+      *this = LoadStoreLaneParams(laneidx, 16, kRvvVLEN / 8);
+      break;
+    case MachineRepresentation::kWord32:
+      *this = LoadStoreLaneParams(laneidx, 32, kRvvVLEN / 4);
+      break;
+    case MachineRepresentation::kWord64:
+      *this = LoadStoreLaneParams(laneidx, 64, kRvvVLEN / 2);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 // Pool entries are accessed with pc relative load therefore this cannot be more

@@ -4,10 +4,11 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
+#include "src/base/vector.h"
 #include "src/init/v8.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
-#include "src/utils/vector.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -20,6 +21,7 @@
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/common/wasm/wasm-module-runner.h"
 
 namespace v8 {
 namespace internal {
@@ -27,10 +29,7 @@ namespace wasm {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
@@ -189,7 +188,7 @@ class StreamTester {
     Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmFeatures::All(), v8::Utils::OpenHandle(*context),
         "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
@@ -213,13 +212,13 @@ class StreamTester {
   bool IsPromisePending() { return state_ == CompilationState::kPending; }
 
   void OnBytesReceived(const uint8_t* start, size_t length) {
-    stream_->OnBytesReceived(Vector<const uint8_t>(start, length));
+    stream_->OnBytesReceived(base::Vector<const uint8_t>(start, length));
   }
 
   void FinishStream() { stream_->Finish(); }
 
   void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(Vector<const uint8_t>(start, length));
+    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
   }
 
   Zone* zone() { return &zone_; }
@@ -237,25 +236,18 @@ class StreamTester {
 };
 }  // namespace
 
-#define RUN_STREAM(name)                                                   \
-  MockPlatform mock_platform;                                              \
-  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
-  v8::Isolate::CreateParams create_params;                                 \
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
-  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
-  {                                                                        \
-    v8::HandleScope handle_scope(isolate);                                 \
-    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
-    v8::Context::Scope context_scope(context);                             \
-    RunStream_##name(&mock_platform, isolate);                             \
-  }                                                                        \
-  isolate->Dispose();
+#define RUN_STREAM(name)                                      \
+  v8::Isolate* isolate = CcTest::isolate();                   \
+  v8::HandleScope handle_scope(isolate);                      \
+  v8::Local<v8::Context> context = v8::Context::New(isolate); \
+  v8::Context::Scope context_scope(context);                  \
+  RunStream_##name(&platform, isolate);
 
 #define STREAM_TEST(name)                                                     \
   void RunStream_##name(MockPlatform*, v8::Isolate*);                         \
-  UNINITIALIZED_TEST(Async##name) { RUN_STREAM(name); }                       \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_STREAM(name); }         \
                                                                               \
-  UNINITIALIZED_TEST(SingleThreaded##name) {                                  \
+  TEST_WITH_PLATFORM(SingleThreaded##name, MockPlatform) {                    \
     i::FlagScope<bool> single_threaded_scope(&i::FLAG_single_threaded, true); \
     RUN_STREAM(name);                                                         \
   }                                                                           \
@@ -302,7 +294,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   i::wasm::WasmSerializer serializer(native_module.get());
   size_t size = serializer.GetSerializedNativeModuleSize();
   std::vector<byte> buffer(size);
-  CHECK(serializer.SerializeNativeModule(VectorOf(buffer)));
+  CHECK(serializer.SerializeNativeModule(base::VectorOf(buffer)));
   ZoneBuffer result(zone, size);
   result.write(buffer.data(), size);
   return result;
@@ -343,7 +335,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
       WasmFeatures::All(), buffer, buffer + size, false,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSyncStream, isolate->wasm_engine()->allocator());
+      DecodingMethod::kSyncStream, GetWasmEngine()->allocator());
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
@@ -393,7 +385,7 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
   TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   // Add an invalid global to the module. The decoder will fail there.
-  builder.AddGlobal(kWasmStmt, true, WasmInitExpr::GlobalGet(12));
+  builder.AddGlobal(kWasmVoid, true, WasmInitExpr::GlobalGet(12));
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
     uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
@@ -1092,7 +1084,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   ZoneBuffer buffer(tester.zone());
   TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
-  builder.AddImport(ArrayVector("Test"), sigs.i_iii());
+  builder.AddImport(base::ArrayVector("Test"), sigs.i_iii());
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
     uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
@@ -1106,6 +1098,96 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   tester.RunCompilerTasks();
 
   CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestIncrementalCaching) {
+  FLAG_VALUE_SCOPE(wasm_dynamic_tiering, true);
+  FLAG_VALUE_SCOPE(wasm_tier_up, false);
+  constexpr int threshold = 10;
+  FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, threshold);
+  StreamTester tester(isolate);
+  int call_cache_counter = 0;
+  tester.stream()->SetModuleCompiledCallback(
+      [&call_cache_counter](
+          const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+        call_cache_counter++;
+      });
+
+  ZoneBuffer buffer(tester.zone());
+  TestSignatures sigs;
+  WasmModuleBuilder builder(tester.zone());
+  builder.SetMinMemorySize(1);
+
+  base::Vector<const char> function_names[] = {
+      base::CStrVector("f0"), base::CStrVector("f1"), base::CStrVector("f2")};
+  for (int i = 0; i < 3; ++i) {
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
+
+    constexpr int64_t val = 0x123456789abc;
+    constexpr int index = 0x1234;
+    uint8_t store_mem[] = {
+        WASM_STORE_MEM(MachineType::Int64(), WASM_I32V(index), WASM_I64V(val))};
+    constexpr uint32_t kStoreLength = 20;
+    CHECK_EQ(kStoreLength, arraysize(store_mem));
+
+    // Produce a store {threshold} many times to reach the caching threshold.
+    constexpr uint32_t kCodeLength = kStoreLength * threshold + 1;
+    uint8_t code[kCodeLength];
+    for (int j = 0; j < threshold; ++j) {
+      memcpy(code + (j * kStoreLength), store_mem, kStoreLength);
+    }
+    code[kCodeLength - 1] = WasmOpcode::kExprEnd;
+    f->EmitCode(code, kCodeLength);
+    builder.AddExport(function_names[i], f);
+  }
+  builder.WriteTo(&buffer);
+  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+  tester.native_module();
+  constexpr base::Vector<const char> kNoSourceUrl{"", 0};
+  Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  Handle<Script> script = GetWasmEngine()->GetOrCreateScript(
+      i_isolate, tester.native_module(), kNoSourceUrl);
+  Handle<FixedArray> export_wrappers = i_isolate->factory()->NewFixedArray(3);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      i_isolate, tester.native_module(), script, export_wrappers);
+  ErrorThrower thrower(i_isolate, "Instantiation");
+  // We instantiated before, so the second instantiation must also succeed:
+  Handle<WasmInstanceObject> instance =
+      GetWasmEngine()
+          ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+          .ToHandleChecked();
+  CHECK(!thrower.error());
+
+  WasmCodeRefScope code_scope;
+  CHECK(tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  // No TurboFan compilation happened yet, and therefore no call to the cache.
+  CHECK_EQ(0, call_cache_counter);
+  i::wasm::TriggerTierUp(i_isolate, tester.native_module().get(), 0, instance);
+  tester.RunCompilerTasks();
+  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK_EQ(1, call_cache_counter);
+  size_t serialized_size;
+  {
+    i::wasm::WasmSerializer serializer(tester.native_module().get());
+    serialized_size = serializer.GetSerializedNativeModuleSize();
+  }
+  i::wasm::TriggerTierUp(i_isolate, tester.native_module().get(), 1, instance);
+  tester.RunCompilerTasks();
+  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(!tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK_EQ(2, call_cache_counter);
+  {
+    i::wasm::WasmSerializer serializer(tester.native_module().get());
+    CHECK_LT(serialized_size, serializer.GetSerializedNativeModuleSize());
+  }
 }
 
 STREAM_TEST(TestModuleWithErrorAfterDataSection) {
@@ -1144,6 +1226,7 @@ STREAM_TEST(TestModuleWithErrorAfterDataSection) {
 
 // Test that cached bytes work.
 STREAM_TEST(TestDeserializationBypassesCompilation) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
   ZoneBuffer module_bytes =
@@ -1159,6 +1242,7 @@ STREAM_TEST(TestDeserializationBypassesCompilation) {
 
 // Test that bad cached bytes don't cause compilation of wire bytes to fail.
 STREAM_TEST(TestDeserializationFails) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
   ZoneBuffer module_bytes =
@@ -1202,6 +1286,7 @@ STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
 }
 
 STREAM_TEST(TestSetModuleCompiledCallback) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   bool callback_called = false;
   tester.stream()->SetModuleCompiledCallback(
@@ -1264,19 +1349,19 @@ STREAM_TEST(TestCompileErrorFunctionName) {
   };
 
   const uint8_t bytes_names[] = {
-      kUnknownSectionCode,             // section code
-      U32V_1(11),                      // section size
-      4,                               // section name length
-      'n',                             // section name
-      'a',                             // section name
-      'm',                             // section name
-      'e',                             // section name
-      NameSectionKindCode::kFunction,  // name section kind
-      4,                               // name section kind length
-      1,                               // num function names
-      0,                               // function index
-      1,                               // function name length
-      'f',                             // function name
+      kUnknownSectionCode,                 // section code
+      U32V_1(11),                          // section size
+      4,                                   // section name length
+      'n',                                 // section name
+      'a',                                 // section name
+      'm',                                 // section name
+      'e',                                 // section name
+      NameSectionKindCode::kFunctionCode,  // name section kind
+      4,                                   // name section kind length
+      1,                                   // num function names
+      0,                                   // function index
+      1,                                   // function name length
+      'f',                                 // function name
   };
 
   for (bool late_names : {false, true}) {
@@ -1345,7 +1430,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
     uint8_t code[] = {kExprEnd};
     f->EmitCode(code, arraysize(code));
-    builder.AddExport(VectorOf("foo", 3), f);
+    builder.AddExport(base::VectorOf("foo", 3), f);
     builder.WriteTo(&buffer);
   }
 
@@ -1360,7 +1445,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
 
   // Trigger code logging explicitly like the profiler would do.
   CHECK(WasmCode::ShouldBeLogged(i_isolate));
-  i_isolate->wasm_engine()->LogOutstandingCodesForIsolate(i_isolate);
+  GetWasmEngine()->LogOutstandingCodesForIsolate(i_isolate);
   CHECK(tester.IsPromisePending());
 
   // Finalize stream, stop profiler and clean up.
@@ -1387,7 +1472,7 @@ STREAM_TEST(TierDownWithError) {
     builder.WriteTo(&buffer);
   }
 
-  i_isolate->wasm_engine()->TierDownAllModulesPerIsolate(i_isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(i_isolate);
 
   tester.OnBytesReceived(buffer.begin(), buffer.size());
   tester.FinishStream();

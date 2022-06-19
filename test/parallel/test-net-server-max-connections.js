@@ -68,7 +68,7 @@ function makeConnection(index) {
       if (closes === N / 2) {
         let cb;
         console.error('calling wait callback.');
-        while (cb = waits.shift()) {
+        while ((cb = waits.shift()) !== undefined) {
           cb();
         }
         server.close();

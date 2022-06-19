@@ -25,15 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/builtins/accessors.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -78,14 +78,15 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
 
   // Map space.
-  heap::SimulateFullSpace(heap->map_space());
+  heap::SimulateFullSpace(heap->space_for_maps());
   obj = heap->AllocateRaw(Map::kSize, AllocationType::kMap).ToObjectChecked();
   heap->CreateFillerObjectAt(obj.address(), Map::kSize,
                              ClearRecordedSlots::kNo);
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
+  CodePageCollectionMemoryModificationScope code_scope(heap);
+  size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal).Size();
   obj =
       heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
           .ToObjectChecked();
@@ -139,7 +140,7 @@ TEST(StressJS) {
 
   Handle<NativeContext> context(isolate->native_context());
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtins::kEmptyFunction);
+      factory->function_string(), Builtin::kEmptyFunction);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();
@@ -151,7 +152,7 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map(), isolate);
   Handle<DescriptorArray> instance_descriptors(
-      map->instance_descriptors(kRelaxedLoad), isolate);
+      map->instance_descriptors(isolate), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;

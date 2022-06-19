@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-reftypes
+// Flags: --experimental-wasm-type-reflection
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
   let table = new WebAssembly.Table({initial: 1, element: "externref"});
-  let type = WebAssembly.Table.type(table);
+  let type = table.type();
   assertEquals(1, type.minimum);
   assertEquals("externref", type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   table = new WebAssembly.Table({initial: 2, maximum: 15, element: "externref"});
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
   assertEquals("externref", type.element);
@@ -23,20 +23,26 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestGlobalType() {
   let global = new WebAssembly.Global({value: "externref", mutable: true});
-  let type = WebAssembly.Global.type(global);
+  let type = global.type();
   assertEquals("externref", type.value);
   assertEquals(true, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "externref"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("externref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
+  global = new WebAssembly.Global({value: "funcref"});
+  type = global.type();
+  assertEquals("funcref", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
   global = new WebAssembly.Global({value: "anyfunc"});
-  type = WebAssembly.Global.type(global);
-  assertEquals("anyfunc", type.value);
+  type = global.type();
+  assertEquals("funcref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
@@ -73,9 +79,6 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(fun2, instance.exports.get_global());
 })();
 
-// This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to
-// multiple table indexes. If --experimental-wasm-reftypes is enabled by default
-// this test case can supersede the other one.
 (function TestFunctionMultiTableSetAndCall() {
   let builder = new WasmModuleBuilder();
   let v1 = 7; let v2 = 9; let v3 = 0.0;

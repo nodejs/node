@@ -50,7 +50,7 @@ struct DayPeriodRulesDataSink : public ResourceSink {
     }
     virtual ~DayPeriodRulesDataSink();
 
-    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) override {
         ResourceTable dayPeriodData = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
 
@@ -282,7 +282,7 @@ struct DayPeriodRulesDataSink : public ResourceSink {
 struct DayPeriodRulesCountSink : public ResourceSink {
     virtual ~DayPeriodRulesCountSink();
 
-    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) override {
         ResourceTable rules = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
 

@@ -234,6 +234,12 @@ class FileHandleReadWrap final : public ReqWrap<uv_fs_t> {
 // the object is garbage collected
 class FileHandle final : public AsyncWrap, public StreamBase {
  public:
+  enum InternalFields {
+    kFileHandleBaseField = StreamBase::kInternalFieldCount,
+    kClosingPromiseSlot,
+    kInternalFieldCount
+  };
+
   static FileHandle* New(BindingData* binding_data,
                          int fd,
                          v8::Local<v8::Object> obj = v8::Local<v8::Object>());

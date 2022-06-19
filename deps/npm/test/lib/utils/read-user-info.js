@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let readOpts = null
 let readResult = null
@@ -8,33 +7,41 @@ const read = (opts, cb) => {
   return cb(null, readResult)
 }
 
-const npmlog = {
-  clearProgress: () => {},
-  showProgress: () => {},
-}
-
 const npmUserValidate = {
   username: (username) => {
-    if (username === 'invalid')
+    if (username === 'invalid') {
       return new Error('invalid username')
+    }
 
     return null
   },
   email: (email) => {
-    if (email.startsWith('invalid'))
+    if (email.startsWith('invalid')) {
       return new Error('invalid email')
+    }
 
     return null
   },
 }
 
-const readUserInfo = requireInject('../../../lib/utils/read-user-info.js', {
+let logMsg = null
+const readUserInfo = t.mock('../../../lib/utils/read-user-info.js', {
   read,
-  npmlog,
+  npmlog: {
+    clearProgress: () => {},
+    showProgress: () => {},
+  },
+  'proc-log': {
+    warn: (msg) => logMsg = msg,
+  },
   'npm-user-validate': npmUserValidate,
 })
 
-test('otp', async (t) => {
+t.beforeEach(() => {
+  logMsg = null
+})
+
+t.test('otp', async (t) => {
   readResult = '1234'
   t.teardown(() => {
     readResult = null
@@ -44,7 +51,7 @@ test('otp', async (t) => {
   t.equal(result, '1234', 'received the otp')
 })
 
-test('password', async (t) => {
+t.test('password', async (t) => {
   readResult = 'password'
   t.teardown(() => {
     readResult = null
@@ -57,7 +64,7 @@ test('password', async (t) => {
   }, 'got the correct options')
 })
 
-test('username', async (t) => {
+t.test('username', async (t) => {
   readResult = 'username'
   t.teardown(() => {
     readResult = null
@@ -67,18 +74,14 @@ test('username', async (t) => {
   t.equal(result, 'username', 'received the username')
 })
 
-test('username - invalid warns and retries', async (t) => {
+t.test('username - invalid warns and retries', async (t) => {
   readResult = 'invalid'
   t.teardown(() => {
     readResult = null
     readOpts = null
   })
 
-  let logMsg
-  const log = {
-    warn: (msg) => logMsg = msg,
-  }
-  const pResult = readUserInfo.username(null, null, { log })
+  const pResult = readUserInfo.username(null, null)
   // have to swap it to a valid username after execution starts
   // or it will loop forever
   readResult = 'valid'
@@ -87,7 +90,7 @@ test('username - invalid warns and retries', async (t) => {
   t.equal(logMsg, 'invalid username')
 })
 
-test('email', async (t) => {
+t.test('email', async (t) => {
   readResult = 'foo@bar.baz'
   t.teardown(() => {
     readResult = null
@@ -97,18 +100,14 @@ test('email', async (t) => {
   t.equal(result, 'foo@bar.baz', 'received the email')
 })
 
-test('email - invalid warns and retries', async (t) => {
+t.test('email - invalid warns and retries', async (t) => {
   readResult = 'invalid@bar.baz'
   t.teardown(() => {
     readResult = null
     readOpts = null
   })
 
-  let logMsg
-  const log = {
-    warn: (msg) => logMsg = msg,
-  }
-  const pResult = readUserInfo.email(null, null, { log })
+  const pResult = readUserInfo.email(null, null)
   readResult = 'foo@bar.baz'
   const result = await pResult
   t.equal(result, 'foo@bar.baz', 'received the email')

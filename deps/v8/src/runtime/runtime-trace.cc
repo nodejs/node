@@ -26,9 +26,7 @@ namespace internal {
 namespace {
 
 void AdvanceToOffsetForTracing(
-    interpreter::BytecodeArrayIterator&
-        bytecode_iterator,  // NOLINT(runtime/references)
-    int offset) {
+    interpreter::BytecodeArrayIterator& bytecode_iterator, int offset) {
   while (bytecode_iterator.current_offset() +
              bytecode_iterator.current_bytecode_size() <=
          offset) {
@@ -40,9 +38,22 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
+void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
+                        interpreter::BytecodeArrayIterator& bytecode_iterator,
+                        const int& reg_field_width, const char* arrow_direction,
+                        interpreter::Register first_reg, int range) {
+  for (int reg_index = first_reg.index(); reg_index < first_reg.index() + range;
+       reg_index++) {
+    Object reg_object = frame->ReadInterpreterRegister(reg_index);
+    os << "      [ " << std::setw(reg_field_width)
+       << interpreter::Register(reg_index).ToString() << arrow_direction;
+    reg_object.ShortPrint(os);
+    os << " ]" << std::endl;
+  }
+}
+
 void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayAccessor&
-                        bytecode_accessor,  // NOLINT(runtime/references)
+                    interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
@@ -54,7 +65,7 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
-  interpreter::Bytecode bytecode = bytecode_accessor.current_bytecode();
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
 
   // Print accumulator.
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
@@ -75,19 +86,16 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
             : interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
     if (should_print) {
       interpreter::Register first_reg =
-          bytecode_accessor.GetRegisterOperand(operand_index);
-      int range = bytecode_accessor.GetRegisterOperandRange(operand_index);
-      for (int reg_index = first_reg.index();
-           reg_index < first_reg.index() + range; reg_index++) {
-        Object reg_object = frame->ReadInterpreterRegister(reg_index);
-        os << "      [ " << std::setw(kRegFieldWidth)
-           << interpreter::Register(reg_index).ToString(
-                  bytecode_accessor.bytecode_array()->parameter_count())
-           << kArrowDirection;
-        reg_object.ShortPrint(os);
-        os << " ]" << std::endl;
-      }
+          bytecode_iterator.GetRegisterOperand(operand_index);
+      int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
+      PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                         kArrowDirection, first_reg, range);
     }
+  }
+  if (!is_input && interpreter::Bytecodes::IsShortStar(bytecode)) {
+    PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                       kArrowDirection,
+                       interpreter::Register::FromShortStar(bytecode), 1);
   }
   if (FLAG_log_colour) {
     os << kNormalColourCode;
@@ -114,9 +122,9 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
-  CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
+  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  int bytecode_offset = args.smi_value_at(1);
+  Handle<Object> accumulator = args.at(2);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -136,8 +144,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     }
     os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
        << offset << " : ";
-    interpreter::BytecodeDecoder::Decode(os, bytecode_address,
-                                         bytecode_array->parameter_count());
+    interpreter::BytecodeDecoder::Decode(os, bytecode_address);
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(frame, os, true, bytecode_iterator, accumulator);
@@ -165,9 +172,9 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
-  CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
+  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  int bytecode_offset = args.smi_value_at(1);
+  Handle<Object> accumulator = args.at(2);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -198,9 +205,9 @@ RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_SMI_ARG_CHECKED(slot, 1);
-  CONVERT_ARG_CHECKED(String, reason, 2);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  int slot = args.smi_value_at(1);
+  auto reason = String::cast(args[2]);
 
   int slot_count = function->feedback_vector().metadata().slot_count();
 

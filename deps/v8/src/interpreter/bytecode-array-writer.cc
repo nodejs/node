@@ -37,9 +37,9 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    LocalIsolate* isolate, int register_count, int parameter_count,
+    IsolateT* isolate, int register_count, int parameter_count,
     Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
@@ -63,9 +63,9 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate, int register_count, int parameter_count,
         Handle<ByteArray> handler_table);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
   Handle<ByteArray> source_position_table =
       source_position_table_builder_.Omit()
@@ -164,6 +164,8 @@ void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
 void BytecodeArrayWriter::BindLoopHeader(BytecodeLoopHeader* loop_header) {
   size_t current_offset = bytecodes()->size();
   loop_header->bind_to(current_offset);
+  // Don't start a basic block when the entire loop is dead.
+  if (exit_seen_in_block_) return;
   StartBasicBlock();
 }
 
@@ -236,6 +238,7 @@ void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
     case Bytecode::kReThrow:
     case Bytecode::kAbort:
     case Bytecode::kJump:
+    case Bytecode::kJumpLoop:
     case Bytecode::kJumpConstant:
     case Bytecode::kSuspendGenerator:
       exit_seen_in_block_ = true;
@@ -291,7 +294,6 @@ void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
     switch (operand_sizes[i]) {
       case OperandSize::kNone:
         UNREACHABLE();
-        break;
       case OperandSize::kByte:
         bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
         break;

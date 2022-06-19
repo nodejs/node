@@ -213,7 +213,7 @@
                 string-start)
       (setq string-start (gyp-parse-to limit))
       (if string-start
-          (setq group (case (gyp-section-at-point)
+          (setq group (cl-case (gyp-section-at-point)
                         ('dependencies 1)
                         ('variables 2)
                         ('conditions 2)

@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "1" "March 2021" "" ""
+.TH "NPM\-CONFIG" "1" "June 2022" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SS Synopsis
@@ -10,8 +10,6 @@ npm config get [<key> [<key> \.\.\.]]
 npm config delete <key> [<key> \.\.\.]
 npm config list [\-\-json]
 npm config edit
-npm set <key>=<value> [<key>=<value> \.\.\.]
-npm get [<key> [<key> \.\.\.]]
 
 alias: c
 .fi
@@ -94,6 +92,93 @@ npm config edit
 .P
 Opens the config file in an editor\.  Use the \fB\-\-global\fP flag to edit the
 global config\.
+.SS Configuration
+.SS \fBjson\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBeditor\fP
+.RS 0
+.IP \(bu 2
+Default: The EDITOR or VISUAL environment variables, or 'notepad\.exe' on
+Windows, or 'vim' on Unix systems
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
+.SS \fBlocation\fP
+.RS 0
+.IP \(bu 2
+Default: "user" unless \fB\-\-global\fP is passed, which will also set this value
+to "global"
+.IP \(bu 2
+Type: "global", "user", or "project"
+
+.RE
+.P
+When passed to \fBnpm config\fP this refers to which config file to use\.
+.P
+When set to "global" mode, packages are installed into the \fBprefix\fP folder
+instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBlong\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information in \fBls\fP, \fBsearch\fP, and \fBhelp\-search\fP\|\.
 .SS See Also
 .RS 0
 .IP \(bu 2

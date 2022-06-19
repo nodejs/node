@@ -68,11 +68,9 @@ const char* ICStats::GetOrCacheScriptName(Script script) {
     script_name_map_.insert(
         std::make_pair(script_ptr, std::unique_ptr<char[]>(c_script_name)));
     return c_script_name;
-  } else {
-    script_name_map_.insert(
-        std::make_pair(script_ptr, std::unique_ptr<char[]>(nullptr)));
-    return nullptr;
   }
+  script_name_map_.insert(
+      std::make_pair(script_ptr, std::unique_ptr<char[]>(nullptr)));
   return nullptr;
 }
 

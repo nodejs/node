@@ -58,13 +58,23 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic(
   KeyedStoreGenericGenerator::Generate(state);
 }
 
+void Builtins::Generate_DefineKeyedOwnIC_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  DefineKeyedOwnGenericGenerator::Generate(state);
+}
+
 void Builtins::Generate_StoreIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
   StoreICNoFeedbackGenerator::Generate(state);
 }
 
+void Builtins::Generate_DefineNamedOwnIC_NoFeedback(
+    compiler::CodeAssemblerState* state) {
+  DefineNamedOwnICNoFeedbackGenerator::Generate(state);
+}
+
 // All possible fast-to-fast transitions. Transitions to dictionary mode are not
-// handled by ElementsTransitionAndStore.
+// handled by ElementsTransitionAndStore builtins.
 #define ELEMENTS_KIND_TRANSITIONS(V)               \
   V(PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS)       \
   V(PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS)   \
@@ -183,28 +193,39 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
 
 // All elements kinds handled by EmitElementStore. Specifically, this includes
 // fast elements and fixed typed array elements.
-#define ELEMENTS_KINDS(V)          \
-  V(PACKED_SMI_ELEMENTS)           \
-  V(HOLEY_SMI_ELEMENTS)            \
-  V(PACKED_ELEMENTS)               \
-  V(PACKED_NONEXTENSIBLE_ELEMENTS) \
-  V(PACKED_SEALED_ELEMENTS)        \
-  V(HOLEY_ELEMENTS)                \
-  V(HOLEY_NONEXTENSIBLE_ELEMENTS)  \
-  V(HOLEY_SEALED_ELEMENTS)         \
-  V(PACKED_DOUBLE_ELEMENTS)        \
-  V(HOLEY_DOUBLE_ELEMENTS)         \
-  V(UINT8_ELEMENTS)                \
-  V(INT8_ELEMENTS)                 \
-  V(UINT16_ELEMENTS)               \
-  V(INT16_ELEMENTS)                \
-  V(UINT32_ELEMENTS)               \
-  V(INT32_ELEMENTS)                \
-  V(FLOAT32_ELEMENTS)              \
-  V(FLOAT64_ELEMENTS)              \
-  V(UINT8_CLAMPED_ELEMENTS)        \
-  V(BIGUINT64_ELEMENTS)            \
-  V(BIGINT64_ELEMENTS)
+#define ELEMENTS_KINDS(V)            \
+  V(PACKED_SMI_ELEMENTS)             \
+  V(HOLEY_SMI_ELEMENTS)              \
+  V(PACKED_ELEMENTS)                 \
+  V(PACKED_NONEXTENSIBLE_ELEMENTS)   \
+  V(PACKED_SEALED_ELEMENTS)          \
+  V(HOLEY_ELEMENTS)                  \
+  V(HOLEY_NONEXTENSIBLE_ELEMENTS)    \
+  V(HOLEY_SEALED_ELEMENTS)           \
+  V(PACKED_DOUBLE_ELEMENTS)          \
+  V(HOLEY_DOUBLE_ELEMENTS)           \
+  V(UINT8_ELEMENTS)                  \
+  V(INT8_ELEMENTS)                   \
+  V(UINT16_ELEMENTS)                 \
+  V(INT16_ELEMENTS)                  \
+  V(UINT32_ELEMENTS)                 \
+  V(INT32_ELEMENTS)                  \
+  V(FLOAT32_ELEMENTS)                \
+  V(FLOAT64_ELEMENTS)                \
+  V(UINT8_CLAMPED_ELEMENTS)          \
+  V(BIGUINT64_ELEMENTS)              \
+  V(BIGINT64_ELEMENTS)               \
+  V(RAB_GSAB_UINT8_ELEMENTS)         \
+  V(RAB_GSAB_INT8_ELEMENTS)          \
+  V(RAB_GSAB_UINT16_ELEMENTS)        \
+  V(RAB_GSAB_INT16_ELEMENTS)         \
+  V(RAB_GSAB_UINT32_ELEMENTS)        \
+  V(RAB_GSAB_INT32_ELEMENTS)         \
+  V(RAB_GSAB_FLOAT32_ELEMENTS)       \
+  V(RAB_GSAB_FLOAT64_ELEMENTS)       \
+  V(RAB_GSAB_UINT8_CLAMPED_ELEMENTS) \
+  V(RAB_GSAB_BIGUINT64_ELEMENTS)     \
+  V(RAB_GSAB_BIGINT64_ELEMENTS)
 
 void HandlerBuiltinsAssembler::DispatchByElementsKind(
     TNode<Int32T> elements_kind, const ElementsKindSwitchCase& case_function,
@@ -233,20 +254,20 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
-#define ELEMENTS_KINDS_CASE(KIND)                                \
-  BIND(&if_##KIND);                                              \
-  {                                                              \
-    if (!FLAG_enable_sealed_frozen_elements_kind &&              \
-        IsAnyNonextensibleElementsKindUnchecked(KIND)) {         \
-      /* Disable support for frozen or sealed elements kinds. */ \
-      Unreachable();                                             \
-    } else if (!handle_typed_elements_kind &&                    \
-               IsTypedArrayElementsKind(KIND)) {                 \
-      Unreachable();                                             \
-    } else {                                                     \
-      case_function(KIND);                                       \
-      Goto(&next);                                               \
-    }                                                            \
+#define ELEMENTS_KINDS_CASE(KIND)                                   \
+  BIND(&if_##KIND);                                                 \
+  {                                                                 \
+    if (!FLAG_enable_sealed_frozen_elements_kind &&                 \
+        IsAnyNonextensibleElementsKindUnchecked(KIND)) {            \
+      /* Disable support for frozen or sealed elements kinds. */    \
+      Unreachable();                                                \
+    } else if (!handle_typed_elements_kind &&                       \
+               IsTypedArrayOrRabGsabTypedArrayElementsKind(KIND)) { \
+      Unreachable();                                                \
+    } else {                                                        \
+      case_function(KIND);                                          \
+      Goto(&next);                                                  \
+    }                                                               \
   }
   ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
 #undef ELEMENTS_KINDS_CASE

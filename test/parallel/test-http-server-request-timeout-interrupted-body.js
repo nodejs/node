@@ -9,7 +9,14 @@ const { connect } = require('net');
 // after server.requestTimeout if the client
 // pauses sending in the middle of the body.
 
-const server = createServer(common.mustCall((req, res) => {
+let sendDelayedRequestBody;
+const requestTimeout = common.platformTimeout(2000);
+const server = createServer({
+  headersTimeout: 0,
+  requestTimeout,
+  keepAliveTimeout: 0,
+  connectionsCheckingInterval: requestTimeout / 4,
+}, common.mustCall((req, res) => {
   let body = '';
   req.setEncoding('utf-8');
 
@@ -22,12 +29,11 @@ const server = createServer(common.mustCall((req, res) => {
     res.write(body);
     res.end();
   });
+
+  assert.strictEqual(typeof sendDelayedRequestBody, 'function');
+  sendDelayedRequestBody();
 }));
 
-// 0 seconds is the default
-assert.strictEqual(server.requestTimeout, 0);
-const requestTimeout = common.platformTimeout(1000);
-server.requestTimeout = requestTimeout;
 assert.strictEqual(server.requestTimeout, requestTimeout);
 
 server.listen(0, common.mustCall(() => {
@@ -38,8 +44,7 @@ server.listen(0, common.mustCall(() => {
     response += chunk.toString('utf-8');
   }));
 
-  const errOrEnd = common.mustCall(function(err) {
-    console.log(err);
+  const errOrEnd = common.mustSucceed(function(err) {
     assert.strictEqual(
       response,
       'HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\n'
@@ -57,7 +62,9 @@ server.listen(0, common.mustCall(() => {
   client.write('\r\n');
   client.write('1234567890');
 
-  setTimeout(() => {
-    client.write('1234567890\r\n\r\n');
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestBody = common.mustCall(() => {
+    setTimeout(() => {
+      client.write('1234567890\r\n\r\n');
+    }, common.platformTimeout(requestTimeout * 2)).unref();
+  });
 }));

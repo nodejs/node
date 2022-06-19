@@ -4,7 +4,7 @@
 
 // Flags: --wasm-staging --liftoff --no-wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function() {
 const builder = new WasmModuleBuilder();

@@ -5,11 +5,14 @@
 #include "test/inspector/task-runner.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
 #include "src/flags/flags.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>  // NOLINT
-#endif               // !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif  // !defined(_WIN32) && !defined(_WIN64)
 
 namespace v8 {
 namespace internal {
@@ -35,11 +38,10 @@ void ReportUncaughtException(v8::Isolate* isolate,
 
 }  //  namespace
 
-TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
-                       CatchExceptions catch_exceptions,
-                       v8::base::Semaphore* ready_semaphore,
-                       v8::StartupData* startup_data,
-                       WithInspector with_inspector)
+TaskRunner::TaskRunner(
+    InspectorIsolateData::SetupGlobalTasks setup_global_tasks,
+    CatchExceptions catch_exceptions, v8::base::Semaphore* ready_semaphore,
+    v8::StartupData* startup_data, WithInspector with_inspector)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
@@ -53,11 +55,11 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
   CHECK(Start());
 }
 
-TaskRunner::~TaskRunner() { Join(); }
+TaskRunner::~TaskRunner() {}
 
 void TaskRunner::Run() {
-  data_.reset(new IsolateData(this, std::move(setup_global_tasks_),
-                              startup_data_, with_inspector_));
+  data_.reset(new InspectorIsolateData(this, std::move(setup_global_tasks_),
+                                       startup_data_, with_inspector_));
   if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
 }
@@ -136,7 +138,6 @@ std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  return nullptr;
 }
 
 }  // namespace internal

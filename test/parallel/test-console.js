@@ -246,24 +246,27 @@ assert.ok(strings[0].includes('foo: { bar: { baz:'));
 assert.ok(strings[0].includes('quux'));
 assert.ok(strings.shift().includes('quux: true'));
 
-assert.ok(/^label: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^__proto__: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^constructor: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^hasOwnProperty: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^label: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^__proto__: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^constructor: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^hasOwnProperty: \d+(\.\d{1,3})?(ms|s)$/);
 
 // Verify that console.time() coerces label values to strings as expected
-assert.ok(/^: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^null: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^default: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^default: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^NaN: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(),
+             /^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(),
+             /^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^null: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^default: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^default: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^NaN: \d+(\.\d{1,3})?(ms|s)$/);
 
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s) test$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s) {} \[ 1, 2, 3 ]$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s) test$/);
+assert.match(strings.shift().trim(),
+             /^log1: \d+(\.\d{1,3})?(ms|s) {} \[ 1, 2, 3 ]$/);
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s)$/);
 
 // Make sure that we checked all strings
 assert.strictEqual(strings.length, 0);

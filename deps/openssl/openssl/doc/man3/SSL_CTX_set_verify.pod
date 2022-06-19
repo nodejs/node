@@ -9,7 +9,7 @@ SSL_verify_cb,
 SSL_verify_client_post_handshake,
 SSL_set_post_handshake_auth,
 SSL_CTX_set_post_handshake_auth
-- set peer certificate verification parameters
+- set various SSL/TLS parameters for peer certificate verification
 
 =head1 SYNOPSIS
 
@@ -43,6 +43,21 @@ B<ctx> is used, that was valid at the time B<ssl> was created with
 L<SSL_new(3)>. Within the callback function,
 B<SSL_get_ex_data_X509_STORE_CTX_idx> can be called to get the data index
 of the current SSL object that is doing the verification.
+
+In client mode B<verify_callback> may also call the L<SSL_set_retry_verify(3)>
+function on the B<SSL> object set in the I<x509_store_ctx> ex data (see
+L<SSL_get_ex_data_X509_STORE_CTX_idx(3)>) and return 1.
+This would be typically done in case the certificate verification was not yet
+able to succeed.
+This makes the handshake suspend and return control to the calling application
+with B<SSL_ERROR_WANT_RETRY_VERIFY>.
+The application can for instance fetch further certificates or cert status
+information needed for the verification.
+Calling L<SSL_connect(3)> again resumes the connection attempt by retrying the
+server certificate verification step.
+This process may even be repeated if need be.
+Note that the handshake may still be aborted if a subsequent invocation of the
+callback (e.g., at a lower depth, or for a separate error condition) returns 0.
 
 SSL_CTX_set_verify_depth() sets the maximum B<depth> for the certificate chain
 verification that shall be allowed for B<ctx>.
@@ -348,9 +363,9 @@ and SSL_set_post_handshake_auth() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

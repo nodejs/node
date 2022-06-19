@@ -5,20 +5,23 @@
 #ifndef V8_LOGGING_COUNTERS_DEFINITIONS_H_
 #define V8_LOGGING_COUNTERS_DEFINITIONS_H_
 
+#include "include/v8-internal.h"
+
 namespace v8 {
 namespace internal {
 
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
   /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
   HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
-  HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
   HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 25, 26)     \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 25, 26)                   \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0,                           \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
   HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
   HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
@@ -28,12 +31,10 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_mark_compactor, V8.GCMarkCompactor, 0, 10000, 101)                     \
   HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 25, 26)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
@@ -45,8 +46,10 @@ namespace internal {
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
   HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
-  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)    \
-  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51)  \
+  HR(wasm_asm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.asm,      \
+     100 * KB, GB, 51)                                                         \
+  HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
+     100 * KB, GB, 51)                                                         \
   HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
   HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
   HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
@@ -57,12 +60,12 @@ namespace internal {
      51)                                                                       \
   HR(wasm_compile_function_peak_memory_bytes,                                  \
      V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
+  HR(wasm_compile_huge_function_peak_memory_bytes,                             \
+     V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
   HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 20,   \
      21)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
-  HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
-     128)                                                                      \
   /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
   /* code size per module after baseline compilation */                        \
@@ -85,6 +88,9 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* support for PKEYs/PKU by testing result of pkey_alloc() */                \
+  HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
+     0, 1, 2)                                                                  \
   /* number of thrown exceptions per isolate */                                \
   HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
   /* number of rethrown exceptions per isolate */                              \
@@ -95,34 +101,55 @@ namespace internal {
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution */           \
   /* The maximum of 100M backtracks takes roughly 2 seconds on my machine. */  \
-  HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)
+  HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
+  /* See the CagedMemoryAllocationOutcome enum in backing-store.cc */          \
+  HR(caged_memory_allocation_outcome, V8.CagedMemoryAllocationOutcome, 0, 2,   \
+     3)                                                                        \
+  /* number of times a cache event is triggered for a wasm module */           \
+  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
+  SANDBOXED_HISTOGRAM_LIST(HR)
 
-#define HISTOGRAM_TIMER_LIST(HT)                                               \
-  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
-  /* Garbage collection timers. */                                             \
-  HT(gc_context, V8.GCContext, 10000,                                          \
-     MILLISECOND) /* GC context cleanup time */                                \
-  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
-  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
-  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \
-     MILLISECOND)                                                              \
-  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000,  \
-     MILLISECOND)                                                              \
-  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
-     MILLISECOND)                                                              \
-  /* Compilation times. */                                                     \
-  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,             \
-     MICROSECOND)                                                              \
-  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
-  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
-  /* Serialization as part of compilation (code caching) */                    \
-  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND)  \
-  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,          \
-     MICROSECOND)                                                              \
-  /* Total compilation time incl. caching/parsing */                           \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
-  /* Total JavaScript execution time (including callbacks and runtime calls */ \
-  HT(execute, V8.Execute, 1000000, MICROSECOND)
+#ifdef V8_SANDBOX_IS_AVAILABLE
+#define SANDBOXED_HISTOGRAM_LIST(HR)                                          \
+  /* Number of in-use external pointers in the external pointer table */      \
+  /* Counted after sweeping the table at the end of mark-compact GC */        \
+  HR(sandboxed_external_pointers_count, V8.SandboxedExternalPointersCount, 0, \
+     kMaxSandboxedExternalPointers, 101)
+#else
+#define SANDBOXED_HISTOGRAM_LIST(HR)
+#endif  // V8_SANDBOX_IS_AVAILABLE
+
+#define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
+  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \
+  /* Garbage collection timers. */                                            \
+  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000, \
+     MILLISECOND)                                                             \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
+     MILLISECOND)                                                             \
+  /* Compilation times. */                                                    \
+  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,            \
+     MICROSECOND)                                                             \
+  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                   \
+  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)          \
+  /* Serialization as part of compilation (code caching) */                   \
+  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
+  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
+  /* Total compilation time incl. caching/parsing */                          \
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  /* Time for lazily compiling Wasm functions. */                             \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
+     MICROSECOND)                                                             \
+  HT(wasm_compile_after_deserialize,                                          \
+     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
+
+#define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
+  /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
+  HT(execute, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
@@ -141,11 +168,10 @@ namespace internal {
      V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
   HT(gc_finalize_reduce_memory_foreground,                                     \
      V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
-  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
+  HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \
+     MICROSECOND)                                                              \
   HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
   HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
      10000000, MICROSECOND)                                                    \
@@ -185,12 +211,16 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
+  HT(wasm_deserialization_time, V8.WasmDeserializationTimeMilliSeconds, 10000, \
+     MILLISECOND)                                                              \
   HT(wasm_tier_up_module_time, V8.WasmTierUpModuleMicroSeconds, 100000000,     \
      MICROSECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_huge_function_time, V8.WasmCompileHugeFunctionMilliSeconds,  \
+     100000, MILLISECOND)                                                      \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
@@ -283,9 +313,7 @@ namespace internal {
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
   /* Number of code objects found from pc. */                      \
   SC(pc_to_code, V8.PcToCode)                                      \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                         \
-  /* The store-buffer implementation of the write barrier. */      \
-  SC(store_buffer_overflows, V8.StoreBufferOverflows)
+  SC(pc_to_code_cached, V8.PcToCodeCached)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
   /* Amount of (JS) compiled code. */                                          \
@@ -305,8 +333,6 @@ namespace internal {
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
-  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
-  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
@@ -325,11 +351,9 @@ namespace internal {
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
-
-#define STATS_COUNTER_TS_LIST(SC)                         \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
   SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // List of counters that can be incremented from generated code. We need them in

@@ -9,6 +9,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/module-inl.h"
@@ -18,10 +19,27 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
+#include "src/objects/visitors.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
+
+template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(
+    PtrComprCageBase cage_base, PtrComprCageBase code_cage_base)
+    : ObjectVisitorWithCageBases(cage_base, code_cage_base) {}
+
+template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(Isolate* isolate)
+    : ObjectVisitorWithCageBases(isolate) {}
+
+template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(Heap* heap)
+    : ObjectVisitorWithCageBases(heap) {}
 
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
@@ -31,7 +49,7 @@ T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject object) {
-  return Visit(object.map(), object);
+  return Visit(object.map(cage_base()), object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -73,8 +91,9 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
     HeapObject host) {
-  DCHECK(!host.map_word().IsForwardingAddress());
-  static_cast<ConcreteVisitor*>(this)->VisitPointer(host, host.map_slot());
+  DCHECK(!host.map_word(kRelaxedLoad).IsForwardingAddress());
+  if (!static_cast<ConcreteVisitor*>(this)->ShouldVisitMapPointer()) return;
+  static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
 #define VISIT(TypeName)                                                        \
@@ -114,6 +133,19 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object);
   }
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  // The following types have external pointers, which must be visited.
+  // TODO(v8:10391) Consider adding custom visitor IDs for these.
+  if (object.IsExternalOneByteString()) {
+    ExternalOneByteString::BodyDescriptor::IterateBody(map, object, size,
+                                                       visitor);
+  } else if (object.IsExternalTwoByteString()) {
+    ExternalTwoByteString::BodyDescriptor::IterateBody(map, object, size,
+                                                       visitor);
+  } else if (object.IsForeign()) {
+    Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
+  }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   return static_cast<ResultType>(size);
 }
 
@@ -164,8 +196,12 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object);
   }
-  return static_cast<ResultType>(object.size());
+  return static_cast<ResultType>(object.size(kRelaxedLoad));
 }
+
+template <typename ConcreteVisitor>
+NewSpaceVisitor<ConcreteVisitor>::NewSpaceVisitor(Isolate* isolate)
+    : HeapVisitor<int, ConcreteVisitor>(isolate) {}
 
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,

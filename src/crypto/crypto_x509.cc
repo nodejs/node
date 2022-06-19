@@ -68,6 +68,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "validFrom", ValidFrom);
     env->SetProtoMethod(tmpl, "fingerprint", Fingerprint);
     env->SetProtoMethod(tmpl, "fingerprint256", Fingerprint256);
+    env->SetProtoMethod(tmpl, "fingerprint512", Fingerprint512);
     env->SetProtoMethod(tmpl, "keyUsage", KeyUsage);
     env->SetProtoMethod(tmpl, "serialNumber", SerialNumber);
     env->SetProtoMethod(tmpl, "pem", Pem);
@@ -195,6 +196,7 @@ void X509Certificate::Subject(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetSubject(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -205,6 +207,7 @@ void X509Certificate::Issuer(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetIssuerString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -215,8 +218,9 @@ void X509Certificate::SubjectAltName(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
-  if (GetInfoString<NID_subject_alt_name>(env, bio, cert->get()).ToLocal(&ret))
+  if (GetSubjectAltNameString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
@@ -225,8 +229,9 @@ void X509Certificate::InfoAccess(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
-  if (GetInfoString<NID_info_access>(env, bio, cert->get()).ToLocal(&ret))
+  if (GetInfoAccessString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
@@ -235,6 +240,7 @@ void X509Certificate::ValidFrom(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetValidFrom(env, cert->get(), bio).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -245,6 +251,7 @@ void X509Certificate::ValidTo(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetValidTo(env, cert->get(), bio).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -265,6 +272,15 @@ void X509Certificate::Fingerprint256(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   Local<Value> ret;
   if (GetFingerprintDigest(env, EVP_sha256(), cert->get()).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
+}
+
+void X509Certificate::Fingerprint512(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
+  Local<Value> ret;
+  if (GetFingerprintDigest(env, EVP_sha512(), cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
@@ -315,6 +331,7 @@ void X509Certificate::Pem(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   if (PEM_write_bio_X509(bio.get(), cert->get()))
     args.GetReturnValue().Set(ToV8Value(env, bio));
 }
@@ -536,5 +553,31 @@ void X509Certificate::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS);
 }
 
+void X509Certificate::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(X509Certificate::Parse);
+  registry->Register(Subject);
+  registry->Register(SubjectAltName);
+  registry->Register(InfoAccess);
+  registry->Register(Issuer);
+  registry->Register(ValidTo);
+  registry->Register(ValidFrom);
+  registry->Register(Fingerprint);
+  registry->Register(Fingerprint256);
+  registry->Register(KeyUsage);
+  registry->Register(SerialNumber);
+  registry->Register(Pem);
+  registry->Register(Raw);
+  registry->Register(PublicKey);
+  registry->Register(CheckCA);
+  registry->Register(CheckHost);
+  registry->Register(CheckEmail);
+  registry->Register(CheckIP);
+  registry->Register(CheckIssued);
+  registry->Register(CheckPrivateKey);
+  registry->Register(Verify);
+  registry->Register(ToLegacy);
+  registry->Register(GetIssuerCert);
+}
 }  // namespace crypto
 }  // namespace node

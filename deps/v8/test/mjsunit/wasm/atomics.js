@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-threads
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kMemtypeSize32 = 4;
 const kMemtypeSize16 = 2;
@@ -399,7 +399,7 @@ function TestStore(func, buffer, value, size) {
   builder.addImportedMemory("m", "imported_mem", 16, 128, "shared");
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprLoop, kWasmStmt,
+      kExprLoop, kWasmVoid,
         kExprI32Const, 16,
         kExprI32Const, 20,
         kAtomicPrefix,
@@ -442,7 +442,7 @@ function CmpExchgLoop(opcode, alignment) {
   builder.addFunction("main", makeSig([kWasmI32], []))
       .addLocals(kWasmI64, 2)
       .addBody([
-        kExprLoop, kWasmStmt,
+        kExprLoop, kWasmVoid,
           kExprLocalGet, 0,
           kExprLocalGet, 1,
           kExprLocalGet, 2,

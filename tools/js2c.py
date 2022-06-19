@@ -36,6 +36,7 @@ import os
 import re
 import functools
 import codecs
+import utils
 
 def ReadFile(filename):
   if is_verbose:
@@ -204,12 +205,23 @@ def main():
     fromfile_prefix_chars='@'
   )
   parser.add_argument('--target', help='output file')
+  parser.add_argument(
+      '--directory',
+      default=None,
+      help='input file directory')
   parser.add_argument('--verbose', action='store_true', help='output file')
   parser.add_argument('sources', nargs='*', help='input files')
   options = parser.parse_args()
   global is_verbose
   is_verbose = options.verbose
-  source_files = functools.reduce(SourceFileByExt, options.sources, {})
+  sources = options.sources
+  if options.directory is not None:
+    js_files = utils.SearchFiles(options.directory, 'js')
+    mjs_files = utils.SearchFiles(options.directory, 'mjs')
+    sources = js_files + mjs_files + options.sources
+
+  source_files = functools.reduce(SourceFileByExt, sources, {})
+
   # Should have exactly 3 types: `.js`, `.mjs` and `.gypi`
   assert len(source_files) == 3
   # Currently config.gypi is the only `.gypi` file allowed

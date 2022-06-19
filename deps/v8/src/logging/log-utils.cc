@@ -9,11 +9,14 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate-utils.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/strings/string-stream.h"
-#include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "src/utils/version.h"
 
 namespace v8 {
@@ -66,6 +69,8 @@ void Log::WriteLogHeader() {
   }
   msg << kNext << Version::IsCandidate();
   msg.WriteToLogFile();
+  msg << "v8-platform" << kNext << V8_OS_STRING << kNext << V8_TARGET_OS_STRING;
+  msg.WriteToLogFile();
 }
 
 std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
@@ -106,10 +111,12 @@ void Log::MessageBuilder::AppendString(String str,
   if (str.is_null()) return;
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
+  PtrComprCageBase cage_base = GetPtrComprCageBase(str);
+  SharedStringAccessGuardIfNeeded access_guard(str);
   int length = str.length();
   if (length_limit) length = std::min(length, *length_limit);
   for (int i = 0; i < length; i++) {
-    uint16_t c = str.Get(i);
+    uint16_t c = str.Get(i, cage_base, access_guard);
     if (c <= 0xFF) {
       AppendCharacter(static_cast<char>(c));
     } else {
@@ -119,7 +126,7 @@ void Log::MessageBuilder::AppendString(String str,
   }
 }
 
-void Log::MessageBuilder::AppendString(Vector<const char> str) {
+void Log::MessageBuilder::AppendString(base::Vector<const char> str) {
   for (auto i = str.begin(); i < str.end(); i++) AppendCharacter(*i);
 }
 
@@ -214,8 +221,8 @@ void Log::MessageBuilder::AppendSymbolNameDetails(String str,
 
 int Log::MessageBuilder::FormatStringIntoBuffer(const char* format,
                                                 va_list args) {
-  Vector<char> buf(log_->format_buffer_.get(), Log::kMessageBufferSize);
-  int length = v8::internal::VSNPrintF(buf, format, args);
+  base::Vector<char> buf(log_->format_buffer_.get(), Log::kMessageBufferSize);
+  int length = base::VSNPrintF(buf, format, args);
   // |length| is -1 if output was truncated.
   if (length == -1) length = Log::kMessageBufferSize;
   DCHECK_LE(length, Log::kMessageBufferSize);

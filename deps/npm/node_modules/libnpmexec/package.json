@@ -1,0 +1,75 @@
+{
+  "name": "libnpmexec",
+  "version": "4.0.6",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "description": "npm exec (npx) programmatic API",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmexec"
+  },
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "workspaces",
+    "libnpmexec"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint \"**/*.js\"",
+    "posttest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "color": true,
+    "files": "test/*.js"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "bin-links": "^3.0.0",
+    "tap": "^16.0.1"
+  },
+  "dependencies": {
+    "@npmcli/arborist": "^5.0.0",
+    "@npmcli/ci-detect": "^2.0.0",
+    "@npmcli/run-script": "^3.0.0",
+    "chalk": "^4.1.0",
+    "mkdirp-infer-owner": "^2.0.0",
+    "npm-package-arg": "^9.0.1",
+    "npmlog": "^6.0.2",
+    "pacote": "^13.0.5",
+    "proc-log": "^2.0.0",
+    "read": "^1.0.7",
+    "read-package-json-fast": "^2.0.2",
+    "walk-up-path": "^1.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}

@@ -21,29 +21,21 @@ namespace internal {
 #include "torque-generated/src/objects/js-regexp-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
-OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(JSRegExpResult, JSArray)
-OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(JSRegExpResultIndices, JSArray)
-
-inline JSRegExpResultWithIndices::JSRegExpResultWithIndices(Address ptr)
-    : JSRegExpResult(ptr) {
-  SLOW_DCHECK(IsJSArray());
-}
-
-CAST_ACCESSOR(JSRegExpResult)
-CAST_ACCESSOR(JSRegExpResultWithIndices)
-CAST_ACCESSOR(JSRegExpResultIndices)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
 
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
-JSRegExp::Type JSRegExp::TypeTag() const {
+JSRegExp::Type JSRegExp::type_tag() const {
   Object data = this->data();
   if (data.IsUndefined()) return JSRegExp::NOT_COMPILED;
   Smi smi = Smi::cast(FixedArray::cast(data).get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi.value());
 }
 
-int JSRegExp::CaptureCount() const {
-  switch (TypeTag()) {
+int JSRegExp::capture_count() const {
+  switch (type_tag()) {
     case ATOM:
       return 0;
     case EXPERIMENTAL:
@@ -54,46 +46,38 @@ int JSRegExp::CaptureCount() const {
   }
 }
 
-int JSRegExp::MaxRegisterCount() const {
-  CHECK_EQ(TypeTag(), IRREGEXP);
+int JSRegExp::max_register_count() const {
+  CHECK_EQ(type_tag(), IRREGEXP);
   return Smi::ToInt(DataAt(kIrregexpMaxRegisterCountIndex));
 }
 
-JSRegExp::Flags JSRegExp::GetFlags() {
-  DCHECK(this->data().IsFixedArray());
-  Object data = this->data();
-  Smi smi = Smi::cast(FixedArray::cast(data).get(kFlagsIndex));
+String JSRegExp::atom_pattern() const {
+  DCHECK_EQ(type_tag(), ATOM);
+  return String::cast(DataAt(JSRegExp::kAtomPatternIndex));
+}
+
+String JSRegExp::source() const {
+  return String::cast(TorqueGeneratedClass::source());
+}
+
+JSRegExp::Flags JSRegExp::flags() const {
+  Smi smi = Smi::cast(TorqueGeneratedClass::flags());
   return Flags(smi.value());
 }
 
-String JSRegExp::Pattern() {
-  DCHECK(this->data().IsFixedArray());
-  Object data = this->data();
-  String pattern = String::cast(FixedArray::cast(data).get(kSourceIndex));
-  return pattern;
+String JSRegExp::EscapedPattern() {
+  DCHECK(this->source().IsString());
+  return String::cast(source());
 }
 
-Object JSRegExp::CaptureNameMap() {
-  DCHECK(this->data().IsFixedArray());
-  DCHECK(TypeSupportsCaptures(TypeTag()));
+Object JSRegExp::capture_name_map() {
+  DCHECK(TypeSupportsCaptures(type_tag()));
   Object value = DataAt(kIrregexpCaptureNameMapIndex);
   DCHECK_NE(value, Smi::FromInt(JSRegExp::kUninitializedValue));
   return value;
 }
 
-Object JSRegExp::DataAt(int index) const {
-  DCHECK(TypeTag() != NOT_COMPILED);
-  return FixedArray::cast(data()).get(index);
-}
-
-void JSRegExp::SetDataAt(int index, Object value) {
-  DCHECK(TypeTag() != NOT_COMPILED);
-  DCHECK_GE(index,
-            kDataIndex);  // Only implementation data can be set this way.
-  FixedArray::cast(data()).set(index, value);
-}
-
-void JSRegExp::SetCaptureNameMap(Handle<FixedArray> capture_name_map) {
+void JSRegExp::set_capture_name_map(Handle<FixedArray> capture_name_map) {
   if (capture_name_map.is_null()) {
     SetDataAt(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::zero());
   } else {
@@ -101,13 +85,25 @@ void JSRegExp::SetCaptureNameMap(Handle<FixedArray> capture_name_map) {
   }
 }
 
+Object JSRegExp::DataAt(int index) const {
+  DCHECK(type_tag() != NOT_COMPILED);
+  return FixedArray::cast(data()).get(index);
+}
+
+void JSRegExp::SetDataAt(int index, Object value) {
+  DCHECK(type_tag() != NOT_COMPILED);
+  // Only implementation data can be set this way.
+  DCHECK_GE(index, kFirstTypeSpecificIndex);
+  FixedArray::cast(data()).set(index, value);
+}
+
 bool JSRegExp::HasCompiledCode() const {
-  if (TypeTag() != IRREGEXP) return false;
+  if (type_tag() != IRREGEXP) return false;
   Smi uninitialized = Smi::FromInt(kUninitializedValue);
 #ifdef DEBUG
-  DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCode() ||
+  DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCodeT() ||
          DataAt(kIrregexpLatin1CodeIndex) == uninitialized);
-  DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCode() ||
+  DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCodeT() ||
          DataAt(kIrregexpUC16CodeIndex) == uninitialized);
   DCHECK(DataAt(kIrregexpLatin1BytecodeIndex).IsByteArray() ||
          DataAt(kIrregexpLatin1BytecodeIndex) == uninitialized);

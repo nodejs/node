@@ -94,7 +94,7 @@ std::string DoubleToCString(double v) {
     default:
       // This is a far less sophisticated version than the one used inside v8.
       std::ostringstream stream;
-      stream.imbue(std::locale("C"));  // Ignore locale
+      stream.imbue(std::locale::classic());  // Ignore current locale
       stream << v;
       return stream.str();
   }

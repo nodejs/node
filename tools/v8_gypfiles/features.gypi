@@ -62,6 +62,12 @@
       }, {
         'is_component_build': 0,
       }],
+      ['OS == "win" or OS == "mac"', {
+        # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+        'v8_enable_system_instrumentation': 1,
+      }, {
+        'v8_enable_system_instrumentation': 0,
+      }],
     ],
     'is_debug%': 0,
 
@@ -97,6 +103,9 @@
     # Sets -dENABLE_GDB_JIT_INTERFACE.
     'v8_enable_gdbjit%': 0,
 
+    # Sets -dENABLE_HUGEPAGE
+    'v8_enable_hugepage%': 0,
+
     # Currently set for node by common.gypi, avoiding default because of gyp file bug.
     # Should be turned on only for debugging.
     #'v8_enable_handle_zapping%': 0,
@@ -123,8 +132,8 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-    'v8_enable_reverse_jsargs%': 0,
+    # Sets -dV8_SHORT_BUILTIN_CALLS
+    'v8_enable_short_builtin_calls%': 0,
 
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
@@ -141,12 +150,19 @@
     # Sets -dV8_TRACE_FEEDBACK_UPDATES.
     'v8_enable_trace_feedback_updates%': 0,
 
+    # Sets -dV8_ATOMIC_OBJECT_FIELD_WRITES and turns all field write operations
+    # into relaxed atomic operations.
+    'v8_enable_atomic_object_field_writes%': 1,
+
+    # Has no effect in Node.js. Here for completeness with V8's config.
+    'v8_enable_concurrent_marking%': 1,
+
     # Enables various testing features.
     'v8_enable_test_features%': 0,
 
-    # Enables raw heap snapshots containing internals. Used for debugging memory
-    # on platform and embedder level.
-    'v8_enable_raw_heap_snapshots%': 0,
+    # Enable the Maglev compiler.
+    # Sets -dV8_ENABLE_MAGLEV
+    'v8_enable_maglev%': 0,
 
     # With post mortem support enabled, metadata is embedded into libv8 that
     # describes various parameters of the VM for use by debuggers. See
@@ -163,15 +179,9 @@
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
 
-    # Temporary flag to allow embedders to update their microtasks scopes
-    # while rolling in a new version of V8.
-    'v8_check_microtasks_scopes_consistency%': 0,
-
-    # Enable mitigations for executing untrusted code.
-    'v8_untrusted_code_mitigations%': 1,
-
-    # Enable minor mark compact.
-    'v8_enable_minor_mc%': 1,
+    # Enable sharing read-only space across isolates.
+    # Sets -DV8_SHARED_RO_HEAP.
+    'v8_enable_shared_ro_heap%': 0,
 
     # Enable lazy source positions by default.
     'v8_enable_lazy_source_positions%': 1,
@@ -208,15 +218,50 @@
     # Sets -DV8_COMPRESS_ZONES.
     'v8_enable_zone_compression%': 0,
 
+    # Enable the experimental V8 sandbox.
+    # Sets -DV8_SANDBOX.
+    'v8_enable_sandbox%': 0,
+
+    # Enable external pointer sandboxing. Requires v8_enable_sandbox.
+    # Sets -DV8_SANDBOXED_EXTERNAL_POINRTERS.
+    'v8_enable_sandboxed_external_pointers%': 0,
+
+    # Enable sandboxed pointers. Requires v8_enable_sandbox.
+    # Sets -DV8_SANDBOXED_POINTERS.
+    'v8_enable_sandboxed_pointers%': 0,
+
     # Experimental feature for collecting per-class zone memory stats.
     # Requires use_rtti = true
     'v8_enable_precise_zone_stats%': 0,
+
+    # Experimental feature that uses SwissNameDictionary instead of NameDictionary
+    # as the backing store for all dictionary mode objects.
+    'v8_enable_swiss_name_dictionary%': 0,
 
     # Experimental feature for tracking constness of properties in non-global
     # dictionaries. Enabling this also always keeps prototypes in dict mode,
     # meaning that they are not switched to fast mode.
     # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
     'v8_dict_property_const_tracking%': 0,
+
+    # Allow for JS promise hooks (instead of just C++).
+    'v8_enable_javascript_promise_hooks%': 0,
+
+    # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
+    # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
+    'v8_enable_allocation_folding%': 1,
+
+    # Enable runtime verification of heap snapshots produced for devtools.
+    'v8_enable_heap_snapshot_verify%': 0,
+
+    # Enable global allocation site tracking.
+    'v8_allocation_site_tracking%': 1,
+
+    'v8_scriptormodule_legacy_lifetime%': 1,
+
+    # Change code emission and runtime features to be CET shadow-stack compliant
+    # (incomplete and experimental).
+    'v8_enable_cet_shadow_stack%': 0,
 
     # Variables from v8.gni
 
@@ -233,6 +278,10 @@
     # will not be available, and embedder APIs to generate WebAssembly modules
     # will fail.
     'v8_enable_webassembly%': 1,
+
+    # Enable advanced BigInt algorithms, costing about 10-30 KiB binary size
+    # depending on platform.
+    'v8_advanced_bigint_algorithms%': 1
   },
 
   'target_defaults': {
@@ -246,9 +295,6 @@
       ['v8_promise_internal_field_count!=0', {
         'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT=<(v8_promise_internal_field_count)'],
       }],
-      ['v8_enable_raw_heap_snapshots==1', {
-        'defines': ['V8_ENABLE_RAW_HEAP_SNAPSHOTS',],
-      }],
       ['v8_enable_future==1', {
         'defines': ['V8_ENABLE_FUTURE',],
       }],
@@ -258,17 +304,32 @@
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
       }],
-      ['v8_enable_minor_mc==1', {
-        'defines': ['ENABLE_MINOR_MC',],
+      ['v8_enable_hugepage==1', {
+        'defines': ['ENABLE_HUGEPAGE',],
       }],
       ['v8_enable_pointer_compression==1', {
-        'defines': ['V8_COMPRESS_POINTERS',],
+        'defines': [
+          'V8_COMPRESS_POINTERS',
+          'V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE',
+        ],
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
       }],
+      ['v8_enable_short_builtin_calls==1', {
+        'defines': ['V8_SHORT_BUILTIN_CALLS',],
+      }],
       ['v8_enable_zone_compression==1', {
         'defines': ['V8_COMPRESS_ZONES',],
+      }],
+      ['v8_enable_sandbox==1', {
+        'defines': ['V8_SANDBOX',],
+      }],
+      ['v8_enable_sandboxed_pointers==1', {
+        'defines': ['V8_SANDBOXED_POINTERS',],
+      }],
+      ['v8_enable_sandboxed_external_pointers==1', {
+        'defines': ['V8_SANDBOXED_EXTERNAL_POINTERS',],
       }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
@@ -308,9 +369,6 @@
       },{
         'defines!': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
-      ['v8_enable_reverse_jsargs==1', {
-        'defines': ['V8_REVERSE_JSARGS',],
-      }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_INTL_SUPPORT',],
       }],
@@ -318,6 +376,9 @@
       # ['v8_enable_handle_zapping==1', {
       #  'defines': ['ENABLE_HANDLE_ZAPPING',],
       # }],
+      ['v8_enable_heap_snapshot_verify==1', {
+        'defines': ['V8_ENABLE_HEAP_SNAPSHOT_VERIFY',],
+      }],
       ['v8_enable_snapshot_native_code_counters==1', {
         'defines': ['V8_SNAPSHOT_NATIVE_CODE_COUNTERS',],
       }],
@@ -330,23 +391,23 @@
       ['v8_enable_third_party_heap==1', {
         'defines': ['V8_ENABLE_THIRD_PARTY_HEAP',],
       }],
+      ['v8_enable_atomic_object_field_writes==1', {
+        'defines': ['V8_ATOMIC_OBJECT_FIELD_WRITES',],
+      }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
       }],
-      ['v8_check_microtasks_scopes_consistency==1', {
-        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
-      }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
+      }],
+      ['v8_enable_shared_ro_heap==1', {
+        'defines': ['V8_SHARED_RO_HEAP',],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
-      }],
-      ['v8_untrusted_code_mitigations==0', {
-        'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
       ['v8_use_perfetto==1', {
         'defines': ['V8_USE_PERFETTO',],
@@ -363,14 +424,41 @@
       ['v8_control_flow_integrity==1', {
         'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
       }],
+      ['v8_enable_cet_shadow_stack==1', {
+        'defines': ['V8_ENABLE_CET_SHADOW_STACK',],
+      }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      }],
+      ['v8_enable_maglev==1', {
+        'defines': ['V8_ENABLE_MAGLEV',],
+      }],
+      ['v8_enable_swiss_name_dictionary==1', {
+        'defines': ['V8_ENABLE_SWISS_NAME_DICTIONARY',],
+      }],
+      ['v8_enable_system_instrumentation==1', {
+        'defines': ['V8_ENABLE_SYSTEM_INSTRUMENTATION',],
       }],
       ['v8_enable_webassembly==1', {
         'defines': ['V8_ENABLE_WEBASSEMBLY',],
       }],
       ['v8_dict_property_const_tracking==1', {
         'defines': ['V8_DICT_PROPERTY_CONST_TRACKING',],
+      }],
+      ['v8_enable_javascript_promise_hooks==1', {
+        'defines': ['V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS',],
+      }],
+      ['v8_enable_allocation_folding==1', {
+        'defines': ['V8_ALLOCATION_FOLDING',],
+      }],
+      ['v8_allocation_site_tracking==1', {
+        'defines': ['V8_ALLOCATION_SITE_TRACKING',],
+      }],
+      ['v8_scriptormodule_legacy_lifetime==1', {
+        'defines': ['V8_SCRIPTORMODULE_LEGACY_LIFETIME',],
+      }],
+      ['v8_advanced_bigint_algorithms==1', {
+        'defines': ['V8_ADVANCED_BIGINT_ALGORITHMS',],
       }],
     ],  # conditions
     'defines': [

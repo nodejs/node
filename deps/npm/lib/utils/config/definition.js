@@ -6,12 +6,7 @@
 // say "these are for registry access", "these are for
 // version resolution" etc.
 
-const required = [
-  'type',
-  'description',
-  'default',
-  'key',
-]
+const required = ['type', 'description', 'default', 'key']
 
 const allowed = [
   'default',
@@ -25,6 +20,7 @@ const allowed = [
   'type',
   'typeDescription',
   'usage',
+  'envExport',
 ]
 
 const {
@@ -39,73 +35,131 @@ const {
 class Definition {
   constructor (key, def) {
     this.key = key
+    // if it's set falsey, don't export it, otherwise we do by default
+    this.envExport = true
     Object.assign(this, def)
     this.validate()
-    if (!this.defaultDescription)
+    if (!this.defaultDescription) {
       this.defaultDescription = describeValue(this.default)
-    if (!this.typeDescription)
+    }
+    if (!this.typeDescription) {
       this.typeDescription = describeType(this.type)
-    if (!this.hint)
-      this.hint = `<${this.key}>`
-    if (!this.usage)
+    }
+    // hint is only used for non-boolean values
+    if (!this.hint) {
+      if (this.type === Number) {
+        this.hint = '<number>'
+      } else {
+        this.hint = `<${this.key}>`
+      }
+    }
+    if (!this.usage) {
       this.usage = describeUsage(this)
+    }
   }
 
   validate () {
     for (const req of required) {
-      if (!Object.prototype.hasOwnProperty.call(this, req))
+      if (!Object.prototype.hasOwnProperty.call(this, req)) {
         throw new Error(`config lacks ${req}: ${this.key}`)
+      }
     }
-    if (!this.key)
+    if (!this.key) {
       throw new Error(`config lacks key: ${this.key}`)
+    }
     for (const field of Object.keys(this)) {
-      if (!allowed.includes(field))
+      if (!allowed.includes(field)) {
         throw new Error(`config defines unknown field ${field}: ${this.key}`)
+      }
     }
   }
 
   // a textual description of this config, suitable for help output
   describe () {
     const description = unindent(this.description)
-    const deprecated = !this.deprecated ? ''
-      : `* DEPRECATED: ${unindent(this.deprecated)}\n`
+    const noEnvExport = this.envExport
+      ? ''
+      : `
+This value is not exported to the environment for child processes.
+`
+    const deprecated = !this.deprecated ? '' : `* DEPRECATED: ${unindent(this.deprecated)}\n`
     return wrapAll(`#### \`${this.key}\`
 
 * Default: ${unindent(this.defaultDescription)}
 * Type: ${unindent(this.typeDescription)}
 ${deprecated}
 ${description}
-`)
+${noEnvExport}`)
   }
 }
 
-// Usage for a single param, abstracted because we have arrays of types in
-// config definition
-const paramUsage = (type, def) => {
-  let key = `--${def.key}`
-  if (def.short && typeof def.short === 'string')
-    key = `-${def.short}|${key}`
-  if (type === Boolean)
-    return `${key}`
-  else
-    return `${key} ${def.hint}`
-}
+const describeUsage = def => {
+  let key = ''
 
-const describeUsage = (def) => {
-  if (Array.isArray(def.type)) {
-    if (!def.type.some(d => d !== null && typeof d !== 'string'))
-      return `--${def.key} <${def.type.filter(d => d).join('|')}>`
-    else
-      return def.type.filter(d => d).map((t) => paramUsage(t, def)).join('|')
+  // Single type
+  if (!Array.isArray(def.type)) {
+    if (def.short) {
+      key = `-${def.short}|`
+    }
+
+    if (def.type === Boolean && def.default !== false) {
+      key = `${key}--no-${def.key}`
+    } else {
+      key = `${key}--${def.key}`
+    }
+
+    if (def.type !== Boolean) {
+      key = `${key} ${def.hint}`
+    }
+
+    return key
   }
-  return paramUsage(def.type, def)
+
+  key = `--${def.key}`
+  if (def.short) {
+    key = `-${def.short}|--${def.key}`
+  }
+
+  // Multiple types
+  let types = def.type
+  const multiple = types.includes(Array)
+  const bool = types.includes(Boolean)
+
+  // null type means optional and doesn't currently affect usage output since
+  // all non-optional params have defaults so we render everything as optional
+  types = types.filter(t => t !== null && t !== Array && t !== Boolean)
+
+  if (!types.length) {
+    return key
+  }
+
+  let description
+  if (!types.some(t => typeof t !== 'string')) {
+    // Specific values, use specifics given
+    description = `<${types.filter(d => d).join('|')}>`
+  } else {
+    // Generic values, use hint
+    description = def.hint
+  }
+
+  if (bool) {
+    // Currently none of our multi-type configs with boolean values default to
+    // false so all their hints should show `--no-`, if we ever add ones that
+    // default to false we can branch the logic here
+    key = `--no-${def.key}|${key}`
+  }
+
+  const usage = `${key} ${description}`
+  if (multiple) {
+    return `${usage} [${usage} ...]`
+  } else {
+    return usage
+  }
 }
 
 const describeType = type => {
   if (Array.isArray(type)) {
-    const descriptions = type
-      .filter(t => t !== Array)
-      .map(t => describeType(t))
+    const descriptions = type.filter(t => t !== Array).map(t => describeType(t))
 
     // [a] => "a"
     // [a, b] => "a or b"
@@ -115,8 +169,7 @@ const describeType = type => {
     const last = descriptions.length > 1 ? [descriptions.pop()] : []
     const oxford = descriptions.length > 1 ? ', or ' : ' or '
     const words = [descriptions.join(', ')].concat(last).join(oxford)
-    const multiple = type.includes(Array) ? ' (can be set multiple times)'
-      : ''
+    const multiple = type.includes(Array) ? ' (can be set multiple times)' : ''
     return `${words}${multiple}`
   }
 
@@ -146,8 +199,7 @@ const describeType = type => {
 }
 
 // if it's a string, quote it.  otherwise, just cast to string.
-const describeValue = val =>
-  typeof val === 'string' ? JSON.stringify(val) : String(val)
+const describeValue = val => (typeof val === 'string' ? JSON.stringify(val) : String(val))
 
 const unindent = s => {
   // get the first \n followed by a bunch of spaces, and pluck off
@@ -156,30 +208,44 @@ const unindent = s => {
   return !match ? s.trim() : s.split(match[0]).join('\n').trim()
 }
 
-const wrap = (s) => {
+const wrap = s => {
   const cols = Math.min(Math.max(20, process.stdout.columns) || 80, 80) - 5
-  return unindent(s).split(/[ \n]+/).reduce((left, right) => {
-    const last = left.split('\n').pop()
-    const join = last.length && last.length + right.length > cols ? '\n' : ' '
-    return left + join + right
-  })
+  return unindent(s)
+    .split(/[ \n]+/)
+    .reduce((left, right) => {
+      const last = left.split('\n').pop()
+      const join = last.length && last.length + right.length > cols ? '\n' : ' '
+      return left + join + right
+    })
 }
 
 const wrapAll = s => {
   let inCodeBlock = false
-  return s.split('\n\n').map(block => {
-    if (inCodeBlock || block.startsWith('```')) {
-      inCodeBlock = !block.endsWith('```')
-      return block
-    }
+  return s
+    .split('\n\n')
+    .map(block => {
+      if (inCodeBlock || block.startsWith('```')) {
+        inCodeBlock = !block.endsWith('```')
+        return block
+      }
 
-    if (block.charAt(0) === '*') {
-      return '* ' + block.substr(1).trim().split('\n* ').map(li => {
-        return wrap(li).replace(/\n/g, '\n  ')
-      }).join('\n* ')
-    } else
-      return wrap(block)
-  }).join('\n\n')
+      if (block.charAt(0) === '*') {
+        return (
+          '* ' +
+          block
+            .slice(1)
+            .trim()
+            .split('\n* ')
+            .map(li => {
+              return wrap(li).replace(/\n/g, '\n  ')
+            })
+            .join('\n* ')
+        )
+      } else {
+        return wrap(block)
+      }
+    })
+    .join('\n\n')
 }
 
 module.exports = Definition

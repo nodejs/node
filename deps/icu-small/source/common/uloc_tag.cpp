@@ -129,7 +129,6 @@ static const char* const LEGACY[] = {
     // Legacy tags with no preferred value in the IANA
     // registry. Kept for now for the backward compatibility
     // because ICU has mapped them this way.
-    "cel-gaulish",  "xtg-x-cel-gaulish",
     "i-default",    "en-x-i-default",
     "i-enochian",   "und-x-i-enochian",
     "i-mingo",      "see-x-i-mingo",
@@ -140,7 +139,7 @@ static const char* const LEGACY[] = {
  Updated on 2018-09-12 from
  https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry .
 
- The table lists redundant tags with preferred value in the IANA languate tag registry.
+ The table lists redundant tags with preferred value in the IANA language tag registry.
  It's generated with the following command:
 
  curl  https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry |\
@@ -647,6 +646,22 @@ _isTKey(const char* s, int32_t len)
     return FALSE;
 }
 
+U_CAPI const char * U_EXPORT2
+ultag_getTKeyStart(const char *localeID) {
+    const char *result = localeID;
+    const char *sep;
+    while((sep = uprv_strchr(result, SEP)) != nullptr) {
+        if (_isTKey(result, static_cast<int32_t>(sep - result))) {
+            return result;
+        }
+        result = ++sep;
+    }
+    if (_isTKey(result, -1)) {
+        return result;
+    }
+    return nullptr;
+}
+
 static UBool
 _isTValue(const char* s, int32_t len)
 {
@@ -671,9 +686,13 @@ _isTransformedExtensionSubtag(int32_t& state, const char* s, int32_t len)
     const int32_t kGotTKey = -1;    // Got tkey, wait for tvalue. ERROR if stop here.
     const int32_t kGotTValue = 6;   // Got tvalue, wait for tkey, tvalue or end
 
+
+    if (len < 0) {
+        len = (int32_t)uprv_strlen(s);
+    }
     switch (state) {
         case kStart:
-            if (ultag_isLanguageSubtag(s, len)) {
+            if (ultag_isLanguageSubtag(s, len) && len != 4) {
                 state = kGotLanguage;
                 return TRUE;
             }
@@ -932,7 +951,7 @@ _addExtensionToList(ExtensionListEntry **first, ExtensionListEntry *ext, UBool l
                         cmp = *(ext->key) - *(cur->key);
                     }
                 } else if (len == 1) {
-                    cmp = *(ext->key) - LDMLEXT;
+                    cmp = *(ext->key) - LDMLEXT; 
                 } else if (curlen == 1) {
                     cmp = LDMLEXT - *(cur->key);
                 } else {
@@ -1593,7 +1612,7 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
     }
 
     if (pKwds) {
-        const char *pBcpKey = NULL;     /* u extenstion key subtag */
+        const char *pBcpKey = NULL;     /* u extension key subtag */
         const char *pBcpType = NULL;    /* beginning of u extension type subtag(s) */
         int32_t bcpKeyLen = 0;
         int32_t bcpTypeLen = 0;
@@ -1722,7 +1741,7 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
                     pType = LOCALE_TYPE_YES;
                 }
 
-                /* Special handling for u-va-posix, since we want to treat this as a variant,
+                /* Special handling for u-va-posix, since we want to treat this as a variant, 
                    not as a keyword */
                 if (!variantExists && !uprv_strcmp(pKey, POSIX_KEY) && !uprv_strcmp(pType, POSIX_VALUE) ) {
                     *posixVariant = TRUE;
@@ -1775,11 +1794,6 @@ _appendKeywords(ULanguageTag* langtag, icu::ByteSink& sink, UErrorCode* status) 
         return;
     }
 
-    /* Determine if variants already exists */
-    if (ultag_getVariantsSize(langtag)) {
-        posixVariant = TRUE;
-    }
-
     n = ultag_getExtensionsSize(langtag);
 
     /* resolve locale keywords and reordering keys */
@@ -1787,6 +1801,11 @@ _appendKeywords(ULanguageTag* langtag, icu::ByteSink& sink, UErrorCode* status) 
         key = ultag_getExtensionKey(langtag, i);
         type = ultag_getExtensionValue(langtag, i);
         if (*key == LDMLEXT) {
+            /* Determine if variants already exists */
+            if (ultag_getVariantsSize(langtag)) {
+                posixVariant = TRUE;
+            }
+
             _appendLDMLExtensionAsKeywords(type, &kwdFirst, extPool, kwdBuf, &posixVariant, status);
             if (U_FAILURE(*status)) {
                 break;
@@ -2028,7 +2047,10 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
         *status = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
-    uprv_memcpy(tagBuf, tag, tagLen);
+    
+    if (tagLen > 0) {
+        uprv_memcpy(tagBuf, tag, tagLen);
+    }
     *(tagBuf + tagLen) = 0;
 
     /* create a ULanguageTag */
@@ -2067,6 +2089,7 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
             legacyLen = checkLegacyLen;  /* back up for output parsedLen */
             int32_t replacementLen = static_cast<int32_t>(uprv_strlen(LEGACY[i+1]));
             newTagLength = replacementLen + tagLen - checkLegacyLen;
+            int32_t oldTagLength = tagLen;
             if (tagLen < newTagLength) {
                 uprv_free(tagBuf);
                 tagBuf = (char*)uprv_malloc(newTagLength + 1);
@@ -2080,7 +2103,10 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
             parsedLenDelta = checkLegacyLen - replacementLen;
             uprv_strcpy(t->buf, LEGACY[i + 1]);
             if (checkLegacyLen != tagLen) {
-                uprv_strcpy(t->buf + replacementLen, tag + checkLegacyLen);
+                uprv_memcpy(t->buf + replacementLen, tag + checkLegacyLen,
+                            oldTagLength - checkLegacyLen);
+                // NUL-terminate after memcpy().
+                t->buf[replacementLen + oldTagLength - checkLegacyLen] = 0;
             }
             break;
         }
@@ -2284,7 +2310,7 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
         if (next & EXTV) {
             if (_isExtensionSubtag(pSubtag, subtagLen)) {
                 if (pExtValueSubtag == NULL) {
-                    /* if the start postion of this extension's value is not yet,
+                    /* if the start position of this extension's value is not yet,
                         this one is the first value subtag */
                     pExtValueSubtag = pSubtag;
                 }
@@ -2692,8 +2718,7 @@ ulocimp_toLanguageTag(const char* localeID,
                     if (U_SUCCESS(tmpStatus)) {
                         if (ultag_isPrivateuseValueSubtags(buf.data(), buf.length())) {
                             /* return private use only tag */
-                            static const char PREFIX[] = { PRIVATEUSE, SEP };
-                            sink.Append(PREFIX, sizeof(PREFIX));
+                            sink.Append("und-x-", 6);
                             sink.Append(buf.data(), buf.length());
                             done = TRUE;
                         } else if (strict) {

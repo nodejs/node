@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_FEATURES_H_
 #define V8_WASM_WASM_FEATURES_H_
 
@@ -10,12 +14,21 @@
 #include "src/base/macros.h"
 #include "src/wasm/wasm-feature-flags.h"
 
+// Features that are always enabled and do not have a flag.
+#define FOREACH_WASM_NON_FLAG_FEATURE(V) \
+  V(reftypes, "reference type opcodes", true)
+
 // All features, including features that do not have flags.
-#define FOREACH_WASM_FEATURE FOREACH_WASM_FEATURE_FLAG
+#define FOREACH_WASM_FEATURE(V) \
+  FOREACH_WASM_FEATURE_FLAG(V)  \
+  FOREACH_WASM_NON_FLAG_FEATURE(V)
 
 namespace v8 {
 namespace internal {
 
+class Context;
+template <typename T>
+class Handle;
 class Isolate;
 
 namespace wasm {
@@ -51,8 +64,12 @@ class WasmFeatures : public base::EnumSet<WasmFeature> {
   static inline constexpr WasmFeatures All();
   static inline constexpr WasmFeatures None();
   static inline constexpr WasmFeatures ForAsmjs();
+  // Retuns optional features that are enabled by flags, plus features that are
+  // not enabled by a flag and are always on.
   static WasmFeatures FromFlags();
   static V8_EXPORT_PRIVATE WasmFeatures FromIsolate(Isolate*);
+  static V8_EXPORT_PRIVATE WasmFeatures FromContext(Isolate*,
+                                                    Handle<Context> context);
 };
 
 // static

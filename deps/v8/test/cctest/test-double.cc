@@ -27,15 +27,14 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "src/base/numbers/diy-fp.h"
+#include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
-#include "src/numbers/diy-fp.h"
-#include "src/numbers/double.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 TEST(Uint64Conversions) {
   // Start by checking the byte-order.
@@ -156,7 +155,7 @@ TEST(NormalizedBoundaries) {
   // 1.5 does not have a significand of the form 2^p (for some p).
   // Therefore its boundaries are at the same distance.
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
-  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());  // NOLINT
+  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());
 
   diy_fp = Double(1.0).AsNormalizedDiyFp();
   Double(1.0).NormalizedBoundaries(&boundary_minus, &boundary_plus);
@@ -165,8 +164,8 @@ TEST(NormalizedBoundaries) {
   // 1.0 does have a significand of the form 2^p (for some p).
   // Therefore its lower boundary is twice as close as the upper boundary.
   CHECK_GT(boundary_plus.f() - diy_fp.f(), diy_fp.f() - boundary_minus.f());
-  CHECK((1 << 9) == diy_fp.f() - boundary_minus.f());  // NOLINT
-  CHECK((1 << 10) == boundary_plus.f() - diy_fp.f());  // NOLINT
+  CHECK((1 << 9) == diy_fp.f() - boundary_minus.f());
+  CHECK((1 << 10) == boundary_plus.f() - diy_fp.f());
 
   uint64_t min_double64 = 0x0000'0000'0000'0001;
   diy_fp = Double(min_double64).AsNormalizedDiyFp();
@@ -177,8 +176,7 @@ TEST(NormalizedBoundaries) {
   // Therefore its boundaries are at the same distance.
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
   // Denormals have their boundaries much closer.
-  CHECK((static_cast<uint64_t>(1) << 62) ==
-        diy_fp.f() - boundary_minus.f());  // NOLINT
+  CHECK((static_cast<uint64_t>(1) << 62) == diy_fp.f() - boundary_minus.f());
 
   uint64_t smallest_normal64 = 0x0010'0000'0000'0000;
   diy_fp = Double(smallest_normal64).AsNormalizedDiyFp();
@@ -189,7 +187,7 @@ TEST(NormalizedBoundaries) {
   // Even though the significand is of the form 2^p (for some p), its boundaries
   // are at the same distance. (This is the only exception).
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
-  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());  // NOLINT
+  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());
 
   uint64_t largest_denormal64 = 0x000F'FFFF'FFFF'FFFF;
   diy_fp = Double(largest_denormal64).AsNormalizedDiyFp();
@@ -198,7 +196,7 @@ TEST(NormalizedBoundaries) {
   CHECK_EQ(diy_fp.e(), boundary_minus.e());
   CHECK_EQ(diy_fp.e(), boundary_plus.e());
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
-  CHECK((1 << 11) == diy_fp.f() - boundary_minus.f());  // NOLINT
+  CHECK((1 << 11) == diy_fp.f() - boundary_minus.f());
 
   uint64_t max_double64 = 0x7FEF'FFFF'FFFF'FFFF;
   diy_fp = Double(max_double64).AsNormalizedDiyFp();
@@ -208,7 +206,7 @@ TEST(NormalizedBoundaries) {
   // max-value does not have a significand of the form 2^p (for some p).
   // Therefore its boundaries are at the same distance.
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
-  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());  // NOLINT
+  CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());
 }
 
 
@@ -226,5 +224,5 @@ TEST(NextDouble) {
   CHECK_EQ(V8_INFINITY, Double(uint64_t{0x7FEF'FFFF'FFFF'FFFF}).NextDouble());
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

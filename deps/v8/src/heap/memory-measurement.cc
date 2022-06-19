@@ -4,18 +4,17 @@
 
 #include "src/heap/memory-measurement.h"
 
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
-#include "src/api/api.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/isolate.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/heap/factory.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/marking-worklist.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-promise-inl.h"
-#include "src/objects/js-promise.h"
+#include "src/objects/smi.h"
 #include "src/tasks/task-utils.h"
 
 namespace v8 {
@@ -339,11 +338,12 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
 
 bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
                                             Address* native_context) {
-  Map context_map = context.synchronized_map();
+  PtrComprCageBase cage_base(isolate);
+  Map context_map = context.map(cage_base, kAcquireLoad);
   Object maybe_native_context =
       TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
-          Acquire_Load(isolate, context_map);
-  if (maybe_native_context.IsNativeContext()) {
+          Acquire_Load(cage_base, context_map);
+  if (maybe_native_context.IsNativeContext(cage_base)) {
     *native_context = maybe_native_context.ptr();
     return true;
   }
@@ -358,7 +358,7 @@ bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
                                                                     function);
   // The context may be a smi during deserialization.
   if (maybe_context.IsSmi()) {
-    DCHECK_EQ(maybe_context, Deserializer::uninitialized_field_value());
+    DCHECK_EQ(maybe_context, Smi::uninitialized_deserialization_value());
     return false;
   }
   if (!maybe_context.IsContext()) {
@@ -402,7 +402,7 @@ void NativeContextStats::IncrementExternalSize(Address context, Map map,
   InstanceType instance_type = map.instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object).allocation_length();
+    external_size = JSArrayBuffer::cast(object).GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
     external_size = ExternalString::cast(object).ExternalPayloadSize();

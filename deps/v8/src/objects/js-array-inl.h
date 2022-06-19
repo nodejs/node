@@ -15,14 +15,13 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSArray, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
+#include "torque-generated/src/objects/js-array-tq-inl.inc"
 
-CAST_ACCESSOR(JSArray)
-CAST_ACCESSOR(JSArrayIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator)
 
 DEF_GETTER(JSArray, length, Object) {
-  return TaggedField<Object, kLengthOffset>::load(isolate, *this);
+  return TaggedField<Object, kLengthOffset>::load(cage_base, *this);
 }
 
 void JSArray::set_length(Object value, WriteBarrierMode mode) {
@@ -31,8 +30,8 @@ void JSArray::set_length(Object value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
-Object JSArray::length(IsolateRoot isolate, RelaxedLoadTag tag) const {
-  return TaggedField<Object, kLengthOffset>::Relaxed_Load(isolate, *this);
+Object JSArray::length(PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
+  return TaggedField<Object, kLengthOffset>::Relaxed_Load(cage_base, *this);
 }
 
 void JSArray::set_length(Smi length) {
@@ -42,12 +41,6 @@ void JSArray::set_length(Smi length) {
 
 bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
   return new_length > kMaxFastArrayLength;
-}
-
-bool JSArray::AllowsSetLength() {
-  bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
-  DCHECK(result == !HasTypedArrayElements());
-  return result;
 }
 
 void JSArray::SetContent(Handle<JSArray> array,
@@ -69,9 +62,6 @@ void JSArray::SetContent(Handle<JSArray> array,
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
   return map().prototype() == *isolate->initial_array_prototype();
 }
-
-ACCESSORS(JSArrayIterator, iterated_object, Object, kIteratedObjectOffset)
-ACCESSORS(JSArrayIterator, next_index, Object, kNextIndexOffset)
 
 SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)
 

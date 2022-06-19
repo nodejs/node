@@ -6,7 +6,32 @@ extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
+
+  // [next_index]: The [[ArrayIteratorNextIndex]] inobject property.
+  // The next_index is always a positive integer, and it points to
+  // the next index that is to be returned by this iterator. It's
+  // possible range is fixed depending on the [[iterated_object]]:
+  //
+  //   1. For JSArray's the next_index is always in Unsigned32
+  //      range, and when the iterator reaches the end it's set
+  //      to kMaxUInt32 to indicate that this iterator should
+  //      never produce values anymore even if the "length"
+  //      property of the JSArray changes at some later point.
+  //   2. For JSTypedArray's the next_index is always in
+  //      UnsignedSmall range, and when the iterator terminates
+  //      it's set to Smi::kMaxValue.
+  //   3. For all other JSReceiver's it's always between 0 and
+  //      kMaxSafeInteger, and the latter value is used to mark
+  //      termination.
+  //
+  // It's important that for 1. and 2. the value fits into the
+  // Unsigned32 range (UnsignedSmall is a subset of Unsigned32),
+  // since we use this knowledge in the fast-path for the array
+  // iterator next calls in TurboFan (in the JSCallReducer) to
+  // keep the index in Word32 representation. This invariant is
+  // checked in JSArrayIterator::JSArrayIteratorVerify().
   next_index: Number;
+
   kind: SmiTagged<IterationKind>;
 }
 
@@ -65,6 +90,10 @@ transient type FastJSArrayForRead extends JSArray;
 
 // A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray;
+
+// A FastJSArrayForCopy when the global IsConcatSpreadableProtector is not
+// invalidated.
+transient type FastJSArrayForConcat extends FastJSArrayForCopy;
 
 // A FastJSArray when the global ArrayIteratorProtector is not invalidated.
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
@@ -158,7 +187,7 @@ struct FastJSArrayWitness {
     return this.unstable;
   }
 
-  macro Recheck() labels CastError {
+  macro Recheck(): void labels CastError {
     if (this.stable.map != this.map) goto CastError;
     // We don't need to check elements kind or whether the prototype
     // has changed away from the default JSArray prototype, because
@@ -181,7 +210,7 @@ struct FastJSArrayWitness {
     }
   }
 
-  macro StoreHole(k: Smi) {
+  macro StoreHole(k: Smi): void {
     if (this.hasDoubles) {
       const elements = Cast<FixedDoubleArray>(this.unstable.elements)
           otherwise unreachable;
@@ -201,19 +230,19 @@ struct FastJSArrayWitness {
     }
   }
 
-  macro EnsureArrayPushable(implicit context: Context)() labels Failed {
+  macro EnsureArrayPushable(implicit context: Context)(): void labels Failed {
     EnsureArrayPushable(this.map) otherwise Failed;
     array::EnsureWriteableFastElements(this.unstable);
     this.arrayIsPushable = true;
   }
 
-  macro ChangeLength(newLength: Smi) {
-    assert(this.arrayIsPushable);
+  macro ChangeLength(newLength: Smi): void {
+    dcheck(this.arrayIsPushable);
     this.unstable.length = newLength;
   }
 
-  macro Push(value: JSAny) labels Failed {
-    assert(this.arrayIsPushable);
+  macro Push(value: JSAny): void labels Failed {
+    dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
       BuildAppendJSArray(
           ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
@@ -222,7 +251,7 @@ struct FastJSArrayWitness {
       BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, this.unstable, value)
           otherwise Failed;
     } else {
-      assert(
+      dcheck(
           this.map.elements_kind == ElementsKind::HOLEY_ELEMENTS ||
           this.map.elements_kind == ElementsKind::PACKED_ELEMENTS);
       BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, this.unstable, value)
@@ -230,8 +259,8 @@ struct FastJSArrayWitness {
     }
   }
 
-  macro MoveElements(dst: intptr, src: intptr, length: intptr) {
-    assert(this.arrayIsPushable);
+  macro MoveElements(dst: intptr, src: intptr, length: intptr): void {
+    dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
       const elements: FixedDoubleArray =
           Cast<FixedDoubleArray>(this.unstable.elements)
@@ -274,7 +303,7 @@ struct FastJSArrayForReadWitness {
     return this.unstable;
   }
 
-  macro Recheck() labels CastError {
+  macro Recheck(): void labels CastError {
     if (this.stable.map != this.map) goto CastError;
     // We don't need to check elements kind or whether the prototype
     // has changed away from the default JSArray prototype, because

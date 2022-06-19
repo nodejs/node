@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/codegen/source-position-table.h"
@@ -178,7 +178,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     } else if (register_value.is_function_closure()) {
       *stream << "(closure)";
     } else if (register_value.is_parameter()) {
-      int parameter_index = register_value.ToParameterIndex(parameter_count);
+      int parameter_index = register_value.ToParameterIndex();
       if (parameter_index == 0) {
         *stream << "(this)";
       } else {
@@ -384,7 +384,6 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
-  i::FLAG_enable_one_shot_optimization = oneshot_opt_;
   i::FLAG_compilation_cache = false;
   i::Handle<i::BytecodeArray> bytecode_array;
   if (module_) {

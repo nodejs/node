@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
-#include "allocated_buffer-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_sockaddr-inl.h"
 #include "handle_wrap.h"
 #include "req_wrap-inl.h"
@@ -30,13 +30,18 @@
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -314,7 +319,7 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsUint32());
   CHECK(args[1]->IsBoolean());
-  bool is_recv = args[1].As<v8::Boolean>()->Value();
+  bool is_recv = args[1].As<Boolean>()->Value();
   const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
                                        "uv_send_buffer_size";
 
@@ -367,13 +372,17 @@ void UDPWrap::Disconnect(const FunctionCallbackInfo<Value>& args) {
 #define X(name, fn)                                                            \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {                \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                            \
+    if (wrap == nullptr) {                                                     \
+      args.GetReturnValue().Set(UV_EBADF);                                     \
+      return;                                                                  \
+    }                                                                          \
     Environment* env = wrap->env();                                            \
     CHECK_EQ(args.Length(), 1);                                                \
     int flag;                                                                  \
     if (!args[0]->Int32Value(env->context()).To(&flag)) {                      \
       return;                                                                  \
     }                                                                          \
-    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);           \
+    int err = fn(&wrap->handle_, flag);                                        \
     args.GetReturnValue().Set(err);                                            \
   }
 
@@ -679,7 +688,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
-  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
+  return env()->allocate_managed_buffer(suggested_size);
 }
 
 void UDPWrap::OnRecv(uv_udp_t* handle,
@@ -696,28 +705,70 @@ void UDPWrap::OnRecv(ssize_t nread,
                      const sockaddr* addr,
                      unsigned int flags) {
   Environment* env = this->env();
-  AllocatedBuffer buf(env, buf_);
+  Isolate* isolate = env->isolate();
+  std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
   if (nread == 0 && addr == nullptr) {
     return;
   }
 
-  HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-      Integer::New(env->isolate(), static_cast<int32_t>(nread)),
+      Integer::New(isolate, static_cast<int32_t>(nread)),
       object(),
-      Undefined(env->isolate()),
-      Undefined(env->isolate())};
+      Undefined(isolate),
+      Undefined(isolate)};
 
   if (nread < 0) {
     MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
+  } else if (nread == 0) {
+    bs = ArrayBuffer::NewBackingStore(isolate, 0);
+  } else {
+    CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
+    bs = BackingStore::Reallocate(isolate, std::move(bs), nread);
   }
 
-  buf.Resize(nread);
-  argv[2] = buf.ToBuffer().ToLocalChecked();
-  argv[3] = AddressToJS(env, addr);
+  Local<Object> address;
+  {
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!AddressToJS(env, addr).ToLocal(&address)) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
+      DCHECK(!argv[2].IsEmpty());
+      MakeCallback(env->onerror_string(), arraysize(argv), argv);
+      return;
+    }
+  }
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+  {
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&argv[2])) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
+      DCHECK(!argv[2].IsEmpty());
+      MakeCallback(env->onerror_string(), arraysize(argv), argv);
+      return;
+    }
+  }
+
+  argv[3] = address;
   MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 

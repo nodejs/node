@@ -69,6 +69,23 @@ class HeapConsistency final {
   }
 
   /**
+   * Gets the required write barrier type for a specific write.
+   * This version is meant to be used in conjunction with with a marking write
+   * barrier barrier which doesn't consider the slot.
+   *
+   * \param value The pointer to the object. May be an interior pointer to an
+   *   interface of the actual object.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  static V8_INLINE WriteBarrierType
+  GetWriteBarrierType(const void* value, WriteBarrierParams& params) {
+    return internal::WriteBarrier::GetWriteBarrierType(value, params);
+  }
+
+  /**
    * Conservative Dijkstra-style write barrier that processes an object if it
    * has not yet been processed.
    *
@@ -130,6 +147,19 @@ class HeapConsistency final {
   static V8_INLINE void GenerationalBarrier(const WriteBarrierParams& params,
                                             const void* slot) {
     internal::WriteBarrier::GenerationalBarrier(params, slot);
+  }
+
+  /**
+   * Generational barrier for source object that may contain outgoing pointers
+   * to objects in young generation.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param inner_pointer Pointer to the source object.
+   */
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const WriteBarrierParams& params, const void* inner_pointer) {
+    internal::WriteBarrier::GenerationalBarrierForSourceObject(params,
+                                                               inner_pointer);
   }
 
  private:

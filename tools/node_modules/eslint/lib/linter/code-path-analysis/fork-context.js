@@ -97,7 +97,6 @@ function mergeExtraSegments(context, segments) {
  */
 class ForkContext {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {IdGenerator} idGenerator An identifier generator for segments.
      * @param {ForkContext|null} upper An upper fork context.

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --verify-heap
 
-load("test/mjsunit/wasm/user-properties-common.js");
+d8.file.execute("test/mjsunit/wasm/user-properties-common.js");
 
 (function ConstructedTest() {
   print("ConstructedTest");

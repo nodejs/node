@@ -6,13 +6,13 @@
 #define V8_INSPECTOR_STRING_16_H_
 
 #include <stdint.h>
+
 #include <cctype>
 #include <climits>
 #include <cstring>
 #include <string>
 #include <vector>
 
-#include "../../third_party/inspector_protocol/crdtp/serializer_traits.h"
 #include "src/base/compiler-specific.h"
 
 namespace v8_inspector {
@@ -27,8 +27,8 @@ class String16 {
   String16(const String16&) V8_NOEXCEPT = default;
   String16(String16&&) V8_NOEXCEPT = default;
   String16(const UChar* characters, size_t size);
-  V8_EXPORT String16(const UChar* characters);  // NOLINT(runtime/explicit)
-  V8_EXPORT String16(const char* characters);   // NOLINT(runtime/explicit)
+  V8_EXPORT String16(const UChar* characters);
+  V8_EXPORT String16(const char* characters);
   String16(const char* characters, size_t size);
   explicit String16(const std::basic_string<UChar>& impl);
   explicit String16(std::basic_string<UChar>&& impl);
@@ -167,14 +167,5 @@ struct hash<v8_inspector::String16> {
 }  // namespace std
 
 #endif  // !defined(__APPLE__) || defined(_LIBCPP_VERSION)
-
-// See third_party/inspector_protocol/crdtp/serializer_traits.h.
-namespace v8_crdtp {
-template <>
-struct SerializerTraits<v8_inspector::String16> {
-  static void Serialize(const v8_inspector::String16& str,
-                        std::vector<uint8_t>* out);
-};
-}  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_16_H_

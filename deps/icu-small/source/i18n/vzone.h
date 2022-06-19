@@ -86,7 +86,7 @@ vzone_equals(const VZone* zone1, const VZone* zone2);
 
 /**
  * Gets the RFC2445 TZURL property value.  When a vzone instance was
- * created from VTIMEZONE data, the initial value is set by the TZURL
+ * created from VTIMEZONE data, the initial value is set by the TZURL 
  * property value in the data.  Otherwise, the initial value is not set.
  * @param zone, the vzone to use
  * @param url Receives the RFC2445 TZURL property value.
@@ -107,8 +107,8 @@ vzone_setTZURL(VZone* zone, UChar* url, int32_t urlLength);
 
 /**
  * Gets the RFC2445 LAST-MODIFIED property value.  When a vzone instance
- * was created from VTIMEZONE data, the initial value is set by the
- * LAST-MODIFIED property value in the data.  Otherwise, the initial value
+ * was created from VTIMEZONE data, the initial value is set by the 
+ * LAST-MODIFIED property value in the data.  Otherwise, the initial value 
  * is not set.
  * @param zone, the vzone to use
  * @param lastModified Receives the last modified date.
@@ -136,7 +136,7 @@ U_CAPI void U_EXPORT2
 vzone_write(VZone* zone, UChar* & result, int32_t & resultLength, UErrorCode& status);
 
 /**
- * Writes RFC2445 VTIMEZONE data for this time zone applicalbe
+ * Writes RFC2445 VTIMEZONE data for this time zone applicable
  * for dates after the specified start time.
  * @param zone, the vzone to use
  * @param start The start date.
@@ -148,7 +148,7 @@ U_CAPI void U_EXPORT2
 vzone_writeFromStart(VZone* zone, UDate start, UChar* & result, int32_t & resultLength, UErrorCode& status);
 
 /**
- * Writes RFC2445 VTIMEZONE data applicalbe for the specified date.
+ * Writes RFC2445 VTIMEZONE data applicable for the specified date.
  * Some common iCalendar implementations can only handle a single time
  * zone property or a pair of standard and daylight time properties using
  * BYDAY rule with day of week (such as BYDAY=1SUN).  This method produce
@@ -323,7 +323,7 @@ vzone_getPreviousTransition(VZone* zone, UDate base, UBool inclusive, ZTrans* re
  * Returns the number of <code>TimeZoneRule</code>s which represents time transitions,
  * for this time zone, that is, all <code>TimeZoneRule</code>s for this time zone except
  * <code>InitialTimeZoneRule</code>.  The return value range is 0 or any positive value.
- * @param zone, the vzone to use
+ * @param zone, the vzone to use     
  * @param status    Receives error status code.
  * @return The number of <code>TimeZoneRule</code>s representing time transitions.
  */

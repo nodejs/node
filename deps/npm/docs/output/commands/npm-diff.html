@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-diff</title>
 <style>
 body {
@@ -145,12 +146,14 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm diff [...&lt;paths&gt;]
-npm diff --diff=&lt;pkg-name&gt; [...&lt;paths&gt;]
-npm diff --diff=&lt;version-a&gt; [--diff=&lt;version-b&gt;] [...&lt;paths&gt;]
-npm diff --diff=&lt;spec-a&gt; [--diff=&lt;spec-b&gt;] [...&lt;paths&gt;]
-npm diff [--diff-ignore-all-space] [--diff-name-only] [...&lt;paths&gt;]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>Similar to its <code>git diff</code> counterpart, this command will print diff patches
 of files for packages published to the npm registry.</p>
@@ -158,13 +161,13 @@ of files for packages published to the npm registry.</p>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt; --diff=&lt;spec-b&gt;</code></p>
 <p>Compares two package versions using their registry specifiers, e.g:
-<code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>. It’s also possible to
+<code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>. It's also possible to
 compare across forks of any package,
 e.g: <code>npm diff --diff=pkg@1.0.0 --diff=pkg-fork@1.0.0</code>.</p>
-<p>Any valid spec can be used, so that it’s also possible to compare
+<p>Any valid spec can be used, so that it's also possible to compare
 directories or git repositories,
 e.g: <code>npm diff --diff=pkg@latest --diff=./packages/pkg</code></p>
-<p>Here’s an example comparing two different versions of a package named
+<p>Here's an example comparing two different versions of a package named
 <code>abbrev</code> from the registry:</p>
 <pre lang="bash"><code>npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
 </code></pre>
@@ -220,7 +223,7 @@ newer one if the version numbers are not the same.</p>
 </li>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt;</code> (in a package directory):</p>
-<p>Similar to using only a single package name, it’s also possible to declare
+<p>Similar to using only a single package name, it's also possible to declare
 a full registry specifier version if you wish to compare the local version
 of an installed package with the specific version/tag/semver-range provided
 in <code>&lt;spec-a&gt;</code>.</p>
@@ -240,7 +243,7 @@ to compare different versions of the current package.</p>
 <code>npm diff --diff=pkg@1.0.0 --diff=pkg@1.0.1</code>.</p>
 <p>If only a single argument <code>&lt;version-a&gt;</code> is provided, then the current local
 file system is going to be compared against that version.</p>
-<p>Here’s an example comparing two specific versions (published to the
+<p>Here's an example comparing two specific versions (published to the
 configured registry) of the current project directory:</p>
 <pre lang="bash"><code>npm diff --diff=1.0.0 --diff=1.1.0
 </code></pre>
@@ -249,7 +252,7 @@ configured registry) of the current project directory:</p>
 <p>Note that tag names are not valid <code>--diff</code> argument values, if you wish to
 compare to a published tag, you must use the <code>pkg@tagname</code> syntax.</p>
 <h4 id="filtering-files">Filtering files</h4>
-<p>It’s possible to also specify positional arguments using file names or globs
+<p>It's possible to also specify positional arguments using file names or globs
 pattern matching in order to limit the result of diff patches to only a subset
 of files for a given package, e.g:</p>
 <pre lang="bash"><code>npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
@@ -258,70 +261,156 @@ of files for a given package, e.g:</p>
 located within the folder <code>./lib/</code> and changed lines of code within the
 <code>CHANGELOG.md</code> file.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="diff">diff</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff"><code>diff</code></h4>
 <ul>
-<li>Type: Array</li>
-<li>Default: null</li>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Defines npm package specifiers to compare using the <code>npm diff</code> command.</p>
-<p>This can be specified up to 2 times.</p>
-<h4 id="diff-name-only">diff-name-only</h4>
+<p>Define arguments to compare in <code>npm diff</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-name-only"><code>diff-name-only</code></h4>
 <ul>
-<li>Type: Boolean</li>
 <li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>When set to <code>true</code> running <code>npm diff</code> only returns the names of the files that
-have any difference.</p>
-<h4 id="diff-unified">diff-unified</h4>
+<p>Prints only filenames when using <code>npm diff</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-unified"><code>diff-unified</code></h4>
 <ul>
+<li>Default: 3</li>
 <li>Type: Number</li>
-<li>Default: <code>3</code></li>
 </ul>
-<p>The number of lines of context to print in the unified diff format output.</p>
-<h4 id="diff-ignore-all-space">diff-ignore-all-space</h4>
+<p>The number of lines of context to print in <code>npm diff</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-ignore-all-space"><code>diff-ignore-all-space</code></h4>
 <ul>
-<li>Type: Boolean</li>
 <li>Default: false</li>
-</ul>
-<p>Ignore whitespace when comparing lines. This ignores differences even if one
-line has whitespace where the other line has none.</p>
-<h4 id="diff-no-prefix">diff-no-prefix</h4>
-<ul>
 <li>Type: Boolean</li>
-<li>Default: false</li>
 </ul>
-<p>Do not show any source or destination prefix.</p>
-<h4 id="diff-src-prefix">diff-src-prefix</h4>
+<p>Ignore whitespace when comparing lines in <code>npm diff</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-no-prefix"><code>diff-no-prefix</code></h4>
 <ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Do not show any source or destination prefix in <code>npm diff</code> output.</p>
+<p>Note: this causes <code>npm diff</code> to ignore the <code>--diff-src-prefix</code> and
+<code>--diff-dst-prefix</code> configs.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-src-prefix"><code>diff-src-prefix</code></h4>
+<ul>
+<li>Default: "a/"</li>
 <li>Type: String</li>
-<li>Default: <code>"a/"</code></li>
 </ul>
-<p>Show the given source prefix in diff patches headers instead of using “a/”.</p>
-<h4 id="diff-dst-prefix">diff-dst-prefix</h4>
+<p>Source prefix to be used in <code>npm diff</code> output.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-dst-prefix"><code>diff-dst-prefix</code></h4>
 <ul>
+<li>Default: "b/"</li>
 <li>Type: String</li>
-<li>Default: <code>"b/"</code></li>
 </ul>
-<p>Show the given source prefix in diff patches headers instead of using “b/”.</p>
-<h4 id="diff-text">diff-text</h4>
-<ul>
-<li>Type: Boolean</li>
-<li>Default: false</li>
-</ul>
-<p>Treat all files as text.</p>
-<h4 id="global">global</h4>
+<p>Destination prefix to be used in <code>npm diff</code> output.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="diff-text"><code>diff-text</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Uses packages from the global space as a source for comparison.</p>
-<h4 id="tag">tag</h4>
+<p>Treat all files as text in <code>npm diff</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global"><code>global</code></h4>
 <ul>
-<li>Type: String</li>
-<li>Default: <code>"latest"</code></li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>The tag used to fetch the tarball that will be compared with the local file
-system files when running npm diff with no arguments.</p>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="tag"><code>tag</code></h4>
+<ul>
+<li>Default: "latest"</li>
+<li>Type: String</li>
+</ul>
+<p>If you ask npm to install a package and don't tell it a specific version,
+then it will install the specified tag.</p>
+<p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
+command, if no explicit tag is given.</p>
+<p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="../commands/npm-outdated.html">npm outdated</a></li>

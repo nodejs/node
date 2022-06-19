@@ -6,7 +6,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
-
+#include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -25,9 +25,9 @@ namespace {
 Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
-  int param_count = static_cast<int>(call_descriptor->StackParameterCount());
+  int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   TNode<IntPtrT> sum = __ IntPtrConstant(0);
-  for (int i = 0; i < param_count; ++i) {
+  for (int i = 0; i < param_slots; ++i) {
     TNode<WordT> product = __ IntPtrMul(__ UncheckedParameter<IntPtrT>(i),
                                         __ IntPtrConstant(i + 1));
     sum = __ Signed(__ IntPtrAdd(sum, product));
@@ -44,14 +44,16 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ HeapConstant(BuildCallee(isolate, callee_descriptor)));
-  int param_count = static_cast<int>(callee_descriptor->StackParameterCount());
-  for (int i = 0; i < param_count; ++i) {
+  Handle<CodeT> code =
+      ToCodeT(BuildCallee(isolate, callee_descriptor), isolate);
+  params.push_back(__ HeapConstant(code));
+  int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
+  for (int i = 0; i < param_slots; ++i) {
     params.push_back(__ IntPtrConstant(i));
   }
-  DCHECK_EQ(param_count + 1, params.size());
+  DCHECK_EQ(param_slots + 1, params.size());
   tester.raw_assembler_for_testing()->TailCallN(callee_descriptor,
-                                                param_count + 1, params.data());
+                                                param_slots + 1, params.data());
   return tester.GenerateCodeCloseAndEscape();
 }
 
@@ -63,34 +65,34 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ HeapConstant(
-      BuildCaller(isolate, caller_descriptor, callee_descriptor)));
+  Handle<CodeT> code = ToCodeT(
+      BuildCaller(isolate, caller_descriptor, callee_descriptor), isolate);
+  params.push_back(__ HeapConstant(code));
   // Set up arguments for "Caller".
-  int param_count = static_cast<int>(caller_descriptor->StackParameterCount());
-  for (int i = 0; i < param_count; ++i) {
+  int param_slots = static_cast<int>(caller_descriptor->ParameterSlotCount());
+  for (int i = 0; i < param_slots; ++i) {
     // Use values that are different from the ones we will pass to this
     // function's callee later.
     params.push_back(__ IntPtrConstant(i + 42));
   }
-  DCHECK_EQ(param_count + 1, params.size());
+  DCHECK_EQ(param_slots + 1, params.size());
   TNode<IntPtrT> intptr_result =
       __ UncheckedCast<IntPtrT>(tester.raw_assembler_for_testing()->CallN(
-          caller_descriptor, param_count + 1, params.data()));
+          caller_descriptor, param_slots + 1, params.data()));
   __ Return(__ SmiTag(intptr_result));
   return tester.GenerateCodeCloseAndEscape();
 }
 
-CallDescriptor* CreateDescriptorForStackArguments(Zone* zone,
-                                                  int stack_param_count) {
+CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
   LocationSignature::Builder locations(zone, 1,
-                                       static_cast<size_t>(stack_param_count));
+                                       static_cast<size_t>(param_slots));
 
   locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),
                                                    MachineType::IntPtr()));
 
-  for (int i = 0; i < stack_param_count; ++i) {
+  for (int i = 0; i < param_slots; ++i) {
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
-        i - stack_param_count, MachineType::IntPtr()));
+        i - param_slots, MachineType::IntPtr()));
   }
 
   return zone->New<CallDescriptor>(
@@ -99,10 +101,10 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone,
       LinkageLocation::ForAnyRegister(
           MachineType::AnyTagged()),  // target location
       locations.Build(),              // location_sig
-      stack_param_count,              // stack_parameter_count
+      param_slots,                    // stack parameter slots
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
-      kNoCalleeSaved,                 // callee-saved fp
+      kNoCalleeSavedFp,               // callee-saved fp
       CallDescriptor::kNoFlags);      // flags
 }
 

@@ -12,7 +12,7 @@ package info.
 
 npm is configured to use the **npm public registry** at
 <https://registry.npmjs.org> by default. Use of the npm public registry is
-subject to terms of use available at <https://www.npmjs.com/policies/terms>.
+subject to terms of use available at <https://docs.npmjs.com/policies/terms>.
 
 You can configure npm to use any compatible registry you like, and even run
 your own registry. Use of someone else's registry may be governed by their
@@ -29,6 +29,13 @@ The registry URL used is determined by the scope of the package (see
 [`scope`](/using-npm/scope). If no scope is specified, the default registry is used, which is
 supplied by the `registry` config parameter.  See [`npm config`](/commands/npm-config),
 [`npmrc`](/configuring-npm/npmrc), and [`config`](/using-npm/config) for more on managing npm's configuration.
+
+When the default registry is used in a package-lock or shrinkwrap is has the
+special meaning of "the currently configured registry". If you create a lock
+file while using the default registry you can switch to another registry and
+npm will install packages from the new registry, but if you create a lock
+file while using a custom registry packages will be installed from that
+registry even after you change to another registry.
 
 ### Does npm send any information about me back to the registry?
 

@@ -44,52 +44,52 @@ class SimpleTimeZone;
  *
  *   a. Zone (table).  A zone is a table resource contains several
  *   type of resources below:
- *
+ *  
  *   - typeOffsets:intvector (Required)
- *
+ *  
  *   Sets of UTC raw/dst offset pairs in seconds.  Entries at
  *   2n represents raw offset and 2n+1 represents dst offset
  *   paired with the raw offset at 2n.  The very first pair represents
  *   the initial zone offset (before the first transition) always.
  *
- *   - trans:intvector (Optional)
- *
+ *   - trans:intvector (Optional) 
+ *  
  *   List of transition times represented by 32bit seconds from the
  *   epoch (1970-01-01T00:00Z) in ascending order.
- *
+ *  
  *   - transPre32/transPost32:intvector (Optional)
- *
+ *  
  *   List of transition times before/after 32bit minimum seconds.
  *   Each time is represented by a pair of 32bit integer.
- *
+ * 
  *   - typeMap:bin (Optional)
- *
+ *  
  *   Array of bytes representing the mapping between each transition
  *   time (transPre32/trans/transPost32) and its corresponding offset
  *   data (typeOffsets).
- *
+ *  
  *   - finalRule:string (Optional)
- *
+ *  
  *   If a recurrent transition rule is applicable to a zone forever
  *   after the final transition time, finalRule represents the rule
  *   in Rules data.
- *
+ *  
  *   - finalRaw:int (Optional)
- *
+ *   
  *   When finalRule is available, finalRaw is required and specifies
  *   the raw (base) offset of the rule.
- *
+ *   
  *   - finalYear:int (Optional)
- *
+ *   
  *   When finalRule is available, finalYear is required and specifies
  *   the start year of the rule.
- *
+ *   
  *   - links:intvector (Optional)
- *
+ *   
  *   When this zone data is shared with other zones, links specifies
  *   all zones including the zone itself.  Each zone is referenced by
  *   integer index.
- *
+ * 
  *  b. Link (int, length 1).  A link zone is an int resource.  The
  *  integer is the zone number of the target zone.  The key of this
  *  resource is an alternate name for the target zone.  This data
@@ -146,12 +146,12 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * Returns true if the two TimeZone objects are equal.
      */
-    virtual UBool operator==(const TimeZone& other) const;
+    virtual bool operator==(const TimeZone& other) const override;
 
     /**
      * TimeZone API.
      */
-    virtual OlsonTimeZone* clone() const;
+    virtual OlsonTimeZone* clone() const override;
 
     /**
      * TimeZone API.
@@ -161,14 +161,14 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.
      */
-    virtual UClassID getDynamicClassID() const;
-
+    virtual UClassID getDynamicClassID() const override;
+    
     /**
      * TimeZone API.  Do not call this; prefer getOffset(UDate,...).
      */
     virtual int32_t getOffset(uint8_t era, int32_t year, int32_t month,
                               int32_t day, uint8_t dayOfWeek,
-                              int32_t millis, UErrorCode& ec) const;
+                              int32_t millis, UErrorCode& ec) const override;
 
     /**
      * TimeZone API.  Do not call this; prefer getOffset(UDate,...).
@@ -176,26 +176,28 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     virtual int32_t getOffset(uint8_t era, int32_t year, int32_t month,
                               int32_t day, uint8_t dayOfWeek,
                               int32_t millis, int32_t monthLength,
-                              UErrorCode& ec) const;
+                              UErrorCode& ec) const override;
 
     /**
      * TimeZone API.
      */
     virtual void getOffset(UDate date, UBool local, int32_t& rawOffset,
-                   int32_t& dstOffset, UErrorCode& ec) const;
+                   int32_t& dstOffset, UErrorCode& ec) const override;
 
     /**
      * BasicTimeZone API.
      */
-    virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
-        int32_t& rawoff, int32_t& dstoff, UErrorCode& ec) const;
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
+        int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const override;
 
     /**
      * TimeZone API.  This method has no effect since objects of this
      * class are quasi-immutable (the base class allows the ID to be
      * changed).
      */
-    virtual void setRawOffset(int32_t offsetMillis);
+    virtual void setRawOffset(int32_t offsetMillis) override;
 
     /**
      * TimeZone API.  For a historical zone, the raw offset can change
@@ -203,7 +205,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * expected behavior, this method returns the raw offset for the
      * current moment in time.
      */
-    virtual int32_t getRawOffset() const;
+    virtual int32_t getRawOffset() const override;
 
     /**
      * TimeZone API.  For a historical zone, whether DST is used or
@@ -211,22 +213,22 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * behavior, this method returns true if DST is observed at any
      * point in the current year.
      */
-    virtual UBool useDaylightTime() const;
+    virtual UBool useDaylightTime() const override;
 
     /**
      * TimeZone API.
      */
-    virtual UBool inDaylightTime(UDate date, UErrorCode& ec) const;
+    virtual UBool inDaylightTime(UDate date, UErrorCode& ec) const override;
 
     /**
      * TimeZone API.
      */
-    virtual int32_t getDSTSavings() const;
+    virtual int32_t getDSTSavings() const override;
 
     /**
      * TimeZone API.  Also comare historic transitions.
      */
-    virtual UBool hasSameRules(const TimeZone& other) const;
+    virtual UBool hasSameRules(const TimeZone& other) const override;
 
     /**
      * BasicTimeZone API.
@@ -236,7 +238,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param result    Receives the first transition after the base time.
      * @return  true if the transition is found.
      */
-    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
+    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const override;
 
     /**
      * BasicTimeZone API.
@@ -246,7 +248,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param result    Receives the most recent transition before the base time.
      * @return  true if the transition is found.
      */
-    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
+    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const override;
 
     /**
      * BasicTimeZone API.
@@ -256,7 +258,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param status    Receives error status code.
      * @return The number of <code>TimeZoneRule</code>s representing time transitions.
      */
-    virtual int32_t countTransitionRules(UErrorCode& status) const;
+    virtual int32_t countTransitionRules(UErrorCode& status) const override;
 
     /**
      * Gets the <code>InitialTimeZoneRule</code> and the set of <code>TimeZoneRule</code>
@@ -274,7 +276,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param status        Receives error status code.
      */
     virtual void getTimeZoneRules(const InitialTimeZoneRule*& initial,
-        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const;
+        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const override;
 
     /**
      * Internal API returning the canonical ID of this zone.

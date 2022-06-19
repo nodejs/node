@@ -1,11 +1,12 @@
+#include "node_perf.h"
 #include "aliased_buffer.h"
 #include "env-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_internals.h"
-#include "node_perf.h"
 #include "node_buffer.h"
-#include "node_process.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 
 #include <cinttypes>
@@ -158,17 +159,18 @@ void MarkGarbageCollectionEnd(
   if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
     return;
 
-  double start_time = state->performance_last_gc_start_mark / 1e6;
-  double duration = (PERFORMANCE_NOW() / 1e6) - start_time;
+  double start_time =
+      (state->performance_last_gc_start_mark - timeOrigin) / 1e6;
+  double duration =
+      (PERFORMANCE_NOW() / 1e6) - (state->performance_last_gc_start_mark / 1e6);
 
   std::unique_ptr<GCPerformanceEntry> entry =
       std::make_unique<GCPerformanceEntry>(
           "gc",
           start_time,
           duration,
-          GCPerformanceEntry::Details(
-            static_cast<PerformanceGCKind>(type),
-            static_cast<PerformanceGCFlags>(flags)));
+          GCPerformanceEntry::Details(static_cast<PerformanceGCKind>(type),
+                                      static_cast<PerformanceGCFlags>(flags)));
 
   env->SetImmediate([entry = std::move(entry)](Environment* env) {
     entry->Notify(env);
@@ -233,45 +235,34 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(1.0 * idle_time / 1e6);
 }
 
-// Event Loop Timing Histogram
-void ELDHistogram::New(const FunctionCallbackInfo<Value>& args) {
+void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-  int32_t resolution = args[0].As<Int32>()->Value();
-  CHECK_GT(resolution, 0);
-  new ELDHistogram(env, args.This(), resolution);
+  int64_t interval = args[0].As<Integer>()->Value();
+  CHECK_GT(interval, 0);
+  BaseObjectPtr<IntervalHistogram> histogram =
+      IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
+        uint64_t delta = histogram.RecordDelta();
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                        "delay", delta);
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "min", histogram.Min());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "max", histogram.Max());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "mean", histogram.Mean());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "stddev", histogram.Stddev());
+      }, Histogram::Options { 1000 });
+  args.GetReturnValue().Set(histogram->object());
 }
 
-void ELDHistogram::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(New);
-  tmpl->Inherit(IntervalHistogram::GetConstructorTemplate(env));
-  tmpl->InstanceTemplate()->SetInternalFieldCount(
-      ELDHistogram::kInternalFieldCount);
-  env->SetConstructorFunction(target, "ELDHistogram", tmpl);
+void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(Number::New(args.GetIsolate(), timeOrigin / 1e6));
 }
 
-ELDHistogram::ELDHistogram(
-    Environment* env,
-    Local<Object> wrap,
-    int32_t interval)
-    : IntervalHistogram(
-          env,
-          wrap,
-          AsyncWrap::PROVIDER_ELDHISTOGRAM,
-          interval, 1, 3.6e12, 3) {}
-
-void ELDHistogram::OnInterval() {
-  uint64_t delta = histogram()->RecordDelta();
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                  "delay", delta);
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "min", histogram()->Min());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "max", histogram()->Max());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "mean", histogram()->Mean());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "stddev", histogram()->Stddev());
+void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(
+      Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
 }
 
 void Initialize(Local<Object> target,
@@ -308,6 +299,9 @@ void Initialize(Local<Object> target,
                  RemoveGarbageCollectionTracking);
   env->SetMethod(target, "notify", Notify);
   env->SetMethod(target, "loopIdleTime", LoopIdleTime);
+  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
+  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  env->SetMethod(target, "createELDHistogram", CreateELDHistogram);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -345,26 +339,29 @@ void Initialize(Local<Object> target,
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
   target->DefineOwnProperty(context,
-                            FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
-                            Number::New(isolate, timeOrigin / 1e6),
-                            attr).ToChecked();
-
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "timeOriginTimestamp"),
-      Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
-      attr).ToChecked();
-
-  target->DefineOwnProperty(context,
                             env->constants_string(),
                             constants,
                             attr).ToChecked();
 
   HistogramBase::Initialize(env, target);
-  ELDHistogram::Initialize(env, target);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(MarkMilestone);
+  registry->Register(SetupPerformanceObservers);
+  registry->Register(InstallGarbageCollectionTracking);
+  registry->Register(RemoveGarbageCollectionTracking);
+  registry->Register(Notify);
+  registry->Register(LoopIdleTime);
+  registry->Register(GetTimeOrigin);
+  registry->Register(GetTimeOriginTimeStamp);
+  registry->Register(CreateELDHistogram);
+  HistogramBase::RegisterExternalReferences(registry);
+  IntervalHistogram::RegisterExternalReferences(registry);
+}
 }  // namespace performance
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(performance,
+                               node::performance::RegisterExternalReferences)

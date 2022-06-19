@@ -53,6 +53,11 @@ enum class RegExpError : uint32_t {
 
 V8_EXPORT_PRIVATE const char* RegExpErrorString(RegExpError error);
 
+inline constexpr bool RegExpErrorIsStackOverflow(RegExpError error) {
+  return error == RegExpError::kStackOverflow ||
+         error == RegExpError::kAnalysisStackOverflow;
+}
+
 }  // namespace internal
 }  // namespace v8
 

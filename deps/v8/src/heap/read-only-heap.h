@@ -81,6 +81,7 @@ class ReadOnlyHeap {
   // Returns a read-only cache entry at a particular index.
   Object cached_read_only_object(size_t i) const;
   bool read_only_object_cache_is_initialized() const;
+  size_t read_only_object_cache_size() const;
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
@@ -88,7 +89,7 @@ class ReadOnlyHeap {
   // account whether shared memory is available with pointer compression.
   static bool IsReadOnlySpaceShared() {
     return V8_SHARED_RO_HEAP_BOOL &&
-           (!COMPRESS_POINTERS_BOOL || IsSharedMemoryAvailable());
+           (!COMPRESS_POINTERS_BOOL || COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL);
   }
 
   virtual void InitializeIsolateRoots(Isolate* isolate) {}
@@ -146,13 +147,13 @@ class SoleReadOnlyHeap : public ReadOnlyHeap {
 // This class enables iterating over all read-only heap objects.
 class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
  public:
-  explicit ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap);
-  explicit ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space);
+  explicit ReadOnlyHeapObjectIterator(const ReadOnlyHeap* ro_heap);
+  explicit ReadOnlyHeapObjectIterator(const ReadOnlySpace* ro_space);
 
   HeapObject Next();
 
  private:
-  ReadOnlySpace* const ro_space_;
+  const ReadOnlySpace* const ro_space_;
   std::vector<ReadOnlyPage*>::const_iterator current_page_;
   Address current_addr_;
 };

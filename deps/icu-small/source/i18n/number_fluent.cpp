@@ -289,6 +289,20 @@ Derived NumberFormatterSettings<Derived>::usage(const StringPiece usage)&& {
 }
 
 template<typename Derived>
+Derived NumberFormatterSettings<Derived>::unitDisplayCase(const StringPiece unitDisplayCase) const& {
+    Derived copy(*this);
+    copy.fMacros.unitDisplayCase.set(unitDisplayCase);
+    return copy;
+}
+
+template<typename Derived>
+Derived NumberFormatterSettings<Derived>::unitDisplayCase(const StringPiece unitDisplayCase)&& {
+    Derived move(std::move(*this));
+    move.fMacros.unitDisplayCase.set(unitDisplayCase);
+    return move;
+}
+
+template<typename Derived>
 Derived NumberFormatterSettings<Derived>::padding(const Padder& padder) const& {
     Derived copy(*this);
     copy.fMacros.padder = padder;
@@ -428,6 +442,7 @@ LocalizedNumberFormatter::LocalizedNumberFormatter(NFS<LNF>&& src) U_NOEXCEPT
 }
 
 LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(const LNF& other) {
+    if (this == &other) { return *this; }  // self-assignment: no-op
     NFS<LNF>::operator=(static_cast<const NFS<LNF>&>(other));
     UErrorCode localStatus = U_ZERO_ERROR; // Can't bubble up the error
     lnfCopyHelper(other, localStatus);
@@ -682,6 +697,10 @@ int32_t LocalizedNumberFormatter::getCallCount() const {
 }
 
 // Note: toFormat defined in number_asformat.cpp
+
+const DecimalFormatSymbols* LocalizedNumberFormatter::getDecimalFormatSymbols() const {
+    return fMacros.symbols.getDecimalFormatSymbols();
+}
 
 #if (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(_MSC_VER)
 // Warning 4661.

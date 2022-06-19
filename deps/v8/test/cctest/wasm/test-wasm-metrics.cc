@@ -6,7 +6,10 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
+#include "include/v8-platform.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/time.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/flag-utils.h"
@@ -22,10 +25,7 @@ namespace {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() override {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
@@ -182,7 +182,7 @@ class TestCompileResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       *native_module_ = module->shared_native_module();
-      isolate_->wasm_engine()->AsyncInstantiate(
+      GetWasmEngine()->AsyncInstantiate(
           isolate_,
           std::make_unique<TestInstantiateResolver>(isolate_, status_,
                                                     error_message_),
@@ -206,32 +206,24 @@ class TestCompileResolver : public CompilationResultResolver {
 
 }  // namespace
 
-#define RUN_COMPILE(name)                                                  \
-  MockPlatform mock_platform;                                              \
-  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
-  v8::Isolate::CreateParams create_params;                                 \
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
-  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
-  {                                                                        \
-    v8::HandleScope handle_scope(isolate);                                 \
-    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
-    v8::Context::Scope context_scope(context);                             \
-    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);           \
-    testing::SetupIsolateForWasmModule(i_isolate);                         \
-    RunCompile_##name(&mock_platform, i_isolate);                          \
-  }                                                                        \
-  isolate->Dispose();
+#define RUN_COMPILE(name)                                               \
+  v8::HandleScope handle_scope(CcTest::isolate());                      \
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate()); \
+  v8::Context::Scope context_scope(context);                            \
+  Isolate* i_isolate = CcTest::i_isolate();                             \
+  testing::SetupIsolateForWasmModule(i_isolate);                        \
+  RunCompile_##name(&platform, i_isolate);
 
 #define COMPILE_TEST(name)                                                  \
   void RunCompile_##name(MockPlatform*, i::Isolate*);                       \
-  UNINITIALIZED_TEST(Sync##name) {                                          \
+  TEST_WITH_PLATFORM(Sync##name, MockPlatform) {                            \
     i::FlagScope<bool> sync_scope(&i::FLAG_wasm_async_compilation, false);  \
     RUN_COMPILE(name);                                                      \
   }                                                                         \
                                                                             \
-  UNINITIALIZED_TEST(Async##name) { RUN_COMPILE(name); }                    \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_COMPILE(name); }      \
                                                                             \
-  UNINITIALIZED_TEST(Streaming##name) {                                     \
+  TEST_WITH_PLATFORM(Streaming##name, MockPlatform) {                       \
     i::FlagScope<bool> streaming_scope(&i::FLAG_wasm_test_streaming, true); \
     RUN_COMPILE(name);                                                      \
   }                                                                         \
@@ -267,9 +259,13 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
   reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);
+  if (v8::base::ThreadTicks::IsSupported()) {
+    v8::base::ThreadTicks::WaitUntilInitialized();
+  }
 
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
@@ -277,7 +273,7 @@ COMPILE_TEST(TestEventMetrics) {
 
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-  f->builder()->AddExport(CStrVector("main"), f);
+  f->builder()->AddExport(base::CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(0)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);
@@ -288,7 +284,7 @@ COMPILE_TEST(TestEventMetrics) {
   CompilationStatus status = CompilationStatus::kPending;
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
-  isolate->wasm_engine()->AsyncCompile(
+  GetWasmEngine()->AsyncCompile(
       isolate, enabled_features,
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),
@@ -312,6 +308,9 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_decoded_.back().module_size_in_bytes);
   CHECK_EQ(1, recorder->module_decoded_.back().function_count);
   CHECK_LE(0, recorder->module_decoded_.back().wall_clock_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      recorder->module_decoded_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
@@ -330,8 +329,12 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_compiled_.back().code_size_in_bytes);
   CHECK_GE(native_module->generated_code_size(),
            recorder->module_compiled_.back().code_size_in_bytes);
-  CHECK_EQ(0, recorder->module_compiled_.back().liftoff_bailout_count);
   CHECK_LE(0, recorder->module_compiled_.back().wall_clock_duration_in_us);
+  CHECK_EQ(native_module->baseline_compilation_cpu_duration(),
+           recorder->module_compiled_.back().cpu_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      recorder->module_compiled_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_instantiated_.size());
   CHECK(recorder->module_instantiated_.back().success);
@@ -350,6 +353,13 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_GE(native_module->committed_code_space(),
            recorder->module_tiered_up_.back().code_size_in_bytes);
   CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_duration_in_us);
+  CHECK_EQ(native_module->tier_up_cpu_duration(),
+           recorder->module_tiered_up_.back().cpu_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && i::FLAG_wasm_tier_up &&
+          i::FLAG_liftoff &&
+          recorder->module_compiled_.back().liftoff_bailout_count == 0,
+      recorder->module_tiered_up_.back().cpu_duration_in_us > 0);
 }
 
 }  // namespace wasm

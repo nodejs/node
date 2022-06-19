@@ -20,8 +20,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
 
-Cell Cell::FromValueAddress(Address value) {
-  return Cell::cast(HeapObject::FromAddress(value - kValueOffset));
+DEF_RELAXED_GETTER(Cell, value, Object) {
+  return TaggedField<Object, kValueOffset>::Relaxed_Load(cage_base, *this);
 }
 
 }  // namespace internal

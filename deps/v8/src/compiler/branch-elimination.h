@@ -10,6 +10,7 @@
 #include "src/compiler/functional-list.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/persistent-map.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class JSGraph;
+class SourcePositionTable;
 
 class V8_EXPORT_PRIVATE BranchElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
@@ -27,7 +29,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
     kLATE,
   };
   BranchElimination(Editor* editor, JSGraph* js_graph, Zone* zone,
-                    Phase phase = kLATE);
+                    SourcePositionTable* sourse_positions, Phase phase = kLATE);
   ~BranchElimination() final;
 
   const char* reducer_name() const override { return "BranchElimination"; }
@@ -35,7 +37,12 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction Reduce(Node* node) final;
 
  private:
+  // Represents a condition along with its value in the current control path.
+  // Also stores the node that branched on this condition.
   struct BranchCondition {
+    BranchCondition() : condition(nullptr), branch(nullptr), is_true(false) {}
+    BranchCondition(Node* condition, Node* branch, bool is_true)
+        : condition(condition), branch(branch), is_true(is_true) {}
     Node* condition;
     Node* branch;
     bool is_true;
@@ -45,36 +52,70 @@ class V8_EXPORT_PRIVATE BranchElimination final
              is_true == other.is_true;
     }
     bool operator!=(BranchCondition other) const { return !(*this == other); }
+
+    bool IsSet() const { return branch != nullptr; }
   };
 
-  // Class for tracking information about branch conditions.
-  // At the moment it is a linked list of conditions and their values
-  // (true or false).
-  class ControlPathConditions : public FunctionalList<BranchCondition> {
+  // Class for tracking information about branch conditions. It is represented
+  // as a linked list of condition blocks, each of which corresponds to a block
+  // of code bewteen an IfTrue/IfFalse and a Merge. Each block is in turn
+  // represented as a linked list of {BranchCondition}s.
+  class ControlPathConditions {
    public:
+    explicit ControlPathConditions(Zone* zone) : conditions_(zone) {}
+    // Checks if {condition} is present in this {ControlPathConditions}.
+    bool LookupCondition(Node* condition) const;
+    // Checks if {condition} is present in this {ControlPathConditions} and
+    // copies its {branch} and {is_true} fields.
     bool LookupCondition(Node* condition, Node** branch, bool* is_true) const;
+    // Adds a condition in the current code block, or a new block if the block
+    // list is empty.
     void AddCondition(Zone* zone, Node* condition, Node* branch, bool is_true,
                       ControlPathConditions hint);
+    // Adds a condition in a new block.
+    void AddConditionInNewBlock(Zone* zone, Node* condition, Node* branch,
+                                bool is_true);
+    // Reset this {ControlPathConditions} to the longest prefix that is common
+    // with {other}.
+    void ResetToCommonAncestor(ControlPathConditions other);
+
+    bool operator==(const ControlPathConditions& other) const {
+      return blocks_ == other.blocks_;
+    }
+    bool operator!=(const ControlPathConditions& other) const {
+      return blocks_ != other.blocks_;
+    }
+
+    friend class BranchElimination;
 
    private:
-    using FunctionalList<BranchCondition>::PushFront;
+    FunctionalList<FunctionalList<BranchCondition>> blocks_;
+    // This is an auxilliary data structure that provides fast lookups in the
+    // set of conditions. It should hold at any point that the contents of
+    // {blocks_} and {conditions_} is the same, which is implemented in
+    // {BlocksAndConditionsInvariant}.
+    PersistentMap<Node*, BranchCondition> conditions_;
+#if DEBUG
+    bool BlocksAndConditionsInvariant();
+#endif
   };
 
   Reduction ReduceBranch(Node* node);
   Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceIf(Node* node, bool is_true_branch);
+  Reduction ReduceTrapConditional(Node* node);
   Reduction ReduceLoop(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherControl(Node* node);
   void SimplifyBranchCondition(Node* branch);
+  bool TryPullTrapIntoMerge(Node* node);
 
   Reduction TakeConditionsFromFirstControl(Node* node);
   Reduction UpdateConditions(Node* node, ControlPathConditions conditions);
   Reduction UpdateConditions(Node* node, ControlPathConditions prev_conditions,
                              Node* current_condition, Node* current_branch,
-                             bool is_true_branch);
-  void MarkAsSafetyCheckIfNeeded(Node* branch, Node* node);
+                             bool is_true_branch, bool in_new_block);
 
   Node* dead() const { return dead_; }
   Graph* graph() const;
@@ -87,9 +128,12 @@ class V8_EXPORT_PRIVATE BranchElimination final
   // Maps each control node to the condition information known about the node.
   // If the information is nullptr, then we have not calculated the information
   // yet.
-  NodeAuxData<ControlPathConditions> node_conditions_;
+
+  NodeAuxData<ControlPathConditions, ZoneConstruct<ControlPathConditions>>
+      node_conditions_;
   NodeAuxData<bool> reduced_;
   Zone* zone_;
+  SourcePositionTable* source_positions_;
   Node* dead_;
   Phase phase_;
 };

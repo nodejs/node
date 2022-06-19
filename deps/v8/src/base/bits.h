@@ -144,7 +144,7 @@ inline constexpr
     typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 8,
                             unsigned>::type
     CountTrailingZerosNonZero(T value) {
-  CONSTEXPR_DCHECK(value != 0);
+  DCHECK_NE(0, value);
 #if V8_HAS_BUILTIN_CTZ
   return bits == 64 ? __builtin_ctzll(static_cast<uint64_t>(value))
                     : __builtin_ctz(static_cast<uint32_t>(value));
@@ -165,7 +165,7 @@ constexpr inline bool IsPowerOfTwo(T value) {
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
 inline constexpr int WhichPowerOfTwo(T value) {
-  CONSTEXPR_DCHECK(IsPowerOfTwo(value));
+  DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
   STATIC_ASSERT(sizeof(T) <= 8);
   return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))
@@ -194,7 +194,9 @@ inline size_t RoundUpToPowerOfTwo(size_t value) {
   if (sizeof(size_t) == sizeof(uint64_t)) {
     return RoundUpToPowerOfTwo64(value);
   } else {
-    return RoundUpToPowerOfTwo32(value);
+    // Without windows.h included this line triggers a truncation warning on
+    // 64-bit builds. Presumably windows.h disables the relevant warning.
+    return RoundUpToPowerOfTwo32(static_cast<uint32_t>(value));
   }
 }
 
@@ -327,6 +329,16 @@ inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
   return rhs ? lhs % rhs : 0u;
 }
 
+// Wraparound integer arithmetic without undefined behavior.
+
+inline int32_t WraparoundAdd32(int32_t lhs, int32_t rhs) {
+  return static_cast<int32_t>(static_cast<uint32_t>(lhs) +
+                              static_cast<uint32_t>(rhs));
+}
+
+inline int32_t WraparoundNeg32(int32_t x) {
+  return static_cast<int32_t>(-static_cast<uint32_t>(x));
+}
 
 // SignedSaturatedAdd64(lhs, rhs) adds |lhs| and |rhs|,
 // checks and returns the result.

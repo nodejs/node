@@ -2669,6 +2669,7 @@ $L$SEH_begin_poly1305_blocks_vpmadd52:
 
 
 
+DB	243,15,30,250
 	shr	rdx,4
 	jz	NEAR $L$no_data_vpmadd52
 
@@ -3592,6 +3593,7 @@ $L$SEH_begin_poly1305_emit_base2_44:
 
 
 
+DB	243,15,30,250
 	mov	r8,QWORD[rdi]
 	mov	r9,QWORD[8+rdi]
 	mov	r10,QWORD[16+rdi]

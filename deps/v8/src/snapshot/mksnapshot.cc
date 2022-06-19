@@ -9,12 +9,14 @@
 #include <iomanip>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-initialization.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/context-serializer.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #include "src/snapshot/snapshot.h"
@@ -37,14 +39,15 @@ class SnapshotFileWriter {
     // we end up with a corrupted snapshot file. The build step would succeed,
     // but the build target is unusable. Ideally we would write out temporary
     // files and only move them to the final destination as last step.
-    i::Vector<const i::byte> blob_vector(
+    v8::base::Vector<const i::byte> blob_vector(
         reinterpret_cast<const i::byte*>(blob.data), blob.raw_size);
     MaybeWriteSnapshotFile(blob_vector);
     MaybeWriteStartupBlob(blob_vector);
   }
 
  private:
-  void MaybeWriteStartupBlob(const i::Vector<const i::byte>& blob) const {
+  void MaybeWriteStartupBlob(
+      const v8::base::Vector<const i::byte>& blob) const {
     if (!snapshot_blob_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_blob_path_);
@@ -57,7 +60,8 @@ class SnapshotFileWriter {
     }
   }
 
-  void MaybeWriteSnapshotFile(const i::Vector<const i::byte>& blob) const {
+  void MaybeWriteSnapshotFile(
+      const v8::base::Vector<const i::byte>& blob) const {
     if (!snapshot_cpp_path_) return;
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_cpp_path_);
@@ -86,8 +90,8 @@ class SnapshotFileWriter {
     fprintf(fp, "}  // namespace v8\n");
   }
 
-  static void WriteSnapshotFileData(FILE* fp,
-                                    const i::Vector<const i::byte>& blob) {
+  static void WriteSnapshotFileData(
+      FILE* fp, const v8::base::Vector<const i::byte>& blob) {
     fprintf(fp,
             "alignas(kPointerAlignment) static const byte blob_data[] = {\n");
     WriteBinaryContentsAsCArray(fp, blob);
@@ -98,7 +102,7 @@ class SnapshotFileWriter {
   }
 
   static void WriteBinaryContentsAsCArray(
-      FILE* fp, const i::Vector<const i::byte>& blob) {
+      FILE* fp, const v8::base::Vector<const i::byte>& blob) {
     for (int i = 0; i < blob.length(); i++) {
       if ((i & 0x1F) == 0x1F) fprintf(fp, "\n");
       if (i > 0) fprintf(fp, ",");
@@ -155,7 +159,7 @@ v8::StartupData CreateSnapshotDataBlob(v8::Isolate* isolate,
       isolate);
 
   if (i::FLAG_profile_deserialization) {
-    i::PrintF("Creating snapshot took %0.3f ms\n",
+    i::PrintF("[Creating snapshot took %0.3f ms]\n",
               timer.Elapsed().InMillisecondsF());
   }
 
@@ -236,6 +240,11 @@ int main(int argc, char** argv) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
+  }
+#endif
   v8::V8::Initialize();
 
   {
@@ -299,6 +308,6 @@ int main(int argc, char** argv) {
   i::FreeCurrentEmbeddedBlob();
 
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   return 0;
 }

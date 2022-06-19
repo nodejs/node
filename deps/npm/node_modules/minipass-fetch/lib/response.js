@@ -17,8 +17,9 @@ class Response extends Body {
 
     if (body !== null && body !== undefined && !headers.has('Content-Type')) {
       const contentType = extractContentType(body)
-      if (contentType)
+      if (contentType) {
         headers.append('Content-Type', contentType)
+      }
     }
 
     this[INTERNALS] = {
@@ -43,7 +44,7 @@ class Response extends Body {
     return this[INTERNALS].status
   }
 
-  get ok ()  {
+  get ok () {
     return this[INTERNALS].status >= 200 && this[INTERNALS].status < 300
   }
 

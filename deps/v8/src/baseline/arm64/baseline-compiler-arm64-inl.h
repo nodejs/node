@@ -14,14 +14,15 @@ namespace baseline {
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
-  __ masm()->Mov(kInterpreterBytecodeArrayRegister, Operand(bytecode_));
-  DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
+  ASM_CODE_COMMENT(&masm_);
   // Enter the frame here, since CallBuiltin will override lr.
   __ masm()->EnterFrame(StackFrame::BASELINE);
-  CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
-              kJSFunctionRegister, kJavaScriptCallArgCountRegister,
-              kInterpreterBytecodeArrayRegister,
-              kJavaScriptCallNewTargetRegister);
+  DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
+  int max_frame_size =
+      bytecode_->frame_size() + max_call_args_ * kSystemPointerSize;
+  CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
 
   __ masm()->AssertSpAligned();
   PrologueFillFrame();
@@ -29,11 +30,15 @@ void BaselineCompiler::Prologue() {
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  if (FLAG_debug_code) {
+    __ masm()->CompareRoot(kInterpreterAccumulatorRegister,
+                           RootIndex::kUndefinedValue);
+    __ masm()->Assert(eq, AbortReason::kUnexpectedValue);
+  }
   int register_count = bytecode_->register_count();
   // Magic value
   const int kLoopUnrollSize = 8;
@@ -93,12 +98,12 @@ void BaselineCompiler::PrologueFillFrame() {
                       kInterpreterAccumulatorRegister);
     }
     __ masm()->Subs(scratch, scratch, 1);
-    __ JumpIf(Condition::kGreaterThan, &loop);
+    __ masm()->B(gt, &loop);
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {
+  ASM_CODE_COMMENT(&masm_);
   __ masm()->Add(x15, sp,
                  RoundUp(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                              bytecode_->frame_size(),

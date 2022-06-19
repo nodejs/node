@@ -33,11 +33,9 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  HeapBase* heap() const { return heap_; }
+  HeapBase& heap() const { return heap_; }
 
-  BaseSpace* space() { return space_; }
-  const BaseSpace* space() const { return space_; }
-  void set_space(BaseSpace* space) { space_ = space; }
+  BaseSpace& space() const { return space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
@@ -45,6 +43,10 @@ class V8_EXPORT_PRIVATE BasePage {
   ConstAddress PayloadStart() const;
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
+
+  // Returns the size of live objects on the page at the last GC.
+  // The counter is update after sweeping.
+  size_t AllocatedBytesAtLastGC() const;
 
   // |address| must refer to real object.
   template <AccessMode = AccessMode::kNonAtomic>
@@ -55,7 +57,8 @@ class V8_EXPORT_PRIVATE BasePage {
 
   // |address| is guaranteed to point into the page but not payload. Returns
   // nullptr when pointing into free list entries and the valid header
-  // otherwise.
+  // otherwise. The function is not thread-safe and cannot be called when
+  // e.g. sweeping is in progress.
   HeapObjectHeader* TryObjectHeaderFromInnerAddress(void* address) const;
   const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
       const void* address) const;
@@ -76,14 +79,22 @@ class V8_EXPORT_PRIVATE BasePage {
 #endif
   }
 
+  void IncrementDiscardedMemory(size_t value) {
+    DCHECK_GE(discarded_memory_ + value, discarded_memory_);
+    discarded_memory_ += value;
+  }
+  void ResetDiscardedMemory() { discarded_memory_ = 0; }
+  size_t discarded_memory() const { return discarded_memory_; }
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
-  BasePage(HeapBase*, BaseSpace*, PageType);
+  BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
-  HeapBase* heap_;
-  BaseSpace* space_;
+  HeapBase& heap_;
+  BaseSpace& space_;
   PageType type_;
+  size_t discarded_memory_ = 0;
 };
 
 class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
@@ -107,7 +118,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     bool operator!=(IteratorImpl other) const { return !(*this == other); }
 
     IteratorImpl& operator++() {
-      const size_t size = p_->GetSize();
+      const size_t size = p_->AllocatedSize();
       DCHECK_EQ(0, (size & (sizeof(T) - 1)));
       p_ += (size / sizeof(T));
       if (reinterpret_cast<ConstAddress>(p_) == lab_start_) {
@@ -134,7 +145,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
   // Allocates a new page in the detached state.
-  static NormalPage* Create(PageBackend*, NormalPageSpace*);
+  static NormalPage* Create(PageBackend&, NormalPageSpace&);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -169,6 +180,12 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
+  size_t AllocatedBytesAtLastGC() const { return allocated_bytes_at_last_gc_; }
+
+  void SetAllocatedBytesAtLastGC(size_t bytes) {
+    allocated_bytes_at_last_gc_ = bytes;
+  }
+
   PlatformAwareObjectStartBitmap& object_start_bitmap() {
     return object_start_bitmap_;
   }
@@ -177,18 +194,28 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   }
 
  private:
-  NormalPage(HeapBase* heap, BaseSpace* space);
+  NormalPage(HeapBase& heap, BaseSpace& space);
   ~NormalPage();
 
+  size_t allocated_bytes_at_last_gc_ = 0;
   PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
  public:
+  static constexpr size_t PageHeaderSize() {
+    // Header should be un-aligned to `kAllocationGranularity` so that adding a
+    // `HeapObjectHeader` gets the user object aligned to
+    // `kGuaranteedObjectAlignment`.
+    return RoundUp<kGuaranteedObjectAlignment>(sizeof(LargePage) +
+                                               sizeof(HeapObjectHeader)) -
+           sizeof(HeapObjectHeader);
+  }
+
   // Returns the allocation size required for a payload of size |size|.
   static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
-  static LargePage* Create(PageBackend*, LargePageSpace*, size_t);
+  static LargePage* Create(PageBackend&, LargePageSpace&, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
@@ -210,13 +237,22 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   ConstAddress PayloadEnd() const;
 
   size_t PayloadSize() const { return payload_size_; }
+  size_t ObjectSize() const {
+    DCHECK_GT(payload_size_, sizeof(HeapObjectHeader));
+    return payload_size_ - sizeof(HeapObjectHeader);
+  }
+
+  size_t AllocatedBytesAtLastGC() const { return ObjectSize(); }
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
  private:
-  LargePage(HeapBase* heap, BaseSpace* space, size_t);
+  static constexpr size_t kGuaranteedObjectAlignment =
+      2 * kAllocationGranularity;
+
+  LargePage(HeapBase& heap, BaseSpace& space, size_t);
   ~LargePage();
 
   size_t payload_size_;
@@ -247,7 +283,7 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
   DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
-                         header->GetSize<AccessMode::kAtomic>());
+                         header->AllocatedSize<AccessMode::kAtomic>());
   return header;
 }
 
@@ -269,7 +305,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   SynchronizedLoad();
   const HeapObjectHeader* header =
       ObjectHeaderFromInnerAddressImpl<mode>(this, address);
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
 

@@ -1,0 +1,413 @@
+=pod
+
+=head1 NAME
+
+OSSL_PROVIDER-FIPS - OpenSSL FIPS provider
+
+=head1 DESCRIPTION
+
+The OpenSSL FIPS provider is a special provider that conforms to the Federal
+Information Processing Standards (FIPS) specified in FIPS 140-2. This 'module'
+contains an approved set of cryptographic algorithms that is validated by an
+accredited testing laboratory.
+
+=head2 Properties
+
+The implementations in this provider specifically have these properties
+defined:
+
+=over 4
+
+=item "provider=fips"
+
+=item "fips=yes"
+
+=back
+
+It may be used in a property query string with fetching functions such as
+L<EVP_MD_fetch(3)> or L<EVP_CIPHER_fetch(3)>, as well as with other
+functions that take a property query string, such as
+L<EVP_PKEY_CTX_new_from_name(3)>.
+
+It isn't mandatory to query for any of these properties, except to
+make sure to get implementations of this provider and none other.
+
+The "fips=yes" property can be use to make sure only FIPS approved
+implementations are used for crypto operations.  This may also include
+other non-crypto support operations that are not in the fips provider,
+such as asymmetric key encoders,
+see L<OSSL_PROVIDER-default(7)/Asymmetric Key Management>.
+
+=head1 OPERATIONS AND ALGORITHMS
+
+The OpenSSL FIPS provider supports these operations and algorithms:
+
+=head2 Hashing Algorithms / Message Digests
+
+=over 4
+
+=item SHA1, see L<EVP_MD-SHA1(7)>
+
+=item SHA2, see L<EVP_MD-SHA2(7)>
+
+=item SHA3, see L<EVP_MD-SHA3(7)>
+
+=item KECCAK-KMAC, see L<EVP_MD-KECCAK-KMAC(7)>
+
+=back
+
+=head2 Symmetric Ciphers
+
+=over 4
+
+=item AES, see L<EVP_CIPHER-AES(7)>
+
+=item DES-EDE3 (TripleDES), see L<EVP_CIPHER-DES(7)>
+
+=back
+
+=head2 Message Authentication Code (MAC)
+
+=over 4
+
+=item CMAC, see L<EVP_MAC-CMAC(7)>
+
+=item GMAC, see L<EVP_MAC-GMAC(7)>
+
+=item HMAC, see L<EVP_MAC-HMAC(7)>
+
+=item KMAC, see L<EVP_MAC-KMAC(7)>
+
+=back
+
+=head2 Key Derivation Function (KDF)
+
+=over 4
+
+=item HKDF, see L<EVP_KDF-HKDF(7)>
+
+=item TLS13-KDF, see L<EVP_KDF-TLS13_KDF(7)>
+
+=item SSKDF, see L<EVP_KDF-SSKDF(7)>
+
+=item PBKDF2, see L<EVP_KDF-PBKDF2(7)>
+
+=item SSHKDF, see L<EVP_KDF-SSHKDF(7)>
+
+=item TLS1-PRF, see L<EVP_KDF-TLS1_PRF(7)>
+
+=item KBKDF, see L<EVP_KDF-KBKDF(7)>
+
+=item X942KDF-ASN1, see L<EVP_KDF-X942-ASN1(7)>
+
+=item X942KDF-CONCAT, see L<EVP_KDF-X942-CONCAT(7)>
+
+=item X963KDF, see L<EVP_KDF-X963(7)>
+
+=back
+
+=head2 Key Exchange
+
+=over 4
+
+=item DH, see L<EVP_KEYEXCH-DH(7)>
+
+=item ECDH, see L<EVP_KEYEXCH-ECDH(7)>
+
+=item X25519, see L<EVP_KEYEXCH-X25519(7)>
+
+=item X448, see L<EVP_KEYEXCH-X448(7)>
+
+=back
+
+=head2 Asymmetric Signature
+
+=over 4
+
+=item DSA, see L<EVP_KEYEXCH-DSA(7)>
+
+=item RSA, see L<EVP_SIGNATURE-RSA(7)>
+
+=item X25519, see L<EVP_SIGNATURE-ED25519(7)>
+
+=item X448, see L<EVP_SIGNATURE-ED448(7)>
+
+=item HMAC, see L<EVP_SIGNATURE-HMAC(7)>
+
+=item CMAC, see L<EVP_SIGNATURE-CMAC(7)>
+
+=back
+
+=head2 Asymmetric Cipher
+
+=over 4
+
+=item RSA, see L<EVP_KEYEXCH-RSA(7)>
+
+=back
+
+=head2 Asymmetric Key Encapsulation
+
+=over 4
+
+=item RSA, see L<EVP_KEM-RSA(7)>
+
+=back
+
+=head2 Asymmetric Key Management
+
+=over 4
+
+=item DH, see L<EVP_KEYMGMT-DH(7)>
+
+=item DSA, see L<EVP_KEYMGMT-DSA(7)>
+
+=item RSA, see L<EVP_KEYMGMT-RSA(7)>
+
+=back
+
+=head1 SELF TESTING
+
+One of the requirements for the FIPS module is self testing. An optional callback
+mechanism is available to return information to the user using
+L<OSSL_SELF_TEST_set_callback(3)>.
+
+The parameters passed to the callback are described in L<OSSL_SELF_TEST_new(3)>
+
+The OpenSSL FIPS module uses the following mechanism to provide information
+about the self tests as they run.
+This is useful for debugging if a self test is failing.
+The callback also allows forcing any self test to fail, in order to check that
+it operates correctly on failure.
+Note that all self tests run even if a self test failure occurs.
+
+The FIPS module passes the following type(s) to OSSL_SELF_TEST_onbegin().
+
+=over 4
+
+=item "Module_Integrity" (B<OSSL_SELF_TEST_TYPE_MODULE_INTEGRITY>)
+
+Uses HMAC SHA256 on the module file to validate that the module has not been
+modified. The integrity value is compared to a value written to a configuration
+file during installation.
+
+=item "Install_Integrity" (B<OSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY>)
+
+Uses HMAC SHA256 on a fixed string to validate that the installation process
+has already been performed and the self test KATS have already been tested,
+The integrity value is compared to a value written to a configuration
+file after successfully running the self tests during installation.
+
+=item "KAT_Cipher" (B<OSSL_SELF_TEST_TYPE_KAT_CIPHER>)
+
+Known answer test for a symmetric cipher.
+
+=item "KAT_AsymmetricCipher" (B<OSSL_SELF_TEST_TYPE_KAT_ASYM_CIPHER>)
+
+Known answer test for a asymmetric cipher.
+
+=item "KAT_Digest" (B<OSSL_SELF_TEST_TYPE_KAT_DIGEST>)
+
+Known answer test for a digest.
+
+=item "KAT_Signature" (B<OSSL_SELF_TEST_TYPE_KAT_SIGNATURE>)
+
+Known answer test for a signature.
+
+=item "PCT_Signature" (B<OSSL_SELF_TEST_TYPE_PCT_SIGNATURE>)
+
+Pairwise Consistency check for a signature.
+
+=item "KAT_KDF" (B<OSSL_SELF_TEST_TYPE_KAT_KDF>)
+
+Known answer test for a key derivation function.
+
+=item "KAT_KA" (B<OSSL_SELF_TEST_TYPE_KAT_KA>)
+
+Known answer test for key agreement.
+
+=item "DRBG" (B<OSSL_SELF_TEST_TYPE_DRBG>)
+
+Known answer test for a Deterministic Random Bit Generator.
+
+=item "Conditional_PCT" (B<OSSL_SELF_TEST_TYPE_PCT>)
+
+Conditional test that is run during the generation of key pairs.
+
+=item "Continuous_RNG_Test" (B<OSSL_SELF_TEST_TYPE_CRNG>)
+
+Continuous random number generator test.
+
+=back
+
+The "Module_Integrity" self test is always run at startup.
+The "Install_Integrity" self test is used to check if the self tests have
+already been run at installation time. If they have already run then the
+self tests are not run on subsequent startups.
+All other self test categories are run once at installation time, except for the
+"Pairwise_Consistency_Test".
+
+There is only one instance of the "Module_Integrity" and "Install_Integrity"
+self tests. All other self tests may have multiple instances.
+
+
+The FIPS module passes the following descriptions(s) to OSSL_SELF_TEST_onbegin().
+
+=over 4
+
+=item "HMAC" (B<OSSL_SELF_TEST_DESC_INTEGRITY_HMAC>)
+
+"Module_Integrity" and "Install_Integrity" use this.
+
+=item "RSA" (B<OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1>)
+
+=item "ECDSA" (B<OSSL_SELF_TEST_DESC_PCT_ECDSA>)
+
+=item "DSA" (B<OSSL_SELF_TEST_DESC_PCT_DSA>)
+
+Key generation tests used with the "Pairwise_Consistency_Test" type.
+
+=item "RSA_Encrypt" (B<OSSL_SELF_TEST_DESC_ASYM_RSA_ENC>)
+
+=item "RSA_Decrypt" (B<OSSL_SELF_TEST_DESC_ASYM_RSA_DEC>)
+
+"KAT_AsymmetricCipher" uses this to indicate an encrypt or decrypt KAT.
+
+=item "AES_GCM" (B<OSSL_SELF_TEST_DESC_CIPHER_AES_GCM>)
+
+=item "AES_ECB_Decrypt" (B<OSSL_SELF_TEST_DESC_CIPHER_AES_ECB>)
+
+=item "TDES" (B<OSSL_SELF_TEST_DESC_CIPHER_TDES>)
+
+Symmetric cipher tests used with the "KAT_Cipher" type.
+
+=item "SHA1" (B<OSSL_SELF_TEST_DESC_MD_SHA1>)
+
+=item "SHA2" (B<OSSL_SELF_TEST_DESC_MD_SHA2>)
+
+=item "SHA3" (B<OSSL_SELF_TEST_DESC_MD_SHA3>)
+
+Digest tests used with the "KAT_Digest" type.
+
+=item "DSA" (B<OSSL_SELF_TEST_DESC_SIGN_DSA>)
+
+=item "RSA" (B<OSSL_SELF_TEST_DESC_SIGN_RSA>)
+
+=item "ECDSA" (B<OSSL_SELF_TEST_DESC_SIGN_ECDSA>)
+
+Signature tests used with the "KAT_Signature" type.
+
+=item "ECDH" (B<OSSL_SELF_TEST_DESC_KA_ECDH>)
+
+=item "DH" (B<OSSL_SELF_TEST_DESC_KA_DH>)
+
+Key agreement tests used with the "KAT_KA" type.
+
+=item "HKDF" (B<OSSL_SELF_TEST_DESC_KDF_HKDF>)
+
+=item "TLS13_KDF_EXTRACT" (B<OSSL_SELF_TEST_DESC_KDF_TLS13_EXTRACT>)
+
+=item "TLS13_KDF_EXPAND" (B<OSSL_SELF_TEST_DESC_KDF_TLS13_EXPAND>)
+
+=item "SSKDF" (B<OSSL_SELF_TEST_DESC_KDF_SSKDF>)
+
+=item "X963KDF" (B<OSSL_SELF_TEST_DESC_KDF_X963KDF>)
+
+=item "X942KDF" (B<OSSL_SELF_TEST_DESC_KDF_X942KDF>)
+
+=item "PBKDF2" (B<OSSL_SELF_TEST_DESC_KDF_PBKDF2>)
+
+=item "SSHKDF" (B<OSSL_SELF_TEST_DESC_KDF_SSHKDF>)
+
+=item "TLS12_PRF" (B<OSSL_SELF_TEST_DESC_KDF_TLS12_PRF>)
+
+=item "KBKDF" (B<OSSL_SELF_TEST_DESC_KDF_KBKDF>)
+
+Key Derivation Function tests used with the "KAT_KDF" type.
+
+=item "CTR" (B<OSSL_SELF_TEST_DESC_DRBG_CTR>)
+
+=item "HASH" (B<OSSL_SELF_TEST_DESC_DRBG_HASH>)
+
+=item "HMAC" (B<OSSL_SELF_TEST_DESC_DRBG_HMAC>)
+
+DRBG tests used with the "DRBG" type.
+
+= item "RNG" (B<OSSL_SELF_TEST_DESC_RNG>)
+
+"Continuous_RNG_Test" uses this.
+
+=back
+
+=head1 EXAMPLES
+
+A simple self test callback is shown below for illustrative purposes.
+
+  #include <openssl/self_test.h>
+
+  static OSSL_CALLBACK self_test_cb;
+
+  static int self_test_cb(const OSSL_PARAM params[], void *arg)
+  {
+    int ret = 0;
+    const OSSL_PARAM *p = NULL;
+    const char *phase = NULL, *type = NULL, *desc = NULL;
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PROV_PARAM_SELF_TEST_PHASE);
+    if (p == NULL || p->data_type != OSSL_PARAM_UTF8_STRING)
+        goto err;
+    phase = (const char *)p->data;
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PROV_PARAM_SELF_TEST_DESC);
+    if (p == NULL || p->data_type != OSSL_PARAM_UTF8_STRING)
+        goto err;
+    desc = (const char *)p->data;
+
+    p = OSSL_PARAM_locate_const(params, OSSL_PROV_PARAM_SELF_TEST_TYPE);
+    if (p == NULL || p->data_type != OSSL_PARAM_UTF8_STRING)
+        goto err;
+    type = (const char *)p->data;
+
+    /* Do some logging */
+    if (strcmp(phase, OSSL_SELF_TEST_PHASE_START) == 0)
+        BIO_printf(bio_out, "%s : (%s) : ", desc, type);
+    if (strcmp(phase, OSSL_SELF_TEST_PHASE_PASS) == 0
+            || strcmp(phase, OSSL_SELF_TEST_PHASE_FAIL) == 0)
+        BIO_printf(bio_out, "%s\n", phase);
+
+    /* Corrupt the SHA1 self test during the 'corrupt' phase by returning 0 */
+    if (strcmp(phase, OSSL_SELF_TEST_PHASE_CORRUPT) == 0
+            && strcmp(desc, OSSL_SELF_TEST_DESC_MD_SHA1) == 0) {
+        BIO_printf(bio_out, "%s %s", phase, desc);
+        return 0;
+    }
+    ret = 1;
+  err:
+    return ret;
+  }
+
+=head1 SEE ALSO
+
+L<openssl-fipsinstall(1)>,
+L<fips_config(5)>,
+L<OSSL_SELF_TEST_set_callback(3)>,
+L<OSSL_SELF_TEST_new(3)>,
+L<OSSL_PARAM(3)>,
+L<openssl-core.h(7)>,
+L<openssl-core_dispatch.h(7)>,
+L<provider(7)>
+
+=head1 HISTORY
+
+The type and functions described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

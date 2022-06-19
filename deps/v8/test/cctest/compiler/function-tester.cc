@@ -4,6 +4,7 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -45,7 +46,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(*code, kReleaseStore);
+  function->set_code(ToCodeT(*code), kReleaseStore);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
@@ -140,9 +141,9 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
       p, p.GetIsolate());  // allocated in outer handle scope.
 }
 
-Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
+Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> f) {
   Zone zone(isolate->allocator(), ZONE_NAME);
-  return Optimize(function, &zone, isolate, flags_);
+  return Optimize(f, &zone, isolate, flags_);
 }
 
 // Compile the given machine graph instead of the source of the function

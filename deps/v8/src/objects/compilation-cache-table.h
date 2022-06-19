@@ -34,6 +34,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
                                           LanguageMode language_mode,
                                           int position);
 
+  static inline uint32_t StringSharedHash(String source,
+                                          LanguageMode language_mode);
+
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
@@ -86,11 +89,11 @@ class CompilationCacheTable
   // The 'script' cache contains SharedFunctionInfos.
   static MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode);
+      LanguageMode language_mode, Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> native_context, LanguageMode language_mode,
-      Handle<SharedFunctionInfo> value);
+      LanguageMode language_mode, Handle<SharedFunctionInfo> value,
+      Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the
   // code object. To do so, on first "put" only a hash identifying the
@@ -119,13 +122,6 @@ class CompilationCacheTable
   static Handle<CompilationCacheTable> PutRegExp(
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
-
-  // The Code cache shares native-context-independent (NCI) code between
-  // contexts.
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> key);
-  static Handle<CompilationCacheTable> PutCode(
-      Isolate* isolate, Handle<CompilationCacheTable> cache,
-      Handle<SharedFunctionInfo> key, Handle<Code> value);
 
   void Remove(Object value);
   void Age(Isolate* isolate);

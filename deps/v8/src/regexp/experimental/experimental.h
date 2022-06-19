@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_H_
 #define V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_H_
 
+#include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp.h"
 
 namespace v8 {
@@ -19,10 +20,10 @@ class ExperimentalRegExp final : public AllStatic {
   // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+  static bool CanBeHandled(RegExpTree* tree, RegExpFlags flags,
                            int capture_count);
   static void Initialize(Isolate* isolate, Handle<JSRegExp> re,
-                         Handle<String> pattern, JSRegExp::Flags flags,
+                         Handle<String> pattern, RegExpFlags flags,
                          int capture_count);
   static bool IsCompiled(Handle<JSRegExp> re, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
@@ -33,7 +34,6 @@ class ExperimentalRegExp final : public AllStatic {
                                     Address input_start, Address input_end,
                                     int* output_registers,
                                     int32_t output_register_count,
-                                    Address backtrack_stack,
                                     RegExp::CallOrigin call_origin,
                                     Isolate* isolate, Address regexp);
   static MaybeHandle<Object> Exec(

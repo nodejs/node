@@ -28,10 +28,10 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
- * \brief C++ API: Keys for comparing strings multiple times.
+ * \file 
+ * \brief C++ API: Keys for comparing strings multiple times. 
  */
-
+ 
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/uobject.h"
@@ -145,7 +145,7 @@ public:
     * @return Returns true if two collation keys are equal, false otherwise.
     * @stable ICU 2.0
     */
-    UBool                   operator==(const CollationKey& source) const;
+    bool                    operator==(const CollationKey& source) const;
 
     /**
     * Compare if two collation keys are not the same.
@@ -153,7 +153,7 @@ public:
     * @return Returns true if two collation keys are different, false otherwise.
     * @stable ICU 2.0
     */
-    UBool                   operator!=(const CollationKey& source) const;
+    bool                    operator!=(const CollationKey& source) const;
 
 
     /**
@@ -186,7 +186,7 @@ public:
     uint8_t*                toByteArray(int32_t& count) const;
 #endif
 
-#ifndef U_HIDE_DEPRECATED_API
+#ifndef U_HIDE_DEPRECATED_API 
     /**
     * Convenience method which does a string(bit-wise) comparison of the
     * two collation keys.
@@ -237,7 +237,7 @@ public:
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -316,7 +316,7 @@ private:
     } fUnion;
 };
 
-inline UBool
+inline bool
 CollationKey::operator!=(const CollationKey& other) const
 {
     return !(*this == other);

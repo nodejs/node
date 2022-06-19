@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
-// Flags: --allow-natives-syntax
+// Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExternRefIdentityFunction() {
   print(arguments.callee.name);
@@ -165,7 +164,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -196,7 +195,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v)
-      .addBody([kExprRefNull, kWasmExternRef, kExprRefIsNull])
+      .addBody([kExprRefNull, kExternRefCode, kExprRefIsNull])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -225,7 +224,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -237,7 +236,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmExternRef, kExprReturn])
+      .addBody([kExprRefNull, kExternRefCode, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -332,4 +331,29 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   });
 
   instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
+})();
+
+(function MultiReturnRefTest() {
+  print("MultiReturnTest");
+  let builder = new WasmModuleBuilder();
+  let sig = makeSig([kWasmExternRef],
+      [kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmExternRef]);
+
+  builder.addFunction("callee", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+    ]);
+  builder.addFunction("main", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, 0
+    ])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(null), [null, null, null, null]);
 })();

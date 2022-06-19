@@ -444,7 +444,7 @@ struct ListFormatter::ListPatternsSink : public ResourceSink {
     }
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
-            UErrorCode &errorCode) {
+            UErrorCode &errorCode) override {
         aliasedStyle[0] = 0;
         if (value.getType() == URES_ALIAS) {
             setAliasedStyle(value.getAliasUnicodeString(errorCode));
@@ -567,7 +567,7 @@ public:
                 start,
                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
                 status);
-            data->appendSpanInfo(0, start.length(), status);
+            data->appendSpanInfo(UFIELD_CATEGORY_LIST_SPAN, 0, -1, start.length(), status);
         }
     }
 
@@ -603,7 +603,7 @@ public:
                 next,
                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
                 status);
-            data->appendSpanInfo(position, next.length(), status);
+            data->appendSpanInfo(UFIELD_CATEGORY_LIST_SPAN, position, -1, next.length(), status);
             data->getStringRef().append(
                 temp.tempSubString(offsets[1]),
                 {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
@@ -622,7 +622,7 @@ public:
                 next,
                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
                 status);
-            data->prependSpanInfo(position, next.length(), status);
+            data->prependSpanInfo(UFIELD_CATEGORY_LIST_SPAN, position, -1, next.length(), status);
             data->getStringRef().insert(
                 0,
                 temp.tempSubStringBetween(0, offsets[1]),

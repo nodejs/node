@@ -7,7 +7,7 @@
 // Test that tiering up and tiering down works even if functions cannot be
 // compiled with Liftoff.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Create a simple Wasm module.
 function create_builder(i) {

@@ -92,6 +92,7 @@ inspectRequested from 1
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -106,6 +107,7 @@ inspectRequested from 1
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -120,6 +122,7 @@ inspectRequested from 2
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -134,6 +137,7 @@ inspectRequested from 2
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -148,6 +152,7 @@ inspectRequested from 1
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -185,6 +190,7 @@ inspectRequested from 2
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -200,6 +206,7 @@ inspectRequested from 2
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {

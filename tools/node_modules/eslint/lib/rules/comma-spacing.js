@@ -10,13 +10,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent spacing before and after commas",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/comma-spacing"
         },
@@ -181,7 +181,7 @@ module.exports = {
 
                     validateCommaItemSpacing({
                         comma: token,
-                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.indexOf(token) > -1 ? null : previousToken,
+                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.includes(token) ? null : previousToken,
                         right: astUtils.isCommaToken(nextToken) ? null : nextToken
                     }, token);
                 });

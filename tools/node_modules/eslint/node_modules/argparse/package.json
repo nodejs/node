@@ -1,7 +1,7 @@
 {
   "name": "argparse",
-  "description": "Very powerful CLI arguments parser. Native port of argparse - python's options parsing library",
-  "version": "1.0.10",
+  "description": "CLI arguments parser. Native port of python's argparse.",
+  "version": "2.0.1",
   "keywords": [
     "cli",
     "parser",
@@ -9,26 +9,23 @@
     "option",
     "args"
   ],
-  "contributors": [
-    "Eugene Shkuropat",
-    "Paul Jacobson"
-  ],
+  "main": "argparse.js",
   "files": [
-    "index.js",
+    "argparse.js",
     "lib/"
   ],
-  "license": "MIT",
+  "license": "Python-2.0",
   "repository": "nodeca/argparse",
   "scripts": {
-    "test": "make test"
-  },
-  "dependencies": {
-    "sprintf-js": "~1.0.2"
+    "lint": "eslint .",
+    "test": "npm run lint && nyc mocha",
+    "coverage": "npm run test && nyc report --reporter html"
   },
   "devDependencies": {
-    "eslint": "^2.13.1",
-    "istanbul": "^0.4.5",
-    "mocha": "^3.1.0",
-    "ndoc": "^5.0.1"
+    "@babel/eslint-parser": "^7.11.0",
+    "@babel/plugin-syntax-class-properties": "^7.10.4",
+    "eslint": "^7.5.0",
+    "mocha": "^8.0.1",
+    "nyc": "^15.1.0"
   }
 }

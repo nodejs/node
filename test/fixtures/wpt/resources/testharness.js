@@ -1,14 +1,5 @@
 /*global self*/
 /*jshint latedef: nofunc*/
-/*
-Distributed under both the W3C Test Suite License [1] and the W3C
-3-clause BSD License [2]. To contribute to a W3C Test Suite, see the
-policies and contribution forms [3].
-
-[1] http://www.w3.org/Consortium/Legal/2008/04-testsuite-license
-[2] http://www.w3.org/Consortium/Legal/2008/03-bsd-license
-[3] http://www.w3.org/2004/10/27-testcases
-*/
 
 /* Documentation: https://web-platform-tests.org/writing-tests/testharness-api.html
  * (../docs/_writing-tests/testharness-api.md) */
@@ -1190,9 +1181,9 @@ policies and contribution forms [3].
                     console.debug("ASSERT", name, tests.current_test && tests.current_test.name, args);
                 }
                 if (tests.output) {
-                    tests.set_assert(name, ...args);
+                    tests.set_assert(name, args);
                 }
-                const rv = f(...args);
+                const rv = f.apply(undefined, args);
                 status = Test.statuses.PASS;
                 return rv;
             } catch(e) {
@@ -1566,7 +1557,8 @@ policies and contribution forms [3].
     function _assert_inherits(name) {
         return function (object, property_name, description)
         {
-            assert(typeof object === "object" || typeof object === "function" ||
+            assert((typeof object === "object" && object !== null) ||
+                   typeof object === "function" ||
                    // Or has [[IsHTMLDDA]] slot
                    String(object) === "[object HTMLAllCollection]",
                    name, description,
@@ -2725,7 +2717,7 @@ policies and contribution forms [3].
         return this.formats[this.status];
     }
 
-    function AssertRecord(test, assert_name, ...args) {
+    function AssertRecord(test, assert_name, args = []) {
         this.assert_name = assert_name;
         this.test = test;
         // Avoid keeping complex objects alive
@@ -3032,8 +3024,8 @@ policies and contribution forms [3].
                   all_complete);
     };
 
-    Tests.prototype.set_assert = function(assert_name, ...args) {
-        this.asserts_run.push(new AssertRecord(this.current_test, assert_name, ...args))
+    Tests.prototype.set_assert = function(assert_name, args) {
+        this.asserts_run.push(new AssertRecord(this.current_test, assert_name, args))
     }
 
     Tests.prototype.set_assert_status = function(status, stack) {
@@ -3463,13 +3455,13 @@ policies and contribution forms [3].
                                      e.preventDefault();
                                      return;
                                  }
-                                 var result_class = element.parentNode.getAttribute("class");
+                                 var result_class = element.querySelector("span[class]").getAttribute("class");
                                  var style_element = output_document.querySelector("style#hide-" + result_class);
                                  var input_element = element.querySelector("input");
                                  if (!style_element && !input_element.checked) {
                                      style_element = output_document.createElementNS(xhtml_ns, "style");
                                      style_element.id = "hide-" + result_class;
-                                     style_element.textContent = "table#results > tbody > tr."+result_class+"{display:none}";
+                                     style_element.textContent = "table#results > tbody > tr.overall-"+result_class+"{display:none}";
                                      output_document.body.appendChild(style_element);
                                  } else if (style_element && input_element.checked) {
                                      style_element.parentNode.removeChild(style_element);
@@ -3541,10 +3533,11 @@ policies and contribution forms [3].
                 if (assert.stack) {
                     output_location = assert.stack.split("\n", 1)[0].replace(/@?\w+:\/\/[^ "\/]+(?::\d+)?/g, " ");
                 }
-                return "<tr><td class=" +
-                    status_class(Test.prototype.status_formats[assert.status]) + ">" +
+                return "<tr class='overall-" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
+                    "<td class='" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
                     Test.prototype.status_formats[assert.status] + "</td>" +
-                    "</td>" +
                     "<td><pre>" +
                     output_fn +
                     (output_location ? "\n" + escape_html(output_location) : "") +
@@ -3564,7 +3557,10 @@ policies and contribution forms [3].
             "<tbody>";
         for (var i = 0; i < tests.length; i++) {
             var test = tests[i];
-            html += '<tr><td class="' +
+            html += '<tr class="overall-' +
+                status_class(test.format_status()) +
+                '">' +
+                '<td class="' +
                 status_class(test.format_status()) +
                 '">' +
                 test.format_status() +

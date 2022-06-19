@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 class LocalHeap;
-class OptimizedCompilationJob;
+class TurbofanCompilationJob;
 class RuntimeCallStats;
 class SharedFunctionInfo;
 
@@ -30,11 +30,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
         input_queue_length_(0),
         input_queue_shift_(0),
-        mode_(COMPILE),
-        blocked_jobs_(0),
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
-    input_queue_ = NewArray<OptimizedCompilationJob*>(input_queue_capacity_);
+    input_queue_ = NewArray<TurbofanCompilationJob*>(input_queue_capacity_);
   }
 
   ~OptimizingCompileDispatcher();
@@ -42,8 +40,8 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void Stop();
   void Flush(BlockingBehavior blocking_behavior);
   // Takes ownership of |job|.
-  void QueueForOptimization(OptimizedCompilationJob* job);
-  void Unblock();
+  void QueueForOptimization(TurbofanCompilationJob* job);
+  void AwaitCompileTasks();
   void InstallOptimizedFunctions();
 
   inline bool IsQueueAvailable() {
@@ -53,16 +51,29 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   static bool Enabled() { return FLAG_concurrent_recompilation; }
 
+  // This method must be called on the main thread.
+  bool HasJobs();
+
+  // Whether to finalize and thus install the optimized code.  Defaults to true.
+  // Only set to false for testing (where finalization is then manually
+  // requested using %FinalizeOptimization).
+  bool finalize() const { return finalize_; }
+  void set_finalize(bool finalize) {
+    CHECK(!HasJobs());
+    finalize_ = finalize;
+  }
+
  private:
   class CompileTask;
 
   enum ModeFlag { COMPILE, FLUSH };
 
+  void FlushQueues(BlockingBehavior blocking_behavior,
+                   bool restore_function_code);
+  void FlushInputQueue();
   void FlushOutputQueue(bool restore_function_code);
-  void CompileNext(OptimizedCompilationJob* job, RuntimeCallStats* stats,
-                   LocalIsolate* local_isolate);
-  OptimizedCompilationJob* NextInput(LocalIsolate* local_isolate,
-                                     bool check_if_flushing = false);
+  void CompileNext(TurbofanCompilationJob* job, LocalIsolate* local_isolate);
+  TurbofanCompilationJob* NextInput(LocalIsolate* local_isolate);
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
@@ -74,23 +85,19 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   Isolate* isolate_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
-  OptimizedCompilationJob** input_queue_;
+  TurbofanCompilationJob** input_queue_;
   int input_queue_capacity_;
   int input_queue_length_;
   int input_queue_shift_;
   base::Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<OptimizedCompilationJob*> output_queue_;
+  std::queue<TurbofanCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;
 
-  std::atomic<ModeFlag> mode_;
-
-  int blocked_jobs_;
-
-  int ref_count_;
+  std::atomic<int> ref_count_;
   base::Mutex ref_count_mutex_;
   base::ConditionVariable ref_count_zero_;
 
@@ -100,6 +107,8 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   // Since flags might get modified while the background thread is running, it
   // is not safe to access them directly.
   int recompilation_delay_;
+
+  bool finalize_ = true;
 };
 }  // namespace internal
 }  // namespace v8

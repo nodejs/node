@@ -46,10 +46,6 @@ size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
-size_t hash_value(LoadSensitivity);
-
-std::ostream& operator<<(std::ostream&, LoadSensitivity);
-
 struct ConstFieldInfo {
   // the map that introduced the const field, if any. An access is considered
   // mutable iff the handle is null.
@@ -82,13 +78,16 @@ struct FieldAccess {
   Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
-  LoadSensitivity load_sensitivity;     // load safety for poisoning.
   ConstFieldInfo const_field_info;      // the constness of this access, and the
                                     // field owner map, if the access is const
   bool is_store_in_literal;  // originates from a kStoreInLiteral access
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
 #endif
+  bool maybe_initializing_or_transitioning_store;  // store is potentially
+                                                   // initializing a newly
+                                                   // allocated object or part
+                                                   // of a map transition.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -96,21 +95,19 @@ struct FieldAccess {
         type(Type::None()),
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
-        load_sensitivity(LoadSensitivity::kUnsafe),
         const_field_info(ConstFieldInfo::None()),
-        is_store_in_literal(false) {}
+        is_store_in_literal(false),
+        maybe_initializing_or_transitioning_store(false) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
-              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
-              bool is_store_in_literal = false
-#ifdef V8_HEAP_SANDBOX
-              ,
-              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag
+              bool is_store_in_literal = false,
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
 #endif
-              )
+              bool maybe_initializing_or_transitioning_store = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -118,15 +115,21 @@ struct FieldAccess {
         type(type),
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
-        load_sensitivity(load_sensitivity),
         const_field_info(const_field_info),
-        is_store_in_literal(is_store_in_literal)
-#ifdef V8_HEAP_SANDBOX
-        ,
-        external_pointer_tag(external_pointer_tag)
+        is_store_in_literal(is_store_in_literal),
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+        external_pointer_tag(external_pointer_tag),
 #endif
-  {
+        maybe_initializing_or_transitioning_store(
+            maybe_initializing_or_transitioning_store) {
     DCHECK_GE(offset, 0);
+    DCHECK_IMPLIES(
+        machine_type.IsMapWord(),
+        offset == HeapObject::kMapOffset && base_is_tagged != kUntaggedBase);
+    DCHECK_IMPLIES(machine_type.IsMapWord(),
+                   (write_barrier_kind == kMapWriteBarrier ||
+                    write_barrier_kind == kNoWriteBarrier ||
+                    write_barrier_kind == kAssertNoWriteBarrier));
   }
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
@@ -155,25 +158,21 @@ struct ElementAccess {
   Type type;                      // type of the element.
   MachineType machine_type;       // machine type of the element.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
-  LoadSensitivity load_sensitivity;     // load safety for poisoning.
 
   ElementAccess()
       : base_is_tagged(kTaggedBase),
         header_size(0),
         type(Type::None()),
         machine_type(MachineType::None()),
-        write_barrier_kind(kFullWriteBarrier),
-        load_sensitivity(LoadSensitivity::kUnsafe) {}
+        write_barrier_kind(kFullWriteBarrier) {}
 
   ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type type,
-                MachineType machine_type, WriteBarrierKind write_barrier_kind,
-                LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe)
+                MachineType machine_type, WriteBarrierKind write_barrier_kind)
       : base_is_tagged(base_is_tagged),
         header_size(header_size),
         type(type),
         machine_type(machine_type),
-        write_barrier_kind(write_barrier_kind),
-        load_sensitivity(load_sensitivity) {}
+        write_barrier_kind(write_barrier_kind) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -440,41 +439,6 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
-// A descriptor for dynamic map checks.
-class DynamicCheckMapsParameters final {
- public:
-  enum ICState { kMonomorphic, kPolymorphic };
-
-  DynamicCheckMapsParameters(CheckMapsFlags flags, Handle<Object> handler,
-                             ZoneHandleSet<Map> const& maps,
-                             const FeedbackSource& feedback)
-      : flags_(flags), handler_(handler), maps_(maps), feedback_(feedback) {}
-
-  CheckMapsFlags flags() const { return flags_; }
-  Handle<Object> handler() const { return handler_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
-  FeedbackSource const& feedback() const { return feedback_; }
-  ICState state() const {
-    return maps_.size() == 1 ? ICState::kMonomorphic : ICState::kPolymorphic;
-  }
-
- private:
-  CheckMapsFlags const flags_;
-  Handle<Object> const handler_;
-  ZoneHandleSet<Map> const maps_;
-  FeedbackSource const feedback_;
-};
-
-bool operator==(DynamicCheckMapsParameters const&,
-                DynamicCheckMapsParameters const&);
-
-size_t hash_value(DynamicCheckMapsParameters const&);
-
-std::ostream& operator<<(std::ostream&, DynamicCheckMapsParameters const&);
-
-DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(Operator const*)
-    V8_WARN_UNUSED_RESULT;
-
 ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
@@ -599,6 +563,30 @@ bool operator==(NumberOperationParameters const&,
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+class SpeculativeBigIntAsNParameters {
+ public:
+  SpeculativeBigIntAsNParameters(int bits, const FeedbackSource& feedback)
+      : bits_(bits), feedback_(feedback) {
+    DCHECK_GE(bits_, 0);
+    DCHECK_LE(bits_, 64);
+  }
+
+  int bits() const { return bits_; }
+  const FeedbackSource& feedback() const { return feedback_; }
+
+ private:
+  int bits_;
+  FeedbackSource feedback_;
+};
+
+size_t hash_value(SpeculativeBigIntAsNParameters const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream&, const SpeculativeBigIntAsNParameters&);
+bool operator==(SpeculativeBigIntAsNParameters const&,
+                SpeculativeBigIntAsNParameters const&);
+const SpeculativeBigIntAsNParameters& SpeculativeBigIntAsNParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
+
 int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
@@ -665,19 +653,33 @@ std::ostream& operator<<(std::ostream&, const NewArgumentsElementsParameters&);
 const NewArgumentsElementsParameters& NewArgumentsElementsParametersOf(
     const Operator*) V8_WARN_UNUSED_RESULT;
 
+struct FastApiCallFunction {
+  Address address;
+  const CFunctionInfo* signature;
+
+  bool operator==(const FastApiCallFunction& rhs) const {
+    return address == rhs.address && signature == rhs.signature;
+  }
+};
+typedef ZoneVector<FastApiCallFunction> FastApiCallFunctionVector;
+
 class FastApiCallParameters {
  public:
-  explicit FastApiCallParameters(const CFunctionInfo* signature,
+  explicit FastApiCallParameters(const FastApiCallFunctionVector& c_functions,
                                  FeedbackSource const& feedback,
                                  CallDescriptor* descriptor)
-      : signature_(signature), feedback_(feedback), descriptor_(descriptor) {}
+      : c_functions_(c_functions),
+        feedback_(feedback),
+        descriptor_(descriptor) {}
 
-  const CFunctionInfo* signature() const { return signature_; }
+  const FastApiCallFunctionVector& c_functions() const { return c_functions_; }
   FeedbackSource const& feedback() const { return feedback_; }
   CallDescriptor* descriptor() const { return descriptor_; }
 
  private:
-  const CFunctionInfo* signature_;
+  // A single FastApiCall node can represent multiple overloaded functions.
+  const FastApiCallFunctionVector c_functions_;
+
   const FeedbackSource feedback_;
   CallDescriptor* descriptor_;
 };
@@ -798,6 +800,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberBitwiseAnd(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseOr(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseXor(NumberOperationHint hint);
+  const Operator* SpeculativeNumberPow(NumberOperationHint hint);
 
   const Operator* SpeculativeNumberLessThan(NumberOperationHint hint);
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
@@ -806,27 +809,16 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
-  const Operator* BigIntAsUintN(int bits);
+  const Operator* SpeculativeBigIntAsIntN(int bits,
+                                          const FeedbackSource& feedback);
+  const Operator* SpeculativeBigIntAsUintN(int bits,
+                                           const FeedbackSource& feedback);
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();
   const Operator* SameValueNumbersOnly();
 
   const Operator* TypeOf();
-
-  // Adds the given delta to the current feedback vector's interrupt budget,
-  // and calls the runtime profiler in case the budget is exhausted.  A note on
-  // the delta parameter: the interrupt budget mechanism originates in the
-  // interpreter and thus still refers to 'bytecodes' even though we are
-  // generating native code. The interrupt budget essentially corresponds to
-  // the number of bytecodes we can execute before calling the profiler. The
-  // delta parameter represents the executed bytecodes since the last update.
-  const Operator* UpdateInterruptBudget(int delta);
-
-  // Takes the current feedback vector as input 0, and generates a check of the
-  // vector's marker. Depending on the marker's value, we either do nothing,
-  // trigger optimized compilation, or install a finished code object.
-  const Operator* TierUpCheck();
 
   const Operator* ToBoolean();
 
@@ -872,14 +864,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
-  const Operator* TruncateBigIntToUint64();
+  const Operator* TruncateBigIntToWord64();
+  const Operator* ChangeInt64ToBigInt();
   const Operator* ChangeUint64ToBigInt();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
-  const Operator* PoisonIndex();
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
@@ -900,9 +892,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
-  const Operator* DynamicCheckMaps(CheckMapsFlags flags, Handle<Object> handler,
-                                   ZoneHandleSet<Map> const& maps,
-                                   const FeedbackSource& feedback);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
@@ -1006,7 +995,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
-  const Operator* StoreField(FieldAccess const&);
+  const Operator* StoreField(FieldAccess const&,
+                             bool maybe_initializing_or_transitioning = true);
 
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
@@ -1031,10 +1021,22 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                      Type value_type);
 
   // load-from-object [base + offset]
+  // This operator comes in two flavors: LoadImmutableFromObject guarantees that
+  // the underlying object field will be initialized at most once for the
+  // duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
+  // Note: LoadImmutableFromObject is unrelated to LoadImmutable and is lowered
+  // into a regular Load.
   const Operator* LoadFromObject(ObjectAccess const&);
+  const Operator* LoadImmutableFromObject(ObjectAccess const&);
 
   // store-to-object [base + offset], value
+  // This operator comes in two flavors: InitializeImmutableInObject guarantees
+  // that the underlying object field has not and will not be initialized again
+  // for the duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
   const Operator* StoreToObject(ObjectAccess const&);
+  const Operator* InitializeImmutableInObject(ObjectAccess const&);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
@@ -1054,12 +1056,16 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort if the value input does not inhabit the given type
   const Operator* AssertType(Type type);
 
+  // Abort if the value does not match the node's computed type after
+  // SimplifiedLowering.
+  const Operator* VerifyType();
+
   const Operator* DateNow();
 
   // Represents the inputs necessary to construct a fast and a slow API call.
-  const Operator* FastApiCall(const CFunctionInfo* signature,
-                              FeedbackSource const& feedback,
-                              CallDescriptor* descriptor);
+  const Operator* FastApiCall(
+      const FastApiCallFunctionVector& c_candidate_functions,
+      FeedbackSource const& feedback, CallDescriptor* descriptor);
 
  private:
   Zone* zone() const { return zone_; }
@@ -1112,26 +1118,22 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
  public:
   explicit constexpr FastApiCallNode(Node* node)
       : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kFastApiCall);
+    DCHECK_EQ(IrOpcode::kFastApiCall, node->opcode());
   }
 
   const FastApiCallParameters& Parameters() const {
     return FastApiCallParametersOf(node()->op());
   }
 
-#define INPUTS(V)              \
-  V(Target, target, 0, Object) \
-  V(Receiver, receiver, 1, Object)
+#define INPUTS(V) V(Receiver, receiver, 0, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 
   // Besides actual arguments, FastApiCall nodes also take:
-  static constexpr int kFastTargetInputCount = 1;
   static constexpr int kSlowTargetInputCount = 1;
   static constexpr int kFastReceiverInputCount = 1;
   static constexpr int kSlowReceiverInputCount = 1;
-  static constexpr int kExtraInputCount =
-      kFastTargetInputCount + kFastReceiverInputCount;
+  static constexpr int kExtraInputCount = kFastReceiverInputCount;
 
   static constexpr int kArityInputCount = 1;
   static constexpr int kNewTargetInputCount = 1;
@@ -1148,8 +1150,7 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
 
   // This is the arity fed into FastApiCallArguments.
   static constexpr int ArityForArgc(int c_arg_count, int js_arg_count) {
-    return c_arg_count + kFastTargetInputCount + js_arg_count +
-           kEffectAndControlInputCount;
+    return c_arg_count + js_arg_count + kEffectAndControlInputCount;
   }
 
   int FastCallArgumentCount() const;
@@ -1167,9 +1168,7 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
         NodeProperties::GetValueInput(node(), FastCallArgumentIndex(i)));
   }
 
-  int FirstSlowCallArgumentIndex() const {
-    return FastCallArgumentCount() + FastApiCallNode::kFastTargetInputCount;
-  }
+  int FirstSlowCallArgumentIndex() const { return FastCallArgumentCount(); }
   int SlowCallArgumentIndex(int i) const {
     return FirstSlowCallArgumentIndex() + i;
   }
@@ -1178,37 +1177,6 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node(), SlowCallArgumentIndex(i)));
   }
-};
-
-class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr TierUpCheckNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kTierUpCheck);
-  }
-
-#define INPUTS(V)                                       \
-  V(FeedbackVector, feedback_vector, 0, FeedbackVector) \
-  V(Target, target, 1, JSReceiver)                      \
-  V(NewTarget, new_target, 2, Object)                   \
-  V(InputCount, input_count, 3, UntaggedT)              \
-  V(Context, context, 4, Context)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-};
-
-class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr UpdateInterruptBudgetNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kUpdateInterruptBudget);
-  }
-
-  int delta() const { return OpParameter<int>(node()->op()); }
-
-#define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
 };
 
 #undef DEFINE_INPUT_ACCESSORS

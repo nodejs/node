@@ -3,7 +3,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { inspect } = require('util');
 const { internalBinding } = require('internal/test/binding');
 const {
   observerCounts: counts
@@ -27,9 +26,8 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_HTTP2], 0);
     assert.throws(
       () => new PerformanceObserver(i),
       {
-        code: 'ERR_INVALID_CALLBACK',
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: `Callback must be a function. Received ${inspect(i)}`
       }
     );
   });

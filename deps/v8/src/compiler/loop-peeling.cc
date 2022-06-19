@@ -236,9 +236,7 @@ void LoopPeeler::PeelInnerLoops(LoopTree::Loop* loop) {
   Peel(loop);
 }
 
-namespace {
-
-void EliminateLoopExit(Node* node) {
+void LoopPeeler::EliminateLoopExit(Node* node) {
   DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
   // The exit markers take the loop exit as input. We iterate over uses
   // and remove all the markers from the graph.
@@ -259,8 +257,6 @@ void EliminateLoopExit(Node* node) {
                               NodeProperties::GetControlInput(node, 0));
   node->Kill();
 }
-
-}  // namespace
 
 void LoopPeeler::PeelInnerLoopsOfTree() {
   for (LoopTree::Loop* loop : loop_tree_->outer_loops()) {

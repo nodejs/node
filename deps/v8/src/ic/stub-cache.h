@@ -78,27 +78,25 @@ class V8_EXPORT_PRIVATE StubCache {
 
   Isolate* isolate() { return isolate_; }
 
-  // Setting kCacheIndexShift to Name::kHashShift is convenient because it
+  // Setting kCacheIndexShift to Name::HashBits::kShift is convenient because it
   // causes the bit field inside the hash field to get shifted out implicitly.
   // Note that kCacheIndexShift must not get too large, because
   // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift (see
   // the STATIC_ASSERT below, in {entry(...)}).
-  static const int kCacheIndexShift = Name::kHashShift;
+  static const int kCacheIndexShift = Name::HashBits::kShift;
 
   static const int kPrimaryTableBits = 11;
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
-  // We compute the hash code for a map as follows:
-  //   <code> = <address> ^ (<address> >> kMapKeyShift)
+  // Used to introduce more entropy from the higher bits of the Map address.
+  // This should fill in the masked out kCacheIndexShift-bits.
   static const int kMapKeyShift = kPrimaryTableBits + kCacheIndexShift;
-
-  // Some magic number used in the secondary hash computation.
-  static const int kSecondaryMagic = 0xb16ca6e5;
+  static const int kSecondaryKeyShift = kSecondaryTableBits + kCacheIndexShift;
 
   static int PrimaryOffsetForTesting(Name name, Map map);
-  static int SecondaryOffsetForTesting(Name name, int seed);
+  static int SecondaryOffsetForTesting(Name name, Map map);
 
   // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
@@ -121,11 +119,11 @@ class V8_EXPORT_PRIVATE StubCache {
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name name, int seed);
+  static int SecondaryOffset(Name name, Map map);
 
   // Compute the entry for a given offset in exactly the same way as
   // we do in generated code.  We generate an hash code that already
-  // ends in Name::kHashShift 0s.  Then we multiply it so it is a multiple
+  // ends in Name::HashBits::kShift 0s.  Then we multiply it so it is a multiple
   // of sizeof(Entry).  This makes it easier to avoid making mistakes
   // in the hashed offset computations.
   static Entry* entry(Entry* table, int offset) {

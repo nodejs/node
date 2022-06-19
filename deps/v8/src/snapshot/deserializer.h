@@ -8,13 +8,17 @@
 #include <utility>
 #include <vector>
 
+#include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/execution/local-isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
+#include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -38,30 +42,16 @@ class Object;
 #endif
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
+template <typename IsolateT>
+class Deserializer : public SerializerDeserializer {
  public:
-  // Smi value for filling in not-yet initialized tagged field values with a
-  // valid tagged pointer. A field value equal to this doesn't necessarily
-  // indicate that a field is uninitialized, but an uninitialized field should
-  // definitely equal this value.
-  //
-  // This _has_ to be kNullAddress, so that an uninitialized_field_value read as
-  // an embedded pointer field is interpreted as nullptr. This is so that
-  // uninitialised embedded pointers are not forwarded to the embedded as part
-  // of embedder tracing (and similar mechanisms), as nullptrs are skipped for
-  // those cases and otherwise the embedder would try to dereference the
-  // uninitialized pointer value.
-  static constexpr Smi uninitialized_field_value() { return Smi(kNullAddress); }
-
   ~Deserializer() override;
   Deserializer(const Deserializer&) = delete;
   Deserializer& operator=(const Deserializer&) = delete;
 
-  uint32_t GetChecksum() const { return source_.GetChecksum(); }
-
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(Isolate* isolate, Vector<const byte> payload,
+  Deserializer(IsolateT* isolate, base::Vector<const byte> payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 
@@ -91,7 +81,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     CHECK_EQ(new_off_heap_array_buffers().size(), 0);
   }
 
-  Isolate* isolate() const { return isolate_; }
+  IsolateT* isolate() const { return isolate_; }
+
+  Isolate* main_thread_isolate() const { return isolate_->AsIsolate(); }
 
   SnapshotByteSource* source() { return &source_; }
   const std::vector<Handle<AllocationSite>>& new_allocation_sites() const {
@@ -125,14 +117,14 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
 
   bool deserializing_user_code() const { return deserializing_user_code_; }
-  bool can_rehash() const { return can_rehash_; }
+  bool should_rehash() const { return should_rehash_; }
 
   void Rehash();
 
   Handle<HeapObject> ReadObject();
 
  private:
-  class RelocInfoVisitor;
+  friend class DeserializerRelocInfoVisitor;
   // A circular queue of hot objects. This is added to in the same order as in
   // Serializer::HotObjectsList, but this stores the objects as a vector of
   // existing handles. This allows us to add Handles to the queue without having
@@ -192,6 +184,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
+  // A helper function for reading external pointer tags.
+  ExternalPointerTag ReadExternalPointerTag();
+
   Handle<HeapObject> ReadObject(SnapshotSpace space_number);
   Handle<HeapObject> ReadMetaMap();
 
@@ -203,12 +198,15 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
                             SnapshotSpace space);
+  void PostProcessNewJSReceiver(Map map, Handle<JSReceiver> obj,
+                                JSReceiver raw_obj, InstanceType instance_type,
+                                SnapshotSpace space);
 
-  HeapObject Allocate(SnapshotSpace space, int size,
+  HeapObject Allocate(AllocationType allocation, int size,
                       AllocationAlignment alignment);
 
   // Cached current isolate.
-  Isolate* isolate_;
+  IsolateT* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
@@ -253,7 +251,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
-  bool can_rehash_;
+  const bool should_rehash_;
   std::vector<Handle<HeapObject>> to_rehash_;
 
 #ifdef DEBUG
@@ -265,20 +263,46 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 #endif  // DEBUG
 };
 
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Deserializer<Isolate>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Deserializer<LocalIsolate>;
+
+enum class DeserializingUserCodeOption {
+  kNotDeserializingUserCode,
+  kIsDeserializingUserCode
+};
+
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey final : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(Handle<String> string);
+  explicit StringTableInsertionKey(
+      Isolate* isolate, Handle<String> string,
+      DeserializingUserCodeOption deserializing_user_code);
+  explicit StringTableInsertionKey(
+      LocalIsolate* isolate, Handle<String> string,
+      DeserializingUserCodeOption deserializing_user_code);
 
-  bool IsMatch(Isolate* isolate, String string);
+  template <typename IsolateT>
+  bool IsMatch(IsolateT* isolate, String string);
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
+  void PrepareForInsertion(Isolate* isolate) {
+    // When sharing the string table, all string table lookups during snapshot
+    // deserialization are hits.
+    DCHECK(isolate->OwnsStringTable() ||
+           deserializing_user_code_ ==
+               DeserializingUserCodeOption::kIsDeserializingUserCode);
+  }
+  void PrepareForInsertion(LocalIsolate* isolate) {}
+  V8_WARN_UNUSED_RESULT Handle<String> GetHandleForInsertion() {
+    return string_;
+  }
 
  private:
-  uint32_t ComputeRawHashField(String string);
-
   Handle<String> string_;
+#ifdef DEBUG
+  DeserializingUserCodeOption deserializing_user_code_;
+#endif
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 

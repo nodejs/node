@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-external.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-template.h"
 #include "src/base/win32-headers.h"
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
@@ -11,6 +16,11 @@
 #elif defined(V8_OS_WIN_ARM64)
 #define CONTEXT_PC(context) (context.Pc)
 #endif
+
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>  // For IsWindows8OrGreater().
 
 class UnwindingWin64Callbacks {
  public:

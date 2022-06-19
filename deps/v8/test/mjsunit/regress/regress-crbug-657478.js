@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-function foo(o) { return %_ToLength(o.length); }
+function foo(o) { return %ToLength(o.length); }
 
 %PrepareFunctionForOptimization(foo);
 foo(new Array(4));

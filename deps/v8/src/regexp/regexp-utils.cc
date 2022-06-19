@@ -49,7 +49,8 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
   Handle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
-    JSRegExp::cast(*recv).set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
+    JSRegExp::cast(*recv).set_last_index(*value_as_object,
+                                         UPDATE_WRITE_BARRIER);
     return recv;
   } else {
     return Object::SetProperty(
@@ -84,7 +85,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
 
   if (exec->IsCallable()) {
     const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
+    base::ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
     Handle<Object> result;
@@ -113,38 +114,11 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
 
     const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
+    base::ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
     return Execution::Call(isolate, regexp_exec, regexp, argc, argv.begin());
   }
-}
-
-Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
-  if (!object->IsJSReceiver()) return Just(false);
-
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-
-  Handle<Object> match;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, match,
-      JSObject::GetProperty(isolate, receiver,
-                            isolate->factory()->match_symbol()),
-      Nothing<bool>());
-
-  if (!match->IsUndefined(isolate)) {
-    const bool match_as_boolean = match->BooleanValue(isolate);
-
-    if (match_as_boolean && !object->IsJSRegExp()) {
-      isolate->CountUsage(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp);
-    } else if (!match_as_boolean && object->IsJSRegExp()) {
-      isolate->CountUsage(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp);
-    }
-
-    return Just(match_as_boolean);
-  }
-
-  return Just(object->IsJSRegExp());
 }
 
 bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
@@ -173,8 +147,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // with the init order in the bootstrapper).
   InternalIndex kExecIndex(JSRegExp::kExecFunctionDescriptorIndex);
   DCHECK_EQ(*(isolate->factory()->exec_string()),
-            proto_map.instance_descriptors(kRelaxedLoad).GetKey(kExecIndex));
-  if (proto_map.instance_descriptors(kRelaxedLoad)
+            proto_map.instance_descriptors(isolate).GetKey(kExecIndex));
+  if (proto_map.instance_descriptors(isolate)
           .GetDetails(kExecIndex)
           .constness() != PropertyConstness::kConst) {
     return false;

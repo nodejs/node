@@ -6,11 +6,11 @@
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
 #include <memory>
-#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/logging/code-events.h"
 #include "src/profiler/profile-generator.h"
+#include "src/profiler/weak-code-registry.h"
 
 namespace v8 {
 namespace internal {
@@ -24,10 +24,12 @@ class CodeEventObserver {
   virtual ~CodeEventObserver() = default;
 };
 
-class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
+class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
+                                           public WeakCodeRegistry::Listener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*,
-                   StringsStorage& function_and_resource_names,
+                   CodeEntryStorage& code_entry_storage,
+                   WeakCodeRegistry& weak_code_registry,
                    CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
   ProfilerListener(const ProfilerListener&) = delete;
@@ -43,9 +45,11 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
+#if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CallbackEvent(Handle<Name> name, Address entry_point) override;
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
@@ -54,28 +58,34 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override {}
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override;
+                      int fp_to_sp_delta) override;
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
-  void BytecodeFlushEvent(Address compiled_data_start) override;
+  void WeakCodeClearEvent() override;
+
+  void OnHeapObjectDeletion(CodeEntry*) override;
+
+  // Invoked after a mark-sweep cycle.
+  void CodeSweepEvent();
 
   const char* GetName(Name name) {
-    return function_and_resource_names_.GetName(name);
+    return code_entries_.strings().GetName(name);
   }
   const char* GetName(int args_count) {
-    return function_and_resource_names_.GetName(args_count);
+    return code_entries_.strings().GetName(args_count);
   }
   const char* GetName(const char* name) {
-    return function_and_resource_names_.GetCopy(name);
+    return code_entries_.strings().GetCopy(name);
   }
-  const char* GetName(Vector<const char> name);
+  const char* GetName(base::Vector<const char> name);
   const char* GetConsName(const char* prefix, Name name) {
-    return function_and_resource_names_.GetConsName(prefix, name);
+    return code_entries_.strings().GetConsName(prefix, name);
   }
 
   void set_observer(CodeEventObserver* observer) { observer_ = observer; }
@@ -91,7 +101,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
 
   Isolate* isolate_;
   CodeEventObserver* observer_;
-  StringsStorage& function_and_resource_names_;
+  CodeEntryStorage& code_entries_;
+  WeakCodeRegistry& weak_code_registry_;
   const CpuProfilingNamingMode naming_mode_;
 };
 

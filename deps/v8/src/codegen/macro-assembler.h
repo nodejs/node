@@ -10,7 +10,7 @@
 #include "src/heap/heap.h"
 
 // Helper types to make boolean flag easier to read at call-site.
-enum InvokeFlag { CALL_FUNCTION, JUMP_FUNCTION };
+enum class InvokeType { kCall, kJump };
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -27,6 +27,14 @@ enum AllocationFlags {
   // Directly allocate in old space
   PRETENURE = 1 << 3,
 };
+
+enum class JumpMode {
+  kJump,          // Does a direct jump to the given address
+  kPushAndReturn  // Pushes the given address as the current return address and
+                  // does a return
+};
+
+enum class SmiCheck { kOmit, kInline };
 
 // This is the only place allowed to include the platform-specific headers.
 #define INCLUDED_FROM_MACRO_ASSEMBLER_H
@@ -49,6 +57,9 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/mips64/macro-assembler-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/codegen/loong64/constants-loong64.h"
+#include "src/codegen/loong64/macro-assembler-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/codegen/s390/constants-s390.h"
 #include "src/codegen/s390/macro-assembler-s390.h"
@@ -67,7 +78,7 @@ namespace internal {
 // defines a limit of 256 parameters but in simulator builds we provide only
 // limited support.
 #ifdef USE_SIMULATOR
-static constexpr int kMaxCParameters = 10;
+static constexpr int kMaxCParameters = 20;
 #else
 static constexpr int kMaxCParameters = 256;
 #endif
@@ -75,24 +86,51 @@ static constexpr int kMaxCParameters = 256;
 class V8_NODISCARD FrameScope {
  public:
   explicit FrameScope(TurboAssembler* tasm, StackFrame::Type type)
-      : tasm_(tasm), type_(type), old_has_frame_(tasm->has_frame()) {
+      :
+#ifdef V8_CODE_COMMENTS
+        comment_(tasm, frame_name(type)),
+#endif
+        tasm_(tasm),
+        type_(type),
+        old_has_frame_(tasm->has_frame()) {
     tasm->set_has_frame(true);
-    if (type != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       tasm->EnterFrame(type);
     }
   }
 
   ~FrameScope() {
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       tasm_->LeaveFrame(type_);
     }
     tasm_->set_has_frame(old_has_frame_);
   }
 
  private:
+#ifdef V8_CODE_COMMENTS
+  const char* frame_name(StackFrame::Type type) {
+    switch (type) {
+      case StackFrame::NO_FRAME_TYPE:
+        return "Frame: NO_FRAME_TYPE";
+      case StackFrame::MANUAL:
+        return "Frame: MANUAL";
+#define FRAME_TYPE_CASE(type, field) \
+  case StackFrame::type:             \
+    return "Frame: " #type;
+        STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+#undef FRAME_TYPE_CASE
+      case StackFrame::NUMBER_OF_TYPES:
+        break;
+    }
+    return "Frame";
+  }
+
+  Assembler::CodeComment comment_;
+#endif  // V8_CODE_COMMENTS
+
   TurboAssembler* tasm_;
-  StackFrame::Type type_;
-  bool old_has_frame_;
+  StackFrame::Type const type_;
+  bool const old_has_frame_;
 };
 
 class V8_NODISCARD FrameAndConstantPoolScope {
@@ -107,7 +145,7 @@ class V8_NODISCARD FrameAndConstantPoolScope {
     if (FLAG_enable_embedded_constant_pool) {
       masm->set_constant_pool_available(true);
     }
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       masm->EnterFrame(type, !old_constant_pool_available_);
     }
   }
@@ -156,7 +194,7 @@ class V8_NODISCARD ConstantPoolUnavailableScope {
 class V8_NODISCARD AllowExternalCallThatCantCauseGC : public FrameScope {
  public:
   explicit AllowExternalCallThatCantCauseGC(MacroAssembler* masm)
-      : FrameScope(masm, StackFrame::NONE) {}
+      : FrameScope(masm, StackFrame::NO_FRAME_TYPE) {}
 };
 
 // Prevent the use of the RootArray during the lifetime of this

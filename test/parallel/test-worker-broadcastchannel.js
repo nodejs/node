@@ -151,3 +151,20 @@ assert.throws(() => new BroadcastChannel(), {
   bc1.close();
   bc2.close();
 }
+
+{
+  assert.throws(() => Reflect.get(BroadcastChannel.prototype, 'name', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+
+  [
+    'close',
+    'postMessage',
+    'ref',
+    'unref',
+  ].forEach((i) => {
+    assert.throws(() => Reflect.apply(BroadcastChannel.prototype[i], [], {}), {
+      code: 'ERR_INVALID_THIS',
+    });
+  });
+}

@@ -5,12 +5,11 @@
 #ifndef V8_DIAGNOSTICS_UNWINDER_H_
 #define V8_DIAGNOSTICS_UNWINDER_H_
 
-#include "include/v8.h"
-#include "src/common/globals.h"
+#include "include/v8-internal.h"
 
 namespace v8 {
 
-i::Address Load(i::Address address);
+internal::Address Load(internal::Address address);
 
 }  // namespace v8
 

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/heap-number-inl.h"
@@ -19,12 +20,6 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
-  } while (false)
 
 namespace {
 // A helper for generating predictable but unique argument values that
@@ -57,7 +52,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
   CHECK_LT(which, static_cast<int>(sig->parameter_count()));
   CHECK_LT(static_cast<int>(sig->parameter_count()), kMaxParams);
 
-  i::EmbeddedVector<char, 256> source;
+  base::EmbeddedVector<char, 256> source;
   char param = 'a' + which;
   SNPrintF(source, "(function(%s) { return %c; })",
            formals[sig->parameter_count()], param);
@@ -569,8 +564,6 @@ WASM_COMPILED_EXEC_TEST(Run_ReturnCallImportedFunction) {
 WASM_COMPILED_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
   RunPickerTest(execution_tier, true);
 }
-
-#undef ADD_CODE
 
 }  // namespace wasm
 }  // namespace internal

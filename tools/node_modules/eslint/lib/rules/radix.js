@@ -74,16 +74,18 @@ function isDefaultRadix(radix) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce the consistent use of the radix argument when using `parseInt()`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/radix"
         },
+
+        hasSuggestions: true,
 
         schema: [
             {
@@ -95,7 +97,8 @@ module.exports = {
             missingParameters: "Missing parameters.",
             redundantRadix: "Redundant radix parameter.",
             missingRadix: "Missing radix parameter.",
-            invalidRadix: "Invalid radix parameter, must be an integer between 2 and 36."
+            invalidRadix: "Invalid radix parameter, must be an integer between 2 and 36.",
+            addRadixParameter10: "Add radix parameter `10` for parsing decimal numbers."
         }
     },
 
@@ -123,7 +126,21 @@ module.exports = {
                     if (mode === MODE_ALWAYS) {
                         context.report({
                             node,
-                            messageId: "missingRadix"
+                            messageId: "missingRadix",
+                            suggest: [
+                                {
+                                    messageId: "addRadixParameter10",
+                                    fix(fixer) {
+                                        const sourceCode = context.getSourceCode();
+                                        const tokens = sourceCode.getTokens(node);
+                                        const lastToken = tokens[tokens.length - 1]; // Parenthesis.
+                                        const secondToLastToken = tokens[tokens.length - 2]; // May or may not be a comma.
+                                        const hasTrailingComma = secondToLastToken.type === "Punctuator" && secondToLastToken.value === ",";
+
+                                        return fixer.insertTextBefore(lastToken, hasTrailingComma ? " 10," : ", 10");
+                                    }
+                                }
+                            ]
                         });
                     }
                     break;

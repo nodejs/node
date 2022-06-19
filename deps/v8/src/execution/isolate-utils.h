@@ -10,11 +10,12 @@
 namespace v8 {
 namespace internal {
 
-// Computes isolate from any read only or writable heap object. The resulting
-// value is intended to be used only as a hoisted computation of isolate root
-// inside trivial accessors for optmizing value decompression.
-// When pointer compression is disabled this function always returns nullptr.
-V8_INLINE IsolateRoot GetIsolateForPtrCompr(HeapObject object);
+// Computes the pointer compression cage base from any read only or writable
+// heap object. The resulting value is intended to be used only as a hoisted
+// computation of cage base inside trivial accessors for optimizing value
+// decompression. When pointer compression is disabled this function always
+// returns nullptr.
+V8_INLINE PtrComprCageBase GetPtrComprCageBase(HeapObject object);
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object);
 

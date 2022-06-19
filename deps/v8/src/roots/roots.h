@@ -88,6 +88,7 @@ class Symbol;
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
+  V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
@@ -95,6 +96,8 @@ class Symbol;
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
+  V(Map, name_to_index_hash_table_map, NameToIndexHashTableMap)                \
+  V(Map, registered_symbol_table_map, RegisteredSymbolTableMap)                \
   V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
   V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \
@@ -110,7 +113,14 @@ class Symbol;
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
-  V(Map, wasm_type_info_map, WasmTypeInfoMap)                                  \
+  IF_WASM(V, Map, wasm_api_function_ref_map, WasmApiFunctionRefMap)            \
+  IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
+  IF_WASM(V, Map, wasm_exported_function_data_map,                             \
+          WasmExportedFunctionDataMap)                                         \
+  IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
+  IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
+  IF_WASM(V, Map, wasm_onfulfilled_data_map, WasmOnFulfilledDataMap)           \
+  IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
@@ -136,6 +146,14 @@ class Symbol;
     UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
+  V(Map, shared_one_byte_string_map, SharedOneByteStringMap)                   \
+  V(Map, shared_string_map, SharedStringMap)                                   \
+  V(Map, shared_thin_one_byte_string_map, SharedThinOneByteStringMap)          \
+  V(Map, shared_thin_string_map, SharedThinStringMap)                          \
+  V(Map, seq_string_migration_sentinel_map,                                    \
+    TwoByteSeqStringMigrationSentinelMap)                                      \
+  V(Map, one_byte_seq_string_migration_sentinel_map,                           \
+    OneByteSeqStringMigrationSentinelMap)                                      \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
@@ -170,6 +188,7 @@ class Symbol;
   V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
     EmptySwissPropertyDictionary)                                              \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(ArrayList, empty_array_list, EmptyArrayList)                               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \
@@ -185,9 +204,9 @@ class Symbol;
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
-  V(CodeDataContainer, trampoline_trivial_code_data_container,                 \
+  V(HeapObject, trampoline_trivial_code_data_container,                        \
     TrampolineTrivialCodeDataContainer)                                        \
-  V(CodeDataContainer, trampoline_promise_rejection_code_data_container,       \
+  V(HeapObject, trampoline_promise_rejection_code_data_container,              \
     TrampolinePromiseRejectionCodeDataContainer)                               \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
@@ -210,6 +229,7 @@ class Symbol;
   /* Protectors */                                                             \
   V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)      \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
+  V(PropertyCell, mega_dom_protector, MegaDOMProtector)                        \
   V(PropertyCell, is_concat_spreadable_protector, IsConcatSpreadableProtector) \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
@@ -275,33 +295,36 @@ class Symbol;
   V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)
 
 // These root references can be updated by the mutator.
-#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
-  /* Caches */                                                             \
-  V(FixedArray, number_string_cache, NumberStringCache)                    \
-  /* Lists and dictionaries */                                             \
-  V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
-  V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
-  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
-  V(WeakArrayList, script_list, ScriptList)                                \
-  V(FixedArray, materialized_objects, MaterializedObjects)                 \
-  V(WeakArrayList, detached_contexts, DetachedContexts)                    \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
-  /* Feedback vectors that we need for code coverage or type profile */    \
-  V(Object, feedback_vectors_for_profiling_tools,                          \
-    FeedbackVectorsForProfilingTools)                                      \
-  V(FixedArray, serialized_objects, SerializedObjects)                     \
-  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
-  V(TemplateList, message_listeners, MessageListeners)                     \
-  /* Support for async stack traces */                                     \
-  V(HeapObject, current_microtask, CurrentMicrotask)                       \
-  /* KeepDuringJob set for JS WeakRefs */                                  \
-  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
-  V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
-    InterpreterEntryTrampolineForProfiling)                                \
-  V(Object, pending_optimize_for_test_bytecode,                            \
-    PendingOptimizeForTestBytecode)                                        \
-  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)        \
-  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
+  /* Caches */                                                              \
+  V(FixedArray, number_string_cache, NumberStringCache)                     \
+  /* Lists and dictionaries */                                              \
+  V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
+  V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
+  V(RegisteredSymbolTable, api_private_symbol_table, ApiPrivateSymbolTable) \
+  V(WeakArrayList, script_list, ScriptList)                                 \
+  V(FixedArray, materialized_objects, MaterializedObjects)                  \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                     \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)            \
+  /* Feedback vectors that we need for code coverage or type profile */     \
+  V(Object, feedback_vectors_for_profiling_tools,                           \
+    FeedbackVectorsForProfilingTools)                                       \
+  V(FixedArray, serialized_objects, SerializedObjects)                      \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)  \
+  V(TemplateList, message_listeners, MessageListeners)                      \
+  /* Support for async stack traces */                                      \
+  V(HeapObject, current_microtask, CurrentMicrotask)                        \
+  /* KeepDuringJob set for JS WeakRefs */                                   \
+  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
+  V(HeapObject, interpreter_entry_trampoline_for_profiling,                 \
+    InterpreterEntryTrampolineForProfiling)                                 \
+  V(Object, pending_optimize_for_test_bytecode,                             \
+    PendingOptimizeForTestBytecode)                                         \
+  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
+  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
+  IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
+  IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
+  IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -535,6 +558,10 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(LocalIsolate* isolate);
+
+  // For `v8_enable_map_packing=true`, this will return a packed (also untagged)
+  // map-word instead of a tagged heap pointer.
+  MapWord one_pointer_filler_map_word();
 
 #define ROOT_ACCESSOR(Type, name, CamelName)     \
   V8_INLINE class Type name() const;             \

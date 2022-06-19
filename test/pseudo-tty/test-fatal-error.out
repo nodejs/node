@@ -12,3 +12,5 @@ TypeError: foobar
 *[90m    at *[39m {
   bla: *[33mtrue*[39m
 }
+
+Node.js *

@@ -7,14 +7,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
-
-const { internalBinding } = require('internal/test/binding');
+const { webcrypto: { subtle }, KeyObject } = require('crypto');
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
-// Test ECDH bit derivation
+// Test ECDH key derivation
 {
   async function test(namedCurve) {
     const [alice, bob] = await Promise.all([
@@ -48,7 +46,7 @@ const { internalBinding } = require('internal/test/binding');
   test('P-521').then(common.mustCall());
 }
 
-// Test HKDF bit derivation
+// Test HKDF key derivation
 {
   async function test(pass, info, salt, hash, expected) {
     const ec = new TextEncoder();
@@ -85,7 +83,7 @@ const { internalBinding } = require('internal/test/binding');
   tests.then(common.mustCall());
 }
 
-// Test PBKDF2 bit derivation
+// Test PBKDF2 key derivation
 {
   async function test(pass, salt, iterations, hash, expected) {
     const ec = new TextEncoder();
@@ -121,34 +119,69 @@ const { internalBinding } = require('internal/test/binding');
   tests.then(common.mustCall());
 }
 
-// Test Scrypt bit derivation
-if (typeof internalBinding('crypto').ScryptJob === 'function') {
-  async function test(pass, salt, expected) {
-    const ec = new TextEncoder();
-    const key = await subtle.importKey(
-      'raw',
-      ec.encode(pass),
-      { name: 'NODE-SCRYPT' },
-      false, ['deriveKey']);
-    const secret = await subtle.deriveKey({
-      name: 'NODE-SCRYPT',
-      salt: ec.encode(salt),
-    }, key, {
-      name: 'AES-CTR',
-      length: 256
-    }, true, ['encrypt']);
-
-    const raw = await subtle.exportKey('raw', secret);
-
-    assert.strictEqual(Buffer.from(raw).toString('hex'), expected);
-  }
-
-  const kTests = [
-    ['hello', 'there',
-     '30ddda6feabaac788eb81cc38f496cd5d9a165d320c537ea05331fe720db1061'],
+// Test default key lengths
+{
+  const vectors = [
+    ['PBKDF2', 'deriveKey', 528],
+    ['HKDF', 'deriveKey', 528],
+    [{ name: 'HMAC', hash: 'SHA-1' }, 'sign', 160],
+    [{ name: 'HMAC', hash: 'SHA-256' }, 'sign', 256],
+    [{ name: 'HMAC', hash: 'SHA-384' }, 'sign', 384],
+    [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 512],
   ];
 
-  const tests = Promise.all(kTests.map((args) => test(...args)));
+  (async () => {
+    const keyPair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-521' }, false, ['deriveKey']);
+    for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
+      const derived = await subtle.deriveKey(
+        { name: 'ECDH', public: keyPair.publicKey },
+        keyPair.privateKey,
+        derivedKeyAlgorithm,
+        false,
+        [usage]);
 
-  tests.then(common.mustCall());
+      if (derived.algorithm.name === 'HMAC') {
+        assert.strictEqual(derived.algorithm.length, expected);
+      } else {
+        // KDFs cannot be exportable and do not indicate their length
+        const secretKey = KeyObject.from(derived);
+        assert.strictEqual(secretKey.symmetricKeySize, expected / 8);
+      }
+    }
+  })().then(common.mustCall());
+}
+
+// Test X25519 and X448 key derivation
+{
+  async function test(name) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name }, true, ['deriveKey']),
+      subtle.generateKey({ name }, true, ['deriveKey']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveKey({
+        name, public: alice.publicKey
+      }, bob.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+      subtle.deriveKey({
+        name, public: bob.publicKey
+      }, alice.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+    ]);
+
+    const [raw1, raw2] = await Promise.all([
+      subtle.exportKey('raw', secret1),
+      subtle.exportKey('raw', secret2),
+    ]);
+
+    assert.deepStrictEqual(raw1, raw2);
+  }
+
+  test('X25519').then(common.mustCall());
+  test('X448').then(common.mustCall());
 }

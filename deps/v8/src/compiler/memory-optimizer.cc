@@ -22,7 +22,7 @@ namespace {
 
 bool CanAllocate(const Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kAbortCSAAssert:
+    case IrOpcode::kAbortCSADcheck:
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kComment:
@@ -32,10 +32,14 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
     case IrOpcode::kLoadFromObject:
-    case IrOpcode::kPoisonedLoad:
+    case IrOpcode::kLoadImmutableFromObject:
+    case IrOpcode::kLoadLane:
+    case IrOpcode::kLoadTransform:
+    case IrOpcode::kMemoryBarrier:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
@@ -47,8 +51,9 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
+    case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
-    case IrOpcode::kTaggedPoisonOnSpeculation:
+    case IrOpcode::kInitializeImmutableInObject:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnreachable:
@@ -71,7 +76,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kWord32AtomicStore:
     case IrOpcode::kWord32AtomicSub:
     case IrOpcode::kWord32AtomicXor:
-    case IrOpcode::kWord32PoisonOnSpeculation:
     case IrOpcode::kWord64AtomicAdd:
     case IrOpcode::kWord64AtomicAnd:
     case IrOpcode::kWord64AtomicCompareExchange:
@@ -81,7 +85,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kWord64AtomicStore:
     case IrOpcode::kWord64AtomicSub:
     case IrOpcode::kWord64AtomicXor:
-    case IrOpcode::kWord64PoisonOnSpeculation:
       return false;
 
     case IrOpcode::kCall:
@@ -177,13 +180,12 @@ void WriteBarrierAssertFailed(Node* node, Node* object, const char* name,
 }  // namespace
 
 MemoryOptimizer::MemoryOptimizer(
-    JSGraph* jsgraph, Zone* zone, PoisoningMitigationLevel poisoning_level,
+    JSGraph* jsgraph, Zone* zone,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
     : graph_assembler_(jsgraph, zone),
-      memory_lowering_(jsgraph, zone, &graph_assembler_, poisoning_level,
-                       allocation_folding, WriteBarrierAssertFailed,
-                       function_debug_name),
+      memory_lowering_(jsgraph, zone, &graph_assembler_, allocation_folding,
+                       WriteBarrierAssertFailed, function_debug_name),
       jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
@@ -216,12 +218,14 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kCall:
       return VisitCall(node, state);
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       return VisitLoadFromObject(node, state);
     case IrOpcode::kLoadElement:
       return VisitLoadElement(node, state);
     case IrOpcode::kLoadField:
       return VisitLoadField(node, state);
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       return VisitStoreToObject(node, state);
     case IrOpcode::kStoreElement:
       return VisitStoreElement(node, state);
@@ -250,6 +254,15 @@ bool MemoryOptimizer::AllocationTypeNeedsUpdateToOld(Node* const node,
   }
 
   return false;
+}
+
+void MemoryOptimizer::ReplaceUsesAndKillNode(Node* node, Node* replacement) {
+  // Replace all uses of node and kill the node to make sure we don't leave
+  // dangling dead uses.
+  DCHECK_NE(replacement, node);
+  NodeProperties::ReplaceUses(node, replacement, graph_assembler_.effect(),
+                              graph_assembler_.control());
+  node->Kill();
 }
 
 void MemoryOptimizer::VisitAllocateRaw(Node* node,
@@ -289,26 +302,26 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       node, allocation_type, allocation.allow_large_objects(), &state);
   CHECK(reduction.Changed() && reduction.replacement() != node);
 
-  // Replace all uses of node and kill the node to make sure we don't leave
-  // dangling dead uses.
-  NodeProperties::ReplaceUses(node, reduction.replacement(),
-                              graph_assembler_.effect(),
-                              graph_assembler_.control());
-  node->Kill();
+  ReplaceUsesAndKillNode(node, reduction.replacement());
 
   EnqueueUses(state->effect(), state);
 }
 
 void MemoryOptimizer::VisitLoadFromObject(Node* node,
                                           AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
-  memory_lowering()->ReduceLoadFromObject(node);
+  DCHECK(node->opcode() == IrOpcode::kLoadFromObject ||
+         node->opcode() == IrOpcode::kLoadImmutableFromObject);
+  Reduction reduction = memory_lowering()->ReduceLoadFromObject(node);
   EnqueueUses(node, state);
+  if (V8_MAP_PACKING_BOOL && reduction.replacement() != node) {
+    ReplaceUsesAndKillNode(node, reduction.replacement());
+  }
 }
 
 void MemoryOptimizer::VisitStoreToObject(Node* node,
                                          AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kStoreToObject, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kStoreToObject ||
+         node->opcode() == IrOpcode::kInitializeImmutableInObject);
   memory_lowering()->ReduceStoreToObject(node, state);
   EnqueueUses(node, state);
 }
@@ -328,16 +341,15 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   // lowering, so we can proceed iterating the graph from the node uses.
   EnqueueUses(node, state);
 
-  // Node can be replaced only when V8_HEAP_SANDBOX_BOOL is enabled and
-  // when loading an external pointer value.
-  DCHECK_IMPLIES(!V8_HEAP_SANDBOX_BOOL, reduction.replacement() == node);
-  if (V8_HEAP_SANDBOX_BOOL && reduction.replacement() != node) {
-    // Replace all uses of node and kill the node to make sure we don't leave
-    // dangling dead uses.
-    NodeProperties::ReplaceUses(node, reduction.replacement(),
-                                graph_assembler_.effect(),
-                                graph_assembler_.control());
-    node->Kill();
+  // Node can be replaced under two cases:
+  //   1. V8_SANDBOXED_EXTERNAL_POINTERS_BOOL is enabled and loading an external
+  //   pointer value.
+  //   2. V8_MAP_PACKING_BOOL is enabled.
+  DCHECK_IMPLIES(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && !V8_MAP_PACKING_BOOL,
+                 reduction.replacement() == node);
+  if ((V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || V8_MAP_PACKING_BOOL) &&
+      reduction.replacement() != node) {
+    ReplaceUsesAndKillNode(node, reduction.replacement());
   }
 }
 

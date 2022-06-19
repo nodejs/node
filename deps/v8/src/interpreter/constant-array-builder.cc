@@ -65,9 +65,9 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 }
 
 #if DEBUG
-template <typename LocalIsolate>
+template <typename IsolateT>
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
-    LocalIsolate* isolate) const {
+    IsolateT* isolate) const {
   std::set<Smi> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
@@ -164,9 +164,9 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
   UNREACHABLE();
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
-                                             LocalIsolate* isolate) const {
+                                             IsolateT* isolate) const {
   const ConstantArraySlice* slice = IndexToSlice(index);
   DCHECK_LT(index, slice->capacity());
   if (index < slice->start_index() + slice->size()) {
@@ -183,8 +183,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
                                                  LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
+template <typename IsolateT>
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(IsolateT* isolate) {
   Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
       static_cast<int>(size()), AllocationType::kOld);
   int array_index = 0;
@@ -372,9 +372,8 @@ void ConstantArrayBuilder::DiscardReservedEntry(OperandSize operand_size) {
   OperandSizeToSlice(operand_size)->Unreserve();
 }
 
-template <typename LocalIsolate>
-Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
-    LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<Object> ConstantArrayBuilder::Entry::ToHandle(IsolateT* isolate) const {
   switch (tag_) {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.

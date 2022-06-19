@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-
-#include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+
+#include "src/init/v8.h"
+#include "src/interpreter/bytecode-array-builder.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -38,13 +38,13 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t load_feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
   uint32_t forin_feedback_slot = feedback_spec.AddForInSlot().ToInt();
   uint32_t load_global_feedback_slot =
-      feedback_spec.AddLoadGlobalICSlot(TypeofMode::NOT_INSIDE_TYPEOF).ToInt();
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kNotInside).ToInt();
 
   builder.LoadLiteral(heap_num_0)
       .StoreAccumulatorInRegister(reg_0)
@@ -66,8 +66,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .ForInPrepare(triple, forin_feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
-      .LoadGlobal(name, load_global_feedback_slot,
-                  TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, load_global_feedback_slot, TypeofMode::kNotInside)
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -181,14 +180,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   iterator.Advance();
 
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaNamedProperty);
+  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kGetNamedProperty);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
   EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
   EXPECT_EQ(iterator.GetIndexOperand(2), load_feedback_slot);
   CHECK(!iterator.done());
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   iterator.Advance();
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kAdd);

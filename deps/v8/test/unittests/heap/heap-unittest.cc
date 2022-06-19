@@ -22,8 +22,6 @@ namespace internal {
 using HeapTest = TestWithContext;
 
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
-  const size_t MB = static_cast<size_t>(i::MB);
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
   ASSERT_EQ(3 * 512u * pm * KB,
@@ -38,8 +36,6 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
-  const size_t MB = static_cast<size_t>(i::MB);
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
   size_t old, young;
@@ -50,7 +46,7 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 
   i::Heap::GenerationSizesFromHeapSize(1 * KB + 3 * 512u * pm * KB, &young,
                                        &old);
-  ASSERT_EQ(1 * KB, old);
+  ASSERT_EQ(1u * KB, old);
   ASSERT_EQ(3 * 512u * pm * KB, young);
 
   i::Heap::GenerationSizesFromHeapSize(128 * hlm * MB + 3 * 512 * pm * KB,
@@ -75,7 +71,6 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
-  const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
 
@@ -98,7 +93,7 @@ TEST(Heap, HeapSizeFromPhysicalMemory) {
 
 TEST_F(HeapTest, ASLR) {
 #if V8_TARGET_ARCH_X64
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   Heap* heap = i_isolate()->heap();
   std::set<void*> hints;
   for (int i = 0; i < 1000; i++) {
@@ -119,7 +114,7 @@ TEST_F(HeapTest, ASLR) {
       EXPECT_LE(diff, kRegionMask);
     }
   }
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
 #endif  // V8_TARGET_ARCH_X64
 }
 
@@ -145,11 +140,20 @@ TEST_F(HeapTest, HeapLayout) {
       "}"
       "ar.push(Array(32 * 1024 * 1024));");
 
+  Address cage_base = i_isolate()->cage_base();
+  EXPECT_TRUE(IsAligned(cage_base, size_t{4} * GB));
+
+  Address code_cage_base = i_isolate()->code_cage_base();
+  EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
+
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   Address isolate_root = i_isolate()->isolate_root();
-  EXPECT_TRUE(IsAligned(isolate_root, size_t{4} * GB));
+  EXPECT_EQ(cage_base, isolate_root);
+#endif
 
   // Check that all memory chunks belong this region.
-  base::AddressRegion heap_reservation(isolate_root, size_t{4} * GB);
+  base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
+  base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);
 
   SafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
@@ -159,7 +163,13 @@ TEST_F(HeapTest, HeapLayout) {
 
     Address address = chunk->address();
     size_t size = chunk->area_end() - address;
-    EXPECT_TRUE(heap_reservation.contains(address, size));
+    AllocationSpace owner_id = chunk->owner_identity();
+    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
+        (owner_id == CODE_SPACE || owner_id == CODE_LO_SPACE)) {
+      EXPECT_TRUE(code_reservation.contains(address, size));
+    } else {
+      EXPECT_TRUE(heap_reservation.contains(address, size));
+    }
   }
 }
 #endif  // V8_COMPRESS_POINTERS

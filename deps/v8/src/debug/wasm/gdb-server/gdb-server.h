@@ -150,9 +150,10 @@ class GdbServer {
     // debug::DebugDelegate
     void ScriptCompiled(Local<debug::Script> script, bool is_live_edited,
                         bool has_compile_error) override;
-    void BreakProgramRequested(Local<v8::Context> paused_context,
-                               const std::vector<debug::BreakpointId>&
-                                   inspector_break_points_hit) override;
+    void BreakProgramRequested(
+        Local<v8::Context> paused_context,
+        const std::vector<debug::BreakpointId>& inspector_break_points_hit,
+        v8::debug::BreakReasons break_reasons) override;
     void ExceptionThrown(Local<v8::Context> paused_context,
                          Local<Value> exception, Local<Value> promise,
                          bool is_uncaught,

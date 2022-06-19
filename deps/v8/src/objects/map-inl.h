@@ -12,15 +12,19 @@
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/transitions.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,9 +34,10 @@ namespace internal {
 
 #include "torque-generated/src/objects/map-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
-CAST_ACCESSOR(Map)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
 
+ACCESSORS(Map, instance_descriptors, DescriptorArray,
+          kInstanceDescriptorsOffset)
 RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
                   kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
@@ -49,29 +54,40 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())
 
-ACCESSORS_CHECKED(Map, prototype_info, Object,
-                  kTransitionsOrPrototypeInfoOffset, this->is_prototype_map())
+DEF_GETTER(Map, prototype_info, Object) {
+  Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
+      cage_base, *this);
+  DCHECK(this->is_prototype_map());
+  return value;
+}
+RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
+                          kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
 // is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
-BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
                     Map::Bits1::HasNonInstancePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
-                    Map::Bits1::HasNamedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_indexed_interceptor,
-                    Map::Bits1::HasIndexedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable,
-                    Map::Bits1::IsUndetectableBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
-                    Map::Bits1::IsAccessCheckNeededBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor,
-                    Map::Bits1::IsConstructorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
                     Map::Bits1::HasPrototypeSlotBit)
+
+// These are fine to be written as non-atomic since we don't have data races.
+// However, they have to be read atomically from the background since the
+// |bit_field| as a whole can mutate when using the above setters.
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_callable,
+                     Map::Bits1::IsCallableBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, has_named_interceptor,
+                     Map::Bits1::HasNamedInterceptorBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, has_indexed_interceptor,
+                     Map::Bits1::HasIndexedInterceptorBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_undetectable,
+                     Map::Bits1::IsUndetectableBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_access_check_needed,
+                     Map::Bits1::IsAccessCheckNeededBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_constructor,
+                     Map::Bits1::IsConstructorBit)
 
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
@@ -80,38 +96,47 @@ BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
                     Map::Bits2::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, owns_descriptors,
                     Map::Bits3::OwnsDescriptorsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
+BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_deprecated,
+                    Map::Bits3::IsDeprecatedBit)
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_in_retained_map_list,
                     Map::Bits3::IsInRetainedMapListBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map,
+BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_prototype_map,
                     Map::Bits3::IsPrototypeMapBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_migration_target,
                     Map::Bits3::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_extensible,
+                     Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::Bits3::MayHaveInterestingSymbolsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
-  return InterceptorInfo::cast(info.GetNamedPropertyHandler(isolate));
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
+  return InterceptorInfo::cast(info.GetNamedPropertyHandler(cage_base));
 }
 
 DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
   DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
-  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(isolate));
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
+  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(cage_base));
 }
 
+// static
 bool Map::IsMostGeneralFieldType(Representation representation,
                                  FieldType field_type) {
   return !representation.IsHeapObject() || field_type.IsAny();
 }
 
+// static
+bool Map::FieldTypeIsCleared(Representation rep, FieldType type) {
+  return type.IsNone() && rep.IsHeapObject();
+}
+
+// static
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
   return instance_type == JS_ARRAY_TYPE ||
          instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||
@@ -166,13 +191,18 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
     int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
-    int external = NumberOfFields() - GetInObjectProperties();
+    int external =
+        NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
     return external > limit;
   }
 }
 
+Name Map::GetLastDescriptorName(Isolate* isolate) const {
+  return instance_descriptors(isolate).GetKey(LastAdded());
+}
+
 PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate, kRelaxedLoad).GetDetails(LastAdded());
+  return instance_descriptors(isolate).GetDetails(LastAdded());
 }
 
 InternalIndex Map::LastAdded() const {
@@ -182,14 +212,15 @@ InternalIndex Map::LastAdded() const {
 }
 
 int Map::NumberOfOwnDescriptors() const {
-  return Bits3::NumberOfOwnDescriptorsBits::decode(bit_field3());
+  return Bits3::NumberOfOwnDescriptorsBits::decode(
+      release_acquire_bit_field3());
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK_LE(number, instance_descriptors(kRelaxedLoad).number_of_descriptors());
+  DCHECK_LE(number, instance_descriptors().number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
-  set_bit_field3(
+  set_release_acquire_bit_field3(
       Bits3::NumberOfOwnDescriptorsBits::update(bit_field3(), number));
 }
 
@@ -207,7 +238,7 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
+  set_relaxed_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
 }
 
 FixedArrayBase Map::GetInitialElements() const {
@@ -215,7 +246,7 @@ FixedArrayBase Map::GetInitialElements() const {
   if (has_fast_elements() || has_fast_string_wrapper_elements() ||
       has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
-  } else if (has_typed_array_elements()) {
+  } else if (has_typed_array_or_rab_gsab_typed_array_elements()) {
     result = GetReadOnlyRoots().empty_byte_array();
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
@@ -257,15 +288,17 @@ void Map::set_instance_size(int value) {
 }
 
 int Map::inobject_properties_start_or_constructor_function_index() const {
+  // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
+  // when TSAN sees the map's store synchronization.
   return RELAXED_READ_BYTE_FIELD(
-      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset);
 }
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
     int value) {
   CHECK_LT(static_cast<unsigned>(value), 256);
   RELAXED_WRITE_BYTE_FIELD(
-      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset,
       static_cast<byte>(value));
 }
 
@@ -305,6 +338,8 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
 }
 
 InstanceType Map::instance_type() const {
+  // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
+  // non-atomic when TSAN sees the map's store synchronization.
   return static_cast<InstanceType>(
       RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
 }
@@ -432,20 +467,76 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+uint8_t Map::WasmByte1() const {
+  DCHECK(IsWasmObjectMap());
+  return inobject_properties_start_or_constructor_function_index();
+}
+
+uint8_t Map::WasmByte2() const {
+  DCHECK(IsWasmObjectMap());
+  return used_or_unused_instance_size_in_words();
+}
+
+void Map::SetWasmByte1(uint8_t value) {
+  CHECK(IsWasmObjectMap());
+  set_inobject_properties_start_or_constructor_function_index(value);
+}
+
+void Map::SetWasmByte2(uint8_t value) {
+  CHECK(IsWasmObjectMap());
+  set_used_or_unused_instance_size_in_words(value);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 byte Map::bit_field() const {
-  return ACQUIRE_READ_BYTE_FIELD(*this, kBitFieldOffset);
+  // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+  // map's store synchronization.
+  return relaxed_bit_field();
 }
 
 void Map::set_bit_field(byte value) {
-  RELEASE_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
+  // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+  // map's store synchronization.
+  set_relaxed_bit_field(value);
 }
 
-byte Map::bit_field2() const {
-  return ACQUIRE_READ_BYTE_FIELD(*this, kBitField2Offset);
+byte Map::relaxed_bit_field() const {
+  return RELAXED_READ_BYTE_FIELD(*this, kBitFieldOffset);
 }
+
+void Map::set_relaxed_bit_field(byte value) {
+  RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
+}
+
+byte Map::bit_field2() const { return ReadField<byte>(kBitField2Offset); }
 
 void Map::set_bit_field2(byte value) {
-  RELEASE_WRITE_BYTE_FIELD(*this, kBitField2Offset, value);
+  WriteField<byte>(kBitField2Offset, value);
+}
+
+uint32_t Map::bit_field3() const {
+  // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
+  // when TSAN sees the map's store synchronization.
+  return relaxed_bit_field3();
+}
+
+void Map::set_bit_field3(uint32_t value) { set_relaxed_bit_field3(value); }
+
+uint32_t Map::relaxed_bit_field3() const {
+  return RELAXED_READ_UINT32_FIELD(*this, kBitField3Offset);
+}
+
+void Map::set_relaxed_bit_field3(uint32_t value) {
+  RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset, value);
+}
+
+uint32_t Map::release_acquire_bit_field3() const {
+  return ACQUIRE_READ_UINT32_FIELD(*this, kBitField3Offset);
+}
+
+void Map::set_release_acquire_bit_field3(uint32_t value) {
+  RELEASE_WRITE_UINT32_FIELD(*this, kBitField3Offset, value);
 }
 
 bool Map::is_abandoned_prototype_map() const {
@@ -499,8 +590,17 @@ bool Map::has_fast_string_wrapper_elements() const {
   return elements_kind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-bool Map::has_typed_array_elements() const {
-  return IsTypedArrayElementsKind(elements_kind());
+bool Map::has_typed_array_or_rab_gsab_typed_array_elements() const {
+  return IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind());
+}
+
+bool Map::has_any_typed_array_or_wasm_array_elements() const {
+  ElementsKind kind = elements_kind();
+  return IsTypedArrayOrRabGsabTypedArrayElementsKind(kind) ||
+#if V8_ENABLE_WEBASSEMBLY
+         IsWasmArrayElementsKind(kind) ||
+#endif  // V8_ENABLE_WEBASSEMBLY
+         false;
 }
 
 bool Map::has_dictionary_elements() const {
@@ -531,22 +631,24 @@ void Map::set_is_dictionary_map(bool value) {
 }
 
 bool Map::is_dictionary_map() const {
-  return Bits3::IsDictionaryMapBit::decode(bit_field3());
+  return Bits3::IsDictionaryMapBit::decode(relaxed_bit_field3());
 }
 
 void Map::mark_unstable() {
-  set_bit_field3(Bits3::IsUnstableBit::update(bit_field3(), true));
+  set_release_acquire_bit_field3(
+      Bits3::IsUnstableBit::update(bit_field3(), true));
 }
 
 bool Map::is_stable() const {
-  return !Bits3::IsUnstableBit::decode(bit_field3());
+  return !Bits3::IsUnstableBit::decode(release_acquire_bit_field3());
 }
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
-    if (details.kind() == kData && details.location() == kDescriptor) {
+    if (details.kind() == PropertyKind::kData &&
+        details.location() == PropertyLocation::kDescriptor) {
       return true;
     }
   }
@@ -557,7 +659,7 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
     dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPrototypeCheckGroup);
+        isolate, DependentCode::kPrototypeCheckGroup);
   }
 }
 
@@ -578,8 +680,8 @@ bool Map::IsBooleanMap() const {
 }
 
 bool Map::IsNullOrUndefinedMap() const {
-  return *this == GetReadOnlyRoots().null_map() ||
-         *this == GetReadOnlyRoots().undefined_map();
+  auto roots = GetReadOnlyRoots();
+  return *this == roots.null_map() || *this == roots.undefined_map();
 }
 
 bool Map::IsPrimitiveMap() const {
@@ -596,14 +698,6 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors) {
                          descriptors.number_of_descriptors());
 }
 
-void Map::set_bit_field3(uint32_t bits) {
-  RELEASE_WRITE_UINT32_FIELD(*this, kBitField3Offset, bits);
-}
-
-uint32_t Map::bit_field3() const {
-  return ACQUIRE_READ_UINT32_FIELD(*this, kBitField3Offset);
-}
-
 void Map::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
   DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
@@ -612,7 +706,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = instance_descriptors(isolate);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   {
@@ -629,7 +723,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
     set_may_have_interesting_symbols(true);
   }
   PropertyDetails details = desc->GetDetails();
-  if (details.location() == kField) {
+  if (details.location() == PropertyLocation::kField) {
     DCHECK_GT(UnusedPropertyFields(), 0);
     AccountAddedPropertyField();
   }
@@ -637,36 +731,36 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 // This function does not support appending double field descriptors and
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
-  DCHECK(details.location() != kField || !details.representation().IsDouble());
+  DCHECK(details.location() != PropertyLocation::kField ||
+         !details.representation().IsDouble());
 #endif
 }
 
+bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
+                          const Object& object) const {
+  return object.IsHeapObject() && HeapObject::cast(object).map(cage_base) ==
+                                      GetReadOnlyRoots(cage_base).meta_map();
+}
+
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
-  Object object = constructor_or_back_pointer(isolate);
-  // This is the equivalent of IsMap() but avoids reading the instance type so
-  // it can be used concurrently without acquire load.
-  if (object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
-                                   GetReadOnlyRoots(isolate).meta_map()) {
+  Object object = constructor_or_back_pointer(cage_base, kRelaxedLoad);
+  if (ConcurrentIsMap(cage_base, object)) {
     return Map::cast(object);
   }
-  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
-  // i::GetIsolateForPtrCompr(HeapObject).
-  return GetReadOnlyRoots(isolate).undefined_value();
+  return GetReadOnlyRoots(cage_base).undefined_value();
 }
 
 void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
-  CHECK_IMPLIES(value.IsMap(), Map::cast(value).GetConstructor() ==
-                                   constructor_or_back_pointer());
+  CHECK_EQ(Map::cast(value).GetConstructor(), constructor_or_back_pointer());
   set_constructor_or_back_pointer(value, mode);
 }
 
 // static
-Map Map::ElementsTransitionMap(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  return TransitionsAccessor(isolate, *this, &no_gc)
+Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
+  return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
@@ -675,12 +769,21 @@ ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(), value.IsNull() || !IsContextMap())
+RELAXED_ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
+                           kConstructorOrBackPointerOrNativeContextOffset,
+                           !IsContextMap(), value.IsNull() || !IsContextMap())
 ACCESSORS_CHECKED(Map, native_context, NativeContext,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsContextMap())
+ACCESSORS_CHECKED(Map, native_context_or_null, Object,
+                  kConstructorOrBackPointerOrNativeContextOffset,
+                  (value.IsNull() || value.IsNativeContext()) && IsContextMap())
+#if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
                   kConstructorOrBackPointerOrNativeContextOffset,
-                  IsWasmStructMap() || IsWasmArrayMap())
+                  IsWasmStructMap() || IsWasmArrayMap() ||
+                      IsWasmInternalFunctionMap())
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {
   Object validity_cell = prototype_validity_cell();
@@ -690,11 +793,11 @@ bool Map::IsPrototypeValidityCellValid() const {
 }
 
 DEF_GETTER(Map, GetConstructor, Object) {
-  Object maybe_constructor = constructor_or_back_pointer(isolate);
+  Object maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.
-  while (maybe_constructor.IsMap(isolate)) {
+  while (ConcurrentIsMap(cage_base, maybe_constructor)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
+        Map::cast(maybe_constructor).constructor_or_back_pointer(cage_base);
   }
   return maybe_constructor;
 }
@@ -711,13 +814,13 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
 }
 
 DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
-  Object constructor = GetConstructor(isolate);
-  if (constructor.IsJSFunction(isolate)) {
+  Object constructor = GetConstructor(cage_base);
+  if (constructor.IsJSFunction(cage_base)) {
     // TODO(ishell): IsApiFunction(isolate) and get_api_func_data(isolate)
-    DCHECK(JSFunction::cast(constructor).shared(isolate).IsApiFunction());
-    return JSFunction::cast(constructor).shared(isolate).get_api_func_data();
+    DCHECK(JSFunction::cast(constructor).shared(cage_base).IsApiFunction());
+    return JSFunction::cast(constructor).shared(cage_base).get_api_func_data();
   }
-  DCHECK(constructor.IsFunctionTemplateInfo(isolate));
+  DCHECK(constructor.IsFunctionTemplateInfo(cage_base));
   return FunctionTemplateInfo::cast(constructor);
 }
 
@@ -738,13 +841,14 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
 }
 
 void Map::InobjectSlackTrackingStep(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
   // Slack tracking should only be performed on an initial map.
   DCHECK(GetBackPointer().IsUndefined());
   if (!IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
   set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
-    CompleteInobjectSlackTracking(isolate);
+    MapUpdater::CompleteInobjectSlackTracking(isolate, *this);
   }
 }
 
@@ -771,7 +875,7 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
 }
 
 DEF_GETTER(HeapObject, IsNormalizedMapCache, bool) {
-  if (!IsWeakFixedArray(isolate)) return false;
+  if (!IsWeakFixedArray(cage_base)) return false;
   if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
     return false;
   }

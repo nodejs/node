@@ -1,7 +1,7 @@
 /*
- * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,6 +11,8 @@
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/err.h>
+#include "crypto/asn1.h"
 #include "crypto/evp.h"
 
 ASN1_SEQUENCE(X509_ALGOR) = {
@@ -78,7 +80,7 @@ void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md)
     else
         param_type = V_ASN1_NULL;
 
-    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
+    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_get_type(md)), param_type, NULL);
 
 }
 
@@ -96,7 +98,7 @@ int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b)
 int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
 {
     if (src == NULL || dest == NULL)
-	return 0;
+        return 0;
 
     if (dest->algorithm)
          ASN1_OBJECT_free(dest->algorithm);
@@ -108,9 +110,9 @@ int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
 
     if (src->algorithm)
         if ((dest->algorithm = OBJ_dup(src->algorithm)) == NULL)
-	    return 0;
+            return 0;
 
-    if (src->parameter) {
+    if (src->parameter != NULL) {
         dest->parameter = ASN1_TYPE_new();
         if (dest->parameter == NULL)
             return 0;
@@ -118,9 +120,71 @@ int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
         /* Assuming this is also correct for a BOOL.
          * set does copy as a side effect.
          */
-        if (ASN1_TYPE_set1(dest->parameter, 
-                src->parameter->type, src->parameter->value.ptr) == 0)
+        if (ASN1_TYPE_set1(dest->parameter, src->parameter->type,
+                           src->parameter->value.ptr) == 0)
             return 0;
     }
+
     return 1;
+}
+
+/* allocate and set algorithm ID from EVP_MD, default SHA1 */
+int ossl_x509_algor_new_from_md(X509_ALGOR **palg, const EVP_MD *md)
+{
+    /* Default is SHA1 so no need to create it - still success */
+    if (md == NULL || EVP_MD_is_a(md, "SHA1"))
+        return 1;
+    *palg = X509_ALGOR_new();
+    if (*palg == NULL)
+        return 0;
+    X509_ALGOR_set_md(*palg, md);
+    return 1;
+}
+
+/* convert algorithm ID to EVP_MD, default SHA1 */
+const EVP_MD *ossl_x509_algor_get_md(X509_ALGOR *alg)
+{
+    const EVP_MD *md;
+
+    if (alg == NULL)
+        return EVP_sha1();
+    md = EVP_get_digestbyobj(alg->algorithm);
+    if (md == NULL)
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_UNKNOWN_DIGEST);
+    return md;
+}
+
+X509_ALGOR *ossl_x509_algor_mgf1_decode(X509_ALGOR *alg)
+{
+    if (OBJ_obj2nid(alg->algorithm) != NID_mgf1)
+        return NULL;
+    return ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(X509_ALGOR),
+                                     alg->parameter);
+}
+
+/* Allocate and set MGF1 algorithm ID from EVP_MD */
+int ossl_x509_algor_md_to_mgf1(X509_ALGOR **palg, const EVP_MD *mgf1md)
+{
+    X509_ALGOR *algtmp = NULL;
+    ASN1_STRING *stmp = NULL;
+
+    *palg = NULL;
+    if (mgf1md == NULL || EVP_MD_is_a(mgf1md, "SHA1"))
+        return 1;
+    /* need to embed algorithm ID inside another */
+    if (!ossl_x509_algor_new_from_md(&algtmp, mgf1md))
+        goto err;
+    if (ASN1_item_pack(algtmp, ASN1_ITEM_rptr(X509_ALGOR), &stmp) == NULL)
+         goto err;
+    *palg = X509_ALGOR_new();
+    if (*palg == NULL)
+        goto err;
+    X509_ALGOR_set0(*palg, OBJ_nid2obj(NID_mgf1), V_ASN1_SEQUENCE, stmp);
+    stmp = NULL;
+ err:
+    ASN1_STRING_free(stmp);
+    X509_ALGOR_free(algtmp);
+    if (*palg != NULL)
+        return 1;
+    return 0;
 }

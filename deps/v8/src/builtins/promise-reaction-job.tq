@@ -60,7 +60,7 @@ macro FuflfillPromiseReactionJob(
       const resolve = UnsafeCast<Callable>(capability.resolve);
       try {
         return Call(context, resolve, Undefined, result);
-      } catch (e) {
+      } catch (e, _message) {
         return RejectPromiseReactionJob(
             context, promiseOrCapability, e, reactionType);
       }
@@ -98,7 +98,7 @@ macro PromiseReactionJob(
         return FuflfillPromiseReactionJob(
             context, promiseOrCapability, result, reactionType);
       }
-    } catch (e) {
+    } catch (e, _message) {
       return RejectPromiseReactionJob(
           context, promiseOrCapability, e, reactionType);
     }

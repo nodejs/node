@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Collect the Callsite objects instead of just a string:
 Error.prepareStackTrace = function(error, frames) {
@@ -57,7 +57,7 @@ builder.addFunction("main", kSig_i_i)
             kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32LtU,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
         // offset 9
               kExprI32Const, 0x7e /* -2 */,
               kExprLocalGet, 0,
@@ -70,7 +70,7 @@ builder.addFunction("main", kSig_i_i)
             kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32Eq,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
           kExprUnreachable,
         kExprEnd,
         // offset 30

@@ -5,8 +5,11 @@
 #include "src/heap/marking-worklist.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <map>
 
+#include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/heap-object.h"
@@ -29,7 +32,7 @@ MarkingWorklists::~MarkingWorklists() {
 void MarkingWorklists::Clear() {
   shared_.Clear();
   on_hold_.Clear();
-  embedder_.Clear();
+  wrapper_.Clear();
   other_.Clear();
   for (auto cw : context_worklists_) {
     if (cw.context == kSharedContext || cw.context == kOtherContext) {
@@ -94,13 +97,17 @@ void MarkingWorklists::PrintWorklist(const char* worklist_name,
 #endif
 }
 
-const Address MarkingWorklists::Local::kSharedContext;
-const Address MarkingWorklists::Local::kOtherContext;
+constexpr Address MarkingWorklists::Local::kSharedContext;
+constexpr Address MarkingWorklists::Local::kOtherContext;
+constexpr std::nullptr_t MarkingWorklists::Local::kNoCppMarkingState;
 
-MarkingWorklists::Local::Local(MarkingWorklists* global)
+MarkingWorklists::Local::Local(
+    MarkingWorklists* global,
+    std::unique_ptr<CppMarkingState> cpp_marking_state)
     : on_hold_(global->on_hold()),
-      embedder_(global->embedder()),
-      is_per_context_mode_(false) {
+      wrapper_(global->wrapper()),
+      is_per_context_mode_(false),
+      cpp_marking_state_(std::move(cpp_marking_state)) {
   if (global->context_worklists().empty()) {
     MarkingWorklist::Local shared(global->shared());
     active_ = std::move(shared);
@@ -133,7 +140,7 @@ MarkingWorklists::Local::~Local() {
 void MarkingWorklists::Local::Publish() {
   active_.Publish();
   on_hold_.Publish();
-  embedder_.Publish();
+  wrapper_.Publish();
   if (is_per_context_mode_) {
     for (auto& cw : worklist_by_context_) {
       if (cw.first != active_context_) {
@@ -141,6 +148,7 @@ void MarkingWorklists::Local::Publish() {
       }
     }
   }
+  PublishWrapper();
 }
 
 bool MarkingWorklists::Local::IsEmpty() {
@@ -163,8 +171,12 @@ bool MarkingWorklists::Local::IsEmpty() {
   return true;
 }
 
-bool MarkingWorklists::Local::IsEmbedderEmpty() const {
-  return embedder_.IsLocalEmpty() && embedder_.IsGlobalEmpty();
+bool MarkingWorklists::Local::IsWrapperEmpty() const {
+  if (cpp_marking_state_) {
+    DCHECK(wrapper_.IsLocalAndGlobalEmpty());
+    return cpp_marking_state_->IsLocalEmpty();
+  }
+  return wrapper_.IsLocalAndGlobalEmpty();
 }
 
 void MarkingWorklists::Local::ShareWork() {

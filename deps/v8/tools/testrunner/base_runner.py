@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
 from functools import reduce
 
 from collections import OrderedDict, namedtuple
@@ -113,7 +111,8 @@ SLOW_ARCHS = [
   "mips64el",
   "s390",
   "s390x",
-  "riscv64"
+  "riscv64",
+  "loong64"
 ]
 
 
@@ -172,6 +171,7 @@ class BuildConfig(object):
     self.cfi_vptr = build_config['is_cfi']
     self.control_flow_integrity = build_config['v8_control_flow_integrity']
     self.concurrent_marking = build_config['v8_enable_concurrent_marking']
+    self.single_generation = build_config['v8_enable_single_generation']
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
@@ -189,7 +189,12 @@ class BuildConfig(object):
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
+    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
+    self.sandbox = build_config['v8_enable_sandbox']
+    self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.webassembly = build_config['v8_enable_webassembly']
+    self.dict_property_const_tracking = build_config['v8_dict_property_const_tracking']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -229,8 +234,16 @@ class BuildConfig(object):
       detected_options.append('lite_mode')
     if self.pointer_compression:
       detected_options.append('pointer_compression')
+    if self.pointer_compression_shared_cage:
+      detected_options.append('pointer_compression_shared_cage')
+    if self.sandbox:
+      detected_options.append('sandbox')
+    if self.third_party_heap:
+      detected_options.append('third_party_heap')
     if self.webassembly:
       detected_options.append('webassembly')
+    if self.dict_property_const_tracking:
+      detected_options.append('dict_property_const_tracking')
 
     return '\n'.join(detected_options)
 
@@ -260,6 +273,7 @@ class BaseTestRunner(object):
     self.build_config = None
     self.mode_options = None
     self.target_os = None
+    self.infra_staging = False
 
   @property
   def framework_name(self):
@@ -272,10 +286,16 @@ class BaseTestRunner(object):
     try:
       parser = self._create_parser()
       options, args = self._parse_args(parser, sys_args)
+      self.infra_staging = options.infra_staging
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
         print(' '.join(sys.argv))
+
+        # TODO(machenbach): Print used Python version until we have switched to
+        # Python3 everywhere.
+        print('Running with:')
+        print(sys.version)
 
         # Kill stray processes from previous tasks on swarming.
         util.kill_processes_linux()
@@ -336,6 +356,13 @@ class BaseTestRunner(object):
                       help="How long should fuzzer run")
     parser.add_option("--swarming", default=False, action="store_true",
                       help="Indicates running test driver on swarming.")
+    parser.add_option('--infra-staging', help='Use new test runner features',
+                      dest='infra_staging', default=None,
+                      action='store_true')
+    parser.add_option('--no-infra-staging',
+                      help='Opt out of new test runner features',
+                      dest='infra_staging', default=None,
+                      action='store_false')
 
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type=int)
@@ -351,7 +378,7 @@ class BaseTestRunner(object):
 
     # Progress
     parser.add_option("-p", "--progress",
-                      choices=PROGRESS_INDICATORS.keys(), default="mono",
+                      choices=list(PROGRESS_INDICATORS.keys()), default="mono",
                       help="The style of progress indicator (verbose, dots, "
                            "color, mono)")
     parser.add_option("--json-test-results",
@@ -508,7 +535,7 @@ class BaseTestRunner(object):
         options.j = multiprocessing.cpu_count()
 
     options.command_prefix = shlex.split(options.command_prefix)
-    options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
+    options.extra_flags = sum(list(map(shlex.split, options.extra_flags)), [])
 
   def _process_options(self, options):
     pass
@@ -595,7 +622,7 @@ class BaseTestRunner(object):
     def expand_test_group(name):
       return TEST_MAP.get(name, [name])
 
-    return reduce(list.__add__, map(expand_test_group, args), [])
+    return reduce(list.__add__, list(map(expand_test_group, args)), [])
 
   def _args_to_suite_names(self, args, test_root):
     # Use default tests if no test configuration was provided at the cmd line.
@@ -641,21 +668,33 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
-    no_simd_sse = any(
+    no_simd_hardware = any(
         i in options.extra_flags for i in ['--noenable-sse3',
-                                           '--no-enable-sse3'
+                                           '--no-enable-sse3',
                                            '--noenable-ssse3',
                                            '--no-enable-ssse3',
                                            '--noenable-sse4-1',
                                            '--no-enable-sse4_1'])
 
-    # Set no_simd_sse on architectures without Simd enabled.
-    if self.build_config.arch == 'ppc64':
-       no_simd_sse = True
-
+    # Set no_simd_hardware on architectures without Simd enabled.
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
-       no_simd_sse = not simd_mips
+       no_simd_hardware = not simd_mips
+
+    if self.build_config.arch == 'loong64':
+       no_simd_hardware = True
+
+    # S390 hosts without VEF1 do not support Simd.
+    if self.build_config.arch == 's390x' and \
+       not self.build_config.simulator_run and \
+       not utils.IsS390SimdSupported():
+       no_simd_hardware = True
+
+    # Ppc64 processors earlier than POWER9 do not support Simd instructions
+    if self.build_config.arch == 'ppc64' and \
+       not self.build_config.simulator_run and \
+       utils.GuessPowerProcessorVersion() < 9:
+       no_simd_hardware = True
 
     return {
       "arch": self.build_config.arch,
@@ -664,6 +703,7 @@ class BaseTestRunner(object):
       "cfi_vptr": self.build_config.cfi_vptr,
       "control_flow_integrity": self.build_config.control_flow_integrity,
       "concurrent_marking": self.build_config.concurrent_marking,
+      "single_generation": self.build_config.single_generation,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,
@@ -679,7 +719,7 @@ class BaseTestRunner(object):
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,
-      "no_simd_sse": no_simd_sse,
+      "no_simd_hardware": no_simd_hardware,
       "novfp3": False,
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
@@ -687,11 +727,18 @@ class BaseTestRunner(object):
       "simulator_run": self.build_config.simulator_run and
                        not options.dont_skip_simulator_slow_tests,
       "system": self.target_os,
+      "third_party_heap": self.build_config.third_party_heap,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
       "verify_csa": self.build_config.verify_csa,
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
+      "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
+      "no_js_shared_memory": (not self.build_config.shared_ro_heap) or
+                             (self.build_config.pointer_compression and
+                              not self.build_config.pointer_compression_shared_cage),
+      "sandbox": self.build_config.sandbox,
+      "dict_property_const_tracking": self.build_config.dict_property_const_tracking,
     }
 
   def _runner_flags(self):
@@ -724,6 +771,8 @@ class BaseTestRunner(object):
       factor *= 2
     if self.build_config.predictable:
       factor *= 4
+    if self.build_config.tsan:
+      factor *= 2
     if self.build_config.use_sanitizer:
       factor *= 1.5
     if self.build_config.is_full_debug:
@@ -736,7 +785,7 @@ class BaseTestRunner(object):
     raise NotImplementedError()
 
   def _prepare_procs(self, procs):
-    procs = filter(None, procs)
+    procs = list([_f for _f in procs if _f])
     for i in range(0, len(procs) - 1):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()

@@ -6,7 +6,6 @@
 #define V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 
 #include "src/common/globals.h"
-#include "src/heap/factory-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -14,6 +13,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -41,9 +41,8 @@ INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
 RELEASE_ACQUIRE_WEAK_ACCESSORS(FeedbackVector, maybe_optimized_code,
                                kMaybeOptimizedCodeOffset)
 
-int32_t FeedbackMetadata::synchronized_slot_count() const {
-  return base::Acquire_Load(
-      reinterpret_cast<const base::Atomic32*>(field_address(kSlotCountOffset)));
+int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
 
 int32_t FeedbackMetadata::get(int index) const {
@@ -81,15 +80,16 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       return 2;
 
     case FeedbackSlotKind::kInvalid:
@@ -113,52 +113,47 @@ FeedbackMetadata FeedbackVector::metadata() const {
   return shared_function_info().feedback_metadata();
 }
 
-void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
+FeedbackMetadata FeedbackVector::metadata(AcquireLoadTag tag) const {
+  return shared_function_info().feedback_metadata(tag);
+}
 
-Code FeedbackVector::optimized_code() const {
+RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
+                        kInvocationCountOffset)
+
+void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
+  set_invocation_count(0, tag);
+}
+
+CodeT FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  Code code =
-      slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : Code();
-  // It is possible that the maybe_optimized_code slot is cleared but the
-  // optimization tier hasn't been updated yet. We update the tier when we
-  // execute the function next time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(), OptimizationTierBits::decode(flags()) ==
-                                      GetTierForCodeKind(code.kind()));
+  CodeT code;
+  if (slot->GetHeapObject(&heap_object)) {
+    code = CodeT::cast(heap_object);
+  }
+  // It is possible that the maybe_optimized_code slot is cleared but the flags
+  // haven't been updated yet. We update them when we execute the function next
+  // time / when we create new closure.
+  DCHECK_IMPLIES(!code.is_null(), maybe_has_optimized_code());
   return code;
 }
 
-OptimizationMarker FeedbackVector::optimization_marker() const {
-  return OptimizationMarkerBits::decode(flags());
-}
-
-int FeedbackVector::global_ticks_at_last_runtime_profiler_interrupt() const {
-  return GlobalTicksAtLastRuntimeProfilerInterruptBits::decode(flags());
-}
-
-void FeedbackVector::set_global_ticks_at_last_runtime_profiler_interrupt(
-    int ticks) {
-  set_flags(
-      GlobalTicksAtLastRuntimeProfilerInterruptBits::update(flags(), ticks));
-}
-
-OptimizationTier FeedbackVector::optimization_tier() const {
-  OptimizationTier tier = OptimizationTierBits::decode(flags());
-  // It is possible that the optimization tier bits aren't updated when the code
-  // was cleared due to a GC.
-  DCHECK_IMPLIES(tier == OptimizationTier::kNone,
-                 maybe_optimized_code(kAcquireLoad)->IsCleared());
-  return tier;
+TieringState FeedbackVector::tiering_state() const {
+  return TieringStateBits::decode(flags());
 }
 
 bool FeedbackVector::has_optimized_code() const {
+  DCHECK_IMPLIES(!optimized_code().is_null(), maybe_has_optimized_code());
   return !optimized_code().is_null();
 }
 
-bool FeedbackVector::has_optimization_marker() const {
-  return optimization_marker() != OptimizationMarker::kLogFirstExecution &&
-         optimization_marker() != OptimizationMarker::kNone;
+bool FeedbackVector::maybe_has_optimized_code() const {
+  return MaybeHasOptimizedCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_optimized_code(bool value) {
+  set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
@@ -182,13 +177,15 @@ bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
 #endif  // DEBUG
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(GetIndex(slot));
+  MaybeObject value = raw_feedback_slots(GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
 
-MaybeObject FeedbackVector::Get(IsolateRoot isolate, FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(isolate, GetIndex(slot));
+MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
+                                FeedbackSlot slot) const {
+  MaybeObject value =
+      raw_feedback_slots(cage_base, GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
@@ -327,11 +324,15 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
 }
 
 Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
-  return isolate->factory()->uninitialized_symbol();
+  return ReadOnlyRoots(isolate).uninitialized_symbol_handle();
 }
 
 Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->megamorphic_symbol();
+  return ReadOnlyRoots(isolate).megamorphic_symbol_handle();
+}
+
+Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
+  return ReadOnlyRoots(isolate).mega_dom_symbol_handle();
 }
 
 Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
@@ -374,6 +375,11 @@ MaybeObject FeedbackNexus::UninitializedSentinel() const {
 MaybeObject FeedbackNexus::MegamorphicSentinel() const {
   return MaybeObject::FromObject(
       *FeedbackVector::MegamorphicSentinel(GetIsolate()));
+}
+
+MaybeObject FeedbackNexus::MegaDOMSentinel() const {
+  return MaybeObject::FromObject(
+      *FeedbackVector::MegaDOMSentinel(GetIsolate()));
 }
 
 MaybeObject FeedbackNexus::FromHandle(MaybeObjectHandle slot) const {

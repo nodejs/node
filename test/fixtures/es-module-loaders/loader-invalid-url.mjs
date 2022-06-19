@@ -1,9 +1,10 @@
-/* eslint-disable node-core/required-modules */
-export async function resolve(specifier, { parentURL }, defaultResolve) {
+export function resolve(specifier, { parentURL, importAssertions }, nextResolve) {
   if (parentURL && specifier === '../fixtures/es-modules/test-esm-ok.mjs') {
     return {
-      url: specifier
+      shortCircuit: true,
+      url: specifier,
+      importAssertions,
     };
   }
-  return defaultResolve(specifier, {parentURL}, defaultResolve);
+  return nextResolve(specifier, {parentURL, importAssertions});
 }

@@ -1,22 +1,28 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_BN_H
-# define HEADER_BN_H
+#ifndef OPENSSL_BN_H
+# define OPENSSL_BN_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_BN_H
+# endif
 
 # include <openssl/e_os2.h>
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
 # endif
 # include <openssl/opensslconf.h>
-# include <openssl/ossl_typ.h>
+# include <openssl/types.h>
 # include <openssl/crypto.h>
 # include <openssl/bnerr.h>
 
@@ -61,7 +67,7 @@ extern "C" {
 # define BN_FLG_CONSTTIME        0x04
 # define BN_FLG_SECURE           0x08
 
-# if OPENSSL_API_COMPAT < 0x00908000L
+# ifndef OPENSSL_NO_DEPRECATED_0_9_8
 /* deprecated name for the flag */
 #  define BN_FLG_EXP_CONSTTIME BN_FLG_CONSTTIME
 #  define BN_FLG_FREE            0x8000 /* used for debugging */
@@ -103,8 +109,9 @@ void BN_GENCB_set(BN_GENCB *gencb, int (*callback) (int, int, BN_GENCB *),
 
 void *BN_GENCB_get_arg(BN_GENCB *cb);
 
-# define BN_prime_checks 0      /* default: select number of iterations based
-                                 * on the size of the number */
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define BN_prime_checks 0      /* default: select number of iterations based
+                                  * on the size of the number */
 
 /*
  * BN_prime_checks_for_size() returns the number of Miller-Rabin iterations
@@ -169,14 +176,15 @@ void *BN_GENCB_get_arg(BN_GENCB *cb);
  *  (b) >=    6 |     >=    12 |         34 |         64 bit
  */
 
-# define BN_prime_checks_for_size(b) ((b) >= 3747 ?  3 : \
-                                (b) >=  1345 ?  4 : \
-                                (b) >=  476 ?  5 : \
-                                (b) >=  400 ?  6 : \
-                                (b) >=  347 ?  7 : \
-                                (b) >=  308 ?  8 : \
-                                (b) >=  55  ? 27 : \
-                                /* b >= 6 */ 34)
+#  define BN_prime_checks_for_size(b) ((b) >= 3747 ?  3 : \
+                                      (b) >=  1345 ?  4 : \
+                                      (b) >=  476 ?  5 : \
+                                      (b) >=  400 ?  6 : \
+                                      (b) >=  347 ?  7 : \
+                                      (b) >=  308 ?  8 : \
+                                      (b) >=  55  ? 27 : \
+                                      /* b >= 6 */ 34)
+# endif
 
 # define BN_num_bytes(a) ((BN_num_bits(a)+7)/8)
 
@@ -190,7 +198,7 @@ int BN_is_odd(const BIGNUM *a);
 
 void BN_zero_ex(BIGNUM *a);
 
-# if OPENSSL_API_COMPAT >= 0x00908000L
+# if OPENSSL_API_LEVEL > 908
 #  define BN_zero(a)      BN_zero_ex(a)
 # else
 #  define BN_zero(a)      (BN_set_word((a),0))
@@ -198,18 +206,32 @@ void BN_zero_ex(BIGNUM *a);
 
 const BIGNUM *BN_value_one(void);
 char *BN_options(void);
+BN_CTX *BN_CTX_new_ex(OSSL_LIB_CTX *ctx);
 BN_CTX *BN_CTX_new(void);
+BN_CTX *BN_CTX_secure_new_ex(OSSL_LIB_CTX *ctx);
 BN_CTX *BN_CTX_secure_new(void);
 void BN_CTX_free(BN_CTX *c);
 void BN_CTX_start(BN_CTX *ctx);
 BIGNUM *BN_CTX_get(BN_CTX *ctx);
 void BN_CTX_end(BN_CTX *ctx);
+int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+               unsigned int strength, BN_CTX *ctx);
 int BN_rand(BIGNUM *rnd, int bits, int top, int bottom);
+int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                    unsigned int strength, BN_CTX *ctx);
 int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom);
+int BN_rand_range_ex(BIGNUM *r, const BIGNUM *range, unsigned int strength,
+                     BN_CTX *ctx);
 int BN_rand_range(BIGNUM *rnd, const BIGNUM *range);
+int BN_priv_rand_range_ex(BIGNUM *r, const BIGNUM *range,
+                          unsigned int strength, BN_CTX *ctx);
 int BN_priv_rand_range(BIGNUM *rnd, const BIGNUM *range);
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0
 int BN_pseudo_rand(BIGNUM *rnd, int bits, int top, int bottom);
+OSSL_DEPRECATEDIN_3_0
 int BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
+# endif
 int BN_num_bits(const BIGNUM *a);
 int BN_num_bits_word(BN_ULONG l);
 int BN_security_bits(int L, int N);
@@ -223,6 +245,8 @@ int BN_bn2bin(const BIGNUM *a, unsigned char *to);
 int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
 BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen);
+BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret);
+int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen);
 BIGNUM *BN_mpi2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2mpi(const BIGNUM *a, unsigned char *to);
 int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
@@ -292,6 +316,11 @@ int BN_mod_exp2_mont(BIGNUM *r, const BIGNUM *a1, const BIGNUM *p1,
                      BN_CTX *ctx, BN_MONT_CTX *m_ctx);
 int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
                       const BIGNUM *m, BN_CTX *ctx);
+int BN_mod_exp_mont_consttime_x2(BIGNUM *rr1, const BIGNUM *a1, const BIGNUM *p1,
+                                 const BIGNUM *m1, BN_MONT_CTX *in_mont1,
+                                 BIGNUM *rr2, const BIGNUM *a2, const BIGNUM *p2,
+                                 const BIGNUM *m2, BN_MONT_CTX *in_mont2,
+                                 BN_CTX *ctx);
 
 int BN_mask_bits(BIGNUM *a, int n);
 # ifndef OPENSSL_NO_STDIO
@@ -323,38 +352,51 @@ BIGNUM *BN_mod_sqrt(BIGNUM *ret,
 void BN_consttime_swap(BN_ULONG swap, BIGNUM *a, BIGNUM *b, int nwords);
 
 /* Deprecated versions */
-DEPRECATEDIN_0_9_8(BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
-                                             const BIGNUM *add,
-                                             const BIGNUM *rem,
-                                             void (*callback) (int, int,
-                                                               void *),
-                                             void *cb_arg))
-DEPRECATEDIN_0_9_8(int
-                   BN_is_prime(const BIGNUM *p, int nchecks,
-                               void (*callback) (int, int, void *),
-                               BN_CTX *ctx, void *cb_arg))
-DEPRECATEDIN_0_9_8(int
-                   BN_is_prime_fasttest(const BIGNUM *p, int nchecks,
-                                        void (*callback) (int, int, void *),
-                                        BN_CTX *ctx, void *cb_arg,
-                                        int do_trial_division))
-
-/* Newer versions */
-int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe, const BIGNUM *add,
-                         const BIGNUM *rem, BN_GENCB *cb);
+# ifndef OPENSSL_NO_DEPRECATED_0_9_8
+OSSL_DEPRECATEDIN_0_9_8
+BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
+                          const BIGNUM *add, const BIGNUM *rem,
+                          void (*callback) (int, int, void *),
+                          void *cb_arg);
+OSSL_DEPRECATEDIN_0_9_8
+int BN_is_prime(const BIGNUM *p, int nchecks,
+                void (*callback) (int, int, void *),
+                BN_CTX *ctx, void *cb_arg);
+OSSL_DEPRECATEDIN_0_9_8
+int BN_is_prime_fasttest(const BIGNUM *p, int nchecks,
+                         void (*callback) (int, int, void *),
+                         BN_CTX *ctx, void *cb_arg,
+                         int do_trial_division);
+# endif
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0
 int BN_is_prime_ex(const BIGNUM *p, int nchecks, BN_CTX *ctx, BN_GENCB *cb);
+OSSL_DEPRECATEDIN_3_0
 int BN_is_prime_fasttest_ex(const BIGNUM *p, int nchecks, BN_CTX *ctx,
                             int do_trial_division, BN_GENCB *cb);
+# endif
+/* Newer versions */
+int BN_generate_prime_ex2(BIGNUM *ret, int bits, int safe,
+                          const BIGNUM *add, const BIGNUM *rem, BN_GENCB *cb,
+                          BN_CTX *ctx);
+int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe, const BIGNUM *add,
+                         const BIGNUM *rem, BN_GENCB *cb);
+int BN_check_prime(const BIGNUM *p, BN_CTX *ctx, BN_GENCB *cb);
 
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+OSSL_DEPRECATEDIN_3_0
 int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx);
 
+OSSL_DEPRECATEDIN_3_0
 int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
                             const BIGNUM *Xp, const BIGNUM *Xp1,
                             const BIGNUM *Xp2, const BIGNUM *e, BN_CTX *ctx,
                             BN_GENCB *cb);
+OSSL_DEPRECATEDIN_3_0
 int BN_X931_generate_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2, BIGNUM *Xp1,
                               BIGNUM *Xp2, const BIGNUM *Xp, const BIGNUM *e,
                               BN_CTX *ctx, BN_GENCB *cb);
+# endif
 
 BN_MONT_CTX *BN_MONT_CTX_new(void);
 int BN_mod_mul_montgomery(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
@@ -398,10 +440,12 @@ BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
                                                          BN_CTX *ctx,
                                                          BN_MONT_CTX *m_ctx),
                                       BN_MONT_CTX *m_ctx);
-
-DEPRECATEDIN_0_9_8(void BN_set_params(int mul, int high, int low, int mont))
-DEPRECATEDIN_0_9_8(int BN_get_params(int which)) /* 0, mul, 1 high, 2 low, 3
-                                                  * mont */
+# ifndef OPENSSL_NO_DEPRECATED_0_9_8
+OSSL_DEPRECATEDIN_0_9_8
+void BN_set_params(int mul, int high, int low, int mont);
+OSSL_DEPRECATEDIN_0_9_8
+int BN_get_params(int which); /* 0, mul, 1 high, 2 low, 3 mont */
+# endif
 
 BN_RECP_CTX *BN_RECP_CTX_new(void);
 void BN_RECP_CTX_free(BN_RECP_CTX *recp);
@@ -519,16 +563,16 @@ BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn);
 BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn);
 BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn);
 
-# if OPENSSL_API_COMPAT < 0x10100000L
-#  define get_rfc2409_prime_768 BN_get_rfc2409_prime_768
-#  define get_rfc2409_prime_1024 BN_get_rfc2409_prime_1024
-#  define get_rfc3526_prime_1536 BN_get_rfc3526_prime_1536
-#  define get_rfc3526_prime_2048 BN_get_rfc3526_prime_2048
-#  define get_rfc3526_prime_3072 BN_get_rfc3526_prime_3072
-#  define get_rfc3526_prime_4096 BN_get_rfc3526_prime_4096
-#  define get_rfc3526_prime_6144 BN_get_rfc3526_prime_6144
-#  define get_rfc3526_prime_8192 BN_get_rfc3526_prime_8192
-# endif
+#  ifndef OPENSSL_NO_DEPRECATED_1_1_0
+#   define get_rfc2409_prime_768 BN_get_rfc2409_prime_768
+#   define get_rfc2409_prime_1024 BN_get_rfc2409_prime_1024
+#   define get_rfc3526_prime_1536 BN_get_rfc3526_prime_1536
+#   define get_rfc3526_prime_2048 BN_get_rfc3526_prime_2048
+#   define get_rfc3526_prime_3072 BN_get_rfc3526_prime_3072
+#   define get_rfc3526_prime_4096 BN_get_rfc3526_prime_4096
+#   define get_rfc3526_prime_6144 BN_get_rfc3526_prime_6144
+#   define get_rfc3526_prime_8192 BN_get_rfc3526_prime_8192
+#  endif
 
 int BN_bntest_rand(BIGNUM *rnd, int bits, int top, int bottom);
 

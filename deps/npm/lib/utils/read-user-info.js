@@ -1,7 +1,7 @@
 const { promisify } = require('util')
 const readAsync = promisify(require('read'))
 const userValidate = require('npm-user-validate')
-const log = require('npmlog')
+const log = require('./log-shim.js')
 
 exports.otp = readOTP
 exports.password = readPassword
@@ -23,43 +23,47 @@ function read (opts) {
 }
 
 function readOTP (msg = otpPrompt, otp, isRetry) {
-  if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp))
+  if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp)) {
     return otp.replace(/\s+/g, '')
+  }
 
   return read({ prompt: msg, default: otp || '' })
     .then((otp) => readOTP(msg, otp, true))
 }
 
 function readPassword (msg = passwordPrompt, password, isRetry) {
-  if (isRetry && password)
+  if (isRetry && password) {
     return password
+  }
 
   return read({ prompt: msg, silent: true, default: password || '' })
     .then((password) => readPassword(msg, password, true))
 }
 
-function readUsername (msg = usernamePrompt, username, opts = {}, isRetry) {
+function readUsername (msg = usernamePrompt, username, isRetry) {
   if (isRetry && username) {
     const error = userValidate.username(username)
-    if (error)
-      opts.log && opts.log.warn(error.message)
-    else
+    if (error) {
+      log.warn(error.message)
+    } else {
       return Promise.resolve(username.trim())
+    }
   }
 
   return read({ prompt: msg, default: username || '' })
-    .then((username) => readUsername(msg, username, opts, true))
+    .then((username) => readUsername(msg, username, true))
 }
 
-function readEmail (msg = emailPrompt, email, opts = {}, isRetry) {
+function readEmail (msg = emailPrompt, email, isRetry) {
   if (isRetry && email) {
     const error = userValidate.email(email)
-    if (error)
-      opts.log && opts.log.warn(error.message)
-    else
+    if (error) {
+      log.warn(error.message)
+    } else {
       return email.trim()
+    }
   }
 
   return read({ prompt: msg, default: email || '' })
-    .then((username) => readEmail(msg, username, opts, true))
+    .then((username) => readEmail(msg, username, true))
 }

@@ -57,24 +57,22 @@ See L</NOTES> for a discussion on this requirement.
 Creating proxy certificates can be done using the L<openssl-x509(1)>
 command, with some extra extensions:
 
-    [ v3_proxy ]
+    [ proxy ]
     # A proxy certificate MUST NEVER be a CA certificate.
-    basicConstraints=CA:FALSE
-
+    basicConstraints = CA:FALSE
     # Usual authority key ID
-    authorityKeyIdentifier=keyid,issuer:always
-
+    authorityKeyIdentifier = keyid,issuer:always
     # The extension which marks this certificate as a proxy
-    proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:1,policy:text:AB
+    proxyCertInfo = critical,language:id-ppl-anyLanguage,pathlen:1,policy:text:AB
 
 It's also possible to specify the proxy extension in a separate section:
 
-    proxyCertInfo=critical,@proxy_ext
+    proxyCertInfo = critical,@proxy_ext
 
     [ proxy_ext ]
-    language=id-ppl-anyLanguage
-    pathlen=0
-    policy=text:BC
+    language = id-ppl-anyLanguage
+    pathlen = 0
+    policy = text:BC
 
 The policy value has a specific syntax, I<syntag>:I<string>, where the
 I<syntag> determines what will be done with the string.  The following
@@ -99,12 +97,12 @@ colons between each byte (every second hex digit):
 
 indicates that the text of the policy should be taken from a file.
 The string is then a filename.  This is useful for policies that are
-large (more than a few lines, e.g. XML documents).
+more than a few lines, such as XML or other markup.
 
 =back
 
-I<NOTE: The proxy policy value is what determines the rights granted
-to the process during the proxy certificate.  It's up to the
+Note that the proxy policy value is what determines the rights granted
+to the process during the proxy certificate, and it is up to the
 application to interpret and combine these policies.>
 
 With a proxy extension, creating a proxy certificate is a matter of
@@ -112,23 +110,23 @@ two commands:
 
     openssl req -new -config proxy.cnf \
         -out proxy.req -keyout proxy.key \
-        -subj "/DC=org/DC=openssl/DC=users/CN=proxy 1"
+        -subj "/DC=org/DC=openssl/DC=users/CN=proxy"
 
     openssl x509 -req -CAcreateserial -in proxy.req -out proxy.crt \
         -CA user.crt -CAkey user.key -days 7 \
-        -extfile proxy.cnf -extensions v3_proxy1
+        -extfile proxy.cnf -extensions proxy
 
 You can also create a proxy certificate using another proxy
-certificate as issuer (note: using a different configuration
-section for the proxy extensions):
+certificate as issuer. Note that this example uses a different
+configuration section for the proxy extensions:
 
     openssl req -new -config proxy.cnf \
         -out proxy2.req -keyout proxy2.key \
-        -subj "/DC=org/DC=openssl/DC=users/CN=proxy 1/CN=proxy 2"
+        -subj "/DC=org/DC=openssl/DC=users/CN=proxy/CN=proxy 2"
 
     openssl x509 -req -CAcreateserial -in proxy2.req -out proxy2.crt \
         -CA proxy.crt -CAkey proxy.key -days 7 \
-        -extfile proxy.cnf -extensions v3_proxy2
+        -extfile proxy.cnf -extensions proxy_2
 
 =head2 Using proxy certs in applications
 
@@ -217,7 +215,7 @@ The following skeleton code can be used as a starting point:
              * bottom.  You get the CA root first, followed by the
              * possible chain of intermediate CAs, followed by the EE
              * certificate, followed by the possible proxy
-             * certificates. 
+             * certificates.
              */
             X509 *xs = X509_STORE_CTX_get_current_cert(ctx);
 
@@ -236,7 +234,7 @@ The following skeleton code can be used as a starting point:
                      * by pulling them from some database.  If there
                      * are none to be found, clear all rights (making
                      * this and any subsequent proxy certificate void
-                     * of any rights). 
+                     * of any rights).
                      */
                     memset(rights->rights, 0, sizeof(rights->rights));
                     break;
@@ -353,7 +351,7 @@ L<RFC 3820|https://tools.ietf.org/html/rfc3820>
 
 =head1 COPYRIGHT
 
-Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

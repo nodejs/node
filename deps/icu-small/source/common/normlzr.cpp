@@ -2,7 +2,7 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *************************************************************************
- * COPYRIGHT:
+ * COPYRIGHT: 
  * Copyright (c) 1996-2012, International Business Machines Corporation and
  * others. All Rights Reserved.
  *************************************************************************
@@ -94,7 +94,7 @@ Normalizer::~Normalizer()
     delete text;
 }
 
-Normalizer*
+Normalizer* 
 Normalizer::clone() const
 {
     return new Normalizer(*this);
@@ -107,8 +107,8 @@ int32_t Normalizer::hashCode() const
 {
     return text->hashCode() + fUMode + fOptions + buffer.hashCode() + bufferPos + currentIndex + nextIndex;
 }
-
-UBool Normalizer::operator==(const Normalizer& that) const
+    
+bool Normalizer::operator==(const Normalizer& that) const
 {
     return
         this==&that ||
@@ -125,9 +125,9 @@ UBool Normalizer::operator==(const Normalizer& that) const
 //-------------------------------------------------------------------------
 
 void U_EXPORT2
-Normalizer::normalize(const UnicodeString& source,
+Normalizer::normalize(const UnicodeString& source, 
                       UNormalizationMode mode, int32_t options,
-                      UnicodeString& result,
+                      UnicodeString& result, 
                       UErrorCode &status) {
     if(source.isBogus() || U_FAILURE(status)) {
         result.setToBogus();
@@ -160,17 +160,17 @@ Normalizer::normalize(const UnicodeString& source,
 }
 
 void U_EXPORT2
-Normalizer::compose(const UnicodeString& source,
+Normalizer::compose(const UnicodeString& source, 
                     UBool compat, int32_t options,
-                    UnicodeString& result,
+                    UnicodeString& result, 
                     UErrorCode &status) {
     normalize(source, compat ? UNORM_NFKC : UNORM_NFC, options, result, status);
 }
 
 void U_EXPORT2
-Normalizer::decompose(const UnicodeString& source,
+Normalizer::decompose(const UnicodeString& source, 
                       UBool compat, int32_t options,
-                      UnicodeString& result,
+                      UnicodeString& result, 
                       UErrorCode &status) {
     normalize(source, compat ? UNORM_NFKD : UNORM_NFD, options, result, status);
 }
@@ -368,7 +368,7 @@ int32_t Normalizer::endIndex() const {
 //-------------------------------------------------------------------------
 
 void
-Normalizer::setMode(UNormalizationMode newMode)
+Normalizer::setMode(UNormalizationMode newMode) 
 {
     fUMode = newMode;
     init();
@@ -381,8 +381,8 @@ Normalizer::getUMode() const
 }
 
 void
-Normalizer::setOption(int32_t option,
-                      UBool value)
+Normalizer::setOption(int32_t option, 
+                      UBool value) 
 {
     if (value) {
         fOptions |= option;
@@ -403,7 +403,7 @@ Normalizer::getOption(int32_t option) const
  * The iteration position is set to the beginning of the input text.
  */
 void
-Normalizer::setText(const UnicodeString& newText,
+Normalizer::setText(const UnicodeString& newText, 
                     UErrorCode &status)
 {
     if (U_FAILURE(status)) {
@@ -424,8 +424,8 @@ Normalizer::setText(const UnicodeString& newText,
  * The iteration position is set to the beginning of the string.
  */
 void
-Normalizer::setText(const CharacterIterator& newText,
-                    UErrorCode &status)
+Normalizer::setText(const CharacterIterator& newText, 
+                    UErrorCode &status) 
 {
     if (U_FAILURE(status)) {
         return;
@@ -463,7 +463,7 @@ Normalizer::setText(ConstChar16Ptr newText,
  * @param result Receives a copy of the text under iteration.
  */
 void
-Normalizer::getText(UnicodeString&  result)
+Normalizer::getText(UnicodeString&  result) 
 {
     text->getText(result);
 }

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_PROMISE_H_
 #define V8_OBJECTS_JS_PROMISE_H_
 
+#include "include/v8-promise.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
 #include "torque-generated/bit-fields.h"
@@ -27,7 +28,8 @@ namespace internal {
 // We also overlay the result and reactions fields on the JSPromise, since
 // the reactions are only necessary for pending promises, whereas the result
 // is only meaningful for settled promises.
-class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
+class JSPromise
+    : public TorqueGeneratedJSPromise<JSPromise, JSObjectWithEmbedderSlots> {
  public:
   // [result]: Checks that the promise is settled and returns the result.
   inline Object result() const;
@@ -41,6 +43,10 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   // [handled_hint]: Whether this promise will be handled by a catch
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
+
+  // [is_silent]: Whether this promise should cause the debugger to pause when
+  // rejected.
+  DECL_BOOLEAN_ACCESSORS(is_silent)
 
   int async_task_id() const;
   void set_async_task_id(int id);

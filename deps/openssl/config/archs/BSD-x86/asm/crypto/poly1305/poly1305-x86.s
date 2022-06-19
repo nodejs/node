@@ -5,6 +5,7 @@
 .align	4
 _poly1305_init:
 L_poly1305_init_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -66,6 +67,7 @@ L000nokey:
 .align	4
 _poly1305_blocks:
 L_poly1305_blocks_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -233,6 +235,7 @@ L003nodata:
 .align	4
 _poly1305_emit:
 L_poly1305_emit_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -291,6 +294,7 @@ Lenter_emit:
 .type	__poly1305_init_sse2,@function
 .align	4
 __poly1305_init_sse2:
+.byte	243,15,30,251
 	movdqu	24(%edi),%xmm4
 	leal	48(%edi),%edi
 	movl	%esp,%ebp
@@ -492,6 +496,7 @@ L006square_break:
 .type	__poly1305_blocks_sse2,@function
 .align	4
 __poly1305_blocks_sse2:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1252,6 +1257,7 @@ L007nodata:
 .type	__poly1305_emit_sse2,@function
 .align	4
 __poly1305_emit_sse2:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1344,6 +1350,7 @@ __poly1305_emit_sse2:
 .type	__poly1305_init_avx2,@function
 .align	4
 __poly1305_init_avx2:
+.byte	243,15,30,251
 	vmovdqu	24(%edi),%xmm4
 	leal	48(%edi),%edi
 	movl	%esp,%ebp
@@ -1514,6 +1521,7 @@ L019square_break:
 .type	__poly1305_blocks_avx2,@function
 .align	4
 __poly1305_blocks_avx2:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

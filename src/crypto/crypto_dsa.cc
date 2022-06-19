@@ -84,9 +84,7 @@ Maybe<bool> DsaKeyGenTraits::AdditionalConfig(
   params->params.modulus_bits = args[*offset].As<Uint32>()->Value();
   params->params.divisor_bits = args[*offset + 1].As<Int32>()->Value();
   if (params->params.divisor_bits < -1) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "invalid value for divisor_bits");
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    THROW_ERR_OUT_OF_RANGE(env, "invalid value for divisor_bits");
     return Nothing<bool>();
   }
 
@@ -168,6 +166,11 @@ namespace DSAAlg {
 void Initialize(Environment* env, Local<Object> target) {
   DsaKeyPairGenJob::Initialize(env, target);
   DSAKeyExportJob::Initialize(env, target);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  DsaKeyPairGenJob::RegisterExternalReferences(registry);
+  DSAKeyExportJob::RegisterExternalReferences(registry);
 }
 }  // namespace DSAAlg
 }  // namespace crypto

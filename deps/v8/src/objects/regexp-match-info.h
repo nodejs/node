@@ -8,7 +8,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
-#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,7 +26,8 @@ class String;
 // that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
 // After creation the result must be treated as a FixedArray in all regards.
-class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
+class RegExpMatchInfo
+    : public TorqueGeneratedRegExpMatchInfo<RegExpMatchInfo, FixedArray> {
  public:
   // Returns the number of captures, which is defined as the length of the
   // matchIndices objects of the last match. matchIndices contains two indices
@@ -37,11 +37,13 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
 
   // Returns the subject string of the last match.
   inline String LastSubject();
-  inline void SetLastSubject(String value);
+  inline void SetLastSubject(String value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Like LastSubject, but modifiable by the user.
   inline Object LastInput();
-  inline void SetLastInput(Object value);
+  inline void SetLastInput(Object value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and
   // Capture(1) determine the start- and endpoint of the match itself.
@@ -55,21 +57,16 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static Handle<RegExpMatchInfo> ReserveCaptures(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count);
 
-  DECL_CAST(RegExpMatchInfo)
-
   static const int kNumberOfCapturesIndex = 0;
   static const int kLastSubjectIndex = 1;
   static const int kLastInputIndex = 2;
   static const int kFirstCaptureIndex = 3;
   static const int kLastMatchOverhead = kFirstCaptureIndex;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArray::kHeaderSize,
-                                TORQUE_GENERATED_REG_EXP_MATCH_INFO_FIELDS)
-
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 
-  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(RegExpMatchInfo)
 };
 
 }  // namespace internal

@@ -59,6 +59,7 @@ namespace compiler {
   V(RiscvMov)                               \
   V(RiscvTst)                               \
   V(RiscvCmp)                               \
+  V(RiscvCmpZero)                           \
   V(RiscvCmpS)                              \
   V(RiscvAddS)                              \
   V(RiscvSubS)                              \
@@ -170,7 +171,6 @@ namespace compiler {
   V(RiscvI32x4ExtractLane)                  \
   V(RiscvI32x4ReplaceLane)                  \
   V(RiscvI32x4Add)                          \
-  V(RiscvI32x4AddHoriz)                     \
   V(RiscvI32x4Sub)                          \
   V(RiscvF64x2Abs)                          \
   V(RiscvF64x2Neg)                          \
@@ -193,7 +193,10 @@ namespace compiler {
   V(RiscvI32x4ShrU)                         \
   V(RiscvI32x4MaxU)                         \
   V(RiscvI32x4MinU)                         \
+  V(RiscvI64x2GtS)                          \
+  V(RiscvI64x2GeS)                          \
   V(RiscvI64x2Eq)                           \
+  V(RiscvI64x2Ne)                           \
   V(RiscvF64x2Sqrt)                         \
   V(RiscvF64x2Add)                          \
   V(RiscvF64x2Sub)                          \
@@ -223,6 +226,7 @@ namespace compiler {
   V(RiscvI64x2Add)                          \
   V(RiscvI64x2Sub)                          \
   V(RiscvI64x2Mul)                          \
+  V(RiscvI64x2Abs)                          \
   V(RiscvI64x2Neg)                          \
   V(RiscvI64x2Shl)                          \
   V(RiscvI64x2ShrS)                         \
@@ -233,8 +237,11 @@ namespace compiler {
   V(RiscvF32x4Sqrt)                         \
   V(RiscvF32x4RecipApprox)                  \
   V(RiscvF32x4RecipSqrtApprox)              \
+  V(RiscvF32x4Qfma)                         \
+  V(RiscvF32x4Qfms)                         \
+  V(RiscvF64x2Qfma)                         \
+  V(RiscvF64x2Qfms)                         \
   V(RiscvF32x4Add)                          \
-  V(RiscvF32x4AddHoriz)                     \
   V(RiscvF32x4Sub)                          \
   V(RiscvF32x4Mul)                          \
   V(RiscvF32x4Div)                          \
@@ -260,7 +267,6 @@ namespace compiler {
   V(RiscvI32x4GeU)                          \
   V(RiscvI32x4Abs)                          \
   V(RiscvI32x4BitMask)                      \
-  V(RiscvI32x4DotI16x8S)                    \
   V(RiscvI32x4TruncSatF64x2SZero)           \
   V(RiscvI32x4TruncSatF64x2UZero)           \
   V(RiscvI16x8Splat)                        \
@@ -273,7 +279,6 @@ namespace compiler {
   V(RiscvI16x8ShrU)                         \
   V(RiscvI16x8Add)                          \
   V(RiscvI16x8AddSatS)                      \
-  V(RiscvI16x8AddHoriz)                     \
   V(RiscvI16x8Sub)                          \
   V(RiscvI16x8SubSatS)                      \
   V(RiscvI16x8Mul)                          \
@@ -304,7 +309,6 @@ namespace compiler {
   V(RiscvI8x16AddSatS)                      \
   V(RiscvI8x16Sub)                          \
   V(RiscvI8x16SubSatS)                      \
-  V(RiscvI8x16Mul)                          \
   V(RiscvI8x16MaxS)                         \
   V(RiscvI8x16MinS)                         \
   V(RiscvI8x16Eq)                           \
@@ -328,10 +332,13 @@ namespace compiler {
   V(RiscvS128Not)                           \
   V(RiscvS128Select)                        \
   V(RiscvS128AndNot)                        \
-  V(RiscvV32x4AllTrue)                      \
-  V(RiscvV16x8AllTrue)                      \
+  V(RiscvS128Load64Zero)                    \
+  V(RiscvS128Load32Zero)                    \
+  V(RiscvI32x4AllTrue)                      \
+  V(RiscvI16x8AllTrue)                      \
   V(RiscvV128AnyTrue)                       \
-  V(RiscvV8x16AllTrue)                      \
+  V(RiscvI8x16AllTrue)                      \
+  V(RiscvI64x2AllTrue)                      \
   V(RiscvS32x4InterleaveRight)              \
   V(RiscvS32x4InterleaveLeft)               \
   V(RiscvS32x4PackEven)                     \
@@ -353,26 +360,18 @@ namespace compiler {
   V(RiscvS8x16PackOdd)                      \
   V(RiscvS8x16InterleaveEven)               \
   V(RiscvS8x16InterleaveOdd)                \
-  V(RiscvS8x16Shuffle)                      \
-  V(RiscvI8x16Swizzle)                      \
+  V(RiscvI8x16Shuffle)                      \
   V(RiscvS8x16Concat)                       \
   V(RiscvS8x8Reverse)                       \
   V(RiscvS8x4Reverse)                       \
   V(RiscvS8x2Reverse)                       \
-  V(RiscvS128Load8Splat)                    \
-  V(RiscvS128Load16Splat)                   \
-  V(RiscvS128Load32Splat)                   \
-  V(RiscvS128Load64Splat)                   \
-  V(RiscvS128Load8x8S)                      \
-  V(RiscvS128Load8x8U)                      \
-  V(RiscvS128Load16x4S)                     \
-  V(RiscvS128Load16x4U)                     \
-  V(RiscvS128Load32x2S)                     \
-  V(RiscvS128Load32x2U)                     \
+  V(RiscvS128LoadSplat)                     \
+  V(RiscvS128Load64ExtendS)                 \
+  V(RiscvS128Load64ExtendU)                 \
   V(RiscvS128LoadLane)                      \
   V(RiscvS128StoreLane)                     \
-  V(RiscvMsaLd)                             \
-  V(RiscvMsaSt)                             \
+  V(RiscvRvvLd)                             \
+  V(RiscvRvvSt)                             \
   V(RiscvI32x4SConvertI16x8Low)             \
   V(RiscvI32x4SConvertI16x8High)            \
   V(RiscvI32x4UConvertI16x8Low)             \
@@ -385,42 +384,28 @@ namespace compiler {
   V(RiscvI16x8UConvertI8x16High)            \
   V(RiscvI8x16SConvertI16x8)                \
   V(RiscvI8x16UConvertI16x8)                \
-  V(RiscvWord64AtomicLoadUint8)             \
-  V(RiscvWord64AtomicLoadUint16)            \
-  V(RiscvWord64AtomicLoadUint32)            \
+  V(RiscvVwmul)                             \
+  V(RiscvVwmulu)                            \
+  V(RiscvVmvSx)                             \
+  V(RiscvVcompress)                         \
+  V(RiscvVaddVv)                            \
+  V(RiscvVwadd)                             \
+  V(RiscvVwaddu)                            \
+  V(RiscvVrgather)                          \
+  V(RiscvVslidedown)                        \
   V(RiscvWord64AtomicLoadUint64)            \
-  V(RiscvWord64AtomicStoreWord8)            \
-  V(RiscvWord64AtomicStoreWord16)           \
-  V(RiscvWord64AtomicStoreWord32)           \
   V(RiscvWord64AtomicStoreWord64)           \
-  V(RiscvWord64AtomicAddUint8)              \
-  V(RiscvWord64AtomicAddUint16)             \
-  V(RiscvWord64AtomicAddUint32)             \
   V(RiscvWord64AtomicAddUint64)             \
-  V(RiscvWord64AtomicSubUint8)              \
-  V(RiscvWord64AtomicSubUint16)             \
-  V(RiscvWord64AtomicSubUint32)             \
   V(RiscvWord64AtomicSubUint64)             \
-  V(RiscvWord64AtomicAndUint8)              \
-  V(RiscvWord64AtomicAndUint16)             \
-  V(RiscvWord64AtomicAndUint32)             \
   V(RiscvWord64AtomicAndUint64)             \
-  V(RiscvWord64AtomicOrUint8)               \
-  V(RiscvWord64AtomicOrUint16)              \
-  V(RiscvWord64AtomicOrUint32)              \
   V(RiscvWord64AtomicOrUint64)              \
-  V(RiscvWord64AtomicXorUint8)              \
-  V(RiscvWord64AtomicXorUint16)             \
-  V(RiscvWord64AtomicXorUint32)             \
   V(RiscvWord64AtomicXorUint64)             \
-  V(RiscvWord64AtomicExchangeUint8)         \
-  V(RiscvWord64AtomicExchangeUint16)        \
-  V(RiscvWord64AtomicExchangeUint32)        \
   V(RiscvWord64AtomicExchangeUint64)        \
-  V(RiscvWord64AtomicCompareExchangeUint8)  \
-  V(RiscvWord64AtomicCompareExchangeUint16) \
-  V(RiscvWord64AtomicCompareExchangeUint32) \
-  V(RiscvWord64AtomicCompareExchangeUint64)
+  V(RiscvWord64AtomicCompareExchangeUint64) \
+  V(RiscvStoreCompressTagged)               \
+  V(RiscvLoadDecompressTaggedSigned)        \
+  V(RiscvLoadDecompressTaggedPointer)       \
+  V(RiscvLoadDecompressAnyTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -435,10 +420,12 @@ namespace compiler {
 // I = immediate (handle, external, int32)
 // MRI = [register + immediate]
 // MRR = [register + register]
+// Root = [kRootregister + immediate]
 // TODO(plind): Add the new r6 address modes.
 #define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MRI) /* [%r0 + K] */               \
-  V(MRR) /* [%r0 + %r1] */
+  V(MRI)  /* [%r0 + K] */              \
+  V(MRR)  /* [%r0 + %r1] */            \
+  V(Root) /* [root + k] */
 
 }  // namespace compiler
 }  // namespace internal

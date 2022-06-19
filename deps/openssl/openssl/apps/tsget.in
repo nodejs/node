@@ -1,8 +1,8 @@
 #!{- $config{HASHBANGPERL} -}
-# Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2002 The OpenTSA Project. All rights reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -21,10 +21,10 @@ sub read_body {
     my $return_data = "";
     my $data_len = length ${$state->{data}};
     if ($state->{bytes} < $data_len) {
-	$data_len = $data_len - $state->{bytes};
-	$data_len = $maxlength if $data_len > $maxlength;
-	$return_data = substr ${$state->{data}}, $state->{bytes}, $data_len;
-	$state->{bytes} += $data_len;
+        $data_len = $data_len - $state->{bytes};
+        $data_len = $maxlength if $data_len > $maxlength;
+        $return_data = substr ${$state->{data}}, $state->{bytes}, $data_len;
+        $state->{bytes} += $data_len;
     }
     return $return_data;
 }
@@ -47,14 +47,14 @@ sub create_curl {
     $curl->setopt(CURLOPT_VERBOSE, 1) if $options{d};
     $curl->setopt(CURLOPT_FAILONERROR, 1);
     $curl->setopt(CURLOPT_USERAGENT,
-        "OpenTSA tsget.pl/openssl-{- $config{version} -}");
+        "OpenTSA tsget.pl/openssl-{- $config{full_version} -}");
 
     # Options for POST method.
     $curl->setopt(CURLOPT_UPLOAD, 1);
     $curl->setopt(CURLOPT_CUSTOMREQUEST, "POST");
     $curl->setopt(CURLOPT_HTTPHEADER,
-		["Content-Type: application/timestamp-query",
-		"Accept: application/timestamp-reply,application/timestamp-response"]);
+        ["Content-Type: application/timestamp-query",
+        "Accept: application/timestamp-reply,application/timestamp-response"]);
     $curl->setopt(CURLOPT_READFUNCTION, \&read_body);
     $curl->setopt(CURLOPT_HEADERFUNCTION, sub { return length($_[0]); });
 
@@ -63,8 +63,8 @@ sub create_curl {
 
     # SSL related options.
     $curl->setopt(CURLOPT_SSLKEYTYPE, "PEM");
-    $curl->setopt(CURLOPT_SSL_VERIFYPEER, 1);	# Verify server's certificate.
-    $curl->setopt(CURLOPT_SSL_VERIFYHOST, 2);	# Check server's CN.
+    $curl->setopt(CURLOPT_SSL_VERIFYPEER, 1);    # Verify server's certificate.
+    $curl->setopt(CURLOPT_SSL_VERIFYHOST, 2);    # Check server's CN.
     $curl->setopt(CURLOPT_SSLKEY, $options{k}) if defined($options{k});
     $curl->setopt(CURLOPT_SSLKEYPASSWD, $options{p}) if defined($options{p});
     $curl->setopt(CURLOPT_SSLCERT, $options{c}) if defined($options{c});
@@ -101,15 +101,15 @@ sub get_timestamp {
     my $error_string;
     if ($error_code != 0) {
         my $http_code = $curl->getinfo(CURLINFO_HTTP_CODE);
-	$error_string = "could not get timestamp";
-	$error_string .= ", http code: $http_code" unless $http_code == 0;
-	$error_string .= ", curl code: $error_code";
-	$error_string .= " ($::error_buf)" if defined($::error_buf);
+        $error_string = "could not get timestamp";
+        $error_string .= ", http code: $http_code" unless $http_code == 0;
+        $error_string .= ", curl code: $error_code";
+        $error_string .= " ($::error_buf)" if defined($::error_buf);
     } else {
         my $ct = $curl->getinfo(CURLINFO_CONTENT_TYPE);
-	if (lc($ct) ne "application/timestamp-reply"
-	    && lc($ct) ne "application/timestamp-response") {
-	    $error_string = "unexpected content type returned: $ct";
+        if (lc($ct) ne "application/timestamp-reply"
+            && lc($ct) ne "application/timestamp-response") {
+            $error_string = "unexpected content type returned: $ct";
         }
     }
     return ($ts_body, $error_string);
@@ -163,15 +163,15 @@ REQUEST: foreach (@ARGV) {
     # Read request.
     my $body;
     if ($input eq "-") {
-	# Read the request from STDIN;
-	$body = <STDIN>;
+        # Read the request from STDIN;
+        $body = <STDIN>;
     } else {
-	# Read the request from file.
+        # Read the request from file.
         open INPUT, "<" . $input
-	    or warn("$input: could not open input file: $!\n"), next REQUEST;
+            or warn("$input: could not open input file: $!\n"), next REQUEST;
         $body = <INPUT>;
         close INPUT
-	    or warn("$input: could not close input file: $!\n"), next REQUEST;
+            or warn("$input: could not close input file: $!\n"), next REQUEST;
     }
 
     # Send request.
@@ -179,21 +179,21 @@ REQUEST: foreach (@ARGV) {
 
     my ($ts_body, $error) = get_timestamp $curl, \$body;
     if (defined($error)) {
-	die "$input: fatal error: $error\n";
+        die "$input: fatal error: $error\n";
     }
     STDERR->printflush(", reply received") if $options{v};
 
     # Write response.
     if ($output eq "-") {
-	# Write to STDOUT.
+        # Write to STDOUT.
         print $ts_body;
     } else {
-	# Write to file.
+        # Write to file.
         open OUTPUT, ">", $output
-	    or warn("$output: could not open output file: $!\n"), next REQUEST;
+            or warn("$output: could not open output file: $!\n"), next REQUEST;
         print OUTPUT $ts_body;
         close OUTPUT
-	    or warn("$output: could not close output file: $!\n"), next REQUEST;
+            or warn("$output: could not close output file: $!\n"), next REQUEST;
     }
     STDERR->printflush(", $output written.\n") if $options{v};
 }

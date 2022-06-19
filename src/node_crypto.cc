@@ -22,8 +22,9 @@
 #include "node_crypto.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
-#include "threadpoolwork-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_external_reference.h"
+#include "threadpoolwork-inl.h"
 #include "v8.h"
 
 namespace node {
@@ -31,10 +32,42 @@ namespace node {
 using v8::Context;
 using v8::Local;
 using v8::Object;
-using v8::TryCatch;
 using v8::Value;
 
 namespace crypto {
+
+#define CRYPTO_NAMESPACE_LIST_BASE(V)                                          \
+  V(AES)                                                                       \
+  V(CipherBase)                                                                \
+  V(DiffieHellman)                                                             \
+  V(DSAAlg)                                                                    \
+  V(ECDH)                                                                      \
+  V(Hash)                                                                      \
+  V(HKDFJob)                                                                   \
+  V(Hmac)                                                                      \
+  V(Keygen)                                                                    \
+  V(Keys)                                                                      \
+  V(NativeKeyObject)                                                           \
+  V(PBKDF2Job)                                                                 \
+  V(Random)                                                                    \
+  V(RSAAlg)                                                                    \
+  V(SecureContext)                                                             \
+  V(Sign)                                                                      \
+  V(SPKAC)                                                                     \
+  V(Timing)                                                                    \
+  V(Util)                                                                      \
+  V(Verify)                                                                    \
+  V(X509Certificate)
+
+#ifdef OPENSSL_NO_SCRYPT
+#define SCRYPT_NAMESPACE_LIST(V)
+#else
+#define SCRYPT_NAMESPACE_LIST(V) V(ScryptJob)
+#endif  // OPENSSL_NO_SCRYPT
+
+#define CRYPTO_NAMESPACE_LIST(V)                                               \
+  CRYPTO_NAMESPACE_LIST_BASE(V)                                                \
+  SCRYPT_NAMESPACE_LIST(V)
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -42,42 +75,22 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  static uv_once_t init_once = UV_ONCE_INIT;
-  TryCatch try_catch{env->isolate()};
-  uv_once(&init_once, InitCryptoOnce);
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    try_catch.ReThrow();
+  if (!InitCryptoOnce(env->isolate())) {
     return;
   }
 
-  AES::Initialize(env, target);
-  CipherBase::Initialize(env, target);
-  DiffieHellman::Initialize(env, target);
-  DSAAlg::Initialize(env, target);
-  ECDH::Initialize(env, target);
-  Hash::Initialize(env, target);
-  HKDFJob::Initialize(env, target);
-  Hmac::Initialize(env, target);
-  Keygen::Initialize(env, target);
-  Keys::Initialize(env, target);
-  NativeKeyObject::Initialize(env, target);
-  PBKDF2Job::Initialize(env, target);
-  Random::Initialize(env, target);
-  RSAAlg::Initialize(env, target);
-  SecureContext::Initialize(env, target);
-  Sign::Initialize(env, target);
-  SPKAC::Initialize(env, target);
-  Timing::Initialize(env, target);
-  Util::Initialize(env, target);
-  Verify::Initialize(env, target);
-  X509Certificate::Initialize(env, target);
-
-#ifndef OPENSSL_NO_SCRYPT
-  ScryptJob::Initialize(env, target);
-#endif
+#define V(Namespace) Namespace::Initialize(env, target);
+  CRYPTO_NAMESPACE_LIST(V)
+#undef V
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+#define V(Namespace) Namespace::RegisterExternalReferences(registry);
+  CRYPTO_NAMESPACE_LIST(V)
+#undef V
+}
 }  // namespace crypto
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(crypto, node::crypto::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(crypto, node::crypto::RegisterExternalReferences)

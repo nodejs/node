@@ -10,7 +10,6 @@ bitfield struct JSRelativeTimeFormatFlags extends uint31 {
   numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }
 
-@generateCppClass
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
   numberingSystem: String;

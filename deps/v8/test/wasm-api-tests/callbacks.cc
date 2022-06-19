@@ -43,15 +43,15 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
     // Build the following function:
     // int32 stage1(int32 arg0) { return stage2(arg0); }
     uint32_t stage2_index =
-        builder()->AddImport(CStrVector("stage2"), wasm_i_i_sig());
+        builder()->AddImport(base::CStrVector("stage2"), wasm_i_i_sig());
     byte code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_LOCAL_GET(0))};
-    AddExportedFunction(CStrVector("stage1"), code, sizeof(code));
+    AddExportedFunction(base::CStrVector("stage1"), code, sizeof(code));
 
     stage2_ = Func::make(store(), cpp_i_i_sig(), Stage2, this);
   }
 
   Func* stage2() { return stage2_.get(); }
-  void AddExportedFunction(Vector<const char> name, byte code[],
+  void AddExportedFunction(base::Vector<const char> name, byte code[],
                            size_t code_size) {
     WasmCapiTest::AddExportedFunction(name, code, code_size, wasm_i_i_sig());
   }
@@ -66,7 +66,7 @@ TEST_F(WasmCapiCallbacksTest, Trap) {
   // Build the following function:
   // int32 stage3_trap(int32 arg0) { unreachable(); }
   byte code[] = {WASM_UNREACHABLE};
-  AddExportedFunction(CStrVector("stage3_trap"), code, sizeof(code));
+  AddExportedFunction(base::CStrVector("stage3_trap"), code, sizeof(code));
 
   Extern* imports[] = {stage2()};
   Instantiate(imports);
@@ -81,9 +81,9 @@ TEST_F(WasmCapiCallbacksTest, GC) {
   // Build the following function:
   // int32 stage3_to4(int32 arg0) { return stage4(arg0); }
   uint32_t stage4_index =
-      builder()->AddImport(CStrVector("stage4"), wasm_i_i_sig());
+      builder()->AddImport(base::CStrVector("stage4"), wasm_i_i_sig());
   byte code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(CStrVector("stage3_to4"), code, sizeof(code));
+  AddExportedFunction(base::CStrVector("stage3_to4"), code, sizeof(code));
 
   i::Isolate* isolate =
       reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate();
@@ -134,18 +134,18 @@ TEST_F(WasmCapiTest, Recursion) {
   //   return fibonacci_c(arg0 - 1) + fibonacci_c(arg0 - 2);
   // }
   uint32_t fibo_c_index =
-      builder()->AddImport(CStrVector("fibonacci_c"), wasm_i_i_sig());
+      builder()->AddImport(base::CStrVector("fibonacci_c"), wasm_i_i_sig());
   byte code_fibo[] = {
       WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ZERO),
-              WASM_RETURN1(WASM_ZERO)),
-      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN1(WASM_ONE)),
+              WASM_RETURN(WASM_ZERO)),
+      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN(WASM_ONE)),
       // Muck with the parameter to ensure callers don't depend on its value.
       WASM_LOCAL_SET(0, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE)),
-      WASM_RETURN1(WASM_I32_ADD(
+      WASM_RETURN(WASM_I32_ADD(
           WASM_CALL_FUNCTION(fibo_c_index, WASM_LOCAL_GET(0)),
           WASM_CALL_FUNCTION(fibo_c_index,
                              WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE))))};
-  AddExportedFunction(CStrVector("fibonacci_wasm"), code_fibo,
+  AddExportedFunction(base::CStrVector("fibonacci_wasm"), code_fibo,
                       sizeof(code_fibo), wasm_i_i_sig());
 
   own<Func> fibonacci = Func::make(store(), cpp_i_i_sig(), FibonacciC, this);
@@ -188,12 +188,12 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
                          ValType::make(::wasm::ANYREF)));
   own<Func> func = Func::make(store(), cpp_sig.get(), PlusOne);
   Extern* imports[] = {func.get()};
-  ValueType wasm_types[] = {kWasmI32,       kWasmI64,      kWasmF32, kWasmF64,
-                            kWasmExternRef, kWasmI32,      kWasmI64, kWasmF32,
-                            kWasmF64,       kWasmExternRef};
+  ValueType wasm_types[] = {kWasmI32,    kWasmI64,   kWasmF32, kWasmF64,
+                            kWasmAnyRef, kWasmI32,   kWasmI64, kWasmF32,
+                            kWasmF64,    kWasmAnyRef};
   FunctionSig wasm_sig(5, 5, wasm_types);
-  int func_index = builder()->AddImport(CStrVector("func"), &wasm_sig);
-  builder()->ExportImportedFunction(CStrVector("func"), func_index);
+  int func_index = builder()->AddImport(base::CStrVector("func"), &wasm_sig);
+  builder()->ExportImportedFunction(base::CStrVector("func"), func_index);
   Instantiate(imports);
   int32_t a0 = 42;
   int64_t a1 = 0x1234c0ffee;

@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const Duplex = require('stream').Duplex;
+const { ReadableStream, WritableStream } = require('stream/web');
 
 const stream = new Duplex({ objectMode: true });
 
@@ -53,3 +54,80 @@ process.on('exit', () => {
   assert.strictEqual(read.val, 1);
   assert.strictEqual(written.val, 2);
 });
+
+// Duplex.fromWeb
+{
+  const dataToRead = Buffer.from('hello');
+  const dataToWrite = Buffer.from('world');
+
+  const readable = new ReadableStream({
+    start(controller) {
+      controller.enqueue(dataToRead);
+    },
+  });
+
+  const writable = new WritableStream({
+    write: common.mustCall((chunk) => {
+      assert.strictEqual(chunk, dataToWrite);
+    })
+  });
+
+  const pair = { readable, writable };
+  const duplex = Duplex.fromWeb(pair);
+
+  duplex.write(dataToWrite);
+  duplex.once('data', common.mustCall((chunk) => {
+    assert.strictEqual(chunk, dataToRead);
+  }));
+}
+
+// Duplex.fromWeb - using utf8 and objectMode
+{
+  const dataToRead = 'hello';
+  const dataToWrite = 'world';
+
+  const readable = new ReadableStream({
+    start(controller) {
+      controller.enqueue(dataToRead);
+    },
+  });
+
+  const writable = new WritableStream({
+    write: common.mustCall((chunk) => {
+      assert.strictEqual(chunk, dataToWrite);
+    })
+  });
+
+  const pair = {
+    readable,
+    writable
+  };
+  const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
+
+  duplex.write(dataToWrite);
+  duplex.once('data', common.mustCall((chunk) => {
+    assert.strictEqual(chunk, dataToRead);
+  }));
+}
+// Duplex.toWeb
+{
+  const dataToRead = Buffer.from('hello');
+  const dataToWrite = Buffer.from('world');
+
+  const duplex = Duplex({
+    read() {
+      this.push(dataToRead);
+      this.push(null);
+    },
+    write: common.mustCall((chunk) => {
+      assert.strictEqual(chunk, dataToWrite);
+    })
+  });
+
+  const { writable, readable } = Duplex.toWeb(duplex);
+  writable.getWriter().write(dataToWrite);
+
+  readable.getReader().read().then(common.mustCall((result) => {
+    assert.deepStrictEqual(Buffer.from(result.value), dataToRead);
+  }));
+}

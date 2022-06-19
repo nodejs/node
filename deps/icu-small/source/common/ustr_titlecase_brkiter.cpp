@@ -44,7 +44,7 @@ class WholeStringBreakIterator : public BreakIterator {
 public:
     WholeStringBreakIterator() : BreakIterator(), length(0) {}
     ~WholeStringBreakIterator() U_OVERRIDE;
-    UBool operator==(const BreakIterator&) const U_OVERRIDE;
+    bool operator==(const BreakIterator&) const U_OVERRIDE;
     WholeStringBreakIterator *clone() const U_OVERRIDE;
     static UClassID U_EXPORT2 getStaticClassID();
     UClassID getDynamicClassID() const U_OVERRIDE;
@@ -73,11 +73,11 @@ private:
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(WholeStringBreakIterator)
 
 WholeStringBreakIterator::~WholeStringBreakIterator() {}
-UBool WholeStringBreakIterator::operator==(const BreakIterator&) const { return FALSE; }
+bool WholeStringBreakIterator::operator==(const BreakIterator&) const { return false; }
 WholeStringBreakIterator *WholeStringBreakIterator::clone() const { return nullptr; }
 
 CharacterIterator &WholeStringBreakIterator::getText() const {
-    UPRV_UNREACHABLE;  // really should not be called
+    UPRV_UNREACHABLE_EXIT;  // really should not be called
 }
 UText *WholeStringBreakIterator::getUText(UText * /*fillIn*/, UErrorCode &errorCode) const {
     if (U_SUCCESS(errorCode)) {
@@ -100,7 +100,7 @@ void  WholeStringBreakIterator::setText(UText *text, UErrorCode &errorCode) {
     }
 }
 void  WholeStringBreakIterator::adoptText(CharacterIterator*) {
-    UPRV_UNREACHABLE;  // should not be called
+    UPRV_UNREACHABLE_EXIT;  // should not be called
 }
 
 int32_t WholeStringBreakIterator::first() { return 0; }

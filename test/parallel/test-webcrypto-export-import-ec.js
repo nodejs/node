@@ -1,12 +1,14 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const crypto = require('crypto');
+const { subtle } = crypto.webcrypto;
 
 const curves = ['P-256', 'P-384', 'P-521'];
 
@@ -258,6 +260,55 @@ async function testImportJwk(
         message: /key is not extractable/
       });
   }
+
+  for (const crv of [undefined, namedCurve === 'P-256' ? 'P-384' : 'P-256']) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, y: jwk.y, crv },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: /Named curve mismatch/ });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: /Named curve mismatch/ });
+  }
+}
+
+async function testImportRaw({ name, publicUsages }, namedCurve) {
+  const jwk = keyData[namedCurve].jwk;
+
+  const [publicKey] = await Promise.all([
+    subtle.importKey(
+      'raw',
+      Buffer.concat([
+        Buffer.alloc(1, 0x04),
+        Buffer.from(jwk.x, 'base64url'),
+        Buffer.from(jwk.y, 'base64url'),
+      ]),
+      { name, namedCurve },
+      true, publicUsages),
+    subtle.importKey(
+      'raw',
+      Buffer.concat([
+        Buffer.alloc(1, 0x03),
+        Buffer.from(jwk.x, 'base64url'),
+      ]),
+      { name, namedCurve },
+      true, publicUsages),
+  ]);
+
+  assert.strictEqual(publicKey.type, 'public');
+  assert.deepStrictEqual(publicKey.usages, publicUsages);
+  assert.strictEqual(publicKey.algorithm.name, name);
+  assert.strictEqual(publicKey.algorithm.namedCurve, namedCurve);
 }
 
 (async function() {
@@ -269,8 +320,32 @@ async function testImportJwk(
         tests.push(testImportPkcs8(vector, namedCurve, extractable));
         tests.push(testImportJwk(vector, namedCurve, extractable));
       });
+      tests.push(testImportRaw(vector, namedCurve));
     });
   });
 
   await Promise.all(tests);
 })().then(common.mustCall());
+
+{
+  const rsaPublic = crypto.createPublicKey(
+    fixtures.readKey('rsa_public_2048.pem'));
+  const rsaPrivate = crypto.createPrivateKey(
+    fixtures.readKey('rsa_private_2048.pem'));
+
+  for (const [name, [publicUsage, privateUsage]] of Object.entries({
+    'ECDSA': ['verify', 'sign'],
+    'ECDH': ['deriveBits', 'deriveBits'],
+  })) {
+    assert.rejects(subtle.importKey(
+      'spki',
+      rsaPublic.export({ format: 'der', type: 'spki' }),
+      { name, hash: 'SHA-256', namedCurve: 'P-256' },
+      true, [publicUsage]), { message: /Invalid key type/ });
+    assert.rejects(subtle.importKey(
+      'pkcs8',
+      rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
+      { name, hash: 'SHA-256', namedCurve: 'P-256' },
+      true, [privateUsage]), { message: /Invalid key type/ });
+  }
+}

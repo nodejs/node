@@ -61,12 +61,13 @@ int main(int argc, char** argv) {
   int ret = RunNodeInstance(platform.get(), args, exec_args);
 
   V8::Dispose();
-  V8::ShutdownPlatform();
+  V8::DisposePlatform();
   return ret;
 }
 ```
 
 ### Per-instance state
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -123,6 +124,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
     // The v8::Context needs to be entered when node::CreateEnvironment() and
     // node::LoadEnvironment() are being called.
     Context::Scope context_scope(setup->context());
@@ -139,9 +141,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
         env,
         "const publicRequire ="
-        "  require('module').createRequire(process.cwd() + '/');"
+        "  require('node:module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
-        "require('vm').runInThisContext(process.argv[1]);");
+        "require('node:vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;
@@ -159,7 +161,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 ```
 
 [CLI options]: cli.md
-[`process.memoryUsage()`]: process.md#process_process_memoryusage
+[`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
 [src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h

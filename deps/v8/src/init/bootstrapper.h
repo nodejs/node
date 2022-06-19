@@ -5,6 +5,9 @@
 #ifndef V8_INIT_BOOTSTRAPPER_H_
 #define V8_INIT_BOOTSTRAPPER_H_
 
+#include "include/v8-context.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-snapshot.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
@@ -26,10 +29,10 @@ class SourceCodeCache final {
 
   void Iterate(RootVisitor* v);
 
-  bool Lookup(Isolate* isolate, Vector<const char> name,
+  bool Lookup(Isolate* isolate, base::Vector<const char> name,
               Handle<SharedFunctionInfo>* handle);
 
-  void Add(Isolate* isolate, Vector<const char> name,
+  void Add(Isolate* isolate, base::Vector<const char> name,
            Handle<SharedFunctionInfo> shared);
 
  private:
@@ -76,9 +79,6 @@ class Bootstrapper final {
   Handle<JSGlobalProxy> NewRemoteContext(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template);
-
-  // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
 
   // Traverses the pointers for memory management.
   void Iterate(RootVisitor* v);

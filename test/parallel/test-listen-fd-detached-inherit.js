@@ -69,7 +69,9 @@ function test() {
         process.kill(child.pid, 'SIGKILL');
         try {
           parent.kill();
-        } catch {}
+        } catch {
+          // Continue regardless of error.
+        }
 
         assert.strictEqual(s, 'hello from child\n');
         assert.strictEqual(res.statusCode, 200);

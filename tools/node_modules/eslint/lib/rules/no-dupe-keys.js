@@ -23,7 +23,6 @@ const SET_KIND = /^(?:init|set)$/u;
  */
 class ObjectInfo {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {ObjectInfo|null} upper The information of the outer object.
      * @param {ASTNode} node The ObjectExpression node of this information.
@@ -83,13 +82,13 @@ class ObjectInfo {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow duplicate keys in object literals",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-keys"
         },

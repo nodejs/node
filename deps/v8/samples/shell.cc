@@ -25,15 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
-
-#include <include/libplatform/libplatform.h>
-
 #include <assert.h>
 #include <fcntl.h>
+#include <include/libplatform/libplatform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-script.h"
+#include "include/v8-template.h"
 
 /**
  * This sample program shows how to implement a simple javascript shell
@@ -68,6 +73,12 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    fprintf(stderr, "Error initializing the V8 sandbox\n");
+    return 1;
+  }
+#endif
   v8::V8::Initialize();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::Isolate::CreateParams create_params;
@@ -90,7 +101,7 @@ int main(int argc, char* argv[]) {
   }
   isolate->Dispose();
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   delete create_params.array_buffer_allocator;
   return result;
 }
@@ -147,20 +158,17 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // the argument into a JavaScript string.
 void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
-    args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8Literal(args.GetIsolate(), "Bad parameters"));
+    args.GetIsolate()->ThrowError("Bad parameters");
     return;
   }
   v8::String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == NULL) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   v8::Local<v8::String> source;
   if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
 
@@ -175,19 +183,16 @@ void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::HandleScope handle_scope(args.GetIsolate());
     v8::String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == NULL) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     v8::Local<v8::String> source;
     if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     if (!ExecuteString(args.GetIsolate(), source, args[i], false, false)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error executing file"));
+      args.GetIsolate()->ThrowError("Error executing file");
       return;
     }
   }
@@ -382,8 +387,8 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
         stack_trace_string->IsString() &&
         stack_trace_string.As<v8::String>()->Length() > 0) {
       v8::String::Utf8Value stack_trace(isolate, stack_trace_string);
-      const char* stack_trace_string = ToCString(stack_trace);
-      fprintf(stderr, "%s\n", stack_trace_string);
+      const char* err = ToCString(stack_trace);
+      fprintf(stderr, "%s\n", err);
     }
   }
 }

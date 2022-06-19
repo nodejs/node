@@ -28,21 +28,15 @@ not be able to find the header file directories described in the generated
 CMakeLists.txt file.
 """
 
-from __future__ import print_function
 
 import multiprocessing
 import os
 import signal
-import string
 import subprocess
 import gyp.common
 import gyp.xcode_emulation
 
-try:
-    # maketrans moved to str in python3.
-    _maketrans = string.maketrans
-except (NameError, AttributeError):
-    _maketrans = str.maketrans
+_maketrans = str.maketrans
 
 generator_default_variables = {
     "EXECUTABLE_PREFIX": "",
@@ -223,7 +217,7 @@ def WriteVariable(output, variable_name, prepend=None):
     output.write("}")
 
 
-class CMakeTargetType(object):
+class CMakeTargetType:
     def __init__(self, command, modifier, property_modifier):
         self.command = command
         self.modifier = modifier
@@ -263,7 +257,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
   """
     for action in actions:
         action_name = StringToCMakeTargetName(action["action_name"])
-        action_target_name = "%s__%s" % (target_name, action_name)
+        action_target_name = f"{target_name}__{action_name}"
 
         inputs = action["inputs"]
         inputs_name = action_target_name + "__input"
@@ -282,7 +276,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
 
         # Build up a list of outputs.
         # Collect the output dirs we'll need.
-        dirs = set(dir for dir in (os.path.dirname(o) for o in outputs) if dir)
+        dirs = {dir for dir in (os.path.dirname(o) for o in outputs) if dir}
 
         if int(action.get("process_outputs_as_sources", False)):
             extra_sources.extend(zip(cmake_outputs, outputs))
@@ -377,7 +371,7 @@ def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, outpu
 
             # Build up a list of outputs.
             # Collect the output dirs we'll need.
-            dirs = set(dir for dir in (os.path.dirname(o) for o in outputs) if dir)
+            dirs = {dir for dir in (os.path.dirname(o) for o in outputs) if dir}
 
             # Create variables for the output, as 'local' variable will be unset.
             these_outputs = []
@@ -478,7 +472,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
         extra_deps.append(copy_name)
         return
 
-    class Copy(object):
+    class Copy:
         def __init__(self, ext, command):
             self.cmake_inputs = []
             self.cmake_outputs = []
@@ -587,7 +581,7 @@ def CreateCMakeTargetFullName(qualified_target):
     return StringToCMakeTargetName(cmake_target_full_name)
 
 
-class CMakeNamer(object):
+class CMakeNamer:
     """Converts Gyp target names into CMake target names.
 
   CMake requires that target names be globally unique. One way to ensure
@@ -1285,11 +1279,11 @@ def PerformBuild(data, configurations, params):
             os.path.join(generator_dir, output_dir, config_name)
         )
         arguments = ["cmake", "-G", "Ninja"]
-        print("Generating [%s]: %s" % (config_name, arguments))
+        print(f"Generating [{config_name}]: {arguments}")
         subprocess.check_call(arguments, cwd=build_dir)
 
         arguments = ["ninja", "-C", build_dir]
-        print("Building [%s]: %s" % (config_name, arguments))
+        print(f"Building [{config_name}]: {arguments}")
         subprocess.check_call(arguments)
 
 

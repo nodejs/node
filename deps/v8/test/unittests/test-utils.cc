@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -68,7 +68,7 @@ namespace internal {
 SaveFlags::SaveFlags() {
   // For each flag, save the current flag value.
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) SAVED_##nam = FLAG_##nam;
-#include "src/flags/flag-definitions.h"  // NOLINT
+#include "src/flags/flag-definitions.h"
 #undef FLAG_MODE_APPLY
 }
 
@@ -81,6 +81,24 @@ SaveFlags::~SaveFlags() {
   }
 #include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
+}
+
+ManualGCScope::ManualGCScope(i::Isolate* isolate) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
+    isolate->heap()->CollectGarbage(i::OLD_SPACE,
+                                    i::GarbageCollectionReason::kTesting);
+  }
+
+  i::FLAG_concurrent_marking = false;
+  i::FLAG_concurrent_sweeping = false;
+  i::FLAG_stress_incremental_marking = false;
+  i::FLAG_stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  i::FLAG_parallel_marking = false;
+  i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
 }
 
 }  // namespace internal

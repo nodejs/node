@@ -22,14 +22,14 @@ class WatchTestCase {
 }
 
 const cases = [
-  // Watch on a directory should callback with a filename on supported systems
+  // Watch on a file should callback with a filename on supported systems
   new WatchTestCase(
     common.isLinux || common.isOSX || common.isWindows || common.isAIX,
     'watch1',
     'foo',
     'filePath'
   ),
-  // Watch on a file should callback with a filename on supported systems
+  // Watch on a directory should callback with a filename on supported systems
   new WatchTestCase(
     common.isLinux || common.isOSX || common.isWindows,
     'watch2',

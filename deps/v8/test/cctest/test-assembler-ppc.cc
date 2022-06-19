@@ -263,7 +263,7 @@ TEST(4) {
     CpuFeatures::Scope scope(VFP3);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ mov(r4, Operand(r0));
@@ -321,7 +321,7 @@ TEST(4) {
     __ vneg(d0, d1);
     __ vstr(d0, r4, offsetof(T, n));
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -659,7 +659,7 @@ TEST(8) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, a)));
@@ -678,7 +678,7 @@ TEST(8) {
     __ vstm(ia_w, r4, s6, s7);
     __ vstm(ia_w, r4, s0, s5);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -770,7 +770,7 @@ TEST(9) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, a)));
@@ -793,7 +793,7 @@ TEST(9) {
     __ addi(r4, r4, Operand(2 * 4));
     __ vstm(ia, r4, s0, s5);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -885,7 +885,7 @@ TEST(10) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, h) + 8));
@@ -904,7 +904,7 @@ TEST(10) {
     __ vstm(db_w, r4, s0, s5);
     __ vstm(db_w, r4, s6, s7);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -1037,6 +1037,51 @@ TEST(12) {
   __ nop();
 }
 #endif
+
+TEST(WordSizedVectorInstructions) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+  // Testing word sized vector operations.
+  __ li(r0, Operand(5));  // v0 = {5, 5, 5, 5}
+  __ mtvsrd(v0, r0);
+  __ vspltw(v0, v0, Operand(1));
+
+  // Integer
+  __ vadduwm(v1, v0, v0);   // v1 = {10, 10, 10, 10}
+  __ vmuluwm(v2, v0, v1);   // v2 = {50, 50, 50, 50}
+  __ vsubuhm(v3, v2, v0);   // v3 = {45, 45, 45, 45}
+  __ vslw(v4, v2, v0);      // v4 = {1600, 1600, 1600, 1600}
+  __ vsrw(v5, v2, v0);      // v5 = {1, 1, 1, 1}
+  __ vmaxsw(v4, v5, v4);    // v4 = unchanged
+  __ vcmpgtuw(v5, v2, v3);  // v5 = all 1s
+  __ vand(v4, v4, v5);      // v4 = unchanged
+  // FP
+  __ xvcvsxwsp(v1, v1);    // v1 = Converted to SP
+  __ xvcvsxwsp(v4, v4);    // v4 = Converted to SP
+  __ xvdivsp(v4, v4, v1);  // v4 = {160, 160, 160, 160}
+  // Integer
+  __ xvcvspuxws(v4, v4);  // v4 = Converted to Int
+  __ vor(v0, v4, v3);     // v0 = {173, 173, 173, 173}
+
+  __ vupkhsw(v0, v0);  // v0 = {173, 173}
+  __ mfvsrd(r3, v0);
+  __ blr();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR "\n", res);
+  CHECK_EQ(173, static_cast<int>(res));
+}
 
 #undef __
 

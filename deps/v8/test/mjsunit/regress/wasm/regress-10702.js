@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addGlobal(kWasmI32, 1).init = 35;
+builder.addGlobal(kWasmI32, true, WasmInitExpr.I32Const(35));
 builder.addType(makeSig([], [kWasmI32]));
 builder.addType(makeSig([kWasmI32, kWasmI32], [kWasmI32]));
 // Generate function 1 (out of 3).

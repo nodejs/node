@@ -46,6 +46,11 @@
     <Property Id="ApplicationFolderName" Value="nodejs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
+    <!-- PropertyRef of the account users for setting InstallDir permission explicitly -->
+    <PropertyRef Id="WIX_ACCOUNT_LOCALSYSTEM" />
+    <PropertyRef Id="WIX_ACCOUNT_USERS" />
+    <PropertyRef Id="WIX_ACCOUNT_ADMINISTRATORS" />
+
     <Property Id="INSTALLDIR" Secure="yes">
       <RegistrySearch Id="InstallPathRegistry"
                       Type="raw"
@@ -73,6 +78,7 @@
       <ComponentRef Id="NodeStartMenu"/>
       <ComponentRef Id="AppData" />
       <ComponentRef Id="InstallToolsBat" />
+      <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="Product.Generated"/>
 
       <Feature Id="NodeEtwSupport"
@@ -81,6 +87,15 @@
                Description="!(loc.NodeEtwSupport_Description)">
         <ComponentRef Id="NodeEtwSupport"/>
       </Feature>
+    </Feature>
+
+    <Feature Id="corepack"
+             Level="1"
+             Title="!(loc.corepack_Title)"
+             Description="!(loc.corepack_Description)">
+      <ComponentRef Id="CorepackCmdScript"/>
+      <ComponentRef Id="CorepackBashScript"/>
+      <ComponentGroupRef Id="CorepackSourceFiles"/>
     </Feature>
 
     <Feature Id="npm"
@@ -93,6 +108,7 @@
       <ComponentRef Id="NpxBashScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
       <ComponentRef Id="AppData" />
+      <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
 
@@ -169,6 +185,20 @@
       <?endif?>
     </DirectoryRef>
 
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- Create component for setting the install directory permission explicitly -->
+      <Component Id="SetInstallDirPermission" Guid="{EFFC4F74-183A-4237-BBD7-0CAD2B950053}">
+        <CreateFolder>
+          <Permission User="[WIX_ACCOUNT_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[AUTHENTICATED_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[WIX_ACCOUNT_ADMINISTRATORS]" GenericAll="yes"/>
+          <Permission User="[WIX_ACCOUNT_LOCALSYSTEM]" GenericAll="yes"/>
+        </CreateFolder>
+      </Component>
+    </DirectoryRef>
+
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="NodeStartMenu">
         <!-- RegistryValue needed because every Component must have a KeyPath.
@@ -205,6 +235,14 @@
     </DirectoryRef>
 
     <DirectoryRef Id="INSTALLDIR">
+      <Component Id="CorepackCmdScript">
+        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack.cmd"/>
+      </Component>
+
+      <Component Id="CorepackBashScript">
+        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack"/>
+      </Component>
+
       <Component Id="NpmCmdScript">
         <File Id="npm.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.cmd"/>
       </Component>
@@ -306,6 +344,12 @@
                   Execute="immediate"
                   Return="check" />
 
+    <CustomAction Id="GetLocalizedUserNames"
+                  BinaryKey="CustomActionsDLL"
+                  DllEntry="GetLocalizedUserNames"
+                  Execute="immediate"
+                  Return="check" />
+
     <Property Id="WixShellExecTarget" Value="[#InstallToolsBat]" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" />
 
@@ -315,6 +359,7 @@
 
     <InstallExecuteSequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
+      <Custom Action='GetLocalizedUserNames' After='SetInstallScope'/>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 

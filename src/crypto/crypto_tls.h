@@ -27,7 +27,6 @@
 #include "crypto/crypto_context.h"
 #include "crypto/crypto_clienthello.h"
 
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "stream_wrap.h"
 #include "v8.h"
@@ -52,6 +51,7 @@ class TLSWrap : public AsyncWrap,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   ~TLSWrap() override;
 
@@ -166,7 +166,7 @@ class TLSWrap : public AsyncWrap,
 
   int SetCACerts(SecureContext* sc);
 
-  v8::MaybeLocal<v8::Value> GetSSLError(int status, int* err, std::string* msg);
+  int GetSSLError(int status) const;
 
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
@@ -253,7 +253,7 @@ class TLSWrap : public AsyncWrap,
   BIO* enc_in_ = nullptr;   // StreamListener fills this for SSL_read().
   BIO* enc_out_ = nullptr;  // SSL_write()/handshake fills this for EncOut().
   // Waiting for ClearIn() to pass to SSL_write().
-  AllocatedBuffer pending_cleartext_input_;
+  std::unique_ptr<v8::BackingStore> pending_cleartext_input_;
   size_t write_size_ = 0;
   BaseObjectPtr<AsyncWrap> current_write_;
   BaseObjectPtr<AsyncWrap> current_empty_write_;

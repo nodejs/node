@@ -7,22 +7,17 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-callbacks.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/debug/debug-interface.h"
-#include "src/execution/isolate.h"
-#include "src/init/heap-symbols.h"
 #include "src/logging/counters-definitions.h"
-#include "src/logging/tracing-flags.h"
+#include "src/logging/runtime-call-stats.h"
+#include "src/objects/code-kind.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
-#include "src/runtime/runtime.h"
-#include "src/tracing/trace-event.h"
-#include "src/tracing/traced-value.h"
-#include "src/tracing/tracing-category-observer.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -33,6 +28,7 @@ namespace internal {
 // manipulated by name.
 
 class Counters;
+class Isolate;
 
 class StatsTable {
  public:
@@ -95,117 +91,63 @@ class StatsTable {
   AddHistogramSampleCallback add_histogram_sample_function_;
 };
 
-// Base class for stats counters.
-class StatsCounterBase {
- protected:
-  Counters* counters_;
-  const char* name_;
-  int* ptr_;
-
-  StatsCounterBase() = default;
-  StatsCounterBase(Counters* counters, const char* name)
-      : counters_(counters), name_(name), ptr_(nullptr) {}
-
-  void SetLoc(int* loc, int value) { *loc = value; }
-  void IncrementLoc(int* loc) { (*loc)++; }
-  void IncrementLoc(int* loc, int value) { (*loc) += value; }
-  void DecrementLoc(int* loc) { (*loc)--; }
-  void DecrementLoc(int* loc, int value) { (*loc) -= value; }
-
-  V8_EXPORT_PRIVATE int* FindLocationInStatsTable() const;
-};
-
-// StatsCounters are dynamically created values which can be tracked in
-// the StatsTable.  They are designed to be lightweight to create and
-// easy to use.
+// StatsCounters are dynamically created values which can be tracked in the
+// StatsTable. They are designed to be lightweight to create and easy to use.
 //
 // Internally, a counter represents a value in a row of a StatsTable.
 // The row has a 32bit value for each process/thread in the table and also
-// a name (stored in the table metadata).  Since the storage location can be
-// thread-specific, this class cannot be shared across threads. Note: This
-// class is not thread safe.
-class StatsCounter : public StatsCounterBase {
+// a name (stored in the table metadata). Since the storage location can be
+// thread-specific, this class cannot be shared across threads.
+// This class is thread-safe.
+class StatsCounter {
  public:
-  // Sets the counter to a specific value.
-  void Set(int value) {
-    if (int* loc = GetPtr()) SetLoc(loc, value);
+  void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
+
+  void Increment(int value = 1) {
+    GetPtr()->fetch_add(value, std::memory_order_relaxed);
   }
 
-  // Increments the counter.
-  void Increment() {
-    if (int* loc = GetPtr()) IncrementLoc(loc);
+  void Decrement(int value = 1) {
+    GetPtr()->fetch_sub(value, std::memory_order_relaxed);
   }
 
-  void Increment(int value) {
-    if (int* loc = GetPtr()) IncrementLoc(loc, value);
-  }
-
-  // Decrements the counter.
-  void Decrement() {
-    if (int* loc = GetPtr()) DecrementLoc(loc);
-  }
-
-  void Decrement(int value) {
-    if (int* loc = GetPtr()) DecrementLoc(loc, value);
-  }
-
-  // Is this counter enabled?
-  // Returns false if table is full.
-  bool Enabled() { return GetPtr() != nullptr; }
+  // Returns true if this counter is enabled (a lookup function was provided and
+  // it returned a non-null pointer).
+  V8_EXPORT_PRIVATE bool Enabled();
 
   // Get the internal pointer to the counter. This is used
   // by the code generator to emit code that manipulates a
   // given counter without calling the runtime system.
-  int* GetInternalPointer() {
-    int* loc = GetPtr();
-    DCHECK_NOT_NULL(loc);
-    return loc;
-  }
+  std::atomic<int>* GetInternalPointer() { return GetPtr(); }
 
  private:
   friend class Counters;
 
-  StatsCounter() = default;
-  StatsCounter(Counters* counters, const char* name)
-      : StatsCounterBase(counters, name), lookup_done_(false) {}
+  void Init(Counters* counters, const char* name) {
+    DCHECK_NULL(counters_);
+    DCHECK_NOT_NULL(counters);
+    // Counter names always start with "c:V8.".
+    DCHECK_EQ(0, memcmp(name, "c:V8.", 5));
+    counters_ = counters;
+    name_ = name;
+  }
+
+  V8_NOINLINE V8_EXPORT_PRIVATE std::atomic<int>* SetupPtrFromStatsTable();
 
   // Reset the cached internal pointer.
-  void Reset() { lookup_done_ = false; }
+  void Reset() { ptr_.store(nullptr, std::memory_order_relaxed); }
 
   // Returns the cached address of this counter location.
-  int* GetPtr() {
-    if (lookup_done_) return ptr_;
-    lookup_done_ = true;
-    ptr_ = FindLocationInStatsTable();
-    return ptr_;
+  std::atomic<int>* GetPtr() {
+    auto* ptr = ptr_.load(std::memory_order_acquire);
+    if (V8_LIKELY(ptr)) return ptr;
+    return SetupPtrFromStatsTable();
   }
 
-  bool lookup_done_;
-};
-
-// Thread safe version of StatsCounter.
-class V8_EXPORT_PRIVATE StatsCounterThreadSafe : public StatsCounterBase {
- public:
-  void Set(int Value);
-  void Increment();
-  void Increment(int value);
-  void Decrement();
-  void Decrement(int value);
-  bool Enabled() { return ptr_ != nullptr; }
-  int* GetInternalPointer() {
-    DCHECK_NOT_NULL(ptr_);
-    return ptr_;
-  }
-
- private:
-  friend class Counters;
-
-  StatsCounterThreadSafe(Counters* counters, const char* name);
-  void Reset() { ptr_ = FindLocationInStatsTable(); }
-
-  base::Mutex mutex_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StatsCounterThreadSafe);
+  Counters* counters_ = nullptr;
+  const char* name_ = nullptr;
+  // A pointer to an atomic, set atomically in {GetPtr}.
+  std::atomic<std::atomic<int>*> ptr_{nullptr};
 };
 
 // A Histogram represents a dynamically created histogram in the
@@ -218,7 +160,7 @@ class Histogram {
   // Returns true if this histogram is enabled.
   bool Enabled() { return histogram_ != nullptr; }
 
-  const char* name() { return name_; }
+  const char* name() const { return name_; }
 
   int min() const { return min_; }
   int max() const { return max_; }
@@ -232,233 +174,125 @@ class Histogram {
 
  protected:
   Histogram() = default;
-  Histogram(const char* name, int min, int max, int num_buckets,
-            Counters* counters)
-      : name_(name),
-        min_(min),
-        max_(max),
-        num_buckets_(num_buckets),
-        histogram_(nullptr),
-        counters_(counters) {
-    DCHECK(counters_);
+  Histogram(const Histogram&) = delete;
+  Histogram& operator=(const Histogram&) = delete;
+
+  void Initialize(const char* name, int min, int max, int num_buckets,
+                  Counters* counters) {
+    name_ = name;
+    min_ = min;
+    max_ = max;
+    num_buckets_ = num_buckets;
+    histogram_ = nullptr;
+    counters_ = counters;
+    DCHECK_NOT_NULL(counters_);
   }
 
   Counters* counters() const { return counters_; }
 
-  // Reset the cached internal pointer.
-  void Reset() { histogram_ = CreateHistogram(); }
+  // Reset the cached internal pointer to nullptr; the histogram will be
+  // created lazily, the first time it is needed.
+  void Reset() { histogram_ = nullptr; }
+
+  // Lazily create the histogram, if it has not been created yet.
+  void EnsureCreated(bool create_new = true) {
+    if (create_new && histogram_.load(std::memory_order_acquire) == nullptr) {
+      base::MutexGuard Guard(&mutex_);
+      if (histogram_.load(std::memory_order_relaxed) == nullptr)
+        histogram_.store(CreateHistogram(), std::memory_order_release);
+    }
+  }
 
  private:
   friend class Counters;
 
-  void* CreateHistogram() const;
+  V8_EXPORT_PRIVATE void* CreateHistogram() const;
 
   const char* name_;
   int min_;
   int max_;
   int num_buckets_;
-  void* histogram_;
+  std::atomic<void*> histogram_;
   Counters* counters_;
+  base::Mutex mutex_;
 };
 
-enum class HistogramTimerResolution { MILLISECOND, MICROSECOND };
+enum class TimedHistogramResolution { MILLISECOND, MICROSECOND };
 
 // A thread safe histogram timer. It also allows distributions of
 // nested timed results.
 class TimedHistogram : public Histogram {
  public:
-  // Start the timer. Log if isolate non-null.
-  V8_EXPORT_PRIVATE void Start(base::ElapsedTimer* timer, Isolate* isolate);
-
-  // Stop the timer and record the results. Log if isolate non-null.
-  V8_EXPORT_PRIVATE void Stop(base::ElapsedTimer* timer, Isolate* isolate);
-
   // Records a TimeDelta::Max() result. Useful to record percentage of tasks
   // that never got to run in a given scenario. Log if isolate non-null.
   void RecordAbandon(base::ElapsedTimer* timer, Isolate* isolate);
 
   // Add a single sample to this histogram.
-  void AddTimedSample(base::TimeDelta sample);
+  V8_EXPORT_PRIVATE void AddTimedSample(base::TimeDelta sample);
+
+#ifdef DEBUG
+  // Ensures that we don't have nested timers for TimedHistogram per thread, use
+  // NestedTimedHistogram which correctly pause and resume timers.
+  // This method assumes that each timer is alternating between stopped and
+  // started on a single thread. Multiple timers can be active on different
+  // threads.
+  bool ToggleRunningState(bool expected_is_running) const;
+#endif  // DEBUG
 
  protected:
+  void Stop(base::ElapsedTimer* timer);
+  void LogStart(Isolate* isolate);
+  void LogEnd(Isolate* isolate);
+
   friend class Counters;
-  HistogramTimerResolution resolution_;
+  TimedHistogramResolution resolution_;
 
   TimedHistogram() = default;
-  TimedHistogram(const char* name, int min, int max,
-                 HistogramTimerResolution resolution, int num_buckets,
-                 Counters* counters)
-      : Histogram(name, min, max, num_buckets, counters),
-        resolution_(resolution) {}
-  void AddTimeSample();
+  TimedHistogram(const TimedHistogram&) = delete;
+  TimedHistogram& operator=(const TimedHistogram&) = delete;
+
+  void Initialize(const char* name, int min, int max,
+                  TimedHistogramResolution resolution, int num_buckets,
+                  Counters* counters) {
+    Histogram::Initialize(name, min, max, num_buckets, counters);
+    resolution_ = resolution;
+  }
 };
 
-// Helper class for scoping a TimedHistogram.
-class V8_NODISCARD TimedHistogramScope {
- public:
-  explicit TimedHistogramScope(TimedHistogram* histogram,
-                               Isolate* isolate = nullptr)
-      : histogram_(histogram), isolate_(isolate) {
-    histogram_->Start(&timer_, isolate);
-  }
+class NestedTimedHistogramScope;
+class PauseNestedTimedHistogramScope;
 
-  ~TimedHistogramScope() { histogram_->Stop(&timer_, isolate_); }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-  Isolate* isolate_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
-};
-
-enum class OptionalTimedHistogramScopeMode { TAKE_TIME, DONT_TAKE_TIME };
-
-// Helper class for scoping a TimedHistogram.
-// It will not take time for mode = DONT_TAKE_TIME.
-class V8_NODISCARD OptionalTimedHistogramScope {
- public:
-  OptionalTimedHistogramScope(TimedHistogram* histogram, Isolate* isolate,
-                              OptionalTimedHistogramScopeMode mode)
-      : histogram_(histogram), isolate_(isolate), mode_(mode) {
-    if (mode == OptionalTimedHistogramScopeMode::TAKE_TIME) {
-      histogram_->Start(&timer_, isolate);
-    }
-  }
-
-  ~OptionalTimedHistogramScope() {
-    if (mode_ == OptionalTimedHistogramScopeMode::TAKE_TIME) {
-      histogram_->Stop(&timer_, isolate_);
-    }
-  }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* const histogram_;
-  Isolate* const isolate_;
-  const OptionalTimedHistogramScopeMode mode_;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OptionalTimedHistogramScope);
-};
-
-// Helper class for recording a TimedHistogram asynchronously with manual
-// controls (it will not generate a report if destroyed without explicitly
-// triggering a report). |async_counters| should be a shared_ptr to
-// |histogram->counters()|, making it is safe to report to an
-// AsyncTimedHistogram after the associated isolate has been destroyed.
-// AsyncTimedHistogram can be moved/copied to avoid computing Now() multiple
-// times when the times of multiple tasks are identical; each copy will generate
-// its own report.
-class AsyncTimedHistogram {
- public:
-  explicit AsyncTimedHistogram(TimedHistogram* histogram,
-                               std::shared_ptr<Counters> async_counters)
-      : histogram_(histogram), async_counters_(std::move(async_counters)) {
-    histogram_->AssertReportsToCounters(async_counters_.get());
-    histogram_->Start(&timer_, nullptr);
-  }
-
-  // Records the time elapsed to |histogram_| and stops |timer_|.
-  void RecordDone() { histogram_->Stop(&timer_, nullptr); }
-
-  // Records TimeDelta::Max() to |histogram_| and stops |timer_|.
-  void RecordAbandon() { histogram_->RecordAbandon(&timer_, nullptr); }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-  std::shared_ptr<Counters> async_counters_;
-};
-
-// Helper class for scoping a TimedHistogram, where the histogram is selected at
-// stop time rather than start time.
-// TODO(leszeks): This is heavily reliant on TimedHistogram::Start() doing
-// nothing but starting the timer, and TimedHistogram::Stop() logging the sample
-// correctly even if Start() was not called. This happens to be true iff Stop()
-// is passed a null isolate, but that's an implementation detail of
-// TimedHistogram, and we shouldn't rely on it.
-class V8_NODISCARD LazyTimedHistogramScope {
- public:
-  LazyTimedHistogramScope() : histogram_(nullptr) { timer_.Start(); }
-  ~LazyTimedHistogramScope() {
-    // We should set the histogram before this scope exits.
-    DCHECK_NOT_NULL(histogram_);
-    histogram_->Stop(&timer_, nullptr);
-  }
-
-  void set_histogram(TimedHistogram* histogram) { histogram_ = histogram; }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-};
-
-// A HistogramTimer allows distributions of non-nested timed results
-// to be created. WARNING: This class is not thread safe and can only
-// be run on the foreground thread.
-class HistogramTimer : public TimedHistogram {
+// A NestedTimedHistogram allows distributions of nested timed results.
+class NestedTimedHistogram : public TimedHistogram {
  public:
   // Note: public for testing purposes only.
-  HistogramTimer(const char* name, int min, int max,
-                 HistogramTimerResolution resolution, int num_buckets,
-                 Counters* counters)
-      : TimedHistogram(name, min, max, resolution, num_buckets, counters) {}
-
-  inline void Start();
-  inline void Stop();
-
-  // Returns true if the timer is running.
-  bool Running() { return Enabled() && timer_.IsStarted(); }
-
-  // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
-#ifdef DEBUG
-  base::ElapsedTimer* timer() { return &timer_; }
-#endif
+  NestedTimedHistogram(const char* name, int min, int max,
+                       TimedHistogramResolution resolution, int num_buckets,
+                       Counters* counters)
+      : NestedTimedHistogram() {
+    Initialize(name, min, max, resolution, num_buckets, counters);
+  }
 
  private:
   friend class Counters;
+  friend class NestedTimedHistogramScope;
+  friend class PauseNestedTimedHistogramScope;
 
-  base::ElapsedTimer timer_;
-
-  HistogramTimer() = default;
-};
-
-// Helper class for scoping a HistogramTimer.
-// TODO(bmeurer): The ifdeffery is an ugly hack around the fact that the
-// Parser is currently reentrant (when it throws an error, we call back
-// into JavaScript and all bets are off), but ElapsedTimer is not
-// reentry-safe. Fix this properly and remove |allow_nesting|.
-class V8_NODISCARD HistogramTimerScope {
- public:
-  explicit HistogramTimerScope(HistogramTimer* timer,
-                               bool allow_nesting = false)
-#ifdef DEBUG
-      : timer_(timer), skipped_timer_start_(false) {
-    if (timer_->timer()->IsStarted() && allow_nesting) {
-      skipped_timer_start_ = true;
-    } else {
-      timer_->Start();
-    }
-  }
-#else
-      : timer_(timer) {
-    timer_->Start();
-  }
-#endif
-  ~HistogramTimerScope() {
-#ifdef DEBUG
-    if (!skipped_timer_start_) {
-      timer_->Stop();
-    }
-#else
-    timer_->Stop();
-#endif
+  inline NestedTimedHistogramScope* Enter(NestedTimedHistogramScope* next) {
+    NestedTimedHistogramScope* previous = current_;
+    current_ = next;
+    return previous;
   }
 
- private:
-  HistogramTimer* timer_;
-#ifdef DEBUG
-  bool skipped_timer_start_;
-#endif
+  inline void Leave(NestedTimedHistogramScope* previous) {
+    current_ = previous;
+  }
+
+  NestedTimedHistogramScope* current_ = nullptr;
+
+  NestedTimedHistogram() = default;
+  NestedTimedHistogram(const NestedTimedHistogram&) = delete;
+  NestedTimedHistogram& operator=(const NestedTimedHistogram&) = delete;
 };
 
 // A histogram timer that can aggregate events within a larger scope.
@@ -493,9 +327,9 @@ class AggregatableHistogramTimer : public Histogram {
   friend class Counters;
 
   AggregatableHistogramTimer() = default;
-  AggregatableHistogramTimer(const char* name, int min, int max,
-                             int num_buckets, Counters* counters)
-      : Histogram(name, min, max, num_buckets, counters) {}
+  AggregatableHistogramTimer(const AggregatableHistogramTimer&) = delete;
+  AggregatableHistogramTimer& operator=(const AggregatableHistogramTimer&) =
+      delete;
 
   base::TimeDelta time_;
 };
@@ -648,669 +482,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
          value * ((current_ms - last_ms_) / interval_ms);
 }
 
-class RuntimeCallCounter final {
- public:
-  RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
-  explicit RuntimeCallCounter(const char* name)
-      : name_(name), count_(0), time_(0) {}
-  V8_NOINLINE void Reset();
-  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
-  void Add(RuntimeCallCounter* other);
-
-  const char* name() const { return name_; }
-  int64_t count() const { return count_; }
-  base::TimeDelta time() const {
-    return base::TimeDelta::FromMicroseconds(time_);
-  }
-  void Increment() { count_++; }
-  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
-
- private:
-  friend class RuntimeCallStats;
-
-  const char* name_;
-  int64_t count_;
-  // Stored as int64_t so that its initialization can be deferred.
-  int64_t time_;
-};
-
-// RuntimeCallTimer is used to keep track of the stack of currently active
-// timers used for properly measuring the own time of a RuntimeCallCounter.
-class RuntimeCallTimer final {
- public:
-  RuntimeCallCounter* counter() { return counter_; }
-  void set_counter(RuntimeCallCounter* counter) { counter_ = counter; }
-  RuntimeCallTimer* parent() const { return parent_.Value(); }
-  void set_parent(RuntimeCallTimer* timer) { parent_.SetValue(timer); }
-  const char* name() const { return counter_->name(); }
-
-  inline bool IsStarted();
-
-  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent);
-  void Snapshot();
-  inline RuntimeCallTimer* Stop();
-
-  // Make the time source configurable for testing purposes.
-  V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
-
-  // Helper to switch over to CPU time.
-  static base::TimeTicks NowCPUTime();
-
- private:
-  inline void Pause(base::TimeTicks now);
-  inline void Resume(base::TimeTicks now);
-  inline void CommitTimeToCounter();
-
-  RuntimeCallCounter* counter_ = nullptr;
-  base::AtomicValue<RuntimeCallTimer*> parent_;
-  base::TimeTicks start_ticks_;
-  base::TimeDelta elapsed_;
-};
-
-#define FOR_EACH_GC_COUNTER(V) \
-  TRACER_SCOPES(V)             \
-  TRACER_BACKGROUND_SCOPES(V)
-
-#define FOR_EACH_API_COUNTER(V)                            \
-  V(AccessorPair_New)                                      \
-  V(ArrayBuffer_Cast)                                      \
-  V(ArrayBuffer_Detach)                                    \
-  V(ArrayBuffer_New)                                       \
-  V(ArrayBuffer_NewBackingStore)                           \
-  V(ArrayBuffer_BackingStore_Reallocate)                   \
-  V(Array_CloneElementAt)                                  \
-  V(Array_New)                                             \
-  V(BigInt64Array_New)                                     \
-  V(BigInt_NewFromWords)                                   \
-  V(BigIntObject_BigIntValue)                              \
-  V(BigIntObject_New)                                      \
-  V(BigUint64Array_New)                                    \
-  V(BooleanObject_BooleanValue)                            \
-  V(BooleanObject_New)                                     \
-  V(Context_New)                                           \
-  V(Context_NewRemoteContext)                              \
-  V(DataView_New)                                          \
-  V(Date_New)                                              \
-  V(Date_NumberValue)                                      \
-  V(Debug_Call)                                            \
-  V(debug_GetPrivateMembers)                               \
-  V(Error_New)                                             \
-  V(External_New)                                          \
-  V(Float32Array_New)                                      \
-  V(Float64Array_New)                                      \
-  V(Function_Call)                                         \
-  V(Function_New)                                          \
-  V(Function_FunctionProtoToString)                        \
-  V(Function_NewInstance)                                  \
-  V(FunctionTemplate_GetFunction)                          \
-  V(FunctionTemplate_New)                                  \
-  V(FunctionTemplate_NewRemoteInstance)                    \
-  V(FunctionTemplate_NewWithCache)                         \
-  V(FunctionTemplate_NewWithFastHandler)                   \
-  V(Int16Array_New)                                        \
-  V(Int32Array_New)                                        \
-  V(Int8Array_New)                                         \
-  V(Isolate_DateTimeConfigurationChangeNotification)       \
-  V(Isolate_LocaleConfigurationChangeNotification)         \
-  V(JSON_Parse)                                            \
-  V(JSON_Stringify)                                        \
-  V(Map_AsArray)                                           \
-  V(Map_Clear)                                             \
-  V(Map_Delete)                                            \
-  V(Map_Get)                                               \
-  V(Map_Has)                                               \
-  V(Map_New)                                               \
-  V(Map_Set)                                               \
-  V(Message_GetEndColumn)                                  \
-  V(Message_GetLineNumber)                                 \
-  V(Message_GetSourceLine)                                 \
-  V(Message_GetStartColumn)                                \
-  V(Module_Evaluate)                                       \
-  V(Module_InstantiateModule)                              \
-  V(Module_SetSyntheticModuleExport)                       \
-  V(NumberObject_New)                                      \
-  V(NumberObject_NumberValue)                              \
-  V(Object_CallAsConstructor)                              \
-  V(Object_CallAsFunction)                                 \
-  V(Object_CreateDataProperty)                             \
-  V(Object_DefineOwnProperty)                              \
-  V(Object_DefineProperty)                                 \
-  V(Object_Delete)                                         \
-  V(Object_DeleteProperty)                                 \
-  V(Object_ForceSet)                                       \
-  V(Object_Get)                                            \
-  V(Object_GetOwnPropertyDescriptor)                       \
-  V(Object_GetOwnPropertyNames)                            \
-  V(Object_GetPropertyAttributes)                          \
-  V(Object_GetPropertyNames)                               \
-  V(Object_GetRealNamedProperty)                           \
-  V(Object_GetRealNamedPropertyAttributes)                 \
-  V(Object_GetRealNamedPropertyAttributesInPrototypeChain) \
-  V(Object_GetRealNamedPropertyInPrototypeChain)           \
-  V(Object_Has)                                            \
-  V(Object_HasOwnProperty)                                 \
-  V(Object_HasRealIndexedProperty)                         \
-  V(Object_HasRealNamedCallbackProperty)                   \
-  V(Object_HasRealNamedProperty)                           \
-  V(Object_IsCodeLike)                                     \
-  V(Object_New)                                            \
-  V(Object_ObjectProtoToString)                            \
-  V(Object_Set)                                            \
-  V(Object_SetAccessor)                                    \
-  V(Object_SetIntegrityLevel)                              \
-  V(Object_SetPrivate)                                     \
-  V(Object_SetPrototype)                                   \
-  V(ObjectTemplate_New)                                    \
-  V(ObjectTemplate_NewInstance)                            \
-  V(Object_ToArrayIndex)                                   \
-  V(Object_ToBigInt)                                       \
-  V(Object_ToDetailString)                                 \
-  V(Object_ToInt32)                                        \
-  V(Object_ToInteger)                                      \
-  V(Object_ToNumber)                                       \
-  V(Object_ToObject)                                       \
-  V(Object_ToString)                                       \
-  V(Object_ToUint32)                                       \
-  V(Persistent_New)                                        \
-  V(Private_New)                                           \
-  V(Promise_Catch)                                         \
-  V(Promise_Chain)                                         \
-  V(Promise_HasRejectHandler)                              \
-  V(Promise_Resolver_New)                                  \
-  V(Promise_Resolver_Reject)                               \
-  V(Promise_Resolver_Resolve)                              \
-  V(Promise_Result)                                        \
-  V(Promise_Status)                                        \
-  V(Promise_Then)                                          \
-  V(Proxy_New)                                             \
-  V(RangeError_New)                                        \
-  V(ReferenceError_New)                                    \
-  V(RegExp_Exec)                                           \
-  V(RegExp_New)                                            \
-  V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunctionInContext)               \
-  V(ScriptCompiler_CompileUnbound)                         \
-  V(Script_Run)                                            \
-  V(Set_Add)                                               \
-  V(Set_AsArray)                                           \
-  V(Set_Clear)                                             \
-  V(Set_Delete)                                            \
-  V(Set_Has)                                               \
-  V(Set_New)                                               \
-  V(SharedArrayBuffer_New)                                 \
-  V(SharedArrayBuffer_NewBackingStore)                     \
-  V(String_Concat)                                         \
-  V(String_NewExternalOneByte)                             \
-  V(String_NewExternalTwoByte)                             \
-  V(String_NewFromOneByte)                                 \
-  V(String_NewFromTwoByte)                                 \
-  V(String_NewFromUtf8)                                    \
-  V(String_NewFromUtf8Literal)                             \
-  V(StringObject_New)                                      \
-  V(StringObject_StringValue)                              \
-  V(String_Write)                                          \
-  V(String_WriteUtf8)                                      \
-  V(Symbol_New)                                            \
-  V(SymbolObject_New)                                      \
-  V(SymbolObject_SymbolValue)                              \
-  V(SyntaxError_New)                                       \
-  V(TracedGlobal_New)                                      \
-  V(TryCatch_StackTrace)                                   \
-  V(TypeError_New)                                         \
-  V(Uint16Array_New)                                       \
-  V(Uint32Array_New)                                       \
-  V(Uint8Array_New)                                        \
-  V(Uint8ClampedArray_New)                                 \
-  V(UnboundScript_GetId)                                   \
-  V(UnboundScript_GetLineNumber)                           \
-  V(UnboundScript_GetName)                                 \
-  V(UnboundScript_GetSourceMappingURL)                     \
-  V(UnboundScript_GetSourceURL)                            \
-  V(ValueDeserializer_ReadHeader)                          \
-  V(ValueDeserializer_ReadValue)                           \
-  V(ValueSerializer_WriteValue)                            \
-  V(Value_Equals)                                          \
-  V(Value_InstanceOf)                                      \
-  V(Value_Int32Value)                                      \
-  V(Value_IntegerValue)                                    \
-  V(Value_NumberValue)                                     \
-  V(Value_TypeOf)                                          \
-  V(Value_Uint32Value)                                     \
-  V(WasmCompileError_New)                                  \
-  V(WasmLinkError_New)                                     \
-  V(WasmRuntimeError_New)                                  \
-  V(WeakMap_Get)                                           \
-  V(WeakMap_New)                                           \
-  V(WeakMap_Set)
-
-#define ADD_THREAD_SPECIFIC_COUNTER(V, Prefix, Suffix) \
-  V(Prefix##Suffix)                                    \
-  V(Prefix##Background##Suffix)
-
-#define FOR_EACH_THREAD_SPECIFIC_COUNTER(V)                                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Analyse)                          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Eval)                             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Function)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Ignition)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, IgnitionFinalization)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                           \
-                                                                            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ControlFlowOptimization)         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAEarlyOptimization)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAOptimization)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyTrimming)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateGraphTrimming)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                 \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopExitElimination)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MachineOperatorOptimization)     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulatePointerMaps)             \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                  \
-                              ScheduledEffectControlLinearization)          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ScheduledMachineLowering)        \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                         \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmFullOptimization)            \
-                                                                            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, Program)                            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, ArrowFunctionLiteral)            \
-  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, WithVariableResolution)
-
-#define FOR_EACH_MANUAL_COUNTER(V)             \
-  V(AccessorGetterCallback)                    \
-  V(AccessorSetterCallback)                    \
-  V(ArrayLengthGetter)                         \
-  V(ArrayLengthSetter)                         \
-  V(BoundFunctionLengthGetter)                 \
-  V(BoundFunctionNameGetter)                   \
-  V(CodeGenerationFromStringsCallbacks)        \
-  V(CompileBackgroundCompileTask)              \
-  V(CompileBaseline)                           \
-  V(CompileBaselineVisit)                      \
-  V(CompileBaselinePrepareHandlerOffsets)      \
-  V(CompileBaselinePreVisit)                   \
-  V(CompileCollectSourcePositions)             \
-  V(CompileDeserialize)                        \
-  V(CompileEnqueueOnDispatcher)                \
-  V(CompileFinalizeBackgroundCompileTask)      \
-  V(CompileFinishNowOnDispatcher)              \
-  V(CompileGetFromOptimizedCodeMap)            \
-  V(CompilePublishBackgroundFinalization)      \
-  V(CompileSerialize)                          \
-  V(CompileWaitForDispatcher)                  \
-  V(ConfigureInstance)                         \
-  V(CreateApiFunction)                         \
-  V(DeoptimizeCode)                            \
-  V(DeserializeContext)                        \
-  V(DeserializeIsolate)                        \
-  V(FinalizationRegistryCleanupFromTask)       \
-  V(FunctionCallback)                          \
-  V(FunctionLengthGetter)                      \
-  V(FunctionPrototypeGetter)                   \
-  V(FunctionPrototypeSetter)                   \
-  V(GC_Custom_AllAvailableGarbage)             \
-  V(GC_Custom_IncrementalMarkingObserver)      \
-  V(GC_Custom_SlowAllocateRaw)                 \
-  V(GCEpilogueCallback)                        \
-  V(GCPrologueCallback)                        \
-  V(Genesis)                                   \
-  V(GetCompatibleReceiver)                     \
-  V(GetMoreDataCallback)                       \
-  V(IndexedDefinerCallback)                    \
-  V(IndexedDeleterCallback)                    \
-  V(IndexedDescriptorCallback)                 \
-  V(IndexedEnumeratorCallback)                 \
-  V(IndexedGetterCallback)                     \
-  V(IndexedQueryCallback)                      \
-  V(IndexedSetterCallback)                     \
-  V(InstantiateFunction)                       \
-  V(InstantiateObject)                         \
-  V(Invoke)                                    \
-  V(InvokeApiFunction)                         \
-  V(InvokeApiInterruptCallbacks)               \
-  V(IsCompatibleReceiver)                      \
-  V(IsCompatibleReceiverMap)                   \
-  V(IsTemplateFor)                             \
-  V(JS_Execution)                              \
-  V(Map_SetPrototype)                          \
-  V(Map_TransitionToAccessorProperty)          \
-  V(Map_TransitionToDataProperty)              \
-  V(MessageListenerCallback)                   \
-  V(NamedDefinerCallback)                      \
-  V(NamedDeleterCallback)                      \
-  V(NamedDescriptorCallback)                   \
-  V(NamedEnumeratorCallback)                   \
-  V(NamedGetterCallback)                       \
-  V(NamedQueryCallback)                        \
-  V(NamedSetterCallback)                       \
-  V(Object_DeleteProperty)                     \
-  V(ObjectVerify)                              \
-  V(OptimizeBackgroundDispatcherJob)           \
-  V(OptimizeCode)                              \
-  V(OptimizeConcurrentFinalize)                \
-  V(OptimizeConcurrentPrepare)                 \
-  V(OptimizeFinalizePipelineJob)               \
-  V(OptimizeHeapBrokerInitialization)          \
-  V(OptimizeNonConcurrent)                     \
-  V(OptimizeSerialization)                     \
-  V(OptimizeSerializeMetadata)                 \
-  V(ParseEval)                                 \
-  V(ParseFunction)                             \
-  V(PropertyCallback)                          \
-  V(PrototypeMap_TransitionToAccessorProperty) \
-  V(PrototypeMap_TransitionToDataProperty)     \
-  V(PrototypeObject_DeleteProperty)            \
-  V(ReconfigureToDataProperty)                 \
-  V(UpdateProtector)                           \
-  V(StringLengthGetter)                        \
-  V(TestCounter1)                              \
-  V(TestCounter2)                              \
-  V(TestCounter3)
-
-#define FOR_EACH_HANDLER_COUNTER(V)               \
-  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
-  V(KeyedLoadIC_LoadElementDH)                    \
-  V(KeyedLoadIC_LoadIndexedInterceptorStub)       \
-  V(KeyedLoadIC_LoadIndexedStringDH)              \
-  V(KeyedLoadIC_SlowStub)                         \
-  V(KeyedStoreIC_ElementsTransitionAndStoreStub)  \
-  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)   \
-  V(KeyedStoreIC_SlowStub)                        \
-  V(KeyedStoreIC_StoreElementStub)                \
-  V(KeyedStoreIC_StoreFastElementStub)            \
-  V(LoadGlobalIC_LoadScriptContextField)          \
-  V(LoadGlobalIC_SlowStub)                        \
-  V(LoadIC_FunctionPrototypeStub)                 \
-  V(LoadIC_HandlerCacheHit_Accessor)              \
-  V(LoadIC_LoadAccessorDH)                        \
-  V(LoadIC_LoadAccessorFromPrototypeDH)           \
-  V(LoadIC_LoadApiGetterFromPrototypeDH)          \
-  V(LoadIC_LoadCallback)                          \
-  V(LoadIC_LoadConstantDH)                        \
-  V(LoadIC_LoadConstantFromPrototypeDH)           \
-  V(LoadIC_LoadFieldDH)                           \
-  V(LoadIC_LoadFieldFromPrototypeDH)              \
-  V(LoadIC_LoadGlobalDH)                          \
-  V(LoadIC_LoadGlobalFromPrototypeDH)             \
-  V(LoadIC_LoadIntegerIndexedExoticDH)            \
-  V(LoadIC_LoadInterceptorDH)                     \
-  V(LoadIC_LoadInterceptorFromPrototypeDH)        \
-  V(LoadIC_LoadNativeDataPropertyDH)              \
-  V(LoadIC_LoadNativeDataPropertyFromPrototypeDH) \
-  V(LoadIC_LoadNonexistentDH)                     \
-  V(LoadIC_LoadNonMaskingInterceptorDH)           \
-  V(LoadIC_LoadNormalDH)                          \
-  V(LoadIC_LoadNormalFromPrototypeDH)             \
-  V(LoadIC_NonReceiver)                           \
-  V(LoadIC_SlowStub)                              \
-  V(LoadIC_StringLength)                          \
-  V(LoadIC_StringWrapperLength)                   \
-  V(StoreGlobalIC_SlowStub)                       \
-  V(StoreGlobalIC_StoreScriptContextField)        \
-  V(StoreIC_HandlerCacheHit_Accessor)             \
-  V(StoreIC_NonReceiver)                          \
-  V(StoreIC_SlowStub)                             \
-  V(StoreIC_StoreAccessorDH)                      \
-  V(StoreIC_StoreAccessorOnPrototypeDH)           \
-  V(StoreIC_StoreApiSetterOnPrototypeDH)          \
-  V(StoreIC_StoreFieldDH)                         \
-  V(StoreIC_StoreGlobalDH)                        \
-  V(StoreIC_StoreGlobalTransitionDH)              \
-  V(StoreIC_StoreInterceptorStub)                 \
-  V(StoreIC_StoreNativeDataPropertyDH)            \
-  V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
-  V(StoreIC_StoreNormalDH)                        \
-  V(StoreIC_StoreTransitionDH)                    \
-  V(StoreInArrayLiteralIC_SlowStub)
-
-enum RuntimeCallCounterId {
-#define CALL_RUNTIME_COUNTER(name) kGC_##name,
-  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)  //
-#undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name) k##name,
-  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
-#undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
-  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
-#undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
-  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kAPI_##name,
-  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kHandler_##name,
-  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
-#undef CALL_BUILTIN_COUNTER
-#define THREAD_SPECIFIC_COUNTER(name) k##name,
-  FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)  //
-#undef THREAD_SPECIFIC_COUNTER
-  kNumberOfCounters,
-};
-
-class RuntimeCallStats final {
- public:
-  enum ThreadType { kMainIsolateThread, kWorkerThread };
-
-  // If kExact is chosen the counter will be use as given. With kThreadSpecific,
-  // if the RuntimeCallStats was created for a worker thread, then the
-  // background specific version of the counter will be used instead.
-  enum CounterMode { kExact, kThreadSpecific };
-
-  explicit V8_EXPORT_PRIVATE RuntimeCallStats(ThreadType thread_type);
-
-  // Starting measuring the time for a function. This will establish the
-  // connection to the parent counter for properly calculating the own times.
-  V8_EXPORT_PRIVATE void Enter(RuntimeCallTimer* timer,
-                               RuntimeCallCounterId counter_id);
-
-  // Leave a scope for a measured runtime function. This will properly add
-  // the time delta to the current_counter and subtract the delta from its
-  // parent.
-  V8_EXPORT_PRIVATE void Leave(RuntimeCallTimer* timer);
-
-  // Set counter id for the innermost measurement. It can be used to refine
-  // event kind when a runtime entry counter is too generic.
-  V8_EXPORT_PRIVATE void CorrectCurrentCounterId(
-      RuntimeCallCounterId counter_id, CounterMode mode = kExact);
-
-  V8_EXPORT_PRIVATE void Reset();
-  // Add all entries from another stats object.
-  void Add(RuntimeCallStats* other);
-  V8_EXPORT_PRIVATE void Print(std::ostream& os);
-  V8_EXPORT_PRIVATE void Print();
-  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
-
-  V8_EXPORT_PRIVATE void EnumerateCounters(
-      debug::RuntimeCallCounterCallback callback);
-
-  ThreadId thread_id() const { return thread_id_; }
-  RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
-  RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
-  bool InUse() { return in_use_; }
-  bool IsCalledOnTheSameThread();
-
-  V8_EXPORT_PRIVATE bool IsBackgroundThreadSpecificVariant(
-      RuntimeCallCounterId id);
-  V8_EXPORT_PRIVATE bool HasThreadSpecificCounterVariants(
-      RuntimeCallCounterId id);
-
-  // This should only be called for counters with a dual Background variant. If
-  // on the main thread, this just returns the counter. If on a worker thread,
-  // it returns Background variant of the counter.
-  RuntimeCallCounterId CounterIdForThread(RuntimeCallCounterId id) {
-    DCHECK(HasThreadSpecificCounterVariants(id));
-    // All thread specific counters are laid out with the main thread variant
-    // first followed by the background variant.
-    return thread_type_ == kWorkerThread
-               ? static_cast<RuntimeCallCounterId>(id + 1)
-               : id;
-  }
-
-  bool IsCounterAppropriateForThread(RuntimeCallCounterId id) {
-    // TODO(delphick): We should add background-only counters and ensure that
-    // all counters (not just the thread-specific variants) are only invoked on
-    // the correct thread.
-    if (!HasThreadSpecificCounterVariants(id)) return true;
-    return IsBackgroundThreadSpecificVariant(id) ==
-           (thread_type_ == kWorkerThread);
-  }
-
-  static const int kNumberOfCounters =
-      static_cast<int>(RuntimeCallCounterId::kNumberOfCounters);
-  RuntimeCallCounter* GetCounter(RuntimeCallCounterId counter_id) {
-    return &counters_[static_cast<int>(counter_id)];
-  }
-  RuntimeCallCounter* GetCounter(int counter_id) {
-    return &counters_[counter_id];
-  }
-
- private:
-  // Top of a stack of active timers.
-  base::AtomicValue<RuntimeCallTimer*> current_timer_;
-  // Active counter object associated with current timer.
-  base::AtomicValue<RuntimeCallCounter*> current_counter_;
-  // Used to track nested tracing scopes.
-  bool in_use_;
-  ThreadType thread_type_;
-  ThreadId thread_id_;
-  RuntimeCallCounter counters_[kNumberOfCounters];
-};
-
-class WorkerThreadRuntimeCallStats final {
- public:
-  WorkerThreadRuntimeCallStats();
-  ~WorkerThreadRuntimeCallStats();
-
-  // Returns the TLS key associated with this WorkerThreadRuntimeCallStats.
-  base::Thread::LocalStorageKey GetKey();
-
-  // Returns a new worker thread runtime call stats table managed by this
-  // WorkerThreadRuntimeCallStats.
-  RuntimeCallStats* NewTable();
-
-  // Adds the counters from the worker thread tables to |main_call_stats|.
-  void AddToMainTable(RuntimeCallStats* main_call_stats);
-
- private:
-  base::Mutex mutex_;
-  std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
-  base::Optional<base::Thread::LocalStorageKey> tls_key_;
-  // Since this is for creating worker thread runtime-call stats, record the
-  // main thread ID to ensure we never create a worker RCS table for the main
-  // thread.
-  ThreadId isolate_thread_id_;
-};
-
-// Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
-// runtime call stats table, and will dump the table to an immediate trace event
-// when it is destroyed.
-class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
- public:
-  explicit WorkerThreadRuntimeCallStatsScope(
-      WorkerThreadRuntimeCallStats* off_thread_stats);
-  ~WorkerThreadRuntimeCallStatsScope();
-
-  RuntimeCallStats* Get() const { return table_; }
-
- private:
-  RuntimeCallStats* table_;
-};
-
-#define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
-  do {                                                                 \
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled()) &&       \
-        runtime_call_stats) {                                          \
-      runtime_call_stats->CorrectCurrentCounterId(counter_id);         \
-    }                                                                  \
-  } while (false)
-
-#define TRACE_HANDLER_STATS(isolate, counter_name) \
-  CHANGE_CURRENT_RUNTIME_COUNTER(                  \
-      isolate->counters()->runtime_call_stats(),   \
-      RuntimeCallCounterId::kHandler_##counter_name)
-
-// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
-// the time of C++ scope.
-class V8_NODISCARD RuntimeCallTimerScope {
- public:
-  inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallCounterId counter_id);
-  inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallCounterId counter_id,
-                               RuntimeCallStats::CounterMode mode =
-                                   RuntimeCallStats::CounterMode::kExact) {
-    if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled() ||
-                  stats == nullptr)) {
-      return;
-    }
-    stats_ = stats;
-    if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
-      counter_id = stats->CounterIdForThread(counter_id);
-    }
-
-    DCHECK(stats->IsCounterAppropriateForThread(counter_id));
-    stats_->Enter(&timer_, counter_id);
-  }
-
-  inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(stats_ != nullptr)) {
-      stats_->Leave(&timer_);
-    }
-  }
-
-  RuntimeCallTimerScope(const RuntimeCallTimerScope&) = delete;
-  RuntimeCallTimerScope& operator=(const RuntimeCallTimerScope&) = delete;
-
- private:
-  RuntimeCallStats* stats_ = nullptr;
-  RuntimeCallTimer timer_;
-};
-
 // This file contains all the v8 counters that are in use.
 class Counters : public std::enable_shared_from_this<Counters> {
  public:
@@ -1334,32 +505,58 @@ class Counters : public std::enable_shared_from_this<Counters> {
   }
 
 #define HR(name, caption, min, max, num_buckets) \
-  Histogram* name() { return &name##_; }
+  Histogram* name() {                            \
+    name##_.EnsureCreated();                     \
+    return &name##_;                             \
+  }
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
 #define HT(name, caption, max, res) \
-  HistogramTimer* name() { return &name##_; }
-  HISTOGRAM_TIMER_LIST(HT)
+  NestedTimedHistogram* name() {    \
+    name##_.EnsureCreated();        \
+    return &name##_;                \
+  }
+  NESTED_TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+
+#define HT(name, caption, max, res)              \
+  NestedTimedHistogram* name() {                 \
+    name##_.EnsureCreated(FLAG_slow_histograms); \
+    return &name##_;                             \
+  }
+  NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) \
-  TimedHistogram* name() { return &name##_; }
+  TimedHistogram* name() {          \
+    name##_.EnsureCreated();        \
+    return &name##_;                \
+  }
   TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
-#define AHT(name, caption) \
-  AggregatableHistogramTimer* name() { return &name##_; }
+#define AHT(name, caption)             \
+  AggregatableHistogramTimer* name() { \
+    name##_.EnsureCreated();           \
+    return &name##_;                   \
+  }
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
-#define HP(name, caption) \
-  Histogram* name() { return &name##_; }
+#define HP(name, caption)    \
+  Histogram* name() {        \
+    name##_.EnsureCreated(); \
+    return &name##_;         \
+  }
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
-#define HM(name, caption) \
-  Histogram* name() { return &name##_; }
+#define HM(name, caption)    \
+  Histogram* name() {        \
+    name##_.EnsureCreated(); \
+    return &name##_;         \
+  }
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 
@@ -1370,15 +567,11 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
-#define SC(name, caption) \
-  StatsCounterThreadSafe* name() { return &name##_; }
-  STATS_COUNTER_TS_LIST(SC)
-#undef SC
-
   // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
-    HISTOGRAM_TIMER_LIST(RATE_ID)
+    NESTED_TIMED_HISTOGRAM_LIST(RATE_ID)
+    NESTED_TIMED_HISTOGRAM_LIST_SLOW(RATE_ID)
     TIMED_HISTOGRAM_LIST(RATE_ID)
 #undef RATE_ID
 #define AGGREGATABLE_ID(name, caption) k_##name,
@@ -1393,7 +586,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
-    STATS_COUNTER_TS_LIST(COUNTER_ID)
     STATS_COUNTER_NATIVE_CODE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
@@ -1411,20 +603,25 @@ class Counters : public std::enable_shared_from_this<Counters> {
   };
   // clang-format on
 
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats() {
     return &worker_thread_runtime_call_stats_;
   }
+#else   // V8_RUNTIME_CALL_STATS
+  RuntimeCallStats* runtime_call_stats() { return nullptr; }
+
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats() {
+    return nullptr;
+  }
+#endif  // V8_RUNTIME_CALL_STATS
 
  private:
   friend class StatsTable;
-  friend class StatsCounterBase;
+  friend class StatsCounter;
   friend class Histogram;
-  friend class HistogramTimer;
-
-  Isolate* isolate_;
-  StatsTable stats_table_;
+  friend class NestedTimedHistogramScope;
 
   int* FindLocation(const char* name) {
     return stats_table_.FindLocation(name);
@@ -1444,8 +641,9 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption, max, res) HistogramTimer name##_;
-  HISTOGRAM_TIMER_LIST(HT)
+#define HT(name, caption, max, res) NestedTimedHistogram name##_;
+  NESTED_TIMED_HISTOGRAM_LIST(HT)
+  NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) TimedHistogram name##_;
@@ -1470,10 +668,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
-#define SC(name, caption) StatsCounterThreadSafe name##_;
-  STATS_COUNTER_TS_LIST(SC)
-#undef SC
-
 #define SC(name)                  \
   StatsCounter size_of_##name##_; \
   StatsCounter count_of_##name##_;
@@ -1492,26 +686,16 @@ class Counters : public std::enable_shared_from_this<Counters> {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats runtime_call_stats_;
   WorkerThreadRuntimeCallStats worker_thread_runtime_call_stats_;
+#endif
+  Isolate* isolate_;
+  StatsTable stats_table_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-void HistogramTimer::Start() {
-  TimedHistogram::Start(&timer_, counters()->isolate());
-}
-
-void HistogramTimer::Stop() {
-  TimedHistogram::Stop(&timer_, counters()->isolate());
-}
-
-RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
-                                             RuntimeCallCounterId counter_id) {
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  stats_ = isolate->counters()->runtime_call_stats();
-  stats_->Enter(&timer_, counter_id);
-}
 
 }  // namespace internal
 }  // namespace v8

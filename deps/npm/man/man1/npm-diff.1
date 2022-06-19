@@ -1,4 +1,4 @@
-.TH "NPM\-DIFF" "1" "March 2021" "" ""
+.TH "NPM\-DIFF" "1" "June 2022" "" ""
 .SH "NAME"
 \fBnpm-diff\fR \- The registry diff command
 .SS Synopsis
@@ -6,10 +6,6 @@
 .RS 2
 .nf
 npm diff [\.\.\.<paths>]
-npm diff \-\-diff=<pkg\-name> [\.\.\.<paths>]
-npm diff \-\-diff=<version\-a> [\-\-diff=<version\-b>] [\.\.\.<paths>]
-npm diff \-\-diff=<spec\-a> [\-\-diff=<spec\-b>] [\.\.\.<paths>]
-npm diff [\-\-diff\-ignore\-all\-space] [\-\-diff\-name\-only] [\.\.\.<paths>]
 .fi
 .RE
 .SS Description
@@ -147,91 +143,80 @@ In the example above the diff output is only going to print contents of files
 located within the folder \fB\|\./lib/\fP and changed lines of code within the
 \fBCHANGELOG\.md\fP file\.
 .SS Configuration
-.SS diff
+.SS \fBdiff\fP
 .RS 0
 .IP \(bu 2
-Type: Array
+Default:
 .IP \(bu 2
-Default: null
+Type: String (can be set multiple times)
 
 .RE
 .P
-Defines npm package specifiers to compare using the \fBnpm diff\fP command\.
-.P
-This can be specified up to 2 times\.
-.SS diff\-name\-only
+Define arguments to compare in \fBnpm diff\fP\|\.
+.SS \fBdiff\-name\-only\fP
 .RS 0
-.IP \(bu 2
-Type: Boolean
 .IP \(bu 2
 Default: false
+.IP \(bu 2
+Type: Boolean
 
 .RE
 .P
-When set to \fBtrue\fP running \fBnpm diff\fP only returns the names of the files that
-have any difference\.
-.SS diff\-unified
+Prints only filenames when using \fBnpm diff\fP\|\.
+.SS \fBdiff\-unified\fP
 .RS 0
+.IP \(bu 2
+Default: 3
 .IP \(bu 2
 Type: Number
-.IP \(bu 2
-Default: \fB3\fP
 
 .RE
 .P
-The number of lines of context to print in the unified diff format output\.
-.SS diff\-ignore\-all\-space
+The number of lines of context to print in \fBnpm diff\fP\|\.
+.SS \fBdiff\-ignore\-all\-space\fP
 .RS 0
-.IP \(bu 2
-Type: Boolean
 .IP \(bu 2
 Default: false
-
-.RE
-.P
-Ignore whitespace when comparing lines\. This ignores differences even if one
-line has whitespace where the other line has none\.
-.SS diff\-no\-prefix
-.RS 0
 .IP \(bu 2
 Type: Boolean
-.IP \(bu 2
-Default: false
 
 .RE
 .P
-Do not show any source or destination prefix\.
-.SS diff\-src\-prefix
+Ignore whitespace when comparing lines in \fBnpm diff\fP\|\.
+.SS \fBdiff\-no\-prefix\fP
 .RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Do not show any source or destination prefix in \fBnpm diff\fP output\.
+.P
+Note: this causes \fBnpm diff\fP to ignore the \fB\-\-diff\-src\-prefix\fP and
+\fB\-\-diff\-dst\-prefix\fP configs\.
+.SS \fBdiff\-src\-prefix\fP
+.RS 0
+.IP \(bu 2
+Default: "a/"
 .IP \(bu 2
 Type: String
-.IP \(bu 2
-Default: \fB"a/"\fP
 
 .RE
 .P
-Show the given source prefix in diff patches headers instead of using "a/"\.
-.SS diff\-dst\-prefix
+Source prefix to be used in \fBnpm diff\fP output\.
+.SS \fBdiff\-dst\-prefix\fP
 .RS 0
+.IP \(bu 2
+Default: "b/"
 .IP \(bu 2
 Type: String
-.IP \(bu 2
-Default: \fB"b/"\fP
 
 .RE
 .P
-Show the given source prefix in diff patches headers instead of using "b/"\.
-.SS diff\-text
-.RS 0
-.IP \(bu 2
-Type: Boolean
-.IP \(bu 2
-Default: false
-
-.RE
-.P
-Treat all files as text\.
-.SS global
+Destination prefix to be used in \fBnpm diff\fP output\.
+.SS \fBdiff\-text\fP
 .RS 0
 .IP \(bu 2
 Default: false
@@ -240,18 +225,116 @@ Type: Boolean
 
 .RE
 .P
-Uses packages from the global space as a source for comparison\.
-.SS tag
+Treat all files as text in \fBnpm diff\fP\|\.
+.SS \fBglobal\fP
 .RS 0
 .IP \(bu 2
-Type: String
+Default: false
 .IP \(bu 2
-Default: \fB"latest"\fP
+Type: Boolean
 
 .RE
 .P
-The tag used to fetch the tarball that will be compared with the local file
-system files when running npm diff with no arguments\.
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBtag\fP
+.RS 0
+.IP \(bu 2
+Default: "latest"
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+If you ask npm to install a package and don't tell it a specific version,
+then it will install the specified tag\.
+.P
+Also the tag that is added to the package@version specified by the \fBnpm tag\fP
+command, if no explicit tag is given\.
+.P
+When used by the \fBnpm diff\fP command, this is the tag used to fetch the
+tarball that will be compared with the local files by default\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
 .SH See Also
 .RS 0
 .IP \(bu 2

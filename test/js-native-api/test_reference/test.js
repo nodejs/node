@@ -15,6 +15,32 @@ assert.strictEqual(test_reference.finalizeCount, 0);
 // with an async delay and GC call between each.
 async function runTests() {
   (() => {
+    const symbol = test_reference.createSymbol('testSym');
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolFor('testSymFor');
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+    assert.strictEqual(test_reference.referenceValue, Symbol.for('testSymFor'));
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolForEmptyString();
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+    assert.strictEqual(test_reference.referenceValue, Symbol.for(''));
+  })();
+  test_reference.deleteReference();
+
+  assert.throws(() => test_reference.createSymbolForIncorrectLength(),
+                /Invalid argument/);
+
+  (() => {
     const value = test_reference.createExternal();
     assert.strictEqual(test_reference.finalizeCount, 0);
     assert.strictEqual(typeof value, 'object');

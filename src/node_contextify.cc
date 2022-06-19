@@ -21,13 +21,14 @@
 
 #include "node_contextify.h"
 
-#include "memory_tracker-inl.h"
-#include "node_internals.h"
-#include "node_watchdog.h"
 #include "base_object-inl.h"
+#include "memory_tracker-inl.h"
+#include "module_wrap.h"
 #include "node_context_data.h"
 #include "node_errors.h"
-#include "module_wrap.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
+#include "node_watchdog.h"
 #include "util-inl.h"
 
 namespace node {
@@ -126,6 +127,11 @@ ContextifyContext::ContextifyContext(
 
 ContextifyContext::~ContextifyContext() {
   env()->RemoveCleanupHook(CleanupHook, this);
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+
+  env()->async_hooks()
+    ->RemoveContext(PersistentToLocal::Weak(isolate, context_));
 }
 
 
@@ -204,13 +210,16 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   if (ctx.IsEmpty()) return MaybeLocal<Context>();
   // Only partially initialize the context - the primordials are left out
   // and only initialized when necessary.
-  InitializeContextRuntime(ctx);
+  if (InitializeContextRuntime(ctx).IsNothing()) {
+    return MaybeLocal<Context>();
+  }
 
   if (ctx.IsEmpty()) {
     return MaybeLocal<Context>();
   }
 
-  ctx->SetSecurityToken(env->context()->GetSecurityToken());
+  Local<Context> context = env->context();
+  ctx->SetSecurityToken(context->GetSecurityToken());
 
   // We need to tie the lifetime of the sandbox object with the lifetime of
   // newly created context. We do this by making them hold references to each
@@ -219,7 +228,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   // directly in an Object, we instead hold onto the new context's global
   // object instead (which then has a reference to the context).
   ctx->SetEmbedderData(ContextEmbedderIndex::kSandboxObject, sandbox_obj);
-  sandbox_obj->SetPrivate(env->context(),
+  sandbox_obj->SetPrivate(context,
                           env->contextify_global_private_symbol(),
                           ctx->Global());
 
@@ -254,6 +263,12 @@ void ContextifyContext::Init(Environment* env, Local<Object> target) {
   env->SetMethod(target, "compileFunction", CompileFunction);
 }
 
+void ContextifyContext::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(MakeContext);
+  registry->Register(IsContext);
+  registry->Register(CompileFunction);
+}
 
 // makeContext(sandbox, name, origin, strings, wasm);
 void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
@@ -293,7 +308,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   }
 
   TryCatchScope try_catch(env);
-  auto context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
+  std::unique_ptr<ContextifyContext> context_ptr =
+      std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
@@ -394,16 +410,17 @@ void ContextifyContext::PropertySetterCallback(
   if (ctx->context_.IsEmpty())
     return;
 
-  auto attributes = PropertyAttribute::None;
+  Local<Context> context = ctx->context();
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared_on_global_proxy = ctx->global_proxy()
-      ->GetRealNamedPropertyAttributes(ctx->context(), property)
+      ->GetRealNamedPropertyAttributes(context, property)
       .To(&attributes);
   bool read_only =
       static_cast<int>(attributes) &
       static_cast<int>(PropertyAttribute::ReadOnly);
 
   bool is_declared_on_sandbox = ctx->sandbox()
-      ->GetRealNamedPropertyAttributes(ctx->context(), property)
+      ->GetRealNamedPropertyAttributes(context, property)
       .To(&attributes);
   read_only = read_only ||
       (static_cast<int>(attributes) &
@@ -432,16 +449,8 @@ void ContextifyContext::PropertySetterCallback(
       !is_function)
     return;
 
-  if (!is_declared_on_global_proxy && is_declared_on_sandbox  &&
-      args.ShouldThrowOnError() && is_contextual_store && !is_function) {
-    // The property exists on the sandbox but not on the global
-    // proxy. Setting it would throw because we are in strict mode.
-    // Don't attempt to set it by signaling that the call was
-    // intercepted. Only change the value on the sandbox.
-    args.GetReturnValue().Set(false);
-  }
-
-  USE(ctx->sandbox()->Set(ctx->context(), property, value));
+  USE(ctx->sandbox()->Set(context, property, value));
+  args.GetReturnValue().Set(value);
 }
 
 // static
@@ -480,9 +489,9 @@ void ContextifyContext::PropertyDefinerCallback(
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
 
-  auto attributes = PropertyAttribute::None;
+  PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared =
-      ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+      ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
                                                           property)
           .To(&attributes);
   bool read_only =
@@ -656,9 +665,19 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
   env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
   env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
-  target->Set(env->context(), class_name,
-      script_tmpl->GetFunction(env->context()).ToLocalChecked()).Check();
+  Local<Context> context = env->context();
+
+  target->Set(context, class_name,
+      script_tmpl->GetFunction(context).ToLocalChecked()).Check();
   env->set_script_context_constructor_template(script_tmpl);
+}
+
+void ContextifyScript::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(CreateCachedData);
+  registry->Register(RunInContext);
+  registry->Register(RunInThisContext);
 }
 
 void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
@@ -713,11 +732,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE2(vm, script)) != 0) {
     Utf8Value fn(isolate, filename);
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-        TRACING_CATEGORY_NODE2(vm, script),
-        "ContextifyScript::New",
-        contextify_script,
-        "filename", TRACE_STR_COPY(*fn));
+    TRACE_EVENT_BEGIN1(TRACING_CATEGORY_NODE2(vm, script),
+                       "ContextifyScript::New",
+                       "filename",
+                       TRACE_STR_COPY(*fn));
   }
 
   ScriptCompiler::CachedData* cached_data = nullptr;
@@ -767,17 +785,16 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     no_abort_scope.Close();
     if (!try_catch.HasTerminated())
       try_catch.ReThrow();
-    TRACE_EVENT_NESTABLE_ASYNC_END0(
-        TRACING_CATEGORY_NODE2(vm, script),
-        "ContextifyScript::New",
-        contextify_script);
+    TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script),
+                     "ContextifyScript::New");
     return;
   }
   contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
 
+  Local<Context> env_context = env->context();
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     args.This()->Set(
-        env->context(),
+        env_context,
         env->cached_data_rejected_string(),
         Boolean::New(isolate, source.GetCachedData()->rejected)).Check();
   } else if (produce_cached_data) {
@@ -789,19 +806,16 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      args.This()->Set(env->context(),
+      args.This()->Set(env_context,
                        env->cached_data_string(),
                        buf.ToLocalChecked()).Check();
     }
     args.This()->Set(
-        env->context(),
+        env_context,
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).Check();
   }
-  TRACE_EVENT_NESTABLE_ASYNC_END0(
-      TRACING_CATEGORY_NODE2(vm, script),
-      "ContextifyScript::New",
-      contextify_script);
+  TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
 }
 
 bool ContextifyScript::InstanceOf(Environment* env,
@@ -837,8 +851,7 @@ void ContextifyScript::RunInThisContext(
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext");
 
   // TODO(addaleax): Use an options object or otherwise merge this with
   // RunInContext().
@@ -864,9 +877,6 @@ void ContextifyScript::RunInThisContext(
               break_on_first_line,
               nullptr,  // microtask_queue
               args);
-
-  TRACE_EVENT_NESTABLE_ASYNC_END0(
-      TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
 }
 
 void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
@@ -884,11 +894,11 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
       ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
   CHECK_NOT_NULL(contextify_context);
 
-  if (contextify_context->context().IsEmpty())
+  Local<Context> context = contextify_context->context();
+  if (context.IsEmpty())
     return;
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE2(vm, script), "RunInContext");
 
   CHECK(args[1]->IsNumber());
   int64_t timeout = args[1]->IntegerValue(env->context()).FromJust();
@@ -903,7 +913,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   bool break_on_first_line = args[4]->IsTrue();
 
   // Do the eval within the context
-  Context::Scope context_scope(contextify_context->context());
+  Context::Scope context_scope(context);
   EvalMachine(contextify_context->env(),
               timeout,
               display_errors,
@@ -911,9 +921,6 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
               break_on_first_line,
               contextify_context->microtask_queue(),
               args);
-
-  TRACE_EVENT_NESTABLE_ASYNC_END0(
-      TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
 }
 
 bool ContextifyScript::EvalMachine(Environment* env,
@@ -1287,6 +1294,10 @@ void MicrotaskQueueWrap::Init(Environment* env, Local<Object> target) {
   env->SetConstructorFunction(target, "MicrotaskQueue", tmpl);
 }
 
+void MicrotaskQueueWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1341,7 +1352,19 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "measureMemory", MeasureMemory);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  ContextifyContext::RegisterExternalReferences(registry);
+  ContextifyScript::RegisterExternalReferences(registry);
+  MicrotaskQueueWrap::RegisterExternalReferences(registry);
+
+  registry->Register(StartSigintWatchdog);
+  registry->Register(StopSigintWatchdog);
+  registry->Register(WatchdogHasPendingSigint);
+  registry->Register(MeasureMemory);
+}
 }  // namespace contextify
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(contextify, node::contextify::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(contextify,
+                               node::contextify::RegisterExternalReferences)

@@ -36,7 +36,8 @@ const d4 = new Date("2021-03-09T00:00Z");
 assertEquals("March 8, 2020 at 5:00:00 PM PDT", df2.format(d3));
 
 // Before tz2020a change will get "March 8, 2021 at 4:00:00 PM PST"
-assertEquals("March 8, 2021 at 5:00:00 PM MST", df2.format(d4));
+// After tz2021a1 it now become "March 8, 2021 at 5:00:00 PM GMT-7".
+assertEquals("March 8, 2021 at 5:00:00 PM GMT-7", df2.format(d4));
 
 // C. Test America/Nuuk renamed from America/Godthab.
 

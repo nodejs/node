@@ -13,7 +13,6 @@ bitfield struct JSRegExpFlags extends uint31 {
   has_indices: bool: 1 bit;
 }
 
-@generateCppClass
 extern class JSRegExp extends JSObject {
   data: FixedArray|Undefined;
   source: String|Undefined;

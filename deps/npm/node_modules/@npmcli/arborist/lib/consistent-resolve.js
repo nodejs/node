@@ -5,8 +5,9 @@
 const npa = require('npm-package-arg')
 const relpath = require('./relpath.js')
 const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
-  if (!resolved)
+  if (!resolved) {
     return null
+  }
 
   try {
     const hostedOpt = { noCommittish: false }

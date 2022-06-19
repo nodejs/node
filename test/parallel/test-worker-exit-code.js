@@ -8,7 +8,8 @@ const assert = require('assert');
 const worker = require('worker_threads');
 const { Worker, parentPort } = worker;
 
-const testCases = require('../fixtures/process-exit-code-cases');
+const { getTestCases } = require('../fixtures/process-exit-code-cases');
+const testCases = getTestCases(true);
 
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {
@@ -35,8 +36,7 @@ function parent() {
     if (error) {
       w.on('error', common.mustCall((err) => {
         console.log(err);
-        assert(error.test(err),
-               `wrong error for ${arg}\nexpected:${error} but got:${err}`);
+        assert.match(String(err), error);
       }));
     }
     w.postMessage(arg);

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/atomicops.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
@@ -34,13 +35,10 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
-
+  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  Handle<Object> source = args.at(1);
   size_t length;
-  CHECK(TryNumberToSize(*length_obj, &length));
-
+  CHECK(TryNumberToSize(args[2], &length));
   ElementsAccessor* accessor = target->GetElementsAccessor();
   return accessor->CopyElements(source, target, length, 0);
 }
@@ -48,10 +46,19 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
+  Handle<JSTypedArray> holder = args.at<JSTypedArray>(0);
   return *holder->GetBuffer();
 }
 
+RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSArrayBuffer> array_buffer = args.at<JSArrayBuffer>(0);
+
+  CHECK_EQ(0, array_buffer->byte_length());
+  size_t byte_length = array_buffer->GetBackingStore()->byte_length();
+  return *isolate->factory()->NewNumberFromSize(byte_length);
+}
 
 namespace {
 
@@ -81,10 +88,19 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   DCHECK_EQ(1, args.length());
 
   // Validation is handled in the Torque builtin.
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
+  Handle<JSTypedArray> array = args.at<JSTypedArray>(0);
   DCHECK(!array->WasDetached());
+  DCHECK(!array->IsOutOfBounds());
 
-  size_t length = array->length();
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+  if (FLAG_multi_mapped_mock_allocator) {
+    // Sorting is meaningless with the mock allocator, and std::sort
+    // might crash (because aliasing elements violate its assumptions).
+    return *array;
+  }
+#endif
+
+  size_t length = array->GetLength();
   DCHECK_LT(1, length);
 
   // In case of a SAB, the data is copied into temporary memory, as
@@ -98,7 +114,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {
-    const size_t bytes = array->byte_length();
+    const size_t bytes = array->GetByteLength();
     if (bytes <= static_cast<unsigned>(
                      ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
       array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
@@ -108,7 +124,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
       offheap_copy.resize(bytes);
       data_copy_ptr = &offheap_copy[0];
     }
-    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(data_copy_ptr),
+                         static_cast<base::Atomic8*>(array->DataPtr()), bytes);
   }
 
   DisallowGarbageCollection no_gc;
@@ -146,8 +163,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (copy_data) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
-    const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
+    const size_t bytes = array->GetByteLength();
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
+                         static_cast<base::Atomic8*>(data_copy_ptr), bytes);
   }
 
   return *array;
@@ -156,17 +174,12 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
 RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 3);
-
+  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  Handle<Object> source = args.at(1);
   size_t length;
-  CHECK(TryNumberToSize(*length_obj, &length));
-
+  CHECK(TryNumberToSize(args[2], &length));
   size_t offset;
-  CHECK(TryNumberToSize(*offset_obj, &offset));
-
+  CHECK(TryNumberToSize(args[3], &offset));
   ElementsAccessor* accessor = target->GetElementsAccessor();
   return accessor->CopyElements(source, target, length, offset);
 }

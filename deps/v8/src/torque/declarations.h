@@ -93,9 +93,9 @@ class Declarations {
   static Namespace* DeclareNamespace(const std::string& name);
   static TypeAlias* DeclareType(const Identifier* name, const Type* type);
 
-  static const TypeAlias* PredeclareTypeAlias(const Identifier* name,
-                                              TypeDeclaration* type,
-                                              bool redeclaration);
+  static TypeAlias* PredeclareTypeAlias(const Identifier* name,
+                                        TypeDeclaration* type,
+                                        bool redeclaration);
   static TorqueMacro* CreateTorqueMacro(std::string external_name,
                                         std::string readable_name,
                                         bool exported_to_csa,
@@ -132,8 +132,9 @@ class Declarations {
   static RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                                  const Signature& signature);
 
-  static void DeclareExternConstant(Identifier* name, const Type* type,
-                                    std::string value);
+  static ExternConstant* DeclareExternConstant(Identifier* name,
+                                               const Type* type,
+                                               std::string value);
   static NamespaceConstant* DeclareNamespaceConstant(Identifier* name,
                                                      const Type* type,
                                                      Expression* body);

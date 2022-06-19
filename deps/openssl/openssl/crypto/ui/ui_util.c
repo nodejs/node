@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -71,12 +71,14 @@ static void ui_new_method_data(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
 }
 
 static int ui_dup_method_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
-                              void *from_d, int idx, long argl, void *argp)
+                              void **pptr, int idx, long argl, void *argp)
 {
-    void **pptr = (void **)from_d;
-    if (*pptr != NULL)
+    if (*pptr != NULL) {
         *pptr = OPENSSL_memdup(*pptr, sizeof(struct pem_password_cb_data));
-    return 1;
+        if (*pptr != NULL)
+            return 1;
+    }
+    return 0;
 }
 
 static void ui_free_method_data(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
@@ -115,7 +117,7 @@ static int ui_read(UI *ui, UI_STRING *uis)
 
             if (len >= 0)
                 result[len] = '\0';
-            if (len <= 0)
+            if (len < 0)
                 return len;
             if (UI_set_result_ex(ui, uis, result, len) >= 0)
                 return 1;

@@ -11,7 +11,7 @@
 #define REGION_H
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Region classes (territory containment)
  */
 
@@ -30,23 +30,23 @@
 U_NAMESPACE_BEGIN
 
 /**
- * <code>Region</code> is the class representing a Unicode Region Code, also known as a
+ * <code>Region</code> is the class representing a Unicode Region Code, also known as a 
  * Unicode Region Subtag, which is defined based upon the BCP 47 standard. We often think of
  * "regions" as "countries" when defining the characteristics of a locale.  Region codes There are different
  * types of region codes that are important to distinguish.
  * <p>
- *  Macroregion - A code for a "macro geographical (continental) region, geographical sub-region, or
- *  selected economic and other grouping" as defined in
- *  UN M.49 (http://unstats.un.org/unsd/methods/m49/m49regin.htm).
- *  These are typically 3-digit codes, but contain some 2-letter codes, such as the LDML code QO
+ *  Macroregion - A code for a "macro geographical (continental) region, geographical sub-region, or 
+ *  selected economic and other grouping" as defined in 
+ *  UN M.49 (http://unstats.un.org/unsd/methods/m49/m49regin.htm). 
+ *  These are typically 3-digit codes, but contain some 2-letter codes, such as the LDML code QO 
  *  added for Outlying Oceania.  Not all UNM.49 codes are defined in LDML, but most of them are.
  *  Macroregions are represented in ICU by one of three region types: WORLD ( region code 001 ),
  *  CONTINENTS ( regions contained directly by WORLD ), and SUBCONTINENTS ( things contained directly
  *  by a continent ).
  *  <p>
  *  TERRITORY - A Region that is not a Macroregion. These are typically codes for countries, but also
- *  include areas that are not separate countries, such as the code "AQ" for Antarctica or the code
- *  "HK" for Hong Kong (SAR China). Overseas dependencies of countries may or may not have separate
+ *  include areas that are not separate countries, such as the code "AQ" for Antarctica or the code 
+ *  "HK" for Hong Kong (SAR China). Overseas dependencies of countries may or may not have separate 
  *  codes. The codes are typically 2-letter codes aligned with the ISO 3166 standard, but BCP47 allows
  *  for the use of 3-digit codes in the future.
  *  <p>
@@ -57,7 +57,7 @@ U_NAMESPACE_BEGIN
  *  usually due to a country splitting into multiple territories or changing its name.
  *  <p>
  *  GROUPING - A widely understood grouping of territories that has a well defined membership such
- *  that a region code has been assigned for it.  Some of these are UNM.49 codes that do't fall into
+ *  that a region code has been assigned for it.  Some of these are UNM.49 codes that do't fall into 
  *  the world/continent/sub-continent hierarchy, while others are just well known groupings that have
  *  their own region code. Region "EU" (European Union) is one such region code that is a grouping.
  *  Groupings will never be returned by the getContainingRegion() API, since a different type of region
@@ -81,27 +81,27 @@ public:
      * Returns true if the two regions are equal.
      * @stable ICU 51
      */
-    UBool operator==(const Region &that) const;
+    bool operator==(const Region &that) const;
 
     /**
      * Returns true if the two regions are NOT equal; that is, if operator ==() returns false.
      * @stable ICU 51
      */
-    UBool operator!=(const Region &that) const;
-
+    bool operator!=(const Region &that) const;
+ 
     /**
      * Returns a pointer to a Region using the given region code.  The region code can be either 2-letter ISO code,
      * 3-letter ISO code,  UNM.49 numeric code, or other valid Unicode Region Code as defined by the LDML specification.
      * The identifier will be canonicalized internally using the supplemental metadata as defined in the CLDR.
      * If the region code is NULL or not recognized, the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR )
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     static const Region* U_EXPORT2 getInstance(const char *region_code, UErrorCode &status);
 
     /**
      * Returns a pointer to a Region using the given numeric region code. If the numeric region code is not recognized,
      * the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR ).
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     static const Region* U_EXPORT2 getInstance (int32_t code, UErrorCode &status);
 
@@ -110,12 +110,12 @@ public:
      * @stable ICU 55
      */
     static StringEnumeration* U_EXPORT2 getAvailable(URegionType type, UErrorCode &status);
-
+   
     /**
      * Returns a pointer to the region that contains this region.  Returns NULL if this region is code "001" (World)
      * or "ZZ" (Unknown region). For example, calling this method with region "IT" (Italy) returns the
      * region "039" (Southern Europe).
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     const Region* getContainingRegion() const;
 
@@ -125,7 +125,7 @@ public:
      * that matches the given type. Note: The URegionTypes = "URGN_GROUPING", "URGN_DEPRECATED", or "URGN_UNKNOWN"
      * are not appropriate for use in this API. NULL will be returned in this case. For example, calling this method
      * with region "IT" (Italy) for type "URGN_CONTINENT" returns the region "150" ( Europe ).
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     const Region* getContainingRegion(URegionType type) const;
 
@@ -148,10 +148,10 @@ public:
      * @stable ICU 55
      */
     StringEnumeration* getContainedRegions( URegionType type, UErrorCode &status ) const;
-
+ 
     /**
      * Returns true if this region contains the supplied other region anywhere in the region hierarchy.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     UBool contains(const Region &other) const;
 
@@ -159,33 +159,33 @@ public:
      * For deprecated regions, return an enumeration over the IDs of the regions that are the preferred replacement
      * regions for this region.  Returns null for a non-deprecated region.  For example, calling this method with region
      * "SU" (Soviet Union) would return a list of the regions containing "RU" (Russia), "AM" (Armenia), "AZ" (Azerbaijan), etc...
-     * @stable ICU 55
+     * @stable ICU 55 
      */
     StringEnumeration* getPreferredValues(UErrorCode &status) const;
 
     /**
      * Return this region's canonical region code.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     const char* getRegionCode() const;
 
     /**
      * Return this region's numeric code.
      * Returns a negative value if the given region does not have a numeric code assigned to it.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     int32_t getNumericCode() const;
 
     /**
      * Returns the region type of this region.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URegionType getType() const;
 
 #ifndef U_HIDE_INTERNAL_API
     /**
      * Cleans up statically allocated memory.
-     * @internal
+     * @internal 
      */
     static void cleanupRegionData();
 #endif  /* U_HIDE_INTERNAL_API */
@@ -209,7 +209,7 @@ private:
      * Initializes the region data from the ICU resource bundles.  The region data
      * contains the basic relationships such as which regions are known, what the numeric
      * codes are, any known aliases, and the territory containment data.
-     *
+     * 
      * If the region data has already loaded, then this method simply returns without doing
      * anything meaningful.
      */

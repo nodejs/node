@@ -9,7 +9,7 @@
 // selection for v128.select, in the AVX case it was too flexible and allowed
 // the input operands to be slots, but the code-gen required them to be
 // registers.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 // Generate function 1 (out of 1).

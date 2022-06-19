@@ -10,7 +10,7 @@ namespace node {
 namespace crypto {
 namespace Timing {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
-
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Timing
 }  // namespace crypto
 }  // namespace node

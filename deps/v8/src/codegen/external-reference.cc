@@ -4,16 +4,19 @@
 
 #include "src/codegen/external-reference.h"
 
-#include "src/api/api.h"
+#include "include/v8-fast-api-calls.h"
+#include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
-#include "src/compiler/code-assembler.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/encoded-c-signature.h"
+#include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/simulator-base.h"
+#include "src/execution/simulator.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
@@ -23,6 +26,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/elements.h"
+#include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/regexp/experimental/experimental.h"
@@ -30,10 +34,14 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-external-refs.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
@@ -141,6 +149,19 @@ constexpr struct alignas(16) {
 } wasm_uint32_max_as_double = {uint64_t{0x41efffffffe00000},
                                uint64_t{0x41efffffffe00000}};
 
+// This is 2147483648.0, which is 1 more than INT32_MAX.
+constexpr struct alignas(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} wasm_int32_overflow_as_float = {
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -154,8 +175,18 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
 }
 
 // static
+ExternalReference ExternalReference::Create(ApiFunction* fun, Type type) {
+  return ExternalReference(Redirect(fun->address(), type));
+}
+
+// static
 ExternalReference ExternalReference::Create(
-    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL) {
+    Isolate* isolate, ApiFunction* fun, Type type, Address* c_functions,
+    const CFunctionInfo* const* c_signatures, unsigned num_functions) {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  isolate->simulator_data()->RegisterFunctionsAndSignatures(
+      c_functions, c_signatures, num_functions);
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   return ExternalReference(Redirect(fun->address(), type));
 }
 
@@ -171,16 +202,16 @@ ExternalReference ExternalReference::Create(const Runtime::Function* f) {
 }
 
 // static
-ExternalReference ExternalReference::Create(Address address) {
-  return ExternalReference(Redirect(address));
+ExternalReference ExternalReference::Create(Address address, Type type) {
+  return ExternalReference(Redirect(address, type));
 }
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
-ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->builtin_address(0));
+ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
+  return ExternalReference(isolate->builtin_table());
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
@@ -188,12 +219,28 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_POINTERS
+ExternalReference ExternalReference::sandbox_base_address() {
+  return ExternalReference(GetProcessWideSandbox()->base_address());
+}
+
+ExternalReference ExternalReference::sandbox_end_address() {
+  return ExternalReference(GetProcessWideSandbox()->end_address());
+}
+
+ExternalReference ExternalReference::empty_backing_store_buffer() {
+  return ExternalReference(GetProcessWideSandbox()
+                               ->constants()
+                               .empty_backing_store_buffer_address());
+}
+#endif  // V8_SANDBOXED_POINTERS
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->external_pointer_table_address());
 }
-#endif
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -276,12 +323,6 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
   }
 
-#define FUNCTION_REFERENCE_WITH_ISOLATE(Name, Target)                      \
-  ExternalReference ExternalReference::Name(Isolate* isolate) {            \
-    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
-    return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
-  }
-
 #define FUNCTION_REFERENCE_WITH_TYPE(Name, Target, Type)                   \
   ExternalReference ExternalReference::Name() {                            \
     STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
@@ -335,53 +376,67 @@ FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
-FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
-FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
-FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
-FUNCTION_REFERENCE(wasm_f32_nearest_int, wasm::f32_nearest_int_wrapper)
-FUNCTION_REFERENCE(wasm_f64_trunc, wasm::f64_trunc_wrapper)
-FUNCTION_REFERENCE(wasm_f64_floor, wasm::f64_floor_wrapper)
-FUNCTION_REFERENCE(wasm_f64_ceil, wasm::f64_ceil_wrapper)
-FUNCTION_REFERENCE(wasm_f64_nearest_int, wasm::f64_nearest_int_wrapper)
-FUNCTION_REFERENCE(wasm_int64_to_float32, wasm::int64_to_float32_wrapper)
-FUNCTION_REFERENCE(wasm_uint64_to_float32, wasm::uint64_to_float32_wrapper)
-FUNCTION_REFERENCE(wasm_int64_to_float64, wasm::int64_to_float64_wrapper)
-FUNCTION_REFERENCE(wasm_uint64_to_float64, wasm::uint64_to_float64_wrapper)
-FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
-FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
-FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
-FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
-FUNCTION_REFERENCE(wasm_float32_to_int64_sat,
-                   wasm::float32_to_int64_sat_wrapper)
-FUNCTION_REFERENCE(wasm_float32_to_uint64_sat,
-                   wasm::float32_to_uint64_sat_wrapper)
-FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
-                   wasm::float64_to_int64_sat_wrapper)
-FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
-                   wasm::float64_to_uint64_sat_wrapper)
-FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
-FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
-FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
-FUNCTION_REFERENCE(wasm_uint64_mod, wasm::uint64_mod_wrapper)
-FUNCTION_REFERENCE(wasm_word32_ctz, wasm::word32_ctz_wrapper)
-FUNCTION_REFERENCE(wasm_word64_ctz, wasm::word64_ctz_wrapper)
-FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
-FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
-FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
-FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
-FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
-FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
-FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
-FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
-FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
-FUNCTION_REFERENCE(wasm_f64x2_nearest_int, wasm::f64x2_nearest_int_wrapper)
-FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
-FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
-FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
-FUNCTION_REFERENCE(wasm_f32x4_nearest_int, wasm::f32x4_nearest_int_wrapper)
-FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
-FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
-FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32_trunc, wasm::f32_trunc_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32_floor, wasm::f32_floor_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32_ceil, wasm::f32_ceil_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32_nearest_int, wasm::f32_nearest_int_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64_trunc, wasm::f64_trunc_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64_floor, wasm::f64_floor_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64_ceil, wasm::f64_ceil_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64_nearest_int, wasm::f64_nearest_int_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_int64_to_float32,
+        wasm::int64_to_float32_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_uint64_to_float32,
+        wasm::uint64_to_float32_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_int64_to_float64,
+        wasm::int64_to_float64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_uint64_to_float64,
+        wasm::uint64_to_float64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_int64,
+        wasm::float32_to_int64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_uint64,
+        wasm::float32_to_uint64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_int64,
+        wasm::float64_to_int64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_uint64,
+        wasm::float64_to_uint64_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_int64_sat,
+        wasm::float32_to_int64_sat_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_uint64_sat,
+        wasm::float32_to_uint64_sat_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_int64_sat,
+        wasm::float64_to_int64_sat_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_uint64_sat,
+        wasm::float64_to_uint64_sat_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_int64_div, wasm::int64_div_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_int64_mod, wasm::int64_mod_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_uint64_div, wasm::uint64_div_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_uint64_mod, wasm::uint64_mod_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word32_ctz, wasm::word32_ctz_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word64_ctz, wasm::word64_ctz_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word32_rol, wasm::word32_rol_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word32_ror, wasm::word32_ror_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word64_rol, wasm::word64_rol_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_word64_ror, wasm::word64_ror_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_nearest_int,
+        wasm::f64x2_nearest_int_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_nearest_int,
+        wasm::f32x4_nearest_int_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_memory_init, wasm::memory_init_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_memory_copy, wasm::memory_copy_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_memory_fill, wasm::memory_fill_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
+        wasm::call_trap_callback_for_testing)
+IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -397,7 +452,6 @@ static void f64_asin_wrapper(Address data) {
 
 FUNCTION_REFERENCE(f64_asin_wrapper_function, f64_asin_wrapper)
 
-FUNCTION_REFERENCE(wasm_float64_pow, wasm::float64_pow_wrapper)
 
 static void f64_mod_wrapper(Address data) {
   double dividend = ReadUnalignedValue<double>(data);
@@ -406,9 +460,6 @@ static void f64_mod_wrapper(Address data) {
 }
 
 FUNCTION_REFERENCE(f64_mod_wrapper_function, f64_mod_wrapper)
-
-FUNCTION_REFERENCE(wasm_call_trap_callback_for_testing,
-                   wasm::call_trap_callback_for_testing)
 
 ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
   return ExternalReference(isolate->isolate_root());
@@ -478,9 +529,14 @@ ExternalReference ExternalReference::scheduled_exception_address(
   return ExternalReference(isolate->scheduled_exception_address());
 }
 
-ExternalReference ExternalReference::address_of_pending_message_obj(
+ExternalReference ExternalReference::address_of_pending_message(
     Isolate* isolate) {
-  return ExternalReference(isolate->pending_message_obj_address());
+  return ExternalReference(isolate->pending_message_address());
+}
+
+ExternalReference ExternalReference::address_of_pending_message(
+    LocalIsolate* local_isolate) {
+  return ExternalReference(local_isolate->pending_message_address());
 }
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
@@ -498,13 +554,12 @@ ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
 }
 
-ExternalReference
-ExternalReference::address_of_harmony_regexp_match_indices_flag() {
-  return ExternalReference(&FLAG_harmony_regexp_match_indices);
-}
-
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
+}
+
+ExternalReference ExternalReference::address_of_shared_string_table_flag() {
+  return ExternalReference(&FLAG_shared_string_table);
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
@@ -604,10 +659,48 @@ ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
       reinterpret_cast<Address>(&wasm_uint32_max_as_double));
 }
 
+ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
+}
+
+ExternalReference ExternalReference::supports_cetss_address() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&CpuFeatures::supports_cetss_));
+}
+
 ExternalReference
 ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);
 }
+
+namespace {
+
+static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
+                                             int bytecode_offset,
+                                             Address raw_bytecode_array) {
+  Code code_obj = Code::cast(Object(raw_code_obj));
+  BytecodeArray bytecode_array =
+      BytecodeArray::cast(Object(raw_bytecode_array));
+  return code_obj.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
+                                                      bytecode_array);
+}
+
+static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
+                                                   int bytecode_offset,
+                                                   Address raw_bytecode_array) {
+  Code code_obj = Code::cast(Object(raw_code_obj));
+  BytecodeArray bytecode_array =
+      BytecodeArray::cast(Object(raw_bytecode_array));
+  return code_obj.GetBaselinePCForNextExecutedBytecode(bytecode_offset,
+                                                       bytecode_array);
+}
+
+}  // namespace
+
+FUNCTION_REFERENCE(baseline_pc_for_bytecode_offset, BaselinePCForBytecodeOffset)
+FUNCTION_REFERENCE(baseline_pc_for_next_executed_bytecode,
+                   BaselinePCForNextExecutedBytecode)
 
 ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
     Isolate* isolate) {
@@ -646,6 +739,8 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
+#elif V8_TARGET_ARCH_LOONG64
+#define re_stack_check_func RegExpMacroAssemblerLOONG64::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390
 #define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV64
@@ -654,11 +749,10 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 UNREACHABLE();
 #endif
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
+FUNCTION_REFERENCE(re_check_stack_guard_state, re_stack_check_func)
 #undef re_stack_check_func
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
-                                NativeRegExpMacroAssembler::GrowStack)
+FUNCTION_REFERENCE(re_grow_stack, NativeRegExpMacroAssembler::GrowStack)
 
 FUNCTION_REFERENCE(re_match_for_call_from_js,
                    IrregexpInterpreter::MatchForCallFromJs)
@@ -666,15 +760,16 @@ FUNCTION_REFERENCE(re_match_for_call_from_js,
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    ExperimentalRegExp::MatchForCallFromJs)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_non_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_non_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
-ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
+FUNCTION_REFERENCE(re_is_character_in_range_array,
+                   RegExpMacroAssembler::IsCharacterInRangeArray)
+
+ExternalReference ExternalReference::re_word_character_map() {
   return ExternalReference(
       NativeRegExpMacroAssembler::word_character_map_address());
 }
@@ -694,6 +789,16 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->regexp_stack()->memory_top_address_address());
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+}
+
+ExternalReference ExternalReference::javascript_execution_assert(
+    Isolate* isolate) {
+  return ExternalReference(isolate->javascript_execution_assert_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
@@ -746,7 +851,7 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
-  return base::Memcpy(dest, src, n);
+  return memcpy(dest, src, n);
 }
 
 FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
@@ -764,6 +869,20 @@ void* libc_memset(void* dest, int value, size_t n) {
 
 FUNCTION_REFERENCE(libc_memset_function, libc_memset)
 
+void relaxed_memcpy(volatile base::Atomic8* dest,
+                    volatile const base::Atomic8* src, size_t n) {
+  base::Relaxed_Memcpy(dest, src, n);
+}
+
+FUNCTION_REFERENCE(relaxed_memcpy_function, relaxed_memcpy)
+
+void relaxed_memmove(volatile base::Atomic8* dest,
+                     volatile const base::Atomic8* src, size_t n) {
+  base::Relaxed_Memmove(dest, src, n);
+}
+
+FUNCTION_REFERENCE(relaxed_memmove_function, relaxed_memmove)
+
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
@@ -779,53 +898,57 @@ ExternalReference ExternalReference::search_string_raw() {
 FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
                    JSArray::ArrayJoinConcatToSequentialString)
 
+FUNCTION_REFERENCE(gsab_byte_length, JSArrayBuffer::GsabByteLength)
+
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
 }
 
 ExternalReference ExternalReference::search_string_raw_one_two() {
-  return search_string_raw<const uint8_t, const uc16>();
+  return search_string_raw<const uint8_t, const base::uc16>();
 }
 
 ExternalReference ExternalReference::search_string_raw_two_one() {
-  return search_string_raw<const uc16, const uint8_t>();
+  return search_string_raw<const base::uc16, const uint8_t>();
 }
 
 ExternalReference ExternalReference::search_string_raw_two_two() {
-  return search_string_raw<const uc16, const uc16>();
+  return search_string_raw<const base::uc16, const base::uc16>();
 }
 
 namespace {
 
-void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, from,
-                                      to);
+void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, start,
+                                      length);
 }
 
-void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink, from,
-                                       to);
+void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink,
+                                       start, length);
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalOneByteString());
-  return ExternalOneByteString::cast(Object(string)).GetChars();
+  CHECK(Object(string).IsExternalOneByteString(cage_base));
+  return ExternalOneByteString::cast(Object(string)).GetChars(cage_base);
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalTwoByteString());
-  return ExternalTwoByteString::cast(Object(string)).GetChars();
+  CHECK(Object(string).IsExternalTwoByteString(cage_base));
+  return ExternalTwoByteString::cast(Object(string)).GetChars(cage_base);
 }
 
 }  // namespace
@@ -904,17 +1027,28 @@ ExternalReference ExternalReference::intl_to_latin1_lower_table() {
   uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
   return ExternalReference(reinterpret_cast<Address>(ptr));
 }
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l1() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL1());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l3() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL3());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 #endif  // V8_INTL_SUPPORT
 
 // Explicit instantiations for all combinations of 1- and 2-byte strings.
 template ExternalReference
 ExternalReference::search_string_raw<const uint8_t, const uint8_t>();
 template ExternalReference
-ExternalReference::search_string_raw<const uint8_t, const uc16>();
+ExternalReference::search_string_raw<const uint8_t, const base::uc16>();
 template ExternalReference
-ExternalReference::search_string_raw<const uc16, const uint8_t>();
+ExternalReference::search_string_raw<const base::uc16, const uint8_t>();
 template ExternalReference
-ExternalReference::search_string_raw<const uc16, const uc16>();
+ExternalReference::search_string_raw<const base::uc16, const base::uc16>();
 
 ExternalReference ExternalReference::FromRawAddress(Address address) {
   return ExternalReference(address);
@@ -925,6 +1059,11 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
+ExternalReference ExternalReference::promise_hook_flags_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_flags_address());
+}
+
 ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
   return ExternalReference(isolate->promise_hook_address());
 }
@@ -932,21 +1071,6 @@ ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
 ExternalReference ExternalReference::async_event_delegate_address(
     Isolate* isolate) {
   return ExternalReference(isolate->async_event_delegate_address());
-}
-
-ExternalReference
-ExternalReference::promise_hook_or_async_event_delegate_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->promise_hook_or_async_event_delegate_address());
-}
-
-ExternalReference ExternalReference::
-    promise_hook_or_debug_is_active_or_async_event_delegate_address(
-        Isolate* isolate) {
-  return ExternalReference(
-      isolate
-          ->promise_hook_or_debug_is_active_or_async_event_delegate_address());
 }
 
 ExternalReference ExternalReference::debug_execution_mode_address(
@@ -985,11 +1109,6 @@ FUNCTION_REFERENCE_WITH_TYPE(mod_two_doubles_operation, modulo_double_double,
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->suspended_generator_address());
-}
-
-ExternalReference ExternalReference::debug_restart_fp_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
 ExternalReference ExternalReference::fast_c_call_caller_fp_address(
@@ -1125,6 +1244,128 @@ static uint64_t atomic_pair_compare_exchange(intptr_t address,
 FUNCTION_REFERENCE(atomic_pair_compare_exchange_function,
                    atomic_pair_compare_exchange)
 
+#ifdef V8_IS_TSAN
+namespace {
+// Mimics the store in generated code by having a relaxed store to the same
+// address, with the same value. This is done in order for TSAN to see these
+// stores from generated code.
+// Note that {value} is an int64_t irrespective of the store size. This is on
+// purpose to keep the function signatures the same across stores. The
+// static_cast inside the method will ignore the bits which will not be stored.
+void tsan_relaxed_store_8_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(addr),
+                      static_cast<base::Atomic8>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_relaxed_store_16_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Relaxed_Store(reinterpret_cast<base::Atomic16*>(addr),
+                      static_cast<base::Atomic16>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_relaxed_store_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+    base::Relaxed_Store(reinterpret_cast<base::Atomic32*>(addr),
+                        static_cast<base::Atomic32>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_relaxed_store_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Relaxed_Store(reinterpret_cast<base::Atomic64*>(addr),
+                      static_cast<base::Atomic64>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+// Same as above, for sequentially consistent stores.
+void tsan_seq_cst_store_8_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic8*>(addr),
+                     static_cast<base::Atomic8>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_16_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic16*>(addr),
+                     static_cast<base::Atomic16>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic32*>(addr),
+                     static_cast<base::Atomic32>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic64*>(addr),
+                     static_cast<base::Atomic64>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+// Same as above, for relaxed loads.
+base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  return base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(addr));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+base::Atomic64 tsan_relaxed_load_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  return base::Relaxed_Load(reinterpret_cast<base::Atomic64*>(addr));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+}  // namespace
+#endif  // V8_IS_TSAN
+
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_8_bits,
+        tsan_relaxed_store_8_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_16_bits,
+        tsan_relaxed_store_16_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_32_bits,
+        tsan_relaxed_store_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_64_bits,
+        tsan_relaxed_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_8_bits,
+        tsan_seq_cst_store_8_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_16_bits,
+        tsan_seq_cst_store_16_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_32_bits,
+        tsan_seq_cst_store_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_64_bits,
+        tsan_seq_cst_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
+        tsan_relaxed_load_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
+        tsan_relaxed_load_64_bits)
+
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {
   Context context = Context::cast(Object(raw_context));
@@ -1138,9 +1379,9 @@ FUNCTION_REFERENCE(
     js_finalization_registry_remove_cell_from_unregister_token_map,
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
-#ifdef V8_HEAP_SANDBOX
-FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
-                   ExternalPointerTable::GrowTable)
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+FUNCTION_REFERENCE(external_pointer_table_allocate_entry,
+                   ExternalPointerTable::AllocateEntry)
 #endif
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
@@ -1179,7 +1420,6 @@ void abort_with_reason(int reason) {
 }
 
 #undef FUNCTION_REFERENCE
-#undef FUNCTION_REFERENCE_WITH_ISOLATE
 #undef FUNCTION_REFERENCE_WITH_TYPE
 
 }  // namespace internal

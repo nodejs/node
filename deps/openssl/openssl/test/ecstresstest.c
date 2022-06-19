@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -18,7 +18,7 @@
 
 #define NUM_REPEATS "1000000"
 
-static int64_t num_repeats;
+static ossl_intmax_t num_repeats;
 static int print_mode = 0;
 
 #ifndef OPENSSL_NO_EC
@@ -39,10 +39,11 @@ static const char *kP256DefaultResult =
  * point multiplication.
  * Returns the X-coordinate of the end result or NULL on error.
  */
-static BIGNUM *walk_curve(const EC_GROUP *group, EC_POINT *point, int64_t num)
+static BIGNUM *walk_curve(const EC_GROUP *group, EC_POINT *point,
+                          ossl_intmax_t num)
 {
     BIGNUM *scalar = NULL;
-    int64_t i;
+    ossl_intmax_t i;
 
     if (!TEST_ptr(scalar = BN_new())
             || !TEST_true(EC_POINT_get_affine_coordinates(group, point, scalar,
@@ -101,20 +102,21 @@ err:
 }
 #endif
 
-static int atoi64(const char *in, int64_t *result)
+typedef enum OPTION_choice {
+    OPT_ERR = -1,
+    OPT_EOF = 0,
+    OPT_NUM_REPEATS,
+    OPT_TEST_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS *test_get_options(void)
 {
-    int64_t ret = 0;
-
-    for ( ; *in != '\0'; in++) {
-        char c = *in;
-
-        if (!isdigit((unsigned char)c))
-            return 0;
-        ret *= 10;
-        ret += (c - '0');
-    }
-    *result = ret;
-    return 1;
+    static const OPTIONS test_options[] = {
+        OPT_TEST_OPTIONS_DEFAULT_USAGE,
+        { "num", OPT_NUM_REPEATS, 'M', "Number of repeats" },
+        { NULL }
+    };
+    return test_options;
 }
 
 /*
@@ -124,22 +126,27 @@ static int atoi64(const char *in, int64_t *result)
  */
 int setup_tests(void)
 {
-    const char *p;
+    OPTION_CHOICE o;
 
-    if (!atoi64(NUM_REPEATS, &num_repeats)) {
+    if (!opt_intmax(NUM_REPEATS, &num_repeats)) {
         TEST_error("Cannot parse " NUM_REPEATS);
         return 0;
     }
-    /*
-     * TODO(openssl-team): code under test/ should be able to reuse the option
-     * parsing framework currently in apps/.
-     */
-    p = test_get_option_argument("-num");
-    if (p != NULL) {
-        if (!atoi64(p, &num_repeats)
-                || num_repeats < 0)
+
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_NUM_REPEATS:
+            if (!opt_intmax(opt_arg(), &num_repeats)
+                    || num_repeats < 0)
+                return 0;
+            print_mode = 1;
+            break;
+        case OPT_TEST_CASES:
+           break;
+        default:
+        case OPT_ERR:
             return 0;
-        print_mode = 1;
+        }
     }
 
 #ifndef OPENSSL_NO_EC

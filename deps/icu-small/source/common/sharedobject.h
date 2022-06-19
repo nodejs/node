@@ -78,7 +78,7 @@ public:
      * Decrements the number of hard references to this object, and
      * arrange for possible cache-eviction and/or deletion if ref
      * count goes to zero. Thread-safe.
-     *
+     * 
      * Not for use from within the UnifiedCache implementation.
      */
     void removeRef() const;
@@ -108,12 +108,12 @@ public:
      */
     void deleteIfZeroRefCount() const;
 
-
+        
     /**
      * Returns a writable version of ptr.
      * If there is exactly one owner, then ptr itself is returned as a
      *  non-const pointer.
-     * If there are multiple owners, then ptr is replaced with a
+     * If there are multiple owners, then ptr is replaced with a 
      * copy-constructed clone,
      * and that is returned.
      * Returns NULL if cloning failed.
@@ -136,7 +136,7 @@ public:
      * Makes dest an owner of the object pointed to by src while adjusting
      * reference counts and deleting the previous object dest pointed to
      * if necessary. Before this call is made, dest must either be NULL or
-     * be included in the reference count of the object it points to.
+     * be included in the reference count of the object it points to. 
      *
      * T must be a subclass of SharedObject.
      */
@@ -174,7 +174,7 @@ private:
      * Reference count, excluding references from within the UnifiedCache implementation.
      */
     mutable u_atomic_int32_t hardRefCount;
-
+    
     mutable const UnifiedCacheBase *cachePtr;
 
 };

@@ -17,7 +17,7 @@
  * \file
  * \brief C API: URegion (territory containment and mapping)
  *
- * URegion objects represent data associated with a particular Unicode Region Code, also known as a
+ * URegion objects represent data associated with a particular Unicode Region Code, also known as a 
  * Unicode Region Subtag, which is defined based upon the BCP 47 standard. These include:
  * * Two-letter codes defined by ISO 3166-1, with special LDML treatment of certain private-use or
  *   reserved codes;
@@ -25,7 +25,7 @@
  * URegion objects can also provide mappings to and from additional codes. There are different types
  * of regions that are important to distinguish:
  * <p>
- * Macroregion - A code for a "macro geographical (continental) region, geographical sub-region, or
+ * Macroregion - A code for a "macro geographical (continental) region, geographical sub-region, or 
  * selected economic and other grouping" as defined in UN M.49. These are typically 3-digit codes,
  * but contain some 2-letter codes for LDML extensions, such as "QO" for Outlying Oceania.
  * Macroregions are represented in ICU by one of three region types: WORLD (code 001),
@@ -33,8 +33,8 @@
  * by a continent ).
  * <p>
  * TERRITORY - A Region that is not a Macroregion. These are typically codes for countries, but also
- * include areas that are not separate countries, such as the code "AQ" for Antarctica or the code
- * "HK" for Hong Kong (SAR China). Overseas dependencies of countries may or may not have separate
+ * include areas that are not separate countries, such as the code "AQ" for Antarctica or the code 
+ * "HK" for Hong Kong (SAR China). Overseas dependencies of countries may or may not have separate 
  * codes. The codes are typically 2-letter codes aligned with ISO 3166, but BCP47 allows for the use
  * of 3-digit codes in the future.
  * <p>
@@ -45,7 +45,7 @@
  * usually due to a country splitting into multiple territories or changing its name.
  * <p>
  * GROUPING - A widely understood grouping of territories that has a well defined membership such
- * that a region code has been assigned for it.  Some of these are UN M.49 codes that don't fall into
+ * that a region code has been assigned for it.  Some of these are UN M.49 codes that don't fall into 
  * the world/continent/sub-continent hierarchy, while others are just well-known groupings that have
  * their own region code. Region "EU" (European Union) is one such region code that is a grouping.
  * Groupings will never be returned by the uregion_getContainingRegion, since a different type of region
@@ -59,51 +59,51 @@
  * URegionType is an enumeration defining the different types of regions.  Current possible
  * values are URGN_WORLD, URGN_CONTINENT, URGN_SUBCONTINENT, URGN_TERRITORY, URGN_GROUPING,
  * URGN_DEPRECATED, and URGN_UNKNOWN.
- *
- * @stable ICU 51
+ * 
+ * @stable ICU 51 
  */
 typedef enum URegionType {
     /**
      * Type representing the unknown region.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_UNKNOWN,
 
     /**
      * Type representing a territory.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_TERRITORY,
 
     /**
      * Type representing the whole world.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_WORLD,
 
     /**
      * Type representing a continent.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_CONTINENT,
 
     /**
      * Type representing a sub-continent.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_SUBCONTINENT,
 
     /**
      * Type representing a grouping of territories that is not to be used in
      * the normal WORLD/CONTINENT/SUBCONTINENT/TERRITORY containment tree.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_GROUPING,
 
     /**
      * Type representing a region whose code has been deprecated, usually
      * due to a country splitting into multiple territories or changing its name.
-     * @stable ICU 51
+     * @stable ICU 51 
      */
     URGN_DEPRECATED,
 

@@ -116,11 +116,17 @@ void OS::SignalCodeMovingGC() {
   void* addr =
       mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
   DCHECK(addr != MAP_FAILED);
-  CHECK(OS::Free(addr, size));
+  OS::Free(addr, size);
   fclose(f);
 }
 
 void OS::AdjustSchedulingParams() {}
+
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return {};
+}
 
 }  // namespace base
 }  // namespace v8

@@ -23,10 +23,10 @@
 #include "unicode/uobject.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Replaceable String
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 class UnicodeString;
@@ -87,7 +87,7 @@ public:
      * Returns the number of 16-bit code units in the text.
      * @return number of 16-bit code units in text
      * @stable ICU 1.8
-     */
+     */ 
     inline int32_t length() const;
 
     /**
@@ -114,7 +114,7 @@ public:
     inline UChar32 char32At(int32_t offset) const;
 
     /**
-     * Copies characters in the range [<tt>start</tt>, <tt>limit</tt>)
+     * Copies characters in the range [<tt>start</tt>, <tt>limit</tt>) 
      * into the UnicodeString <tt>target</tt>.
      * @param start offset of first character which will be copied
      * @param limit offset immediately following the last character to
@@ -144,7 +144,7 @@ public:
      * @param limit the ending index, exclusive; <code>start <= limit
      * <= length()</code>.
      * @param text the text to replace characters <code>start</code>
-     * to <code>limit - 1</code>
+     * to <code>limit - 1</code> 
      * @stable ICU 2.0
      */
     virtual void handleReplaceBetween(int32_t start,
@@ -164,7 +164,7 @@ public:
      * Copies a substring of this object, retaining metadata.
      * This method is used to duplicate or reorder substrings.
      * The destination index must not overlap the source range.
-     *
+     * 
      * @param start the beginning index, inclusive; <code>0 <= start <=
      * limit</code>.
      * @param limit the ending index, exclusive; <code>start <= limit <=
@@ -224,7 +224,7 @@ protected:
     /**
      * Virtual version of length().
      * @stable ICU 2.4
-     */
+     */ 
     virtual int32_t getLength() const = 0;
 
     /**

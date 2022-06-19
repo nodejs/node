@@ -4,6 +4,7 @@
 .align	16
 whirlpool_block_mmx:
 .L_whirlpool_block_mmx_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1104,3 +1105,20 @@ whirlpool_block_mmx:
 .byte	251,238,124,102,221,23,71,158
 .byte	202,45,191,7,173,90,131,51
 .size	whirlpool_block_mmx,.-.L_whirlpool_block_mmx_begin
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

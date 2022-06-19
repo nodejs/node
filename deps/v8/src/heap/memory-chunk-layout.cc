@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-chunk-layout.h"
 
+#include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
@@ -46,7 +47,7 @@ intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
 
 size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
     AllocationSpace space) {
-  if (space == CODE_SPACE) {
+  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
     return ObjectStartOffsetInCodePage();
   }
   return ObjectStartOffsetInDataPage();

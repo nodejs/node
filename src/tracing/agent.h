@@ -76,7 +76,7 @@ class AgentWriterHandle {
   inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
 
   Agent* agent_ = nullptr;
-  int id_;
+  int id_ = 0;
 
   friend class Agent;
 };

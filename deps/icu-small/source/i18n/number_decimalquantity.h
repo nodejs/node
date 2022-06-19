@@ -81,11 +81,15 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      *
      * <p>If rounding to a power of ten, use the more efficient {@link #roundToMagnitude} instead.
      *
-     * @param roundingIncrement The increment to which to round.
+     * @param increment The increment to which to round.
+     * @param magnitude The power of 10 to which to round.
      * @param roundingMode The {@link RoundingMode} to use if rounding is necessary.
      */
-    void roundToIncrement(double roundingIncrement, RoundingMode roundingMode,
-                          UErrorCode& status);
+    void roundToIncrement(
+        uint64_t increment,
+        digits_t magnitude,
+        RoundingMode roundingMode,
+        UErrorCode& status);
 
     /** Removes all fraction digits. */
     void truncate();
@@ -136,9 +140,16 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      * this method with delta=-3 will change the value to "1.23456".
      *
      * @param delta The number of magnitudes of ten to change by.
-     * @return true if integer overflow occured; false otherwise.
+     * @return true if integer overflow occurred; false otherwise.
      */
     bool adjustMagnitude(int32_t delta);
+
+    /**
+     * Scales the number such that the least significant nonzero digit is at magnitude 0.
+     *
+     * @return The previous magnitude of the least significant digit.
+     */
+    int32_t adjustToZeroScale();
 
     /**
      * @return The power of ten corresponding to the most significant nonzero digit.
@@ -167,6 +178,11 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
     void adjustExponent(int32_t delta);
 
     /**
+     * Resets the DecimalQuantity to the value before adjustMagnitude and adjustExponent.
+     */
+    void resetExponent();
+
+    /**
      * @return Whether the value represented by this {@link DecimalQuantity} is
      * zero, infinity, or NaN.
      */
@@ -184,11 +200,11 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
     /** @return Whether the value represented by this {@link DecimalQuantity} is not a number. */
     bool isNaN() const U_OVERRIDE;
 
-    /**
+    /**  
      * Note: this method incorporates the value of {@code exponent}
      * (for cases such as compact notation) to return the proper long value
      * represented by the result.
-     * @param truncateIfOverflow if false and the number does NOT fit, fails with an assertion error.
+     * @param truncateIfOverflow if false and the number does NOT fit, fails with an assertion error. 
      */
     int64_t toLong(bool truncateIfOverflow = false) const;
 
@@ -228,6 +244,9 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
 
     /** Internal method if the caller already has a DecNum. */
     DecimalQuantity &setToDecNum(const DecNum& n, UErrorCode& status);
+
+    /** Returns a DecimalQuantity after parsing the input string. */
+    static DecimalQuantity fromExponentString(UnicodeString n, UErrorCode& status);
 
     /**
      * Appends a digit, optionally with one or more leading zeros, to the end of the value represented
@@ -309,6 +328,10 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
 
     /** Returns the string without exponential notation. Slightly slower than toScientificString(). */
     UnicodeString toPlainString() const;
+
+    /** Returns the string using ASCII digits and using exponential notation for non-zero
+    exponents, following the UTS 35 specification for plural rule samples. */
+    UnicodeString toExponentString() const;
 
     /** Visible for testing */
     inline bool isUsingBytes() { return usingBytes; }
@@ -428,7 +451,9 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
 
     /**
      * Sets the digit in the BCD list. This method only sets the digit; it is the caller's
-     * responsibility to call {@link #compact} after setting the digit.
+     * responsibility to call {@link #compact} after setting the digit, and to ensure
+     * that the precision field is updated to reflect the correct number of digits if a
+     * nonzero digit is added to the decimal.
      *
      * @param position The position of the digit to pop, counted in BCD units from the least
      *     significant digit. If outside the range supported by the implementation, an AssertionError
@@ -510,6 +535,8 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
     void _setToDoubleFast(double n);
 
     void _setToDecNum(const DecNum& dn, UErrorCode& status);
+
+    static int32_t getVisibleFractionCount(UnicodeString value);
 
     void convertToAccurateDouble();
 

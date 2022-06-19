@@ -25,13 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --concurrent-recompilation
 // Flags: --no-always-opt
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
 
 Debug = debug.Debug;
 
@@ -58,19 +53,19 @@ var f = function() {
 %PrepareFunctionForOptimization(f);
 f();
 f();
-%OptimizeFunctionOnNextCall(f, "concurrent");  // Mark with builtin.
+%DisableOptimizationFinalization();
+%OptimizeFunctionOnNextCall(f, "concurrent");
 f();                           // Kick off concurrent recompilation.
 
+%WaitForBackgroundOptimization();
 // After compile graph has been created...
 Debug.setListener(listener);   // Activate debugger.
 Debug.setBreakPoint(f, 2, 0);  // Force deopt.
+assertUnoptimized(f);
+%FinalizeOptimization();
 
-// At this point, concurrent recompilation is still being blocked.
-assertUnoptimized(f, "no sync");
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
-// Sync with optimization thread.  But no optimized code is installed.
-assertUnoptimized(f, "sync");
+// No optimized code was installed.
+assertUnoptimized(f);
 
 f();                           // Trigger break point.
 assertEquals(1, listened);

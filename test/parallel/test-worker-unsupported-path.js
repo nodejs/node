@@ -7,17 +7,6 @@ const { Worker } = require('worker_threads');
 
 {
   const expectedErr = {
-    code: 'ERR_WORKER_UNSUPPORTED_EXTENSION',
-    name: 'TypeError'
-  };
-  assert.throws(() => { new Worker('/b'); }, expectedErr);
-  assert.throws(() => { new Worker('/c.wasm'); }, expectedErr);
-  assert.throws(() => { new Worker('/d.txt'); }, expectedErr);
-  assert.throws(() => { new Worker(new URL('file:///C:/e.wasm')); }, expectedErr);
-}
-
-{
-  const expectedErr = {
     code: 'ERR_WORKER_PATH',
     name: 'TypeError'
   };

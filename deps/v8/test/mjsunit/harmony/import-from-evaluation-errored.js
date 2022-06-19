@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-dynamic-import
+// Flags: --allow-natives-syntax
 
 var error1, error2;
-import('modules-skip-11.mjs').catch(e => error1 = e);
-import('modules-skip-11.mjs').catch(e => error2 = e);
+import('modules-skip-11.mjs').catch(e => { error1 = e });
+import('modules-skip-11.mjs').catch(e => { error2 = e });
 %PerformMicrotaskCheckpoint();
 
 assertEquals(error1, error2);

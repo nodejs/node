@@ -13,6 +13,7 @@
 
 #include <openssl/x509.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -109,20 +110,20 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // Try getting issuer from a cert store
   if (ret) {
     if (issuer == nullptr) {
-      ret = SSL_CTX_get_issuer(ctx, x.get(), &issuer);
-      ret = ret < 0 ? 0 : 1;
+      // TODO(tniessen): SSL_CTX_get_issuer does not allow the caller to
+      // distinguish between a failed operation and an empty result. Fix that
+      // and then handle the potential error properly here (set ret to 0).
+      *issuer_ = SSL_CTX_get_issuer(ctx, x.get());
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
     } else {
       // Increment issuer reference count
-      issuer = X509_dup(issuer);
-      if (issuer == nullptr) {
+      issuer_->reset(X509_dup(issuer));
+      if (!*issuer_) {
         ret = 0;
       }
     }
   }
-
-  issuer_->reset(issuer);
 
   if (ret && x != nullptr) {
     cert->reset(X509_dup(x.get()));
@@ -247,78 +248,147 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), result, arraysize(root_certs)));
 }
 
+bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->secure_context_constructor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(New);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        SecureContext::kInternalFieldCount);
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
+
+    env->SetProtoMethod(tmpl, "init", Init);
+    env->SetProtoMethod(tmpl, "setKey", SetKey);
+    env->SetProtoMethod(tmpl, "setCert", SetCert);
+    env->SetProtoMethod(tmpl, "addCACert", AddCACert);
+    env->SetProtoMethod(tmpl, "addCRL", AddCRL);
+    env->SetProtoMethod(tmpl, "addRootCerts", AddRootCerts);
+    env->SetProtoMethod(tmpl, "setCipherSuites", SetCipherSuites);
+    env->SetProtoMethod(tmpl, "setCiphers", SetCiphers);
+    env->SetProtoMethod(tmpl, "setSigalgs", SetSigalgs);
+    env->SetProtoMethod(tmpl, "setECDHCurve", SetECDHCurve);
+    env->SetProtoMethod(tmpl, "setDHParam", SetDHParam);
+    env->SetProtoMethod(tmpl, "setMaxProto", SetMaxProto);
+    env->SetProtoMethod(tmpl, "setMinProto", SetMinProto);
+    env->SetProtoMethod(tmpl, "getMaxProto", GetMaxProto);
+    env->SetProtoMethod(tmpl, "getMinProto", GetMinProto);
+    env->SetProtoMethod(tmpl, "setOptions", SetOptions);
+    env->SetProtoMethod(tmpl, "setSessionIdContext", SetSessionIdContext);
+    env->SetProtoMethod(tmpl, "setSessionTimeout", SetSessionTimeout);
+    env->SetProtoMethod(tmpl, "close", Close);
+    env->SetProtoMethod(tmpl, "loadPKCS12", LoadPKCS12);
+    env->SetProtoMethod(tmpl, "setTicketKeys", SetTicketKeys);
+    env->SetProtoMethod(tmpl, "setFreeListLength", SetFreeListLength);
+    env->SetProtoMethod(tmpl, "enableTicketKeyCallback",
+        EnableTicketKeyCallback);
+
+    env->SetProtoMethodNoSideEffect(tmpl, "getTicketKeys", GetTicketKeys);
+    env->SetProtoMethodNoSideEffect(tmpl, "getCertificate",
+        GetCertificate<true>);
+    env->SetProtoMethodNoSideEffect(tmpl, "getIssuer",
+        GetCertificate<false>);
+
+  #ifndef OPENSSL_NO_ENGINE
+    env->SetProtoMethod(tmpl, "setEngineKey", SetEngineKey);
+    env->SetProtoMethod(tmpl, "setClientCertEngine", SetClientCertEngine);
+  #endif  // !OPENSSL_NO_ENGINE
+
+  #define SET_INTEGER_CONSTANTS(name, value)                                   \
+      tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                   \
+            Integer::NewFromUnsigned(env->isolate(), value));
+    SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
+    SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
+  #undef SET_INTEGER_CONSTANTS
+
+    Local<FunctionTemplate> ctx_getter_templ =
+        FunctionTemplate::New(env->isolate(),
+                              CtxGetter,
+                              Local<Value>(),
+                              Signature::New(env->isolate(), tmpl));
+
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+        ctx_getter_templ,
+        Local<FunctionTemplate>(),
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete));
+
+    env->set_secure_context_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SecureContext::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
-
-  env->SetProtoMethod(t, "init", Init);
-  env->SetProtoMethod(t, "setKey", SetKey);
-#ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setEngineKey", SetEngineKey);
-#endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setCert", SetCert);
-  env->SetProtoMethod(t, "addCACert", AddCACert);
-  env->SetProtoMethod(t, "addCRL", AddCRL);
-  env->SetProtoMethod(t, "addRootCerts", AddRootCerts);
-  env->SetProtoMethod(t, "setCipherSuites", SetCipherSuites);
-  env->SetProtoMethod(t, "setCiphers", SetCiphers);
-  env->SetProtoMethod(t, "setSigalgs", SetSigalgs);
-  env->SetProtoMethod(t, "setECDHCurve", SetECDHCurve);
-  env->SetProtoMethod(t, "setDHParam", SetDHParam);
-  env->SetProtoMethod(t, "setMaxProto", SetMaxProto);
-  env->SetProtoMethod(t, "setMinProto", SetMinProto);
-  env->SetProtoMethod(t, "getMaxProto", GetMaxProto);
-  env->SetProtoMethod(t, "getMinProto", GetMinProto);
-  env->SetProtoMethod(t, "setOptions", SetOptions);
-  env->SetProtoMethod(t, "setSessionIdContext", SetSessionIdContext);
-  env->SetProtoMethod(t, "setSessionTimeout", SetSessionTimeout);
-  env->SetProtoMethod(t, "close", Close);
-  env->SetProtoMethod(t, "loadPKCS12", LoadPKCS12);
-#ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setClientCertEngine", SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethodNoSideEffect(t, "getTicketKeys", GetTicketKeys);
-  env->SetProtoMethod(t, "setTicketKeys", SetTicketKeys);
-  env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
-  env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
-  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
-  env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
-
-#define SET_INTEGER_CONSTANTS(name, value)                                     \
-    t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                        \
-           Integer::NewFromUnsigned(env->isolate(), value));
-  SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
-  SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
-
-#undef SET_INTEGER_CONSTANTS
-
-  Local<FunctionTemplate> ctx_getter_templ =
-      FunctionTemplate::New(env->isolate(),
-                            CtxGetter,
-                            Local<Value>(),
-                            Signature::New(env->isolate(), t));
-
-
-  t->PrototypeTemplate()->SetAccessorProperty(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      ctx_getter_templ,
-      Local<FunctionTemplate>(),
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
-
-  env->SetConstructorFunction(target, "SecureContext", t);
-
-  env->set_secure_context_constructor_template(t);
+  env->SetConstructorFunction(
+      target,
+      "SecureContext",
+      GetConstructorTemplate(env),
+      Environment::SetConstructorFunctionFlag::NONE);
 
   env->SetMethodNoSideEffect(target, "getRootCertificates",
                              GetRootCertificates);
   // Exposed for testing purposes only.
   env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
                              IsExtraRootCertsFileLoaded);
+}
+
+void SecureContext::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Init);
+  registry->Register(SetKey);
+  registry->Register(SetCert);
+  registry->Register(AddCACert);
+  registry->Register(AddCRL);
+  registry->Register(AddRootCerts);
+  registry->Register(SetCipherSuites);
+  registry->Register(SetCiphers);
+  registry->Register(SetSigalgs);
+  registry->Register(SetECDHCurve);
+  registry->Register(SetDHParam);
+  registry->Register(SetMaxProto);
+  registry->Register(SetMinProto);
+  registry->Register(GetMaxProto);
+  registry->Register(GetMinProto);
+  registry->Register(SetOptions);
+  registry->Register(SetSessionIdContext);
+  registry->Register(SetSessionTimeout);
+  registry->Register(Close);
+  registry->Register(LoadPKCS12);
+  registry->Register(SetTicketKeys);
+  registry->Register(SetFreeListLength);
+  registry->Register(EnableTicketKeyCallback);
+  registry->Register(GetTicketKeys);
+  registry->Register(GetCertificate<true>);
+  registry->Register(GetCertificate<false>);
+
+#ifndef OPENSSL_NO_ENGINE
+  registry->Register(SetEngineKey);
+  registry->Register(SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
+
+  registry->Register(CtxGetter);
+
+  registry->Register(GetRootCertificates);
+  registry->Register(IsExtraRootCertsFileLoaded);
+}
+
+SecureContext* SecureContext::Create(Environment* env) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+          ->InstanceTemplate()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return new SecureContext(env, obj);
 }
 
 SecureContext::SecureContext(Environment* env, Local<Object> wrap)
@@ -438,6 +508,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_.reset(SSL_CTX_new(method));
+  if (!sc->ctx_) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
   // Disable SSLv2 in the case when method == TLS_method() and the
@@ -446,6 +519,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
+#if OPENSSL_VERSION_MAJOR >= 3
+  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
+#endif
 
   // Enable automatic cert chaining. This is enabled by default in OpenSSL, but
   // disabled by default in BoringSSL. Enable it explicitly to make the
@@ -964,6 +1040,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     const char* str = ERR_reason_error_string(err);
+    str = str != nullptr ? str : "Unknown error";
+
     return env->ThrowError(str);
   }
 }
@@ -1082,7 +1160,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
     return -1;
   }
 
-  argv[2] = env != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
+  argv[2] = enc != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
 
   Local<Value> ret;
   if (!node::MakeCallback(

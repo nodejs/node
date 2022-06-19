@@ -55,11 +55,8 @@ for (const test of failureTests) {
     () => new URL(test.input, test.base),
     (error) => {
       assert.throws(() => { throw error; }, expectedError);
-
-      // The input could be processed, so we don't do strict matching here
-      let match;
-      assert(match = (`${error}`).match(/Invalid URL: (.*)$/));
-      assert.strictEqual(error.input, match[1]);
+      assert.strictEqual(`${error}`, 'TypeError [ERR_INVALID_URL]: Invalid URL');
+      assert.strictEqual(error.message, 'Invalid URL');
       return true;
     });
 }

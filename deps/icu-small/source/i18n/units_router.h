@@ -30,8 +30,6 @@ namespace units {
 struct RouteResult : UMemory {
     // A list of measures: a single measure for single units, multiple measures
     // for mixed units.
-    //
-    // TODO(icu-units/icu#21): figure out the right mixed unit API.
     MaybeStackVector<Measure> measures;
 
     // The output unit for this RouteResult. This may be a MIXED unit - for
@@ -109,7 +107,7 @@ namespace units {
  *
  * NOTE:
  *    the output units  and their limits will be extracted from the units preferences database by knowing
- *    the followings:
+ *    the following:
  *        - input unit
  *        - locale
  *        - usage
@@ -120,7 +118,9 @@ namespace units {
  */
 class U_I18N_API UnitsRouter {
   public:
-    UnitsRouter(MeasureUnit inputUnit, StringPiece locale, StringPiece usage, UErrorCode &status);
+    UnitsRouter(StringPiece inputUnitIdentifier, StringPiece locale, StringPiece usage,
+                UErrorCode &status);
+    UnitsRouter(const MeasureUnit &inputUnit, StringPiece locale, StringPiece usage, UErrorCode &status);
 
     /**
      * Performs locale and usage sensitive unit conversion.
@@ -152,6 +152,8 @@ class U_I18N_API UnitsRouter {
 
     static number::Precision parseSkeletonToPrecision(icu::UnicodeString precisionSkeleton,
                                                       UErrorCode &status);
+
+    void init(const MeasureUnit &inputUnit, StringPiece locale, StringPiece usage, UErrorCode &status);
 };
 
 } // namespace units

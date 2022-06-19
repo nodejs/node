@@ -51,9 +51,9 @@
 /test/benchmarks/data
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
+!/test/mjsunit/tools/*.log
 /test/mozilla/data
 /test/test262/data
-/test/test262/harness
 /test/wasm-js/data
 /test/wasm-js/tests
 /test/wasm-js/tests.tar.gz
@@ -75,6 +75,7 @@
 !/third_party/googletest/src/googletest/include/gtest
 /third_party/googletest/src/googletest/include/gtest/*
 !/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
+!/third_party/test262-harness
 !/third_party/v8
 !/third_party/wasm-api
 /tools/clang
@@ -86,7 +87,6 @@
 /tools/luci-go
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
-/tools/swarming_client
 /tools/turbolizer/build
 /tools/turbolizer/.rpt2_cache
 /tools/turbolizer/deploy
@@ -111,7 +111,10 @@ turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
-
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-v8
 !/third_party/jinja2
 !/third_party/markupsafe
 !/third_party/zlib

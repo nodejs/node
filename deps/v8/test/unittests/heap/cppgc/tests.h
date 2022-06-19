@@ -48,7 +48,7 @@ class DelegatingTracingController : public TracingController {
 };
 
 class TestWithPlatform : public ::testing::Test {
- protected:
+ public:
   static void SetUpTestSuite();
   static void TearDownTestSuite();
 
@@ -67,7 +67,7 @@ class TestWithPlatform : public ::testing::Test {
 };
 
 class TestWithHeap : public TestWithPlatform {
- protected:
+ public:
   TestWithHeap();
 
   void PreciseGC() {
@@ -76,18 +76,34 @@ class TestWithHeap : public TestWithPlatform {
         "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
+  void ConservativeGC() {
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kMayContainHeapPointers);
+  }
+
+  // GC that also discards unused memory and thus changes the resident size
+  // size of the heap and corresponding pages.
+  void ConservativeMemoryDiscardingGC() {
+    internal::Heap::From(GetHeap())->CollectGarbage(
+        {GarbageCollector::Config::CollectionType::kMajor,
+         Heap::StackState::kMayContainHeapPointers,
+         cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
+         GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible});
+  }
+
   cppgc::Heap* GetHeap() const { return heap_.get(); }
 
   cppgc::AllocationHandle& GetAllocationHandle() const {
     return allocation_handle_;
   }
 
-  std::unique_ptr<MarkerBase>& GetMarkerRef() {
-    return Heap::From(GetHeap())->marker_;
+  cppgc::HeapHandle& GetHeapHandle() const {
+    return GetHeap()->GetHeapHandle();
   }
 
-  const std::unique_ptr<MarkerBase>& GetMarkerRef() const {
-    return Heap::From(GetHeap())->marker_;
+  std::unique_ptr<MarkerBase>& GetMarkerRef() {
+    return Heap::From(GetHeap())->GetMarkerRefForTesting();
   }
 
   void ResetLinearAllocationBuffers();
@@ -100,7 +116,7 @@ class TestWithHeap : public TestWithPlatform {
 // Restrictive test fixture that supports allocation but will make sure no
 // garbage collection is triggered. This is useful for writing idiomatic
 // tests where object are allocated on the managed heap while still avoiding
-// far reaching test consquences of full garbage collection calls.
+// far reaching test consequences of full garbage collection calls.
 class TestSupportingAllocationOnly : public TestWithHeap {
  protected:
   TestSupportingAllocationOnly();

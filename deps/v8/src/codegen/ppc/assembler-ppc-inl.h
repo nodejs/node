@@ -48,8 +48,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return false; }
-
 void RelocInfo::apply(intptr_t delta) {
   // absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
@@ -147,27 +145,17 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
   return GetCodeTarget(index);
 }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsDataEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(DecompressTaggedAny(
-        host_.address(),
+        cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return HeapObject::cast(
         Object(Assembler::target_address_at(pc_, constant_pool_)));
-  }
-}
-
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(DecompressTaggedAny(
-        isolate,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
-  } else {
-    return target_object();
   }
 }
 
@@ -264,7 +252,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 
 void Assembler::UntrackBranch() {
   DCHECK(!trampoline_emitted_);

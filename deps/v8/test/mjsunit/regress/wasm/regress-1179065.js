@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --wasm-dynamic-tiering
+// Flags: --wasm-staging --wasm-dynamic-tiering --allow-natives-syntax
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(1, 10);
@@ -16,6 +16,6 @@ builder.addFunction('load', kSig_i_i).addBody([
 ]).exportFunc();
 const instance = builder.instantiate();
 // Call multiple times to trigger dynamic tiering.
-for (let i = 0; i < 20; ++i) {
+while (%IsLiftoffFunction(instance.exports.load)) {
   instance.exports.load(1);
 }

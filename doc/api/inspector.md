@@ -2,16 +2,17 @@
 
 <!--introduced_in=v8.0.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- source_link=lib/inspector.js -->
 
-The `inspector` module provides an API for interacting with the V8 inspector.
+The `node:inspector` module provides an API for interacting with the V8
+inspector.
 
 It can be accessed using:
 
 ```js
-const inspector = require('inspector');
+const inspector = require('node:inspector');
 ```
 
 ## `inspector.close()`
@@ -23,7 +24,7 @@ Deactivate the inspector. Blocks until there are no active connections.
 * {Object} An object to send messages to the remote inspector console.
 
 ```js
-require('inspector').console.log('a message');
+require('node:inspector').console.log('a message');
 ```
 
 The inspector console does not have API parity with Node.js
@@ -38,14 +39,14 @@ console.
 * `wait` {boolean} Block until a client has connected. Optional.
   **Default:** `false`.
 
-Activate inspector on host and port. Equivalent to `node
---inspect=[[host:]port]`, but can be done programmatically after node has
+Activate inspector on host and port. Equivalent to
+`node --inspect=[[host:]port]`, but can be done programmatically after node has
 started.
 
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
-See the [security warning](cli.md#inspector_security) regarding the `host`
+See the [security warning][] regarding the `host`
 parameter usage.
 
 ## `inspector.url()`
@@ -57,12 +58,12 @@ Return the URL of the active inspector, or `undefined` if there is none.
 ```console
 $ node --inspect -p 'inspector.url()'
 Debugger listening on ws://127.0.0.1:9229/166e272e-7a30-4d09-97ce-f1c012b43c34
-For help see https://nodejs.org/en/docs/inspector
+For help, see: https://nodejs.org/en/docs/inspector
 ws://127.0.0.1:9229/166e272e-7a30-4d09-97ce-f1c012b43c34
 
 $ node --inspect=localhost:3000 -p 'inspector.url()'
 Debugger listening on ws://localhost:3000/51cf8d0e-3c36-4c59-8efd-54519839e56a
-For help see https://nodejs.org/en/docs/inspector
+For help, see: https://nodejs.org/en/docs/inspector
 ws://localhost:3000/51cf8d0e-3c36-4c59-8efd-54519839e56a
 
 $ node -p 'inspector.url()'
@@ -70,6 +71,7 @@ undefined
 ```
 
 ## `inspector.waitForDebugger()`
+
 <!-- YAML
 added: v12.7.0
 -->
@@ -87,6 +89,7 @@ The `inspector.Session` is used for dispatching messages to the V8 inspector
 back-end and receiving message responses and notifications.
 
 ### `new inspector.Session()`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -96,6 +99,7 @@ needs to be connected through [`session.connect()`][] before the messages
 can be dispatched to the inspector backend.
 
 ### Event: `'inspectorNotification'`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -113,6 +117,7 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 It is also possible to subscribe only to notifications with specific method:
 
 ### Event: `<inspector-protocol-method>`;
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -134,6 +139,7 @@ session.on('Debugger.paused', ({ params }) => {
 ```
 
 ### `session.connect()`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -141,6 +147,7 @@ added: v8.0.0
 Connects a session to the inspector back-end.
 
 ### `session.connectToMainThread()`
+
 <!-- YAML
 added: v12.11.0
 -->
@@ -149,6 +156,7 @@ Connects a session to the main thread inspector back-end. An exception will
 be thrown if this API was not called on a Worker thread.
 
 ### `session.disconnect()`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -159,8 +167,15 @@ messages again. Reconnected session will lose all inspector state, such as
 enabled agents or configured breakpoints.
 
 ### `session.post(method[, params][, callback])`
+
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `method` {string}
@@ -195,8 +210,8 @@ protocol.
 Here's an example showing how to use the [CPU Profiler][]:
 
 ```js
-const inspector = require('inspector');
-const fs = require('fs');
+const inspector = require('node:inspector');
+const fs = require('node:fs');
 const session = new inspector.Session();
 session.connect();
 
@@ -220,8 +235,8 @@ session.post('Profiler.enable', () => {
 Here's an example showing how to use the [Heap Profiler][]:
 
 ```js
-const inspector = require('inspector');
-const fs = require('fs');
+const inspector = require('node:inspector');
+const fs = require('node:fs');
 const session = new inspector.Session();
 
 const fd = fs.openSync('profile.heapsnapshot', 'w');
@@ -243,4 +258,5 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
-[`session.connect()`]: #inspector_session_connect
+[`session.connect()`]: #sessionconnect
+[security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure

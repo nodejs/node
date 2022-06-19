@@ -560,7 +560,7 @@ public:
      *
      * This method returns a String. To get more information about the
      * formatting result, use formatNumericToValue().
-     *
+     * 
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.
@@ -586,7 +586,7 @@ public:
      *
      * This method returns a FormattedRelativeDateTime, which exposes more
      * information than the String returned by formatNumeric().
-     *
+     * 
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.

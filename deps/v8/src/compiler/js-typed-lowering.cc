@@ -7,8 +7,10 @@
 #include "src/ast/modules.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
@@ -592,9 +594,9 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Node* length =
         graph()->NewNode(simplified()->NumberAdd(), left_length, right_length);
 
-    PropertyCellRef string_length_protector(
-        broker(), factory()->string_length_protector());
-    string_length_protector.SerializeAsProtector();
+    PropertyCellRef string_length_protector =
+        MakeRef(broker(), factory()->string_length_protector());
+    string_length_protector.CacheAsProtector();
 
     if (string_length_protector.value().AsSmi() ==
         Protectors::kProtectorValid) {
@@ -996,9 +998,9 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     HeapObjectMatcher m(input);
     if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
       StringRef input_value = m.Ref(broker()).AsString();
-      double number;
-      ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(number, input_value.ToNumber());
-      return Replace(jsgraph()->Constant(number));
+      base::Optional<double> number = input_value.ToNumber();
+      if (!number.has_value()) return NoChange();
+      return Replace(jsgraph()->Constant(number.value()));
     }
   }
   if (input_type.IsHeapConstant()) {
@@ -1130,7 +1132,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   Node* rfalse;
   {
     // Convert {receiver} using the ToObjectStub.
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToObject);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
@@ -1171,8 +1173,8 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   Node* receiver = n.object();
   Type receiver_type = NodeProperties::GetType(receiver);
-  NameRef name(broker(), NamedAccessOf(node->op()).name());
-  NameRef length_str(broker(), factory()->length_string());
+  NameRef name = NamedAccessOf(node->op()).name(broker());
+  NameRef length_str = MakeRef(broker(), factory()->length_string());
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
@@ -1195,7 +1197,7 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   // If {value} cannot be a receiver, then it cannot have {prototype} in
   // it's prototype chain (all Primitive values have a null prototype).
   if (value_type.Is(Type::Primitive())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -1497,7 +1499,7 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
 
 namespace {
 
-void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
+void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
                    CallDescriptor::Flags flags) {
   // Patch {node} to a direct CEntry call.
   // ----------- A r g u m e n t s -----------
@@ -1538,11 +1540,11 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 
   // CPP builtins are implemented in C++, and we can inline it.
   // CPP builtins create a builtin exit frame.
-  DCHECK(Builtins::IsCpp(builtin_index));
+  DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
-  Node* stub = jsgraph->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack,
-                                           has_builtin_exit_frame);
+  Node* stub = jsgraph->CEntryStubConstant(
+      1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, has_builtin_exit_frame);
   node->ReplaceInput(0, stub);
 
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
@@ -1555,7 +1557,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
   int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
 
-  Address entry = Builtins::CppEntryOf(builtin_index);
+  Address entry = Builtins::CppEntryOf(builtin);
   ExternalReference entry_ref = ExternalReference::Create(entry);
   Node* entry_node = jsgraph->ExternalConstant(entry_ref);
 
@@ -1563,7 +1565,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   node->InsertInput(zone, cursor++, argc_node);
 
   static const int kReturnCount = 1;
-  const char* debug_name = Builtins::name(builtin_index);
+  const char* debug_name = Builtins::name(builtin);
   Operator::Properties properties = node->op()->properties();
   auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
       zone, kReturnCount, argc, debug_name, properties, flags,
@@ -1593,7 +1595,8 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
@@ -1621,22 +1624,18 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     // Only optimize [[Construct]] here if {function} is a Constructor.
     if (!function.map().is_constructor()) return NoChange();
 
-    if (!function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for function " << function);
-      return NoChange();
-    }
-
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = function.shared().construct_as_builtin();
-    CodeRef code(broker(),
-                 use_builtin_construct_stub
-                     ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                     : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
+    CodeTRef code = MakeRef(
+        broker(), use_builtin_construct_stub
+                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
     STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
     STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
     node->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
@@ -1658,15 +1657,16 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
 
-  // Check if {target} is a JSFunction.
-  if (target_type.Is(Type::Function())) {
+  // Check if {target} is a directly callable JSFunction.
+  if (target_type.Is(Type::CallableFunction())) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via CallFunctionForwardVarargs.
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 2,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
@@ -1703,30 +1703,27 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-
-    if (!function->serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for function " << *function);
-      return NoChange();
-    }
     shared = function->shared();
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& ccp =
         JSCreateClosureNode{target}.Parameters();
-    shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
+    shared = ccp.shared_info(broker());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
-    FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
-    base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
-    if (feedback_vector.has_value()) {
-      shared = feedback_vector->shared_function_info();
-    }
+    FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
+    shared = cell.shared_function_info();
   }
 
   if (shared.has_value()) {
     // Do not inline the call if we need to check whether to break at entry.
+    // If this state changes during background compilation, the compilation
+    // job will be aborted from the main thread (see
+    // Debug::PrepareFunctionForDebugExecution()).
     if (shared->HasBreakInfo()) return NoChange();
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+    // We need to check here in addition to JSCallReducer for Realms.
+    // TODO(pthier): Consolidate all the class constructor checks.
     if (IsClassConstructor(shared->kind())) return NoChange();
 
     // Check if we need to convert the {receiver}, but bailout if it would
@@ -1758,8 +1755,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
-    int formal_count = shared->internal_formal_parameter_count();
-    if (formal_count != kDontAdaptArgumentsSentinel && formal_count > arity) {
+    int formal_count =
+        shared->internal_formal_parameter_count_without_receiver();
+    if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
       // arguments.
@@ -1771,7 +1769,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), formal_count + 2, new_target);
       node->InsertInput(graph()->zone(), formal_count + 3,
-                        jsgraph()->Constant(arity));
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + formal_count,
@@ -1783,9 +1781,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     } else if (shared->HasBuiltinId()) {
       DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
       // Patch {node} to a direct code object call.
-      Callable callable = Builtins::CallableFor(
-          isolate(), static_cast<Builtins::Name>(shared->builtin_id()));
-      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+      Callable callable =
+          Builtins::CallableFor(isolate(), shared->builtin_id());
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1794,13 +1791,15 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+      node->InsertInput(graph()->zone(), 3,
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
+      node->InsertInput(graph()->zone(), arity + 3,
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -1809,8 +1808,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     return Changed(node);
   }
 
-  // Check if {target} is a JSFunction.
-  if (target_type.Is(Type::Function())) {
+  // Check if {target} is a directly callable JSFunction.
+  if (target_type.Is(Type::CallableFunction())) {
     // The node will change operators, remove the feedback vector.
     node->RemoveInput(n.FeedbackVectorIndex());
     // Compute flags for the call.
@@ -1819,7 +1818,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 2,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
                   graph()->zone(), callable.descriptor(), 1 + arity, flags)));
@@ -1909,7 +1909,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         // Filter the {key} to check if it's still a valid property of the
         // {receiver} (does the ToName conversion implicitly).
         Callable const callable =
-            Builtins::CallableFor(isolate(), Builtins::kForInFilter);
+            Builtins::CallableFor(isolate(), Builtin::kForInFilter);
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             graph()->zone(), callable.descriptor(),
             callable.descriptor().GetStackParameterCount(),
@@ -2082,7 +2082,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message_obj(isolate());
+      ExternalReference::address_of_pending_message(isolate());
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   NodeProperties::ChangeOp(node, simplified()->LoadMessage());
   return Changed(node);
@@ -2091,7 +2091,7 @@ Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
 Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message_obj(isolate());
+      ExternalReference::address_of_pending_message(isolate());
   Node* value = NodeProperties::GetValueInput(node, 0);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   node->ReplaceInput(1, value);
@@ -2223,11 +2223,11 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
 
   // Constant-fold based on {value} type.
   if (value_type.Is(Type::Array())) {
-    Node* value = jsgraph()->TrueConstant();
+    value = jsgraph()->TrueConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   } else if (!value_type.Maybe(Type::ArrayOrProxy())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -2352,16 +2352,7 @@ Reduction JSTypedLowering::ReduceJSResolvePromise(Node* node) {
 }
 
 Reduction JSTypedLowering::Reduce(Node* node) {
-  const IrOpcode::Value opcode = node->opcode();
-  if (broker()->generate_full_feedback_collection() &&
-      IrOpcode::IsFeedbackCollectingOpcode(opcode)) {
-    // In NCI code, it is not valid to reduce feedback-collecting JS opcodes
-    // into non-feedback-collecting lower-level opcodes; missed feedback would
-    // result in soft deopts.
-    return NoChange();
-  }
-
-  switch (opcode) {
+  switch (node->opcode()) {
     case IrOpcode::kJSEqual:
       return ReduceJSEqual(node);
     case IrOpcode::kJSStrictEqual:
@@ -2465,17 +2456,17 @@ Reduction JSTypedLowering::Reduce(Node* node) {
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 
-
 Graph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
 
+CompilationDependencies* JSTypedLowering::dependencies() const {
+  return broker()->dependencies();
+}
 
 Isolate* JSTypedLowering::isolate() const { return jsgraph()->isolate(); }
-
 
 JSOperatorBuilder* JSTypedLowering::javascript() const {
   return jsgraph()->javascript();
 }
-
 
 CommonOperatorBuilder* JSTypedLowering::common() const {
   return jsgraph()->common();

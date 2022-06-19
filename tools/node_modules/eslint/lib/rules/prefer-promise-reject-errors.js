@@ -10,13 +10,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require using Error objects as Promise rejection reasons",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-promise-reject-errors"
         },

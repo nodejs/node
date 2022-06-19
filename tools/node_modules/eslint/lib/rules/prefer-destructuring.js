@@ -20,13 +20,13 @@ const PRECEDENCE_OF_ASSIGNMENT_EXPR = astUtils.getPrecedence({ type: "Assignment
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require destructuring from arrays and/or objects",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-destructuring"
         },
@@ -119,8 +119,8 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Checks if destructuring type should be checked.
          * @param {string} nodeType "AssignmentExpression" or "VariableDeclarator"
          * @param {string} destructuringType "array" or "object"
          * @returns {boolean} `true` if the destructuring type should be checked for the given node
@@ -221,7 +221,11 @@ module.exports = {
          * @returns {void}
          */
         function performCheck(leftNode, rightNode, reportNode) {
-            if (rightNode.type !== "MemberExpression" || rightNode.object.type === "Super") {
+            if (
+                rightNode.type !== "MemberExpression" ||
+                rightNode.object.type === "Super" ||
+                rightNode.property.type === "PrivateIdentifier"
+            ) {
                 return;
             }
 

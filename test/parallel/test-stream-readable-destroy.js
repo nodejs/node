@@ -13,6 +13,7 @@ const assert = require('assert');
   read.on('close', common.mustCall());
 
   read.destroy();
+  assert.strictEqual(read.errored, null);
   assert.strictEqual(read.destroyed, true);
 }
 
@@ -31,6 +32,7 @@ const assert = require('assert');
   }));
 
   read.destroy(expected);
+  assert.strictEqual(read.errored, expected);
   assert.strictEqual(read.destroyed, true);
 }
 
@@ -314,8 +316,90 @@ const assert = require('assert');
     assert.strictEqual(e.name, 'AbortError');
   }));
   assert.rejects((async () => {
-    /* eslint-disable-next-line no-unused-vars */
-    for await (const chunk of read) {}
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const chunk of read) { }
   })(), /AbortError/);
   setTimeout(() => controller.abort(), 0);
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('error', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.destroy(new Error('asd'));
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.unshift('asd');
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.destroy();
+  read.unshift('asd');
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.resume();
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.destroy();
+  read.push('asd');
 }

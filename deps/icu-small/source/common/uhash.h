@@ -23,7 +23,7 @@
 /**
  * UHashtable stores key-value pairs and does moderately fast lookup
  * based on keys.  It provides a good tradeoff between access time and
- * storage space.  As elements are added to it, it grows to accomodate
+ * storage space.  As elements are added to it, it grows to accommodate
  * them.  By default, the table never shrinks, even if all elements
  * are removed from it.
  *
@@ -53,6 +53,13 @@
  * value is passed to uhash_put(), this has the effect of doing a
  * uhash_remove() on that key.  This keeps uhash_get(), uhash_count(),
  * and uhash_nextElement() consistent with one another.
+ *
+ * Keys and values can be integers.
+ * Functions that work with an integer key have an "i" prefix.
+ * Functions that work with an integer value have an "i" suffix.
+ * As with putting a NULL value pointer, putting a zero value integer removes the item.
+ * Except, there are pairs of functions that allow setting zero values
+ * and fetching (value, found) pairs.
  *
  * To see everything in a hashtable, use uhash_nextElement() to
  * iterate through its contents.  Each call to this function returns a
@@ -121,7 +128,7 @@ typedef UElementsAreEqual UValueComparator;
 /* see cmemory.h for UObjectDeleter and uprv_deleteUObject() */
 
 /**
- * This specifies whether or not, and how, the hastable resizes itself.
+ * This specifies whether or not, and how, the hashtable resizes itself.
  * See uhash_setResizePolicy().
  */
 enum UHashResizePolicy {
@@ -202,7 +209,7 @@ uhash_open(UHashFunction *keyHash,
  * NULL.
  * @param keyComp A pointer to the function that compares keys.  Must
  * not be NULL.
- * @param size The initial capacity of this hash table.
+ * @param size The initial capacity of this hashtable.
  * @param status A pointer to an UErrorCode to receive any errors.
  * @return A pointer to a UHashtable, or 0 if an error occurred.
  * @see uhash_open
@@ -237,7 +244,7 @@ uhash_init(UHashtable *hash,
  * NULL.
  * @param keyComp A pointer to the function that compares keys.  Must
  * not be NULL.
- * @param size The initial capacity of this hash table.
+ * @param size The initial capacity of this hashtable.
  * @param status A pointer to an UErrorCode to receive any errors.
  * @return A pointer to a UHashtable, or 0 if an error occurred.
  * @see uhash_openSize
@@ -315,7 +322,7 @@ U_CAPI UObjectDeleter *U_EXPORT2
 uhash_setValueDeleter(UHashtable *hash, UObjectDeleter *fn);
 
 /**
- * Specify whether or not, and how, the hastable resizes itself.
+ * Specify whether or not, and how, the hashtable resizes itself.
  * By default, tables grow but do not shrink (policy U_GROW).
  * See enum UHashResizePolicy.
  * @param hash The UHashtable to set
@@ -406,6 +413,44 @@ uhash_iputi(UHashtable *hash,
            UErrorCode *status);
 
 /**
+ * Put a (key=pointer, value=integer) item in a UHashtable.  If the
+ * keyDeleter is non-NULL, then the hashtable owns 'key' after this
+ * call.  valueDeleter must be NULL.
+ * Storing a 0 value is possible; call uhash_igetiAndFound() to retrieve values including zero.
+ *
+ * @param hash The target UHashtable.
+ * @param key The key to store.
+ * @param value The integer value to store.
+ * @param status A pointer to an UErrorCode to receive any errors.
+ * @return The previous value, or 0 if none.
+ * @see uhash_getiAndFound
+ */
+U_CAPI int32_t U_EXPORT2
+uhash_putiAllowZero(UHashtable *hash,
+                    void *key,
+                    int32_t value,
+                    UErrorCode *status);
+
+/**
+ * Put a (key=integer, value=integer) item in a UHashtable.  If the
+ * keyDeleter is non-NULL, then the hashtable owns 'key' after this
+ * call.  valueDeleter must be NULL.
+ * Storing a 0 value is possible; call uhash_igetiAndFound() to retrieve values including zero.
+ *
+ * @param hash The target UHashtable.
+ * @param key The key to store.
+ * @param value The integer value to store.
+ * @param status A pointer to an UErrorCode to receive any errors.
+ * @return The previous value, or 0 if none.
+ * @see uhash_igetiAndFound
+ */
+U_CAPI int32_t U_EXPORT2
+uhash_iputiAllowZero(UHashtable *hash,
+                     int32_t key,
+                     int32_t value,
+                     UErrorCode *status);
+
+/**
  * Retrieve a pointer value from a UHashtable using a pointer key,
  * as previously stored by uhash_put().
  * @param hash The target UHashtable.
@@ -447,6 +492,34 @@ uhash_geti(const UHashtable *hash,
 U_CAPI int32_t U_EXPORT2
 uhash_igeti(const UHashtable *hash,
            int32_t key);
+
+/**
+ * Retrieves an integer value from a UHashtable using a pointer key,
+ * as previously stored by uhash_putiAllowZero() or uhash_puti().
+ *
+ * @param hash The target UHashtable.
+ * @param key A pointer key stored in a hashtable
+ * @param found A pointer to a boolean which will be set for whether the key was found.
+ * @return The requested item, or 0 if not found.
+ */
+U_CAPI int32_t U_EXPORT2
+uhash_getiAndFound(const UHashtable *hash,
+                   const void *key,
+                   UBool *found);
+
+/**
+ * Retrieves an integer value from a UHashtable using an integer key,
+ * as previously stored by uhash_iputiAllowZero() or uhash_iputi().
+ *
+ * @param hash The target UHashtable.
+ * @param key An integer key stored in a hashtable
+ * @param found A pointer to a boolean which will be set for whether the key was found.
+ * @return The requested item, or 0 if not found.
+ */
+U_CAPI int32_t U_EXPORT2
+uhash_igetiAndFound(const UHashtable *hash,
+                    int32_t key,
+                    UBool *found);
 
 /**
  * Remove an item from a UHashtable stored by uhash_put().
@@ -494,6 +567,26 @@ uhash_iremovei(UHashtable *hash,
  */
 U_CAPI void U_EXPORT2
 uhash_removeAll(UHashtable *hash);
+
+/**
+ * Returns true if the UHashtable contains an item with this pointer key.
+ *
+ * @param hash The target UHashtable.
+ * @param key A pointer key stored in a hashtable
+ * @return true if the key is found.
+ */
+U_CAPI UBool U_EXPORT2
+uhash_containsKey(const UHashtable *hash, const void *key);
+
+/**
+ * Returns true if the UHashtable contains an item with this integer key.
+ *
+ * @param hash The target UHashtable.
+ * @param key An integer key stored in a hashtable
+ * @return true if the key is found.
+ */
+U_CAPI UBool U_EXPORT2
+uhash_icontainsKey(const UHashtable *hash, int32_t key);
 
 /**
  * Locate an element of a UHashtable.  The caller must not modify the
@@ -687,7 +780,7 @@ uhash_deleteHashtable(void *obj);
 /* Use uprv_free() itself as a deleter for any key or value allocated using uprv_malloc. */
 
 /**
- * Checks if the given hash tables are equal or not.
+ * Checks if the given hashtables are equal or not.
  * @param hash1
  * @param hash2
  * @return true if the hashtables are equal and false if not.

@@ -159,10 +159,12 @@ SocketAddress::CompareResult compare_ipv4(
       reinterpret_cast<const sockaddr_in*>(one.data());
   const sockaddr_in* two_in =
       reinterpret_cast<const sockaddr_in*>(two.data());
+  const uint32_t s_addr_one = ntohl(one_in->sin_addr.s_addr);
+  const uint32_t s_addr_two = ntohl(two_in->sin_addr.s_addr);
 
-  if (one_in->sin_addr.s_addr < two_in->sin_addr.s_addr)
+  if (s_addr_one < s_addr_two)
     return SocketAddress::CompareResult::LESS_THAN;
-  else if (one_in->sin_addr.s_addr == two_in->sin_addr.s_addr)
+  else if (s_addr_one == s_addr_two)
     return SocketAddress::CompareResult::SAME;
   else
     return SocketAddress::CompareResult::GREATER_THAN;
@@ -845,7 +847,9 @@ void SocketAddressBase::LegacyDetail(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   SocketAddressBase* base;
   ASSIGN_OR_RETURN_UNWRAP(&base, args.Holder());
-  args.GetReturnValue().Set(base->address_->ToJS(env));
+  Local<Object> address;
+  if (!base->address_->ToJS(env).ToLocal(&address)) return;
+  args.GetReturnValue().Set(address);
 }
 
 SocketAddressBase::SocketAddressBase(

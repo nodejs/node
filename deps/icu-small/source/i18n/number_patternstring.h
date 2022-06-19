@@ -62,6 +62,7 @@ struct U_I18N_API ParsedSubpatternInfo {
     bool hasPercentSign = false;
     bool hasPerMilleSign = false;
     bool hasCurrencySign = false;
+    bool hasCurrencyDecimal = false;
     bool hasMinusSign = false;
     bool hasPlusSign = false;
 
@@ -104,6 +105,8 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
 
     bool hasBody() const U_OVERRIDE;
 
+    bool currencyAsDecimal() const U_OVERRIDE;
+
   private:
     struct U_I18N_API ParserState {
         const UnicodeString& pattern; // reference to the parent
@@ -119,8 +122,13 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
             return *this;
         }
 
+        /** Returns the next code point, or -1 if string is too short. */
         UChar32 peek();
 
+        /** Returns the code point after the next code point, or -1 if string is too short. */
+        UChar32 peek2();
+
+        /** Returns the next code point and then steps forward. */
         UChar32 next();
 
         // TODO: We don't currently do anything with the message string.
@@ -243,9 +251,9 @@ class U_I18N_API PatternStringUtils {
      * it should not be ignored if maxFrac is 2 or more (but a roundingIncrement of
      * 0.005 is treated like 0.001 for significance).
      *
-     * This test is needed for both NumberPropertyMapper::oldToNew and
+     * This test is needed for both NumberPropertyMapper::oldToNew and 
      * PatternStringUtils::propertiesToPatternString. In Java it cannot be
-     * exported by NumberPropertyMapper (package provate) so it is in
+     * exported by NumberPropertyMapper (package private) so it is in
      * PatternStringUtils, do the same in C.
      *
      * @param roundIncr
@@ -308,6 +316,7 @@ class U_I18N_API PatternStringUtils {
      */
     static void patternInfoToStringBuilder(const AffixPatternProvider& patternInfo, bool isPrefix,
                                            PatternSignType patternSignType,
+                                           bool approximately,
                                            StandardPlural::Form plural, bool perMilleReplacesPercent,
                                            UnicodeString& output);
 

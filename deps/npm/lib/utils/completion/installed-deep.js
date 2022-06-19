@@ -1,11 +1,13 @@
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const installedDeep = async (npm) => {
   const {
     depth,
     global,
     prefix,
+    workspacesEnabled,
   } = npm.flatOptions
 
   const getValues = (tree) =>
@@ -15,21 +17,26 @@ const installedDeep = async (npm) => {
         return i
       })
       .filter(i => (i.depth - 1) <= depth)
-      .sort((a, b) => a.depth - b.depth)
-      .sort((a, b) => a.depth === b.depth ? a.name.localeCompare(b.name) : 0)
+      .sort((a, b) => (a.depth - b.depth) || localeCompare(a.name, b.name))
 
   const res = new Set()
-  const gArb = new Arborist({ global: true, path: resolve(npm.globalDir, '..') })
+  const gArb = new Arborist({
+    global: true,
+    path: resolve(npm.globalDir, '..'),
+    workspacesEnabled,
+  })
   const gTree = await gArb.loadActual({ global: true })
 
-  for (const node of getValues(gTree))
+  for (const node of getValues(gTree)) {
     res.add(global ? node.name : [node.name, '-g'])
+  }
 
   if (!global) {
-    const arb = new Arborist({ global: false, path: prefix })
+    const arb = new Arborist({ global: false, path: prefix, workspacesEnabled })
     const tree = await arb.loadActual()
-    for (const node of getValues(tree))
+    for (const node of getValues(tree)) {
       res.add(node.name)
+    }
   }
 
   return [...res]

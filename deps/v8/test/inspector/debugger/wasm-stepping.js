@@ -17,9 +17,9 @@ var func_a_idx =
 var func_b = builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       // clang-format off
-      kExprLoop, kWasmStmt,               // while
+      kExprLoop, kWasmVoid,               // while
         kExprLocalGet, 0,                 // -
-        kExprIf, kWasmStmt,               // if <param0> != 0
+        kExprIf, kWasmVoid,               // if <param0> != 0
           kExprLocalGet, 0,               // -
           kExprI32Const, 1,               // -
           kExprI32Sub,                    // -
@@ -59,6 +59,7 @@ InspectorTest.runAsyncTestSuite([
     for (const action of ['stepInto', 'stepOver', 'stepOut', 'resume'])
       InspectorTest.logProtocolCommandCalls('Debugger.' + action);
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable.');
     WasmInspectorTest.instantiate(module_bytes);

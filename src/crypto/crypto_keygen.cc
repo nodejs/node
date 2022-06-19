@@ -1,5 +1,4 @@
 #include "crypto/crypto_keygen.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
@@ -104,6 +103,12 @@ void Initialize(Environment* env, Local<Object> target) {
   NidKeyPairGenJob::Initialize(env, target);
   SecretKeyGenJob::Initialize(env, target);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  NidKeyPairGenJob::RegisterExternalReferences(registry);
+  SecretKeyGenJob::RegisterExternalReferences(registry);
+}
+
 }  // namespace Keygen
 }  // namespace crypto
 }  // namespace node

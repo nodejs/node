@@ -22,7 +22,8 @@ class GCed : public GarbageCollected<GCed> {
 };
 }  // namespace
 
-TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
+TEST_F(TestingTest,
+       OverrideEmbeddertackStateScopeDoesNotOverrideExplicitCalls) {
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
     WeakPersistent<GCed> weak{gced};
@@ -38,7 +39,7 @@ TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
         EmbedderStackState::kMayContainHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
         Heap::Config::PreciseAtomicConfig());
-    EXPECT_TRUE(weak);
+    EXPECT_FALSE(weak);
   }
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
@@ -47,8 +48,16 @@ TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
         GetHeap()->GetHeapHandle(), EmbedderStackState::kNoHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
         Heap::Config::ConservativeAtomicConfig());
-    EXPECT_FALSE(weak);
+    EXPECT_TRUE(weak);
   }
+}
+
+TEST_F(TestingTest, StandaloneTestingHeap) {
+  // Perform garbage collection through the StandaloneTestingHeap API.
+  cppgc::testing::StandaloneTestingHeap heap(GetHeap()->GetHeapHandle());
+  heap.StartGarbageCollection();
+  heap.PerformMarkingStep(EmbedderStackState::kNoHeapPointers);
+  heap.FinalizeGarbageCollection(EmbedderStackState::kNoHeapPointers);
 }
 
 }  // namespace internal

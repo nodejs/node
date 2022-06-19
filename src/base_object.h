@@ -65,6 +65,8 @@ class BaseObject : public MemoryRetainer {
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
+  static inline void LazilyInitializedJSTemplateConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
   template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Value> object);
@@ -169,7 +171,7 @@ class BaseObject : public MemoryRetainer {
   // class because it is used by src/node_postmortem_metadata.cc to calculate
   // offsets and generate debug symbols for BaseObject, which assumes that the
   // position of members in memory are predictable. For more information please
-  // refer to `doc/guides/node-postmortem-support.md`
+  // refer to `doc/contributing/node-postmortem-support.md`
   friend int GenDebugSymbols();
   friend class CleanupHookCallback;
   template <typename T, bool kIsWeak>
@@ -191,7 +193,7 @@ class BaseObject : public MemoryRetainer {
     // Indicates whether MakeWeak() has been called.
     bool wants_weak_jsobj = false;
     // Indicates whether Detach() has been called. If that is the case, this
-    // object will be destryoed once the strong pointer count drops to zero.
+    // object will be destroyed once the strong pointer count drops to zero.
     bool is_detached = false;
     // Reference to the original BaseObject. This is used by weak pointers.
     BaseObject* self = nullptr;

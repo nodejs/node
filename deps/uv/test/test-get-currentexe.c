@@ -49,7 +49,7 @@ TEST_IMPL(get_currentexe) {
 #ifdef _WIN32
   snprintf(path, sizeof(path), "%s", executable_path);
 #else
-  ASSERT(NULL != realpath(executable_path, path));
+  ASSERT_NOT_NULL(realpath(executable_path, path));
 #endif
 
   match = strstr(buffer, path);

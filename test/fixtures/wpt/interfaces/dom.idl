@@ -93,6 +93,8 @@ interface AbortController {
 
 [Exposed=(Window,Worker)]
 interface AbortSignal : EventTarget {
+  [NewObject] static AbortSignal abort();
+
   readonly attribute boolean aborted;
 
   attribute EventHandler onabort;
@@ -331,11 +333,14 @@ interface DocumentFragment : Node {
 [Exposed=Window]
 interface ShadowRoot : DocumentFragment {
   readonly attribute ShadowRootMode mode;
+  readonly attribute boolean delegatesFocus;
+  readonly attribute SlotAssignmentMode slotAssignment;
   readonly attribute Element host;
   attribute EventHandler onslotchange;
 };
 
 enum ShadowRootMode { "open", "closed" };
+enum SlotAssignmentMode { "manual", "named" };
 
 [Exposed=Window]
 interface Element : Node {
@@ -386,6 +391,7 @@ interface Element : Node {
 dictionary ShadowRootInit {
   required ShadowRootMode mode;
   boolean delegatesFocus = false;
+  SlotAssignmentMode slotAssignment = "named";
 };
 
 [Exposed=Window,
@@ -621,3 +627,16 @@ interface XPathEvaluator {
 };
 
 XPathEvaluator includes XPathEvaluatorBase;
+
+[Exposed=Window]
+interface XSLTProcessor {
+  constructor();
+  undefined importStylesheet(Node style);
+  [CEReactions] DocumentFragment transformToFragment(Node source, Document output);
+  [CEReactions] Document transformToDocument(Node source);
+  undefined setParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName, any value);
+  any getParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName);
+  undefined removeParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName);
+  undefined clearParameters();
+  undefined reset();
+};

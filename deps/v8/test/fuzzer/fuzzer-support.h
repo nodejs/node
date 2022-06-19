@@ -8,13 +8,22 @@
 #include <memory>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-persistent-handle.h"
+
+namespace v8 {
+class Context;
+class Isolate;
+}  // namespace v8
 
 namespace v8_fuzzer {
 
 class FuzzerSupport {
  public:
   FuzzerSupport(int* argc, char*** argv);
+  FuzzerSupport(const FuzzerSupport&) = delete;
+  FuzzerSupport& operator=(const FuzzerSupport&) = delete;
 
   ~FuzzerSupport();
 
@@ -30,10 +39,6 @@ class FuzzerSupport {
                            v8::platform::MessageLoopBehavior::kDoNotWait);
 
  private:
-  // Prevent copying. Not implemented.
-  FuzzerSupport(const FuzzerSupport&);
-  FuzzerSupport& operator=(const FuzzerSupport&);
-
   static std::unique_ptr<FuzzerSupport> fuzzer_support_;
   std::unique_ptr<v8::Platform> platform_;
   v8::ArrayBuffer::Allocator* allocator_;

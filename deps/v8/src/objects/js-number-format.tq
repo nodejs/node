@@ -4,10 +4,11 @@
 
 #include 'src/objects/js-number-format.h'
 
-@generateCppClass
 extern class JSNumberFormat extends JSObject {
   locale: String;
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+  icu_number_range_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberRangeFormatter>
   bound_format: JSFunction|Undefined;
 }

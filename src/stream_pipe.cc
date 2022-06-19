@@ -1,17 +1,20 @@
 #include "stream_pipe.h"
-#include "allocated_buffer-inl.h"
 #include "stream_base-inl.h"
 #include "node_buffer.h"
 #include "util-inl.h"
 
 namespace node {
 
+using v8::BackingStore;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Object;
 using v8::Value;
 
@@ -28,19 +31,6 @@ StreamPipe::StreamPipe(StreamBase* source,
   sink->PushStreamListener(&writable_listener_);
 
   uses_wants_write_ = sink->HasWantsWrite();
-
-  // Set up links between this object and the source/sink objects.
-  // In particular, this makes sure that they are garbage collected as a group,
-  // if that applies to the given streams (for example, Http2Streams use
-  // weak references).
-  obj->Set(env()->context(), env()->source_string(), source->GetObject())
-      .Check();
-  source->GetObject()->Set(env()->context(), env()->pipe_target_string(), obj)
-      .Check();
-  obj->Set(env()->context(), env()->sink_string(), sink->GetObject())
-      .Check();
-  sink->GetObject()->Set(env()->context(), env()->pipe_source_string(), obj)
-      .Check();
 }
 
 StreamPipe::~StreamPipe() {
@@ -118,13 +108,13 @@ uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   size_t size = std::min(suggested_size, pipe->wanted_data_);
   CHECK_GT(size, 0);
-  return AllocatedBuffer::AllocateManaged(pipe->env(), size).release();
+  return pipe->env()->allocate_managed_buffer(size);
 }
 
 void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
                                                 const uv_buf_t& buf_) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
-  AllocatedBuffer buf(pipe->env(), buf_);
+  std::unique_ptr<BackingStore> bs = pipe->env()->release_managed_buffer(buf_);
   if (nread < 0) {
     // EOF or error; stop reading and pass the error to the previous listener
     // (which might end up in JS).
@@ -144,19 +134,20 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
     return;
   }
 
-  pipe->ProcessData(nread, std::move(buf));
+  pipe->ProcessData(nread, std::move(bs));
 }
 
-void StreamPipe::ProcessData(size_t nread, AllocatedBuffer&& buf) {
+void StreamPipe::ProcessData(size_t nread,
+                             std::unique_ptr<BackingStore> bs) {
   CHECK(uses_wants_write_ || pending_writes_ == 0);
-  uv_buf_t buffer = uv_buf_init(buf.data(), nread);
+  uv_buf_t buffer = uv_buf_init(static_cast<char*>(bs->Data()), nread);
   StreamWriteResult res = sink()->Write(&buffer, 1);
   pending_writes_++;
   if (!res.async) {
     writable_listener_.OnStreamAfterWrite(nullptr, res.err);
   } else {
     is_reading_ = false;
-    res.wrap->SetAllocatedStorage(std::move(buf));
+    res.wrap->SetBackingStore(std::move(bs));
     if (source() != nullptr)
       source()->ReadStop();
   }
@@ -171,7 +162,8 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
       Environment* env = pipe->env();
       HandleScope handle_scope(env->isolate());
       Context::Scope context_scope(env->context());
-      pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).ToLocalChecked();
+      if (pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).IsEmpty())
+        return;
       stream()->RemoveStreamListener(this);
     }
     return;
@@ -247,6 +239,38 @@ void StreamPipe::WritableListener::OnStreamRead(ssize_t nread,
   return previous_listener_->OnStreamRead(nread, buf);
 }
 
+Maybe<StreamPipe*> StreamPipe::New(StreamBase* source,
+                                   StreamBase* sink,
+                                   Local<Object> obj) {
+  std::unique_ptr<StreamPipe> stream_pipe(new StreamPipe(source, sink, obj));
+
+  // Set up links between this object and the source/sink objects.
+  // In particular, this makes sure that they are garbage collected as a group,
+  // if that applies to the given streams (for example, Http2Streams use
+  // weak references).
+  Environment* env = source->stream_env();
+  if (obj->Set(env->context(), env->source_string(), source->GetObject())
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (source->GetObject()
+          ->Set(env->context(), env->pipe_target_string(), obj)
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (obj->Set(env->context(), env->sink_string(), sink->GetObject())
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (sink->GetObject()
+          ->Set(env->context(), env->pipe_source_string(), obj)
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+
+  return Just(stream_pipe.release());
+}
+
 void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsObject());
@@ -254,7 +278,7 @@ void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   StreamBase* source = StreamBase::FromObject(args[0].As<Object>());
   StreamBase* sink = StreamBase::FromObject(args[1].As<Object>());
 
-  new StreamPipe(source, sink, args.This());
+  if (StreamPipe::New(source, sink, args.This()).IsNothing()) return;
 }
 
 void StreamPipe::Start(const FunctionCallbackInfo<Value>& args) {

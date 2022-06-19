@@ -1,6 +1,6 @@
 {
 	"name": "ansi-regex",
-	"version": "5.0.0",
+	"version": "5.0.1",
 	"description": "Regular expression for matching ANSI escape codes",
 	"license": "MIT",
 	"repository": "chalk/ansi-regex",

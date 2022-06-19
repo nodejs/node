@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"

@@ -13,7 +13,7 @@ const totalDots = 10000;
 const who = process.argv.length <= 2 ? 'parent' : process.argv[2];
 
 switch (who) {
-  case 'parent':
+  case 'parent': {
     const consumer = spawn(process.argv0, [process.argv[1], 'consumer'], {
       stdio: ['pipe', 'ignore', 'inherit'],
     });
@@ -23,7 +23,8 @@ switch (who) {
     process.stdin.on('data', () => {});
     producer.on('exit', process.exit);
     break;
-  case 'producer':
+  }
+  case 'producer': {
     const buffer = Buffer.alloc(writeSize, '.');
     let written = 0;
     const write = () => {
@@ -34,6 +35,7 @@ switch (who) {
     };
     write();
     break;
+  }
   case 'consumer':
     process.stdin.on('data', () => {});
     break;

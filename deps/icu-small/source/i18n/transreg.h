@@ -103,7 +103,7 @@ class TransliteratorAlias : public UMemory {
     //    null, zero, empty.
     // 2. CompoundRBT
     //    Here ID is the ID, aliasID is the idBlock, trans is the
-    //    contained RBT, and idSplitPoint is the offet in aliasID
+    //    contained RBT, and idSplitPoint is the offset in aliasID
     //    where the contained RBT goes.  compoundFilter is the
     //    compound filter, and it is _not_ owned.
     // 3. Rules
@@ -144,7 +144,7 @@ class TransliteratorRegistry : public UMemory {
  public:
 
     /**
-     * Contructor
+     * Constructor
      * @param status Output param set to success/failure code.
      */
     TransliteratorRegistry(UErrorCode& status);
@@ -170,7 +170,7 @@ class TransliteratorRegistry : public UMemory {
      * @param ID          the given ID
      * @param aliasReturn output param to receive TransliteratorAlias;
      *                    should be NULL on entry
-     * @param parseError  Struct to recieve information on position
+     * @param parseError  Struct to receive information on position
      *                    of error if an error is encountered
      * @param status      Output param set to success/failure code.
      */
@@ -293,7 +293,7 @@ class TransliteratorRegistry : public UMemory {
      * Return a registered source specifier.
      * @param index which specifier to return, from 0 to n-1, where
      * n = countAvailableSources()
-     * @param result fill-in paramter to receive the source specifier.
+     * @param result fill-in parameter to receive the source specifier.
      * If index is out of range, result will be empty.
      * @return reference to result
      */
@@ -314,7 +314,7 @@ class TransliteratorRegistry : public UMemory {
      * @param index which specifier to return, from 0 to n-1, where
      * n = countAvailableTargets(source)
      * @param source the source specifier
-     * @param result fill-in paramter to receive the target specifier.
+     * @param result fill-in parameter to receive the target specifier.
      * If source is invalid or if index is out of range, result will
      * be empty.
      * @return reference to result
@@ -345,7 +345,7 @@ class TransliteratorRegistry : public UMemory {
      * n = countAvailableVariants(source, target)
      * @param source the source specifier
      * @param target the target specifier
-     * @param result fill-in paramter to receive the variant
+     * @param result fill-in parameter to receive the variant
      * specifier.  If source is invalid or if target is invalid or if
      * index is out of range, result will be empty.
      * @return reference to result
@@ -417,11 +417,11 @@ class TransliteratorRegistry : public UMemory {
     public:
         Enumeration(const TransliteratorRegistry& reg);
         virtual ~Enumeration();
-        virtual int32_t count(UErrorCode& status) const;
-        virtual const UnicodeString* snext(UErrorCode& status);
-        virtual void reset(UErrorCode& status);
+        virtual int32_t count(UErrorCode& status) const override;
+        virtual const UnicodeString* snext(UErrorCode& status) override;
+        virtual void reset(UErrorCode& status) override;
         static UClassID U_EXPORT2 getStaticClassID();
-        virtual UClassID getDynamicClassID() const;
+        virtual UClassID getDynamicClassID() const override;
     private:
         int32_t index;
         const TransliteratorRegistry& reg;

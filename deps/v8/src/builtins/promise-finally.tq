@@ -70,7 +70,7 @@ PromiseCatchFinally(
       *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
 
   // 5. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
   const promise = PromiseResolve(constructor, result);
@@ -117,7 +117,7 @@ PromiseThenFinally(
       *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
 
   // 5. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
   const promise = PromiseResolve(constructor, result);
@@ -160,6 +160,7 @@ macro CreatePromiseFinallyFunctions(implicit context: Context)(
   };
 }
 
+// https://tc39.es/ecma262/#sec-promise.prototype.finally
 transitioning javascript builtin
 PromisePrototypeFinally(
     js-implicit context: Context, receiver: JSAny)(onFinally: JSAny): JSAny {
@@ -185,7 +186,7 @@ PromisePrototypeFinally(
     }
 
   // 4. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 5. If IsCallable(onFinally) is not true,
   //    a. Let thenFinally be onFinally.

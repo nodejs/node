@@ -6,12 +6,11 @@
 @abstract
 @highestInstanceTypeWithinParentClassRange
 extern class JSReceiver extends HeapObject {
-  properties_or_hash: FixedArrayBase|PropertyArray|Smi;
+  properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
 }
 
 type Constructor extends JSReceiver;
 
-@generateCppClass
 @apiExposedInstanceTypeValue(0x421)
 @highestInstanceTypeWithinParentClassRange
 extern class JSObject extends JSReceiver {
@@ -41,14 +40,21 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   return AllocateJSObjectFromMap(map);
 }
 
+extern class JSExternalObject extends JSObject { value: ExternalPointer; }
+
+// A JSObject that may contain EmbedderDataSlots.
 @abstract
-@generateCppClass
+extern class JSObjectWithEmbedderSlots extends JSObject {
+}
+
+@abstract
 @lowestInstanceTypeWithinParentClassRange
 extern class JSCustomElementsObject extends JSObject {
 }
 
+// These may also contain EmbedderDataSlots but can't be a child class of
+// JSObjectWithEmbedderSlots due to type id constraints.
 @abstract
-@generateCppClass
 @lowestInstanceTypeWithinParentClassRange
 extern class JSSpecialObject extends JSCustomElementsObject {
 }
@@ -58,7 +64,7 @@ macro GetDerivedMap(implicit context: Context)(
   try {
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
-    assert(IsConstructor(constructor));
+    dcheck(IsConstructor(constructor));
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
     if (LoadConstructorOrBackPointer(map) != target) {
@@ -67,19 +73,25 @@ macro GetDerivedMap(implicit context: Context)(
 
     return map;
   } label SlowPath {
-    return runtime::GetDerivedMap(context, target, newTarget);
+    return runtime::GetDerivedMap(context, target, newTarget, FalseConstant());
   }
+}
+
+macro GetDerivedRabGsabMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }
 
 macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
     JSObject {
-  let properties: EmptyFixedArray|NameDictionary|OrderedNameDictionary =
+  let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
       kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
-    if (kDictModePrototypes) {
+    @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
       properties =
-          AllocateOrderedNameDictionary(kOrderedNameDictionaryInitialCapacity);
-    } else {
+          AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
+    }
+    @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
       properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
     }
   }
@@ -88,7 +100,6 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
       SlackTrackingMode::kWithSlackTracking);
 }
 
-@generateCppClass
 extern class JSGlobalProxy extends JSSpecialObject {
   // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
@@ -96,20 +107,23 @@ extern class JSGlobalProxy extends JSSpecialObject {
 }
 
 extern class JSGlobalObject extends JSSpecialObject {
+  // [native context]: the natives corresponding to this global object.
   native_context: NativeContext;
+
+  // [global proxy]: the global proxy object of the context
   global_proxy: JSGlobalProxy;
 }
 
-@generateCppClass
-extern class JSPrimitiveWrapper extends JSCustomElementsObject {
-  value: JSAny;
-}
+extern class JSPrimitiveWrapper extends JSCustomElementsObject { value: JSAny; }
 
 extern class JSMessageObject extends JSObject {
   // Tagged fields.
   message_type: Smi;
-  arguments: Object;
+  // [argument]: the arguments for formatting the error message.
+  argument: Object;
+  // [script]: the script from which the error message originated.
   script: Script;
+  // [stack_frames]: an array of stack frames for this error object.
   stack_frames: Object;
   shared_info: SharedFunctionInfo|Undefined;
 
@@ -121,7 +135,6 @@ extern class JSMessageObject extends JSObject {
   error_level: Smi;
 }
 
-@generateCppClass
 extern class JSDate extends JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
 
@@ -142,7 +155,6 @@ extern class JSDate extends JSObject {
   cache_stamp: Undefined|Smi|NaN;
 }
 
-@generateCppClass
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
   // The "next" method is loaded during GetIterator, and is not reloaded for
@@ -150,7 +162,6 @@ extern class JSAsyncFromSyncIterator extends JSObject {
   next: Object;
 }
 
-@generateCppClass
 extern class JSStringIterator extends JSObject {
   // The [[IteratedString]] slot.
   string: String;
@@ -161,10 +172,9 @@ extern class JSStringIterator extends JSObject {
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map,
-    NameDictionary | OrderedNameDictionary | EmptyFixedArray |
+    NameDictionary | SwissNameDictionary | EmptyFixedArray |
         PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map,
-    NameDictionary | OrderedNameDictionary | EmptyFixedArray | PropertyArray,
+    Map, NameDictionary | SwissNameDictionary | EmptyFixedArray | PropertyArray,
     FixedArray, constexpr AllocationFlag,
     constexpr SlackTrackingMode): JSObject;

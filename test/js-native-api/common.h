@@ -8,12 +8,13 @@
     const napi_extended_error_info *error_info;                          \
     napi_get_last_error_info((env), &error_info);                        \
     bool is_pending;                                                     \
+    const char* err_message = error_info->error_message;                  \
     napi_is_exception_pending((env), &is_pending);                       \
     /* If an exception is already pending, don't rethrow it */           \
     if (!is_pending) {                                                   \
-      const char* error_message = error_info->error_message != NULL ?    \
-        error_info->error_message :                                      \
-        "empty error message";                                           \
+      const char* error_message = err_message != NULL ?                  \
+                       err_message :                                     \
+                      "empty error message";                             \
       napi_throw_error((env), NULL, error_message);                      \
     }                                                                    \
   } while (0)
@@ -60,6 +61,9 @@
 
 #define DECLARE_NODE_API_GETTER(name, func)                              \
   { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
+
+#define DECLARE_NODE_API_PROPERTY_VALUE(name, value)                     \
+  { (name), NULL, NULL, NULL, NULL, (value), napi_default, NULL }
 
 void add_returned_status(napi_env env,
                          const char* key,

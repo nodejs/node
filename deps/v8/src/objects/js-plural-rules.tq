@@ -9,11 +9,12 @@ bitfield struct JSPluralRulesFlags extends uint31 {
   Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
 }
 
-@generateCppClass
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: SmiTagged<JSPluralRulesFlags>;
   icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+  icu_number_range_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberRangeFormatter>
 }

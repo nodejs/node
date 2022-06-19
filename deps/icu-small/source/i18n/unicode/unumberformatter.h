@@ -79,6 +79,60 @@
  */
 
 /**
+ * An enum declaring how to resolve conflicts between maximum fraction digits and maximum
+ * significant digits.
+ *
+ * There are two modes, RELAXED and STRICT:
+ *
+ * - RELAXED: Relax one of the two constraints (fraction digits or significant digits) in order
+ *   to round the number to a higher level of precision.
+ * - STRICT: Enforce both constraints, resulting in the number being rounded to a lower
+ *   level of precision.
+ *
+ * The default settings for compact notation rounding are Max-Fraction = 0 (round to the nearest
+ * integer), Max-Significant = 2 (round to 2 significant digits), and priority RELAXED (choose
+ * the constraint that results in more digits being displayed).
+ *
+ * Conflicting *minimum* fraction and significant digits are always resolved in the direction that
+ * results in more trailing zeros.
+ *
+ * Example 1: Consider the number 3.141, with various different settings:
+ *
+ * - Max-Fraction = 1: "3.1"
+ * - Max-Significant = 3: "3.14"
+ *
+ * The rounding priority determines how to resolve the conflict when both Max-Fraction and
+ * Max-Significant are set. With RELAXED, the less-strict setting (the one that causes more digits
+ * to be displayed) will be used; Max-Significant wins. With STRICT, the more-strict setting (the
+ * one that causes fewer digits to be displayed) will be used; Max-Fraction wins.
+ *
+ * Example 2: Consider the number 8317, with various different settings:
+ *
+ * - Max-Fraction = 1: "8317"
+ * - Max-Significant = 3: "8320"
+ *
+ * Here, RELAXED favors Max-Fraction and STRICT favors Max-Significant. Note that this larger
+ * number caused the two modes to favor the opposite result.
+ *
+ * @stable ICU 69
+ */
+typedef enum UNumberRoundingPriority {
+    /**
+     * Favor greater precision by relaxing one of the rounding constraints.
+     *
+     * @stable ICU 69
+     */
+    UNUM_ROUNDING_PRIORITY_RELAXED,
+
+    /**
+     * Favor adherence to all rounding constraints by producing lower precision.
+     *
+     * @stable ICU 69
+     */
+    UNUM_ROUNDING_PRIORITY_STRICT,
+} UNumberRoundingPriority;
+
+/**
  * An enum declaring how to render units, including currencies. Example outputs when formatting 123 USD and 123
  * meters in <em>en-CA</em>:
  *
@@ -108,7 +162,7 @@ typedef enum UNumberUnitWidth {
      *
      * @stable ICU 60
      */
-            UNUM_UNIT_WIDTH_NARROW,
+            UNUM_UNIT_WIDTH_NARROW = 0,
 
     /**
      * Print an abbreviated version of the unit name. Similar to NARROW, but use a slightly wider abbreviation or
@@ -124,7 +178,7 @@ typedef enum UNumberUnitWidth {
      *
      * @stable ICU 60
      */
-            UNUM_UNIT_WIDTH_SHORT,
+            UNUM_UNIT_WIDTH_SHORT = 1,
 
     /**
      * Print the full name of the unit, without any abbreviations.
@@ -135,7 +189,7 @@ typedef enum UNumberUnitWidth {
      *
      * @stable ICU 60
      */
-            UNUM_UNIT_WIDTH_FULL_NAME,
+            UNUM_UNIT_WIDTH_FULL_NAME = 2,
 
     /**
      * Use the three-digit ISO XXX code in place of the symbol for displaying currencies. The behavior of this
@@ -146,9 +200,8 @@ typedef enum UNumberUnitWidth {
      *
      * @stable ICU 60
      */
-            UNUM_UNIT_WIDTH_ISO_CODE,
+            UNUM_UNIT_WIDTH_ISO_CODE = 3,
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Use the formal variant of the currency symbol; for example, "NT$" for the New Taiwan
      * dollar in zh-TW.
@@ -156,9 +209,9 @@ typedef enum UNumberUnitWidth {
      * <p>
      * Behavior of this option with non-currency units is not defined at this time.
      *
-     * @draft ICU 68
+     * @stable ICU 68
      */
-            UNUM_UNIT_WIDTH_FORMAL,
+            UNUM_UNIT_WIDTH_FORMAL = 4,
 
     /**
      * Use the alternate variant of the currency symbol; for example, "TL" for the Turkish
@@ -167,10 +220,9 @@ typedef enum UNumberUnitWidth {
      * <p>
      * Behavior of this option with non-currency units is not defined at this time.
      *
-     * @draft ICU 68
+     * @stable ICU 68
      */
-            UNUM_UNIT_WIDTH_VARIANT,
-#endif  // U_HIDE_DRAFT_API
+            UNUM_UNIT_WIDTH_VARIANT = 5,
 
     /**
      * Format the number according to the specified unit, but do not display the unit. For currencies, apply
@@ -179,14 +231,16 @@ typedef enum UNumberUnitWidth {
      *
      * @stable ICU 60
      */
-            UNUM_UNIT_WIDTH_HIDDEN,
+            UNUM_UNIT_WIDTH_HIDDEN = 6,
 
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // needed for unconditionalized struct MacroProps
     /**
      * One more than the highest UNumberUnitWidth value.
      *
      * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
      */
-            UNUM_UNIT_WIDTH_COUNT
+            UNUM_UNIT_WIDTH_COUNT = 7
 } UNumberUnitWidth;
 
 /**
@@ -314,9 +368,12 @@ typedef enum UNumberSignDisplay {
      * Show the minus sign on negative numbers, and do not show the sign on positive numbers. This is the default
      * behavior.
      *
+     * If using this option, a sign will be displayed on negative zero, including negative numbers
+     * that round to zero. To hide the sign on negative zero, use the NEGATIVE option.
+     *
      * @stable ICU 60
      */
-            UNUM_SIGN_AUTO,
+    UNUM_SIGN_AUTO,
 
     /**
      * Show the minus sign on negative numbers and the plus sign on positive numbers, including zero.
@@ -324,14 +381,14 @@ typedef enum UNumberSignDisplay {
      *
      * @stable ICU 60
      */
-            UNUM_SIGN_ALWAYS,
+    UNUM_SIGN_ALWAYS,
 
     /**
      * Do not show the sign on positive or negative numbers.
      *
      * @stable ICU 60
      */
-            UNUM_SIGN_NEVER,
+    UNUM_SIGN_NEVER,
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and do not show the sign on positive numbers.
@@ -347,7 +404,7 @@ typedef enum UNumberSignDisplay {
      *
      * @stable ICU 60
      */
-            UNUM_SIGN_ACCOUNTING,
+    UNUM_SIGN_ACCOUNTING,
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
@@ -357,7 +414,7 @@ typedef enum UNumberSignDisplay {
      *
      * @stable ICU 60
      */
-            UNUM_SIGN_ACCOUNTING_ALWAYS,
+    UNUM_SIGN_ACCOUNTING_ALWAYS,
 
     /**
      * Show the minus sign on negative numbers and the plus sign on positive numbers. Do not show a
@@ -365,7 +422,7 @@ typedef enum UNumberSignDisplay {
      *
      * @stable ICU 61
      */
-            UNUM_SIGN_EXCEPT_ZERO,
+    UNUM_SIGN_EXCEPT_ZERO,
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
@@ -374,14 +431,30 @@ typedef enum UNumberSignDisplay {
      *
      * @stable ICU 61
      */
-            UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO,
+    UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO,
 
+    /**
+     * Same as AUTO, but do not show the sign on negative zero.
+     *
+     * @stable ICU 69
+     */
+    UNUM_SIGN_NEGATIVE,
+
+    /**
+     * Same as ACCOUNTING, but do not show the sign on negative zero.
+     *
+     * @stable ICU 69
+     */
+    UNUM_SIGN_ACCOUNTING_NEGATIVE,
+
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // needed for unconditionalized struct MacroProps
     /**
      * One more than the highest UNumberSignDisplay value.
      *
      * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
      */
-            UNUM_SIGN_COUNT
+    UNUM_SIGN_COUNT = 9,
 } UNumberSignDisplay;
 
 /**
@@ -411,6 +484,8 @@ typedef enum UNumberDecimalSeparatorDisplay {
      */
             UNUM_DECIMAL_SEPARATOR_ALWAYS,
 
+    // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
+    // needed for unconditionalized struct MacroProps
     /**
      * One more than the highest UNumberDecimalSeparatorDisplay value.
      *
@@ -418,6 +493,30 @@ typedef enum UNumberDecimalSeparatorDisplay {
      */
             UNUM_DECIMAL_SEPARATOR_COUNT
 } UNumberDecimalSeparatorDisplay;
+
+/**
+ * An enum declaring how to render trailing zeros.
+ * 
+ * - UNUM_TRAILING_ZERO_AUTO: 0.90, 1.00, 1.10
+ * - UNUM_TRAILING_ZERO_HIDE_IF_WHOLE: 0.90, 1, 1.10
+ * 
+ * @stable ICU 69
+ */
+typedef enum UNumberTrailingZeroDisplay {
+    /**
+     * Display trailing zeros according to the settings for minimum fraction and significant digits.
+     *
+     * @stable ICU 69
+     */
+    UNUM_TRAILING_ZERO_AUTO,
+
+    /**
+     * Same as AUTO, but hide trailing zeros after the decimal separator if they are all zero.
+     *
+     * @stable ICU 69
+     */
+    UNUM_TRAILING_ZERO_HIDE_IF_WHOLE,
+} UNumberTrailingZeroDisplay;
 
 struct UNumberFormatter;
 /**
@@ -449,6 +548,9 @@ typedef struct UFormattedNumber UFormattedNumber;
  * For more details on skeleton strings, see the documentation in numberformatter.h. For more details on
  * the usage of this API, see the documentation at the top of unumberformatter.h.
  *
+ * For more information on number skeleton strings, see:
+ * https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html
+ *
  * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
  *
  * @param skeleton The skeleton string, like u"percent precision-integer"
@@ -465,6 +567,9 @@ unumf_openForSkeletonAndLocale(const UChar* skeleton, int32_t skeletonLen, const
 /**
  * Like unumf_openForSkeletonAndLocale, but accepts a UParseError, which will be populated with the
  * location of a skeleton syntax error if such a syntax error exists.
+ *
+ * For more information on number skeleton strings, see:
+ * https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html
  *
  * @param skeleton The skeleton string, like u"percent precision-integer"
  * @param skeletonLen The number of UChars in the skeleton string, or -1 if it is NUL-terminated.
@@ -659,7 +764,6 @@ unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPosition
                                  UErrorCode* ec);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Extracts the formatted number as a "numeric string" conforming to the
  * syntax defined in the Decimal Arithmetic Specification, available at
@@ -676,7 +780,7 @@ unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPosition
  *                       If U_BUFFER_OVERFLOW_ERROR: Returns number of chars for
  *                       preflighting.
  * @return Number of chars in the data.  Does not include a trailing NUL.
- * @draft ICU 68
+ * @stable ICU 68
  */
 U_CAPI int32_t U_EXPORT2
 unumf_resultToDecimalNumber(
@@ -684,7 +788,6 @@ unumf_resultToDecimalNumber(
        char* dest,
        int32_t destCapacity,
        UErrorCode* ec);
-#endif // U_HIDE_DRAFT_API
 
 
 /**

@@ -15,13 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce that class methods utilize `this`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/class-methods-use-this"
         },
@@ -34,6 +34,10 @@ module.exports = {
                     items: {
                         type: "string"
                     }
+                },
+                enforceForClassFields: {
+                    type: "boolean",
+                    default: true
                 }
             },
             additionalProperties: false
@@ -45,9 +49,26 @@ module.exports = {
     },
     create(context) {
         const config = Object.assign({}, context.options[0]);
+        const enforceForClassFields = config.enforceForClassFields !== false;
         const exceptMethods = new Set(config.exceptMethods || []);
 
         const stack = [];
+
+        /**
+         * Push `this` used flag initialized with `false` onto the stack.
+         * @returns {void}
+         */
+        function pushContext() {
+            stack.push(false);
+        }
+
+        /**
+         * Pop `this` used flag from the stack.
+         * @returns {boolean | undefined} `this` used flag
+         */
+        function popContext() {
+            return stack.pop();
+        }
 
         /**
          * Initializes the current context to false and pushes it onto the stack.
@@ -56,7 +77,7 @@ module.exports = {
          * @private
          */
         function enterFunction() {
-            stack.push(false);
+            pushContext();
         }
 
         /**
@@ -66,7 +87,14 @@ module.exports = {
          * @private
          */
         function isInstanceMethod(node) {
-            return !node.static && node.kind !== "constructor" && node.type === "MethodDefinition";
+            switch (node.type) {
+                case "MethodDefinition":
+                    return !node.static && node.kind !== "constructor";
+                case "PropertyDefinition":
+                    return !node.static && enforceForClassFields;
+                default:
+                    return false;
+            }
         }
 
         /**
@@ -76,8 +104,19 @@ module.exports = {
          * @private
          */
         function isIncludedInstanceMethod(node) {
-            return isInstanceMethod(node) &&
-                (node.computed || !exceptMethods.has(node.key.name));
+            if (isInstanceMethod(node)) {
+                if (node.computed) {
+                    return true;
+                }
+
+                const hashIfNeeded = node.key.type === "PrivateIdentifier" ? "#" : "";
+                const name = node.key.type === "Literal"
+                    ? astUtils.getStaticStringValue(node.key)
+                    : (node.key.name || "");
+
+                return !exceptMethods.has(hashIfNeeded + name);
+            }
+            return false;
         }
 
         /**
@@ -89,11 +128,12 @@ module.exports = {
          * @private
          */
         function exitFunction(node) {
-            const methodUsesThis = stack.pop();
+            const methodUsesThis = popContext();
 
             if (isIncludedInstanceMethod(node.parent) && !methodUsesThis) {
                 context.report({
                     node,
+                    loc: astUtils.getFunctionHeadLoc(node, context.getSourceCode()),
                     messageId: "missingThis",
                     data: {
                         name: astUtils.getFunctionNameWithKind(node)
@@ -118,8 +158,30 @@ module.exports = {
             "FunctionDeclaration:exit": exitFunction,
             FunctionExpression: enterFunction,
             "FunctionExpression:exit": exitFunction,
+
+            /*
+             * Class field value are implicit functions.
+             */
+            "PropertyDefinition > *.key:exit": pushContext,
+            "PropertyDefinition:exit": popContext,
+
+            /*
+             * Class static blocks are implicit functions. They aren't required to use `this`,
+             * but we have to push context so that it captures any use of `this` in the static block
+             * separately from enclosing contexts, because static blocks have their own `this` and it
+             * shouldn't count as used `this` in enclosing contexts.
+             */
+            StaticBlock: pushContext,
+            "StaticBlock:exit": popContext,
+
             ThisExpression: markThisUsed,
-            Super: markThisUsed
+            Super: markThisUsed,
+            ...(
+                enforceForClassFields && {
+                    "PropertyDefinition > ArrowFunctionExpression.value": enterFunction,
+                    "PropertyDefinition > ArrowFunctionExpression.value:exit": exitFunction
+                }
+            )
         };
     }
 };

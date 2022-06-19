@@ -5,13 +5,16 @@
 #ifndef V8_API_API_INL_H_
 #define V8_API_API_INL_H_
 
+#include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
+#include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/stack-frame-info.h"
 
 namespace v8 {
 
@@ -107,7 +110,7 @@ MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)
 MAKE_TO_LOCAL(FixedArrayToLocal, FixedArray, FixedArray)
 MAKE_TO_LOCAL(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)
-MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
+MAKE_TO_LOCAL(ToLocal, ScriptOrModule, ScriptOrModule)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
@@ -138,6 +141,7 @@ class V8_NODISCARD CallDepthScope {
   CallDepthScope(i::Isolate* isolate, Local<Context> context)
       : isolate_(isolate),
         context_(context),
+        did_enter_context_(false),
         escaped_(false),
         safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
         interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
@@ -151,12 +155,11 @@ class V8_NODISCARD CallDepthScope {
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-      if (!isolate->context().is_null() &&
-          isolate->context().native_context() == env->native_context()) {
-        context_ = Local<Context>();
-      } else {
+      if (isolate->context().is_null() ||
+          isolate->context().native_context() != env->native_context()) {
         impl->SaveContext(isolate->context());
         isolate->set_context(*env);
+        did_enter_context_ = true;
       }
     }
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
@@ -164,16 +167,17 @@ class V8_NODISCARD CallDepthScope {
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue = isolate_->default_microtask_queue();
     if (!context_.IsEmpty()) {
-      i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
-      isolate_->set_context(impl->RestoreContext());
+      if (did_enter_context_) {
+        i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
+        isolate_->set_context(impl->RestoreContext());
+      }
 
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
       microtask_queue = env->native_context().microtask_queue();
     }
     if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
-// TODO(jochen): This should be #ifdef DEBUG
-#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
+#ifdef DEBUG
     if (do_callback) {
       if (microtask_queue && microtask_queue->microtasks_policy() ==
                                  v8::MicrotasksPolicy::kScoped) {
@@ -212,9 +216,9 @@ class V8_NODISCARD CallDepthScope {
 
   i::Isolate* const isolate_;
   Local<Context> context_;
-  bool escaped_;
-  bool do_callback_;
-  bool safe_for_termination_;
+  bool did_enter_context_ : 1;
+  bool escaped_ : 1;
+  bool safe_for_termination_ : 1;
   i::InterruptsScope interrupts_scope_;
   i::Address previous_stack_height_;
 
@@ -237,9 +241,99 @@ inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
   return false;
 }
 
+template <typename T>
+void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
+                                  i::FixedArray elements) {
+  for (uint32_t i = 0; i < length; ++i) {
+    double value = elements.get(static_cast<int>(i)).Number();
+    // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
+    // avoid int->double->int conversions to boost performance.
+    dst[i] = i::ConvertDouble<T>(value);
+  }
+}
+
+template <typename T>
+void CopyDoubleElementsToTypedBuffer(T* dst, uint32_t length,
+                                     i::FixedDoubleArray elements) {
+  for (uint32_t i = 0; i < length; ++i) {
+    double value = elements.get_scalar(static_cast<int>(i));
+    // TODO(mslekova): There are certain cases, e.g. double->double, in which
+    // we could do a memcpy directly.
+    dst[i] = i::ConvertDouble<T>(value);
+  }
+}
+
+template <CTypeInfo::Identifier type_info_id, typename T>
+bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
+                                    uint32_t max_length) {
+  static_assert(
+      std::is_same<T, typename i::CTypeInfoTraits<
+                          CTypeInfo(type_info_id).GetType()>::ctype>::value,
+      "Type mismatch between the expected CTypeInfo::Type and the destination "
+      "array");
+
+  uint32_t length = src->Length();
+  if (length > max_length) {
+    return false;
+  }
+
+  i::DisallowGarbageCollection no_gc;
+  i::JSArray obj = *reinterpret_cast<i::JSArray*>(*src);
+  if (obj.IterationHasObservableEffects()) {
+    // The array has a custom iterator.
+    return false;
+  }
+
+  i::FixedArrayBase elements = obj.elements();
+  switch (obj.GetElementsKind()) {
+    case i::PACKED_SMI_ELEMENTS:
+      CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
+      return true;
+    case i::PACKED_DOUBLE_ELEMENTS:
+      CopyDoubleElementsToTypedBuffer(dst, length,
+                                      i::FixedDoubleArray::cast(elements));
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Deprecated; to be removed.
+template <const CTypeInfo* type_info, typename T>
+inline bool V8_EXPORT TryCopyAndConvertArrayToCppBuffer(Local<Array> src,
+                                                        T* dst,
+                                                        uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<type_info->GetId(), T>(src, dst,
+                                                               max_length);
+}
+
+template <CTypeInfo::Identifier type_info_id, typename T>
+inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
+                                                          T* dst,
+                                                          uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<type_info_id, T>(src, dst, max_length);
+}
+
 namespace internal {
 
+void HandleScopeImplementer::EnterContext(Context context) {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
+  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
+  DCHECK(context.IsNativeContext());
+  entered_contexts_.push_back(context);
+  is_microtask_context_.push_back(0);
+}
+
+void HandleScopeImplementer::EnterMicrotaskContext(Context context) {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
+  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
+  DCHECK(context.IsNativeContext());
+  entered_contexts_.push_back(context);
+  is_microtask_context_.push_back(1);
+}
+
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 
   for (size_t i = 0; i < entered_contexts_.size(); ++i) {

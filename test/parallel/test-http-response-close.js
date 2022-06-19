@@ -78,3 +78,25 @@ const assert = require('assert');
     })
   );
 }
+
+{
+  const server = http.createServer(
+    common.mustCall((req, res) => {
+      res.on('close', common.mustCall());
+      res.destroy();
+    })
+  );
+
+  server.listen(
+    0,
+    common.mustCall(() => {
+      http.get(
+        { port: server.address().port },
+        common.mustNotCall()
+      )
+      .on('error', common.mustCall(() => {
+        server.close();
+      }));
+    })
+  );
+}

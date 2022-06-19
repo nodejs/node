@@ -33,7 +33,7 @@ function listener(event, exec_state, event_data, data) {
     assertEquals(2, match.length);
     log.push(match[1] + col);
     if (match[1] != "v") {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
     }
   } catch (e) {
     exception = e;

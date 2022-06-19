@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 
-#include <iostream>  // NOLINT(readability/streams)
+#include <iostream>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -128,7 +128,7 @@ TEST(LoadConstants) {
       // Load constant.
       __ li(a5, Operand(refConstants[i]));
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
   };
   auto f = AssembleCode<FV>(fn);
@@ -937,8 +937,8 @@ TEST(Uld) {
 }
 
 auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-  __ ULoadFloat(fa0, MemOperand(a0, in_offset));
-  __ UStoreFloat(fa0, MemOperand(a0, out_offset));
+  __ ULoadFloat(fa0, MemOperand(a0, in_offset), t0);
+  __ UStoreFloat(fa0, MemOperand(a0, out_offset), t0);
 };
 
 TEST(ULoadFloat) {
@@ -971,8 +971,8 @@ TEST(ULoadDouble) {
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
 
   auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ ULoadDouble(fa0, MemOperand(a0, in_offset));
-    __ UStoreDouble(fa0, MemOperand(a0, out_offset));
+    __ ULoadDouble(fa0, MemOperand(a0, in_offset), t0);
+    __ UStoreDouble(fa0, MemOperand(a0, out_offset), t0);
   };
 
   FOR_FLOAT64_INPUTS(i) {
@@ -1376,9 +1376,9 @@ TEST(Ctz64) {
 
 TEST(ByteSwap) {
   CcTest::InitializeVM();
-  auto fn0 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4); };
+  auto fn0 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4, t0); };
   CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn0));
-  auto fn1 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 8); };
+  auto fn1 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 8, t0); };
   CHECK_EQ((int64_t)0x0123'4567'89ab'cdef,
            GenAndRunTest<int64_t>(0xefcd'ab89'6745'2301, fn1));
 }
@@ -1411,19 +1411,19 @@ TEST(Dpopcnt) {
     for (int i = 0; i < 7; i++) {
       // Load constant.
       __ li(a3, Operand(in[i]));
-      __ Popcnt64(a5, a3);
+      __ Popcnt64(a5, a3, t0);
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
     __ li(a3, Operand(in[7]));
-    __ Popcnt64(a5, a3);
+    __ Popcnt64(a5, a3, t0);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
 
     __ li(a3, Operand(in[8]));
-    __ Popcnt64(a5, a3);
+    __ Popcnt64(a5, a3, t0);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
   };
   auto f = AssembleCode<FV>(fn);
 
@@ -1462,20 +1462,20 @@ TEST(Popcnt) {
     for (int i = 0; i < 6; i++) {
       // Load constant.
       __ li(a3, Operand(in[i]));
-      __ Popcnt32(a5, a3);
+      __ Popcnt32(a5, a3, t0);
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
 
     __ li(a3, Operand(in[6]));
-    __ Popcnt64(a5, a3);
+    __ Popcnt64(a5, a3, t0);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
 
     __ li(a3, Operand(in[7]));
-    __ Popcnt64(a5, a3);
+    __ Popcnt64(a5, a3, t0);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
   };
   auto f = AssembleCode<FV>(fn);
 
@@ -1519,8 +1519,6 @@ TEST(Move) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -1530,24 +1528,35 @@ TEST(DeoptExitSizeIsFixed) {
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
-    masm.bind(&before_exit);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicCheckMaps);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeBeforeArgsSize);
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    // Mirroring logic in code-generator.cc.
+    if (kind == DeoptimizeKind::kLazy) {
+      // CFI emits an extra instruction here.
+      masm.BindExceptionHandler(&before_exit);
     } else {
-      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               kind == DeoptimizeKind::kLazy
-                   ? Deoptimizer::kLazyDeoptExitSize
-                   : Deoptimizer::kNonLazyDeoptExitSize);
+      masm.bind(&before_exit);
     }
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               &before_exit);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
+}
+
+TEST(AddWithImm) {
+  CcTest::InitializeVM();
+#define Test(Op, Input, Expected)                                       \
+  {                                                                     \
+    auto fn = [](MacroAssembler& masm) { __ Op(a0, zero_reg, Input); }; \
+    CHECK_EQ(static_cast<int64_t>(Expected), GenAndRunTest(fn));        \
+  }
+
+  Test(Add64, 4095, 4095);
+  Test(Add32, 4095, 4095);
+  Test(Sub64, 4095, -4095);
+  Test(Sub32, 4095, -4095);
+#undef Test
 }
 
 #undef __

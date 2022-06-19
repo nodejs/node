@@ -4,15 +4,24 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include <memory>
+
+#include "src/base/logging.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
+#include "src/handles/maybe-handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/logging/counters.h"
+#include "src/heap/parked-scope.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
@@ -23,7 +32,7 @@
 namespace v8 {
 namespace internal {
 
-ScriptData::ScriptData(const byte* data, int length)
+AlignedCachedData::AlignedCachedData(const byte* data, int length)
     : owns_data_(false), rejected_(false), data_(data), length_(length) {
   if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
     byte* copy = NewArray<byte>(length);
@@ -43,9 +52,9 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
     Handle<SharedFunctionInfo> info) {
   Isolate* isolate = info->GetIsolate();
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
-  HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kCompileSerialize);
+  NestedTimedHistogramScope histogram_timer(
+      isolate->counters()->compile_serialize());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileSerialize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
 
   base::ElapsedTimer timer;
@@ -56,9 +65,11 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
     script->name().ShortPrint();
     PrintF("]\n");
   }
+#if V8_ENABLE_WEBASSEMBLY
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
@@ -67,24 +78,24 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
                                  source, script->origin_options()));
   DisallowGarbageCollection no_gc;
   cs.reference_map()->AddAttachedReference(*source);
-  ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
+  AlignedCachedData* cached_data = cs.SerializeSharedFunctionInfo(info);
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
-    int length = script_data->length();
+    int length = cached_data->length();
     PrintF("[Serializing to %d bytes took %0.3f ms]\n", length, ms);
   }
 
   ScriptCompiler::CachedData* result =
-      new ScriptCompiler::CachedData(script_data->data(), script_data->length(),
+      new ScriptCompiler::CachedData(cached_data->data(), cached_data->length(),
                                      ScriptCompiler::CachedData::BufferOwned);
-  script_data->ReleaseDataOwnership();
-  delete script_data;
+  cached_data->ReleaseDataOwnership();
+  delete cached_data;
 
   return result;
 }
 
-ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
+AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowGarbageCollection no_gc;
 
@@ -98,13 +109,14 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(Handle<HeapObject> obj) {
-  if (!ReadOnlyHeap::Contains(*obj)) return false;
+bool CodeSerializer::SerializeReadOnlyObject(
+    HeapObject obj, const DisallowGarbageCollection& no_gc) {
+  if (!ReadOnlyHeap::Contains(obj)) return false;
 
   // For objects on the read-only heap, never serialize the object, but instead
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
-  Address address = obj->address();
+  Address address = obj.address();
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
@@ -120,70 +132,108 @@ bool CodeSerializer::SerializeReadOnlyObject(Handle<HeapObject> obj) {
 }
 
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
-  if (SerializeHotObject(obj)) return;
-
-  if (SerializeRoot(obj)) return;
-
-  if (SerializeBackReference(obj)) return;
-
-  if (SerializeReadOnlyObject(obj)) return;
-
-  CHECK(!obj->IsCode());
-
   ReadOnlyRoots roots(isolate());
-  if (ElideObject(*obj)) {
-    return SerializeObject(roots.undefined_value_handle());
-  }
+  InstanceType instance_type;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (SerializeHotObject(raw)) return;
+    if (SerializeRoot(raw)) return;
+    if (SerializeBackReference(raw)) return;
+    if (SerializeReadOnlyObject(raw, no_gc)) return;
 
-  if (obj->IsScript()) {
-    Handle<Script> script_obj = Handle<Script>::cast(obj);
-    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
-    // We want to differentiate between undefined and uninitialized_symbol for
-    // context_data for now. It is hack to allow debugging for scripts that are
-    // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object context_data = script_obj->context_data();
-    if (context_data != roots.undefined_value() &&
-        context_data != roots.uninitialized_symbol()) {
-      script_obj->set_context_data(roots.undefined_value());
+    instance_type = raw.map().instance_type();
+    CHECK(!InstanceTypeChecker::IsCode(instance_type));
+
+    if (ElideObject(raw)) {
+      AllowGarbageCollection allow_gc;
+      return SerializeObject(roots.undefined_value_handle());
     }
-    // We don't want to serialize host options to avoid serializing unnecessary
-    // object graph.
-    FixedArray host_options = script_obj->host_defined_options();
-    script_obj->set_host_defined_options(roots.empty_fixed_array());
-    SerializeGeneric(obj);
-    script_obj->set_host_defined_options(host_options);
-    script_obj->set_context_data(context_data);
-    return;
   }
 
-  if (obj->IsSharedFunctionInfo()) {
-    Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(obj);
-    // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
-    // is context independent.
-    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
-
-    DebugInfo debug_info;
-    BytecodeArray debug_bytecode_array;
-    if (sfi->HasDebugInfo()) {
-      // Clear debug info.
-      debug_info = sfi->GetDebugInfo();
-      if (debug_info.HasInstrumentedBytecodeArray()) {
-        debug_bytecode_array = debug_info.DebugBytecodeArray();
-        sfi->SetActiveBytecodeArray(debug_info.OriginalBytecodeArray());
+  if (InstanceTypeChecker::IsScript(instance_type)) {
+    Handle<FixedArray> host_options;
+    Handle<Object> context_data;
+    {
+      DisallowGarbageCollection no_gc;
+      Script script_obj = Script::cast(*obj);
+      DCHECK_NE(script_obj.compilation_type(), Script::COMPILATION_TYPE_EVAL);
+      // We want to differentiate between undefined and uninitialized_symbol for
+      // context_data for now. It is hack to allow debugging for scripts that
+      // are included as a part of custom snapshot. (see
+      // debug::Script::IsEmbedded())
+      Object raw_context_data = script_obj.context_data();
+      if (raw_context_data != roots.undefined_value() &&
+          raw_context_data != roots.uninitialized_symbol()) {
+        script_obj.set_context_data(roots.undefined_value());
       }
-      sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
+      context_data = handle(raw_context_data, isolate());
+      // We don't want to serialize host options to avoid serializing
+      // unnecessary object graph.
+      host_options = handle(script_obj.host_defined_options(), isolate());
+      script_obj.set_host_defined_options(roots.empty_fixed_array());
     }
-    DCHECK(!sfi->HasDebugInfo());
-
     SerializeGeneric(obj);
+    {
+      DisallowGarbageCollection no_gc;
+      Script script_obj = Script::cast(*obj);
+      script_obj.set_host_defined_options(*host_options);
+      script_obj.set_context_data(*context_data);
+    }
+    return;
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
+    Handle<DebugInfo> debug_info;
+    bool restore_bytecode = false;
+    {
+      DisallowGarbageCollection no_gc;
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      DCHECK(!sfi.IsApiFunction());
+#if V8_ENABLE_WEBASSEMBLY
+      // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
+      // is context independent.
+      DCHECK(!sfi.HasAsmWasmData());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
+      if (sfi.HasDebugInfo()) {
+        // Clear debug info.
+        DebugInfo raw_debug_info = sfi.GetDebugInfo();
+        if (raw_debug_info.HasInstrumentedBytecodeArray()) {
+          restore_bytecode = true;
+          sfi.SetActiveBytecodeArray(raw_debug_info.OriginalBytecodeArray());
+        }
+        sfi.set_script_or_debug_info(raw_debug_info.script(), kReleaseStore);
+        debug_info = handle(raw_debug_info, isolate());
+      }
+      DCHECK(!sfi.HasDebugInfo());
+    }
+    SerializeGeneric(obj);
     // Restore debug info
     if (!debug_info.is_null()) {
-      sfi->set_script_or_debug_info(debug_info, kReleaseStore);
-      if (!debug_bytecode_array.is_null()) {
-        sfi->SetActiveBytecodeArray(debug_bytecode_array);
+      DisallowGarbageCollection no_gc;
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      sfi.set_script_or_debug_info(*debug_info, kReleaseStore);
+      if (restore_bytecode) {
+        sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
       }
     }
+    return;
+  } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
+                 instance_type)) {
+    Handle<UncompiledDataWithoutPreparseDataWithJob> data =
+        Handle<UncompiledDataWithoutPreparseDataWithJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
+    return;
+  } else if (InstanceTypeChecker::IsUncompiledDataWithPreparseDataAndJob(
+                 instance_type)) {
+    Handle<UncompiledDataWithPreparseDataAndJob> data =
+        Handle<UncompiledDataWithPreparseDataAndJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
     return;
   }
 
@@ -200,13 +250,16 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 #endif  // V8_TARGET_ARCH_ARM
 
   // Past this point we should not see any (context-specific) maps anymore.
-  CHECK(!obj->IsMap());
+  CHECK(!InstanceTypeChecker::IsMap(instance_type));
   // There should be no references to the global object embedded.
-  CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
+  CHECK(!InstanceTypeChecker::IsJSGlobalProxy(instance_type) &&
+        !InstanceTypeChecker::IsJSGlobalObject(instance_type));
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  CHECK_IMPLIES(obj->NeedsRehashing(cage_base()),
+                obj->CanBeRehashed(cage_base()));
   // We expect no instantiated function objects or contexts.
-  CHECK(!obj->IsJSFunction() && !obj->IsContext());
+  CHECK(!InstanceTypeChecker::IsJSFunction(instance_type) &&
+        !InstanceTypeChecker::IsContext(instance_type));
 
   SerializeGeneric(obj);
 }
@@ -216,6 +269,8 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object) {
   ObjectSerializer serializer(this, heap_object, &sink_);
   serializer.Serialize();
 }
+
+namespace {
 
 #ifndef V8_TARGET_ARCH_ARM
 // NOTE(mmarchini): when FLAG_interpreted_frames_native_stack is on, we want to
@@ -233,7 +288,9 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
        shared_info = iter.Next()) {
-    if (!shared_info.HasBytecodeArray()) continue;
+    IsCompiledScope is_compiled(shared_info, isolate);
+    if (!is_compiled.is_compiled()) continue;
+    DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
@@ -243,105 +300,59 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
-    interpreter_data->set_interpreter_trampoline(*code);
-
-    info->set_interpreter_data(*interpreter_data);
+    interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
+    if (info->HasBaselineCode()) {
+      FromCodeT(info->baseline_code(kAcquireLoad))
+          .set_bytecode_or_interpreter_data(*interpreter_data);
+    } else {
+      info->set_interpreter_data(*interpreter_data);
+    }
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
-            CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
-                            abstract_code, info, name_handle, line_num,
-                            column_num));
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, abstract_code,
+                            info, name_handle, line_num, column_num));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-namespace {
 class StressOffThreadDeserializeThread final : public base::Thread {
  public:
   explicit StressOffThreadDeserializeThread(Isolate* isolate,
-                                            const SerializedCodeData* scd)
+                                            AlignedCachedData* cached_data)
       : Thread(
             base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
         isolate_(isolate),
-        scd_(scd) {}
-
-  MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
+        cached_data_(cached_data) {}
 
   void Run() final {
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
-    MaybeHandle<SharedFunctionInfo> local_maybe_result =
-        ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            &local_isolate, scd_, local_isolate.factory()->empty_string());
+    UnparkedScope unparked_scope(&local_isolate);
+    LocalHandleScope handle_scope(&local_isolate);
+    off_thread_data_ =
+        CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_);
+  }
 
-    maybe_result_ =
-        local_isolate.heap()->NewPersistentMaybeHandle(local_maybe_result);
+  MaybeHandle<SharedFunctionInfo> Finalize(Isolate* isolate,
+                                           Handle<String> source,
+                                           ScriptOriginOptions origin_options) {
+    return CodeSerializer::FinishOffThreadDeserialize(
+        isolate, std::move(off_thread_data_), cached_data_, source,
+        origin_options);
   }
 
  private:
   Isolate* isolate_;
-  const SerializedCodeData* scd_;
-  MaybeHandle<SharedFunctionInfo> maybe_result_;
+  AlignedCachedData* cached_data_;
+  CodeSerializer::OffThreadDeserializeData off_thread_data_;
 };
-}  // namespace
 
-MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
-    Isolate* isolate, ScriptData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options) {
-  base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
-
-  HandleScope scope(isolate);
-
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
-  const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      cached_data, SerializedCodeData::SourceHash(source, origin_options),
-      &sanity_check_result);
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
-    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
-    DCHECK(cached_data->rejected());
-    isolate->counters()->code_cache_reject_reason()->AddSample(
-        sanity_check_result);
-    return MaybeHandle<SharedFunctionInfo>();
-  }
-
-  // Deserialize.
-  MaybeHandle<SharedFunctionInfo> maybe_result;
-  // TODO(leszeks): Add LocalHeap support to deserializer
-  if (false && FLAG_stress_background_compile) {
-    StressOffThreadDeserializeThread thread(isolate, &scd);
-    CHECK(thread.Start());
-    thread.Join();
-
-    maybe_result = thread.maybe_result();
-
-    // Fix-up result script source.
-    Handle<SharedFunctionInfo> result;
-    if (maybe_result.ToHandle(&result)) {
-      Script::cast(result->script()).set_source(*source);
-    }
-  } else {
-    maybe_result = ObjectDeserializer::DeserializeSharedFunctionInfo(
-        isolate, &scd, source);
-  }
-
-  Handle<SharedFunctionInfo> result;
-  if (!maybe_result.ToHandle(&result)) {
-    // Deserializing may fail if the reservations cannot be fulfilled.
-    if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
-    return MaybeHandle<SharedFunctionInfo>();
-  }
-
-  if (FLAG_profile_deserialization) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    int length = cached_data->length();
-    PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
-  }
-
+void FinalizeDeserialization(Isolate* isolate,
+                             Handle<SharedFunctionInfo> result,
+                             const base::ElapsedTimer& timer) {
   const bool log_code_creation =
       isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling() ||
@@ -385,11 +396,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
               script->GetLineNumber(shared_info->StartPosition()) + 1;
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
-          PROFILE(isolate,
-                  CodeCreateEvent(
-                      CodeEventListener::SCRIPT_TAG,
-                      handle(shared_info->abstract_code(isolate), isolate),
-                      shared_info, name, line_num, column_num));
+          PROFILE(
+              isolate,
+              CodeCreateEvent(
+                  shared_info->is_toplevel() ? CodeEventListener::SCRIPT_TAG
+                                             : CodeEventListener::FUNCTION_TAG,
+                  handle(shared_info->abstract_code(isolate), isolate),
+                  shared_info, name, line_num, column_num));
         }
       }
     }
@@ -399,6 +412,166 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Handle<Script> script(Script::cast(result->script()), isolate);
     Script::InitLineEnds(isolate, script);
   }
+}
+
+}  // namespace
+
+MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
+    Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
+    ScriptOriginOptions origin_options) {
+  if (FLAG_stress_background_compile) {
+    StressOffThreadDeserializeThread thread(isolate, cached_data);
+    CHECK(thread.Start());
+    thread.Join();
+    return thread.Finalize(isolate, source, origin_options);
+    // TODO(leszeks): Compare off-thread deserialized data to on-thread.
+  }
+
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
+
+  HandleScope scope(isolate);
+
+  SerializedCodeSanityCheckResult sanity_check_result =
+      SerializedCodeSanityCheckResult::kSuccess;
+  const SerializedCodeData scd = SerializedCodeData::FromCachedData(
+      cached_data, SerializedCodeData::SourceHash(source, origin_options),
+      &sanity_check_result);
+  if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
+    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    DCHECK(cached_data->rejected());
+    isolate->counters()->code_cache_reject_reason()->AddSample(
+        static_cast<int>(sanity_check_result));
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+
+  // Deserialize.
+  MaybeHandle<SharedFunctionInfo> maybe_result =
+      ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
+
+  Handle<SharedFunctionInfo> result;
+  if (!maybe_result.ToHandle(&result)) {
+    // Deserializing may fail if the reservations cannot be fulfilled.
+    if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    int length = cached_data->length();
+    PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
+  }
+
+  FinalizeDeserialization(isolate, result, timer);
+
+  return scope.CloseAndEscape(result);
+}
+
+CodeSerializer::OffThreadDeserializeData
+CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
+                                          AlignedCachedData* cached_data) {
+  OffThreadDeserializeData result;
+
+  DCHECK(!local_isolate->heap()->HasPersistentHandles());
+
+  const SerializedCodeData scd =
+      SerializedCodeData::FromCachedDataWithoutSource(
+          cached_data, &result.sanity_check_result);
+  if (result.sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // Exit early but don't report yet, we'll re-check this when finishing on
+    // the main thread
+    DCHECK(cached_data->rejected());
+    return result;
+  }
+
+  MaybeHandle<SharedFunctionInfo> local_maybe_result =
+      OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
+          local_isolate, &scd, &result.scripts);
+
+  result.maybe_result =
+      local_isolate->heap()->NewPersistentMaybeHandle(local_maybe_result);
+  result.persistent_handles = local_isolate->heap()->DetachPersistentHandles();
+
+  return result;
+}
+
+MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
+    Isolate* isolate, OffThreadDeserializeData&& data,
+    AlignedCachedData* cached_data, Handle<String> source,
+    ScriptOriginOptions origin_options) {
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
+
+  HandleScope scope(isolate);
+
+  // Do a source sanity check now that we have the source. It's important for
+  // FromPartiallySanityCheckedCachedData call that the sanity_check_result
+  // holds the result of the off-thread sanity check.
+  SerializedCodeSanityCheckResult sanity_check_result =
+      data.sanity_check_result;
+  const SerializedCodeData scd =
+      SerializedCodeData::FromPartiallySanityCheckedCachedData(
+          cached_data, SerializedCodeData::SourceHash(source, origin_options),
+          &sanity_check_result);
+  if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // The only case where the deserialization result could exist despite a
+    // check failure is on a source mismatch, since we can't test for this
+    // off-thread.
+    DCHECK_IMPLIES(!data.maybe_result.is_null(),
+                   sanity_check_result ==
+                       SerializedCodeSanityCheckResult::kSourceMismatch);
+    // The only kind of sanity check we can't test for off-thread is a source
+    // mismatch.
+    DCHECK_IMPLIES(sanity_check_result != data.sanity_check_result,
+                   sanity_check_result ==
+                       SerializedCodeSanityCheckResult::kSourceMismatch);
+    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    DCHECK(cached_data->rejected());
+    isolate->counters()->code_cache_reject_reason()->AddSample(
+        static_cast<int>(sanity_check_result));
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+
+  Handle<SharedFunctionInfo> result;
+  if (!data.maybe_result.ToHandle(&result)) {
+    // Deserializing may fail if the reservations cannot be fulfilled.
+    if (FLAG_profile_deserialization) {
+      PrintF("[Off-thread deserializing failed]\n");
+    }
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+
+  // Change the result persistent handle into a regular handle.
+  DCHECK(data.persistent_handles->Contains(result.location()));
+  result = handle(*result, isolate);
+
+  // Fix up the source on the script. This should be the only deserialized
+  // script, and the off-thread deserializer should have set its source to
+  // the empty string.
+  DCHECK_EQ(data.scripts.size(), 1);
+  DCHECK_EQ(result->script(), *data.scripts[0]);
+  DCHECK_EQ(Script::cast(result->script()).source(),
+            ReadOnlyRoots(isolate).empty_string());
+  Script::cast(result->script()).set_source(*source);
+
+  // Fix up the script list to include the newly deserialized script.
+  Handle<WeakArrayList> list = isolate->factory()->script_list();
+  for (Handle<Script> script : data.scripts) {
+    DCHECK(data.persistent_handles->Contains(script.location()));
+    list =
+        WeakArrayList::AddToEnd(isolate, list, MaybeObjectHandle::Weak(script));
+  }
+  isolate->heap()->SetRootScriptList(*list);
+
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    int length = cached_data->length();
+    PrintF("[Finishing off-thread deserialize from %d bytes took %0.3f ms]\n",
+           length, ms);
+  }
+
+  FinalizeDeserialization(isolate, result, timer);
+
   return scope.CloseAndEscape(result);
 }
 
@@ -429,27 +602,56 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   // Copy serialized data.
   CopyBytes(data_ + kHeaderSize, payload->data(),
             static_cast<size_t>(payload->size()));
-
-  SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
+  uint32_t checksum =
+      FLAG_verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
+  SetHeaderValue(kChecksumOffset, checksum);
 }
 
-SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
     uint32_t expected_source_hash) const {
-  if (this->size_ < kHeaderSize) return INVALID_HEADER;
-  uint32_t magic_number = GetMagicNumber();
-  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
-  uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+  SerializedCodeSanityCheckResult result = SanityCheckWithoutSource();
+  if (result != SerializedCodeSanityCheckResult::kSuccess) return result;
+  return SanityCheckJustSource(expected_source_hash);
+}
+
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+    uint32_t expected_source_hash) const {
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+  if (source_hash != expected_source_hash) {
+    return SerializedCodeSanityCheckResult::kSourceMismatch;
+  }
+  return SerializedCodeSanityCheckResult::kSuccess;
+}
+
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+    const {
+  if (this->size_ < kHeaderSize) {
+    return SerializedCodeSanityCheckResult::kInvalidHeader;
+  }
+  uint32_t magic_number = GetMagicNumber();
+  if (magic_number != kMagicNumber) {
+    return SerializedCodeSanityCheckResult::kMagicNumberMismatch;
+  }
+  uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+  if (version_hash != Version::Hash()) {
+    return SerializedCodeSanityCheckResult::kVersionMismatch;
+  }
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+  if (flags_hash != FlagList::Hash()) {
+    return SerializedCodeSanityCheckResult::kFlagsMismatch;
+  }
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t c = GetHeaderValue(kChecksumOffset);
-  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
-  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
-  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
   uint32_t max_payload_length = this->size_ - kHeaderSize;
-  if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-  if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
-  return CHECK_SUCCESS;
+  if (payload_length > max_payload_length) {
+    return SerializedCodeSanityCheckResult::kLengthMismatch;
+  }
+  if (FLAG_verify_snapshot_checksum) {
+    uint32_t checksum = GetHeaderValue(kChecksumOffset);
+    if (Checksum(ChecksummedContent()) != checksum) {
+      return SerializedCodeSanityCheckResult::kChecksumMismatch;
+    }
+  }
+  return SerializedCodeSanityCheckResult::kSuccess;
 }
 
 uint32_t SerializedCodeData::SourceHash(Handle<String> source,
@@ -464,33 +666,74 @@ uint32_t SerializedCodeData::SourceHash(Handle<String> source,
 }
 
 // Return ScriptData object and relinquish ownership over it to the caller.
-ScriptData* SerializedCodeData::GetScriptData() {
+AlignedCachedData* SerializedCodeData::GetScriptData() {
   DCHECK(owns_data_);
-  ScriptData* result = new ScriptData(data_, size_);
+  AlignedCachedData* result = new AlignedCachedData(data_, size_);
   result->AcquireDataOwnership();
   owns_data_ = false;
   data_ = nullptr;
   return result;
 }
 
-Vector<const byte> SerializedCodeData::Payload() const {
+base::Vector<const byte> SerializedCodeData::Payload() const {
   const byte* payload = data_ + kHeaderSize;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
-  return Vector<const byte>(payload, length);
+  return base::Vector<const byte>(payload, length);
 }
 
-SerializedCodeData::SerializedCodeData(ScriptData* data)
+SerializedCodeData::SerializedCodeData(AlignedCachedData* data)
     : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
 SerializedCodeData SerializedCodeData::FromCachedData(
-    ScriptData* cached_data, uint32_t expected_source_hash,
-    SanityCheckResult* rejection_result) {
+    AlignedCachedData* cached_data, uint32_t expected_source_hash,
+    SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
   *rejection_result = scd.SanityCheck(expected_source_hash);
-  if (*rejection_result != CHECK_SUCCESS) {
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    cached_data->Reject();
+    return SerializedCodeData(nullptr, 0);
+  }
+  return scd;
+}
+
+SerializedCodeData SerializedCodeData::FromCachedDataWithoutSource(
+    AlignedCachedData* cached_data,
+    SerializedCodeSanityCheckResult* rejection_result) {
+  DisallowGarbageCollection no_gc;
+  SerializedCodeData scd(cached_data);
+  *rejection_result = scd.SanityCheckWithoutSource();
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    cached_data->Reject();
+    return SerializedCodeData(nullptr, 0);
+  }
+  return scd;
+}
+
+SerializedCodeData SerializedCodeData::FromPartiallySanityCheckedCachedData(
+    AlignedCachedData* cached_data, uint32_t expected_source_hash,
+    SerializedCodeSanityCheckResult* rejection_result) {
+  DisallowGarbageCollection no_gc;
+  // The previous call to FromCachedDataWithoutSource may have already rejected
+  // the cached data, so re-use the previous rejection result if it's not a
+  // success.
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // FromCachedDataWithoutSource doesn't check the source, so there can't be
+    // a source mismatch.
+    DCHECK_NE(*rejection_result,
+              SerializedCodeSanityCheckResult::kSourceMismatch);
+    cached_data->Reject();
+    return SerializedCodeData(nullptr, 0);
+  }
+  SerializedCodeData scd(cached_data);
+  *rejection_result = scd.SanityCheckJustSource(expected_source_hash);
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // This check only checks the source, so the only possible failure is a
+    // source mismatch.
+    DCHECK_EQ(*rejection_result,
+              SerializedCodeSanityCheckResult::kSourceMismatch);
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);
   }

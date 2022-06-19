@@ -10,20 +10,20 @@
 
 const RegExpValidator = require("regexpp").RegExpValidator;
 const validator = new RegExpValidator();
-const validFlags = /[gimuys]/gu;
+const validFlags = /[dgimsuy]/gu;
 const undefined1 = void 0;
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow invalid regular expression strings in `RegExp` constructors",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-invalid-regexp"
         },

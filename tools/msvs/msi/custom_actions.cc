@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <msiquery.h>
 #include <wcautil.h>
+#include <sddl.h>
+#include <Lmcons.h>
 
 #define GUID_BUFFER_SIZE 39 // {8-4-4-4-12}\0
 
@@ -96,6 +98,35 @@ LExit:
   return WcaFinalize(er);
 }
 
+#define AUTHENTICATED_USERS_SID L"S-1-5-11"
+
+extern "C" UINT WINAPI GetLocalizedUserNames(MSIHANDLE hInstall) {
+  HRESULT hr = S_OK;
+  UINT er = ERROR_SUCCESS;
+  TCHAR userName[UNLEN + 1] = {0};
+  DWORD userNameSize = UNLEN + 1;
+  TCHAR domain[DNLEN + 1] = {0};
+  DWORD domainSize = DNLEN + 1;
+  PSID sid;
+  SID_NAME_USE nameUse;
+
+  hr = WcaInitialize(hInstall, "GetLocalizedUserNames");
+  ExitOnFailure(hr, "Failed to initialize");
+  
+  er = ConvertStringSidToSidW(AUTHENTICATED_USERS_SID, &sid);
+  ExitOnLastError(er, "Failed to convert security identifier");
+
+  er = LookupAccountSidW(NULL, sid, userName, &userNameSize, domain, &domainSize, &nameUse);
+  ExitOnLastError(er, "Failed to lookup security identifier");
+
+  MsiSetProperty(hInstall, L"AUTHENTICATED_USERS", userName);
+  ExitOnWin32Error(er, hr, "Failed to set localized Authenticated User name");
+
+LExit:
+  er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+  LocalFree(sid);
+  return WcaFinalize(er);
+}
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, VOID* dummy) {
   switch (ulReason) {

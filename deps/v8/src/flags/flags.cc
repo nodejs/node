@@ -9,6 +9,7 @@
 #include <cinttypes>
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
 #include <sstream>
 
 #include "src/base/functional.h"
@@ -16,11 +17,16 @@
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/logging/counters.h"
+#include "src/logging/tracing-flags.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/utils/allocation.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-limits.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -34,6 +40,8 @@ namespace internal {
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 
 namespace {
+
+char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
 struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
@@ -375,8 +383,6 @@ Flag flags[] = {
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
 
-inline char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
-
 bool EqualNames(const char* a, const char* b) {
   for (int i = 0; NormalizeChar(a[i]) == NormalizeChar(b[i]); i++) {
     if (a[i] == '\0') {
@@ -424,7 +430,27 @@ static const char* Type2String(Flag::FlagType type) {
   UNREACHABLE();
 }
 
-std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
+// Helper struct for printing normalize Flag names.
+struct FlagName {
+  explicit FlagName(const Flag& flag) : flag(flag) {}
+  const Flag& flag;
+};
+
+std::ostream& operator<<(std::ostream& os, const FlagName& flag_name) {
+  for (const char* c = flag_name.flag.name(); *c != '\0'; ++c) {
+    os << NormalizeChar(*c);
+  }
+  return os;
+}
+
+// Helper for printing flag values.
+struct FlagValue {
+  explicit FlagValue(const Flag& flag) : flag(flag) {}
+  const Flag& flag;
+};
+
+std::ostream& operator<<(std::ostream& os, const FlagValue& flag_value) {
+  const Flag& flag = flag_value.flag;
   switch (flag.type()) {
     case Flag::TYPE_BOOL:
       os << (flag.bool_variable() ? "true" : "false");
@@ -451,34 +477,49 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_STRING: {
       const char* str = flag.string_value();
-      os << (str ? str : "nullptr");
+      os << std::quoted(str ? str : "");
       break;
     }
   }
   return os;
 }
 
-// static
-std::vector<const char*>* FlagList::argv() {
-  std::vector<const char*>* args = new std::vector<const char*>(8);
-  for (size_t i = 0; i < num_flags; ++i) {
-    Flag* f = &flags[i];
-    if (!f->IsDefault()) {
-      {
-        bool disabled = f->type() == Flag::TYPE_BOOL && !f->bool_variable();
-        std::ostringstream os;
-        os << (disabled ? "--no" : "--") << f->name();
-        args->push_back(StrDup(os.str().c_str()));
-      }
-      if (f->type() != Flag::TYPE_BOOL) {
-        std::ostringstream os;
-        os << *f;
-        args->push_back(StrDup(os.str().c_str()));
-      }
-    }
+std::ostream& operator<<(std::ostream& os, const Flag& flag) {
+  if (flag.type() == Flag::TYPE_BOOL) {
+    os << (flag.bool_variable() ? "--" : "--no") << FlagName(flag);
+  } else {
+    os << "--" << FlagName(flag) << "=" << FlagValue(flag);
   }
-  return args;
+  return os;
 }
+
+namespace {
+
+static std::atomic<uint32_t> flag_hash(0);
+
+void ComputeFlagListHash() {
+  std::ostringstream modified_args_as_string;
+  if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
+  if (DEBUG_BOOL) modified_args_as_string << "debug";
+  for (const Flag& flag : flags) {
+    if (flag.IsDefault()) continue;
+    // We want to be able to flip --profile-deserialization without
+    // causing the code cache to get invalidated by this hash.
+    if (flag.PointsTo(&FLAG_profile_deserialization)) continue;
+    // Skip FLAG_random_seed to allow predictable code caching.
+    if (flag.PointsTo(&FLAG_random_seed)) continue;
+    modified_args_as_string << flag;
+  }
+  std::string args(modified_args_as_string.str());
+  // Generate a hash that is not 0.
+  uint32_t hash = static_cast<uint32_t>(base::hash_range(
+                      args.c_str(), args.c_str() + args.length())) |
+                  1;
+  DCHECK_NE(hash, 0);
+  flag_hash.store(hash, std::memory_order_relaxed);
+}
+
+}  // namespace
 
 // Helper function to parse flags: Takes an argument arg and splits it into
 // a flag name and flag value (or nullptr if they are missing). negated is set
@@ -725,7 +766,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // allocate argument array
-  ScopedVector<char*> argv(argc);
+  base::ScopedVector<char*> argv(argc);
 
   // split the flags string into arguments
   argc = 1;  // be compatible with SetFlagsFromCommandLine()
@@ -741,6 +782,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 
 // static
 void FlagList::ResetAllFlags() {
+  flag_hash = 0;
   for (size_t i = 0; i < num_flags; ++i) {
     flags[i].Reset();
   }
@@ -763,44 +805,21 @@ void FlagList::PrintHelp() {
   os << "Options:\n";
 
   for (const Flag& f : flags) {
-    os << "  --";
-    for (const char* c = f.name(); *c != '\0'; ++c) {
-      os << NormalizeChar(*c);
-    }
-    os << " (" << f.comment() << ")\n"
+    os << "  --" << FlagName(f) << " (" << f.comment() << ")\n"
        << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
 }
 
-namespace {
-
-static uint32_t flag_hash = 0;
-
-void ComputeFlagListHash() {
-  std::ostringstream modified_args_as_string;
-  if (COMPRESS_POINTERS_BOOL) {
-    modified_args_as_string << "ptr-compr";
+// static
+void FlagList::PrintValues() {
+  StdoutStream os;
+  for (const Flag& f : flags) {
+    os << f << "\n";
   }
-  if (DEBUG_BOOL) {
-    modified_args_as_string << "debug";
-  }
-  for (size_t i = 0; i < num_flags; ++i) {
-    Flag* current = &flags[i];
-    if (current->PointsTo(&FLAG_profile_deserialization)) {
-      // We want to be able to flip --profile-deserialization without
-      // causing the code cache to get invalidated by this hash.
-      continue;
-    }
-    if (!current->IsDefault()) {
-      modified_args_as_string << i;
-      modified_args_as_string << *current;
-    }
-  }
-  std::string args(modified_args_as_string.str());
-  flag_hash = static_cast<uint32_t>(
-      base::hash_range(args.c_str(), args.c_str() + args.length()));
 }
+
+namespace {
 
 template <class A, class B>
 bool TriggerImplication(bool premise, const char* premise_name,
@@ -820,6 +839,7 @@ bool TriggerImplication(bool premise, const char* premise_name,
 
 // static
 void FlagList::EnforceFlagImplications() {
+  flag_hash = 0;
   bool changed;
   do {
     changed = false;
@@ -827,10 +847,13 @@ void FlagList::EnforceFlagImplications() {
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
   } while (changed);
-  ComputeFlagListHash();
 }
 
-uint32_t FlagList::Hash() { return flag_hash; }
+// static
+uint32_t FlagList::Hash() {
+  if (flag_hash.load() == 0) ComputeFlagListHash();
+  return flag_hash.load();
+}
 
 #undef FLAG_MODE_DEFINE
 #undef FLAG_MODE_DEFINE_DEFAULTS

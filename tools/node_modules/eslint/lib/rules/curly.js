@@ -14,13 +14,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce consistent brace style for all control statements",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/curly"
         },
@@ -129,15 +129,6 @@ module.exports = {
          */
         function isElseKeywordToken(token) {
             return token.value === "else" && token.type === "Keyword";
-        }
-
-        /**
-         * Gets the `else` keyword token of a given `IfStatement` node.
-         * @param {ASTNode} node A `IfStatement` node to get.
-         * @returns {Token} The `else` keyword token.
-         */
-        function getElseKeyword(node) {
-            return node.alternate && sourceCode.getFirstTokenBetween(node.consequent, node.alternate, isElseKeywordToken);
         }
 
         /**
@@ -361,7 +352,7 @@ module.exports = {
                         if (this.expected) {
                             context.report({
                                 node,
-                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                loc: body.loc,
                                 messageId: opts && opts.condition ? "missingCurlyAfterCondition" : "missingCurlyAfter",
                                 data: {
                                     name
@@ -371,7 +362,7 @@ module.exports = {
                         } else {
                             context.report({
                                 node,
-                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                loc: body.loc,
                                 messageId: opts && opts.condition ? "unexpectedCurlyAfterCondition" : "unexpectedCurlyAfter",
                                 data: {
                                     name

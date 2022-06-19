@@ -16,9 +16,7 @@ Symbolizer::Symbolizer(CodeMap* code_map) : code_map_(code_map) {}
 
 CodeEntry* Symbolizer::FindEntry(Address address,
                                  Address* out_instruction_start) {
-  CodeEntry* entry = code_map_->FindEntry(address, out_instruction_start);
-  if (entry) entry->mark_used();
-  return entry;
+  return code_map_->FindEntry(address, out_instruction_start);
 }
 
 namespace {
@@ -96,8 +94,8 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         src_line_not_found = false;
         stack_trace.push_back({pc_entry, src_line});
 
-        if (pc_entry->builtin_id() == Builtins::kFunctionPrototypeApply ||
-            pc_entry->builtin_id() == Builtins::kFunctionPrototypeCall) {
+        if (pc_entry->builtin() == Builtin::kFunctionPrototypeApply ||
+            pc_entry->builtin() == Builtin::kFunctionPrototypeCall) {
           // When current function is either the Function.prototype.apply or the
           // Function.prototype.call builtin the top frame is either frame of
           // the calling JS function or internal frame.
@@ -127,8 +125,8 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
           int most_inlined_frame_line_number = entry->GetSourceLine(pc_offset);
-          for (auto entry : *inline_stack) {
-            stack_trace.push_back(entry);
+          for (auto inline_stack_entry : *inline_stack) {
+            stack_trace.push_back(inline_stack_entry);
           }
 
           // This is a bit of a messy hack. The line number for the most-inlined

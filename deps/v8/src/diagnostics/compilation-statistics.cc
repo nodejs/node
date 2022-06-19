@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>  // NOLINT(readability/streams)
+#include "src/diagnostics/compilation-statistics.h"
+
+#include <ostream>
 #include <vector>
 
 #include "src/base/platform/platform.h"
-#include "src/diagnostics/compilation-statistics.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +54,29 @@ void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
     max_allocated_bytes_ = stats.max_allocated_bytes_;
     function_name_ = stats.function_name_;
   }
+}
+
+std::string CompilationStatistics::BasicStats::AsJSON() {
+// clang-format off
+#define DICT(s) "{" << s << "}"
+#define QUOTE(s) "\"" << s << "\""
+#define MEMBER(s) QUOTE(s) << ":"
+
+  DCHECK_EQ(function_name_.find("\""), std::string::npos);
+
+  std::stringstream stream;
+  stream << DICT(
+    MEMBER("function_name") << QUOTE(function_name_) << ","
+    MEMBER("total_allocated_bytes") << total_allocated_bytes_ << ","
+    MEMBER("max_allocated_bytes") << max_allocated_bytes_ << ","
+    MEMBER("absolute_max_allocated_bytes") << absolute_max_allocated_bytes_);
+
+  return stream.str();
+
+#undef DICT
+#undef QUOTE
+#undef MEMBER
+  // clang-format on
 }
 
 static void WriteLine(std::ostream& os, bool machine_format, const char* name,

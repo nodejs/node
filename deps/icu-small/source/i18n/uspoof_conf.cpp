@@ -15,7 +15,7 @@
 *   created on: 2009Jan05  (refactoring earlier files)
 *   created by: Andy Heninger
 *
-*   Internal classes for compililing confusable data into its binary (runtime) form.
+*   Internal classes for compiling confusable data into its binary (runtime) form.
 */
 
 #include "unicode/utypes.h"
@@ -63,23 +63,24 @@ U_NAMESPACE_USE
 //         at the same time
 //
 
-SPUString::SPUString(UnicodeString *s) {
-    fStr = s;
+SPUString::SPUString(LocalPointer<UnicodeString> s) {
+    fStr = std::move(s);
     fCharOrStrTableIndex = 0;
 }
 
 
 SPUString::~SPUString() {
-    delete fStr;
 }
 
 
-SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(NULL), fHash(NULL) {
-    fVec = new UVector(status);
-    if (fVec == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(nullptr), fHash(nullptr) {
+    LocalPointer<UVector> vec(new UVector(status), status);
+    if (U_FAILURE(status)) {
         return;
     }
+    vec->setDeleter(
+        [](void *obj) {delete (SPUString *)obj;});
+    fVec = vec.orphan();
     fHash = uhash_open(uhash_hashUnicodeString,           // key hash function
                        uhash_compareUnicodeString,        // Key Comparator
                        NULL,                              // Value Comparator
@@ -88,11 +89,6 @@ SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(NULL), fHash(NULL) {
 
 
 SPUStringPool::~SPUStringPool() {
-    int i;
-    for (i=fVec->size()-1; i>=0; i--) {
-        SPUString *s = static_cast<SPUString *>(fVec->elementAt(i));
-        delete s;
-    }
     delete fVec;
     uhash_close(fHash);
 }
@@ -113,11 +109,11 @@ SPUString *SPUStringPool::getByIndex(int32_t index) {
 // by code point order.
 // Conforms to the type signature for a USortComparator in uvector.h
 
-static int8_t U_CALLCONV SPUStringCompare(UHashTok left, UHashTok right) {
+static int32_t U_CALLCONV SPUStringCompare(UHashTok left, UHashTok right) {
 	const SPUString *sL = const_cast<const SPUString *>(
         static_cast<SPUString *>(left.pointer));
-	const SPUString *sR = const_cast<const SPUString *>(
-	    static_cast<SPUString *>(right.pointer));
+ 	const SPUString *sR = const_cast<const SPUString *>(
+ 	    static_cast<SPUString *>(right.pointer));
     int32_t lenL = sL->fStr->length();
     int32_t lenR = sR->fStr->length();
     if (lenL < lenR) {
@@ -135,18 +131,21 @@ void SPUStringPool::sort(UErrorCode &status) {
 
 
 SPUString *SPUStringPool::addString(UnicodeString *src, UErrorCode &status) {
-    SPUString *hashedString = static_cast<SPUString *>(uhash_get(fHash, src));
-    if (hashedString != NULL) {
-        delete src;
-    } else {
-        hashedString = new SPUString(src);
-        if (hashedString == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return NULL;
-        }
-        uhash_put(fHash, src, hashedString, &status);
-        fVec->addElement(hashedString, status);
+    LocalPointer<UnicodeString> lpSrc(src);
+    if (U_FAILURE(status)) {
+        return nullptr;
     }
+    SPUString *hashedString = static_cast<SPUString *>(uhash_get(fHash, src));
+    if (hashedString != nullptr) {
+        return hashedString;
+    }
+    LocalPointer<SPUString> spuStr(new SPUString(std::move(lpSrc)), status);
+    hashedString = spuStr.getAlias();
+    fVec->adoptElement(spuStr.orphan(), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    uhash_put(fHash, src, hashedString, &status);
     return hashedString;
 }
 
@@ -475,3 +474,4 @@ void ConfusabledataBuilder::outputData(UErrorCode &status) {
 
 #endif
 #endif // !UCONFIG_NO_REGULAR_EXPRESSIONS
+

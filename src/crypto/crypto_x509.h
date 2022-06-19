@@ -43,6 +43,7 @@ class X509Certificate : public BaseObject {
   };
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static bool HasInstance(Environment* env, v8::Local<v8::Object> object);
@@ -80,6 +81,7 @@ class X509Certificate : public BaseObject {
   static void ValidTo(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Fingerprint(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Fingerprint256(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Fingerprint512(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SerialNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Raw(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -98,8 +100,8 @@ class X509Certificate : public BaseObject {
   X509* get() { return cert_->get(); }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(X509Certificate);
-  SET_SELF_SIZE(X509Certificate);
+  SET_MEMORY_INFO_NAME(X509Certificate)
+  SET_SELF_SIZE(X509Certificate)
 
   class X509CertificateTransferData : public worker::TransferData {
    public:

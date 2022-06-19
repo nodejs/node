@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-type-reflection --experimental-wasm-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Test1() {
   var exporting_instance = (function () {
@@ -114,4 +114,21 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       {parameters:['i32', 'i32'], results: ['i32']},
       function(a) { return a * a; }),
     10, 15));
+})();
+
+(function TestFromJSSlowPath() {
+  var builder = new WasmModuleBuilder();
+  var sig_index = builder.addType(kSig_i_i);
+
+  builder.addFunction("main", makeSig(
+      [wasmRefType(sig_index), kWasmI32], [kWasmI32]))
+      .addBody([kExprLocalGet, 1, kExprLocalGet, 0, kExprCallRef])
+      .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  var fun = new WebAssembly.Function(
+      { parameters: ['i32'], results: ['i32'] }, (a) => undefined);
+  // {undefined} is converted to 0.
+  assertEquals(0, instance.exports.main(fun, 1000));
 })();

@@ -41,11 +41,11 @@ contextGroup.addScript(`
 function test() {
   debugger;
   instance.exports.main(1);
-}
-//# sourceURL=test.js`);
+}`, 0, 0, 'test.js');
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Calling instantiate function.');
     WasmInspectorTest.instantiate(module_bytes);

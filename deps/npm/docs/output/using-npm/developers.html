@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>developers</title>
 <style>
 body {
@@ -145,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>So, you’ve decided to use npm to develop (and maybe publish/deploy)
+<p>So, you've decided to use npm to develop (and maybe publish/deploy)
 your project.</p>
 <p>Fantastic!</p>
 <p>There are a few things that you need to do above the simple steps
@@ -162,7 +163,7 @@ topic, or <code>npm help thing</code> to see the same information.</p>
 <li>c) a url that resolves to (b)</li>
 <li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li>
 <li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li>
-<li>f) a <code>&lt;name&gt;</code> that has a “latest” tag satisfying (e)</li>
+<li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
 <li>g) a <code>git</code> url that, when cloned, results in (a).</li>
 </ul>
 <p>Even if you never publish your package, you can still get a lot of
@@ -187,9 +188,9 @@ goes in that file.  At the very least, you need:</p>
 <li>
 <p>name: This should be a string that identifies your project.  Please do
 not use the name to specify that it runs on node, or is in JavaScript.
-You can use the “engines” field to explicitly state the versions of node
-(or whatever else) that your program requires, and it’s pretty well
-assumed that it’s JavaScript.</p>
+You can use the "engines" field to explicitly state the versions of node
+(or whatever else) that your program requires, and it's pretty well
+assumed that it's JavaScript.</p>
 <p>It does not necessarily need to match your github repository name.</p>
 <p>So, <code>node-foo</code> and <code>bar-js</code> are bad names.  <code>foo</code> or <code>bar</code> are better.</p>
 </li>
@@ -207,24 +208,24 @@ new functionality that you depend on.  Be explicit.</p>
 <li>
 <p>scripts: If you have a special compilation or installation script, then
 you should put it in the <code>scripts</code> object.  You should definitely have at
-least a basic smoke-test command as the “scripts.test” field.  See
+least a basic smoke-test command as the "scripts.test" field.  See
 <a href="../using-npm/scripts.html">scripts</a>.</p>
 </li>
 <li>
 <p>main: If you have a single module that serves as the entry point to your
-program (like what the “foo” package gives you at require(“foo”)), then
-you need to specify that in the “main” field.</p>
+program (like what the "foo" package gives you at require("foo")), then
+you need to specify that in the "main" field.</p>
 </li>
 <li>
 <p>directories: This is an object mapping names to folders.  The best ones
-to include are “lib” and “doc”, but if you use “man” to specify a folder
-full of man pages, they’ll get installed just like these ones.</p>
+to include are "lib" and "doc", but if you use "man" to specify a folder
+full of man pages, they'll get installed just like these ones.</p>
 </li>
 </ul>
 <p>You can use <code>npm init</code> in the root of your package in order to get you
 started with a pretty basic package.json file.  See <a href="../commands/npm-init.html"><code>npm init</code></a> for more info.</p>
 <h3 id="keeping-files-out-of-your-package">Keeping files <em>out</em> of your Package</h3>
-<p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there’s no
+<p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there's no
 <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will ignore
 the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to include
 something that is excluded by your <code>.gitignore</code> file, you can create an
@@ -240,14 +241,16 @@ as <code>.gitignore</code> files:</p>
 <li>You can end patterns with a forward slash <code>/</code> to specify a directory.</li>
 <li>You can negate a pattern by starting it with an exclamation point <code>!</code>.</li>
 </ul>
-<p>By default, the following paths and files are ignored, so there’s no
+<p>By default, the following paths and files are ignored, so there's no
 need to add them to <code>.npmignore</code> explicitly:</p>
 <ul>
 <li><code>.*.swp</code></li>
 <li><code>._*</code></li>
 <li><code>.DS_Store</code></li>
 <li><code>.git</code></li>
+<li><code>.gitignore</code></li>
 <li><code>.hg</code></li>
+<li><code>.npmignore</code></li>
 <li><code>.npmrc</code></li>
 <li><code>.lock-wscript</code></li>
 <li><code>.svn</code></li>
@@ -257,7 +260,7 @@ need to add them to <code>.npmignore</code> explicitly:</p>
 <li><code>npm-debug.log</code></li>
 </ul>
 <p>Additionally, everything in <code>node_modules</code> is ignored, except for
-bundled dependencies. npm automatically handles this for you, so don’t
+bundled dependencies. npm automatically handles this for you, so don't
 bother adding <code>node_modules</code> to <code>.npmignore</code>.</p>
 <p>The following paths and files are never ignored, so adding them to
 <code>.npmignore</code> is pointless:</p>
@@ -285,25 +288,25 @@ of course.)</p>
 <p>More info at <a href="../commands/npm-link.html"><code>npm link</code></a>.</p>
 <h3 id="before-publishing-make-sure-your-package-installs-and-works">Before Publishing: Make Sure Your Package Installs and Works</h3>
 <p><strong>This is important.</strong></p>
-<p>If you can not install it locally, you’ll have
-problems trying to publish it.  Or, worse yet, you’ll be able to
-publish it, but you’ll be publishing a broken or pointless package.
-So don’t do that.</p>
+<p>If you can not install it locally, you'll have
+problems trying to publish it.  Or, worse yet, you'll be able to
+publish it, but you'll be publishing a broken or pointless package.
+So don't do that.</p>
 <p>In the root of your package, do this:</p>
 <pre lang="bash"><code>npm install . -g
 </code></pre>
-<p>That’ll show you that it’s working.  If you’d rather just create a symlink
+<p>That'll show you that it's working.  If you'd rather just create a symlink
 package that points to your working directory, then do this:</p>
 <pre lang="bash"><code>npm link
 </code></pre>
-<p>Use <code>npm ls -g</code> to see if it’s there.</p>
+<p>Use <code>npm ls -g</code> to see if it's there.</p>
 <p>To test a local install, go into some other folder, and then do:</p>
 <pre lang="bash"><code>cd ../some-other-folder
 npm install ../my-package
 </code></pre>
 <p>to install it locally into the node_modules folder in that other place.</p>
-<p>Then go into the node-repl, and try using require(“my-thing”) to
-bring in your module’s main module.</p>
+<p>Then go into the node-repl, and try using require("my-thing") to
+bring in your module's main module.</p>
 <h3 id="create-a-user-account">Create a User Account</h3>
 <p>Create a user with the adduser command.  It works like this:</p>
 <pre lang="bash"><code>npm adduser
@@ -311,7 +314,7 @@ bring in your module’s main module.</p>
 <p>and then follow the prompts.</p>
 <p>This is documented better in <a href="../commands/npm-adduser.html">npm adduser</a>.</p>
 <h3 id="publish-your-package">Publish your Package</h3>
-<p>This part’s easy.  In the root of your folder, do this:</p>
+<p>This part's easy.  In the root of your folder, do this:</p>
 <pre lang="bash"><code>npm publish
 </code></pre>
 <p>You can give publish a url to a tarball, or a filename of a tarball,

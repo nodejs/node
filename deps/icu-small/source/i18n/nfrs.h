@@ -40,8 +40,8 @@ public:
 
     ~NFRuleSet();
 
-    UBool operator==(const NFRuleSet& rhs) const;
-    UBool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
+    bool operator==(const NFRuleSet& rhs) const;
+    bool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
 
     UBool isPublic() const { return fIsPublic; }
 
@@ -66,7 +66,7 @@ private:
     const NFRule * findNormalRule(int64_t number) const;
     const NFRule * findDoubleRule(double number) const;
     const NFRule * findFractionRuleSetRule(double number) const;
-
+    
     friend class NFSubstitution;
 
 private:

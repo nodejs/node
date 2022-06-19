@@ -9,11 +9,17 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-persistent-handle.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/string-16.h"
 #include "src/inspector/v8-debugger-id.h"
+
+namespace v8 {
+class Context;
+class Object;
+}  // namespace v8
 
 namespace v8_inspector {
 
@@ -37,7 +43,7 @@ class InspectedContext {
   int contextGroupId() const { return m_contextGroupId; }
   String16 origin() const { return m_origin; }
   String16 humanReadableName() const { return m_humanReadableName; }
-  V8DebuggerId uniqueId() const { return m_uniqueId; }
+  internal::V8DebuggerId uniqueId() const { return m_uniqueId; }
   String16 auxData() const { return m_auxData; }
 
   bool isReported(int sessionId) const;
@@ -67,11 +73,11 @@ class InspectedContext {
   const String16 m_origin;
   const String16 m_humanReadableName;
   const String16 m_auxData;
-  const V8DebuggerId m_uniqueId;
+  const internal::V8DebuggerId m_uniqueId;
   std::unordered_set<int> m_reportedSessionIds;
   std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
   WeakCallbackData* m_weakCallbackData;
-  v8::Global<v8::debug::WeakMap> m_internalObjects;
+  v8::Global<v8::debug::EphemeronTable> m_internalObjects;
 };
 
 }  // namespace v8_inspector

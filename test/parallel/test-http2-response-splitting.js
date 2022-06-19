@@ -32,11 +32,12 @@ server.on('stream', common.mustCall((stream, headers) => {
 
   const obj = Object.create(null);
   switch (remaining--) {
-    case 3:
+    case 3: {
       const url = new URL(makeUrl(headers));
       obj[':status'] = 302;
       obj.Location = `/foo?lang=${url.searchParams.get('lang')}`;
       break;
+    }
     case 2:
       obj.foo = x;
       break;

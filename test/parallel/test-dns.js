@@ -230,12 +230,12 @@ assert.deepStrictEqual(dns.getServers(), []);
 }
 
 assert.throws(() => dns.lookup('nodejs.org'), {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
 assert.throws(() => dns.lookup('nodejs.org', 4), {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
@@ -274,6 +274,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
   });
+  await dnsPromises.lookup('', { verbatim: true });
 })().then(common.mustCall());
 
 {
@@ -330,16 +331,16 @@ portErr('test');
 assert.throws(() => {
   dns.lookupService('0.0.0.0', 80, null);
 }, {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
 {
   dns.resolveMx('foo.onion', function(err) {
-    assert.deepStrictEqual(err.code, 'ENOTFOUND');
-    assert.deepStrictEqual(err.syscall, 'queryMx');
-    assert.deepStrictEqual(err.hostname, 'foo.onion');
-    assert.deepStrictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
+    assert.strictEqual(err.code, 'ENOTFOUND');
+    assert.strictEqual(err.syscall, 'queryMx');
+    assert.strictEqual(err.hostname, 'foo.onion');
+    assert.strictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
   });
 }
 

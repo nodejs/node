@@ -8,10 +8,13 @@
 #include "src/common/globals.h"
 
 namespace v8 {
-namespace internal {
 
+namespace base {
 template <typename T>
 class Vector;
+}  // namespace base
+
+namespace internal {
 
 // Helper class for incrementally calculating string hashes in a form suitable
 // for storing into Name::raw_hash_field.

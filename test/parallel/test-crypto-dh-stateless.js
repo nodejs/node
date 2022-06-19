@@ -163,7 +163,7 @@ for (const [params1, params2] of list) {
          crypto.generateKeyPairSync('dh', params2));
   }, common.hasOpenSSL3 ? {
     name: 'Error',
-    code: 'ERR_OSSL_DH_INVALID_PUBLIC_KEY'
+    code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
   } : {
     name: 'Error',
     code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
@@ -222,7 +222,7 @@ assert.throws(() => {
        crypto.generateKeyPairSync('ec', { namedCurve: not256k1 }));
 }, common.hasOpenSSL3 ? {
   name: 'Error',
-  code: 'ERR_OSSL_EC_INCOMPATIBLE_OBJECTS'
+  code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
 } : {
   name: 'Error',
   code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'

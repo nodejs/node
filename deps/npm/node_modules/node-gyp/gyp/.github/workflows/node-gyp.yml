@@ -8,6 +8,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+        python: [3.6, 3.9]
+
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone gyp-next
@@ -19,12 +21,12 @@ jobs:
         with:
           repository: nodejs/node-gyp
           path: node-gyp
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
           node-version: 14.x
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
           cd node-gyp

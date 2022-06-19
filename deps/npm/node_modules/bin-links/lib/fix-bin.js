@@ -37,7 +37,7 @@ const dos2Unix = file =>
   readFile(file, 'utf8').then(content =>
     writeFileAtomic(file, content.replace(/^(#![^\n]+)\r\n/, '$1\n')))
 
-const fixBin = file => chmod(file, execMode)
+const fixBin = (file, mode = execMode) => chmod(file, mode)
   .then(() => isWindowsHashbangFile(file))
   .then(isWHB => isWHB ? dos2Unix(file) : null)
 

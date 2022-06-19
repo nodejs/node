@@ -7,10 +7,9 @@
 // CLI, we can remove this, and fold the lib/auth/legacy.js back into
 // lib/adduser.js
 
-const log = require('npmlog')
 const profile = require('npm-profile')
 const npmFetch = require('npm-registry-fetch')
-
+const log = require('../utils/log-shim')
 const openUrl = require('../utils/open-url.js')
 const otplease = require('../utils/otplease.js')
 
@@ -25,8 +24,9 @@ const pollForSession = ({ registry, token, opts }) => {
         return sleep(opts.ssoPollFrequency).then(() => {
           return pollForSession({ registry, token, opts })
         })
-      } else
+      } else {
         throw err
+      }
     }
   )
 }
@@ -36,13 +36,12 @@ function sleep (time) {
 }
 
 const login = async (npm, { creds, registry, scope }) => {
-  log.warn('deprecated', 'SSO --auth-type is deprecated')
-
   const opts = { ...npm.flatOptions, creds, registry, scope }
   const { ssoType } = opts
 
-  if (!ssoType)
+  if (!ssoType) {
     throw new Error('Missing option: sso-type')
+  }
 
   // We're reusing the legacy login endpoint, so we need some dummy
   // stuff here to pass validation. They're never used.
@@ -57,10 +56,12 @@ const login = async (npm, { creds, registry, scope }) => {
     opts => profile.loginCouch(auth.username, auth.password, opts)
   )
 
-  if (!token)
+  if (!token) {
     throw new Error('no SSO token returned')
-  if (!sso)
+  }
+  if (!sso) {
     throw new Error('no SSO URL returned by services')
+  }
 
   await openUrl(npm, sso, 'to complete your login please visit')
 

@@ -7,10 +7,6 @@
 #include "src/common/assert-scope.h"
 #include "src/snapshot/serializer.h"
 
-#ifdef V8_SNAPSHOT_COMPRESSION
-#include "src/snapshot/snapshot-compression.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -46,11 +42,11 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
             static_cast<size_t>(payload->size()));
 }
 
-Vector<const byte> SnapshotData::Payload() const {
+base::Vector<const byte> SnapshotData::Payload() const {
   const byte* payload = data_ + kHeaderSize;
   uint32_t length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
-  return Vector<const byte>(payload, length);
+  return base::Vector<const byte>(payload, length);
 }
 
 }  // namespace internal

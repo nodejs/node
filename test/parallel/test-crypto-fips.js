@@ -17,6 +17,7 @@ const FIPS_ERROR_STRING2 =
   'Error [ERR_CRYPTO_FIPS_FORCED]: Cannot set FIPS mode, it was forced with ' +
   '--force-fips at startup.';
 const FIPS_UNSUPPORTED_ERROR_STRING = 'fips mode not supported';
+const FIPS_ENABLE_ERROR_STRING = 'OpenSSL error when trying to enable FIPS:';
 
 const CNF_FIPS_ON = fixtures.path('openssl_fips_enabled.cnf');
 const CNF_FIPS_OFF = fixtures.path('openssl_fips_disabled.cnf');
@@ -49,8 +50,10 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
       // In the case of expected errors just look for a substring.
       assert.ok(response.includes(expectedOutput));
     } else {
-      // Normal path where we expect either FIPS enabled or disabled.
-      assert.strictEqual(Number(response), expectedOutput);
+      const getFipsValue = Number(response);
+      if (!Number.isNaN(getFipsValue))
+        // Normal path where we expect either FIPS enabled or disabled.
+        assert.strictEqual(getFipsValue, expectedOutput);
     }
     childOk(child);
   }
@@ -58,14 +61,34 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
   responseHandler(child[stream], expectedOutput);
 }
 
+// --enable-fips should raise an error if OpenSSL is not FIPS enabled.
+testHelper(
+  testFipsCrypto() ? 'stdout' : 'stderr',
+  ['--enable-fips'],
+  testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
+  'process.versions',
+  process.env);
+
+// --force-fips should raise an error if OpenSSL is not FIPS enabled.
+testHelper(
+  testFipsCrypto() ? 'stdout' : 'stderr',
+  ['--force-fips'],
+  testFipsCrypto() ? FIPS_ENABLED : FIPS_ENABLE_ERROR_STRING,
+  'process.versions',
+  process.env);
+
 // By default FIPS should be off in both FIPS and non-FIPS builds.
 testHelper(
   'stdout',
   [],
   FIPS_DISABLED,
   'require("crypto").getFips()',
-  { ...process.env, 'OPENSSL_CONF': '' });
+  { ...process.env, 'OPENSSL_CONF': ' ' });
 
+// This should succeed for both FIPS and non-FIPS builds in combination with
+// OpenSSL 1.1.1 or OpenSSL 3.0
+const test_result = testFipsCrypto();
+assert.ok(test_result === 1 || test_result === 0);
 
 // If Node was configured using --shared-openssl fips support might be
 // available depending on how OpenSSL was built. If fips support is
@@ -79,7 +102,7 @@ testHelper(
 // ("Error: Cannot set FIPS mode in a non-FIPS build.").
 // Due to this uncertainty the following tests are skipped when configured
 // with --shared-openssl.
-if (!sharedOpenSSL()) {
+if (!sharedOpenSSL() && !common.hasOpenSSL3) {
   // OpenSSL config file should be able to turn on FIPS mode
   testHelper(
     'stdout',

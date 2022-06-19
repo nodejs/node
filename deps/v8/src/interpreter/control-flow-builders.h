@@ -5,11 +5,13 @@
 #ifndef V8_INTERPRETER_CONTROL_FLOW_BUILDERS_H_
 #define V8_INTERPRETER_CONTROL_FLOW_BUILDERS_H_
 
-#include "src/interpreter/bytecode-array-builder.h"
+#include <map>
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/interpreter/block-coverage-builder.h"
+#include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-generator.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/zone/zone-containers.h"
 
@@ -151,32 +153,49 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
  public:
   SwitchBuilder(BytecodeArrayBuilder* builder,
                 BlockCoverageBuilder* block_coverage_builder,
-                SwitchStatement* statement, int number_of_cases)
+                SwitchStatement* statement, int number_of_cases,
+                BytecodeJumpTable* jump_table)
       : BreakableControlFlowBuilder(builder, block_coverage_builder, statement),
-        case_sites_(builder->zone()) {
+        case_sites_(builder->zone()),
+        default_(builder->zone()),
+        fall_through_(builder->zone()),
+        jump_table_(jump_table) {
     case_sites_.resize(number_of_cases);
   }
-  ~SwitchBuilder() override;  // NOLINT (modernize-use-equals-default)
 
-  // This method should be called by the SwitchBuilder owner when the case
-  // statement with |index| is emitted to update the case jump site.
-  void SetCaseTarget(int index, CaseClause* clause);
+  ~SwitchBuilder() override;
+
+  void BindCaseTargetForJumpTable(int case_value, CaseClause* clause);
+
+  void BindCaseTargetForCompareJump(int index, CaseClause* clause);
 
   // This method is called when visiting case comparison operation for |index|.
   // Inserts a JumpIfTrue with ToBooleanMode |mode| to a unbound label that is
   // patched when the corresponding SetCaseTarget is called.
-  void Case(BytecodeArrayBuilder::ToBooleanMode mode, int index) {
-    builder()->JumpIfTrue(mode, &case_sites_.at(index));
-  }
+  void JumpToCaseIfTrue(BytecodeArrayBuilder::ToBooleanMode mode, int index);
 
-  // This method is called when all cases comparisons have been emitted if there
-  // is a default case statement. Inserts a Jump to a unbound label that is
-  // patched when the corresponding SetCaseTarget is called.
-  void DefaultAt(int index) { builder()->Jump(&case_sites_.at(index)); }
+  void EmitJumpTableIfExists(int min_case, int max_case,
+                             std::map<int, CaseClause*>& covered_cases);
+
+  void BindDefault(CaseClause* clause);
+
+  void JumpToDefault();
+
+  void JumpToFallThroughIfFalse();
 
  private:
   // Unbound labels that identify jumps for case statements in the code.
   ZoneVector<BytecodeLabel> case_sites_;
+  BytecodeLabels default_;
+  BytecodeLabels fall_through_;
+  BytecodeJumpTable* jump_table_;
+
+  void BuildBlockCoverage(CaseClause* clause) {
+    if (block_coverage_builder_ && clause != nullptr) {
+      block_coverage_builder_->IncrementBlockCounter(clause,
+                                                     SourceRangeKind::kBody);
+    }
+  }
 };
 
 // A class to help with co-ordinating control flow in try-catch statements.

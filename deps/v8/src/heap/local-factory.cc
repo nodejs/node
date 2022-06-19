@@ -8,6 +8,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
@@ -18,7 +19,12 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+LocalFactory::LocalFactory(Isolate* isolate)
+    : roots_(isolate), isolate_for_sandbox_(isolate) {}
+#else
 LocalFactory::LocalFactory(Isolate* isolate) : roots_(isolate) {}
+#endif
 
 void LocalFactory::AddToScriptList(Handle<Script> shared) {
 // TODO(leszeks): Actually add the script to the main Isolate's script list,
@@ -39,7 +45,8 @@ void LocalFactory::AddToScriptList(Handle<Script> shared) {
 
 HeapObject LocalFactory::AllocateRaw(int size, AllocationType allocation,
                                      AllocationAlignment alignment) {
-  DCHECK_EQ(allocation, AllocationType::kOld);
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
   return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
       size, allocation, AllocationOrigin::kRuntime, alignment));
 }

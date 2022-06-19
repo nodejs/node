@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -16,7 +16,9 @@
 #ifdef _WIN32
 # include <direct.h>
 # define DIRSEP "/\\"
-# define chdir _chdir
+# ifndef __BORLANDC__
+#  define chdir _chdir
+# endif
 # define DIRSEP_PRESERVE 0
 #elif !defined(OPENSSL_NO_POSIX_IO)
 # include <unistd.h>
@@ -40,7 +42,7 @@ static int change_path(const char *file)
     char *s = OPENSSL_strdup(file);
     char *p = s;
     char *last = NULL;
-    int ret;
+    int ret = 0;
 
     if (s == NULL)
         return -1;
@@ -49,11 +51,12 @@ static int change_path(const char *file)
         last = p++;
     }
     if (last == NULL)
-        return 0;
+        goto err;
     last[DIRSEP_PRESERVE] = 0;
 
     TEST_note("changing path to %s", s);
     ret = chdir(s);
+ err:
     OPENSSL_free(s);
     return ret;
 }
@@ -87,13 +90,6 @@ static int test_load_config(void)
 
     if (!TEST_int_gt(CONF_modules_load(conf, NULL, 0), 0)) {
         TEST_note("Failed in CONF_modules_load");
-        return 0;
-    }
-
-    /* verify whether RANDFILE is set correctly */
-    str = NCONF_get_string(conf, "", "RANDFILE");
-    if (!TEST_ptr(str) || !TEST_str_eq(str, "./.rnd")) {
-        TEST_note("RANDFILE incorrect");
         return 0;
     }
 
@@ -178,24 +174,48 @@ static int test_check_overflow(void)
     return 1;
 }
 
+typedef enum OPTION_choice {
+    OPT_ERR = -1,
+    OPT_EOF = 0,
+    OPT_FAIL,
+    OPT_TEST_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS *test_get_options(void)
+{
+    static const OPTIONS test_options[] = {
+        OPT_TEST_OPTIONS_WITH_EXTRA_USAGE("conf_file\n"),
+        { "f", OPT_FAIL, '-', "A failure is expected" },
+        { NULL }
+    };
+    return test_options;
+}
+
 int setup_tests(void)
 {
     const char *conf_file;
-    const char *arg2;
+    OPTION_CHOICE o;
 
     if (!TEST_ptr(conf = NCONF_new(NULL)))
         return 0;
 
-    conf_file = test_get_argument(0);
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_FAIL:
+            expect_failure = 1;
+            break;
+        case OPT_TEST_CASES:
+            break;
+        default:
+            return 0;
+        }
+    }
 
+    conf_file = test_get_argument(0);
     if (!TEST_ptr(conf_file)
         || !TEST_ptr(in = BIO_new_file(conf_file, "r"))) {
         TEST_note("Unable to open the file argument");
         return 0;
-    }
-
-    if ((arg2 = test_get_argument(1)) != NULL && *arg2 == 'f') {
-       expect_failure = 1;
     }
 
     /*

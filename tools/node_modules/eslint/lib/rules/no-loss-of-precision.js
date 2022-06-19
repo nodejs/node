@@ -9,14 +9,14 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow literal numbers that lose precision",
-            category: "Possible Errors",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/rules/no-loss-of-precision"
         },
         schema: [],

@@ -42,11 +42,11 @@ Connection: close
       // parser.finish() to be called while we are here in the 'continue'
       // callback, which is inside a parser.execute() call.
 
-      assert.strictEqual(chunk.length, 0);
+      assert.strictEqual(chunk.length, 4);
       clientSide.destroy(new Error('sometimes the code just doesn’t work'), cb);
     });
     req.on('error', common.mustCall());
-    req.end();
+    req.end('data');
 
     sync = false;
   }));

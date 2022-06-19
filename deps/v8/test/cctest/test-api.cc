@@ -33,16 +33,29 @@
 #include <memory>
 #include <string>
 
+#include "test/cctest/cctest.h"
+
 #if V8_OS_POSIX
-#include <unistd.h>  // NOLINT
+#include <unistd.h>
 #endif
 
+#include "include/v8-date.h"
+#include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-function.h"
+#include "include/v8-initialization.h"
+#include "include/v8-json.h"
+#include "include/v8-locker.h"
+#include "include/v8-primitive-object.h"
+#include "include/v8-regexp.h"
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/compiler/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
@@ -50,9 +63,9 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/vm-state.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/evacuation-allocator.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/local-allocator.h"
 #include "src/logging/metrics.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -61,6 +74,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
@@ -71,9 +85,13 @@
 #include "src/utils/utils.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/flag-utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 static const bool kLogThreading = false;
 
@@ -154,23 +172,6 @@ static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
 
-
-// Tests that call v8::V8::Dispose() cannot be threaded.
-UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
-  CHECK(v8::V8::Initialize());
-  CHECK(v8::V8::Dispose());
-}
-
-
-// Tests that call v8::V8::Dispose() cannot be threaded.
-UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-}
-
 THREADED_TEST(Handles) {
   v8::HandleScope scope(CcTest::isolate());
   Local<Context> local_env;
@@ -211,12 +212,12 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  i::ScopedVector<char> source(200);
-  i::SNPrintF(source,
-              "for (var i = 0; i < 10; i++) {"
-              "  %s"
-              "}",
-              operation);
+  v8::base::ScopedVector<char> source(200);
+  v8::base::SNPrintF(source,
+                     "for (var i = 0; i < 10; i++) {"
+                     "  %s"
+                     "}",
+                     operation);
   signature_callback_count = 0;
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
@@ -237,17 +238,17 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  i::ScopedVector<char> source(200);
-  i::SNPrintF(source,
-              "function test() {"
-              "  %s"
-              "};"
-              "%%PrepareFunctionForOptimization(test);"
-              "try { test() } catch(e) {}"
-              "try { test() } catch(e) {}"
-              "%%OptimizeFunctionOnNextCall(test);"
-              "test()",
-              operation);
+  v8::base::ScopedVector<char> source(200);
+  v8::base::SNPrintF(source,
+                     "function test() {"
+                     "  %s"
+                     "};"
+                     "%%PrepareFunctionForOptimization(test);"
+                     "try { test() } catch(e) {}"
+                     "try { test() } catch(e) {}"
+                     "%%OptimizeFunctionOnNextCall(test);"
+                     "test()",
+                     operation);
   signature_callback_count = 0;
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
@@ -360,9 +361,9 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    i::ScopedVector<char> source(200);
-    i::SNPrintF(
-        source, "var test_object = %s; test_object", test_objects[i]);
+    v8::base::ScopedVector<char> source(200);
+    v8::base::SNPrintF(source, "var test_object = %s; test_object",
+                       test_objects[i]);
     Local<Value> test_object = CompileRun(source.begin());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
@@ -378,6 +379,45 @@ THREADED_TEST(ReceiverSignature) {
   }
 }
 
+static void DoNothingCallback(const v8::FunctionCallbackInfo<v8::Value>&) {}
+
+// Regression test for issue chromium:1188563.
+THREADED_TEST(Regress1188563) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Set up some data for CallHandlerInfo.
+  v8::Local<v8::FunctionTemplate> data_constructor_templ =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<Function> data_constructor =
+      data_constructor_templ->GetFunction(env.local()).ToLocalChecked();
+  v8::Local<v8::Object> data =
+      data_constructor->NewInstance(env.local()).ToLocalChecked();
+
+  // Setup templates and instance with accessor property.
+  v8::Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> callback =
+      v8::FunctionTemplate::New(isolate, DoNothingCallback, data);
+  v8::Local<v8::ObjectTemplate> instance_templ = fun->InstanceTemplate();
+  instance_templ->SetAccessorProperty(v8_str("accessor"), callback, callback);
+  Local<Value> test_object =
+      instance_templ->NewInstance(env.local()).ToLocalChecked();
+  // Setup global variables.
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("test_object"), test_object)
+            .FromJust());
+  CompileRun(
+      "function test() {"
+      "  test_object.accessor;"
+      "};"
+      "%PrepareFunctionForOptimization(test);"
+      "try { test() } catch(e) {}"
+      "try { test() } catch(e) {}"
+      "%OptimizeFunctionOnNextCall(test);"
+      "test()");
+}
 
 THREADED_TEST(HulIgennem) {
   LocalContext env;
@@ -514,6 +554,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
     CHECK(source->IsExternalTwoByte());
+    CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
     String::Encoding encoding = String::UNKNOWN_ENCODING;
@@ -541,6 +582,8 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
         String::NewExternalOneByte(env->GetIsolate(), resource)
             .ToLocalChecked();
     CHECK(source->IsExternalOneByte());
+    CHECK(source->IsExternal());
+    CHECK(!source->IsExternalTwoByte());
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
              source->GetExternalOneByteStringResource());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
@@ -574,6 +617,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
     CHECK(!source->IsExternalTwoByte());
     CHECK(!source->IsExternalOneByte());
+    CHECK(!source->IsExternal());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK(!source->GetExternalStringResourceBase(&encoding));
     CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
@@ -652,8 +696,9 @@ TEST(MakingExternalStringConditions) {
   CHECK(local_string->CanMakeExternal());
 
   // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled.
-  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+  // enabled, but they are if sandboxed external pointers are enabled.
+  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+               i::kTaggedSize == i::kSystemPointerSize,
            tiny_local_string->CanMakeExternal());
 }
 
@@ -682,8 +727,9 @@ TEST(MakingExternalOneByteStringConditions) {
   CHECK(local_string->CanMakeExternal());
 
   // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled.
-  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+  // enabled, but they are if sandboxed external pointers are enabled.
+  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+               i::kTaggedSize == i::kSystemPointerSize,
            tiny_local_string->CanMakeExternal());
 }
 
@@ -1407,6 +1453,9 @@ static void TestExternalPointerWrapping() {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
+  int* ptr = new int;
+  expected_ptr = ptr;
+
   v8::Local<v8::Value> data = v8::External::New(isolate, expected_ptr);
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -1422,6 +1471,8 @@ static void TestExternalPointerWrapping() {
                    "}\n"
                    "foo(), true")
             ->BooleanValue(isolate));
+
+  delete ptr;
 }
 
 
@@ -2566,7 +2617,7 @@ THREADED_TEST(DescriptorInheritance2) {
   v8::Local<v8::Script> script = v8_compile("o = new F()");
 
   for (int i = 0; i < 100; i++) {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     script->Run(env.local()).ToLocalChecked();
   }
   v8::Local<v8::Object> object = script->Run(env.local())
@@ -2626,24 +2677,28 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorGetter(Local<String>::Cast(sym->Description(isolate)), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorSetter(Local<String>::Cast(sym->Description(isolate)), value,
+                       info);
 }
 
 void SymbolAccessorGetterReturnsDefault(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
+  if (sym->Description(isolate)->IsUndefined()) return;
   info.GetReturnValue().Set(info.Data());
 }
 
@@ -2655,20 +2710,17 @@ static void ThrowingSymbolAccessorGetter(
 
 THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   v8::Local<v8::Value> res = CompileRun("var a = []; a;");
   i::Handle<i::JSReceiver> a(v8::Utils::OpenHandle(v8::Object::Cast(*res)));
-  CHECK_EQ(
-      1,
-      a->map().instance_descriptors(v8::kRelaxedLoad).number_of_descriptors());
+  CHECK_EQ(1, a->map().instance_descriptors(i_isolate).number_of_descriptors());
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
-  CHECK_EQ(
-      0,
-      a->map().instance_descriptors(v8::kRelaxedLoad).number_of_descriptors());
+  CHECK_EQ(0, a->map().instance_descriptors(i_isolate).number_of_descriptors());
   // But we should still have an AccessorInfo.
-  i::Handle<i::String> name = CcTest::i_isolate()->factory()->length_string();
-  i::LookupIterator it(CcTest::i_isolate(), a, name,
+  i::Handle<i::String> name = i_isolate->factory()->length_string();
+  i::LookupIterator it(i_isolate, a, name,
                        i::LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
   CHECK(it.GetAccessors()->IsAccessorInfo());
@@ -2919,9 +2971,9 @@ TEST(InternalFieldsSubclassing) {
         CHECK_LE(i_value->map().GetInObjectProperties(), kMaxNofProperties);
       }
 
-      // Make Sure we get the precise property count.
-      i_value->map().FindRootMap(i_isolate).CompleteInobjectSlackTracking(
-          i_isolate);
+      // Make sure we get the precise property count.
+      i::MapUpdater::CompleteInobjectSlackTracking(
+          i_isolate, i_value->map().FindRootMap(i_isolate));
       // TODO(cbruni): fix accounting to make this condition true.
       // CHECK_EQ(0, i_value->map()->UnusedPropertyFields());
       if (in_object_only) {
@@ -2940,8 +2992,8 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    i::ScopedVector<char> source(128);
-    i::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::base::ScopedVector<char> source(128);
+    v8::base::SNPrintF(source, "(function() { return %s })()", sources[i]);
     v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
@@ -3002,7 +3054,9 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   int stack_allocated[100];
   CheckAlignedPointerInInternalField(obj, stack_allocated);
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the sandboxed external pointers are enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInInternalField(obj, huge);
 
   v8::Global<v8::Object> persistent(isolate, obj);
@@ -3078,7 +3132,9 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the sandboxed external pointers are enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
 
@@ -3276,8 +3332,9 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!sym1->StrictEquals(sym2));
   CHECK(!sym2->StrictEquals(sym1));
 
-  CHECK(
-      sym2->Description()->Equals(env.local(), v8_str("my-symbol")).FromJust());
+  CHECK(sym2->Description(isolate)
+            ->Equals(env.local(), v8_str("my-symbol"))
+            .FromJust());
 
   v8::Local<v8::Value> sym_val = sym2;
   CHECK(sym_val->IsSymbol());
@@ -4072,8 +4129,8 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    i::ScopedVector<char> buffer(40);
-    i::SNPrintF(buffer, "%p", static_cast<void*>(this));
+    v8::base::ScopedVector<char> buffer(40);
+    v8::base::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
         v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
     cell_.Reset(isolate, string);
@@ -4192,7 +4249,7 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
-  i::ScopedVector<uint8_t> source(200000);
+  v8::base::ScopedVector<uint8_t> source(200000);
   v8::HandleScope handle_scope(isolate);
   // Creating a few large strings suffices to trigger GC.
   while (metadata.instance_counter == 1) {
@@ -4728,6 +4785,13 @@ namespace {
 // some particular way by calling the supplied |tester| function. The tests that
 // use this purposely test only a single getter as the getter updates the cached
 // state of the object which could affect the results of other functions.
+const char message_attributes_script[] =
+    R"javascript(
+    (function() {
+      throw new Error();
+    })();
+    )javascript";
+
 void CheckMessageAttributes(std::function<void(v8::Local<v8::Context> context,
                                                v8::Local<v8::Message> message)>
                                 tester) {
@@ -4735,12 +4799,7 @@ void CheckMessageAttributes(std::function<void(v8::Local<v8::Context> context,
   v8::HandleScope scope(context->GetIsolate());
 
   TryCatch try_catch(context->GetIsolate());
-  CompileRun(
-      R"javascript(
-      (function() {
-        throw new Error();
-      })();
-      )javascript");
+  CompileRun(message_attributes_script);
   CHECK(try_catch.HasCaught());
 
   v8::Local<v8::Value> error = try_catch.Exception();
@@ -4763,29 +4822,38 @@ TEST(MessageGetLineNumber) {
 TEST(MessageGetStartColumn) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(14, message->GetStartColumn(context).FromJust());
+        CHECK_EQ(12, message->GetStartColumn(context).FromJust());
       });
 }
 
 TEST(MessageGetEndColumn) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(15, message->GetEndColumn(context).FromJust());
+        CHECK_EQ(13, message->GetEndColumn(context).FromJust());
       });
 }
 
 TEST(MessageGetStartPosition) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(35, message->GetStartPosition());
+        CHECK_EQ(31, message->GetStartPosition());
       });
 }
 
 TEST(MessageGetEndPosition) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(36, message->GetEndPosition());
+        CHECK_EQ(32, message->GetEndPosition());
       });
+}
+
+TEST(MessageGetSource) {
+  CheckMessageAttributes([](v8::Local<v8::Context> context,
+                            v8::Local<v8::Message> message) {
+    std::string result(*v8::String::Utf8Value(
+        context->GetIsolate(), message->GetSource(context).ToLocalChecked()));
+    CHECK_EQ(message_attributes_script, result);
+  });
 }
 
 TEST(MessageGetSourceLine) {
@@ -4794,7 +4862,7 @@ TEST(MessageGetSourceLine) {
         std::string result(*v8::String::Utf8Value(
             context->GetIsolate(),
             message->GetSourceLine(context).ToLocalChecked()));
-        CHECK_EQ("        throw new Error();", result);
+        CHECK_EQ("      throw new Error();", result);
       });
 }
 
@@ -6090,9 +6158,7 @@ static void TryCatchNested2Helper(int depth) {
   }
 }
 
-
 TEST(TryCatchNested) {
-  v8::V8::Initialize();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -6116,7 +6182,6 @@ TEST(TryCatchNested) {
                        "E2"));
   }
 }
-
 
 void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
@@ -6152,7 +6217,6 @@ void TryCatchMixedNestingHelper(
 TEST(TryCatchMixedNesting) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchMixedNestingHelper",
@@ -6174,7 +6238,6 @@ void TryCatchNativeHelper(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(TryCatchNative) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeHelper",
@@ -6199,7 +6262,6 @@ void TryCatchNativeResetHelper(
 TEST(TryCatchNativeReset) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeResetHelper",
@@ -7212,8 +7274,8 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    i::ScopedVector<char> extension_name(32);
-    i::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::base::ScopedVector<char> extension_name(32);
+    v8::base::SNPrintF(extension_name, "ext #%d", source_len);
     v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
                                                       kEmbeddedExtensionSource,
                                                       0, nullptr, source_len));
@@ -7768,6 +7830,12 @@ void CheckInternalFields(
 }
 
 void InternalFieldCallback(bool global_gc) {
+  // Manual GC scope as --stress-incremental-marking starts marking early and
+  // setting internal pointer fields mark the object for a heap layout change,
+  // which prevents it from being reclaimed and the callbacks from being
+  // executed.
+  ManualGCScope manual_gc_scope;
+
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -7779,7 +7847,7 @@ void InternalFieldCallback(bool global_gc) {
   instance_templ->SetInternalFieldCount(2);
   v8::Persistent<v8::Object> handle;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     Local<v8::Object> obj = templ->GetFunction(env.local())
                                 .ToLocalChecked()
                                 ->NewInstance(env.local())
@@ -7829,6 +7897,7 @@ static void ResetUseValueAndSetFlag(
 }
 
 void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
+  if (FLAG_stress_incremental_marking) return;
   using v8::Context;
   using v8::Local;
   using v8::Object;
@@ -8475,12 +8544,8 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, str->Write(isolate, nullptr, 0, 0, String::NO_NULL_TERMINATION));
 }
 
-
-static void Utf16Helper(
-    LocalContext& context,  // NOLINT
-    const char* name,
-    const char* lengths_name,
-    int len) {
+static void Utf16Helper(LocalContext& context, const char* name,
+                        const char* lengths_name, int len) {
   Local<v8::Array> a = Local<v8::Array>::Cast(
       context->Global()->Get(context.local(), v8_str(name)).ToLocalChecked());
   Local<v8::Array> alens =
@@ -9175,7 +9240,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   // Change context to be able to get to the Object function in the
   // other context without hitting the security checks.
   v8::Local<Value> other_object;
-  { Context::Scope scope(other);
+  {
+    Context::Scope context_scope(other);
     other_object =
         other->Global()->Get(other, v8_str("Object")).ToLocalChecked();
     CHECK(other->Global()->Set(other, v8_num(42), v8_num(87)).FromJust());
@@ -9219,7 +9285,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   // Now it gets hairy: Set the prototype for the other global object
   // to be the current global object. The prototype chain for 'f' now
   // goes through 'other' but ends up in the current global object.
-  { Context::Scope scope(other);
+  {
+    Context::Scope context_scope(other);
     CHECK(other->Global()
               ->Set(other, v8_str("__proto__"), current->Global())
               .FromJust());
@@ -9515,7 +9582,7 @@ TEST(DetachGlobal) {
 
   // Create a property on the global object in env2.
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()
               ->Set(env2, v8_str("p"), v8::Integer::New(env2->GetIsolate(), 42))
               .FromJust());
@@ -9550,7 +9617,7 @@ TEST(DetachGlobal) {
 
   // Create a property on the global object in env3.
   {
-    v8::Context::Scope scope(env3);
+    v8::Context::Scope context_scope(env3);
     CHECK(env3->Global()
               ->Set(env3, v8_str("p"), v8::Integer::New(env3->GetIsolate(), 24))
               .FromJust());
@@ -9593,7 +9660,7 @@ TEST(DetachedAccesses) {
             .FromJust());
 
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()->Set(env2, v8_str("x"), v8_str("env2_x")).FromJust());
     CompileRun(
         "function bound_x() { return x; }"
@@ -9632,7 +9699,7 @@ TEST(DetachedAccesses) {
                       v8::Local<v8::ObjectTemplate>(), env2_global);
   env2->SetSecurityToken(foo);
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()->Set(env2, v8_str("x"), v8_str("env3_x")).FromJust());
     CHECK(env2->Global()->Set(env2, v8_str("env1"), env1->Global()).FromJust());
     result = CompileRun(
@@ -10474,7 +10541,6 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
             ->Equals(context.local(), v8_str("length"))
             .FromMaybe(false));
   for (int i = 0; i < 4; ++i) {
-    v8::Local<v8::Value> property;
     CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
           property->IsInt32());
     CHECK_EQ(property.As<v8::Int32>()->Value(), i);
@@ -10520,7 +10586,6 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
   bool concat_found = false;
   bool starts_with_found = false;
   for (uint32_t i = 0; i < properties->Length(); ++i) {
-    v8::Local<v8::Value> property;
     CHECK(properties->Get(context.local(), i).ToLocal(&property));
     if (!property->IsString()) continue;
     if (!concat_found)
@@ -10703,7 +10768,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   // We go a bit further, checking that the form of monomorphism is
   // a PropertyCell in the vector. This is because we want to make sure
   // we didn't settle for a "poor man's monomorphism," such as a
@@ -10753,7 +10818,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(heap_object.IsPropertyCell());
@@ -10875,9 +10940,9 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  i::ScopedVector<char> name_buf(1024);
+  v8::base::ScopedVector<char> name_buf(1024);
   for (int i = 1; i <= 1000; i++) {
-    i::SNPrintF(name_buf, "sdf%d", i);
+    v8::base::SNPrintF(name_buf, "sdf%d", i);
     t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
   }
 
@@ -13416,9 +13481,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
-
   i::FLAG_expose_gc = true;
-  v8::V8::Initialize();
 
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope(CcTest::isolate());
@@ -13623,10 +13686,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   EmptyMessageQueues(isolate);
 }
 
-
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
-  v8::V8::Initialize();
-
   const int nof = 2;
   const char* sources[nof] = {
     "try { [ 2, 3, 4 ].forEach(5); } catch(e) { e.toString(); }",
@@ -13645,7 +13705,6 @@ THREADED_TEST(CheckForCrossContextObjectLiterals) {
     }
   }
 }
-
 
 static v8::Local<Value> NestedScope(v8::Local<Context> env) {
   v8::EscapableHandleScope inner(env->GetIsolate());
@@ -13673,16 +13732,14 @@ static v8::base::HashMap* jitcode_line_info = nullptr;
 static int saw_bar = 0;
 static int move_events = 0;
 
-
 static bool FunctionNameIs(const char* expected,
                            const v8::JitCodeEvent* event) {
   // Log lines for functions are of the general form:
   // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
   // where the type is one of "*", "~" or "".
-  static const char* kPreamble;
-  if (!i::FLAG_lazy) {
-    kPreamble = "Function:";
-  } else {
+  static const char* kPreamble = "Function:";
+  if (i::FLAG_lazy &&
+      event->code_type != v8::JitCodeEvent::CodeType::WASM_CODE) {
     kPreamble = "LazyCompile:";
   }
   static size_t kPreambleLen = strlen(kPreamble);
@@ -13714,7 +13771,6 @@ static bool FunctionNameIs(const char* expected,
 
   return strncmp(tail, expected, expected_len) == 0;
 }
-
 
 static void event_handler(const v8::JitCodeEvent* event) {
   CHECK_NOT_NULL(event);
@@ -13808,12 +13864,15 @@ static void event_handler(const v8::JitCodeEvent* event) {
   }
 }
 
-
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
   i::FLAG_incremental_marking = false;
   i::FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  if (i::FLAG_never_compact) return;
+  // Batch compilation can cause different owning spaces for foo and bar.
+#if ENABLE_SPARKPLUG
+  i::FLAG_baseline_batch_compilation = false;
+#endif
+  if (!i::FLAG_compact) return;
   const char* script =
       "function bar() {"
       "  var sum = 0;"
@@ -13928,6 +13987,77 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   isolate->Exit();
   isolate->Dispose();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+static bool saw_wasm_main = false;
+static void wasm_event_handler(const v8::JitCodeEvent* event) {
+  switch (event->type) {
+    case v8::JitCodeEvent::CODE_ADDED: {
+      if (FunctionNameIs("main-0-turbofan", event)) {
+        saw_wasm_main = true;
+        // Make sure main function has line info.
+        auto* entry = jitcode_line_info->Lookup(
+            event->code_start, i::ComputePointerHash(event->code_start));
+        CHECK_NOT_NULL(entry);
+      }
+      break;
+    }
+    case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
+      jitcode_line_info->LookupOrInsert(
+          event->code_start, i::ComputePointerHash(event->code_start));
+      break;
+    }
+    case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
+      break;
+    }
+    default: {
+      // Ignore all other events;
+    }
+  }
+}
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+TEST(WasmSetJitCodeEventHandler) {
+  v8::base::HashMap code;
+  code_map = &code;
+
+  v8::base::HashMap lineinfo;
+  jitcode_line_info = &lineinfo;
+
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  i::Isolate* isolate = r.main_isolate();
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                     wasm_event_handler);
+
+  TestSignatures sigs;
+  auto& f = r.NewFunction(sigs.i_i(), "f");
+  BUILD(f, WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(0)));
+
+  LocalContext env;
+
+  BUILD(r,
+        WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_CALL_FUNCTION(f.function_index(),
+                                                           WASM_LOCAL_GET(1))));
+
+  Handle<JSFunction> func = r.builder().WrapCode(0);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
+            .FromJust());
+  const char* script = R"(
+    func(1, 2);
+  )";
+  CompileRun(script);
+  CHECK(saw_wasm_main);
+  saw_wasm_main = false;
+}
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -14137,8 +14267,8 @@ void CheckIsSymbolAt(v8::Isolate* isolate, v8::Local<v8::Array> properties,
       properties->Get(context, v8::Integer::New(isolate, index))
           .ToLocalChecked();
   CHECK(value->IsSymbol());
-  v8::String::Utf8Value symbol_name(isolate,
-                                    Local<Symbol>::Cast(value)->Description());
+  v8::String::Utf8Value symbol_name(
+      isolate, Local<Symbol>::Cast(value)->Description(isolate));
   if (strcmp(name, *symbol_name) != 0) {
     FATAL("properties[%u] was Symbol('%s') instead of Symbol('%s').", index,
           name, *symbol_name);
@@ -14671,7 +14801,7 @@ TEST(ObjectClone) {
 
 class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit OneByteVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
@@ -14679,21 +14809,21 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
   void Dispose() override {}
 
  private:
-  i::Vector<const char> data_;
+  v8::base::Vector<const char> data_;
 };
 
 
 class UC16VectorResource : public v8::String::ExternalStringResource {
  public:
-  explicit UC16VectorResource(i::Vector<const i::uc16> vector)
+  explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
       : data_(vector) {}
   ~UC16VectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const i::uc16* data() const override { return data_.begin(); }
+  const v8::base::uc16* data() const override { return data_.begin(); }
   void Dispose() override {}
 
  private:
-  i::Vector<const i::uc16> data_;
+  v8::base::Vector<const v8::base::uc16> data_;
 };
 
 static void MorphAString(i::String string,
@@ -14735,9 +14865,9 @@ THREADED_TEST(MorphCompositeStringTest) {
     i::Isolate* i_isolate = CcTest::i_isolate();
     v8::HandleScope scope(isolate);
     OneByteVectorResource one_byte_resource(
-        i::Vector<const char>(c_string, strlen(c_string)));
+        v8::base::Vector<const char>(c_string, strlen(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+        v8::base::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
         factory->NewExternalStringFromOneByte(&one_byte_resource)
@@ -15171,8 +15301,9 @@ TEST(DefineProperty) {
     v8::TryCatch try_catch(isolate);
     // Use a writable descriptor, otherwise the next test, that changes
     // the array length will fail.
-    v8::PropertyDescriptor desc(v8_num(42), true);
-    CHECK(arr->DefineProperty(env.local(), v8_str("length"), desc).FromJust());
+    v8::PropertyDescriptor desc_writable(v8_num(42), true);
+    CHECK(arr->DefineProperty(env.local(), v8_str("length"), desc_writable)
+              .FromJust());
     CHECK(!try_catch.HasCaught());
   }
 
@@ -15267,11 +15398,11 @@ TEST(DefineProperty) {
         env->Global()->Get(env.local(), v8_str("get")).ToLocalChecked());
     v8::Local<v8::Function> set = v8::Local<v8::Function>::Cast(
         env->Global()->Get(env.local(), v8_str("set")).ToLocalChecked());
-    v8::PropertyDescriptor desc(get, set);
+    v8::PropertyDescriptor desc_getter_setter(get, set);
 
     p = v8_str("v7");
     v8::TryCatch try_catch(isolate);
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter_setter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     v8::Local<v8::Value> val = obj->Get(env.local(), p).ToLocalChecked();
@@ -15292,12 +15423,12 @@ TEST(DefineProperty) {
     // Redefine an existing property.
 
     // desc = {value: 42, enumerable: true}
-    v8::PropertyDescriptor desc(v8_num(42));
-    desc.set_enumerable(true);
+    v8::PropertyDescriptor desc42(v8_num(42));
+    desc42.set_enumerable(true);
 
     p = v8_str("v8");
     v8::TryCatch try_catch(isolate);
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc42).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc = {enumerable: true}
@@ -15331,11 +15462,11 @@ TEST(DefineProperty) {
         env->Global()->Get(env.local(), v8_str("get")).ToLocalChecked());
 
     // desc = {get: function() {}}
-    v8::PropertyDescriptor desc(get, v8::Local<v8::Function>());
+    v8::PropertyDescriptor desc_getter(get, v8::Local<v8::Function>());
     v8::TryCatch try_catch(isolate);
 
     p = v8_str("v9");
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc_empty = {}
@@ -15346,7 +15477,7 @@ TEST(DefineProperty) {
 
     // desc = {get: function() {}}
     // Successful because we redefine the getter with its current value.
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc = {get: undefined}
@@ -15463,7 +15594,7 @@ THREADED_TEST(ScriptContextDependence) {
            101);
 }
 
-
+#if V8_ENABLE_WEBASSEMBLY
 static int asm_warning_triggered = 0;
 
 static void AsmJsWarningListener(v8::Local<v8::Message> message,
@@ -15490,14 +15621,11 @@ TEST(AsmJsWarning) {
       "  return {};\n"
       "}\n"
       "module();");
-#if V8_ENABLE_WEBASSEMBLY
   int kExpectedWarnings = 1;
-#else
-  int kExpectedWarnings = 0;
-#endif
   CHECK_EQ(kExpectedWarnings, asm_warning_triggered);
   isolate->RemoveMessageListeners(AsmJsWarningListener);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 static int error_level_message_count = 0;
 static int expected_error_level = 0;
@@ -15530,8 +15658,8 @@ TEST(ErrorLevelWarning) {
                                             v8::Isolate::kMessageAll);
   for (size_t i = 0; i < arraysize(levels); i++) {
     i::MessageLocation location(script, 0, 0);
-    i::Handle<i::String> msg(
-        i_isolate->factory()->InternalizeString(i::StaticCharVector("test")));
+    i::Handle<i::String> msg(i_isolate->factory()->InternalizeString(
+        v8::base::StaticCharVector("test")));
     i::Handle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
@@ -16587,11 +16715,13 @@ TEST(TestIdleNotification) {
           i::GarbageCollectionReason::kTesting);
     }
     finished = env->GetIsolate()->IdleNotificationDeadline(
-        (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+        (v8::base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
     if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
-      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted();
+      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted(
+          v8::internal::MarkCompactCollector::SweepingForcedFinalizationMode::
+              kV8Only);
     }
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
@@ -16702,7 +16832,10 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_EQ(0u, heap_statistics.used_heap_size());
   c1->GetIsolate()->GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
-  CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
+  if (!v8::internal::FLAG_enable_third_party_heap) {
+    // TODO(wenyuzhao): Get used size from third_party_heap interface
+    CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
+  }
 }
 
 TEST(GetHeapSpaceStatistics) {
@@ -16803,6 +16936,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
   }
   ~VisitorImpl() override = default;
   void VisitExternalString(v8::Local<v8::String> string) override {
+    CHECK(string->IsExternal());
     if (string->IsExternalOneByte()) {
       CHECK(!string->IsExternalTwoByte());
       return;
@@ -16847,6 +16981,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
   cons->MakeExternal(resource);
 
   CHECK(cons->IsExternalTwoByte());
+  CHECK(cons->IsExternal());
   CHECK_EQ(resource, cons->GetExternalStringResource());
   String::Encoding encoding;
   CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
@@ -16884,7 +17019,7 @@ TEST(VisitExternalStrings) {
   v8::HandleScope scope(isolate);
   const char string[] = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
-  TestResource* resource[4];
+  TestResource* resource[5];
   resource[0] = new TestResource(two_byte_string);
   v8::Local<v8::String> string0 =
       v8::String::NewExternalTwoByte(env->GetIsolate(), resource[0])
@@ -16912,11 +17047,29 @@ TEST(VisitExternalStrings) {
       string3_i).is_null());
   CHECK(string3_i->IsInternalizedString());
 
+  // Externalized one-byte string.
+  auto one_byte_resource =
+      new TestOneByteResource(i::StrDup(string), nullptr, 0);
+  v8::Local<v8::String> string4 =
+      String::NewExternalOneByte(env->GetIsolate(), one_byte_resource)
+          .ToLocalChecked();
+
   // We need to add usages for string* to avoid warnings in GCC 4.7
   CHECK(string0->IsExternalTwoByte());
   CHECK(string1->IsExternalTwoByte());
   CHECK(string2->IsExternalTwoByte());
   CHECK(string3->IsExternalTwoByte());
+  CHECK(!string4->IsExternalTwoByte());
+  CHECK(string0->IsExternal());
+  CHECK(string1->IsExternal());
+  CHECK(string2->IsExternal());
+  CHECK(string3->IsExternal());
+  CHECK(string4->IsExternal());
+  CHECK(!string0->IsExternalOneByte());
+  CHECK(!string1->IsExternalOneByte());
+  CHECK(!string2->IsExternalOneByte());
+  CHECK(!string3->IsExternalOneByte());
+  CHECK(string4->IsExternalOneByte());
 
   VisitorImpl visitor(resource);
   isolate->VisitExternalResources(&visitor);
@@ -17165,7 +17318,6 @@ THREADED_TEST(SpaghettiStackReThrow) {
 
 TEST(Regress528) {
   ManualGCScope manual_gc_scope;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::FLAG_retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);
@@ -17180,7 +17332,7 @@ TEST(Regress528) {
   // cache to the global object.
   const char* source_simple = "1";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -17204,7 +17356,7 @@ TEST(Regress528) {
   // global object.
   const char* source_eval = "function f(){eval('1')}; f()";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -17226,7 +17378,7 @@ TEST(Regress528) {
   // compilation cache to the global object.
   const char* source_exception = "function f(){throw 1;} f()";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -17282,7 +17434,10 @@ THREADED_TEST(ScriptOrigin) {
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
-  CHECK(script_origin_f.HostDefinedOptions()->Get(isolate, 0)->IsSymbol());
+  CHECK(script_origin_f.GetHostDefinedOptions()
+            .As<v8::PrimitiveArray>()
+            ->Get(isolate, 0)
+            ->IsSymbol());
 
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
@@ -17298,7 +17453,10 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
                                             script_origin_g.SourceMapUrl())));
-  CHECK(script_origin_g.HostDefinedOptions()->Get(isolate, 0)->IsSymbol());
+  CHECK(script_origin_g.GetHostDefinedOptions()
+            .As<v8::PrimitiveArray>()
+            ->Get(isolate, 0)
+            ->IsSymbol());
 }
 
 
@@ -17985,7 +18143,7 @@ void AssertOneByteConsContainsTwoByteExternal(i::Handle<i::String> maybe_cons,
   CHECK(maybe_cons->IsOneByteRepresentation());
   CHECK(maybe_cons->IsConsString());
   i::ConsString cons = i::ConsString::cast(*maybe_cons);
-  CHECK(cons.IsFlat());
+  CHECK(cons.IsFlat(GetPtrComprCageBase(cons)));
   CHECK(cons.first() == *external);
   CHECK(cons.first().IsTwoByteRepresentation());
   CHECK(cons.first().IsExternalString());
@@ -18105,9 +18263,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
       ->SetResource(i_isolate, nullptr);
 }
 
-
 TEST(ContainsOnlyOneByte) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   // Make a buffer long enough that it won't automatically be converted.
@@ -18179,7 +18335,6 @@ TEST(ContainsOnlyOneByte) {
   }
 }
 
-
 // Failed access check callback that performs a GC on each invocation.
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
@@ -18193,8 +18348,6 @@ void FailedAccessCheckCallbackGC(Local<v8::Object> target,
 TEST(GCInFailedAccessCheckCallback) {
   // Install a failed access check callback that performs a GC on each
   // invocation. Then force the callback to be called from va
-
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
 
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckCallbackGC);
@@ -18404,7 +18557,17 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+
+  CHECK(CcTest::isolate()->IsCurrent());
+  CHECK(!isolate1->IsCurrent());
+
   isolate1->Enter();
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+
+  CHECK_EQ(isolate1, v8::Isolate::GetCurrent());
+  CHECK_EQ(isolate1, v8::Isolate::TryGetCurrent());
+
   v8::Persistent<v8::Context> context1;
   {
     v8::HandleScope scope(isolate1);
@@ -18425,8 +18588,16 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   v8::Persistent<v8::Context> context2;
 
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
   {
     v8::Isolate::Scope iscope(isolate2);
+    CHECK(!isolate1->IsCurrent());
+    CHECK(isolate2->IsCurrent());
+    CHECK_EQ(isolate2, v8::Isolate::GetCurrent());
+    CHECK_EQ(isolate2, v8::Isolate::TryGetCurrent());
+
     v8::HandleScope scope(isolate2);
     context2.Reset(isolate2, Context::New(isolate2));
     v8::Local<v8::Context> context =
@@ -18438,6 +18609,10 @@ TEST(RunTwoIsolatesOnSingleThread) {
     ExpectString("function f() { return foo; }; f()", "isolate 2");
   }
 
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
+
   {
     v8::HandleScope scope(isolate1);
     v8::Local<v8::Context> context =
@@ -18448,11 +18623,16 @@ TEST(RunTwoIsolatesOnSingleThread) {
   }
 
   isolate1->Exit();
+  CHECK(CcTest::isolate()->IsCurrent());
+  CHECK(!isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
 
   // Run some stuff in default isolate.
   v8::Persistent<v8::Context> context_default;
   {
     v8::Isolate* isolate = CcTest::isolate();
+    CHECK_EQ(isolate, v8::Isolate::GetCurrent());
+    CHECK_EQ(isolate, v8::Isolate::TryGetCurrent());
     v8::Isolate::Scope iscope(isolate);
     v8::HandleScope scope(isolate);
     context_default.Reset(isolate, Context::New(isolate));
@@ -18530,12 +18710,14 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  i::ScopedVector<char> code(1024);
-  i::SNPrintF(code, "function fib(n) {"
-                    "  if (n <= 2) return 1;"
-                    "  return fib(n-1) + fib(n-2);"
-                    "}"
-                    "fib(%d)", limit);
+  v8::base::ScopedVector<char> code(1024);
+  v8::base::SNPrintF(code,
+                     "function fib(n) {"
+                     "  if (n <= 2) return 1;"
+                     "  return fib(n-1) + fib(n-2);"
+                     "}"
+                     "fib(%d)",
+                     limit);
   Local<Value> value = CompileRun(code.begin());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
@@ -18857,6 +19039,13 @@ TEST(RegExp) {
   CHECK(re->GetSource()->Equals(context.local(), v8_str("foo")).FromJust());
   CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
+  re = v8::RegExp::New(context.local(), v8_str("foo/bar"), v8::RegExp::kNone)
+           .ToLocalChecked();
+  CHECK(re->IsRegExp());
+  CHECK(
+      re->GetSource()->Equals(context.local(), v8_str("foo\\/bar")).FromJust());
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
+
   re = v8::RegExp::New(context.local(), v8_str("bar"),
                        static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
                                                       v8::RegExp::kGlobal))
@@ -18887,6 +19076,11 @@ TEST(RegExp) {
   re = CompileRun("/quux/").As<v8::RegExp>();
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(context.local(), v8_str("quux")).FromJust());
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
+
+  re = CompileRun("RegExp('qu/ux')").As<v8::RegExp>();
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(context.local(), v8_str("qu\\/ux")).FromJust());
   CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
   re = CompileRun("/quux/gm").As<v8::RegExp>();
@@ -19085,16 +19279,22 @@ THREADED_TEST(CreationContext) {
     Local<Context> other_context = Context::New(isolate);
     Context::Scope scope(other_context);
     CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(object1->GetCreationContextChecked() == context1);
     CheckContextId(object1, 1);
     CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(func1->GetCreationContextChecked() == context1);
     CheckContextId(func1, 1);
     CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(instance1->GetCreationContextChecked() == context1);
     CheckContextId(instance1, 1);
     CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(object2->GetCreationContextChecked() == context2);
     CheckContextId(object2, 2);
     CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(func2->GetCreationContextChecked() == context2);
     CheckContextId(func2, 2);
     CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(instance2->GetCreationContextChecked() == context2);
     CheckContextId(instance2, 2);
   }
 
@@ -19828,8 +20028,8 @@ void RecursiveCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
     level++;
     v8::base::OS::Print("Entering recursion level %d.\n", level);
     char script[64];
-    i::Vector<char> script_vector(script, sizeof(script));
-    i::SNPrintF(script_vector, "recursion(%d)", level);
+    v8::base::Vector<char> script_vector(script, sizeof(script));
+    v8::base::SNPrintF(script_vector, "recursion(%d)", level);
     CompileRun(script_vector.begin());
     v8::base::OS::Print("Leaving recursion level %d.\n", level);
     CHECK_EQ(0, callback_fired);
@@ -20154,7 +20354,7 @@ TEST(SetAutorunMicrotasks) {
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   {
-    v8::Isolate::SuppressMicrotaskExecutionScope scope(env->GetIsolate());
+    v8::Isolate::SuppressMicrotaskExecutionScope suppress(env->GetIsolate());
     CompileRun("1+1;");
     CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20474,9 +20674,7 @@ TEST(StaticGetters) {
   CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
 }
 
-
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  CcTest::DisableAutomaticDispose();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -20508,7 +20706,6 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   isolate->Dispose();
 }
 
-
 TEST(StringEmpty) {
   LocalContext context;
   i::Factory* factory = CcTest::i_isolate()->factory();
@@ -20518,104 +20715,11 @@ TEST(StringEmpty) {
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
 }
 
-
-static int instance_checked_getter_count = 0;
-static void InstanceCheckedGetter(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
-            .FromJust());
-  instance_checked_getter_count++;
-  info.GetReturnValue().Set(v8_num(11));
-}
-
-
-static int instance_checked_setter_count = 0;
-static void InstanceCheckedSetter(Local<String> name,
-                      Local<Value> value,
-                      const v8::PropertyCallbackInfo<void>& info) {
-  CHECK(name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
-            .FromJust());
-  CHECK(value->Equals(info.GetIsolate()->GetCurrentContext(), v8_num(23))
-            .FromJust());
-  instance_checked_setter_count++;
-}
-
-
-static void CheckInstanceCheckedResult(int getters, int setters,
-                                       bool expects_callbacks,
-                                       TryCatch* try_catch) {
-  if (expects_callbacks) {
-    CHECK(!try_catch->HasCaught());
-    CHECK_EQ(getters, instance_checked_getter_count);
-    CHECK_EQ(setters, instance_checked_setter_count);
-  } else {
-    CHECK(try_catch->HasCaught());
-    CHECK_EQ(0, instance_checked_getter_count);
-    CHECK_EQ(0, instance_checked_setter_count);
-  }
-  try_catch->Reset();
-}
-
-
-static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
-  instance_checked_getter_count = 0;
-  instance_checked_setter_count = 0;
-  TryCatch try_catch(CcTest::isolate());
-
-  // Test path through generic runtime code.
-  CompileRun("obj.foo");
-  CheckInstanceCheckedResult(1, 0, expects_callbacks, &try_catch);
-  CompileRun("obj.foo = 23");
-  CheckInstanceCheckedResult(1, 1, expects_callbacks, &try_catch);
-
-  // Test path through generated LoadIC and StoredIC.
-  CompileRun(
-      "function test_get(o) { o.foo; };"
-      "%PrepareFunctionForOptimization(test_get);"
-      "test_get(obj);");
-  CheckInstanceCheckedResult(2, 1, expects_callbacks, &try_catch);
-  CompileRun("test_get(obj);");
-  CheckInstanceCheckedResult(3, 1, expects_callbacks, &try_catch);
-  CompileRun("test_get(obj);");
-  CheckInstanceCheckedResult(4, 1, expects_callbacks, &try_catch);
-  CompileRun(
-      "function test_set(o) { o.foo = 23; }"
-      "%PrepareFunctionForOptimization(test_set);"
-      "test_set(obj);");
-  CheckInstanceCheckedResult(4, 2, expects_callbacks, &try_catch);
-  CompileRun("test_set(obj);");
-  CheckInstanceCheckedResult(4, 3, expects_callbacks, &try_catch);
-  CompileRun("test_set(obj);");
-  CheckInstanceCheckedResult(4, 4, expects_callbacks, &try_catch);
-
-  // Test path through optimized code.
-  CompileRun("%OptimizeFunctionOnNextCall(test_get);"
-             "test_get(obj);");
-  CheckInstanceCheckedResult(5, 4, expects_callbacks, &try_catch);
-  CompileRun("%OptimizeFunctionOnNextCall(test_set);"
-             "test_set(obj);");
-  CheckInstanceCheckedResult(5, 5, expects_callbacks, &try_catch);
-
-  // Cleanup so that closures start out fresh in next check.
-  CompileRun(
-      "%DeoptimizeFunction(test_get);"
-      "%ClearFunctionFeedback(test_get);"
-      "%DeoptimizeFunction(test_set);"
-      "%ClearFunctionFeedback(test_set);");
-}
-
-
-THREADED_TEST(InstanceCheckOnInstanceAccessor) {
-  v8::internal::FLAG_allow_natives_syntax = true;
+THREADED_TEST(CheckIsLeafTemplateForApiObject) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
   Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
-  Local<ObjectTemplate> inst = templ->InstanceTemplate();
-  inst->SetAccessor(v8_str("foo"), InstanceCheckedGetter, InstanceCheckedSetter,
-                    Local<Value>(), v8::DEFAULT, v8::None,
-                    v8::AccessorSignature::New(context->GetIsolate(), templ));
   CHECK(context->Global()
             ->Set(context.local(), v8_str("f"),
                   templ->GetFunction(context.local()).ToLocalChecked())
@@ -20623,96 +20727,38 @@ THREADED_TEST(InstanceCheckOnInstanceAccessor) {
 
   printf("Testing positive ...\n");
   CompileRun("var obj = new f();");
-  CHECK(templ->HasInstance(
+  CHECK(templ->IsLeafTemplateForApiObject(
       context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(true);
 
   printf("Testing negative ...\n");
-  CompileRun("var obj = {};"
-             "obj.__proto__ = new f();");
-  CHECK(!templ->HasInstance(
+  CompileRun(
+      "var obj = {};"
+      "obj.__proto__ = new f();");
+  CHECK(!templ->IsLeafTemplateForApiObject(
       context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(false);
-}
-
-static void EmptyInterceptorGetter(
-    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
-static void EmptyInterceptorSetter(
-    Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
-THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
-  Local<ObjectTemplate> inst = templ->InstanceTemplate();
-  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      EmptyInterceptorGetter, EmptyInterceptorSetter));
-  inst->SetAccessor(v8_str("foo"), InstanceCheckedGetter, InstanceCheckedSetter,
-                    Local<Value>(), v8::DEFAULT, v8::None,
-                    v8::AccessorSignature::New(context->GetIsolate(), templ));
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("f"),
-                  templ->GetFunction(context.local()).ToLocalChecked())
-            .FromJust());
-
-  printf("Testing positive ...\n");
-  CompileRun("var obj = new f();");
-  CHECK(templ->HasInstance(
-      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(true);
-
-  printf("Testing negative ...\n");
-  CompileRun("var obj = {};"
-             "obj.__proto__ = new f();");
-  CHECK(!templ->HasInstance(
-      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(false);
-}
-
-
-THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
-  v8::internal::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
-  Local<ObjectTemplate> proto = templ->PrototypeTemplate();
-  proto->SetAccessor(v8_str("foo"), InstanceCheckedGetter,
-                     InstanceCheckedSetter, Local<Value>(), v8::DEFAULT,
-                     v8::None,
-                     v8::AccessorSignature::New(context->GetIsolate(), templ));
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("f"),
-                  templ->GetFunction(context.local()).ToLocalChecked())
-            .FromJust());
-
-  printf("Testing positive ...\n");
-  CompileRun("var obj = new f();");
-  CHECK(templ->HasInstance(
-      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(true);
-
-  printf("Testing negative ...\n");
-  CompileRun("var obj = {};"
-             "obj.__proto__ = new f();");
-  CHECK(!templ->HasInstance(
-      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(false);
 
   printf("Testing positive with modified prototype chain ...\n");
-  CompileRun("var obj = new f();"
-             "var pro = {};"
-             "pro.__proto__ = obj.__proto__;"
-             "obj.__proto__ = pro;");
-  CHECK(templ->HasInstance(
+  CompileRun(
+      "var obj = new f();"
+      "var pro = {};"
+      "pro.__proto__ = obj.__proto__;"
+      "obj.__proto__ = pro;");
+  CHECK(templ->IsLeafTemplateForApiObject(
       context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
-  CheckInstanceCheckedAccessors(true);
-}
 
+  Local<FunctionTemplate> child_templ =
+      FunctionTemplate::New(context->GetIsolate());
+  child_templ->Inherit(templ);
+  Local<Object> instance = child_templ->GetFunction(context.local())
+                               .ToLocalChecked()
+                               ->NewInstance(context.local())
+                               .ToLocalChecked();
+
+  printf("Testing positive for child ...\n");
+  CHECK(child_templ->IsLeafTemplateForApiObject(instance));
+  printf("Testing negative for parent ...\n");
+  CHECK(!templ->IsLeafTemplateForApiObject(instance));
+}
 
 TEST(TryFinallyMessage) {
   LocalContext context;
@@ -21155,9 +21201,7 @@ void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   UNREACHABLE();
 }
 
-
 TEST(JSONStringifyAccessCheck) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -21195,7 +21239,6 @@ TEST(JSONStringifyAccessCheck) {
     CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
   }
 }
-
 
 bool access_check_fail_thrown = false;
 bool catch_callback_called = false;
@@ -21237,8 +21280,8 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  v8::base::ScopedVector<char> source(1024);
+  v8::base::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
   CompileRun(source.begin());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
@@ -21253,7 +21296,6 @@ void CheckCorrectThrow(const char* script) {
 
 TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
   v8::HandleScope scope(isolate);
@@ -21339,10 +21381,11 @@ const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 STATIC_ASSERT(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
-OneByteVectorResource one_byte_string_resource(
-    i::Vector<const char>(&kOneByteSubjectString[0], kSubjectStringLength));
+OneByteVectorResource one_byte_string_resource(v8::base::Vector<const char>(
+    &kOneByteSubjectString[0], kSubjectStringLength));
 UC16VectorResource two_byte_string_resource(
-    i::Vector<const i::uc16>(&kTwoByteSubjectString[0], kSubjectStringLength));
+    v8::base::Vector<const v8::base::uc16>(&kTwoByteSubjectString[0],
+                                           kSubjectStringLength));
 
 class RegExpInterruptTest {
  public:
@@ -21389,13 +21432,6 @@ class RegExpInterruptTest {
         v8::Local<v8::String>::New(isolate, instance->string_handle_);
     CHECK(string->CanMakeExternal());
     string->MakeExternal(&two_byte_string_resource);
-  }
-
-  static void ReenterIrregexp(v8::Isolate* isolate, void* data) {
-    v8::HandleScope scope(isolate);
-    v8::TryCatch try_catch(isolate);
-    // Irregexp is not reentrant. This should crash.
-    CompileRun("/((a*)*)*b/.exec('aaaaab')");
   }
 
  private:
@@ -21490,7 +21526,7 @@ class RegExpInterruptTest {
 
 TEST(RegExpInterruptAndCollectAllGarbage) {
   // Move all movable objects on GC.
-  i::FLAG_always_compact = true;
+  i::FLAG_compact_on_every_full_gc = true;
   // We want to be stuck regexp execution, so no fallback to linear-time
   // engine.
   // TODO(mbid,v8:10765): Find a way to test interrupt support of the
@@ -21517,26 +21553,7 @@ TEST(RegExpInterruptAndMakeSubjectTwoByteExternal) {
   // experimental engine.
   i::FLAG_enable_experimental_regexp_engine_on_excessive_backtracks = false;
   RegExpInterruptTest test;
-  // We want to be stuck regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
   test.RunTest(RegExpInterruptTest::MakeSubjectTwoByteExternal);
-}
-
-TEST(RegExpInterruptAndReenterIrregexp) {
-  // We only check in the runtime entry to irregexp, so make sure we don't hit
-  // an interpreter.
-  i::FLAG_regexp_tier_up_ticks = 0;
-  i::FLAG_regexp_interpret_all = false;
-  i::FLAG_enable_experimental_regexp_engine = false;
-  // We want to be stuck in regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
-  i::FLAG_enable_experimental_regexp_engine_on_excessive_backtracks = false;
-  RegExpInterruptTest test;
-  test.RunTest(RegExpInterruptTest::ReenterIrregexp);
 }
 
 class RequestInterruptTestBase {
@@ -21800,7 +21817,6 @@ class RequestInterruptTestWithMathAbs
   }
 };
 
-
 TEST(RequestInterruptTestWithFunctionCall) {
   RequestInterruptTestWithFunctionCall().RunTest();
 }
@@ -21829,7 +21845,6 @@ TEST(RequestInterruptTestWithMethodCallAndInterceptor) {
 TEST(RequestInterruptTestWithMathAbs) {
   RequestInterruptTestWithMathAbs().RunTest();
 }
-
 
 class RequestMultipleInterrupts : public RequestInterruptTestBase {
  public:
@@ -21927,7 +21942,7 @@ THREADED_TEST(FunctionNew) {
           ->shared()
           .get_api_func_data()
           .serial_number();
-  CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
+  CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
 
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
@@ -22254,16 +22269,15 @@ class ApiCallOptimizationChecker {
     // With no signature, the holder is not set.
     if (signature_type == kNoSignature) holder = receiver;
     // build wrap_function
-    i::ScopedVector<char> wrap_function(200);
+    v8::base::ScopedVector<char> wrap_function(200);
     if (global) {
-      i::SNPrintF(
-          wrap_function,
-          "function wrap_f_%d() { var f = g_f; return f(); }\n"
-          "function wrap_get_%d() { return this.g_acc; }\n"
-          "function wrap_set_%d() { return this.g_acc = 1; }\n",
-          key, key, key);
+      v8::base::SNPrintF(wrap_function,
+                         "function wrap_f_%d() { var f = g_f; return f(); }\n"
+                         "function wrap_get_%d() { return this.g_acc; }\n"
+                         "function wrap_set_%d() { return this.g_acc = 1; }\n",
+                         key, key, key);
     } else {
-      i::SNPrintF(
+      v8::base::SNPrintF(
           wrap_function,
           "function wrap_f_%d() { return receiver_subclass.f(); }\n"
           "function wrap_get_%d() { return receiver_subclass.acc; }\n"
@@ -22271,38 +22285,38 @@ class ApiCallOptimizationChecker {
           key, key, key);
     }
     // build source string
-    i::ScopedVector<char> source(1000);
-    i::SNPrintF(source,
-                "%s\n"  // wrap functions
-                "function wrap_f() { return wrap_f_%d(); }\n"
-                "function wrap_get() { return wrap_get_%d(); }\n"
-                "function wrap_set() { return wrap_set_%d(); }\n"
-                "check = function(returned) {\n"
-                "  if (returned !== 'returned') { throw returned; }\n"
-                "};\n"
-                "\n"
-                "%%PrepareFunctionForOptimization(wrap_f_%d);"
-                "check(wrap_f());\n"
-                "check(wrap_f());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-                "check(wrap_f());\n"
-                "\n"
-                "%%PrepareFunctionForOptimization(wrap_get_%d);"
-                "check(wrap_get());\n"
-                "check(wrap_get());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-                "check(wrap_get());\n"
-                "\n"
-                "check = function(returned) {\n"
-                "  if (returned !== 1) { throw returned; }\n"
-                "};\n"
-                "%%PrepareFunctionForOptimization(wrap_set_%d);"
-                "check(wrap_set());\n"
-                "check(wrap_set());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-                "check(wrap_set());\n",
-                wrap_function.begin(), key, key, key, key, key, key, key, key,
-                key);
+    v8::base::ScopedVector<char> source(1000);
+    v8::base::SNPrintF(source,
+                       "%s\n"  // wrap functions
+                       "function wrap_f() { return wrap_f_%d(); }\n"
+                       "function wrap_get() { return wrap_get_%d(); }\n"
+                       "function wrap_set() { return wrap_set_%d(); }\n"
+                       "check = function(returned) {\n"
+                       "  if (returned !== 'returned') { throw returned; }\n"
+                       "};\n"
+                       "\n"
+                       "%%PrepareFunctionForOptimization(wrap_f_%d);"
+                       "check(wrap_f());\n"
+                       "check(wrap_f());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+                       "check(wrap_f());\n"
+                       "\n"
+                       "%%PrepareFunctionForOptimization(wrap_get_%d);"
+                       "check(wrap_get());\n"
+                       "check(wrap_get());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+                       "check(wrap_get());\n"
+                       "\n"
+                       "check = function(returned) {\n"
+                       "  if (returned !== 1) { throw returned; }\n"
+                       "};\n"
+                       "%%PrepareFunctionForOptimization(wrap_set_%d);"
+                       "check(wrap_set());\n"
+                       "check(wrap_set());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+                       "check(wrap_set());\n",
+                       wrap_function.begin(), key, key, key, key, key, key, key,
+                       key, key);
     v8::TryCatch try_catch(isolate);
     CompileRun(source.begin());
     CHECK(!try_catch.HasCaught());
@@ -22499,25 +22513,86 @@ TEST(ChainSignatureCheck) {
 
 
 static const char* last_event_message;
-static int last_event_status;
+// See v8::LogEventStatus
+static v8::LogEventStatus last_event_status;
+static int event_count = 0;
 void StoringEventLoggerCallback(const char* message, int status) {
     last_event_message = message;
-    last_event_status = status;
+    last_event_status = static_cast<v8::LogEventStatus>(status);
+    event_count++;
 }
 
 
 TEST(EventLogging) {
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetEventLogger(StoringEventLoggerCallback);
-  v8::internal::HistogramTimer histogramTimer(
-      "V8.Test", 0, 10000, v8::internal::HistogramTimerResolution::MILLISECOND,
+  v8::internal::NestedTimedHistogram histogram(
+      "V8.Test", 0, 10000, v8::internal::TimedHistogramResolution::MILLISECOND,
       50, reinterpret_cast<v8::internal::Isolate*>(isolate)->counters());
-  histogramTimer.Start();
+  event_count = 0;
+  int count = 0;
+  {
+    CHECK_EQ(0, event_count);
+    {
+      CHECK_EQ(0, event_count);
+      v8::internal::NestedTimedHistogramScope scope0(&histogram);
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+      CHECK_EQ(++count, event_count);
+    }
+    CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+    CHECK_EQ(++count, event_count);
+
+    v8::internal::NestedTimedHistogramScope scope1(&histogram);
+    CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+    CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+    CHECK_EQ(++count, event_count);
+    {
+      CHECK_EQ(count, event_count);
+      v8::internal::NestedTimedHistogramScope scope2(&histogram);
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+      CHECK_EQ(++count, event_count);
+      {
+        CHECK_EQ(count, event_count);
+        v8::internal::NestedTimedHistogramScope scope3(&histogram);
+        CHECK_EQ(++count, event_count);
+        v8::internal::PauseNestedTimedHistogramScope scope4(&histogram);
+        // The outer timer scope is just paused, no event is emited yet.
+        CHECK_EQ(count, event_count);
+        {
+          CHECK_EQ(count, event_count);
+          v8::internal::NestedTimedHistogramScope scope5(&histogram);
+          v8::internal::NestedTimedHistogramScope scope5_1(&histogram);
+          CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+          CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+          count++;
+          CHECK_EQ(++count, event_count);
+        }
+        CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+        CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+        count++;
+        CHECK_EQ(++count, event_count);
+      }
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+      CHECK_EQ(++count, event_count);
+      v8::internal::PauseNestedTimedHistogramScope scope6(&histogram);
+      // The outer timer scope is just paused, no event is emited yet.
+      CHECK_EQ(count, event_count);
+      {
+        v8::internal::PauseNestedTimedHistogramScope scope7(&histogram);
+        CHECK_EQ(count, event_count);
+      }
+      CHECK_EQ(count, event_count);
+    }
+    CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+    CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+    CHECK_EQ(++count, event_count);
+  }
   CHECK_EQ(0, strcmp("V8.Test", last_event_message));
-  CHECK_EQ(0, last_event_status);
-  histogramTimer.Stop();
-  CHECK_EQ(0, strcmp("V8.Test", last_event_message));
-  CHECK_EQ(1, last_event_status);
+  CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+  CHECK_EQ(++count, event_count);
 }
 
 TEST(PropertyDescriptor) {
@@ -23030,14 +23105,8 @@ TEST(ThrowOnJavascriptExecution) {
 
 namespace {
 
-class MockPlatform : public TestPlatform {
+class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
-  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
-
   bool dump_without_crashing_called() const {
     return dump_without_crashing_called_;
   }
@@ -23045,15 +23114,12 @@ class MockPlatform : public TestPlatform {
   void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
 
  private:
-  v8::Platform* old_platform_;
   bool dump_without_crashing_called_ = false;
 };
 
 }  // namespace
 
-TEST(DumpOnJavascriptExecution) {
-  MockPlatform platform;
-
+TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -23529,9 +23595,9 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source, type);
 
-  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
-  // task here in the main thread.
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Possible errors are only produced while compiling.
@@ -23568,14 +23634,16 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
       CHECK_EQ(Module::kInstantiated, module->GetStatus());
       v8::Local<Value> result = module->Evaluate(env.local()).ToLocalChecked();
       CHECK_EQ(Module::kEvaluated, module->GetStatus());
-      if (i::FLAG_harmony_top_level_await) {
-        v8::Local<v8::Promise> promise = result.As<v8::Promise>();
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK_EQ(13, promise->Result()->Int32Value(env.local()).FromJust());
-      } else {
-        CHECK(!result.IsEmpty());
-        CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
-      }
+      v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      // Fulfilled top-level await promises always resolve to undefined. Check
+      // the test result via a global variable.
+      CHECK_EQ(13, env->Global()
+                       ->Get(env.local(), v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(env.local())
+                       .FromJust());
     } else {
       CHECK(maybe_module.IsEmpty());
     }
@@ -23599,17 +23667,20 @@ void RunStreamingTest(const char** chunks,
 TEST(StreamingSimpleScript) {
   // This script is unrealistically small, since no one chunk is enough to fill
   // the backing buffer of Scanner, let alone overflow it.
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
-                          nullptr};
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f", "oo(); ", nullptr};
   RunStreamingTest(chunks);
 }
 
 TEST(StreamingScriptConstantArray) {
   // When run with Ignition, tests that the streaming parser canonicalizes
   // handles so that they are only added to the constant pool array once.
-  const char* chunks[] = {
-      "var a = {};",        "var b = {};", "var c = 'testing';",
-      "var d = 'testing';", "13;",         nullptr};
+  const char* chunks[] = {"var a = {};",
+                          "var b = {};",
+                          "var c = 'testing';",
+                          "var d = 'testing';",
+                          "globalThis.Result = 13;",
+                          nullptr};
   RunStreamingTest(chunks);
 }
 
@@ -23624,7 +23695,7 @@ TEST(StreamingScriptEvalShadowing) {
       "    function g() {\n"
       "      return y\n"
       "    }\n"
-      "    return g();\n"
+      "    return (globalThis.Result = g());\n"
       "  })()\n"
       "})()\n";
   const char* chunks[] = {chunk1, nullptr};
@@ -23648,7 +23719,7 @@ TEST(StreamingBiggerScript) {
       "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
       "  return result;\n"
       "}\n";
-  const char* chunks[] = {chunk1, "foo(); ", nullptr};
+  const char* chunks[] = {chunk1, "globalThis.Result = foo(); ", nullptr};
   RunStreamingTest(chunks);
 }
 
@@ -23660,7 +23731,8 @@ TEST(StreamingScriptWithParseError) {
         "  // This will result in a parse error.\n"
         "  var if else then foo";
     char chunk2[] = "  13\n";
-    const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                            nullptr};
 
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE,
                      false);
@@ -23671,7 +23743,8 @@ TEST(StreamingScriptWithParseError) {
         "  // This will be parsed successfully.\n"
         "  function foo() { return ";
     char chunk2[] = "  13; }\n";
-    const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                            nullptr};
 
     RunStreamingTest(chunks);
   }
@@ -23688,7 +23761,7 @@ TEST(StreamingUtf8Script) {
       "  var foob\xec\x92\x81r = 13;\n"
       "  return foob\xec\x92\x81r;\n"
       "}\n";
-  const char* chunks[] = {chunk1, "foo(); ", nullptr};
+  const char* chunks[] = {chunk1, "globalThis.Result = foo(); ", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23712,7 +23785,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
   for (int i = 0; i < 3; ++i) {
     chunk2[i] = reference[i];
   }
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23733,7 +23807,8 @@ TEST(StreamingUtf8ScriptWithSplitCharacters) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23760,7 +23835,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     chunk2[0] = reference[0];
     chunk2[1] = reference[1];
     chunk3[0] = reference[2];
-    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, chunk3,
+                            "globalThis.Result = foo();", nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
   // The small chunk is at the end of a character
@@ -23778,7 +23854,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     chunk1[strlen(chunk1) - 1] = reference[0];
     chunk2[0] = reference[1];
     chunk2[1] = reference[2];
-    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, chunk3,
+                            "globalThis.Result = foo();", nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
   // Case 2: the script ends with a multi-byte character. Make sure that it's
@@ -23786,7 +23863,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
   {
     char chunk1[] =
         "var foob\xec\x92\x81 = 13;\n"
-        "foob\xec\x92\x81";
+        "globalThis.Result = foob\xec\x92\x81";
     const char* chunks[] = {chunk1, nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
@@ -23811,7 +23888,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk3[0] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, chunk3, "globalThis.Result = foo();",
+                          nullptr};
 
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
@@ -23842,7 +23920,9 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
 
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   CHECK(!try_catch.HasCaught());
@@ -23882,7 +23962,8 @@ TEST(StreamingScriptWithInvalidUtf8) {
       "}\n";
   for (int i = 0; i < 5; ++i) chunk1[strlen(chunk1) - 5 + i] = reference[i];
 
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
 }
 
@@ -23903,7 +23984,8 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23924,7 +24006,8 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23949,7 +24032,10 @@ TEST(StreamingWithHarmonyScopes) {
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
-  task->Run();
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Parsing should succeed (the script will be parsed and compiled in a context
@@ -23971,6 +24057,57 @@ TEST(StreamingWithHarmonyScopes) {
   delete[] full_source;
 }
 
+// Regression test for crbug.com/v8/12668. Verifies that after a streamed script
+// is inserted into the isolate script cache, a non-streamed script with
+// identical origin can reuse that data.
+TEST(StreamingWithIsolateScriptCache) {
+  const char* chunks[] = {"'use strict'; (function test() { return 13; })",
+                          nullptr};
+  const char* full_source = chunks[0];
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false, false);
+  i::Handle<i::JSFunction> first_function;
+  i::Handle<i::JSFunction> second_function;
+
+  // Run the script using streaming.
+  {
+    LocalContext env;
+
+    v8::ScriptCompiler::StreamedSource source(
+        std::make_unique<TestSourceStream>(chunks),
+        v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+    v8::ScriptCompiler::ScriptStreamingTask* task =
+        v8::ScriptCompiler::StartStreaming(isolate, &source,
+                                           v8::ScriptType::kClassic);
+    StreamerThread::StartThreadForTaskAndJoin(task);
+    delete task;
+    v8::Local<Script> script =
+        v8::ScriptCompiler::Compile(env.local(), &source, v8_str(full_source),
+                                    origin)
+            .ToLocalChecked();
+    v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
+    first_function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+  }
+
+  // Run the same script in another Context without streaming.
+  {
+    LocalContext env;
+    v8::ScriptCompiler::Source script_source(v8_str(full_source), origin);
+    Local<Script> script =
+        v8::ScriptCompiler::Compile(env.local(), &script_source)
+            .ToLocalChecked();
+    v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
+    second_function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+  }
+
+  // The functions created by both copies of the script should refer to the same
+  // SharedFunctionInfo instance due to the isolate script cache.
+  CHECK_EQ(first_function->shared(), second_function->shared());
+}
 
 TEST(CodeCache) {
   v8::Isolate::CreateParams create_params;
@@ -23988,11 +24125,12 @@ TEST(CodeCache) {
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
     v8::ScriptOrigin script_origin(isolate1, v8_str(origin));
-    v8::ScriptCompiler::Source source(source_string, script_origin);
+    v8::ScriptCompiler::Source script_source(source_string, script_origin);
     v8::ScriptCompiler::CompileOptions option =
         v8::ScriptCompiler::kNoCompileOptions;
     v8::Local<v8::Script> script =
-        v8::ScriptCompiler::Compile(context, &source, option).ToLocalChecked();
+        v8::ScriptCompiler::Compile(context, &script_source, option)
+            .ToLocalChecked();
     cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
   }
   isolate1->Dispose();
@@ -24005,14 +24143,15 @@ TEST(CodeCache) {
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
     v8::ScriptOrigin script_origin(isolate2, v8_str(origin));
-    v8::ScriptCompiler::Source source(source_string, script_origin, cache);
+    v8::ScriptCompiler::Source script_source(source_string, script_origin,
+                                             cache);
     v8::ScriptCompiler::CompileOptions option =
         v8::ScriptCompiler::kConsumeCodeCache;
     v8::Local<v8::Script> script;
     {
       i::DisallowCompilation no_compile(
           reinterpret_cast<i::Isolate*>(isolate2));
-      script = v8::ScriptCompiler::Compile(context, &source, option)
+      script = v8::ScriptCompiler::Compile(context, &script_source, option)
                    .ToLocalChecked();
     }
     CHECK_EQ(2, script->Run(context)
@@ -24137,7 +24276,7 @@ TEST(ModuleCodeCache) {
   const char* origin = "code cache test";
   const char* source =
       "export default 5; export const a = 10; function f() { return 42; } "
-      "(function() { return f(); })();";
+      "(function() { globalThis.Result = f(); })();";
 
   v8::ScriptCompiler::CachedData* cache;
   {
@@ -24158,13 +24297,14 @@ TEST(ModuleCodeCache) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      CHECK_EQ(42, context->Global()
+                       ->Get(context, v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -24195,13 +24335,14 @@ TEST(ModuleCodeCache) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      CHECK_EQ(42, context->Global()
+                       ->Get(context, v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
     }
     isolate->Dispose();
   }
@@ -24235,7 +24376,7 @@ TEST(CreateSyntheticModule) {
             .IsUndefined());
   CHECK_EQ(i_module->export_names().length(), 1);
   CHECK(i::String::cast(i_module->export_names().get(0)).Equals(*default_name));
-  CHECK_EQ(i_module->status(), i::Module::kInstantiated);
+  CHECK_EQ(i_module->status(), i::Module::kLinked);
   CHECK(module->IsSyntheticModule());
   CHECK(!module->IsSourceTextModule());
   CHECK_EQ(module->GetModuleRequests()->Length(), 0);
@@ -24453,8 +24594,8 @@ TEST(ImportFromSyntheticModule) {
 
   Local<String> url = v8_str("www.test.com");
   Local<String> source_text = v8_str(
-      "import {test_export} from './synthetic.module';"
-      "(function() { return test_export; })();");
+      "import {test_export} from './synthetic.module'; "
+      "(function() { globalThis.Result = test_export; })();");
   v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
                           false, false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
@@ -24464,13 +24605,14 @@ TEST(ImportFromSyntheticModule) {
       .ToChecked();
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK_EQ(42, context->Global()
+                   ->Get(context, v8_str("Result"))
+                   .ToLocalChecked()
+                   ->Int32Value(context)
+                   .FromJust());
 }
 
 TEST(ImportFromSyntheticModuleThrow) {
@@ -24498,14 +24640,10 @@ TEST(ImportFromSyntheticModuleThrow) {
   CHECK_EQ(module->GetStatus(), Module::kInstantiated);
   TryCatch try_catch(isolate);
   v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(
-        Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
-    CHECK_EQ(promise->State(), v8::Promise::kRejected);
-    CHECK_EQ(promise->Result(), try_catch.Exception());
-  } else {
-    CHECK(completion_value.IsEmpty());
-  }
+  Local<v8::Promise> promise(
+      Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
+  CHECK_EQ(promise->State(), v8::Promise::kRejected);
+  CHECK_EQ(promise->Result(), try_catch.Exception());
 
   CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
@@ -24539,13 +24677,9 @@ TEST(CodeCacheModuleScriptMismatch) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -24603,11 +24737,11 @@ TEST(CodeCacheScriptModuleMismatch) {
       v8::Context::Scope cscope(context);
       v8::Local<v8::String> source_string = v8_str(source);
       v8::ScriptOrigin script_origin(isolate, v8_str(origin));
-      v8::ScriptCompiler::Source source(source_string, script_origin);
+      v8::ScriptCompiler::Source script_source(source_string, script_origin);
       v8::ScriptCompiler::CompileOptions option =
           v8::ScriptCompiler::kNoCompileOptions;
       v8::Local<v8::Script> script =
-          v8::ScriptCompiler::Compile(context, &source, option)
+          v8::ScriptCompiler::Compile(context, &script_source, option)
               .ToLocalChecked();
       cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
     }
@@ -24639,13 +24773,9 @@ TEST(CodeCacheScriptModuleMismatch) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
     }
     isolate->Dispose();
   }
@@ -24653,7 +24783,6 @@ TEST(CodeCacheScriptModuleMismatch) {
 
 // Tests that compilation can handle a garbled cache.
 TEST(InvalidCodeCacheDataInCompileModule) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext local_context;
@@ -24680,13 +24809,9 @@ TEST(InvalidCodeCacheDataInCompileModule) {
 
   CHECK(cached_data->rejected);
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
 }
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
@@ -24708,17 +24833,13 @@ void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
       script->Run(context).ToLocalChecked()->Int32Value(context).FromJust());
 }
 
-
 TEST(InvalidCodeCacheData) {
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
 }
 
-
 TEST(StringConcatOverflow) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   RandomLengthOneByteResource* r =
@@ -24737,7 +24858,6 @@ TEST(TurboAsmDisablesDetach) {
 #ifndef V8_LITE_MODE
   i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   const char* load =
@@ -24784,7 +24904,8 @@ TEST(ClassPrototypeCreationContext) {
 
 
 TEST(SimpleStreamingScriptWithSourceURL) {
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo();\n",
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f", "oo();\n",
                           "//# sourceURL=bar2.js\n", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    "bar2.js");
@@ -24792,7 +24913,8 @@ TEST(SimpleStreamingScriptWithSourceURL) {
 
 
 TEST(StreamingScriptWithSplitSourceURL) {
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f",
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f",
                           "oo();\n//# sourceURL=b", "ar2.js\n", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    "bar2.js");
@@ -24801,7 +24923,8 @@ TEST(StreamingScriptWithSplitSourceURL) {
 
 TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
   const char* chunks[] = {"function foo() { ret", "urn 13; }\n//#",
-                          " sourceMappingURL=bar2.js\n", "foo();", nullptr};
+                          " sourceMappingURL=bar2.js\n",
+                          "globalThis.Result = foo();", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    nullptr, "bar2.js");
 }
@@ -24868,7 +24991,7 @@ TEST(SealHandleScopeNested) {
   v8::SealHandleScope seal(isolate);
 
   {
-    v8::HandleScope handle_scope(isolate);
+    v8::HandleScope inner_handle_scope(isolate);
 
     // Should work
     v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -25127,10 +25250,10 @@ THREADED_TEST(ReceiverConversionForAccessors) {
   CHECK(CompileRun("acc.call(undefined) == 42")->BooleanValue(isolate));
 }
 
-class FutexInterruptionThread : public v8::base::Thread {
+class TerminateExecutionThread : public v8::base::Thread {
  public:
-  explicit FutexInterruptionThread(v8::Isolate* isolate)
-      : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
+  explicit TerminateExecutionThread(v8::Isolate* isolate)
+      : Thread(Options("TerminateExecutionThread")), isolate_(isolate) {}
 
   void Run() override {
     // Wait a bit before terminating.
@@ -25142,14 +25265,13 @@ class FutexInterruptionThread : public v8::base::Thread {
   v8::Isolate* isolate_;
 };
 
-
 TEST(FutexInterruption) {
   i::FLAG_harmony_sharedarraybuffer = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
 
-  FutexInterruptionThread timeout_thread(isolate);
+  TerminateExecutionThread timeout_thread(isolate);
 
   v8::TryCatch try_catch(CcTest::isolate());
   CHECK(timeout_thread.Start());
@@ -25158,6 +25280,28 @@ TEST(FutexInterruption) {
       "var ab = new SharedArrayBuffer(4);"
       "var i32a = new Int32Array(ab);"
       "Atomics.wait(i32a, 0, 0);");
+  CHECK(try_catch.HasTerminated());
+  timeout_thread.Join();
+}
+
+TEST(StackCheckTermination) {
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  TerminateExecutionThread timeout_thread(isolate);
+
+  v8::TryCatch try_catch(isolate);
+  CHECK(timeout_thread.Start());
+  auto should_continue = [i_isolate]() {
+    using StackLimitCheck = i::StackLimitCheck;
+    STACK_CHECK(i_isolate, false);
+    return true;
+  };
+  while (should_continue()) {
+  }
+  if (i_isolate->has_pending_exception()) i_isolate->ReportPendingMessages();
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }
@@ -25514,28 +25658,28 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    i::ScopedVector<char> test_string(64);
+    v8::base::ScopedVector<char> test_string(64);
 
-    i::SNPrintF(test_string, "typeof obj1.%s",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
+                       intrinsics_comparisons[i].object_property_name);
     ExpectString(test_string.begin(), "function");
 
-    i::SNPrintF(test_string, "obj1.%s === %s",
-                intrinsics_comparisons[i].object_property_name,
-                intrinsics_comparisons[i].array_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
+                       intrinsics_comparisons[i].object_property_name,
+                       intrinsics_comparisons[i].array_property_name);
     ExpectTrue(test_string.begin());
 
-    i::SNPrintF(test_string, "obj1.%s = 42",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s = 42",
+                       intrinsics_comparisons[i].object_property_name);
     CompileRun(test_string.begin());
 
-    i::SNPrintF(test_string, "obj1.%s === %s",
-                intrinsics_comparisons[i].object_property_name,
-                intrinsics_comparisons[i].array_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
+                       intrinsics_comparisons[i].object_property_name,
+                       intrinsics_comparisons[i].array_property_name);
     ExpectFalse(test_string.begin());
 
-    i::SNPrintF(test_string, "typeof obj1.%s",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
+                       intrinsics_comparisons[i].object_property_name);
     ExpectString(test_string.begin(), "number");
   }
 }
@@ -25744,7 +25888,7 @@ TEST(CrossActivationEval) {
   v8::HandleScope scope(isolate);
   {
     call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
+    v8::Context::Scope context_scope(call_eval_context);
     call_eval_bound_function =
         Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
   }
@@ -26043,13 +26187,13 @@ TEST(CorrectEnteredContext) {
 const int kCustomHostDefinedOptionsLengthForTesting = 7;
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
@@ -26078,8 +26222,9 @@ TEST(DynamicImport) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -26090,13 +26235,13 @@ TEST(DynamicImport) {
 
 v8::MaybeLocal<v8::Promise>
 HostImportModuleDynamicallyWithAssertionsCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<v8::FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
 
   CHECK(!specifier.IsEmpty());
@@ -26139,7 +26284,7 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
 }
 
 TEST(DynamicImportWithAssertions) {
-  FLAG_SCOPE_EXTERNAL(harmony_import_assertions);
+  FLAG_SCOPE(harmony_import_assertions);
 
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -26164,8 +26309,9 @@ TEST(DynamicImportWithAssertions) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);
@@ -26191,7 +26337,7 @@ TEST(ImportMeta) {
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<String> url = v8_str("www.google.com");
-  Local<String> source_text = v8_str("import.meta;");
+  Local<String> source_text = v8_str("globalThis.Result = import.meta;");
   v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
                           false, false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
@@ -26213,14 +26359,14 @@ TEST(ImportMeta) {
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(result));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK(
-        result->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(result));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK(context.local()
+            ->Global()
+            ->Get(context.local(), v8_str("Result"))
+            .ToLocalChecked()
+            ->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
 }
 
 void HostInitializeImportMetaObjectCallbackThrow(Local<Context> context,
@@ -26249,10 +26395,8 @@ TEST(ImportMetaThrowUnhandled) {
       .ToChecked();
 
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    auto promise = Local<v8::Promise>::Cast(result);
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-  }
+  auto promise = Local<v8::Promise>::Cast(result);
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
 
   Local<Object> ns = module->GetModuleNamespace().As<Object>();
   Local<Value> closure =
@@ -26294,10 +26438,8 @@ TEST(ImportMetaThrowHandled) {
       .ToChecked();
 
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    auto promise = Local<v8::Promise>::Cast(result);
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-  }
+  auto promise = Local<v8::Promise>::Cast(result);
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
 
   Local<Object> ns = module->GetModuleNamespace().As<Object>();
   Local<Value> closure =
@@ -26309,6 +26451,90 @@ TEST(ImportMetaThrowHandled) {
             .ToLocalChecked()
             ->IsTrue());
   CHECK(!try_catch.HasCaught());
+}
+
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackStatic(
+    v8::Local<v8::Context> initiator_context) {
+  CHECK(!initiator_context.IsEmpty());
+  return v8::Context::New(initiator_context->GetIsolate());
+}
+
+TEST(CreateShadowRealmContextHostNotSupported) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  v8::MaybeLocal<v8::Value> result = script->Run(context.local());
+  CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+  CHECK(v8_str("Error: Not supported")
+            ->Equals(isolate->GetCurrentContext(),
+                     try_catch.Exception()
+                         ->ToString(isolate->GetCurrentContext())
+                         .ToLocalChecked())
+            .FromJust());
+}
+
+TEST(CreateShadowRealmContext) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackStatic);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  Local<Value> result = script->Run(context.local()).ToLocalChecked();
+  CHECK(result->IsObject());
+  i::Handle<i::Object> object = v8::Utils::OpenHandle(*result);
+  CHECK(object->IsJSShadowRealm());
+}
+
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
+    v8::Local<v8::Context> initiator_context) {
+  CcTest::isolate()->ThrowException(v8_num(42));
+  return v8::MaybeLocal<v8::Context>();
+}
+
+TEST(CreateShadowRealmContextThrow) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackThrow);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  CHECK(script->Run(context.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->StrictEquals(v8_num(42)));
 }
 
 TEST(GetModuleNamespace) {
@@ -26705,6 +26931,7 @@ TEST(AtomicsWaitCallback) {
   AtomicsWaitCallbackCommon(isolate, CompileRun(init), 4, 4);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -26783,6 +27010,7 @@ TEST(WasmI64AtomicWaitCallback) {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(BigIntAPI) {
   LocalContext env;
@@ -26906,18 +27134,18 @@ TEST(GetJSEntryStubs) {
   v8::JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
 
   v8::JSEntryStub entry_stub = entry_stubs.js_entry_stub;
-  CHECK_EQ(i_isolate->heap()->builtin(i::Builtins::kJSEntry).InstructionStart(),
+  CHECK_EQ(i_isolate->builtins()->code(i::Builtin::kJSEntry).InstructionStart(),
            reinterpret_cast<i::Address>(entry_stub.code.start));
 
   v8::JSEntryStub construct_stub = entry_stubs.js_construct_entry_stub;
-  CHECK_EQ(i_isolate->heap()
-               ->builtin(i::Builtins::kJSConstructEntry)
+  CHECK_EQ(i_isolate->builtins()
+               ->code(i::Builtin::kJSConstructEntry)
                .InstructionStart(),
            reinterpret_cast<i::Address>(construct_stub.code.start));
 
   v8::JSEntryStub microtask_stub = entry_stubs.js_run_microtasks_entry_stub;
-  CHECK_EQ(i_isolate->heap()
-               ->builtin(i::Builtins::kJSRunMicrotasksEntry)
+  CHECK_EQ(i_isolate->builtins()
+               ->code(i::Builtin::kJSRunMicrotasksEntry)
                .InstructionStart(),
            reinterpret_cast<i::Address>(microtask_stub.code.start));
 }
@@ -27526,19 +27754,97 @@ UNINITIALIZED_TEST(NestedIsolates) {
 #ifndef V8_LITE_MODE
 namespace {
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value>
+Value PrimitiveFromMixedType(v8::AnyCType argument);
+
+template <>
+bool PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.bool_value;
+}
+template <>
+int32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int32_value;
+}
+template <>
+uint32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint32_value;
+}
+template <>
+int64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int64_value;
+}
+template <>
+uint64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint64_value;
+}
+template <>
+float PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.float_value;
+}
+template <>
+double PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.double_value;
+}
+template <>
+v8::Local<v8::Value> PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.object_value;
+}
+
+template <typename T>
+v8::AnyCType PrimitiveToMixedType(T value) {
+  return v8::AnyCType();
+}
+
+template <>
+v8::AnyCType PrimitiveToMixedType(bool value) {
+  v8::AnyCType ret;
+  ret.bool_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(int32_t value) {
+  v8::AnyCType ret;
+  ret.int32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(uint32_t value) {
+  v8::AnyCType ret;
+  ret.uint32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(float value) {
+  v8::AnyCType ret;
+  ret.float_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(double value) {
+  v8::AnyCType ret;
+  ret.double_value = value;
+  return ret;
+}
+
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
 template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
-  static Ret FastCallback(v8::ApiObject receiver, Value argument,
+  static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
-    const v8::Value* data = reinterpret_cast<const v8::Value*>(&options.data);
+    // TODO(mslekova): Refactor the data checking.
+    v8::Value* data = &(options.data);
     CHECK(data->IsNumber());
-    CHECK_EQ(reinterpret_cast<const v8::Number*>(data)->Value(), 42.0);
+    CHECK_EQ(v8::Number::Cast(data)->Value(), 42.0);
     return Impl::FastCallback(receiver, argument, options);
   }
-  static Ret FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
+  static Ret FastCallbackNoFallback(v8::Local<v8::Object> receiver,
+                                    Value argument) {
     v8::FastApiCallbackOptions options = {false, {0}};
     return Impl::FastCallback(receiver, argument, options);
   }
+
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
   }
@@ -27546,8 +27852,52 @@ struct BasicApiChecker {
   bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
   bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
 
+  void SetCallFast() { result_ |= ApiCheckerResult::kFastCalled; }
+  void SetCallSlow() { result_ |= ApiCheckerResult::kSlowCalled; }
+
+  void Reset() { result_ = ApiCheckerResult::kNotCalled; }
+
+ private:
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
+                                      v8::AnyCType argument,
+                                      v8::AnyCType options) {
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument),
+      *(options.options_value)));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                                  v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument), options));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
+                              v8::AnyCType options) {
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument),
+                            *(options.options_value));
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                          v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument), options);
+}
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
 enum class Behavior {
   kNoException,
@@ -27570,17 +27920,16 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
         write_to_fallback_(write_to_fallback),
         args_count_(args_count) {}
 
-  static void FastCallback(v8::ApiObject receiver, T argument,
+  static void FastCallback(v8::Local<v8::Object> receiver, T argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = *receiver;
     if (!IsValidUnwrapObject(receiver_obj)) {
-      options.fallback = 1;
+      options.fallback = true;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ApiNumberChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallFast();
     receiver_ptr->fast_value_ = argument;
     if (receiver_ptr->write_to_fallback_ == FallbackPolicy::kRequestFallback) {
       // Anything != 0 has the same effect here, but we're writing 1 to match
@@ -27588,7 +27937,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
       CHECK_EQ(options.fallback, 0);
-      options.fallback = 1;
+      options.fallback = true;
     }
   }
 
@@ -27599,10 +27948,10 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       return;
     }
     ApiNumberChecker<T>* checker =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(receiver);
+        GetInternalField<ApiNumberChecker<T>>(receiver);
     CHECK_EQ(info.Length(), checker->args_count_);
 
-    checker->result_ |= ApiCheckerResult::kSlowCalled;
+    checker->SetCallSlow();
 
     LocalContext env;
     checker->slow_value_ = ConvertJSValue<T>::Get(info[0], env.local());
@@ -27621,17 +27970,15 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
 };
 
 struct UnexpectedObjectChecker
-    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker, void> {
-  static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
+    : BasicApiChecker<v8::Local<v8::Value>, UnexpectedObjectChecker, void> {
+  static void FastCallback(v8::Local<v8::Object> receiver,
+                           v8::Local<v8::Value> argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
-    v8::Value* argument_value = reinterpret_cast<v8::Value*>(&argument);
-    if (argument_value->IsObject()) {
-      v8::Object* argument_obj = reinterpret_cast<v8::Object*>(&argument);
+        GetInternalField<UnexpectedObjectChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+    if (argument->IsObject()) {
+      v8::Object* argument_obj = v8::Object::Cast(*argument);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
@@ -27639,14 +27986,51 @@ struct UnexpectedObjectChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<UnexpectedObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     if (info[0]->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*info[0]);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
+};
+
+struct EmbedderType {
+  int data;
+};
+
+struct ApiObjectChecker
+    : BasicApiChecker<v8::Local<v8::Value>, ApiObjectChecker, void> {
+  ApiObjectChecker(v8::FunctionTemplate* ctor, int data)
+      : ctor_(ctor), initial_data_(data) {}
+
+  static void FastCallback(v8::Local<v8::Object> receiver,
+                           v8::Local<v8::Value> argument,
+                           v8::FastApiCallbackOptions& options) {
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+
+    v8::Object* argument_obj = v8::Object::Cast(*argument);
+    EmbedderType* argument_ptr = GetInternalField<EmbedderType>(argument_obj);
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument));
+
+    argument_ptr->data = receiver_ptr->initial_data_;
+  }
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+
+    CHECK(info[0]->IsObject());
+    v8::Local<v8::Object> argument_obj = info[0].As<v8::Object>();
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument_obj));
+  }
+
+  v8::FunctionTemplate* ctor_;
+  int fast_value_ = 0;
+  int initial_data_;
 };
 
 template <typename Value, typename Impl, typename Ret>
@@ -27659,18 +28043,30 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func =
+        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
+                            FastCallbackPatch<Value, Impl, Ret>);
+#else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func =
         v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   } else {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func = v8::CFunction::Make(
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback,
+        FastCallbackNoFallbackWrapper<Value, Impl, Ret>);
+#else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func = v8::CFunction::Make(
         BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback);
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
       v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect,
       &c_func);
   if (!accept_any_receiver) {
     checker_templ->SetAcceptAnyReceiver(false);
@@ -27698,30 +28094,28 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   return try_catch.HasCaught();
 }
 
-template <typename T>
-void CheckEqual(T actual, T expected) {
-  CHECK_EQ(actual, expected);
-}
-
-template <>
-void CheckEqual<float>(float actual, float expected) {
-  if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
-  } else {
-    // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+template <typename I, std::enable_if_t<std::is_integral<I>::value, bool> = true>
+void CheckEqual(I actual, I expected, std::ostringstream& error_msg) {
+  if (actual != expected) {
+    error_msg << "Value mismatch (expected: " << expected
+              << ", actual: " << actual << ")";
   }
 }
 
-template <>
-void CheckEqual<double>(double actual, double expected) {
+template <typename F,
+          std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+void CheckEqual(F actual, F expected, std::ostringstream& error_msg) {
   if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
+    if (!std::isnan(actual)) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   } else {
     // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+    if (std::signbit(actual) != std::signbit(expected) || actual != expected) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   }
 }
 
@@ -27740,7 +28134,7 @@ void CallAndCheck(
       "function func(arg) { return receiver.api_func(arg); }"
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -27752,41 +28146,141 @@ void CallAndCheck(
   }
 
   CHECK_EQ(expected_behavior == Behavior::kException, has_caught);
-  CHECK_EQ(expected_path == ApiCheckerResult::kSlowCalled,
-           !checker.DidCallFast());
-  CHECK_EQ(expected_path == ApiCheckerResult::kFastCalled,
-           !checker.DidCallSlow());
+
+  std::ostringstream error_msg;
+  if (expected_path == ApiCheckerResult::kSlowCalled) {
+    if (checker.DidCallFast()) {
+      error_msg << "Fast path was called when only the default was expected. ";
+    }
+  }
+  if (expected_path == ApiCheckerResult::kFastCalled) {
+    if (checker.DidCallSlow()) {
+      error_msg << "Default path was called when no fallback was expected. ";
+    }
+  }
+  if (error_msg.str().length() > 0) {
+    error_msg << "Expected value was: " << expected_value;
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
+  }
 
   if (expected_path & ApiCheckerResult::kSlowCalled) {
-    CHECK(checker.DidCallSlow());
+    if (!checker.DidCallSlow()) {
+      error_msg << "Default path was expected, but wasn't called. ";
+    }
     if (expected_behavior != Behavior::kException) {
-      CheckEqual(checker.slow_value_.ToChecked(), expected_value);
+      CheckEqual(checker.slow_value_.ToChecked(), expected_value, error_msg);
+    }
+    if (error_msg.str().length() > 0) {
+      error_msg << " from default path. ";
     }
   }
   if (expected_path & ApiCheckerResult::kFastCalled) {
-    CHECK(checker.DidCallFast());
-    CheckEqual(checker.fast_value_, expected_value);
+    if (!checker.DidCallFast()) {
+      error_msg << "Fast path was expected, but wasn't called. ";
+    }
+    CheckEqual(checker.fast_value_, expected_value, error_msg);
+    if (error_msg.str().length() > 0) {
+      error_msg << " from fast path";
+    }
   }
+  if (error_msg.str().length() > 0) {
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
+  }
+}
+
+void CheckApiObjectArg() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  Local<v8::FunctionTemplate> api_obj_ctor = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> api_obj_template =
+      api_obj_ctor->InstanceTemplate();
+  api_obj_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+
+  EmbedderType embedder_obj;
+  v8::Local<v8::Object> api_obj =
+      api_obj_template->NewInstance(env.local()).ToLocalChecked();
+  api_obj->SetAlignedPointerInInternalField(
+      kV8WrapperObjectIndex, reinterpret_cast<void*>(&embedder_obj));
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("api_object"), api_obj)
+            .FromJust());
+
+  const int data = 42;
+  ApiObjectChecker checker(*api_obj_ctor, data);
+  bool has_caught =
+      SetupTest(v8_num(data), &env, &checker,
+                "function func() { return receiver.api_func(api_object); }"
+                "%PrepareFunctionForOptimization(func);"
+                "func();");
+  checker.Reset();
+  CHECK(!has_caught);
+
+  CompileRun(
+      "%OptimizeFunctionOnNextCall(func);"
+      "func();");
+
+  CHECK(checker.DidCallFast());
+  CHECK_EQ(embedder_obj.data, data);
+  CHECK(!checker.DidCallSlow());
+}
+
+static const char* fast_calls_error_message = nullptr;
+static const char* fast_calls_error_location = nullptr;
+void FastCallsErrorCallback(const char* location, const char* message) {
+  fast_calls_error_message = message;
+  fast_calls_error_location = location;
+}
+
+void CheckFastCallsWithConstructor() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  CcTest::isolate()->SetFatalErrorHandler(FastCallsErrorCallback);
+
+  CHECK_NULL(fast_calls_error_message);
+
+  v8::CFunction c_func_ctor =
+      v8::CFunction::Make(ApiObjectChecker::FastCallback);
+  v8::FunctionTemplate::New(isolate, ApiObjectChecker::SlowCallback,
+                            Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
+                            v8::ConstructorBehavior::kAllow,
+                            v8::SideEffectType::kHasSideEffect, &c_func_ctor);
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location, "FunctionTemplate::New"));
+
+  fast_calls_error_message = nullptr;
+  const v8::CFunction c_func_ctor_overloads[] = {c_func_ctor};
+  v8::FunctionTemplate::NewWithCFunctionOverloads(
+      isolate, ApiObjectChecker::SlowCallback, Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasSideEffect, {c_func_ctor_overloads, 1});
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location,
+                     "FunctionTemplate::NewWithCFunctionOverloads"));
 }
 
 template <typename T>
 struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
-  static T FastCallback(v8::ApiObject receiver, T arg,
+  static T FastCallback(v8::Local<v8::Object> receiver, T arg,
                         v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ReturnValueChecker<T>>(*receiver);
+    receiver_ptr->SetCallFast();
     return arg;
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<ReturnValueChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
 };
@@ -27803,7 +28297,7 @@ void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
   CHECK(!has_caught);
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -27887,8 +28381,8 @@ void CallWithLessArguments() {
             "%OptimizeFunctionOnNextCall(func);"
             "func();");
 
-  // Passing not enough arguments should go through the fast path.
-  CHECK(checker.DidCallFast());
+  // Passing not enough arguments should not go through the fast path.
+  CHECK(checker.DidCallSlow());
 }
 
 void CallWithMoreArguments() {
@@ -27937,37 +28431,28 @@ void CallWithUnexpectedObjectType(v8::Local<v8::Value> receiver) {
 }
 
 class TestCFunctionInfo : public v8::CFunctionInfo {
-  const v8::CTypeInfo& ReturnInfo() const override {
-    static v8::CTypeInfo return_info =
-        v8::CTypeInfo(v8::CTypeInfo::Type::kVoid);
-    return return_info;
-  }
+  static constexpr unsigned int kArgCount = 2u;
 
-  unsigned int ArgumentCount() const override { return 2; }
+ public:
+  TestCFunctionInfo()
+      : v8::CFunctionInfo(v8::CTypeInfo(v8::CTypeInfo::Type::kVoid), kArgCount,
+                          arg_info_storage_),
+        arg_info_storage_{
+            v8::CTypeInfo(v8::CTypeInfo::Type::kV8Value),
+            v8::CTypeInfo(v8::CTypeInfo::Type::kBool),
+        } {}
 
-  const v8::CTypeInfo& ArgumentInfo(unsigned int index) const override {
-    static v8::CTypeInfo type_info0 =
-        v8::CTypeInfo(v8::CTypeInfo::Type::kV8Value);
-    static v8::CTypeInfo type_info1 = v8::CTypeInfo(v8::CTypeInfo::Type::kBool);
-    switch (index) {
-      case 0:
-        return type_info0;
-      case 1:
-        return type_info1;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  bool HasOptions() const override { return false; }
+ private:
+  const v8::CTypeInfo arg_info_storage_[kArgCount];
 };
 
 void CheckDynamicTypeInfo() {
   LocalContext env;
 
   static TestCFunctionInfo type_info;
-  v8::CFunction c_func =
-      v8::CFunction::Make(ApiNumberChecker<bool>::FastCallback, &type_info);
+  v8::CFunction c_func = v8::CFunction(
+      reinterpret_cast<const void*>(ApiNumberChecker<bool>::FastCallback),
+      &type_info);
   CHECK_EQ(c_func.ArgumentCount(), 2);
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
   CHECK_EQ(c_func.ArgumentInfo(1).GetType(), v8::CTypeInfo::Type::kBool);
@@ -27979,14 +28464,14 @@ void CheckDynamicTypeInfo() {
 TEST(FastApiStackSlot) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
+  v8::internal::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -28012,7 +28497,7 @@ TEST(FastApiStackSlot) {
       " };"
       " return foo;"
       "};");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Value> foo =
@@ -28031,15 +28516,16 @@ TEST(FastApiStackSlot) {
 TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
+  v8::internal::FlagList::EnforceFlagImplications();
 
+  CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
@@ -28466,13 +28952,13 @@ TEST(FastApiCalls) {
 
   // Fallback to slow call and don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException,
-      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
+      43, Behavior::kNoException,
+      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(43),
       Behavior::kNoException, FallbackPolicy::kRequestFallback);
 
   // Doesn't fallback to slow call, so don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(42),
+      44, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(44),
       Behavior::kNoException, FallbackPolicy::kDontRequestFallback);
 
   // Wrong number of arguments
@@ -28489,11 +28975,197 @@ TEST(FastApiCalls) {
   CallWithUnexpectedObjectType(v8_str("str"));
   CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
 
-  // TODO(mslekova): Add corner cases for 64-bit values.
-  // TODO(mslekova): Add main cases for float and double.
+  CheckApiObjectArg();
+  CheckFastCallsWithConstructor();
+
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.
+#endif  // V8_LITE_MODE
+}
+
+#ifndef V8_LITE_MODE
+namespace {
+static Trivial* UnwrapTrivialObject(Local<Object> object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(*object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  bool is_valid =
+      (v8::base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
+                           i::Internals::kLastJSApiObjectType) ||
+       instance_type == i::Internals::kJSSpecialApiObjectType);
+  if (!is_valid) {
+    return nullptr;
+  }
+  Trivial* wrapped = static_cast<Trivial*>(
+      object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+  CHECK_NOT_NULL(wrapped);
+  return wrapped;
+}
+
+void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
+                             const v8::FastApiTypedArray<int32_t>& arg1) {
+  Trivial* self = UnwrapTrivialObject(receiver);
+  CHECK_NOT_NULL(self);
+  CHECK_EQ(arg0, arg1.length());
+  self->set_x(arg0);
+}
+
+void FastCallback2JSArray(v8::Local<v8::Object> receiver, int arg0,
+                          v8::Local<v8::Array> arg1) {
+  Trivial* self = UnwrapTrivialObject(receiver);
+  CHECK_NOT_NULL(self);
+  CHECK_EQ(arg0, arg1->Length());
+  self->set_x(arg0);
+}
+
+void FastCallback3SwappedParams(v8::Local<v8::Object> receiver,
+                                v8::Local<v8::Array> arg0, int arg1) {}
+
+void FastCallback4Scalar(v8::Local<v8::Object> receiver, int arg0, float arg1) {
+}
+
+void FastCallback5DifferentArity(v8::Local<v8::Object> receiver, int arg0,
+                                 v8::Local<v8::Array> arg1, float arg2) {}
+
+void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  Trivial* self = UnwrapTrivialObject(args.This());
+  if (!self) {
+    isolate->ThrowError("This method is not defined on the given receiver.");
+    return;
+  }
+  self->set_x(1337);
+
+  HandleScope handle_scope(isolate);
+
+  if (args.Length() < 2 || !args[0]->IsNumber()) {
+    isolate->ThrowError(
+        "This method expects at least 2 arguments,"
+        " first one a number.");
+    return;
+  }
+  int64_t len = args[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
+  if (args[1]->IsTypedArray()) {
+    v8::Local<v8::TypedArray> typed_array_arg = args[1].As<v8::TypedArray>();
+    size_t length = typed_array_arg->Length();
+    CHECK_EQ(len, length);
+    return;
+  }
+  if (!args[1]->IsArray()) {
+    isolate->ThrowError("This method expects an array as a second argument.");
+    return;
+  }
+  v8::Local<v8::Array> seq_arg = args[1].As<v8::Array>();
+  uint32_t length = seq_arg->Length();
+  CHECK_EQ(len, length);
+  return;
+}
+}  // namespace
+#endif  // V8_LITE_MODE
+
+TEST(FastApiSequenceOverloads) {
+#ifndef V8_LITE_MODE
+  if (i::FLAG_jitless) return;
+
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
+  // Disable --always_opt, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  v8::internal::FLAG_always_opt = false;
+  v8::internal::FlagList::EnforceFlagImplications();
+
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::CFunction typed_array_callback =
+      v8::CFunctionBuilder().Fn(FastCallback1TypedArray).Build();
+  v8::CFunction js_array_callback =
+      v8::CFunctionBuilder().Fn(FastCallback2JSArray).Build();
+  const v8::CFunction sequece_overloads[] = {
+      typed_array_callback,
+      js_array_callback,
+  };
+
+  Local<v8::FunctionTemplate> sequence_callback_templ =
+      v8::FunctionTemplate::NewWithCFunctionOverloads(
+          isolate, SequenceSlowCallback, v8::Number::New(isolate, 42),
+          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
+          v8::SideEffectType::kHasSideEffect, {sequece_overloads, 2});
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+  object_template->Set(isolate, "api_func", sequence_callback_templ);
+
+  std::unique_ptr<Trivial> rcv(new Trivial(42));
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+  object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex, rcv.get());
+
+  CHECK(
+      (env)->Global()->Set(env.local(), v8_str("receiver"), object).FromJust());
+  USE(CompileRun(
+      "function func(num, arr) { return receiver.api_func(num, arr); }"
+      "%PrepareFunctionForOptimization(func);"
+      "func(3, [1,2,3]);"
+      "%OptimizeFunctionOnNextCall(func);"
+      "func(3, [1,2,3]);"));
+  CHECK_EQ(3, rcv->x());
+
+  USE(
+      CompileRun("const ta = new Int32Array([1, 2, 3, 4]);"
+                 "func(4, ta);"));
+  CHECK_EQ(4, rcv->x());
+#endif  // V8_LITE_MODE
+}
+
+TEST(FastApiOverloadResolution) {
+#ifndef V8_LITE_MODE
+  if (i::FLAG_jitless) return;
+
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
+  // Disable --always_opt, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  v8::internal::FLAG_always_opt = false;
+  v8::internal::FlagList::EnforceFlagImplications();
+
+  v8::CFunction typed_array_callback =
+      v8::CFunctionBuilder().Fn(FastCallback1TypedArray).Build();
+  v8::CFunction js_array_callback =
+      v8::CFunctionBuilder().Fn(FastCallback2JSArray).Build();
+
+  // Check that a general runtime overload resolution is possible.
+  CHECK_EQ(v8::CFunction::OverloadResolution::kAtRuntime,
+           typed_array_callback.GetOverloadResolution(&js_array_callback));
+
+  v8::CFunction swapped_params_callback =
+      v8::CFunctionBuilder().Fn(FastCallback3SwappedParams).Build();
+
+  // Check that difference in > 1 position is not possible.
+  CHECK_EQ(
+      v8::CFunction::OverloadResolution::kImpossible,
+      typed_array_callback.GetOverloadResolution(&swapped_params_callback));
+
+  v8::CFunction scalar_callback =
+      v8::CFunctionBuilder().Fn(FastCallback4Scalar).Build();
+
+  // Check that resolving when there is a scalar at the difference position
+  // is not possible.
+  CHECK_EQ(v8::CFunction::OverloadResolution::kImpossible,
+           typed_array_callback.GetOverloadResolution(&scalar_callback));
+
+  v8::CFunction diff_arity_callback =
+      v8::CFunctionBuilder().Fn(FastCallback5DifferentArity).Build();
+
+  // Check that overload resolution between different number of arguments
+  // is possible.
+  CHECK_EQ(v8::CFunction::OverloadResolution::kAtCompileTime,
+           typed_array_callback.GetOverloadResolution(&diff_arity_callback));
+
 #endif  // V8_LITE_MODE
 }
 
@@ -28820,38 +29492,6 @@ TEST(CodeLikeFunction) {
   ExpectInt32("new Function(new CodeLike())()", 7);
 }
 
-UNINITIALIZED_TEST(SingleThreadedDefaultPlatform) {
-  v8::V8::SetFlagsFromString("--single-threaded");
-  auto old_platform = i::V8::GetCurrentPlatform();
-  std::unique_ptr<v8::Platform> new_platform(
-      v8::platform::NewSingleThreadedDefaultPlatform());
-  i::V8::SetPlatformForTesting(new_platform.get());
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  {
-    i::HandleScope scope(i_isolate);
-    v8::Local<Context> env = Context::New(isolate);
-    env->Enter();
-
-    CompileRunChecked(isolate,
-                      "function f() {"
-                      "  for (let i = 0; i < 10; i++)"
-                      "    (new Array(10)).fill(0);"
-                      "  return 0;"
-                      "}"
-                      "f();");
-    env->Exit();
-  }
-  CcTest::CollectGarbage(i::NEW_SPACE, i_isolate);
-  CcTest::CollectAllAvailableGarbage(i_isolate);
-  isolate->Exit();
-  isolate->Dispose();
-  i::V8::SetPlatformForTesting(old_platform);
-}
-
 THREADED_TEST(MicrotaskQueueOfContext) {
   auto microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
   v8::HandleScope scope(CcTest::isolate());
@@ -28860,4 +29500,107 @@ THREADED_TEST(MicrotaskQueueOfContext) {
       v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
       microtask_queue.get());
   CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+}
+
+namespace {
+
+bool sab_constructor_enabled_value = false;
+
+bool MockSabConstructorEnabledCallback(v8::Local<v8::Context>) {
+  return sab_constructor_enabled_value;
+}
+
+}  // namespace
+
+TEST(TestSetSabConstructorEnabledCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
+
+  // {Isolate::IsSharedArrayBufferConstructorEnabled} calls the callback set by
+  // the embedder if such a callback exists. Otherwise it returns
+  // {FLAG_harmony_sharedarraybuffer}. First we test that the flag is returned
+  // correctly if no callback is set. Then we test that the flag is ignored if
+  // the callback is set.
+
+  i::FLAG_harmony_sharedarraybuffer = false;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = false;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_enable_sharedarraybuffer_per_context = true;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  isolate->SetSharedArrayBufferConstructorEnabledCallback(
+      MockSabConstructorEnabledCallback);
+  sab_constructor_enabled_value = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  sab_constructor_enabled_value = true;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+}
+
+namespace {
+void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(v8::Number::New(isolate, 1));
+}
+}  // namespace
+
+TEST(EmbedderInstanceTypes) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::FLAG_embedder_instance_types = true;
+  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
+  Local<FunctionTemplate> nodeType = v8::FunctionTemplate::New(
+      isolate, NodeTypeCallback, Local<Value>(),
+      v8::Signature::New(isolate, node), 0, v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasSideEffect, nullptr, 0, 1, 3);
+  proto_template->SetAccessorProperty(
+      String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
+
+  Local<FunctionTemplate> element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 1);
+  element->Inherit(node);
+
+  Local<FunctionTemplate> html_element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 2);
+  html_element->Inherit(element);
+
+  Local<FunctionTemplate> div_element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 3);
+  div_element->Inherit(html_element);
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("div"),
+                  div_element->GetFunction(env.local())
+                      .ToLocalChecked()
+                      ->NewInstance(env.local())
+                      .ToLocalChecked())
+            .FromJust());
+
+  CompileRun("var x = div.nodeType;");
+
+  Local<Value> res =
+      env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked();
+  CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
 }

@@ -42,8 +42,6 @@ let { Protocol } = InspectorTest.start('Checks Runtime.getProperties method whil
       let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
       let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
       for (let prop of props.result.result) {
-        if (prop.name === '__proto__')
-          continue;
         InspectorTest.log(prop.name);
         await logGetPropertiesResult(prop.value.objectId);
       }
@@ -98,11 +96,7 @@ let { Protocol } = InspectorTest.start('Checks Runtime.getProperties method whil
       for (var i = 0; i < internalPropertyArray.length; i++) {
         var p = internalPropertyArray[i];
         var v = p.value;
-        if (p.name === "[[ArrayBufferData]]")
-          // Hex value for pointer is non-deterministic
-          InspectorTest.log(`  ${p.name} ${v.type} ${v.value.substr(0, 2)}...`);
-        else
-          InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
+        InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
       }
     }
 

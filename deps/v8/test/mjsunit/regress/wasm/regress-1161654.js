@@ -8,7 +8,7 @@
 // affects ARM, where the fp register aliasing is different from other archs.
 // We were inncorrectly clearing the the high fp register in a LiftoffRegList
 // indicating registers to load, hitting a DCHECK.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(19, 32, false);
@@ -34,7 +34,7 @@ kExprLocalGet, 0x01,  // local.get
 kExprLocalGet, 0x01,  // local.get
 kExprGlobalGet, 0x00,  // global.get
 kExprDrop,  // drop
-kExprLoop, kWasmStmt,  // loop @8
+kExprLoop, kWasmVoid,  // loop @8
   kExprLoop, 0x00,  // loop @10
     kExprI32Const, 0x01,  // i32.const
     kExprMemoryGrow, 0x00,  // memory.grow

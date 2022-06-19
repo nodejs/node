@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -206,8 +206,9 @@ class GitRecipesMixin(object):
     self.Git(MakeArgs(args), **kwargs)
 
   def GitUpload(self, reviewer="", force=False, cq=False,
-                cq_dry_run=False, bypass_hooks=False, cc="", tbr_reviewer="",
-                no_autocc=False, message_file=None, **kwargs):
+                cq_dry_run=False, set_bot_commit=False, bypass_hooks=False,
+                cc="", tbr_reviewer="", no_autocc=False, message_file=None,
+                **kwargs):
     args = ["cl upload --send-mail"]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
@@ -219,6 +220,8 @@ class GitRecipesMixin(object):
       args.append("--use-commit-queue")
     if cq_dry_run:
       args.append("--cq-dry-run")
+    if set_bot_commit:
+      args.append("--set-bot-commit")
     if bypass_hooks:
       args.append("--bypass-hooks")
     if no_autocc:

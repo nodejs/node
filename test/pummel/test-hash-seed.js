@@ -2,6 +2,11 @@
 
 // Check that spawn child doesn't create duplicated entries
 const common = require('../common');
+
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
+}
+
 const kRepetitions = 2;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');

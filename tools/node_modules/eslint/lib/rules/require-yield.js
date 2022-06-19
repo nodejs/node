@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require generator functions to contain `yield`",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/require-yield"
         },

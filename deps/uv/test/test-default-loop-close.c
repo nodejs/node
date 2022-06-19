@@ -37,7 +37,7 @@ TEST_IMPL(default_loop_close) {
   uv_timer_t timer_handle;
 
   loop = uv_default_loop();
-  ASSERT(loop != NULL);
+  ASSERT_NOT_NULL(loop);
 
   ASSERT(0 == uv_timer_init(loop, &timer_handle));
   ASSERT(0 == uv_timer_start(&timer_handle, timer_cb, 1, 0));
@@ -46,7 +46,7 @@ TEST_IMPL(default_loop_close) {
   ASSERT(0 == uv_loop_close(loop));
 
   loop = uv_default_loop();
-  ASSERT(loop != NULL);
+  ASSERT_NOT_NULL(loop);
 
   ASSERT(0 == uv_timer_init(loop, &timer_handle));
   ASSERT(0 == uv_timer_start(&timer_handle, timer_cb, 1, 0));

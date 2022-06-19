@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --correctness-fuzzer-suppressions
-// Files: tools/clusterfuzz/v8_mock.js
+// Files: tools/clusterfuzz/foozzie/v8_mock.js
 
 // Test foozzie mocks for differential fuzzing.
 
@@ -119,3 +119,12 @@ assertEquals(unoptimized, callPow(6996));
 let then_called = false;
 Atomics.waitAsync().value.then(() => {then_called = true;});
 assertEquals(true, then_called);
+
+// Test .caller access is neutered.
+function callee() {
+  assertEquals(null, callee.caller);
+}
+function caller() {
+  callee();
+}
+caller();

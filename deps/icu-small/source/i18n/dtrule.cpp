@@ -81,7 +81,7 @@ DateTimeRule::operator=(const DateTimeRule& right) {
     return *this;
 }
 
-UBool
+bool
 DateTimeRule::operator==(const DateTimeRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
@@ -94,7 +94,7 @@ DateTimeRule::operator==(const DateTimeRule& that) const {
             fTimeRuleType == that.fTimeRuleType));
 }
 
-UBool
+bool
 DateTimeRule::operator!=(const DateTimeRule& that) const {
     return !operator==(that);
 }

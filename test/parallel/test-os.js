@@ -39,10 +39,6 @@ const is = {
   }
 };
 
-const flatten = (arr) =>
-  arr.reduce((acc, c) =>
-    acc.concat(Array.isArray(c) ? flatten(c) : c), []);
-
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
@@ -79,7 +75,7 @@ if (common.isWindows) {
 
 const endianness = os.endianness();
 is.string(endianness);
-assert.ok(/[BL]E/.test(endianness));
+assert.match(endianness, /[BL]E/);
 
 const hostname = os.hostname();
 is.string(hostname);
@@ -114,7 +110,7 @@ is.string(release);
 assert.ok(release.length > 0);
 // TODO: Check format on more than just AIX
 if (common.isAIX)
-  assert.ok(/^\d+\.\d+$/.test(release));
+  assert.match(release, /^\d+\.\d+$/);
 
 const platform = os.platform();
 is.string(platform);
@@ -174,7 +170,8 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
   'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
 }));
 
-flatten(Object.values(interfaces))
+Object.values(interfaces)
+  .flat(Infinity)
   .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
   .forEach(({ v, mask }) => {
     assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
@@ -247,6 +244,7 @@ assert.strictEqual(`${os.endianness}`, os.endianness());
 assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
 assert.strictEqual(`${os.arch}`, os.arch());
 assert.strictEqual(`${os.platform}`, os.platform());
+assert.strictEqual(`${os.version}`, os.version());
 
 assert.strictEqual(+os.totalmem, os.totalmem());
 
@@ -259,3 +257,10 @@ if (!common.isIBMi) {
 
 is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
+
+const devNull = os.devNull;
+if (common.isWindows) {
+  assert.strictEqual(devNull, '\\\\.\\nul');
+} else {
+  assert.strictEqual(devNull, '/dev/null');
+}

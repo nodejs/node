@@ -14,16 +14,21 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T>
+class Vector;
+}  // namespace base
+
 namespace internal {
 
 class Logger;
-template <typename T>
-class Vector;
 
 enum class LogSeparator { kSeparator };
 
@@ -58,7 +63,7 @@ class Log {
 
     void AppendString(String str,
                       base::Optional<int> length_limit = base::nullopt);
-    void AppendString(Vector<const char> str);
+    void AppendString(base::Vector<const char> str);
     void AppendString(const char* str);
     void AppendString(const char* str, size_t length, bool is_one_byte = true);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
@@ -93,7 +98,7 @@ class Log {
     void AppendRawCharacter(const char character);
 
     Log* log_;
-    base::MutexGuard lock_guard_;
+    NoGarbageCollectionMutexGuard lock_guard_;
 
     friend class Log;
   };

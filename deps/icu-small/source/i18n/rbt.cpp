@@ -62,7 +62,7 @@ void RuleBasedTransliterator::_construct(const UnicodeString& rules,
  * @param rules         rules, separated by ';'
  * @param direction     either FORWARD or REVERSE.
  * @param adoptedFilter the filter for this transliterator.
- * @param parseError    Struct to recieve information on position
+ * @param parseError    Struct to receive information on position 
  *                      of error if an error is encountered
  * @param status        Output param set to success/failure code.
  * @exception IllegalArgumentException if rules are malformed
@@ -101,7 +101,7 @@ RuleBasedTransliterator::RuleBasedTransliterator(
 }*/
 
 /**
- * Covenience constructor with no filter.
+ * Convenience constructor with no filter.
  */
 /*RuleBasedTransliterator::RuleBasedTransliterator(
                             const UnicodeString& id,
@@ -114,7 +114,7 @@ RuleBasedTransliterator::RuleBasedTransliterator(
 }*/
 
 /**
- * Covenience constructor with no filter and FORWARD direction.
+ * Convenience constructor with no filter and FORWARD direction.
  */
 /*RuleBasedTransliterator::RuleBasedTransliterator(
                             const UnicodeString& id,
@@ -126,7 +126,7 @@ RuleBasedTransliterator::RuleBasedTransliterator(
 }*/
 
 /**
- * Covenience constructor with FORWARD direction.
+ * Convenience constructor with FORWARD direction.
  */
 /*RuleBasedTransliterator::RuleBasedTransliterator(
                             const UnicodeString& id,
@@ -235,16 +235,16 @@ RuleBasedTransliterator::handleTransliterate(Replaceable& text, UTransPosition& 
     }
 
     // Transliterator locking.  Rule-based Transliterators are not thread safe; concurrent
-    //   operations must be prevented.
+    //   operations must be prevented.  
     // A Complication: compound transliterators can result in recursive entries to this
-    //   function, sometimes with different "This" objects, always with the same text.
+    //   function, sometimes with different "This" objects, always with the same text. 
     //   Double-locking must be prevented in these cases.
-    //
+    //   
 
     UBool    lockedMutexAtThisLevel = FALSE;
 
     // Test whether this request is operating on the same text string as
-    //   some other transliteration that is still in progress and holding the
+    //   some other transliteration that is still in progress and holding the 
     //   transliteration mutex.  If so, do not lock the transliteration
     //    mutex again.
     //
@@ -265,7 +265,7 @@ RuleBasedTransliterator::handleTransliterate(Replaceable& text, UTransPosition& 
         gLockedText = &text;
         lockedMutexAtThisLevel = TRUE;
     }
-
+    
     // Check to make sure we don't dereference a null pointer.
     if (fData != NULL) {
 	    while (index.start < index.limit &&

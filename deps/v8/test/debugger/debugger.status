@@ -22,16 +22,16 @@
   # CRASH is also a reasonable outcome).
   'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
-  # Slow tests
-  'debug/debug-scopes': [PASS, SLOW],
-  'debug/debug-stepout-scope-part*': [PASS, SLOW],
-  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW, ['mode == debug', SKIP]],
-
   # Too slow in debug mode and on slow platforms.
-  'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+  'regress/regress-2318': [PASS, HEAVY, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 
   # forcing weak callback in asan build change break order
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'debug/debug-scopes': [PASS, HEAVY],
+  'debug/debug-stepout-scope-part*': [PASS, HEAVY],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -70,7 +70,6 @@
 
   # https://crbug.com/v8/8141
   'debug/debug-liveedit-1': [SKIP],
-  'debug/debug-liveedit-double-call': [SKIP],
   'debug/es6/debug-liveedit-new-target-3': [SKIP],
   'debug/side-effect/debug-evaluate-no-side-effect-control': [SKIP],
 }],  # 'gc_stress == True'
@@ -126,8 +125,6 @@
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug/debug-liveedit-check-stack': [SKIP],
-  'debug/debug-liveedit-double-call': [SKIP],
-  'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
@@ -139,23 +136,26 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier', {
-  # Deopts differently than TurboFan.
-  'debug/debug-optimize': [SKIP],
-  'debug/debug-compile-optimized': [SKIP],
-}],  # variant == turboprop or variant == turboprop_as_toptier
-
-##############################################################################
-# Liftoff needs to be enabled before running these tests.
-['arch in (s390, s390x, ppc, ppc64)', {
-  'regress/regress-crbug-1032042': [SKIP],
-  'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/*': [SKIP],
+# Tests requiring Sparkplug.
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, loong64)', {
+  'regress/regress-crbug-1199681': [SKIP],
 }],
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['third_party_heap', {
+  # Requires --concurrent_recompilation
+  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
+  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
+  'regress/regress-7421': [SKIP],
+  # Requires a second isolate
+  'debug/debug-step': [SKIP],
+  'debug/deserialize-script-id': [SKIP],
+  'regress/regress-crbug-507070': [SKIP],
+}], # third_party_heap
 
 ]

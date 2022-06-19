@@ -25,13 +25,13 @@ const LINE_BREAK = astUtils.createGlobalLinebreakMatcher();
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow irregular whitespace",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-irregular-whitespace"
         },

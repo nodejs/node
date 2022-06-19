@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+// scope-info-tq.inc uses NameToIndexHashTable.
+class NameToIndexHashTable;
+
 #include "torque-generated/src/objects/scope-info-tq.inc"
 
 template <typename T>
@@ -31,6 +34,18 @@ class Scope;
 class StringSet;
 class Zone;
 
+struct VariableLookupResult {
+  int context_index;
+  int slot_index;
+  // repl_mode flag is needed to disable inlining of 'const' variables in REPL
+  // mode.
+  bool is_repl_mode;
+  IsStaticFlag is_static_flag;
+  VariableMode mode;
+  InitializationFlag init_flag;
+  MaybeAssignedFlag maybe_assigned_flag;
+};
+
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
 // is stored in a compressed form in ScopeInfo objects and is used
@@ -38,26 +53,11 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
+class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
  public:
   DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
 
   DECL_PRINTER(ScopeInfo)
-  DECL_VERIFIER(ScopeInfo)
-
-  // For refactoring, clone some FixedArray member functions. Eventually this
-  // class will stop pretending to be a FixedArray, but we're not quite there.
-  inline Object get(int index) const;
-  inline Object get(IsolateRoot isolate, int index) const;
-  // Setter that doesn't need write barrier.
-  inline void set(int index, Smi value);
-  // Setter with explicit barrier mode.
-  inline void set(int index, Object value,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
-                           int src_index, int len, WriteBarrierMode mode);
-  inline ObjectSlot RawFieldOfElementAt(int index);
-
   class BodyDescriptor;
 
   // Return the type of this scope.
@@ -91,18 +91,23 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // or context-allocated?
   bool HasAllocatedReceiver() const;
 
-  // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
+  // Does this scope has class brand (for private methods)? If it's a class
+  // scope, this indicates whether the class has a private brand. If it's a
+  // constructor scope, this indicates whther it needs to initialize the
+  // brand.
+  bool ClassScopeHasPrivateBrand() const;
 
-  // Does this scope contain a saved class variable context local slot index
-  // for checking receivers of static private methods?
-  bool HasSavedClassVariableIndex() const;
+  // Does this scope contain a saved class variable for checking receivers of
+  // static private methods?
+  bool HasSavedClassVariable() const;
 
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
 
   // Is this scope the scope of a named function expression?
   V8_EXPORT_PRIVATE bool HasFunctionName() const;
+
+  bool HasContextAllocatedFunctionName() const;
 
   // See SharedFunctionInfo::HasSharedName.
   V8_EXPORT_PRIVATE bool HasSharedFunctionName() const;
@@ -141,8 +146,22 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
 
   SourceTextModuleInfo ModuleDescriptorInfo() const;
 
-  // Return the name of the given context local.
-  String ContextLocalName(int var) const;
+  // Return true if the local names are inlined in the scope info object.
+  inline bool HasInlinedLocalNames() const;
+
+  template <typename ScopeInfoPtr>
+  class LocalNamesRange;
+
+  static inline LocalNamesRange<Handle<ScopeInfo>> IterateLocalNames(
+      Handle<ScopeInfo> scope_info);
+
+  static inline LocalNamesRange<ScopeInfo*> IterateLocalNames(
+      ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc);
+
+  // Return the name of a given context local.
+  // It should only be used if inlined local names.
+  String ContextInlinedLocalName(int var) const;
+  String ContextInlinedLocalName(PtrComprCageBase cage_base, int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -168,10 +187,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(ScopeInfo scope_info, String name,
-                              VariableMode* mode, InitializationFlag* init_flag,
-                              MaybeAssignedFlag* maybe_assigned_flag,
-                              IsStaticFlag* is_static_flag);
+  int ContextSlotIndex(Handle<String> name);
+  int ContextSlotIndex(Handle<String> name,
+                       VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -179,6 +197,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   int ModuleIndex(String name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
+
+  int ModuleVariableCount() const;
 
   // Lookup support for serialized scope info. Returns the function context
   // slot index if the function name is present and context-allocated (named
@@ -191,11 +211,13 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // context-allocated.  Otherwise returns a value < 0.
   int ReceiverContextSlotIndex() const;
 
-  // Lookup support for serialized scope info.  Returns the index of the
-  // saved class variable in context local slots if scope is a class scope
+  // Returns the first parameter context slot index.
+  int ParametersStartIndex() const;
+
+  // Lookup support for serialized scope info.  Returns the name and index of
+  // the saved class variable in context local slots if scope is a class scope
   // and it contains static private methods that may be accessed.
-  // Otherwise returns a value < 0.
-  int SavedClassVariableContextLocalIndex() const;
+  std::pair<String, int> SavedClassVariable() const;
 
   FunctionKind function_kind() const;
 
@@ -226,19 +248,18 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
 
-  // REPL mode scopes allow re-declaraction of let variables. They come from
-  // debug evaluate but are different to IsDebugEvaluateScope().
+  // REPL mode scopes allow re-declaraction of let and const variables. They
+  // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
 
-  template <typename LocalIsolate>
-  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
-                                  Scope* scope,
+  template <typename IsolateT>
+  static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                   MaybeHandle<ScopeInfo> outer_scope);
-  static Handle<ScopeInfo> CreateForWithScope(
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
@@ -272,22 +293,25 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
         kVariablePartIndex
   };
 
-// Make sure the Fields enum agrees with Torque-generated offsets.
-#define ASSERT_MATCHED_FIELD(name) \
-  STATIC_ASSERT(FixedArray::OffsetOfElementAt(k##name) == k##name##Offset);
-  FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
-#undef ASSERT_MATCHED_FIELD
-
   STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  STATIC_ASSERT(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
 
   bool IsEmpty() const;
 
+  // Returns the size in bytes for a ScopeInfo with |length| slots.
+  static constexpr int SizeFor(int length) { return OffsetOfElementAt(length); }
+
+  // Gives access to raw memory which stores the ScopeInfo's data.
+  inline ObjectSlot data_start();
+
  private:
+  friend class WebSnapshotDeserializer;
+
+  int InlinedLocalNamesLookup(String name);
+
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
-  int ReceiverInfoIndex() const;
   int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
@@ -299,10 +323,33 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
 
   static bool NeedsPositionInfo(ScopeType type);
 
-  // Converts byte offsets within the object to FixedArray-style indices.
+  // Raw access by slot index. These functions rely on the fact that everything
+  // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is
+  // 'flags', the first field defined by ScopeInfo after the standard-size
+  // HeapObject header.
+  V8_EXPORT_PRIVATE Object get(int index) const;
+  Object get(PtrComprCageBase cage_base, int index) const;
+  // Setter that doesn't need write barrier.
+  void set(int index, Smi value);
+  // Setter with explicit barrier mode.
+  void set(int index, Object value,
+           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  void CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
+                    int src_index, int len, WriteBarrierMode mode);
+  ObjectSlot RawFieldOfElementAt(int index);
+  // The number of tagged-pointer-sized slots in the ScopeInfo after its
+  // standard HeapObject header.
+  V8_EXPORT_PRIVATE int length() const;
+
+  // Conversions between offset (bytes from the beginning of the object) and
+  // index (number of tagged-pointer-sized slots starting after the standard
+  // HeapObject header).
+  static constexpr int OffsetOfElementAt(int index) {
+    return HeapObject::kHeaderSize + index * kTaggedSize;
+  }
   static constexpr int ConvertOffsetToIndex(int offset) {
-    int index = (offset - FixedArray::kHeaderSize) / kTaggedSize;
-    CONSTEXPR_DCHECK(FixedArray::OffsetOfElementAt(index) == offset);
+    int index = (offset - HeapObject::kHeaderSize) / kTaggedSize;
+    DCHECK_EQ(OffsetOfElementAt(index), offset);
     return index;
   }
 
@@ -322,8 +369,12 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
                       InitializationFlag* init_flag = nullptr,
                       MaybeAssignedFlag* maybe_assigned_flag = nullptr);
 
-  static const int kFunctionNameEntries = 2;
-  static const int kPositionInfoEntries = 2;
+  static const int kFunctionNameEntries =
+      TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;
+  static const int kPositionInfoEntries =
+      TorqueGeneratedPositionInfoOffsets::kSize / kTaggedSize;
+  static const int kModuleVariableEntryLength =
+      TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
 
   // Properties of variables.
   DEFINE_TORQUE_GENERATED_VARIABLE_PROPERTIES()

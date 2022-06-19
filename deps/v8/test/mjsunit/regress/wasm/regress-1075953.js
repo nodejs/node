@@ -4,7 +4,7 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(1, 1, false, true);
@@ -25,7 +25,7 @@ builder.addFunction(undefined, sig)
   kExprElse,  // else @45
     kExprI32Const, 0x00,  // i32.const
     kExprEnd,  // end @48
-  kExprIf, kWasmStmt,  // if @49
+  kExprIf, kWasmVoid,  // if @49
     kExprI32Const, 0x00,  // i32.const
     kExprI32Const, 0x00,  // i32.const
     kAtomicPrefix, kExprI32AtomicSub, 0x01, 0x04,  // i32.atomic.sub

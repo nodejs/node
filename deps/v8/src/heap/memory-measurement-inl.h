@@ -29,6 +29,7 @@ bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
                                 native_context);
     case kVisitJSApiObject:
     case kVisitJSArrayBuffer:
+    case kVisitJSFinalizationRegistry:
     case kVisitJSObject:
     case kVisitJSObjectFast:
     case kVisitJSTypedArray:

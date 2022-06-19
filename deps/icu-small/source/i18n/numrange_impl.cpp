@@ -30,7 +30,8 @@ constexpr int8_t identity2d(UNumberRangeIdentityFallback a, UNumberRangeIdentity
 
 struct NumberRangeData {
     SimpleFormatter rangePattern;
-    SimpleFormatter approximatelyPattern;
+    // Note: approximatelyPattern is unused since ICU 69.
+    // SimpleFormatter approximatelyPattern;
 };
 
 class NumberRangeDataSink : public ResourceSink {
@@ -46,12 +47,16 @@ class NumberRangeDataSink : public ResourceSink {
                     continue; // have already seen this pattern
                 }
                 fData.rangePattern = {value.getUnicodeString(status), status};
-            } else if (uprv_strcmp(key, "approximately") == 0) {
+            }
+            /*
+            // Note: approximatelyPattern is unused since ICU 69.
+            else if (uprv_strcmp(key, "approximately") == 0) {
                 if (hasApproxData()) {
                     continue; // have already seen this pattern
                 }
                 fData.approximatelyPattern = {value.getUnicodeString(status), status};
             }
+            */
         }
     }
 
@@ -59,21 +64,26 @@ class NumberRangeDataSink : public ResourceSink {
         return fData.rangePattern.getArgumentLimit() != 0;
     }
 
+    /*
+    // Note: approximatelyPattern is unused since ICU 69.
     bool hasApproxData() {
         return fData.approximatelyPattern.getArgumentLimit() != 0;
     }
+    */
 
     bool isComplete() {
-        return hasRangeData() && hasApproxData();
+        return hasRangeData() /* && hasApproxData() */;
     }
 
     void fillInDefaults(UErrorCode& status) {
         if (!hasRangeData()) {
             fData.rangePattern = {u"{0}–{1}", status};
         }
+        /*
         if (!hasApproxData()) {
             fData.approximatelyPattern = {u"~{0}", status};
         }
+        */
     }
 
   private:
@@ -116,7 +126,8 @@ NumberRangeFormatterImpl::NumberRangeFormatterImpl(const RangeMacroProps& macros
       formatterImpl2(macros.formatter2.fMacros, status),
       fSameFormatters(macros.singleFormatter),
       fCollapse(macros.collapse),
-      fIdentityFallback(macros.identityFallback) {
+      fIdentityFallback(macros.identityFallback),
+      fApproximatelyFormatter(status) {
 
     const char* nsName = formatterImpl1.getRawMicroProps().nsName;
     if (uprv_strcmp(nsName, formatterImpl2.getRawMicroProps().nsName) != 0) {
@@ -128,7 +139,16 @@ NumberRangeFormatterImpl::NumberRangeFormatterImpl(const RangeMacroProps& macros
     getNumberRangeData(macros.locale.getName(), nsName, data, status);
     if (U_FAILURE(status)) { return; }
     fRangeFormatter = data.rangePattern;
-    fApproximatelyModifier = {data.approximatelyPattern, kUndefinedField, false};
+
+    if (fSameFormatters && (
+            fIdentityFallback == UNUM_IDENTITY_FALLBACK_APPROXIMATELY ||
+            fIdentityFallback == UNUM_IDENTITY_FALLBACK_APPROXIMATELY_OR_SINGLE_VALUE)) {
+        MacroProps approximatelyMacros(macros.formatter1.fMacros);
+        approximatelyMacros.approximately = true;
+        // Use in-place construction because NumberFormatterImpl has internal self-pointers
+        fApproximatelyFormatter.~NumberFormatterImpl();
+        new (&fApproximatelyFormatter) NumberFormatterImpl(approximatelyMacros, status);
+    }
 
     // TODO: Get locale from PluralRules instead?
     fPluralRanges = StandardPluralRanges::forLocale(macros.locale, status);
@@ -209,7 +229,7 @@ void NumberRangeFormatterImpl::format(UFormattedNumberRangeData& data, bool equa
             break;
 
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -232,12 +252,14 @@ void NumberRangeFormatterImpl::formatApproximately (UFormattedNumberRangeData& d
                                                     UErrorCode& status) const {
     if (U_FAILURE(status)) { return; }
     if (fSameFormatters) {
-        int32_t length = NumberFormatterImpl::writeNumber(micros1, data.quantity1, data.getStringRef(), 0, status);
-        // HEURISTIC: Desired modifier order: inner, middle, approximately, outer.
-        length += micros1.modInner->apply(data.getStringRef(), 0, length, status);
-        length += micros1.modMiddle->apply(data.getStringRef(), 0, length, status);
-        length += fApproximatelyModifier.apply(data.getStringRef(), 0, length, status);
-        micros1.modOuter->apply(data.getStringRef(), 0, length, status);
+        // Re-format using the approximately formatter:
+        MicroProps microsAppx;
+        data.quantity1.resetExponent();
+        fApproximatelyFormatter.preProcess(data.quantity1, microsAppx, status);
+        int32_t length = NumberFormatterImpl::writeNumber(microsAppx, data.quantity1, data.getStringRef(), 0, status);
+        length += microsAppx.modInner->apply(data.getStringRef(), 0, length, status);
+        length += microsAppx.modMiddle->apply(data.getStringRef(), 0, length, status);
+        microsAppx.modOuter->apply(data.getStringRef(), 0, length, status);
     } else {
         formatRange(data, micros1, micros2, status);
     }
@@ -305,7 +327,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             // INNER MODIFIER
             collapseInner = micros1.modInner->semanticallyEquivalent(*micros2.modInner);
 
-            // All done checking for collapsability.
+            // All done checking for collapsibility.
             break;
         }
 
@@ -328,6 +350,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     #define UPRV_INDEX_1 (lengthPrefix + length1)
     #define UPRV_INDEX_2 (lengthPrefix + length1 + lengthInfix)
     #define UPRV_INDEX_3 (lengthPrefix + length1 + lengthInfix + length2)
+    #define UPRV_INDEX_4 (lengthPrefix + length1 + lengthInfix + length2 + lengthSuffix)
 
     int32_t lengthRange = SimpleModifier::formatTwoArgPattern(
         fRangeFormatter,
@@ -362,36 +385,46 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     }
 
     length1 += NumberFormatterImpl::writeNumber(micros1, data.quantity1, string, UPRV_INDEX_0, status);
-    length2 += NumberFormatterImpl::writeNumber(micros2, data.quantity2, string, UPRV_INDEX_2, status);
+    // ICU-21684: Write the second number to a temp string to avoid repeated insert operations
+    FormattedStringBuilder tempString;
+    NumberFormatterImpl::writeNumber(micros2, data.quantity2, tempString, 0, status);
+    length2 += string.insert(UPRV_INDEX_2, tempString, status);
 
     // TODO: Support padding?
 
     if (collapseInner) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modInner, *micros2.modInner);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modInner->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseMiddle) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modMiddle, *micros2.modMiddle);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modMiddle->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseOuter) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modOuter, *micros2.modOuter);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modOuter->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
+
+    // Now that all pieces are added, save the span info.
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 0, UPRV_INDEX_0, length1, status);
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 1, UPRV_INDEX_2, length2, status);
 }
 
 

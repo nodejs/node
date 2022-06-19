@@ -12,7 +12,7 @@ session.setupScriptMap();
 var builder = new WasmModuleBuilder();
 
 var callee = builder.addFunction('callee', kSig_v_v)
-                 .addBody([kExprBlock, kWasmStmt, kExprEnd])
+                 .addBody([kExprBlock, kWasmVoid, kExprEnd])
                  .index;
 
 var main = builder.addFunction('main', kSig_v_i)
@@ -26,6 +26,7 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
     InspectorTest.logProtocolCommandCalls('Debugger.resume');
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable.');
     WasmInspectorTest.instantiate(module_bytes);

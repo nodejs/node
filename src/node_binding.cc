@@ -40,6 +40,7 @@
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
   V(async_wrap)                                                                \
+  V(blob)                                                                      \
   V(block_list)                                                                \
   V(buffer)                                                                    \
   V(cares_wrap)                                                                \
@@ -58,6 +59,7 @@
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
@@ -85,8 +87,9 @@
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(wasi)                                                                      \
-  V(worker)                                                                    \
+  V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
+  V(worker)                                                                    \
   V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                                \
@@ -414,6 +417,12 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  if (env->no_native_addons()) {
+    return THROW_ERR_DLOPEN_DISABLED(
+      env, "Cannot load native addon because loading addons is disabled.");
+  }
+
   auto context = env->context();
 
   CHECK_NULL(thread_local_modpending);
@@ -582,6 +591,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
+    env->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(

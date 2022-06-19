@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestRegress9832() {
   let builder = new WasmModuleBuilder();
@@ -16,7 +16,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       ]).exportFunc();
   builder.addFunction("main", kSig_i_i)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprLocalGet, 0,
           kExprCallFunction, f.index,
           kExprCallFunction, f.index,

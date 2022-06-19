@@ -73,18 +73,25 @@ assert.throws(() => new fs.Dir(), {
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
-    message: 'Callback must be a function. Received undefined',
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
   }
 );
 
-['buffer', 'offset', 'length'].forEach((option) =>
-  assert.throws(
-    () => fs.read(fd, {
-      [option]: null
-    }),
-    `not throws when options.${option} is null`
-  ));
+assert.throws(
+  () => fs.read(fd, { buffer: null }, common.mustNotCall()),
+  /TypeError: Cannot read properties of null \(reading 'byteLength'\)/,
+  'throws when options.buffer is null'
+);
+
+assert.throws(
+  () => fs.readSync(fd, { buffer: null }),
+  {
+    name: 'TypeError',
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+    'TypedArray, or DataView. Received an instance of Object',
+  },
+  'throws when options.buffer is null'
+);
 
 assert.throws(
   () => fs.read(null, Buffer.alloc(1), 0, 1, 0),

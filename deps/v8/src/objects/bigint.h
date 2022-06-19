@@ -14,6 +14,11 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+namespace bigint {
+class FromStringAccumulator;
+}  // namespace bigint
+
 namespace internal {
 
 void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
@@ -38,7 +43,7 @@ class BigIntBase : public PrimitiveHeapObject {
   }
 
   // For use by the GC.
-  inline int synchronized_length() const {
+  inline int length(AcquireLoadTag) const {
     int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
@@ -242,23 +247,19 @@ class BigInt : public BigIntBase {
   class BodyDescriptor;
 
  private:
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   friend class StringToBigIntHelper;
   friend class ValueDeserializer;
   friend class ValueSerializer;
 
   // Special functions for StringToBigIntHelper:
-  template <typename LocalIsolate>
-  static Handle<BigInt> Zero(LocalIsolate* isolate, AllocationType allocation =
-                                                        AllocationType::kYoung);
-  template <typename LocalIsolate>
-  static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
-      LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-      AllocationType allocation);
-  static void InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
-                                 uintptr_t summand);
-  template <typename LocalIsolate>
-  static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
+  template <typename IsolateT>
+  static Handle<BigInt> Zero(
+      IsolateT* isolate, AllocationType allocation = AllocationType::kYoung);
+  template <typename IsolateT>
+  static MaybeHandle<BigInt> Allocate(
+      IsolateT* isolate, bigint::FromStringAccumulator* accumulator,
+      bool negative, AllocationType allocation);
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;
@@ -268,7 +269,7 @@ class BigInt : public BigIntBase {
   void SerializeDigits(uint8_t* storage);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
-      Vector<const uint8_t> digits_storage);
+      base::Vector<const uint8_t> digits_storage);
 
   OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };

@@ -35,12 +35,12 @@ Evaluating debugger in 1
 Paused in 1:
   reason: other
   hit breakpoints: 
-  location: bar@25
+  location: bar@26
   data: null
 Paused in 2:
   reason: other
   hit breakpoints: 
-  location: bar@25
+  location: bar@26
   data: null
 Resuming in 2
 Resumed in 1
@@ -77,12 +77,12 @@ Evaluating debugger in 2
 Paused in 1:
   reason: other
   hit breakpoints: 
-  location: bar@25
+  location: bar@26
   data: null
 Paused in 2:
   reason: other
   hit breakpoints: 
-  location: bar@25
+  location: bar@26
   data: null
 Resuming in 2
 Resumed in 1
@@ -187,7 +187,7 @@ Evaluating bar() in 2
 Paused in 1:
   reason: other
   hit breakpoints: 
-  location: bar@25
+  location: bar@26
   data: null
 Resuming in 1
 Resumed in 1

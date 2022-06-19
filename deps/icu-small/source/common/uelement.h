@@ -54,9 +54,12 @@ typedef UBool U_CALLCONV UElementsAreEqual(const UElement e1, const UElement e2)
  * An element sorting (three-way) comparison function.
  * @param e1 An element (object or integer)
  * @param e2 An element (object or integer)
- * @return 0 if the two elements are equal, -1 if e1 is < e2, or +1 if e1 is > e2.
+ * @return 32-bit signed integer comparison result:
+ *               ==0 if the two elements are equal,
+ *                <0 if e1 is < e2, or
+ *                >0 if e1 is > e2.
  */
-typedef int8_t U_CALLCONV UElementComparator(UElement e1, UElement e2);
+typedef int32_t U_CALLCONV UElementComparator(UElement e1, UElement e2);
 
 /**
  * An element assignment function.  It may copy an integer, copy
@@ -74,7 +77,7 @@ U_CDECL_END
  * @param key2 The string for comparison
  * @return true if key1 and key2 are equal, return false otherwise.
  */
-U_CAPI UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2 
 uhash_compareUnicodeString(const UElement key1, const UElement key2);
 
 /**
@@ -85,7 +88,7 @@ uhash_compareUnicodeString(const UElement key1, const UElement key2);
  * @param key2 The string for comparison
  * @return true if key1 and key2 are equal, return false otherwise.
  */
-U_CAPI UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2 
 uhash_compareCaselessUnicodeString(const UElement key1, const UElement key2);
 
 #endif  /* __UELEMENT_H__ */

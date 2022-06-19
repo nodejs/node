@@ -5,10 +5,13 @@ const child_process = require('child_process');
 const fs = require('fs');
 const stream = require('stream');
 
-if (!common.isLinux)
+if (!common.isLinux) {
   common.skip('The fs watch limit is OS-dependent');
-if (!common.enoughTestCpu)
-  common.skip('This test is resource-intensive');
+}
+
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
+}
 
 try {
   // Ensure inotify limit is low enough for the test to actually exercise the

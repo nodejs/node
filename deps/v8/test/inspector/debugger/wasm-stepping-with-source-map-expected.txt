@@ -12,7 +12,7 @@ Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wa
     scriptId : <scriptId>
 }
 Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
-at wasm_B (0:54):
+at $wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 3 (i32)
  - scope (local):
@@ -24,7 +24,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 3 (i32)
@@ -35,12 +35,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
-at wasm_A (0:38):
+at $wasm_A (0:38):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 3 (i32)
@@ -51,12 +51,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOver called
 Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01 (kExprNop)
-at wasm_A (0:39):
+at $wasm_A (0:39):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 3 (i32)
@@ -67,7 +67,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOut called
 Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
-at wasm_B (0:58):
+at $wasm_B (0:58):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 3 (i32)
@@ -78,7 +78,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOut called
 Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
-at wasm_B (0:54):
+at $wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 2 (i32)
  - scope (local):
@@ -90,7 +90,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOver called
 Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 2 (i32)
@@ -101,7 +101,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOver called
 Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
-at wasm_B (0:58):
+at $wasm_B (0:58):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 2 (i32)
@@ -112,7 +112,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.resume called
 Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
-at wasm_B (0:54):
+at $wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 1 (i32)
  - scope (local):
@@ -124,7 +124,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 1 (i32)
@@ -135,12 +135,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
-at wasm_A (0:38):
+at $wasm_A (0:38):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 1 (i32)
@@ -151,7 +151,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepOut called
 Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
-at wasm_B (0:58):
+at $wasm_B (0:58):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 1 (i32)
@@ -162,7 +162,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
-at wasm_B (0:45):
+at $wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 1 (i32)
@@ -173,7 +173,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 47: Wasm opcode 0x04 (kExprIf)
-at wasm_B (0:47):
+at $wasm_B (0:47):
  - scope (wasm-expression-stack):
    0: 1 (i32)
  - scope (local):
@@ -185,7 +185,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 49: Wasm opcode 0x20 (kExprLocalGet)
-at wasm_B (0:49):
+at $wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 1 (i32)
@@ -196,7 +196,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 51: Wasm opcode 0x41 (kExprI32Const)
-at wasm_B (0:51):
+at $wasm_B (0:51):
  - scope (wasm-expression-stack):
    0: 1 (i32)
  - scope (local):
@@ -208,7 +208,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
-at wasm_B (0:53):
+at $wasm_B (0:53):
  - scope (wasm-expression-stack):
    0: 1 (i32)
    1: 1 (i32)
@@ -221,7 +221,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
-at wasm_B (0:54):
+at $wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 0 (i32)
  - scope (local):
@@ -233,7 +233,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 0 (i32)
@@ -244,12 +244,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
-at wasm_A (0:38):
+at $wasm_A (0:38):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 0 (i32)
@@ -260,12 +260,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01 (kExprNop)
-at wasm_A (0:39):
+at $wasm_A (0:39):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 0 (i32)
@@ -276,12 +276,12 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 40: Wasm opcode 0x0b (kExprEnd)
-at wasm_A (0:40):
+at $wasm_A (0:40):
  - scope (wasm-expression-stack):
  - scope (local):
  - scope (module):
    -- skipped
-at wasm_B (0:56):
+at $wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 0 (i32)
@@ -292,7 +292,7 @@ at (anonymous) (0:17):
    -- skipped
 Debugger.stepInto called
 Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
-at wasm_B (0:58):
+at $wasm_B (0:58):
  - scope (wasm-expression-stack):
  - scope (local):
    $var0: 0 (i32)

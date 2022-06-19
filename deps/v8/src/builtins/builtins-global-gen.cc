@@ -46,7 +46,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     {
       // Need to convert {num_heap_object} to a Number first.
       var_num =
-          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
+          CallBuiltin(Builtin::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }
@@ -94,7 +94,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     {
       // Need to convert {num_heap_object} to a Number first.
       var_num =
-          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
+          CallBuiltin(Builtin::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }

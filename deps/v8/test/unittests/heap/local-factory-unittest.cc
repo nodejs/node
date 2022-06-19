@@ -39,8 +39,8 @@ namespace {
 std::vector<uint16_t> DecodeUtf8(const std::string& string) {
   if (string.empty()) return {};
 
-  auto utf8_data =
-      Vector<const uint8_t>::cast(VectorOf(string.data(), string.length()));
+  auto utf8_data = base::Vector<const uint8_t>::cast(
+      base::VectorOf(string.data(), string.length()));
   Utf8Decoder decoder(utf8_data);
 
   std::vector<uint16_t> utf16(decoder.utf16_length());
@@ -55,42 +55,37 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  public:
   LocalFactoryTest()
       : TestWithIsolateAndZone(),
-        state_(isolate()),
+        reusable_state_(isolate()),
         parse_info_(
             isolate(),
             UnoptimizedCompileFlags::ForToplevelCompile(
                 isolate(), true, construct_language_mode(FLAG_use_strict),
-                REPLMode::kNo),
-            &state_),
-        local_isolate_(isolate()->main_thread_local_isolate()) {
-  }
+                REPLMode::kNo, ScriptType::kClassic, FLAG_lazy),
+            &state_, &reusable_state_),
+        local_isolate_(isolate()->main_thread_local_isolate()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
     auto utf16_source = DecodeUtf8(source);
 
     // Normally this would be an external string or whatever, we don't have to
     // worry about it for now.
-    source_string_ =
-        factory()->NewStringFromUtf8(CStrVector(source)).ToHandleChecked();
-
-    parse_info_.set_character_stream(
-        ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
-
-    {
-      DisallowGarbageCollection no_gc;
-      DisallowHeapAccess no_heap_access;
-
-      Parser parser(parse_info());
-      parser.InitializeEmptyScopeChain(parse_info());
-      parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
-    }
-
-    parse_info()->ast_value_factory()->Internalize(local_isolate());
-    DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
+    source_string_ = factory()
+                         ->NewStringFromUtf8(base::CStrVector(source))
+                         .ToHandleChecked();
 
     script_ = parse_info_.CreateScript(local_isolate(),
                                        local_factory()->empty_string(),
                                        kNullMaybeHandle, ScriptOriginOptions());
+
+    parse_info_.set_character_stream(
+        ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
+
+    Parser parser(local_isolate(), parse_info(), script_);
+    parser.InitializeEmptyScopeChain(parse_info());
+    parser.ParseOnBackground(local_isolate(), parse_info(), 0, 0,
+                             kFunctionLiteralIdTopLevel);
+
+    DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = local_factory()->NewWeakFixedArray(
@@ -110,6 +105,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  private:
   SaveFlags save_flags_;
   UnoptimizedCompileState state_;
+  ReusableUnoptimizedCompileState reusable_state_;
   ParseInfo parse_info_;
   LocalIsolate* local_isolate_;
   Handle<String> source_string_;
@@ -117,7 +113,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
-  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
+  base::Vector<const uint8_t> string_vector = base::StaticOneByteVector("foo");
 
   Handle<String> string;
   {
@@ -129,7 +125,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
     string = local_isolate()->heap()->NewPersistentHandle(local_string);
   }
 
-  EXPECT_TRUE(string->IsOneByteEqualTo(CStrVector("foo")));
+  EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
   EXPECT_TRUE(string->IsInternalizedString());
 
   Handle<String> same_string = isolate()
@@ -145,7 +141,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
 }
 
 TEST_F(LocalFactoryTest, OneByteInternalizedString_DuplicateIsDeduplicated) {
-  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
+  base::Vector<const uint8_t> string_vector = base::StaticOneByteVector("foo");
 
   Handle<String> string_1;
   Handle<String> string_2;
@@ -161,7 +157,7 @@ TEST_F(LocalFactoryTest, OneByteInternalizedString_DuplicateIsDeduplicated) {
     string_2 = local_isolate()->heap()->NewPersistentHandle(local_string_2);
   }
 
-  EXPECT_TRUE(string_1->IsOneByteEqualTo(CStrVector("foo")));
+  EXPECT_TRUE(string_1->IsOneByteEqualTo(base::CStrVector("foo")));
   EXPECT_TRUE(string_1->IsInternalizedString());
   EXPECT_EQ(*string_1, *string_2);
 }
@@ -181,7 +177,7 @@ TEST_F(LocalFactoryTest, AstRawString_IsInternalized) {
     string = local_isolate()->heap()->NewPersistentHandle(raw_string->string());
   }
 
-  EXPECT_TRUE(string->IsOneByteEqualTo(CStrVector("foo")));
+  EXPECT_TRUE(string->IsOneByteEqualTo(base::CStrVector("foo")));
   EXPECT_TRUE(string->IsInternalizedString());
 }
 
@@ -244,7 +240,7 @@ TEST_F(LocalFactoryTest, LazyFunction) {
   Handle<SharedFunctionInfo> lazy_sfi = shared;
 
   EXPECT_EQ(lazy_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(lazy_sfi->Name().IsOneByteEqualTo(CStrVector("lazy")));
+  EXPECT_TRUE(lazy_sfi->Name().IsOneByteEqualTo(base::CStrVector("lazy")));
   EXPECT_FALSE(lazy_sfi->is_compiled());
   EXPECT_TRUE(lazy_sfi->HasUncompiledDataWithoutPreparseData());
 }
@@ -271,7 +267,7 @@ TEST_F(LocalFactoryTest, EagerFunction) {
   Handle<SharedFunctionInfo> eager_sfi = shared;
 
   EXPECT_EQ(eager_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(eager_sfi->Name().IsOneByteEqualTo(CStrVector("eager")));
+  EXPECT_TRUE(eager_sfi->Name().IsOneByteEqualTo(base::CStrVector("eager")));
   EXPECT_FALSE(eager_sfi->HasUncompiledData());
   // TODO(leszeks): Add compilation support and enable these checks.
   // EXPECT_TRUE(eager_sfi->is_compiled());
@@ -302,8 +298,8 @@ TEST_F(LocalFactoryTest, ImplicitNameFunction) {
   Handle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(
-      implicit_name_sfi->Name().IsOneByteEqualTo(CStrVector("implicit_name")));
+  EXPECT_TRUE(implicit_name_sfi->Name().IsOneByteEqualTo(
+      base::CStrVector("implicit_name")));
 }
 
 TEST_F(LocalFactoryTest, GCDuringPublish) {
@@ -330,8 +326,8 @@ TEST_F(LocalFactoryTest, GCDuringPublish) {
   Handle<SharedFunctionInfo> implicit_name_sfi = shared;
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
-  EXPECT_TRUE(
-      implicit_name_sfi->Name().IsOneByteEqualTo(CStrVector("implicit_name")));
+  EXPECT_TRUE(implicit_name_sfi->Name().IsOneByteEqualTo(
+      base::CStrVector("implicit_name")));
 }
 
 }  // namespace internal

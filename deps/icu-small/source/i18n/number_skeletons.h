@@ -42,6 +42,7 @@ enum ParseState {
 
     STATE_SCIENTIFIC,
     STATE_FRACTION_PRECISION,
+    STATE_PRECISION,
 
     // Section 2: An option is required:
 
@@ -85,9 +86,13 @@ enum StemEnum {
     STEM_ROUNDING_MODE_DOWN,
     STEM_ROUNDING_MODE_UP,
     STEM_ROUNDING_MODE_HALF_EVEN,
+    STEM_ROUNDING_MODE_HALF_ODD,
+    STEM_ROUNDING_MODE_HALF_CEILING,
+    STEM_ROUNDING_MODE_HALF_FLOOR,
     STEM_ROUNDING_MODE_HALF_DOWN,
     STEM_ROUNDING_MODE_HALF_UP,
     STEM_ROUNDING_MODE_UNNECESSARY,
+    STEM_INTEGER_WIDTH_TRUNC,
     STEM_GROUP_OFF,
     STEM_GROUP_MIN2,
     STEM_GROUP_AUTO,
@@ -108,6 +113,8 @@ enum StemEnum {
     STEM_SIGN_ACCOUNTING_ALWAYS,
     STEM_SIGN_EXCEPT_ZERO,
     STEM_SIGN_ACCOUNTING_EXCEPT_ZERO,
+    STEM_SIGN_NEGATIVE,
+    STEM_SIGN_ACCOUNTING_NEGATIVE,
     STEM_DECIMAL_AUTO,
     STEM_DECIMAL_ALWAYS,
 
@@ -273,10 +280,13 @@ void parseIntegerStem(const StringSegment& segment, MacroProps& macros, UErrorCo
 /** @return Whether we successfully found and parsed a frac-sig option. */
 bool parseFracSigOption(const StringSegment& segment, MacroProps& macros, UErrorCode& status);
 
+/** @return Whether we successfully found and parsed a trailing zero option. */
+bool parseTrailingZeroOption(const StringSegment& segment, MacroProps& macros, UErrorCode& status);
+
 void parseIncrementOption(const StringSegment& segment, MacroProps& macros, UErrorCode& status);
 
 void
-generateIncrementOption(double increment, int32_t trailingZeros, UnicodeString& sb, UErrorCode& status);
+generateIncrementOption(uint32_t increment, digits_t incrementMagnitude, int32_t minFrac, UnicodeString& sb, UErrorCode& status);
 
 void parseIntegerWidthOption(const StringSegment& segment, MacroProps& macros, UErrorCode& status);
 

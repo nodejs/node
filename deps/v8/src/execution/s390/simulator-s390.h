@@ -280,17 +280,17 @@ class Simulator : public SimulatorBase {
   inline void WriteB(intptr_t addr, uint8_t value);
   inline void WriteB(intptr_t addr, int8_t value);
 
-  inline uint16_t ReadHU(intptr_t addr, Instruction* instr);
-  inline int16_t ReadH(intptr_t addr, Instruction* instr);
+  inline uint16_t ReadHU(intptr_t addr);
+  inline int16_t ReadH(intptr_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(intptr_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(intptr_t addr, int16_t value, Instruction* instr);
+  inline void WriteH(intptr_t addr, uint16_t value);
+  inline void WriteH(intptr_t addr, int16_t value);
 
-  inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
-  inline int32_t ReadW(intptr_t addr, Instruction* instr);
-  inline int64_t ReadW64(intptr_t addr, Instruction* instr);
-  inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
-  inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
+  inline uint32_t ReadWU(intptr_t addr);
+  inline int32_t ReadW(intptr_t addr);
+  inline int64_t ReadW64(intptr_t addr);
+  inline void WriteW(intptr_t addr, uint32_t value);
+  inline void WriteW(intptr_t addr, int32_t value);
 
   inline int64_t ReadDW(intptr_t addr);
   inline double ReadDouble(intptr_t addr);
@@ -399,12 +399,10 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t get_simd_register(int reg) {
-    return get_simd_register_by_lane<fpr_t>(reg, 0);
-  }
+  fpr_t get_simd_register(int reg) { return fp_registers_[reg]; }
 
-  void set_simd_register(int reg, const fpr_t& v) {
-    set_simd_register_by_lane(reg, 0, v);
+  void set_simd_register(int reg, const fpr_t& value) {
+    fp_registers_[reg] = value;
   }
 
   // Vector register lane numbers on IBM machines are reversed compared to

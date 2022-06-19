@@ -157,6 +157,50 @@ binding called in session1
 }
 Call binding in newly created context (binding should NOT be exposed)
 
+Running test: testAddBindingToMultipleContextsById
+Call binding in default context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in target context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+
+Running test: testAddBindingToMultipleContextsInDifferentContextGroups
+Call binding in default context (binding should be exposed)
+binding called in group1/session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in target context (binding should be exposed)
+binding called in group2/session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+
 Running test: testAddBindingToContextByName
 Call binding in default context (binding should NOT be exposed)
 Call binding in Foo (binding should be exposed)

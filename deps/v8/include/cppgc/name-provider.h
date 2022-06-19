@@ -57,7 +57,7 @@ class V8_EXPORT NameProvider {
    *
    * @returns a human readable name for the object.
    */
-  virtual const char* GetName() const = 0;
+  virtual const char* GetHumanReadableName() const = 0;
 };
 
 }  // namespace cppgc

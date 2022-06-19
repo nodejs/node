@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let kSig_s_v = makeSig([], [kWasmS128]);
 // Generate a re-exported function that wraps a JavaScript callable, but with a

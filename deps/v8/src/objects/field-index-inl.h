@@ -7,6 +7,7 @@
 
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -61,13 +62,13 @@ int FieldIndex::GetLoadByFieldIndex() const {
 }
 
 FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
-  IsolateRoot isolate = GetIsolateForPtrCompr(map);
-  return ForDescriptor(isolate, map, descriptor_index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(map);
+  return ForDescriptor(cage_base, map, descriptor_index);
 }
 
-FieldIndex FieldIndex::ForDescriptor(IsolateRoot isolate, Map map,
+FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base, Map map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details = map.instance_descriptors(isolate, kRelaxedLoad)
+  PropertyDetails details = map.instance_descriptors(cage_base, kRelaxedLoad)
                                 .GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());

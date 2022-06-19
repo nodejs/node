@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_ARM_REGISTER_ARM_H_
 #define V8_CODEGEN_ARM_REGISTER_ARM_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -61,40 +60,6 @@ namespace internal {
 // leave it alone. Adjust the value of kR9Available accordingly:
 const int kR9Available = 1;  // 1 if available to us, 0 if reserved
 
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved = 1 << 0 |  // r0 a1
-                               1 << 1 |  // r1 a2
-                               1 << 2 |  // r2 a3
-                               1 << 3;   // r3 a4
-
-const int kNumJSCallerSaved = 4;
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved = 1 << 4 |  //  r4 v1
-                             1 << 5 |  //  r5 v2
-                             1 << 6 |  //  r6 v3
-                             1 << 7 |  //  r7 v4 (cp in JavaScript code)
-                             1 << 8 |  //  r8 v5 (pp in JavaScript code)
-                             kR9Available << 9 |  //  r9 v6
-                             1 << 10 |            // r10 v7
-                             1 << 11;  // r11 v8 (fp in JavaScript code)
-
-// When calling into C++ (only for C++ calls that can't cause a GC).
-// The call code will take care of lr, fp, etc.
-const RegList kCallerSaved = 1 << 0 |  // r0
-                             1 << 1 |  // r1
-                             1 << 2 |  // r2
-                             1 << 3 |  // r3
-                             1 << 9;   // r9
-
-const int kNumCalleeSaved = 7 + kR9Available;
-
-// Double registers d8 to d15 are callee-saved.
-const int kNumDoubleCalleeSaved = 8;
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)
@@ -109,7 +74,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 // r7: context register
@@ -119,8 +84,13 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = false;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
+constexpr AliasingKind kFPAliasing = AliasingKind::kCombine;
 constexpr bool kSimdMaskRegisters = false;
 
 enum SwVfpRegisterCode {
@@ -164,7 +134,7 @@ class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(SwVfpRegister);
-static_assert(sizeof(SwVfpRegister) == sizeof(int),
+static_assert(sizeof(SwVfpRegister) <= sizeof(int),
               "SwVfpRegister can efficiently be passed by value");
 
 using FloatRegister = SwVfpRegister;
@@ -205,7 +175,7 @@ class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(DwVfpRegister);
-static_assert(sizeof(DwVfpRegister) == sizeof(int),
+static_assert(sizeof(DwVfpRegister) <= sizeof(int),
               "DwVfpRegister can efficiently be passed by value");
 
 using DoubleRegister = DwVfpRegister;
@@ -331,7 +301,6 @@ constexpr Register kReturnRegister2 = r2;
 constexpr Register kJSFunctionRegister = r1;
 constexpr Register kContextRegister = r7;
 constexpr Register kAllocateSizeRegister = r1;
-constexpr Register kSpeculationPoisonRegister = r9;
 constexpr Register kInterpreterAccumulatorRegister = r0;
 constexpr Register kInterpreterBytecodeOffsetRegister = r5;
 constexpr Register kInterpreterBytecodeArrayRegister = r6;
@@ -352,6 +321,7 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 
 // Give alias names to registers
 constexpr Register cp = r7;              // JavaScript context pointer.
+constexpr Register r11 = fp;
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;

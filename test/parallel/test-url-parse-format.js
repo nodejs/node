@@ -844,7 +844,7 @@ const parseTests = {
     hostname: 'a.b',
     hash: null,
     pathname: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E',
-    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz', // eslint-disable-line max-len
+    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
@@ -946,6 +946,51 @@ const parseTests = {
     pathname: '/',
     path: '/',
     href: 'wss://www.example.com/'
+  },
+
+  '//fhqwhgads@example.com/everybody-to-the-limit': {
+    protocol: null,
+    slashes: true,
+    auth: 'fhqwhgads',
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/everybody-to-the-limit',
+    path: '/everybody-to-the-limit',
+    href: '//fhqwhgads@example.com/everybody-to-the-limit'
+  },
+
+  '//fhqwhgads@example.com/everybody#to-the-limit': {
+    protocol: null,
+    slashes: true,
+    auth: 'fhqwhgads',
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: '#to-the-limit',
+    search: null,
+    query: null,
+    pathname: '/everybody',
+    path: '/everybody',
+    href: '//fhqwhgads@example.com/everybody#to-the-limit'
+  },
+
+  '\bhttp://example.com/\b': {
+    protocol: 'http:',
+    slashes: true,
+    auth: null,
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'http://example.com/'
   }
 };
 

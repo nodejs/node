@@ -11,13 +11,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce newlines between operands of ternary expressions",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/multiline-ternary"
         },

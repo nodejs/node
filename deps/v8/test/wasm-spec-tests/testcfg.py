@@ -8,16 +8,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 proposal_flags = [{
-                    'name': 'reference-types',
-                    'flags': ['--experimental-wasm-reftypes',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory',
-                              '--wasm-staging']
-                  },
-                  {
                     'name': 'js-types',
                     'flags': ['--experimental-wasm-type-reflection',
                               '--wasm-staging']
@@ -25,11 +15,6 @@ proposal_flags = [{
                   {
                     'name': 'tail-call',
                     'flags': ['--experimental-wasm-return-call',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'simd',
-                    'flags': ['--experimental-wasm-simd',
                               '--wasm-staging']
                   },
                   {

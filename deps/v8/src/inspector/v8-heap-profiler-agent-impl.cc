@@ -4,7 +4,9 @@
 
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
+#include "include/v8-context.h"
 #include "include/v8-inspector.h"
+#include "include/v8-platform.h"
 #include "include/v8-profiler.h"
 #include "include/v8-version.h"
 #include "src/base/platform/mutex.h"
@@ -33,7 +35,7 @@ class HeapSnapshotProgress final : public v8::ActivityControl {
  public:
   explicit HeapSnapshotProgress(protocol::HeapProfiler::Frontend* frontend)
       : m_frontend(frontend) {}
-  ControlOption ReportProgressValue(int done, int total) override {
+  ControlOption ReportProgressValue(uint32_t done, uint32_t total) override {
     m_frontend->reportHeapSnapshotProgress(done, total,
                                            protocol::Maybe<bool>());
     if (done >= total) {
@@ -232,10 +234,12 @@ Response V8HeapProfilerAgentImpl::startTrackingHeapObjects(
 }
 
 Response V8HeapProfilerAgentImpl::stopTrackingHeapObjects(
-    Maybe<bool> reportProgress, Maybe<bool> treatGlobalObjectsAsRoots) {
+    Maybe<bool> reportProgress, Maybe<bool> treatGlobalObjectsAsRoots,
+    Maybe<bool> captureNumericValue) {
   requestHeapStatsUpdate();
   takeHeapSnapshot(std::move(reportProgress),
-                   std::move(treatGlobalObjectsAsRoots));
+                   std::move(treatGlobalObjectsAsRoots),
+                   std::move(captureNumericValue));
   stopTrackingHeapObjectsInternal();
   return Response::Success();
 }
@@ -258,7 +262,8 @@ Response V8HeapProfilerAgentImpl::disable() {
 }
 
 Response V8HeapProfilerAgentImpl::takeHeapSnapshot(
-    Maybe<bool> reportProgress, Maybe<bool> treatGlobalObjectsAsRoots) {
+    Maybe<bool> reportProgress, Maybe<bool> treatGlobalObjectsAsRoots,
+    Maybe<bool> captureNumericValue) {
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
   if (!profiler) return Response::ServerError("Cannot access v8 heap profiler");
   std::unique_ptr<HeapSnapshotProgress> progress;
@@ -267,7 +272,8 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshot(
 
   GlobalObjectNameResolver resolver(m_session);
   const v8::HeapSnapshot* snapshot = profiler->TakeHeapSnapshot(
-      progress.get(), &resolver, treatGlobalObjectsAsRoots.fromMaybe(true));
+      progress.get(), &resolver, treatGlobalObjectsAsRoots.fromMaybe(true),
+      captureNumericValue.fromMaybe(false));
   if (!snapshot) return Response::ServerError("Failed to take heap snapshot");
   HeapSnapshotOutputStream stream(&m_frontend);
   snapshot->Serialize(&stream);
@@ -375,6 +381,9 @@ Response V8HeapProfilerAgentImpl::startSampling(
   const unsigned defaultSamplingInterval = 1 << 15;
   double samplingIntervalValue =
       samplingInterval.fromMaybe(defaultSamplingInterval);
+  if (samplingIntervalValue <= 0.0) {
+    return Response::ServerError("Invalid sampling interval");
+  }
   m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerInterval,
                      samplingIntervalValue);
   m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,

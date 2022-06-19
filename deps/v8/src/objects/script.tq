@@ -14,7 +14,6 @@ bitfield struct ScriptFlags extends uint31 {
   break_on_entry: bool: 1 bit;
 }
 
-@generateCppClass
 extern class Script extends Struct {
   // [source]: the script source.
   source: String|Undefined;
@@ -40,8 +39,12 @@ extern class Script extends Struct {
   // [id]: the script id.
   id: Smi;
 
-  eval_from_shared_or_wrapped_arguments: SharedFunctionInfo|FixedArray|
-      Undefined;
+  // For scripts originating from eval: the SharedFunctionInfo contains the SFI
+  // for the script. For scripts wrapped as functions: the FixedArray contains
+  // the arguments. For web snapshots: the ObjectHashTable maps function start
+  // position to SFI index in shared_function_infos.
+  eval_from_shared_or_wrapped_arguments_or_sfi_table: SharedFunctionInfo|
+      FixedArray|ObjectHashTable|Undefined;
   eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
   shared_function_infos: WeakFixedArray|WeakArrayList;
 
@@ -56,4 +59,9 @@ extern class Script extends Struct {
 
   // [host_defined_options]: Options defined by the embedder.
   host_defined_options: FixedArray;
+
+  // TODO(cbruni, v8:12302): remove once module callback API is updated.
+  // Used to make sure we are backwards compatible with node to gaurantee
+  // the same lifetime for ScriptOrModule as the Script they originated.
+  @if(V8_SCRIPTORMODULE_LEGACY_LIFETIME) script_or_modules: ArrayList;
 }

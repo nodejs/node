@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/interpreter/bytecode-array-accessor.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -16,7 +16,7 @@ namespace internal {
 namespace interpreter {
 
 class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
-    : public BytecodeArrayAccessor {
+    : public BytecodeArrayIterator {
  public:
   BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array, Zone* zone);
 
@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
 
   int current_index() const { return current_index_; }
 
-  size_t size() const { return offsets_.size(); }
+  int size() const { return static_cast<int>(offsets_.size()); }
 
   void GoToIndex(int index) {
     current_index_ = index;
@@ -60,8 +60,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
     UpdateOffsetFromIndex();
   }
   void GoToEnd() {
-    DCHECK_LT(offsets_.size() - 1, static_cast<size_t>(INT_MAX));
-    current_index_ = static_cast<int>(offsets_.size() - 1);
+    current_index_ = size() - 1;
     UpdateOffsetFromIndex();
   }
 

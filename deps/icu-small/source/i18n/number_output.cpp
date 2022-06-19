@@ -39,6 +39,54 @@ MeasureUnit FormattedNumber::getOutputUnit(UErrorCode& status) const {
     return fData->outputUnit;
 }
 
+NounClass FormattedNumber::getNounClass(UErrorCode &status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(NounClass::OTHER);
+    const char *nounClass = fData->gender;
+
+    // if it is not exist, return `OTHER`
+    if (uprv_strcmp(nounClass, "") == 0) {
+        return NounClass::OTHER;
+    }
+
+    if (uprv_strcmp(nounClass, "neuter") == 0) {
+        return NounClass::NEUTER;
+    }
+
+    if (uprv_strcmp(nounClass, "feminine") == 0) {
+        return NounClass::FEMININE;
+    }
+
+    if (uprv_strcmp(nounClass, "masculine") == 0) {
+        return NounClass::MASCULINE;
+    }
+
+    if (uprv_strcmp(nounClass, "animate") == 0) {
+        return NounClass::ANIMATE;
+    }
+
+    if (uprv_strcmp(nounClass, "inanimate") == 0) {
+        return NounClass::INANIMATE;
+    }
+
+    if (uprv_strcmp(nounClass, "personal") == 0) {
+        return NounClass::PERSONAL;
+    }
+
+    if (uprv_strcmp(nounClass, "common") == 0) {
+        return NounClass::COMMON;
+    }
+
+    // In case there is no matching, this means there are noun classes
+    // that are not supported yet.
+    status = U_INTERNAL_PROGRAM_ERROR;
+    return NounClass::OTHER;
+}
+
+const char *FormattedNumber::getGender(UErrorCode &status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD("")
+    return fData->gender;
+}
+
 void FormattedNumber::getDecimalQuantity(impl::DecimalQuantity& output, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
     output = fData->quantity;
@@ -51,16 +99,6 @@ impl::UFormattedNumberData::~UFormattedNumberData() = default;
 UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
 
 #define UPRV_NOARG
-
-UnicodeString FormattedNumberRange::getFirstDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity1.toScientificString();
-}
-
-UnicodeString FormattedNumberRange::getSecondDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity2.toScientificString();
-}
 
 void FormattedNumberRange::getDecimalNumbers(ByteSink& sink1, ByteSink& sink2, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)

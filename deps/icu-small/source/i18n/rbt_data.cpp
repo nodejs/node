@@ -51,7 +51,7 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
             new UnicodeString(*(const UnicodeString*)e->value.pointer);
         // Exit out if value could not be created.
         if (value == NULL) {
-		return;
+        	return;
         }
         variableNames.put(*(UnicodeString*)e->key.pointer, value, status);
     }
@@ -72,7 +72,7 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
             }
         }
     }
-    // Remove the array and exit if memory allocation error occured.
+    // Remove the array and exit if memory allocation error occurred.
     if (U_FAILURE(status)) {
         for (int32_t n = i-1; n >= 0; n--) {
             delete variables[n];

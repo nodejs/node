@@ -3,14 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "async_wrap.h"
-#include "allocated_buffer.h"
+#include "env.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "util.h"
 #include "v8.h"
-#include "string_bytes.h"
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -24,16 +24,17 @@
 #endif  // !OPENSSL_NO_ENGINE
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
-#ifdef  OPENSSL_FIPS
+#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
 #  include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
 #include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
 #include <climits>
 #include <cstdio>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace node {
 namespace crypto {
@@ -86,6 +87,9 @@ using DsaSigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 // callback has been made.
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
+bool ProcessFipsOptions();
+
+bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
 
 void InitCrypto(v8::Local<v8::Object> target);
@@ -188,8 +192,8 @@ struct CryptoErrorStore final : public MemoryRetainer {
       v8::Local<v8::String> exception_string = v8::Local<v8::String>()) const;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(CryptoErrorStore);
-  SET_SELF_SIZE(CryptoErrorStore);
+  SET_MEMORY_INFO_NAME(CryptoErrorStore)
+  SET_SELF_SIZE(CryptoErrorStore)
 
  private:
   std::vector<std::string> errors_;
@@ -215,37 +219,74 @@ T* MallocOpenSSL(size_t count) {
   return static_cast<T*>(mem);
 }
 
-template <typename T>
-T* ReallocOpenSSL(T* buf, size_t count) {
-  void* mem = OPENSSL_realloc(buf, MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_IMPLIES(mem == nullptr, count == 0);
-  return static_cast<T*>(mem);
-}
-
 // A helper class representing a read-only byte array. When deallocated, its
 // contents are zeroed.
 class ByteSource {
  public:
+  class Builder {
+   public:
+    // Allocates memory using OpenSSL's memory allocator.
+    explicit Builder(size_t size)
+        : data_(MallocOpenSSL<char>(size)), size_(size) {}
+
+    Builder(Builder&& other) = delete;
+    Builder& operator=(Builder&& other) = delete;
+    Builder(const Builder&) = delete;
+    Builder& operator=(const Builder&) = delete;
+
+    ~Builder() { OPENSSL_clear_free(data_, size_); }
+
+    // Returns the underlying non-const pointer.
+    template <typename T>
+    T* data() {
+      return reinterpret_cast<T*>(data_);
+    }
+
+    // Returns the (allocated) size in bytes.
+    size_t size() const { return size_; }
+
+    // Finalizes the Builder and returns a read-only view that is optionally
+    // truncated.
+    ByteSource release(std::optional<size_t> resize = std::nullopt) && {
+      if (resize) {
+        CHECK_LE(*resize, size_);
+        if (*resize == 0) {
+          OPENSSL_clear_free(data_, size_);
+          data_ = nullptr;
+        }
+        size_ = *resize;
+      }
+      ByteSource out = ByteSource::Allocated(data_, size_);
+      data_ = nullptr;
+      size_ = 0;
+      return out;
+    }
+
+   private:
+    void* data_;
+    size_t size_;
+  };
+
   ByteSource() = default;
   ByteSource(ByteSource&& other) noexcept;
   ~ByteSource();
 
   ByteSource& operator=(ByteSource&& other) noexcept;
 
-  const char* get() const;
+  ByteSource(const ByteSource&) = delete;
+  ByteSource& operator=(const ByteSource&) = delete;
 
-  template <typename T>
-  const T* data() const { return reinterpret_cast<const T*>(get()); }
+  template <typename T = void>
+  const T* data() const {
+    return reinterpret_cast<const T*>(data_);
+  }
 
-  size_t size() const;
+  size_t size() const { return size_; }
 
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(
-        reinterpret_cast<const unsigned char*>(get()),
-        size(),
-        nullptr));
+    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
   }
 
   // Creates a v8::BackingStore that takes over responsibility for
@@ -255,19 +296,10 @@ class ByteSource {
 
   v8::Local<v8::ArrayBuffer> ToArrayBuffer(Environment* env);
 
-  void reset();
+  v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
 
-  // Allows an Allocated ByteSource to be truncated.
-  void Resize(size_t newsize) {
-    CHECK_LE(newsize, size_);
-    CHECK_NOT_NULL(allocated_data_);
-    char* new_data_ = ReallocOpenSSL<char>(allocated_data_, newsize);
-    data_ = allocated_data_ = new_data_;
-    size_ = newsize;
-  }
-
-  static ByteSource Allocated(char* data, size_t size);
-  static ByteSource Foreign(const char* data, size_t size);
+  static ByteSource Allocated(void* data, size_t size);
+  static ByteSource Foreign(const void* data, size_t size);
 
   static ByteSource FromEncodedString(Environment* env,
                                       v8::Local<v8::String> value,
@@ -290,18 +322,16 @@ class ByteSource {
 
   static ByteSource FromSymmetricKeyObjectHandle(v8::Local<v8::Value> handle);
 
-  ByteSource(const ByteSource&) = delete;
-  ByteSource& operator=(const ByteSource&) = delete;
-
   static ByteSource FromSecretKeyBytes(
       Environment* env, v8::Local<v8::Value> value);
 
  private:
-  const char* data_ = nullptr;
-  char* allocated_data_ = nullptr;
+  const void* data_ = nullptr;
+  void* allocated_data_ = nullptr;
   size_t size_ = 0;
 
-  ByteSource(const char* data, char* allocated_data, size_t size);
+  ByteSource(const void* data, void* allocated_data, size_t size)
+      : data_(data), allocated_data_(allocated_data), size_(size) {}
 };
 
 enum CryptoJobMode {
@@ -421,6 +451,12 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
   }
 
+  static void RegisterExternalReferences(v8::FunctionCallback new_fn,
+                                         ExternalReferenceRegistry* registry) {
+    registry->Register(new_fn);
+    registry->Register(Run);
+  }
+
  private:
   const CryptoJobMode mode_;
   CryptoErrorStore errors_;
@@ -453,6 +489,10 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
       Environment* env,
       v8::Local<v8::Object> target) {
     CryptoJob<DeriveBitsTraits>::Initialize(New, env, target);
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<DeriveBitsTraits>::RegisterExternalReferences(New, registry);
   }
 
   DeriveBitsJob(
@@ -502,7 +542,7 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(DeriveBitsJob);
+  SET_SELF_SIZE(DeriveBitsJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("out", out_.size());
     CryptoJob<DeriveBitsTraits>::MemoryInfo(tracker);
@@ -548,9 +588,12 @@ struct EnginePointer {
 
   inline void reset(ENGINE* engine_ = nullptr, bool finish_on_exit_ = false) {
     if (engine != nullptr) {
-      if (finish_on_exit)
-        ENGINE_finish(engine);
-      ENGINE_free(engine);
+      if (finish_on_exit) {
+        // This also does the equivalent of ENGINE_free.
+        CHECK_EQ(ENGINE_finish(engine), 1);
+      } else {
+        CHECK_EQ(ENGINE_free(engine), 1);
+      }
     }
     engine = engine_;
     finish_on_exit = finish_on_exit_;
@@ -597,13 +640,51 @@ class CipherPushContext {
   Environment* env_;
 };
 
-template <class TypeName>
-void array_push_back(const TypeName* md,
+#if OPENSSL_VERSION_MAJOR >= 3
+template <class TypeName,
+          TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
+          void free_type(TypeName*),
+          const TypeName* getbyname(const char*),
+          const char* getname(const TypeName*)>
+void array_push_back(const TypeName* evp_ref,
                      const char* from,
                      const char* to,
                      void* arg) {
+  if (!from)
+    return;
+
+  const TypeName* real_instance = getbyname(from);
+  if (!real_instance)
+    return;
+
+  const char* real_name = getname(real_instance);
+  if (!real_name)
+    return;
+
+  // EVP_*_fetch() does not support alias names, so we need to pass it the
+  // real/original algorithm name.
+  // We use EVP_*_fetch() as a filter here because it will only return an
+  // instance if the algorithm is supported by the public OpenSSL APIs (some
+  // algorithms are used internally by OpenSSL and are also passed to this
+  // callback).
+  TypeName* fetched = fetch_type(nullptr, real_name, nullptr);
+  if (!fetched)
+    return;
+
+  free_type(fetched);
   static_cast<CipherPushContext*>(arg)->push_back(from);
 }
+#else
+template <class TypeName>
+void array_push_back(const TypeName* evp_ref,
+                     const char* from,
+                     const char* to,
+                     void* arg) {
+  if (!from)
+    return;
+  static_cast<CipherPushContext*>(arg)->push_back(from);
+}
+#endif
 
 inline bool IsAnyByteSource(v8::Local<v8::Value> arg) {
   return arg->IsArrayBufferView() ||
@@ -725,6 +806,7 @@ v8::Maybe<bool> SetEncodedValue(
 
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Util
 
 }  // namespace crypto

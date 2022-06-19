@@ -9,6 +9,7 @@
 #include <string>
 
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -28,7 +29,6 @@
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -117,7 +117,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
       SubStringRange source(String::cast(script->source()), no_gc, start, len);
-      for (const auto& c : source) {
+      for (auto c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
       os << "\"";
@@ -201,7 +201,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
-  EmbeddedVector<char, 256> filename(0);
+  base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
@@ -213,7 +213,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   } else {
     SNPrintF(filename, "turbo-none-%i", optimization_id);
   }
-  EmbeddedVector<char, 256> source_file(0);
+  base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
@@ -233,7 +233,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.begin(), filename.begin() + filename.length(), ':',
                '-');
 
-  EmbeddedVector<char, 256> base_dir;
+  base::EmbeddedVector<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
     SNPrintF(base_dir, "%s%c", optional_base_dir,
              base::OS::DirectorySeparator());
@@ -241,7 +241,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     base_dir[0] = '\0';
   }
 
-  EmbeddedVector<char, 256> full_filename;
+  base::EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
@@ -257,7 +257,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }
@@ -268,160 +268,146 @@ static const char* SafeMnemonic(Node* node) {
   return node == nullptr ? "null" : node->op()->mnemonic();
 }
 
-class JSONGraphNodeWriter {
- public:
-  JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
-                      const SourcePositionTable* positions,
-                      const NodeOriginTable* origins)
-      : os_(os),
-        all_(zone, graph, false),
-        live_(zone, graph, true),
-        positions_(positions),
-        origins_(origins),
-        first_node_(true) {}
-  JSONGraphNodeWriter(const JSONGraphNodeWriter&) = delete;
-  JSONGraphNodeWriter& operator=(const JSONGraphNodeWriter&) = delete;
+JSONGraphWriter::JSONGraphWriter(std::ostream& os, const Graph* graph,
+                                 const SourcePositionTable* positions,
+                                 const NodeOriginTable* origins)
+    : os_(os),
+      zone_(nullptr),
+      graph_(graph),
+      positions_(positions),
+      origins_(origins),
+      first_node_(true),
+      first_edge_(true) {}
 
-  void Print() {
-    for (Node* const node : all_.reachable) PrintNode(node);
-    os_ << "\n";
-  }
+void JSONGraphWriter::PrintPhase(const char* phase_name) {
+  os_ << "{\"name\":\"" << phase_name << "\",\"type\":\"graph\",\"data\":";
+  Print();
+  os_ << "},\n";
+}
 
-  void PrintNode(Node* node) {
-    if (first_node_) {
-      first_node_ = false;
-    } else {
-      os_ << ",\n";
-    }
-    std::ostringstream label, title, properties;
-    node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
-    node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
-    node->op()->PrintPropsTo(properties);
-    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
-        << "\""
-        << ",\"title\":\"" << JSONEscaped(title) << "\""
-        << ",\"live\": " << (live_.IsLive(node) ? "true" : "false")
-        << ",\"properties\":\"" << JSONEscaped(properties) << "\"";
-    IrOpcode::Value opcode = node->opcode();
-    if (IrOpcode::IsPhiOpcode(opcode)) {
-      os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
-          << "]";
-      os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
-          << "]";
-    } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
-               opcode == IrOpcode::kLoop) {
-      os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
-          << "]";
-    }
-    if (opcode == IrOpcode::kBranch) {
-      os_ << ",\"rankInputs\":[0]";
-    }
-    if (positions_ != nullptr) {
-      SourcePosition position = positions_->GetSourcePosition(node);
-      if (position.IsKnown()) {
-        os_ << ", \"sourcePosition\" : " << AsJSON(position);
-      }
-    }
-    if (origins_) {
-      NodeOrigin origin = origins_->GetNodeOrigin(node);
-      if (origin.IsKnown()) {
-        os_ << ", \"origin\" : " << AsJSON(origin);
-      }
-    }
-    os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
-    os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
-                                                               : "false");
-    os_ << ",\"opinfo\":\"" << node->op()->ValueInputCount() << " v "
-        << node->op()->EffectInputCount() << " eff "
-        << node->op()->ControlInputCount() << " ctrl in, "
-        << node->op()->ValueOutputCount() << " v "
-        << node->op()->EffectOutputCount() << " eff "
-        << node->op()->ControlOutputCount() << " ctrl out\"";
-    if (NodeProperties::IsTyped(node)) {
-      Type type = NodeProperties::GetType(node);
-      std::ostringstream type_out;
-      type.PrintTo(type_out);
-      os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
-    }
-    os_ << "}";
-  }
-
- private:
-  std::ostream& os_;
-  AllNodes all_;
-  AllNodes live_;
-  const SourcePositionTable* positions_;
-  const NodeOriginTable* origins_;
-  bool first_node_;
-};
-
-
-class JSONGraphEdgeWriter {
- public:
-  JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
-      : os_(os), all_(zone, graph, false), first_edge_(true) {}
-  JSONGraphEdgeWriter(const JSONGraphEdgeWriter&) = delete;
-  JSONGraphEdgeWriter& operator=(const JSONGraphEdgeWriter&) = delete;
-
-  void Print() {
-    for (Node* const node : all_.reachable) PrintEdges(node);
-    os_ << "\n";
-  }
-
-  void PrintEdges(Node* node) {
-    for (int i = 0; i < node->InputCount(); i++) {
-      Node* input = node->InputAt(i);
-      if (input == nullptr) continue;
-      PrintEdge(node, i, input);
-    }
-  }
-
-  void PrintEdge(Node* from, int index, Node* to) {
-    if (first_edge_) {
-      first_edge_ = false;
-    } else {
-      os_ << ",\n";
-    }
-    const char* edge_type = nullptr;
-    if (index < NodeProperties::FirstValueIndex(from)) {
-      edge_type = "unknown";
-    } else if (index < NodeProperties::FirstContextIndex(from)) {
-      edge_type = "value";
-    } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
-      edge_type = "context";
-    } else if (index < NodeProperties::FirstEffectIndex(from)) {
-      edge_type = "frame-state";
-    } else if (index < NodeProperties::FirstControlIndex(from)) {
-      edge_type = "effect";
-    } else {
-      edge_type = "control";
-    }
-    os_ << "{\"source\":" << SafeId(to) << ",\"target\":" << SafeId(from)
-        << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
-  }
-
- private:
-  std::ostream& os_;
-  AllNodes all_;
-  bool first_edge_;
-};
-
-std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
+void JSONGraphWriter::Print() {
   AccountingAllocator allocator;
   Zone tmp_zone(&allocator, ZONE_NAME);
-  os << "{\n\"nodes\":[";
-  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions, ad.origins)
-      .Print();
-  os << "],\n\"edges\":[";
-  JSONGraphEdgeWriter(os, &tmp_zone, &ad.graph).Print();
-  os << "]}";
+  zone_ = &tmp_zone;
+
+  AllNodes all(zone_, graph_, false);
+  AllNodes live(zone_, graph_, true);
+
+  os_ << "{\n\"nodes\":[";
+  for (Node* const node : all.reachable) PrintNode(node, live.IsLive(node));
+  os_ << "\n";
+  os_ << "],\n\"edges\":[";
+  for (Node* const node : all.reachable) PrintEdges(node);
+  os_ << "\n";
+  os_ << "]}";
+  zone_ = nullptr;
+}
+
+void JSONGraphWriter::PrintNode(Node* node, bool is_live) {
+  if (first_node_) {
+    first_node_ = false;
+  } else {
+    os_ << ",\n";
+  }
+  std::ostringstream label, title, properties;
+  node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
+  node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
+  node->op()->PrintPropsTo(properties);
+  os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
+      << "\""
+      << ",\"title\":\"" << JSONEscaped(title) << "\""
+      << ",\"live\": " << (is_live ? "true" : "false") << ",\"properties\":\""
+      << JSONEscaped(properties) << "\"";
+  IrOpcode::Value opcode = node->opcode();
+  if (IrOpcode::IsPhiOpcode(opcode)) {
+    os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
+        << "]";
+    os_ << ",\"rankWithInput\":[" << NodeProperties::FirstControlIndex(node)
+        << "]";
+  } else if (opcode == IrOpcode::kIfTrue || opcode == IrOpcode::kIfFalse ||
+             opcode == IrOpcode::kLoop) {
+    os_ << ",\"rankInputs\":[" << NodeProperties::FirstControlIndex(node)
+        << "]";
+  }
+  if (opcode == IrOpcode::kBranch) {
+    os_ << ",\"rankInputs\":[0]";
+  }
+  if (positions_ != nullptr) {
+    SourcePosition position = positions_->GetSourcePosition(node);
+    if (position.IsKnown()) {
+      os_ << ", \"sourcePosition\" : " << AsJSON(position);
+    }
+  }
+  if (origins_) {
+    NodeOrigin origin = origins_->GetNodeOrigin(node);
+    if (origin.IsKnown()) {
+      os_ << ", \"origin\" : " << AsJSON(origin);
+    }
+  }
+  os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
+  os_ << ",\"control\":"
+      << (NodeProperties::IsControl(node) ? "true" : "false");
+  os_ << ",\"opinfo\":\"" << node->op()->ValueInputCount() << " v "
+      << node->op()->EffectInputCount() << " eff "
+      << node->op()->ControlInputCount() << " ctrl in, "
+      << node->op()->ValueOutputCount() << " v "
+      << node->op()->EffectOutputCount() << " eff "
+      << node->op()->ControlOutputCount() << " ctrl out\"";
+  if (auto type_opt = GetType(node)) {
+    std::ostringstream type_out;
+    type_opt->PrintTo(type_out);
+    os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
+  }
+  os_ << "}";
+}
+
+void JSONGraphWriter::PrintEdges(Node* node) {
+  for (int i = 0; i < node->InputCount(); i++) {
+    Node* input = node->InputAt(i);
+    if (input == nullptr) continue;
+    PrintEdge(node, i, input);
+  }
+}
+
+void JSONGraphWriter::PrintEdge(Node* from, int index, Node* to) {
+  if (first_edge_) {
+    first_edge_ = false;
+  } else {
+    os_ << ",\n";
+  }
+  const char* edge_type = nullptr;
+  if (index < NodeProperties::FirstValueIndex(from)) {
+    edge_type = "unknown";
+  } else if (index < NodeProperties::FirstContextIndex(from)) {
+    edge_type = "value";
+  } else if (index < NodeProperties::FirstFrameStateIndex(from)) {
+    edge_type = "context";
+  } else if (index < NodeProperties::FirstEffectIndex(from)) {
+    edge_type = "frame-state";
+  } else if (index < NodeProperties::FirstControlIndex(from)) {
+    edge_type = "effect";
+  } else {
+    edge_type = "control";
+  }
+  os_ << "{\"source\":" << SafeId(to) << ",\"target\":" << SafeId(from)
+      << ",\"index\":" << index << ",\"type\":\"" << edge_type << "\"}";
+}
+
+base::Optional<Type> JSONGraphWriter::GetType(Node* node) {
+  if (!NodeProperties::IsTyped(node)) return base::nullopt;
+  return NodeProperties::GetType(node);
+}
+
+std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
+  JSONGraphWriter writer(os, &ad.graph, ad.positions, ad.origins);
+  writer.Print();
   return os;
 }
 
 
 class GraphC1Visualizer {
  public:
-  GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(std::ostream& os, Zone* zone);
   GraphC1Visualizer(const GraphC1Visualizer&) = delete;
   GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
@@ -633,21 +619,21 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       Tag states_tag(this, "states");
       Tag locals_tag(this, "locals");
       int total = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() == IrOpcode::kPhi) total++;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() == IrOpcode::kPhi) total++;
       }
       PrintIntProperty("size", total);
       PrintStringProperty("method", "None");
       int index = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() != IrOpcode::kPhi) continue;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() != IrOpcode::kPhi) continue;
         PrintIndent();
         os_ << index << " ";
-        PrintNodeId(*i);
+        PrintNodeId(*it);
         os_ << " [";
-        PrintInputs(*i);
+        PrintInputs(*it);
         os_ << "]\n";
         index++;
       }
@@ -655,9 +641,9 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     {
       Tag HIR_tag(this, "HIR");
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        Node* node = *i;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        Node* node = *it;
         if (node->opcode() == IrOpcode::kPhi) continue;
         int uses = node->UseCount();
         PrintIndent();
@@ -935,9 +921,9 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
     }
     os << ")" << std::endl;
 
-    for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-         ++i) {
-      Node* node = *i;
+    for (BasicBlock::const_iterator it = current->begin(); it != current->end();
+         ++it) {
+      Node* node = *it;
       PrintScheduledNode(os, indent, node);
       os << std::endl;
     }
@@ -1132,8 +1118,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << ",\"tooltip\": \"MUST_HAVE_SLOT\"";
           break;
         }
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT: {
-          os << ",\"tooltip\": \"SAME_AS_FIRST_INPUT\"";
+        case UnallocatedOperand::SAME_AS_INPUT: {
+          os << ",\"tooltip\": \"SAME_AS_INPUT: " << unalloc->input_index()
+             << "\"";
           break;
         }
         case UnallocatedOperand::REGISTER_OR_SLOT: {
@@ -1164,11 +1151,16 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       os << "\"type\": \"immediate\", ";
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
       switch (imm->type()) {
-        case ImmediateOperand::INLINE: {
-          os << "\"text\": \"#" << imm->inline_value() << "\"";
+        case ImmediateOperand::INLINE_INT32: {
+          os << "\"text\": \"#" << imm->inline_int32_value() << "\"";
           break;
         }
-        case ImmediateOperand::INDEXED: {
+        case ImmediateOperand::INLINE_INT64: {
+          os << "\"text\": \"#" << imm->inline_int64_value() << "\"";
+          break;
+        }
+        case ImmediateOperand::INDEXED_RPO:
+        case ImmediateOperand::INDEXED_IMM: {
           int index = imm->indexed_value();
           os << "\"text\": \"imm:" << index << "\",";
           os << "\"tooltip\": \"";

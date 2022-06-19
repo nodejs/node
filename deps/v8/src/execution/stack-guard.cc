@@ -4,16 +4,24 @@
 
 #include "src/execution/stack-guard.h"
 
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
 #include "src/objects/backing-store.h"
 #include "src/roots/roots-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
+
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif  // V8_ENABLE_MAGLEV
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -157,6 +165,16 @@ void StackGuard::ClearInterrupt(InterruptFlag flag) {
   if (!has_pending_interrupts(access)) reset_limits(access);
 }
 
+bool StackGuard::HasTerminationRequest() {
+  ExecutionAccess access(isolate_);
+  if ((thread_local_.interrupt_flags_ & TERMINATE_EXECUTION) != 0) {
+    thread_local_.interrupt_flags_ &= ~TERMINATE_EXECUTION;
+    if (!has_pending_interrupts(access)) reset_limits(access);
+    return true;
+  }
+  return false;
+}
+
 int StackGuard::FetchAndClearInterrupts() {
   ExecutionAccess access(isolate_);
 
@@ -275,10 +293,22 @@ Object StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
     TRACE_EVENT0("v8.wasm", "V8.WasmGrowSharedMemory");
     BackingStore::UpdateSharedWasmMemoryObjects(isolate_);
   }
+
+  if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
+    TRACE_EVENT0("v8.wasm", "V8.LogCode");
+    wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
+  }
+
+  if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
+    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
+    wasm::GetWasmEngine()->ReportLiveCodeFromStackForGC(isolate_);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -293,20 +323,24 @@ Object StackGuard::HandleInterrupts() {
     isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   }
 
+  if (TestAndClear(&interrupt_flags, INSTALL_BASELINE_CODE)) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.FinalizeBaselineConcurrentCompilation");
+    isolate_->baseline_batch_compiler()->InstallBatch();
+  }
+
+#ifdef V8_ENABLE_MAGLEV
+  if (TestAndClear(&interrupt_flags, INSTALL_MAGLEV_CODE)) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.FinalizeMaglevConcurrentCompilation");
+    isolate_->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+  }
+#endif  // V8_ENABLE_MAGLEV
+
   if (TestAndClear(&interrupt_flags, API_INTERRUPT)) {
     TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
-  }
-
-  if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
-    TRACE_EVENT0("v8.wasm", "V8.LogCode");
-    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
-  }
-
-  if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
-    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 
   isolate_->counters()->stack_interrupts()->Increment();

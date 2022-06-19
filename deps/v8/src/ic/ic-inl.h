@@ -31,13 +31,13 @@ bool IC::IsHandler(MaybeObject object) {
          (object->GetHeapObjectIfWeak(&heap_object) &&
           (heap_object.IsMap() || heap_object.IsPropertyCell())) ||
          (object->GetHeapObjectIfStrong(&heap_object) &&
-          (heap_object.IsDataHandler() || heap_object.IsCode()));
+          (heap_object.IsDataHandler() || heap_object.IsCodeT()));
 }
 
 bool IC::vector_needs_update() {
-  if (state() == NO_FEEDBACK) return false;
-  return (!vector_set_ &&
-          (state() != MEGAMORPHIC || nexus()->GetKeyType() != ELEMENT));
+  if (state() == InlineCacheState::NO_FEEDBACK) return false;
+  return (!vector_set_ && (state() != InlineCacheState::MEGAMORPHIC ||
+                           nexus()->GetKeyType() != IcCheckType::kElement));
 }
 
 }  // namespace internal

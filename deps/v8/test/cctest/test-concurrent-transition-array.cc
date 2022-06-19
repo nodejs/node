@@ -40,8 +40,8 @@ class ConcurrentSearchThread : public v8::base::Thread {
 
     background_thread_started_->Signal();
 
-    CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), map_, true)
-                 .SearchTransition(*name_, kData, NONE),
+    CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), *map_, true)
+                 .SearchTransition(*name_, PropertyKind::kData, NONE),
              result_map_ ? **result_map_ : Map());
   }
 
@@ -74,11 +74,11 @@ class ConcurrentSearchOnOutdatedAccessorThread final
     LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
     UnparkedScope scope(&local_heap);
 
-    TransitionsAccessor accessor(CcTest::i_isolate(), map_, true);
     background_thread_started_->Signal();
     main_thread_finished_->Wait();
 
-    CHECK_EQ(accessor.SearchTransition(*name_, kData, NONE),
+    CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), *map_, true)
+                 .SearchTransition(*name_, PropertyKind::kData, NONE),
              result_map_ ? **result_map_ : Map());
   }
 
@@ -93,7 +93,7 @@ TEST(FullFieldTransitions_OnlySearch) {
 
   Handle<String> name = CcTest::MakeString("name");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -102,7 +102,7 @@ TEST(FullFieldTransitions_OnlySearch) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  TransitionsAccessor(isolate, map0).Insert(name, map1, PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name, map1, PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
@@ -124,8 +124,9 @@ TEST(FullFieldTransitions_OnlySearch) {
 
   background_thread_started.Wait();
 
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name, kind, attributes));
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name,
+                                                         kind, attributes)
+                       .ToHandleChecked());
 
   thread->Join();
 }
@@ -140,7 +141,7 @@ TEST(FullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -154,7 +155,7 @@ TEST(FullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name1, map1, PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
@@ -176,11 +177,13 @@ TEST(FullFieldTransitions) {
 
   background_thread_started.Wait();
 
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name1, kind, attributes));
-  TransitionsAccessor(isolate, map0).Insert(name2, map2, PROPERTY_TRANSITION);
-  CHECK_EQ(*map2, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name2, kind, attributes));
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name1,
+                                                         kind, attributes)
+                       .ToHandleChecked());
+  TransitionsAccessor::Insert(isolate, map0, name2, map2, PROPERTY_TRANSITION);
+  CHECK_EQ(*map2, *TransitionsAccessor::SearchTransition(isolate, map0, *name2,
+                                                         kind, attributes)
+                       .ToHandleChecked());
 
   thread->Join();
 }
@@ -196,7 +199,7 @@ TEST(WeakRefToFullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a simple transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -210,8 +213,8 @@ TEST(WeakRefToFullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  TransitionsAccessor(isolate, map0)
-      .Insert(name1, map1, SIMPLE_PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name1, map1,
+                              SIMPLE_PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsWeakRefEncoding());
@@ -233,16 +236,18 @@ TEST(WeakRefToFullFieldTransitions) {
 
   background_thread_started.Wait();
 
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name1, kind, attributes));
-  TransitionsAccessor(isolate, map0)
-      .Insert(name2, map2, SIMPLE_PROPERTY_TRANSITION);
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name1,
+                                                         kind, attributes)
+                       .ToHandleChecked());
+  TransitionsAccessor::Insert(isolate, map0, name2, map2,
+                              SIMPLE_PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
   }
-  CHECK_EQ(*map2, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name2, kind, attributes));
+  CHECK_EQ(*map2, *TransitionsAccessor::SearchTransition(isolate, map0, *name2,
+                                                         kind, attributes)
+                       .ToHandleChecked());
 
   thread->Join();
 }
@@ -259,7 +264,7 @@ TEST(FullFieldTransitions_withSlack) {
   Handle<String> name2 = CcTest::MakeString("name2");
   Handle<String> name3 = CcTest::MakeString("name3");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -278,8 +283,8 @@ TEST(FullFieldTransitions_withSlack) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
-  TransitionsAccessor(isolate, map0).Insert(name2, map2, PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name1, map1, PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name2, map2, PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
@@ -301,19 +306,22 @@ TEST(FullFieldTransitions_withSlack) {
 
   background_thread_started.Wait();
 
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name1, kind, attributes));
-  CHECK_EQ(*map2, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name2, kind, attributes));
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name1,
+                                                         kind, attributes)
+                       .ToHandleChecked());
+  CHECK_EQ(*map2, *TransitionsAccessor::SearchTransition(isolate, map0, *name2,
+                                                         kind, attributes)
+                       .ToHandleChecked());
   {
     // Check that we have enough slack for the 3rd insertion into the
     // TransitionArray.
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK_GE(transitions.Capacity(), 3);
   }
-  TransitionsAccessor(isolate, map0).Insert(name3, map3, PROPERTY_TRANSITION);
-  CHECK_EQ(*map3, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name3, kind, attributes));
+  TransitionsAccessor::Insert(isolate, map0, name3, map3, PROPERTY_TRANSITION);
+  CHECK_EQ(*map3, *TransitionsAccessor::SearchTransition(isolate, map0, *name3,
+                                                         kind, attributes)
+                       .ToHandleChecked());
 
   thread->Join();
 }
@@ -329,7 +337,7 @@ TEST(UninitializedToFullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -359,9 +367,10 @@ TEST(UninitializedToFullFieldTransitions) {
 
   background_thread_started.Wait();
 
-  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name1, kind, attributes));
+  TransitionsAccessor::Insert(isolate, map0, name1, map1, PROPERTY_TRANSITION);
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name1,
+                                                         kind, attributes)
+                       .ToHandleChecked());
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
@@ -381,7 +390,7 @@ TEST(FullFieldTransitions_BackgroundSearchOldPointer) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -395,7 +404,7 @@ TEST(FullFieldTransitions_BackgroundSearchOldPointer) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
+  TransitionsAccessor::Insert(isolate, map0, name1, map1, PROPERTY_TRANSITION);
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
@@ -420,17 +429,19 @@ TEST(FullFieldTransitions_BackgroundSearchOldPointer) {
 
   background_thread_started.Wait();
 
-  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name1, kind, attributes));
+  CHECK_EQ(*map1, *TransitionsAccessor::SearchTransition(isolate, map0, *name1,
+                                                         kind, attributes)
+                       .ToHandleChecked());
   {
     // Check that we do not have enough slack for the 2nd insertion into the
     // TransitionArray.
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK_EQ(transitions.Capacity(), 1);
   }
-  TransitionsAccessor(isolate, map0).Insert(name2, map2, PROPERTY_TRANSITION);
-  CHECK_EQ(*map2, TransitionsAccessor(isolate, map0)
-                      .SearchTransition(*name2, kind, attributes));
+  TransitionsAccessor::Insert(isolate, map0, name2, map2, PROPERTY_TRANSITION);
+  CHECK_EQ(*map2, *TransitionsAccessor::SearchTransition(isolate, map0, *name2,
+                                                         kind, attributes)
+                       .ToHandleChecked());
   main_thread_finished.Signal();
 
   thread->Join();

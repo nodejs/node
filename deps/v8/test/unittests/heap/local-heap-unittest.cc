@@ -19,7 +19,7 @@ using LocalHeapTest = TestWithIsolate;
 
 TEST_F(LocalHeapTest, Initialize) {
   Heap* heap = i_isolate()->heap();
-  CHECK(heap->safepoint()->ContainsAnyLocalHeap());
+  heap->safepoint()->AssertMainThreadIsOnlyThread();
 }
 
 TEST_F(LocalHeapTest, Current) {
@@ -29,6 +29,7 @@ TEST_F(LocalHeapTest, Current) {
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     CHECK_NULL(LocalHeap::Current());
   }
 
@@ -36,6 +37,7 @@ TEST_F(LocalHeapTest, Current) {
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     CHECK_NULL(LocalHeap::Current());
   }
 
@@ -67,6 +69,7 @@ TEST_F(LocalHeapTest, CurrentBackground) {
   CHECK_NULL(LocalHeap::Current());
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     auto thread = std::make_unique<BackgroundThread>(heap);
     CHECK(thread->Start());
     CHECK_NULL(LocalHeap::Current());
@@ -132,8 +135,8 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       unparked_scope.emplace(&lh);
     }
     {
-      base::Optional<UnparkedScope> unparked_scope;
-      if (parked_) unparked_scope.emplace(&lh);
+      base::Optional<UnparkedScope> nested_unparked_scope;
+      if (parked_) nested_unparked_scope.emplace(&lh);
       lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
     epilogue_->NotifyStarted();
@@ -141,8 +144,8 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       lh.Safepoint();
     }
     {
-      base::Optional<UnparkedScope> unparked_scope;
-      if (parked_) unparked_scope.emplace(&lh);
+      base::Optional<UnparkedScope> nested_unparked_scope;
+      if (parked_) nested_unparked_scope.emplace(&lh);
       lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
   }
@@ -157,6 +160,7 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
 TEST_F(LocalHeapTest, GCEpilogue) {
   Heap* heap = i_isolate()->heap();
   LocalHeap lh(heap, ThreadKind::kMain);
+  lh.SetUpMainThreadForTesting();
   std::array<GCEpilogue, 3> epilogue;
   {
     UnparkedScope unparked(&lh);
@@ -170,8 +174,11 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   CHECK(thread2->Start());
   epilogue[1].WaitUntilStarted();
   epilogue[2].WaitUntilStarted();
-  heap->PreciseCollectAllGarbage(Heap::kNoGCFlags,
-                                 GarbageCollectionReason::kTesting);
+  {
+    UnparkedScope scope(&lh);
+    heap->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                   GarbageCollectionReason::kTesting);
+  }
   epilogue[1].RequestStop();
   epilogue[2].RequestStop();
   thread1->Join();

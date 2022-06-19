@@ -5,8 +5,12 @@
 #include "src/debug/debug-frames.h"
 
 #include "src/builtins/accessors.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/wasm/wasm-objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -22,7 +26,6 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
 
   is_constructor_ = summary.is_constructor();
   source_position_ = summary.SourcePosition();
-  function_name_ = summary.FunctionName();
   script_ = Handle<Script>::cast(summary.script());
   receiver_ = summary.receiver();
 
@@ -30,9 +33,13 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
     function_ = summary.AsJavaScript().function();
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   JavaScriptFrame* js_frame =
       frame->is_java_script() ? javascript_frame() : nullptr;
   DCHECK(js_frame || frame->is_wasm());
+#else
+  JavaScriptFrame* js_frame = javascript_frame();
+#endif  // V8_ENABLE_WEBASSEMBLY
   is_optimized_ = frame_->is_optimized();
 
   // Calculate the deoptimized frame.
@@ -67,19 +74,27 @@ Handle<Object> FrameInspector::GetContext() {
                             : handle(frame_->context(), isolate_);
 }
 
+Handle<String> FrameInspector::GetFunctionName() {
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasm()) {
+    auto wasm_frame = WasmFrame::cast(frame_);
+    auto wasm_instance = handle(wasm_frame->wasm_instance(), isolate_);
+    return GetWasmFunctionDebugName(isolate_, wasm_instance,
+                                    wasm_frame->function_index());
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return JSFunction::GetDebugName(function_);
+}
+
+#if V8_ENABLE_WEBASSEMBLY
 bool FrameInspector::IsWasm() { return frame_->is_wasm(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     Handle<ScopeInfo> info, Handle<String> parameter_name) {
-  VariableMode mode;
-  InitializationFlag init_flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-  IsStaticFlag is_static_flag;
-  return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &mode, &init_flag,
-                                     &maybe_assigned_flag,
-                                     &is_static_flag) != -1;
+  return info->ContextSlotIndex(parameter_name) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,

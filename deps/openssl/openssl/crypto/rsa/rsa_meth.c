@@ -1,11 +1,17 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RSA low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <string.h>
 #include "rsa_local.h"
@@ -25,7 +31,7 @@ RSA_METHOD *RSA_meth_new(const char *name, int flags)
         OPENSSL_free(meth);
     }
 
-    RSAerr(RSA_F_RSA_METH_NEW, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -51,7 +57,7 @@ RSA_METHOD *RSA_meth_dup(const RSA_METHOD *meth)
         OPENSSL_free(ret);
     }
 
-    RSAerr(RSA_F_RSA_METH_DUP, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -65,7 +71,7 @@ int RSA_meth_set1_name(RSA_METHOD *meth, const char *name)
     char *tmpname = OPENSSL_strdup(name);
 
     if (tmpname == NULL) {
-        RSAerr(RSA_F_RSA_METH_SET1_NAME, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 

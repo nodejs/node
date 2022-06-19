@@ -6,7 +6,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 const kTests = [
   {
@@ -98,6 +99,7 @@ async function prepareKeys() {
           public: publicKey
         }, privateKey, 8 * size);
 
+        assert(bits instanceof ArrayBuffer);
         assert.strictEqual(Buffer.from(bits).toString('hex'), result);
       }
 
@@ -152,7 +154,7 @@ async function prepareKeys() {
 
         assert.strictEqual(
           Buffer.from(bits).toString('hex'),
-          result.slice(0, -4));
+          result.slice(0, -2));
       }
     }));
 
@@ -205,7 +207,7 @@ async function prepareKeys() {
       name: 'ECDH',
       public: publicKey
     }, keys['P-521'].privateKey, null), {
-      message: /Keys must be ECDH keys/
+      message: /Keys must be ECDH, X25519, or X448 keys/
     });
   }
 
@@ -249,7 +251,7 @@ async function prepareKeys() {
 
   {
     // Public is a secret key
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = webcrypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData,

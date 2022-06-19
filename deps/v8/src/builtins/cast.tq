@@ -35,6 +35,11 @@ macro IsCode(o: HeapObject): bool {
 }
 
 @export
+macro IsCodeDataContainer(o: HeapObject): bool {
+  return Is<CodeDataContainer>(o);
+}
+
+@export
 macro IsContext(o: HeapObject): bool {
   return Is<Context>(o);
 }
@@ -329,6 +334,24 @@ Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   }
 }
 
+Cast<Context|Zero|Undefined>(o: Object): Context|Zero|Undefined
+    labels CastError {
+  typeswitch (o) {
+    case (o: Context): {
+      return o;
+    }
+    case (o: Zero): {
+      return o;
+    }
+    case (o: Undefined): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 macro Cast<A : type extends HeapObject>(o: HeapObject): A
     labels CastError;
 
@@ -384,6 +407,12 @@ Cast<Undefined|Callable>(o: HeapObject): Undefined|Callable
     labels CastError {
   if (o == Undefined) return Undefined;
   return HeapObjectToCallable(o) otherwise CastError;
+}
+
+Cast<Undefined|JSFunction>(o: HeapObject): Undefined|JSFunction
+    labels CastError {
+  if (o == Undefined) return Undefined;
+  return Cast<JSFunction>(o) otherwise CastError;
 }
 
 macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
@@ -518,8 +547,17 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
+  // TODO(victorgomes): Check if we can cast from FastJSArrayForRead instead.
   const a = Cast<FastJSArray>(o) otherwise CastError;
   return %RawDownCast<FastJSArrayForCopy>(a);
+}
+
+Cast<FastJSArrayForConcat>(implicit context: Context)(o: HeapObject):
+    FastJSArrayForConcat
+    labels CastError {
+  if (IsIsConcatSpreadableProtectorCellInvalid()) goto CastError;
+  const a = Cast<FastJSArrayForCopy>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForConcat>(a);
 }
 
 Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
@@ -703,13 +741,16 @@ Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
   }
 }
 
-Cast<JSFunction|JSBoundFunction>(implicit context: Context)(o: Object):
-    JSFunction|JSBoundFunction labels CastError {
+Cast<JSFunction|JSBoundFunction|JSWrappedFunction>(implicit context: Context)(
+    o: Object): JSFunction|JSBoundFunction|JSWrappedFunction labels CastError {
   typeswitch (o) {
     case (o: JSFunction): {
       return o;
     }
     case (o: JSBoundFunction): {
+      return o;
+    }
+    case (o: JSWrappedFunction): {
       return o;
     }
     case (Object): {
@@ -755,7 +796,7 @@ macro Is<A : type extends Object, B : type extends Object>(
 
 macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
     A {
-  assert(Is<A>(o));
+  dcheck(Is<A>(o));
   return %RawDownCast<A>(o);
 }
 
@@ -765,12 +806,12 @@ macro UnsafeConstCast<T: type>(r: const &T):&T {
 
 UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
     RegExpMatchInfo {
-  assert(Is<FixedArray>(o));
+  dcheck(Is<FixedArray>(o));
   return %RawDownCast<RegExpMatchInfo>(o);
 }
 
 macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {
-  assert(IsWeakOrCleared(o));
+  dcheck(IsWeakOrCleared(o));
   return %RawDownCast<A>(o);
 }
 

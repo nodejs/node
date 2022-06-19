@@ -21,7 +21,7 @@ FromConstexpr<FrameType, constexpr FrameType>(t: constexpr FrameType):
 Cast<FrameType>(o: Object): FrameType
     labels CastError {
   if (TaggedIsNotSmi(o)) goto CastError;
-  assert(
+  dcheck(
       Convert<int32>(BitcastTaggedToWordForTagAndSmiBits(o)) <
       Convert<int32>(kFrameTypeCount << kSmiTagSize));
   return %RawDownCast<FrameType>(o);
@@ -66,8 +66,12 @@ operator '.caller' macro LoadCallerFromFrame(f: Frame): Frame {
 
 const kStandardFrameArgCOffset: constexpr int31
     generates 'StandardFrameConstants::kArgCOffset';
+const kJSArgcReceiverSlots: constexpr int31
+    generates 'kJSArgcReceiverSlots';
+
 operator '.argument_count' macro LoadArgCFromFrame(f: Frame): intptr {
-  return LoadIntptrFromFrame(f, kStandardFrameArgCOffset);
+  return LoadIntptrFromFrame(f, kStandardFrameArgCOffset) -
+      kJSArgcReceiverSlots;
 }
 
 type ContextOrFrameType = Context|FrameType;

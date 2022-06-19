@@ -77,7 +77,9 @@ parameters offering below 80 bits of security are excluded. As a result RSA,
 DSA and DH keys shorter than 1024 bits and ECC keys shorter than 160 bits
 are prohibited. All export cipher suites are prohibited since they all offer
 less than 80 bits of security. SSL version 2 is prohibited. Any cipher suite
-using MD5 for the MAC is also prohibited.
+using MD5 for the MAC is also prohibited. Note that signatures using SHA1
+and MD5 are also forbidden at this level as they have less than 80 security
+bits.
 
 =item B<Level 2>
 
@@ -147,10 +149,11 @@ key size or the DH parameter size will abort the handshake with a fatal
 alert.
 
 Attempts to set certificates or parameters with insufficient security are
-also blocked. For example trying to set a certificate using a 512 bit RSA
-key using SSL_CTX_use_certificate() at level 1. Applications which do not
-check the return values for errors will misbehave: for example it might
-appear that a certificate is not set at all because it had been rejected.
+also blocked. For example trying to set a certificate using a 512 bit RSA key
+or a certificate with a signature with SHA1 digest at level 1 using
+SSL_CTX_use_certificate(). Applications which do not check the return values
+for errors will misbehave: for example it might appear that a certificate is
+not set at all because it had been rejected.
 
 =head1 RETURN VALUES
 
@@ -168,15 +171,19 @@ to the security callback or NULL if the callback is not set.
 SSL_CTX_get0_security_ex_data() and SSL_get0_security_ex_data() return the extra
 data pointer or NULL if the ex data is not set.
 
+=head1 SEE ALSO
+
+L<ssl(7)>
+
 =head1 HISTORY
 
 These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

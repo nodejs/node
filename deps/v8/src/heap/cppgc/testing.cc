@@ -19,8 +19,47 @@ OverrideEmbedderStackStateScope::OverrideEmbedderStackStateScope(
 }
 
 OverrideEmbedderStackStateScope::~OverrideEmbedderStackStateScope() {
-  auto& heap = internal::HeapBase::From(heap_handle_);
-  heap.override_stack_state_.reset();
+  internal::HeapBase::From(heap_handle_).override_stack_state_.reset();
+}
+
+StandaloneTestingHeap::StandaloneTestingHeap(HeapHandle& heap_handle)
+    : heap_handle_(heap_handle) {}
+
+void StandaloneTestingHeap::StartGarbageCollection() {
+  internal::HeapBase::From(heap_handle_)
+      .StartIncrementalGarbageCollectionForTesting();
+}
+
+bool StandaloneTestingHeap::PerformMarkingStep(EmbedderStackState stack_state) {
+  return internal::HeapBase::From(heap_handle_)
+      .marker()
+      ->IncrementalMarkingStepForTesting(stack_state);
+}
+
+void StandaloneTestingHeap::FinalizeGarbageCollection(
+    EmbedderStackState stack_state) {
+  internal::HeapBase::From(heap_handle_)
+      .FinalizeIncrementalGarbageCollectionForTesting(stack_state);
+}
+
+void StandaloneTestingHeap::ToggleMainThreadMarking(bool should_mark) {
+  internal::HeapBase::From(heap_handle_)
+      .marker()
+      ->SetMainThreadMarkingDisabledForTesting(!should_mark);
+}
+
+void StandaloneTestingHeap::ForceCompactionForNextGarbageCollection() {
+  internal::HeapBase::From(heap_handle_)
+      .compactor()
+      .EnableForNextGCForTesting();
+}
+
+bool IsHeapObjectOld(void* object) {
+#if defined(CPPGC_YOUNG_GENERATION)
+  return internal::HeapObjectHeader::FromObject(object).IsMarked();
+#else
+  return true;
+#endif
 }
 
 }  // namespace testing

@@ -58,7 +58,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 28
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star1),
@@ -67,8 +67,10 @@ bytecodes: [
   /*    8 S> */ B(LdaSmi), I8(1),
   /*    8 E> */ B(StaGlobal), U8(1), U8(0),
   /*   11 S> */ B(LdaSmi), I8(2),
+                B(Star1),
   /*   12 E> */ B(StaGlobal), U8(1), U8(0),
-                B(Star0),
+                B(Mov), R(1), R(0),
+                B(Ldar), R(0),
   /*   16 S> */ B(Return),
 ]
 constant pool: [

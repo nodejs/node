@@ -11,13 +11,14 @@ Both V8 and Node.js use ICU to provide internationalization functionality.
 * `icu-generic.gyp` is the build file used for most ICU builds within ICU.
   <!-- have fun -->
 * `icu-system.gyp` is an alternate build file used when `--with-intl=system-icu`
-   is invoked. It builds against the `pkg-config` located ICU.
+  is invoked. It builds against the `pkg-config` located ICU.
 * `iculslocs.cc` is source for the `iculslocs` utility, invoked by `icutrim.py`
-   as part of repackaging. Not used separately. See source for more details.
+  as part of repackaging. Not used separately. See source for more details.
 * `no-op.cc` contains an empty function to convince gyp to use a C++ compiler.
 * `shrink-icu-src.py` is used during upgrade (see guide below).
 
 Note:
+
 > The files in this directory were written for the Node.js v0.12 effort.
 > The original intent was to merge the tools such as `icutrim.py` and `iculslocs.cc`
 > back into ICU. ICU has gained its own “data slicer” tool.
@@ -26,11 +27,12 @@ Note:
 
 ## See Also
 
-* [docs/guides/maintaining-icu.md](../../doc/guides/maintaining-icu.md) for
-information on maintaining ICU in Node.js
+* [docs/guides/maintaining-icu.md](../../doc/contributing/maintaining-icu.md)
+  for information on maintaining ICU in Node.js
 
 * [docs/api/intl.md](../../doc/api/intl.md) for information on the
-internationalization-related APIs in Node.js
+  internationalization-related APIs in Node.js
+
 * [The ICU Homepage][ICU]
 
 [ICU]: http://icu-project.org

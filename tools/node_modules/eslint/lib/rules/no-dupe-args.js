@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow duplicate arguments in `function` definitions",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-args"
         },

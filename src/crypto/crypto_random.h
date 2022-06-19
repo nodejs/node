@@ -3,9 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_util.h"
 #include "base_object.h"
-#include "allocated_buffer.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "node_internals.h"
@@ -16,9 +15,9 @@ namespace crypto {
 struct RandomBytesConfig final : public MemoryRetainer {
   unsigned char* buffer;
   size_t size;
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(RandomBytesConfig);
-  SET_SELF_SIZE(RandomBytesConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(RandomBytesConfig)
+  SET_SELF_SIZE(RandomBytesConfig)
 };
 
 struct RandomBytesTraits final {
@@ -54,8 +53,8 @@ struct RandomPrimeConfig final : public MemoryRetainer {
   int bits;
   bool safe;
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(RandomPrimeConfig);
-  SET_SELF_SIZE(RandomPrimeConfig);
+  SET_MEMORY_INFO_NAME(RandomPrimeConfig)
+  SET_SELF_SIZE(RandomPrimeConfig)
 };
 
 struct RandomPrimeTraits final {
@@ -89,8 +88,8 @@ struct CheckPrimeConfig final : public MemoryRetainer {
   int checks = 1;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(CheckPrimeConfig);
-  SET_SELF_SIZE(CheckPrimeConfig);
+  SET_MEMORY_INFO_NAME(CheckPrimeConfig)
+  SET_SELF_SIZE(CheckPrimeConfig)
 };
 
 struct CheckPrimeTraits final {
@@ -122,6 +121,7 @@ using CheckPrimeJob = DeriveBitsJob<CheckPrimeTraits>;
 
 namespace Random {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Random
 }  // namespace crypto
 }  // namespace node

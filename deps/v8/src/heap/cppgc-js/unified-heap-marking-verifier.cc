@@ -35,7 +35,7 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
 
   void VisitWeakContainer(const void* object, cppgc::TraceDescriptor,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
-                          const void*) {
+                          const void*) final {
     if (!object) return;
 
     // Contents of weak containers are found themselves through page iteration
@@ -56,15 +56,11 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
 }  // namespace
 
 UnifiedHeapMarkingVerifier::UnifiedHeapMarkingVerifier(
-    cppgc::internal::HeapBase& heap_base)
+    cppgc::internal::HeapBase& heap_base,
+    cppgc::internal::Heap::Config::CollectionType collection_type)
     : MarkingVerifierBase(
-          heap_base, std::make_unique<UnifiedHeapVerificationVisitor>(state_)) {
-}
-
-void UnifiedHeapMarkingVerifier::SetCurrentParent(
-    const cppgc::internal::HeapObjectHeader* parent) {
-  state_.SetCurrentParent(parent);
-}
+          heap_base, collection_type, state_,
+          std::make_unique<UnifiedHeapVerificationVisitor>(state_)) {}
 
 }  // namespace internal
 }  // namespace v8

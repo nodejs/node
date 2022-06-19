@@ -623,7 +623,7 @@ public:
     virtual ~KeywordsSink();
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
-                     UErrorCode &errorCode) {
+                     UErrorCode &errorCode) override {
         if (U_FAILURE(errorCode)) { return; }
         ResourceTable collations = value.getTable(errorCode);
         for (int32_t i = 0; collations.getKeyAndValue(i, key, value); ++i) {

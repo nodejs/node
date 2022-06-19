@@ -1,7 +1,7 @@
 /*
- * Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -427,6 +427,7 @@ static const ssl_trace_tbl ssl_ciphers_tbl[] = {
     {0xC0AD, "TLS_ECDHE_ECDSA_WITH_AES_256_CCM"},
     {0xC0AE, "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8"},
     {0xC0AF, "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8"},
+    {0xC102, "IANA-GOST2012-GOST8912-GOST8912"},
     {0xCCA8, "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"},
     {0xCCA9, "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"},
     {0xCCAA, "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256"},
@@ -441,8 +442,11 @@ static const ssl_trace_tbl ssl_ciphers_tbl[] = {
     {0x1305, "TLS_AES_128_CCM_8_SHA256"},
     {0xFEFE, "SSL_RSA_FIPS_WITH_DES_CBC_SHA"},
     {0xFEFF, "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
-    {0xFF85, "GOST2012-GOST8912-GOST8912"},
+    {0xFF85, "LEGACY-GOST2012-GOST8912-GOST8912"},
     {0xFF87, "GOST2012-NULL-GOST12"},
+    {0xC100, "GOST2012-KUZNYECHIK-KUZNYECHIKOMAC"},
+    {0xC101, "GOST2012-MAGMA-MAGMAOMAC"},
+    {0xC102, "GOST2012-GOST8912-IANA"},
 };
 
 /* Compression methods */
@@ -468,7 +472,6 @@ static const ssl_trace_tbl ssl_exts_tbl[] = {
     {TLSEXT_TYPE_srp, "srp"},
     {TLSEXT_TYPE_signature_algorithms, "signature_algorithms"},
     {TLSEXT_TYPE_use_srtp, "use_srtp"},
-    {TLSEXT_TYPE_heartbeat, "tls_heartbeat"},
     {TLSEXT_TYPE_application_layer_protocol_negotiation,
      "application_layer_protocol_negotiation"},
     {TLSEXT_TYPE_signed_certificate_timestamp, "signed_certificate_timestamps"},
@@ -522,6 +525,13 @@ static const ssl_trace_tbl ssl_groups_tbl[] = {
     {28, "brainpoolP512r1"},
     {29, "ecdh_x25519"},
     {30, "ecdh_x448"},
+    {34, "GC256A"},
+    {35, "GC256B"},
+    {36, "GC256C"},
+    {37, "GC256D"},
+    {38, "GC512A"},
+    {39, "GC512B"},
+    {40, "GC512C"},
     {256, "ffdhe2048"},
     {257, "ffdhe3072"},
     {258, "ffdhe4096"},
@@ -569,6 +579,8 @@ static const ssl_trace_tbl ssl_sigalg_tbl[] = {
     {TLSEXT_SIGALG_dsa_sha512, "dsa_sha512"},
     {TLSEXT_SIGALG_dsa_sha224, "dsa_sha224"},
     {TLSEXT_SIGALG_dsa_sha1, "dsa_sha1"},
+    {TLSEXT_SIGALG_gostr34102012_256_intrinsic, "gost2012_256"},
+    {TLSEXT_SIGALG_gostr34102012_512_intrinsic, "gost2012_512"},
     {TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256, "gost2012_256"},
     {TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512, "gost2012_512"},
     {TLSEXT_SIGALG_gostr34102001_gostr3411, "gost2001_gost94"},
@@ -584,7 +596,9 @@ static const ssl_trace_tbl ssl_ctype_tbl[] = {
     {20, "fortezza_dms"},
     {64, "ecdsa_sign"},
     {65, "rsa_fixed_ecdh"},
-    {66, "ecdsa_fixed_ecdh"}
+    {66, "ecdsa_fixed_ecdh"},
+    {67, "gost_sign256"},
+    {68, "gost_sign512"},
 };
 
 static const ssl_trace_tbl ssl_psk_kex_modes_tbl[] = {
@@ -785,9 +799,6 @@ static int ssl_print_extension(BIO *bio, int indent, int server,
             BIO_puts(bio, "<EMPTY>\n");
         }
         break;
-
-    case TLSEXT_TYPE_heartbeat:
-        return 0;
 
     case TLSEXT_TYPE_session_ticket:
         if (extlen != 0)
@@ -1039,7 +1050,7 @@ static int ssl_print_server_hello(BIO *bio, int indent,
 
 static int ssl_get_keyex(const char **pname, const SSL *ssl)
 {
-    unsigned long alg_k = ssl->s3->tmp.new_cipher->algorithm_mkey;
+    unsigned long alg_k = ssl->s3.tmp.new_cipher->algorithm_mkey;
 
     if (alg_k & SSL_kRSA) {
         *pname = "rsa";
@@ -1076,6 +1087,10 @@ static int ssl_get_keyex(const char **pname, const SSL *ssl)
     if (alg_k & SSL_kGOST) {
         *pname = "GOST";
         return SSL_kGOST;
+    }
+    if (alg_k & SSL_kGOST18) {
+        *pname = "GOST18";
+        return SSL_kGOST18;
     }
     *pname = "UNKNOWN";
     return 0;
@@ -1119,7 +1134,15 @@ static int ssl_print_client_keyex(BIO *bio, int indent, const SSL *ssl,
         if (!ssl_print_hexbuf(bio, indent + 2, "ecdh_Yc", 1, &msg, &msglen))
             return 0;
         break;
-
+    case SSL_kGOST:
+        ssl_print_hex(bio, indent + 2, "GostKeyTransportBlob", msg, msglen);
+        msglen = 0;
+        break;
+    case SSL_kGOST18:
+        ssl_print_hex(bio, indent + 2,
+                      "GOST-wrapped PreMasterSecret", msg, msglen);
+        msglen = 0;
+        break;
     }
 
     return !msglen;
@@ -1158,7 +1181,6 @@ static int ssl_print_server_keyex(BIO *bio, int indent, const SSL *ssl,
             return 0;
         break;
 
-# ifndef OPENSSL_NO_EC
     case SSL_kECDHE:
     case SSL_kECDHEPSK:
         if (msglen < 1)
@@ -1184,7 +1206,6 @@ static int ssl_print_server_keyex(BIO *bio, int indent, const SSL *ssl,
             return 0;
         }
         break;
-# endif
 
     case SSL_kPSK:
     case SSL_kRSAPSK:

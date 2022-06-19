@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/code-desc.h"
 #include "src/common/globals.h"
@@ -70,16 +71,21 @@ bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page,
   return it != pages->end();
 }
 
-bool PagesContainsAddress(std::vector<MemoryRange>* pages,
-                          Address search_address) {
+bool PagesContainsRange(std::vector<MemoryRange>* pages, Address search_address,
+                        size_t size) {
   byte* addr = reinterpret_cast<byte*>(search_address);
   auto it =
-      std::find_if(pages->begin(), pages->end(), [addr](const MemoryRange& r) {
+      std::find_if(pages->begin(), pages->end(), [=](const MemoryRange& r) {
         const byte* page_start = reinterpret_cast<const byte*>(r.start);
         const byte* page_end = page_start + r.length_in_bytes;
-        return addr >= page_start && addr < page_end;
+        return addr >= page_start && (addr + size) <= page_end;
       });
   return it != pages->end();
+}
+
+bool PagesContainsAddress(std::vector<MemoryRange>* pages,
+                          Address search_address) {
+  return PagesContainsRange(pages, search_address, 0);
 }
 
 }  // namespace
@@ -92,15 +98,24 @@ TEST(CodeRangeCorrectContents) {
 
   std::vector<MemoryRange>* pages = i_isolate->GetCodePages();
 
-  const base::AddressRegion& code_range =
-      i_isolate->heap()->memory_allocator()->code_range();
-  CHECK(!code_range.is_empty());
+  const base::AddressRegion& code_region = i_isolate->heap()->code_region();
+  CHECK(!code_region.is_empty());
   // We should only have the code range and the embedded code range.
   CHECK_EQ(2, pages->size());
-  CHECK(PagesHasExactPage(pages, code_range.begin(), code_range.size()));
+  CHECK(PagesHasExactPage(pages, code_region.begin(), code_region.size()));
   CHECK(PagesHasExactPage(
-      pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
-      i_isolate->embedded_blob_code_size()));
+      pages, reinterpret_cast<Address>(i_isolate->CurrentEmbeddedBlobCode()),
+      i_isolate->CurrentEmbeddedBlobCodeSize()));
+  if (i_isolate->is_short_builtin_calls_enabled()) {
+    // In this case embedded blob code must be included via code_region.
+    CHECK(PagesContainsRange(
+        pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+        i_isolate->embedded_blob_code_size()));
+  } else {
+    CHECK(PagesHasExactPage(
+        pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
+        i_isolate->embedded_blob_code_size()));
+  }
 }
 
 TEST(CodePagesCorrectContents) {
@@ -114,9 +129,8 @@ TEST(CodePagesCorrectContents) {
   // There might be other pages already.
   CHECK_GE(pages->size(), 1);
 
-  const base::AddressRegion& code_range =
-      i_isolate->heap()->memory_allocator()->code_range();
-  CHECK(code_range.is_empty());
+  const base::AddressRegion& code_region = i_isolate->heap()->code_region();
+  CHECK(code_region.is_empty());
 
   // We should have the embedded code range even when there is no regular code
   // range.
@@ -187,6 +201,13 @@ TEST(OptimizedCodeWithCodePages) {
       Handle<JSFunction> foo =
           Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
+      // If there is baseline code, check that it's only due to
+      // --always-sparkplug (if this check fails, we'll have to re-think this
+      // test).
+      if (foo->shared().HasBaselineCode()) {
+        CHECK(FLAG_always_sparkplug);
+        return;
+      }
       AbstractCode abstract_code = foo->abstract_code(i_isolate);
       // We don't produce optimized code when run with --no-opt.
       if (!abstract_code.IsCode() && FLAG_opt == false) return;

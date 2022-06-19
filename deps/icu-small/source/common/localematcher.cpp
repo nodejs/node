@@ -168,12 +168,9 @@ void LocaleMatcher::Builder::clearSupportedLocales() {
 bool LocaleMatcher::Builder::ensureSupportedLocaleVector() {
     if (U_FAILURE(errorCode_)) { return false; }
     if (supportedLocales_ != nullptr) { return true; }
-    supportedLocales_ = new UVector(uprv_deleteUObject, nullptr, errorCode_);
+    LocalPointer<UVector> lpSupportedLocales(new UVector(uprv_deleteUObject, nullptr, errorCode_), errorCode_);
     if (U_FAILURE(errorCode_)) { return false; }
-    if (supportedLocales_ == nullptr) {
-        errorCode_ = U_MEMORY_ALLOCATION_ERROR;
-        return false;
-    }
+    supportedLocales_ = lpSupportedLocales.orphan();
     return true;
 }
 
@@ -187,9 +184,8 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocalesFromListStrin
     for (int32_t i = 0; i < length; ++i) {
         Locale *locale = list.orphanLocaleAt(i);
         if (locale == nullptr) { continue; }
-        supportedLocales_->addElement(locale, errorCode_);
+        supportedLocales_->adoptElement(locale, errorCode_);
         if (U_FAILURE(errorCode_)) {
-            delete locale;
             break;
         }
     }
@@ -197,35 +193,21 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocalesFromListStrin
 }
 
 LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocales(Locale::Iterator &locales) {
-    if (U_FAILURE(errorCode_)) { return *this; }
-    clearSupportedLocales();
-    if (!ensureSupportedLocaleVector()) { return *this; }
-    while (locales.hasNext()) {
-        const Locale &locale = locales.next();
-        Locale *clone = locale.clone();
-        if (clone == nullptr) {
-            errorCode_ = U_MEMORY_ALLOCATION_ERROR;
-            break;
-        }
-        supportedLocales_->addElement(clone, errorCode_);
-        if (U_FAILURE(errorCode_)) {
-            delete clone;
-            break;
+    if (ensureSupportedLocaleVector()) {
+        clearSupportedLocales();
+        while (locales.hasNext() && U_SUCCESS(errorCode_)) {
+            const Locale &locale = locales.next();
+            LocalPointer<Locale> clone (locale.clone(), errorCode_);
+            supportedLocales_->adoptElement(clone.orphan(), errorCode_);
         }
     }
     return *this;
 }
 
 LocaleMatcher::Builder &LocaleMatcher::Builder::addSupportedLocale(const Locale &locale) {
-    if (!ensureSupportedLocaleVector()) { return *this; }
-    Locale *clone = locale.clone();
-    if (clone == nullptr) {
-        errorCode_ = U_MEMORY_ALLOCATION_ERROR;
-        return *this;
-    }
-    supportedLocales_->addElement(clone, errorCode_);
-    if (U_FAILURE(errorCode_)) {
-        delete clone;
+    if (ensureSupportedLocaleVector()) {
+        LocalPointer<Locale> clone(locale.clone(), errorCode_);
+        supportedLocales_->adoptElement(clone.orphan(), errorCode_);
     }
     return *this;
 }
@@ -345,9 +327,8 @@ UBool compareLSRs(const UHashTok t1, const UHashTok t2) {
 int32_t LocaleMatcher::putIfAbsent(const LSR &lsr, int32_t i, int32_t suppLength,
                                    UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return suppLength; }
-    int32_t index = uhash_geti(supportedLsrToIndex, &lsr);
-    if (index == 0) {
-        uhash_puti(supportedLsrToIndex, const_cast<LSR *>(&lsr), i + 1, &errorCode);
+    if (!uhash_containsKey(supportedLsrToIndex, &lsr)) {
+        uhash_putiAllowZero(supportedLsrToIndex, const_cast<LSR *>(&lsr), i, &errorCode);
         if (U_SUCCESS(errorCode)) {
             supportedLSRs[suppLength] = &lsr;
             supportedIndexes[suppLength++] = i;
@@ -685,12 +666,11 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
     int32_t bestSupportedLsrIndex = -1;
     for (int32_t bestShiftedDistance = LocaleDistance::shiftDistance(thresholdDistance);;) {
         // Quick check for exact maximized LSR.
-        // Returns suppIndex+1 where 0 means not found.
         if (supportedLsrToIndex != nullptr) {
             desiredLSR.setHashCode();
-            int32_t index = uhash_geti(supportedLsrToIndex, &desiredLSR);
-            if (index != 0) {
-                int32_t suppIndex = index - 1;
+            UBool found = false;
+            int32_t suppIndex = uhash_getiAndFound(supportedLsrToIndex, &desiredLSR, &found);
+            if (found) {
                 if (remainingIter != nullptr) {
                     remainingIter->rememberCurrent(desiredIndex, errorCode);
                 }

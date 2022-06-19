@@ -7,9 +7,9 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/memory.h"
+#include "src/base/vector.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/utils/memcopy.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -73,14 +73,14 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   explicit SnapshotData(const Serializer* serializer);
 
   // Used when consuming.
-  explicit SnapshotData(const Vector<const byte> snapshot)
+  explicit SnapshotData(const base::Vector<const byte> snapshot)
       : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
   }
 
-  virtual Vector<const byte> Payload() const;
+  virtual base::Vector<const byte> Payload() const;
 
-  Vector<const byte> RawData() const {
-    return Vector<const byte>(data_, size_);
+  base::Vector<const byte> RawData() const {
+    return base::Vector<const byte>(data_, size_);
   }
 
  protected:

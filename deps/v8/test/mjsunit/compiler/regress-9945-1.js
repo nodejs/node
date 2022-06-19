@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --concurrent-recompilation
 
 function foo(x) { bar(x) }
 function bar(x) { x.p }
@@ -27,19 +27,21 @@ foo(a);
 foo(a);
 
 // Trigger optimization of bar but don't yet complete it.
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(bar, "concurrent");
 foo(a);
 %PrepareFunctionForOptimization(bar);
+%WaitForBackgroundOptimization();
 
 // Change a's map from PACKED_SMI_ELEMENTS to PACKED_ELEMENTS and run bar in the
 // interpreter (via foo) s.t. bar's load feedback changes accordingly.
 a[0] = {};
 foo(a);
-assertUnoptimized(bar, "no sync");
+assertUnoptimized(bar);
 
 // Now finish the optimization of bar, which was based on the old
 // PACKED_SMI_ELEMENTS feedback.
-%UnblockConcurrentRecompilation();
+%FinalizeOptimization();
 assertOptimized(bar);
 // If we were to call the optimized bar now, it would deopt.
 

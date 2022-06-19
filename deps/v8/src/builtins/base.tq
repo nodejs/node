@@ -9,22 +9,26 @@
 #include 'src/heap/factory-inl.h'
 #include 'src/objects/arguments.h'
 #include 'src/objects/bigint.h'
+#include 'src/objects/call-site-info.h'
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
+#include 'src/objects/js-shadow-realms.h'
+#include 'src/objects/js-struct.h'
 #include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'
 #include 'src/objects/source-text-module.h'
-#include 'src/objects/stack-frame-info.h'
 #include 'src/objects/synthetic-module.h'
 #include 'src/objects/template-objects.h'
 #include 'src/torque/runtime-support.h'
 
 type void;
 type never;
+
+type IntegerLiteral constexpr 'IntegerLiteral';
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
@@ -104,6 +108,7 @@ type uint8 extends uint16
 type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
+type uint64 generates 'TNode<Uint64T>' constexpr 'uint64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
@@ -111,6 +116,9 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+
+type Simd128 generates 'TNode<Simd128T>';
+type I8X16 extends Simd128 generates 'TNode<I8x16T>';
 
 // Represents a std::function which produces the generated TNode type of T.
 // Useful for passing values to and from CSA code that uses LazyNode<T>, which
@@ -137,6 +145,7 @@ intrinsic %MakeLazy<T: type, A1: type, A2: type, A3: type>(
 // template, but Torque doesn't understand how to use templates for extern
 // macros, so just add whatever overload definitions you need here.
 extern macro RunLazy(Lazy<Smi>): Smi;
+extern macro RunLazy(Lazy<JSAny>): JSAny;
 
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
@@ -153,7 +162,7 @@ struct float64_or_hole {
     return this.value;
   }
   macro ValueUnsafeAssumeNotHole(): float64 {
-    assert(!this.is_hole);
+    dcheck(!this.is_hole);
     return this.value;
   }
 
@@ -204,12 +213,14 @@ extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
 extern class OrderedNameDictionary extends HashTable;
+extern class NameToIndexHashTable extends HashTable;
+extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;
 extern class GlobalDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
-    generates 'TNode<ObjectHashTable>';
+    generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
@@ -226,8 +237,6 @@ extern class ObjectBoilerplateDescription extends FixedArray;
 extern class ClosureFeedbackCellArray extends FixedArray;
 extern class ScriptContextTable extends FixedArray;
 
-type LayoutDescriptor extends ByteArray
-    generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
 
 extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
@@ -249,7 +258,8 @@ type CallableApiObject extends JSObject;
 // A JSProxy with the callable bit set.
 type CallableJSProxy extends JSProxy;
 
-type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
+type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
+    CallableApiObject;
 
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
@@ -257,6 +267,8 @@ type WriteBarrierMode
 extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
 extern operator '==' macro UpdateFeedbackModeEqual(
     constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
+
+extern enum CallFeedbackContent extends int32 { kTarget, kReceiver }
 
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
@@ -300,8 +312,27 @@ extern enum ElementsKind extends int32 {
   UINT8_CLAMPED_ELEMENTS,
   BIGUINT64_ELEMENTS,
   BIGINT64_ELEMENTS,
+  RAB_GSAB_UINT8_ELEMENTS,
+  RAB_GSAB_INT8_ELEMENTS,
+  RAB_GSAB_UINT16_ELEMENTS,
+  RAB_GSAB_INT16_ELEMENTS,
+  RAB_GSAB_UINT32_ELEMENTS,
+  RAB_GSAB_INT32_ELEMENTS,
+  RAB_GSAB_FLOAT32_ELEMENTS,
+  RAB_GSAB_FLOAT64_ELEMENTS,
+  RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+  RAB_GSAB_BIGUINT64_ELEMENTS,
+  RAB_GSAB_BIGINT64_ELEMENTS,
+  // TODO(torque): Allow duplicate enum values.
+  // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  // FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   ...
 }
+
+const kFirstFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::UINT8_ELEMENTS;
+const kFirstRabGsabFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::RAB_GSAB_UINT8_ELEMENTS;
 
 extern enum AllocationFlag extends int32
 constexpr 'CodeStubAssembler::AllocationFlag' {
@@ -323,6 +354,13 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
   kAllFixedArrays,
   kFixedArrays,
   ...
+}
+
+extern enum InitializationMode
+constexpr 'CodeStubAssembler::InitializationMode' {
+  kUninitialized,
+  kInitializeToZero,
+  kInitializeToNull
 }
 
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
@@ -364,7 +402,7 @@ extern enum MessageTemplate {
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
-  kNotAPromise,
+  kPromiseNewTargetUndefined,
   kResolverNotAFunction,
   kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
@@ -391,13 +429,14 @@ extern enum MessageTemplate {
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
   kWasmTrapFuncSigMismatch,
-  kWasmTrapDataSegmentDropped,
+  kWasmTrapDataSegmentOutOfBounds,
   kWasmTrapElemSegmentDropped,
   kWasmTrapTableOutOfBounds,
   kWasmTrapRethrowNull,
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
+  kWasmTrapArrayTooLarge,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,
@@ -415,8 +454,6 @@ extern enum PropertyAttributes extends int31 {
   ...
 }
 
-const kMaxArrayIndex:
-    constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
 const kTypedArrayMaxLength:
@@ -456,16 +493,14 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
-const kOrderedNameDictionaryInitialCapacity:
-    constexpr int32 generates 'OrderedNameDictionary::kInitialCapacity';
-const kSwissNameDictionaryGroupWidth:
-    constexpr int32 generates 'SwissNameDictionary::kGroupWidth';
+const kSwissNameDictionaryInitialCapacity:
+    constexpr int32 generates 'SwissNameDictionary::kInitialCapacity';
 
 const kWasmArrayHeaderSize:
     constexpr int32 generates 'WasmArray::kHeaderSize';
 
-const kDictModePrototypes:
-    constexpr bool generates 'V8_DICT_MODE_PROTOTYPES_BOOL';
+const kHeapObjectHeaderSize:
+    constexpr int32 generates 'HeapObject::kHeaderSize';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -538,8 +573,19 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // but not their own class definitions:
 
 // Like JSObject, but created from API function.
-@apiExposedInstanceTypeValue(0x420)
-extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
+@apiExposedInstanceTypeValue(0x422)
+@doNotGenerateCast
+extern class JSApiObject extends JSObjectWithEmbedderSlots
+    generates 'TNode<JSObject>';
+
+// TODO(gsathya): This only exists to make JSApiObject instance type into a
+// range.
+@apiExposedInstanceTypeValue(0x80A)
+@doNotGenerateCast
+@highestInstanceTypeWithinParentClassRange
+extern class JSLastDummyApiObject extends JSApiObject
+    generates 'TNode<JSObject>';
+
 // Like JSApiObject, but requires access checks and/or has interceptors.
 @apiExposedInstanceTypeValue(0x410)
 extern class JSSpecialApiObject extends JSSpecialObject
@@ -552,11 +598,11 @@ extern macro Is64(): constexpr bool;
 
 extern macro SelectBooleanConstant(bool): Boolean;
 
-extern macro Print(constexpr string);
-extern macro Print(constexpr string, Object);
-extern macro Comment(constexpr string);
-extern macro Print(Object);
-extern macro DebugBreak();
+extern macro Print(constexpr string): void;
+extern macro Print(constexpr string, Object): void;
+extern macro Comment(constexpr string): void;
+extern macro Print(Object): void;
+extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
@@ -573,9 +619,9 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
         if (Float64IsNaN(value)) return SmiConstant(0);
         value = math::Float64Trunc(value);
         // ToInteger normalizes -0 to +0.
-        if (value == 0.0) return SmiConstant(0);
+        if (value == 0) return SmiConstant(0);
         const result = ChangeFloat64ToTagged(value);
-        assert(IsNumberNormalized(result));
+        dcheck(IsNumberNormalized(result));
         return result;
       }
       case (a: JSAnyNotNumber): {
@@ -626,7 +672,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
-extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
+extern transitioning builtin CreateDataProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;
@@ -655,6 +701,8 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
+extern transitioning runtime ThrowIteratorError(implicit context: Context)(
+    JSAny): never;
 extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
     JSAny): never;
 
@@ -688,6 +736,8 @@ extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
 extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
     OrderedNameDictionary;
+extern macro CodeStubAssembler::AllocateSwissNameDictionary(constexpr int32):
+    SwissNameDictionary;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
@@ -711,9 +761,9 @@ transitioning macro ToPrimitiveDefault(implicit context: Context)(v: JSAny):
   }
 }
 
-extern transitioning runtime NormalizeElements(Context, JSObject);
+extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
-    Context, JSObject, Smi);
+    Context, JSObject, Smi): void;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
@@ -740,7 +790,9 @@ macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {
 
 extern macro StrictEqual(JSAny, JSAny): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
-extern runtime ReThrow(Context, JSAny): never;
+
+extern runtime ReThrowWithMessage(
+    Context, JSAny, TheHole | JSMessageObject): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
@@ -776,6 +828,8 @@ extern macro IsElementsKindLessThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindGreaterThan(
     ElementsKind, constexpr ElementsKind): bool;
+extern macro IsElementsKindGreaterThanOrEqual(
+    ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindInRange(
     ElementsKind, constexpr ElementsKind, constexpr ElementsKind): bool;
 
@@ -804,6 +858,8 @@ extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro UintPtrGreaterThanOrEqual(uintptr, uintptr): bool;
 extern operator '~' macro WordNot(intptr): intptr;
 extern operator '~' macro WordNot(uintptr): uintptr;
+extern operator '~' macro Word64Not(uint64): uint64;
+extern operator '~' macro Word64Not(int64): int64;
 extern operator '~' macro ConstexprWordNot(constexpr intptr): constexpr intptr;
 extern operator '~' macro ConstexprWordNot(constexpr uintptr):
     constexpr uintptr;
@@ -848,8 +904,12 @@ macro Float64IsNaN(n: float64): bool {
 }
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
-type TaggedWithIdentity =
-    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|Context|EmptyString;
+@if(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString | WasmInternalFunction;
+@ifnot(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -878,32 +938,43 @@ extern operator '+' macro ConstexprIntPtrAdd(
     constexpr intptr, constexpr intptr): constexpr intptr;
 extern operator '+' macro ConstexprUintPtrAdd(
     constexpr uintptr, constexpr uintptr): constexpr intptr;
+extern operator '+' macro Int64Add(int64, int64): int64;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
+extern operator '-' macro Int64Sub(int64, int64): int64;
 extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
+extern operator '*' macro Int64Mul(int64, int64): int64;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
+extern operator '/' macro Int64Div(int64, int64): int64;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 extern operator '|' macro WordOr(intptr, intptr): intptr;
 
 extern operator '+' macro UintPtrAdd(uintptr, uintptr): uintptr;
+extern operator '+' macro Uint64Add(uint64, uint64): uint64;
 extern operator '-' macro UintPtrSub(uintptr, uintptr): uintptr;
+extern operator '-' macro Uint64Sub(uint64, uint64): uint64;
+extern operator '*' macro Uint64Mul(uint64, uint64): uint64;
 extern operator '<<' macro WordShl(uintptr, uintptr): uintptr;
 extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
 extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
 extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '+' macro Uint32Add(uint32, uint32): uint32;
 extern operator '+' macro ConstexprUint32Add(
     constexpr uint32, constexpr int32): constexpr uint32;
 extern operator '+' macro ConstexprInt31Add(
     constexpr int31, constexpr int31): constexpr int31;
+extern operator '+' macro ConstexprInt32Add(
+    constexpr int32, constexpr int32): constexpr int32;
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '-' macro Int32Sub(int16, int16): int32;
-extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
+extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
+extern operator '*' macro Uint32Mul(uint32, uint32): uint32;
 extern operator '/' macro Int32Div(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '&' macro Word32And(int32, int32): int32;
@@ -924,6 +995,38 @@ extern operator '==' macro ConstexprInt32Equal(
 extern operator '!=' macro ConstexprInt32NotEqual(
     constexpr int32, constexpr int32): constexpr bool;
 
+// IntegerLiteral overloads
+extern macro ConstexprIntegerLiteralToInt31(constexpr IntegerLiteral):
+    constexpr int31;
+extern macro ConstexprIntegerLiteralToInt32(constexpr IntegerLiteral):
+    constexpr int32;
+extern macro ConstexprIntegerLiteralToUint32(constexpr IntegerLiteral):
+    constexpr uint32;
+extern macro ConstexprIntegerLiteralToUint64(constexpr IntegerLiteral):
+    constexpr uint64;
+extern macro ConstexprIntegerLiteralToIntptr(constexpr IntegerLiteral):
+    constexpr intptr;
+extern macro ConstexprIntegerLiteralToUintptr(constexpr IntegerLiteral):
+    constexpr uintptr;
+extern macro ConstexprIntegerLiteralToInt8(constexpr IntegerLiteral):
+    constexpr int8;
+extern macro ConstexprIntegerLiteralToUint8(constexpr IntegerLiteral):
+    constexpr uint8;
+extern macro ConstexprIntegerLiteralToFloat64(constexpr IntegerLiteral):
+    constexpr float64;
+
+extern operator '==' macro ConstexprIntegerLiteralEqual(
+    constexpr IntegerLiteral, constexpr IntegerLiteral): constexpr bool;
+extern operator '+' macro ConstexprIntegerLiteralAdd(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '<<' macro ConstexprIntegerLiteralLeftShift(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '|' macro ConstexprIntegerLiteralBitwiseOr(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
 extern operator '!=' macro Word32NotEqual(int32, int32): bool;
@@ -940,6 +1043,24 @@ extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 extern operator '|' macro ConstexprWord32Or(
     constexpr int32, constexpr int32): constexpr int32;
+extern operator '^' macro Word32Xor(int32, int32): int32;
+extern operator '^' macro Word32Xor(uint32, uint32): uint32;
+extern operator '<<' macro ConstexprWord32Shl(
+    constexpr uint32, constexpr int32): uint32;
+
+extern operator '==' macro Word64Equal(int64, int64): bool;
+extern operator '==' macro Word64Equal(uint64, uint64): bool;
+extern operator '!=' macro Word64NotEqual(int64, int64): bool;
+extern operator '!=' macro Word64NotEqual(uint64, uint64): bool;
+extern operator '>>>' macro Word64Shr(uint64, uint64): uint64;
+extern operator '>>' macro Word64Sar(int64, int64): int64;
+extern operator '<<' macro Word64Shl(int64, int64): int64;
+extern operator '<<' macro Word64Shl(uint64, uint64): uint64;
+extern operator '|' macro Word64Or(int64, int64): int64;
+extern operator '|' macro Word64Or(uint64, uint64): uint64;
+extern operator '&' macro Word64And(uint64, uint64): uint64;
+extern operator '^' macro Word64Xor(int64, int64): int64;
+extern operator '^' macro Word64Xor(uint64, uint64): uint64;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
 extern operator '-' macro Float64Sub(float64, float64): float64;
@@ -987,6 +1108,8 @@ ConstexprInt31Equal(
     constexpr InstanceType, constexpr InstanceType): constexpr bool;
 extern operator '-' macro ConstexprUint32Sub(
     constexpr InstanceType, constexpr InstanceType): constexpr int32;
+extern operator '-' macro ConstexprInt32Sub(
+    constexpr int32, constexpr int32): constexpr int32;
 
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
@@ -1015,6 +1138,10 @@ operator '==' macro PromiseStateEquals(
   return Word32Equal(s1, s2);
 }
 
+extern macro CountLeadingZeros64(uint64): int64;
+extern macro CountTrailingZeros32(uint32): int32;
+extern macro CountTrailingZeros64(uint64): int64;
+
 extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
@@ -1028,17 +1155,20 @@ extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
 extern macro ChangeUintPtrToTagged(uintptr): Number;
+extern macro Unsigned(int64): uint64;
 extern macro Unsigned(int32): uint32;
 extern macro Unsigned(int16): uint16;
 extern macro Unsigned(int8): uint8;
 extern macro Unsigned(intptr): uintptr;
 extern macro Unsigned(RawPtr): uintptr;
+extern macro Signed(uint64): int64;
 extern macro Signed(uint32): int32;
 extern macro Signed(uint16): int16;
 extern macro Signed(uint8): int8;
 extern macro Signed(uintptr): intptr;
 extern macro Signed(RawPtr): intptr;
 extern macro TruncateIntPtrToInt32(intptr): int32;
+extern macro TruncateInt64ToInt32(int64): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
@@ -1057,6 +1187,7 @@ extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;
 extern macro TaggedIndexToSmi(TaggedIndex): Smi;
 extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
+extern macro IntPtrRoundUpToPowerOfTwo32(intptr): intptr;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeNumberToUint32(Number): uint32;
@@ -1066,9 +1197,12 @@ extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeFloat64ToIntPtr(float64): intptr;
+extern macro ChangeBoolToInt32(bool): int32;
 extern macro ChangeInt32ToFloat64(int32): float64;
-extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
-extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
+extern macro ChangeInt32ToIntPtr(int32): intptr;    // Sign-extends.
+extern macro ChangeUint32ToWord(uint32): uintptr;   // Doesn't sign-extend.
+extern macro ChangeInt32ToInt64(int32): intptr;     // Sign-extends.
+extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
@@ -1082,17 +1216,29 @@ extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Uint16Constant(constexpr uint16): uint16;
 extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
-extern macro Float64Constant(constexpr int31): float64;
+macro Int32Constant(i: constexpr IntegerLiteral): int32 {
+  return Int32Constant(ConstexprIntegerLiteralToInt32(i));
+}
+extern macro Int64Constant(constexpr int64): int64;
+extern macro Uint64Constant(constexpr uint64): uint64;
+extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
+extern macro Float64Constant(constexpr IntegerLiteral): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
 extern macro SmiConstant(constexpr bool): Smi;
 extern macro SmiConstant(constexpr uint32): Smi;
+macro SmiConstant(il: constexpr IntegerLiteral): Smi {
+  return SmiConstant(ConstexprIntegerLiteralToInt31(il));
+}
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
+macro IntPtrConstant(il: constexpr IntegerLiteral): intptr {
+  return IntPtrConstant(ConstexprIntegerLiteralToIntptr(il));
+}
 extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 extern macro Float64SilenceNaN(float64): float64;
@@ -1101,7 +1247,7 @@ extern macro BitcastWordToTaggedSigned(intptr): Smi;
 extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
-extern macro BitcastTaggedToWord(Tagged): intptr;
+extern macro BitcastTaggedToWord(Object): intptr;
 extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
 
 extern macro FixedArrayMapConstant(): Map;
@@ -1135,6 +1281,7 @@ extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
 extern macro IsNoElementsProtectorCellInvalid(): bool;
 extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
+extern macro IsIsConcatSpreadableProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
@@ -1150,7 +1297,7 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
 operator '.length=' macro StoreFastJSArrayLength(
-    array: FastJSArray, length: Smi) {
+    array: FastJSArray, length: Smi): void {
   const array: JSArray = array;
   array.length = length;
 }
@@ -1174,7 +1321,7 @@ macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
   } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
     return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  assert(kind == ElementsKind::PACKED_ELEMENTS);
+  dcheck(kind == ElementsKind::PACKED_ELEMENTS);
   return ElementsKind::HOLEY_ELEMENTS;
 }
 
@@ -1246,6 +1393,9 @@ macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
 macro GetWeakCellMap(implicit context: Context)(): Map {
   return %GetClassMapConstant<WeakCell>();
 }
+macro GetPrototypeApplyFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::FUNCTION_PROTOTYPE_APPLY_INDEX);
+}
 
 // Call(Context, Target, Receiver, ...Args)
 // TODO(joshualitt): Assuming the context parameter is for throwing when Target
@@ -1281,7 +1431,7 @@ macro NumberIsNaN(number: Number): bool {
   }
 }
 
-extern macro GotoIfForceSlowPath() labels Taken;
+extern macro GotoIfForceSlowPath(): void labels Taken;
 macro IsForceSlowPath(): bool {
   GotoIfForceSlowPath() otherwise return true;
   return false;
@@ -1313,10 +1463,10 @@ macro SameValue(a: JSAny, b: JSAny): bool {
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
 // friendly way where index1 and index2 are in [0, kMaxSafeInteger] range.
 macro CheckIntegerIndexAdditionOverflow(
-    index1: uintptr, index2: uintptr, limit: uintptr) labels IfOverflow {
+    index1: uintptr, index2: uintptr, limit: uintptr): void labels IfOverflow {
   if constexpr (Is64()) {
-    assert(index1 <= kMaxSafeIntegerUint64);
-    assert(index2 <= kMaxSafeIntegerUint64);
+    dcheck(index1 <= kMaxSafeIntegerUint64);
+    dcheck(index2 <= kMaxSafeIntegerUint64);
     // Given that both index1 and index2 are in a safe integer range the
     // addition can't overflow.
     if (index1 + index2 > limit) goto IfOverflow;
@@ -1350,7 +1500,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       if (kMode == kModeValueIsAnyNumber) {
         if (valueSmi < 0) goto IfLessThanZero;
       } else {
-        assert(valueSmi >= 0);
+        dcheck(valueSmi >= 0);
       }
       const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
       // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
@@ -1358,14 +1508,14 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       return value;
     }
     case (valueHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(valueHeapNumber));
+      dcheck(IsNumberNormalized(valueHeapNumber));
       const valueDouble: float64 = Convert<float64>(valueHeapNumber);
       // NaNs must be handled outside.
-      assert(!Float64IsNaN(valueDouble));
+      dcheck(!Float64IsNaN(valueDouble));
       if (kMode == kModeValueIsAnyNumber) {
         if (valueDouble < 0) goto IfLessThanZero;
       } else {
-        assert(valueDouble >= 0);
+        dcheck(valueDouble >= 0);
       }
 
       if constexpr (Is64()) {
@@ -1374,7 +1524,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
         if (kMode == kModeValueIsAnyNumber) {
           if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
         } else {
-          assert(valueDouble <= kMaxSafeInteger);
+          dcheck(valueDouble <= kMaxSafeInteger);
         }
       } else {
         // On 32-bit architectures uintptr range is smaller than safe integer
@@ -1383,7 +1533,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
             kMode == kModeValueIsSafeInteger) {
           if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
         } else {
-          assert(valueDouble <= kMaxUInt32Double);
+          dcheck(valueDouble <= kMaxUInt32Double);
         }
       }
       return ChangeFloat64ToUintPtr(valueDouble);
@@ -1521,13 +1671,13 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
       }
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ConvertToRelativeIndex() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       const lengthDouble: float64 = Convert<float64>(length);
-      assert(lengthDouble <= kMaxSafeInteger);
+      dcheck(lengthDouble <= kMaxSafeInteger);
       if (indexDouble < 0) {
         const relativeIndex: float64 = lengthDouble + indexDouble;
         return relativeIndex > 0 ? ChangeFloat64ToUintPtr(relativeIndex) : 0;
@@ -1562,15 +1712,15 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
       return index;
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ClampToIndexRange() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       if (indexDouble <= 0) return 0;
 
       const maxIndexDouble: float64 = Convert<float64>(limit);
-      assert(maxIndexDouble <= kMaxSafeInteger);
+      dcheck(maxIndexDouble <= kMaxSafeInteger);
       if (indexDouble >= maxIndexDouble) return limit;
 
       return ChangeFloat64ToUintPtr(indexDouble);
@@ -1632,14 +1782,14 @@ macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
 }
 
 extern transitioning runtime
-CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
+CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny): void;
 
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
-    implicit context: Context)(JSObject, String, JSAny, Smi);
+    implicit context: Context)(JSObject, String, JSAny, Smi): void;
 
 namespace runtime {
 extern runtime
-GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
 extern macro IsDeprecatedMap(Map): bool;
 
@@ -1665,7 +1815,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
         BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
             otherwise Slow;
       }
@@ -1686,7 +1836,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
             otherwise unreachable;
         doubleElements[index] = numberValue;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = value;
       }
@@ -1709,7 +1859,6 @@ macro Float64IsSomeInfinity(value: float64): bool {
   return value == (Convert<float64>(0) - V8_INFINITY);
 }
 
-@export
 macro IsIntegerOrSomeInfinity(o: Object): bool {
   typeswitch (o) {
     case (Smi): {
@@ -1724,20 +1873,6 @@ macro IsIntegerOrSomeInfinity(o: Object): bool {
     case (Object): {
       return false;
     }
-  }
-}
-
-builtin CheckNumberInRange(implicit context: Context)(
-    value: Number, min: Number, max: Number, nodeId: Smi): Undefined {
-  if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
-    return Undefined;
-  } else {
-    Print('Range type assertion failed! (value/min/max/nodeId)');
-    Print(value);
-    Print(min);
-    Print(max);
-    Print(nodeId);
-    unreachable;
   }
 }
 
@@ -1795,3 +1930,26 @@ extern macro FeedbackIteratorEntrySize(): intptr;
 extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
+
+extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
+
+extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
+  kHash,
+  kIntegerIndex,
+  kForwardingIndex,
+  kEmpty
+}
+
+operator '==' macro HashFieldTypeEquals(
+    s1: HashFieldType, s2: HashFieldType): bool {
+  return Word32Equal(s1, s2);
+}
+
+const kNoHashSentinel:
+    constexpr int32 generates 'PropertyArray::kNoHashSentinel';
+extern macro LoadNameHash(Name): uint32;
+
+extern macro LoadSimd128(intptr): Simd128;
+extern macro I8x16BitMask(I8X16): int32;
+extern macro I8x16Eq(I8X16, I8X16): I8X16;
+extern macro I8x16Splat(int32): I8X16;
