@@ -138,10 +138,11 @@ module.exports = (function() {
 
         return function(...args) {
             let t = process.hrtime();
+            const result = fn(...args);
 
-            fn(...args);
             t = process.hrtime(t);
             data[key] += t[0] * 1e3 + t[1] / 1e6;
+            return result;
         };
     }
 
