@@ -180,7 +180,7 @@ import { describe, it } from 'test';
 ```
 
 ```cjs
-const { describe, it }  = require('test');
+const { describe, it } = require('test');
 ```
 
 ### `only` tests
