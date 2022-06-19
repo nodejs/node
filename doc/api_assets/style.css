@@ -953,6 +953,7 @@ kbd {
   background-repeat: no-repeat;
   width: 142px;
   height: 20px;
+  cursor: pointer;
 }
 .js-flavor-selector:checked {
   background-image: url(./js-flavor-esm.svg);
@@ -969,6 +970,14 @@ kbd {
     height: 1.5em;
     width: auto;
     aspect-ratio: 2719 / 384;
+  }
+}
+
+@media only screen and (max-width: 600px) {
+  .js-flavor-selector {
+    float: none;
+    display: block;
+    margin: 0 0 1em 0;
   }
 }
 
