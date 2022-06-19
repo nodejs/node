@@ -484,12 +484,12 @@ module.exports = {
         }
 
         /**
-         * Determine if an identifier is used either in for-in loops.
+         * Determine if an identifier is used either in for-in or for-of loops.
          * @param {Reference} ref The reference to check.
          * @returns {boolean} whether reference is used in the for-in loops
          * @private
          */
-        function isForInRef(ref) {
+        function isForInOfRef(ref) {
             let target = ref.identifier.parent;
 
 
@@ -498,7 +498,7 @@ module.exports = {
                 target = target.parent.parent;
             }
 
-            if (target.type !== "ForInStatement") {
+            if (target.type !== "ForInStatement" && target.type !== "ForOfStatement") {
                 return false;
             }
 
@@ -531,7 +531,7 @@ module.exports = {
             let rhsNode = null;
 
             return variable.references.some(ref => {
-                if (isForInRef(ref)) {
+                if (isForInOfRef(ref)) {
                     return true;
                 }
 
