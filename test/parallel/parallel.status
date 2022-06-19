@@ -30,6 +30,8 @@ test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
