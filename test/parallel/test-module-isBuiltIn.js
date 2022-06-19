@@ -11,5 +11,6 @@ assert(isBuiltIn('node:test'));
 
 // Does not include internal modules
 assert(!isBuiltIn('internal'));
+assert(!isBuiltIn('test'));
 assert(!isBuiltIn(''));
 assert(!isBuiltIn(undefined));
