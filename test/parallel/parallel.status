@@ -37,6 +37,8 @@ test-crypto-keygen: SKIP
 test-net-socket-connect-without-cb: SKIP
 test-net-socket-ready-without-cb: SKIP
 test-tcp-wrap-listen: SKIP
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
