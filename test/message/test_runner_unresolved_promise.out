@@ -1,8 +1,10 @@
 TAP version 13
+# Subtest: pass
 ok 1 - pass
   ---
   duration_ms: *
   ...
+# Subtest: never resolving promise
 not ok 2 - never resolving promise
   ---
   duration_ms: *
@@ -12,6 +14,7 @@ not ok 2 - never resolving promise
   stack: |-
     *
   ...
+# Subtest: fail
 not ok 3 - fail
   ---
   duration_ms: *

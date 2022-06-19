@@ -1,4 +1,6 @@
 TAP version 13
+# Subtest: does not keep event loop alive
+    # Subtest: +does not keep event loop alive
     not ok 1 - +does not keep event loop alive
       ---
       duration_ms: *
