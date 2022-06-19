@@ -156,8 +156,6 @@ A suite is used to organize and group related tests together.
 as demonstrated in this example
 
 ```js
-import { describe, it } from 'node:test';
-
 describe('A thing', () => {
   it('should work', () => {
     assert.strictEqual(1, 1);
@@ -173,6 +171,16 @@ describe('A thing', () => {
     });
   });
 });
+```
+
+`describe` and `it` are imported from the `test` module
+
+```mjs
+import { describe, it } from 'test';
+```
+
+```cjs
+const { describe, it }  = require('test');
 ```
 
 ### `only` tests
