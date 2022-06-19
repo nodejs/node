@@ -385,7 +385,7 @@ same as `describe([name], { skip: true }[, fn])`
 ## `describe.todo([name][, options][, fn])`
 
 shorthand for marking a suite as `TODO`,
-same as `describe([name], { skip: todo }[, fn])`
+same as `describe([name], { todo: true }[, fn])`
 ## `it([name][, options][, fn])`
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -411,7 +411,7 @@ same as `it([name], { skip: true }[, fn])`
 ## `it.todo([name][, options][, fn])`
 
 shorthand for marking a test as `TODO`,
-same as `it([name], { skip: todo }[, fn])`
+same as `it([name], { todo: true }[, fn])`
 
 ## Class: `TestContext`
 
