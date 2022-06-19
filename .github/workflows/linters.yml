@@ -49,7 +49,7 @@ jobs:
       - name: Lint C/C++ files
         run: make lint-cpp
   format-cpp:
-    if: ${{ github.event.pull_request.draft == false && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch }}
+    if: ${{ github.event.pull_request && github.event.pull_request.draft == false && github.base_ref == github.repository.default_branch }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
