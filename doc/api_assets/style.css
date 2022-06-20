@@ -953,6 +953,8 @@ kbd {
   background-repeat: no-repeat;
   width: 142px;
   height: 20px;
+  display: block;
+  cursor: pointer;
 }
 .js-flavor-selector:checked {
   background-image: url(./js-flavor-esm.svg);

@@ -34,6 +34,8 @@ import { visit } from 'unist-util-visit';
 import * as common from './common.mjs';
 import * as typeParser from './type-parser.mjs';
 
+const dynamicSizes = Object.create(null);
+
 const { highlight, getLanguage } = highlightJs;
 
 const docPath = new URL('../../doc/', import.meta.url);
@@ -89,7 +91,21 @@ function processContent(content) {
     }) + (firstTime ? '' : '</section>');
 }
 
+function buildCSSForFlavoredJS(dynamicSizes) {
+  if (dynamicSizes == null) return '';
+
+  return `<style>${Array.from(dynamicSizes, (charCount) =>
+    `@media(max-width:${charCount * 8 + 142 + 16 * 4}px){` +
+    `.with-${charCount}-chars>.js-flavor-selector{` +
+      'float:none;' +
+      'margin:0 0 1em auto;' +
+    '}' +
+  '}').join('')}</style>`;
+}
+
 export function toHTML({ input, content, filename, nodeVersion, versions }) {
+  const dynamicSizesForThisFile = dynamicSizes[filename];
+
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
@@ -99,6 +115,7 @@ export function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace('__SECTION__', content.section)
                      .replace(/__VERSION__/g, nodeVersion)
                      .replace(/__TOC__/g, content.toc)
+                     .replace(/__JS_FLAVORED_DYNAMIC_CSS__/g, buildCSSForFlavoredJS(dynamicSizesForThisFile))
                      .replace(/__TOC_PICKER__/g, tocPicker(id, content))
                      .replace(/__GTOC_PICKER__/g, gtocPicker(id))
                      .replace(/__GTOC__/g, gtocHTML.replace(
@@ -228,14 +245,19 @@ export function preprocessElements({ filename }) {
           const previousNode = parent.children[index - 1] || {};
           const nextNode = parent.children[index + 1] || {};
 
+          const charCountFirstTwoLines = Math.max(...node.value.split('\n', 2).map((str) => str.length));
+
           if (!isJSFlavorSnippet(previousNode) &&
               isJSFlavorSnippet(nextNode) &&
               nextNode.lang !== node.lang) {
             // Saving the highlight code as value to be added in the next node.
             node.value = highlighted;
+            node.charCountFirstTwoLines = charCountFirstTwoLines;
           } else if (isJSFlavorSnippet(previousNode) &&
                      previousNode.lang !== node.lang) {
-            node.value = '<pre>' +
+            const actualCharCount = Math.max(charCountFirstTwoLines, previousNode.charCountFirstTwoLines);
+            (dynamicSizes[filename] ??= new Set()).add(actualCharCount);
+            node.value = `<pre class="with-${actualCharCount}-chars">` +
               '<input class="js-flavor-selector" type="checkbox"' +
               // If CJS comes in second, ESM should display by default.
               (node.lang === 'cjs' ? ' checked' : '') +
