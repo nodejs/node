@@ -162,7 +162,7 @@ const char* signo_string(int signo) {
 #endif
 
     default:
-      return "";
+      return "null";
   }
 }
 
