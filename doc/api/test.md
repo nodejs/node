@@ -339,6 +339,9 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `30_000`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -538,6 +541,9 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `30_000`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
