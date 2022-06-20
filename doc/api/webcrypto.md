@@ -226,7 +226,7 @@ async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
 
   const wrappedKey = await subtle.wrapKey(format, key, wrappingKey, 'AES-KW');
 
-  return wrappedKey;
+  return { wrappedKey, wrappingKey };
 }
 
 async function unwrapHmacKey(
@@ -238,7 +238,7 @@ async function unwrapHmacKey(
   const key = await subtle.unwrapKey(
     format,
     wrappedKey,
-    unwrappingKey,
+    wrappingKey,
     'AES-KW',
     { name: 'HMAC', hash },
     true,
