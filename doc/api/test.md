@@ -323,7 +323,7 @@ added: v18.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43505
-    description: add a timeout to tests and allow setting it in options
+    description: add a timeout to tests and allow setting it in options.
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -529,7 +529,7 @@ added: v18.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43505
-    description: add a timeout to tests and allow setting it in options
+    description: add a timeout to tests and allow setting it in options.
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
