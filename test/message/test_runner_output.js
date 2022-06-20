@@ -331,10 +331,10 @@ test('subtest sync throw fails', async (t) => {
 
 test('timed out test', { timeout: 500 }, async (t) => {
   return new Promise((resolve) => {
-    setTimeout(resolve, 1000)
+    setTimeout(resolve, 1000);
   });
 });
 
 test('callback timed out test', { timeout: 500 }, (t, done) => {
-  setTimeout(done, 1000)
+  setTimeout(done, 1000);
 });
