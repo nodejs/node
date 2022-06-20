@@ -57,7 +57,7 @@ static std::string GetCodeCacheDefName(const std::string& id) {
   return std::string(buf) + std::string("_cache_data");
 }
 
-static std::string FormatSize(int size) {
+static std::string FormatSize(size_t size) {
   char buf[64] = {0};
   if (size < 1024) {
     snprintf(buf, sizeof(buf), "%.2fB", static_cast<double>(size));
