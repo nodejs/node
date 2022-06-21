@@ -5443,8 +5443,11 @@ changes:
 * `b` {ArrayBuffer|Buffer|TypedArray|DataView}
 * Returns: {boolean}
 
-This function is based on a constant-time algorithm.
-Returns true if `a` is equal to `b`, without leaking timing information that
+This function compares the underlying bytes that represent the given
+`ArrayBuffer`, `TypedArray`, or `DataView` instances using a constant-time
+algorithm.
+
+This function does not leak timing information that
 would allow an attacker to guess one of the values. This is suitable for
 comparing HMAC digests or secret values like authentication cookies or
 [capability urls](https://www.w3.org/TR/capability-urls/).
@@ -5456,6 +5459,12 @@ different byte lengths.
 If at least one of `a` and `b` is a `TypedArray` with more than one byte per
 entry, such as `Uint16Array`, the result will be computed using the platform
 byte order.
+
+<strong class="critical">When both of the inputs are `Float32Array`s or
+`Float64Array`s, this function might return unexpected results due to IEEE 754
+encoding of floating-point numbers. In particular, neither `x === y` nor
+`Object.is(x, y)` implies that the byte representations of two floating-point
+numbers `x` and `y` are equal.</strong>
 
 Use of `crypto.timingSafeEqual` does not guarantee that the _surrounding_ code
 is timing-safe. Care should be taken to ensure that the surrounding code does
