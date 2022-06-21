@@ -876,6 +876,12 @@ int ssl_cert_set_cert_store(CERT *c, X509_STORE *store, int chain, int ref)
     return 1;
 }
 
+int ssl_cert_get_cert_store(CERT *c, X509_STORE **pstore, int chain)
+{
+    *pstore = (chain ? c->chain_store : c->verify_store);
+    return 1;
+}
+
 int ssl_get_security_level_bits(const SSL *s, const SSL_CTX *ctx, int *levelp)
 {
     int level;

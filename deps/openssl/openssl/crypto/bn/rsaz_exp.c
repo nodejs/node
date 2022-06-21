@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2012, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -66,6 +66,7 @@ void RSAZ_1024_mod_exp_avx2(BN_ULONG result_norm[16],
     unsigned char *R2 = table_s; /* borrow */
     int index;
     int wvalue;
+    BN_ULONG tmp[16];
 
     if ((((size_t)p_str & 4095) + 320) >> 12) {
         result = p_str;
@@ -237,7 +238,10 @@ void RSAZ_1024_mod_exp_avx2(BN_ULONG result_norm[16],
 
     rsaz_1024_red2norm_avx2(result_norm, result);
 
+    bn_reduce_once_in_place(result_norm, /*carry=*/0, m_norm, tmp, 16);
+
     OPENSSL_cleanse(storage, sizeof(storage));
+    OPENSSL_cleanse(tmp, sizeof(tmp));
 }
 
 /*
@@ -266,6 +270,7 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
     unsigned char *p_str = (unsigned char *)exponent;
     int index;
     unsigned int wvalue;
+    BN_ULONG tmp[8];
 
     /* table[0] = 1_inv */
     temp[0] = 0 - m[0];
@@ -309,7 +314,10 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
     /* from Montgomery */
     rsaz_512_mul_by_one(result, temp, m, k0);
 
+    bn_reduce_once_in_place(result, /*carry=*/0, m, tmp, 8);
+
     OPENSSL_cleanse(storage, sizeof(storage));
+    OPENSSL_cleanse(tmp, sizeof(tmp));
 }
 
 #endif
