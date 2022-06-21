@@ -2816,7 +2816,8 @@ added: v17.0.0
 > Stability: 1 - Experimental
 
 * `streamReadable` {stream.Readable}
-* `strategy` {queuingstrategies.QueuingStrategy}
+* `options` {Object}
+  * `strategy` {QueuingStrategy}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
