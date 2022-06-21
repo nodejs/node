@@ -1,10 +1,10 @@
-export function resolve(specifier, { parentURL }, nextResolve) {
+export function resolve(specifier, { parentURL }, defaultResolve) {
   if (specifier === 'test') {
     return {
       url: 'file://'
     };
   }
-  return nextResolve(specifier, {parentURL});
+  return defaultResolve(specifier, {parentURL}, defaultResolve);
 }
 
 export function getFormat(url, context, defaultGetFormat) {

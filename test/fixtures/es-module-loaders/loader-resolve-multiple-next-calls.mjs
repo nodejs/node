@@ -1,6 +1,6 @@
-export function resolve(specifier, context, next) {
-  const { url: first } = next(specifier, context);
-  const { url: second } = next(specifier, context);
+export async function resolve(specifier, context, next) {
+  const { url: first } = await next(specifier, context);
+  const { url: second } = await next(specifier, context);
 
   return {
     format: 'module',

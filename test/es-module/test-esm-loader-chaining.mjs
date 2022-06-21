@@ -165,32 +165,6 @@ const commonArgs = [
   assert.strictEqual(status, 0);
 }
 
-{ // Verify error thrown for an async resolve hook
-  const { status, stderr } = spawnSync(
-    process.execPath,
-    [
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'loader-resolve-shortcircuit.mjs'),
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'loader-resolve-42.mjs'),
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'loader-resolve-async-fn.mjs'),
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'loader-load-foo-or-42.mjs'),
-      ...commonArgs,
-    ],
-    { encoding: 'utf8' },
-  );
-
-  assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
-  assert.match(stderr, /Promise/);
-  assert.match(stderr, /loader-resolve-async-fn\.mjs/);
-  assert.match(stderr, /'resolve'/);
-  // Cannot expect stdout to be empty because detecting whether a hook has
-  // returned a promise requires the hook to be executed
-  assert.strictEqual(status, 1);
-}
-
 { // Verify error thrown for incomplete resolve chain, citing errant loader & hook
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
