@@ -134,8 +134,7 @@ class V8_EXPORT WasmStreaming final {
   /**
    * Client to receive streaming event notifications.
    */
-  class V8_DEPRECATE_SOON(
-      "Use SetMoreFunctionsCanBeSerializedCallback") Client {
+  class Client {
    public:
     virtual ~Client() = default;
 
