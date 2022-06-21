@@ -252,7 +252,7 @@ class NonCopyablePersistentTraits {
  * This will clone the contents of storage cell, but not any of the flags, etc.
  */
 template <class T>
-struct V8_DEPRECATED("Use v8::Global instead") CopyablePersistentTraits {
+struct CopyablePersistentTraits {
   using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
   static const bool kResetInDestructor = true;
   template <class S, class M>
