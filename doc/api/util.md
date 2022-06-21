@@ -74,7 +74,7 @@ callbackFunction((err, ret) => {
 ## `util.colorText(format, text)`
 
 <!-- YAML
-added: v18.3.0
+added: REPLACEME
 -->
 
 * `format` {string} `format` one of the color format from `util.inspect.colors`
