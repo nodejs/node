@@ -6870,6 +6870,171 @@ end:
     return testresult;
 }
 
+/*
+ * Test SSL_CTX_set1_verify/chain_cert_store and SSL_CTX_get_verify/chain_cert_store.
+ */
+static int test_set_verify_cert_store_ssl_ctx(void)
+{
+   SSL_CTX *ctx = NULL;
+   int testresult = 0;
+   X509_STORE *store = NULL, *new_store = NULL,
+              *cstore = NULL, *new_cstore = NULL;
+
+   /* Create an initial SSL_CTX. */
+   ctx = SSL_CTX_new(TLS_server_method());
+   if (!TEST_ptr(ctx))
+       goto end;
+
+   /* Retrieve verify store pointer. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   /* Retrieve chain store pointer. */
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   /* We haven't set any yet, so this should be NULL. */
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   /* Create stores. We use separate stores so pointers are different. */
+   new_store = X509_STORE_new();
+   if (!TEST_ptr(new_store))
+       goto end;
+
+   new_cstore = X509_STORE_new();
+   if (!TEST_ptr(new_cstore))
+       goto end;
+
+   /* Set stores. */
+   if (!TEST_true(SSL_CTX_set1_verify_cert_store(ctx, new_store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_set1_chain_cert_store(ctx, new_cstore)))
+       goto end;
+
+   /* Should be able to retrieve the same pointer. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_eq(store, new_store) || !TEST_ptr_eq(cstore, new_cstore))
+       goto end;
+
+   /* Should be able to unset again. */
+   if (!TEST_true(SSL_CTX_set1_verify_cert_store(ctx, NULL)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_set1_chain_cert_store(ctx, NULL)))
+       goto end;
+
+   /* Should now be NULL. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   testresult = 1;
+
+end:
+   X509_STORE_free(new_store);
+   X509_STORE_free(new_cstore);
+   SSL_CTX_free(ctx);
+   return testresult;
+}
+
+/*
+ * Test SSL_set1_verify/chain_cert_store and SSL_get_verify/chain_cert_store.
+ */
+static int test_set_verify_cert_store_ssl(void)
+{
+   SSL_CTX *ctx = NULL;
+   SSL *ssl = NULL;
+   int testresult = 0;
+   X509_STORE *store = NULL, *new_store = NULL,
+              *cstore = NULL, *new_cstore = NULL;
+
+   /* Create an initial SSL_CTX. */
+   ctx = SSL_CTX_new(TLS_server_method());
+   if (!TEST_ptr(ctx))
+       goto end;
+
+   /* Create an SSL object. */
+   ssl = SSL_new(ctx);
+   if (!TEST_ptr(ssl))
+       goto end;
+
+   /* Retrieve verify store pointer. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   /* Retrieve chain store pointer. */
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   /* We haven't set any yet, so this should be NULL. */
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   /* Create stores. We use separate stores so pointers are different. */
+   new_store = X509_STORE_new();
+   if (!TEST_ptr(new_store))
+       goto end;
+
+   new_cstore = X509_STORE_new();
+   if (!TEST_ptr(new_cstore))
+       goto end;
+
+   /* Set stores. */
+   if (!TEST_true(SSL_set1_verify_cert_store(ssl, new_store)))
+       goto end;
+
+   if (!TEST_true(SSL_set1_chain_cert_store(ssl, new_cstore)))
+       goto end;
+
+   /* Should be able to retrieve the same pointer. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_eq(store, new_store) || !TEST_ptr_eq(cstore, new_cstore))
+       goto end;
+
+   /* Should be able to unset again. */
+   if (!TEST_true(SSL_set1_verify_cert_store(ssl, NULL)))
+       goto end;
+
+   if (!TEST_true(SSL_set1_chain_cert_store(ssl, NULL)))
+       goto end;
+
+   /* Should now be NULL. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   testresult = 1;
+
+end:
+   X509_STORE_free(new_store);
+   X509_STORE_free(new_cstore);
+   SSL_free(ssl);
+   SSL_CTX_free(ctx);
+   return testresult;
+}
+
 static int test_inherit_verify_param(void)
 {
     int testresult = 0;
@@ -7039,6 +7204,8 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_ticket_lifetime, 2);
 #endif
     ADD_TEST(test_set_alpn);
+    ADD_TEST(test_set_verify_cert_store_ssl_ctx);
+    ADD_TEST(test_set_verify_cert_store_ssl);
     ADD_TEST(test_inherit_verify_param);
     return 1;
 }

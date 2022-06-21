@@ -323,6 +323,8 @@ SSL_CTX_decrypt_session_ticket_fn       define
 SSL_CTX_disable_ct                      define
 SSL_CTX_generate_session_ticket_fn      define
 SSL_CTX_get0_chain_certs                define
+SSL_CTX_get0_chain_cert_store           define
+SSL_CTX_get0_verify_cert_store          define
 SSL_CTX_get_default_read_ahead          define
 SSL_CTX_get_max_cert_list               define
 SSL_CTX_get_max_proto_version           define
@@ -388,6 +390,8 @@ SSL_clear_mode                          define
 SSL_disable_ct                          define
 SSL_get0_chain_certs                    define
 SSL_get0_session                        define
+SSL_get0_chain_cert_store               define
+SSL_get0_verify_cert_store              define
 SSL_get1_curves                         define
 SSL_get1_groups                         define
 SSL_get_cipher                          define
