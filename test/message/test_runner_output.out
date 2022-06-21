@@ -596,7 +596,7 @@ not ok 61 - invalid subtest fail
   error: 'test could not be started because its parent finished'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    Immediate.<anonymous> (/Users/mosheatlow/repos/node/test/message/test_runner_output.js:173:7)
+    *
   ...
 1..61
 # Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
