@@ -980,7 +980,6 @@ class Parser : public AsyncWrap, public StreamListener {
   bool got_exception_;
   size_t current_buffer_len_;
   const char* current_buffer_data_;
-  unsigned int execute_depth_ = 0;
   bool headers_completed_ = false;
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
