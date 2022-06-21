@@ -290,10 +290,14 @@ void DeserializeNodeInternalFields(Local<Object> holder,
     return;
   }
 
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+
   Environment* env_ptr = static_cast<Environment*>(env);
   const InternalFieldInfo* info =
       reinterpret_cast<const InternalFieldInfo*>(payload.data);
-
+  // TODO(joyeecheung): we can add a constant kNodeEmbedderId to the
+  // beginning of every InternalFieldInfo to ensure that we don't
+  // step on payloads that were not serialized by Node.js.
   switch (info->type) {
 #define V(PropertyName, NativeTypeName)                                        \
   case EmbedderObjectType::k_##PropertyName: {                                 \
@@ -314,22 +318,44 @@ void DeserializeNodeInternalFields(Local<Object> holder,
 StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                                                int index,
                                                void* env) {
+  // We only do one serialization for the kEmbedderType slot, the result
+  // contains everything necessary for deserializing the entire object,
+  // including the fields whose index is bigger than kEmbedderType
+  // (most importantly, BaseObject::kSlot).
+  // For Node.js this design is enough for all the native binding that are
+  // serializable.
+  if (index != BaseObject::kEmbedderType) {
+    return StartupData{nullptr, 0};
+  }
+
+  void* type_ptr = holder->GetAlignedPointerFromInternalField(index);
+  if (type_ptr == nullptr) {
+    return StartupData{nullptr, 0};
+  }
+
+  uint16_t type = *(static_cast<uint16_t*>(type_ptr));
+  per_process::Debug(DebugCategory::MKSNAPSHOT, "type = 0x%x\n", type);
+  if (type != kNodeEmbedderId) {
+    return StartupData{nullptr, 0};
+  }
+
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Serialize internal field, index=%d, holder=%p\n",
                      static_cast<int>(index),
                      *holder);
-  void* ptr = holder->GetAlignedPointerFromInternalField(BaseObject::kSlot);
-  if (ptr == nullptr) {
-    return StartupData{nullptr, 0};
-  }
 
-  DCHECK(static_cast<BaseObject*>(ptr)->is_snapshotable());
-  SnapshotableObject* obj = static_cast<SnapshotableObject*>(ptr);
+  void* binding_ptr =
+      holder->GetAlignedPointerFromInternalField(BaseObject::kSlot);
+  per_process::Debug(DebugCategory::MKSNAPSHOT, "binding = %p\n", binding_ptr);
+  DCHECK(static_cast<BaseObject*>(binding_ptr)->is_snapshotable());
+  SnapshotableObject* obj = static_cast<SnapshotableObject*>(binding_ptr);
+
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
                      *holder,
                      obj->GetTypeNameChars());
   InternalFieldInfo* info = obj->Serialize(index);
+
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "payload size=%d\n",
                      static_cast<int>(info->length));
@@ -344,8 +370,9 @@ void SerializeBindingData(Environment* env,
   env->ForEachBindingData([&](FastStringKey key,
                               BaseObjectPtr<BaseObject> binding) {
     per_process::Debug(DebugCategory::MKSNAPSHOT,
-                       "Serialize binding %i, %p, type=%s\n",
+                       "Serialize binding %i (%p), object=%p, type=%s\n",
                        static_cast<int>(i),
+                       binding.get(),
                        *(binding->object()),
                        key.c_str());
 

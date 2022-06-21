@@ -533,7 +533,7 @@ void BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfo* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   InternalFieldInfo* info = InternalFieldInfo::New(type());
   return info;
 }
@@ -542,7 +542,7 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfo* info) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   v8::HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
   // Recreate the buffer in the constructor.
