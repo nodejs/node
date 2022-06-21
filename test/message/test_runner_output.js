@@ -329,12 +329,23 @@ test('subtest sync throw fails', async (t) => {
   });
 });
 
-test('timed out test', { timeout: 500 }, async (t) => {
+test('timed out async test', { timeout: 5 }, async (t) => {
   return new Promise((resolve) => {
     setTimeout(resolve, 1000);
   });
 });
 
-test('callback timed out test', { timeout: 500 }, (t, done) => {
+test('timed out callback test', { timeout: 5 }, (t, done) => {
   setTimeout(done, 1000);
+});
+
+
+test('large timeout async test is ok', { timeout: Number.MAX_VALUE }, async (t) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 10);
+  });
+});
+
+test('large timeout callback test is ok', { timeout: Number.MAX_VALUE }, (t, done) => {
+    setTimeout(done, 10);
 });
