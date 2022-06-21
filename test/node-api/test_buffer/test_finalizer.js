@@ -16,7 +16,7 @@ process.on('uncaughtException', common.mustCall((err) => {
       throw new Error('finalizer error');
     }));
   }
-  global.gc(true);
+  global.gc({ type: 'minor' });
   await tick(common.platformTimeout(100));
   global.gc();
   await tick(common.platformTimeout(100));
