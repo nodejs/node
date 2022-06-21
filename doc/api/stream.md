@@ -2807,7 +2807,7 @@ added:
 
 Returns whether the stream is readable.
 
-### `stream.Readable.toWeb(streamReadable[, strategy])`
+### `stream.Readable.toWeb(streamReadable[, options])`
 
 <!-- YAML
 added: v17.0.0
