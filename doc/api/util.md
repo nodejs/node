@@ -239,7 +239,47 @@ The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
-## `util.format(format[, ...args])`
+## `util.colorize`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `util.colorize` object provides functions that add ansi color codes to the
+provided string. These may be used to style terminal output.
+
+### `util.colorize.<style>[. ...<style>](string[, ...string])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `string` {string} The string that is formatted by the chosen style.
+* Returns: {string} The formatted string
+
+The API allows to be used with a builder/chaining pattern to add multiple styles
+in one call. Nesting color codes is supported.
+
+```js
+const { colorize } = util;
+
+console.log(
+  `${colorize.green('Heads up')}: only the "Heads up" is green`
+);
+
+console.log(
+  colorize.green('green', colorize.yellow('yellow'), 'green')
+)
+
+console.log(
+  colorize.bold.underline.red('bold red underline')
+)
+
+const info = colorize.italics.blue.bgYellow;
+console.log(
+  info('italic blue with yellow background')
+)
+```
+
+## `util.format(format[, args...])`
 
 <!-- YAML
 added: v0.5.3
