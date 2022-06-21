@@ -467,7 +467,7 @@ void BlobBindingData::Deserialize(
     Local<Object> holder,
     int index,
     InternalFieldInfo* info) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
   BlobBindingData* binding =
@@ -482,7 +482,7 @@ void BlobBindingData::PrepareForSerialization(
 }
 
 InternalFieldInfo* BlobBindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   InternalFieldInfo* info = InternalFieldInfo::New(type());
   return info;
 }
