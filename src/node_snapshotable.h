@@ -30,11 +30,6 @@ enum class EmbedderObjectType : uint8_t {
 // When serializing an embedder object, we'll serialize the native states
 // into a chunk that can be mapped into a subclass of InternalFieldInfo,
 // and pass it into the V8 callback as the payload of StartupData.
-// TODO(joyeecheung): the classification of types seem to be wrong.
-// We'd need a type for each field of each class of native object.
-// Maybe it's fine - we'll just use the type to invoke BaseObject constructors
-// and specify that the BaseObject has only one field for us to serialize.
-// And for non-BaseObject embedder objects, we'll use field-wise types.
 // The memory chunk looks like this:
 //
 // [   type   ] - EmbedderObjectType (a uint8_t)
