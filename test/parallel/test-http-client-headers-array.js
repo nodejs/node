@@ -10,7 +10,7 @@ function execute(options) {
     const expectHeaders = {
       'x-foo': 'boom',
       'cookie': 'a=1; b=2; c=3',
-      'connection': 'close'
+      'connection': 'keep-alive'
     };
 
     // no Host header when you set headers an array
@@ -28,6 +28,7 @@ function execute(options) {
 
     assert.deepStrictEqual(req.headers, expectHeaders);
 
+    res.writeHead(200, { 'Connection': 'close' });
     res.end();
   }).listen(0, function() {
     options = Object.assign(options, {

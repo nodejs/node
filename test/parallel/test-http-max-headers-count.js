@@ -48,7 +48,7 @@ const server = http.createServer(function(req, res) {
     expected = maxAndExpected[requests][1];
     server.maxHeadersCount = max;
   }
-  res.writeHead(200, headers);
+  res.writeHead(200, { ...headers, 'Connection': 'close' });
   res.end();
 });
 server.maxHeadersCount = max;

@@ -1449,11 +1449,20 @@ type other than {net.Socket}.
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43522
+    description: The method closes idle connections before returning.
+
 -->
 
 * `callback` {Function}
 
-Stops the server from accepting new connections. See [`net.Server.close()`][].
+Stops the server from accepting new connections and closes all connections
+connected to this server which are not sending a request or waiting for
+a response.
+See [`net.Server.close()`][].
 
 ### `server.closeAllConnections()`
 
@@ -3214,6 +3223,11 @@ server.listen(8000);
 
 <!-- YAML
 added: v0.5.9
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43522
+    description: The agent now uses HTTP Keep-Alive by default.
 -->
 
 * {http.Agent}
