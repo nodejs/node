@@ -2817,7 +2817,8 @@ added: v17.0.0
 
 * `streamReadable` {stream.Readable}
 * `options` {Object}
-  * `strategy` {QueuingStrategy}
+  * `strategy` {Object}
+    * `highWaterMark` {number}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
