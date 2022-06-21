@@ -2,8 +2,7 @@
 const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
-const { strictEqual, strict } = require('assert');
-const { mustCall } = require('../common');
+const { strictEqual } = require('assert');
 
 {
   // Strategy 2
