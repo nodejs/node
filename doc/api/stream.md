@@ -2819,6 +2819,7 @@ added: v17.0.0
 * `options` {Object}
   * `strategy` {Object}
     * `highWaterMark` {number}
+    * `size` {Function}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
