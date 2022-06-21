@@ -79,7 +79,7 @@ added: REPLACEME
 
 * `format` {string} A color format defined in `util.inspect.colors`.
 * `text` {string} The text to color.
-* Returns: {string} colored text string
+* Returns: {string} Colored text string.
 
 Takes `format` and `text` and retuns the colored text form
 
