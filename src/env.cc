@@ -2026,7 +2026,9 @@ void Environment::RunWeakRefCleanup() {
 BaseObject::BaseObject(Environment* env, Local<Object> object)
     : persistent_handle_(env->isolate(), object), env_(env) {
   CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
+  CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                           &kNodeEmbedderId);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot,
                                            static_cast<void*>(this));
   env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
@@ -2080,7 +2082,9 @@ void BaseObject::MakeWeak() {
 void BaseObject::LazilyInitializedJSTemplateConstructor(
     const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
-  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                                &kNodeEmbedderId);
   args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
 }
 
