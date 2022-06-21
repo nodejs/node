@@ -2401,7 +2401,7 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfo* info) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
   BindingData* binding = env->AddBindingData<BindingData>(context, holder);
@@ -2418,7 +2418,7 @@ void BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfo* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   InternalFieldInfo* info = InternalFieldInfo::New(type());
   return info;
 }
