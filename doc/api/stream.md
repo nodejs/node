@@ -2807,7 +2807,7 @@ added:
 
 Returns whether the stream is readable.
 
-### `stream.Readable.toWeb(streamReadable)`
+### `stream.Readable.toWeb(streamReadable[, strategy])`
 
 <!-- YAML
 added: v17.0.0
@@ -2816,6 +2816,7 @@ added: v17.0.0
 > Stability: 1 - Experimental
 
 * `streamReadable` {stream.Readable}
+* `strategy` {queuingstrategies.QueuingStrategy}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
