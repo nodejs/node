@@ -567,9 +567,9 @@ to run it again before invoking `make -j4`.
 
 * [Python 3.10](https://www.microsoft.com/en-us/p/python-310/9pjpw5ldxlz5)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
+  [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products) or
   the "C++ build tools" workload from the
-  [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019),
+  [Build Tools](https://aka.ms/vs/16/release/vs_buildtools.exe),
   with the default optional components
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
