@@ -575,6 +575,8 @@ module. String input is input via `--eval`, `--print`, or `STDIN`.
 
 Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 
+The REPL does not support this option.
+
 ### `--inspect-brk[=[host:]port]`
 
 <!-- YAML
