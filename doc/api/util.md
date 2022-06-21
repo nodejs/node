@@ -81,7 +81,7 @@ added: REPLACEME
 * `text` {string} The text to color.
 * Returns: {string} Colored text string.
 
-Takes `format` and `text` and retuns the colored text form
+Takes `format` and `text` and returns the colored text form
 
 ```js
 const util = require('node:util');
