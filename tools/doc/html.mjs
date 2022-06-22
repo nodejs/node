@@ -33,6 +33,7 @@ import { visit } from 'unist-util-visit';
 
 import * as common from './common.mjs';
 import * as typeParser from './type-parser.mjs';
+import buildCSSForFlavoredJS from './buildCSSForFlavoredJS.mjs';
 
 const dynamicSizes = Object.create(null);
 
@@ -91,18 +92,6 @@ function processContent(content) {
     }) + (firstTime ? '' : '</section>');
 }
 
-function buildCSSForFlavoredJS(dynamicSizes) {
-  if (dynamicSizes == null) return '';
-
-  return `<style>${Array.from(dynamicSizes, (charCount) =>
-    `@media(max-width:${charCount * 8 + 142 + 16 * 4}px){` +
-    `.with-${charCount}-chars>.js-flavor-selector{` +
-      'float:none;' +
-      'margin:0 0 1em auto;' +
-    '}' +
-  '}').join('')}</style>`;
-}
-
 export function toHTML({ input, content, filename, nodeVersion, versions }) {
   const dynamicSizesForThisFile = dynamicSizes[filename];
 
@@ -115,7 +104,7 @@ export function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace('__SECTION__', content.section)
                      .replace(/__VERSION__/g, nodeVersion)
                      .replace(/__TOC__/g, content.toc)
-                     .replace(/__JS_FLAVORED_DYNAMIC_CSS__/g, buildCSSForFlavoredJS(dynamicSizesForThisFile))
+                     .replace('__JS_FLAVORED_DYNAMIC_CSS__', buildCSSForFlavoredJS(dynamicSizesForThisFile))
                      .replace(/__TOC_PICKER__/g, tocPicker(id, content))
                      .replace(/__GTOC_PICKER__/g, gtocPicker(id))
                      .replace(/__GTOC__/g, gtocHTML.replace(
