@@ -168,7 +168,7 @@ export function globalPreload({port}) {
 
 
 // Rewrites node: loading to mock-facade: so that it can be intercepted
-export function resolve(specifier, context, nextResolve) {
+export async function resolve(specifier, context, defaultResolve) {
   if (specifier === 'node:mock') {
     return {
       shortCircuit: true,
@@ -176,7 +176,7 @@ export function resolve(specifier, context, nextResolve) {
     };
   }
   doDrainPort();
-  const def = nextResolve(specifier, context);
+  const def = await defaultResolve(specifier, context);
   if (context.parentURL?.startsWith('mock-facade:')) {
     // Do nothing, let it get the "real" module
   } else if (mockedModuleExports.has(def.url)) {

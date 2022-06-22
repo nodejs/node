@@ -1,8 +1,8 @@
-export function resolve(url, context, next) {
+export async function resolve(url, context, next) {
   const {
     format,
     url: nextUrl,
-  } = next(url, context);
+  } = await next(url, context);
 
   return {
     format,
