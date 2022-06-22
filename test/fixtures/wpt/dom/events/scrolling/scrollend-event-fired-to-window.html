@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#targetDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 400px;
+  height: 400px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="targetDiv">
+  <div id="innerDiv">
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var scrollend_arrived = false;
+function onScrollEnd(event) {
+  assert_false(event.cancelable);
+  // scrollend events targetting document are bubbled to the window.
+  assert_true(event.bubbles);
+  scrollend_arrived = true;
+}
+window.addEventListener("scrollend", onScrollEnd);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no scrollend event is sent to target_div.
+    target_div.addEventListener("scrollend",
+        t.unreached_func("target_div got unexpected scrollend event."));
+    await waitForCompositorCommit();
+
+    // Scroll up on target div and wait for the doc to get scrollend event.
+    await touchScrollInTarget(300, target_div, 'up');
+    await waitFor(() => { return scrollend_arrived; },
+        'Window did not receive scrollend event after scroll up on target.');
+    assert_equals(target_div.scrollTop, 0);
+  }, 'Tests that the window gets scrollend event when no element scrolls ' +
+     'after touch scrolling.');
+}
+</script>

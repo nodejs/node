@@ -11,6 +11,10 @@
     "commit": "c49cafb491d99d6318f8f24a26936cc66501f412",
     "path": "dom/abort"
   },
+  "dom/events": {
+    "commit": "f8821adb281696322f4bd96d412a98ae510f9125",
+    "path": "dom/events"
+  },
   "encoding": {
     "commit": "35f70910d3753c8b650fdfd4c716caedfefe88c9",
     "path": "encoding"
