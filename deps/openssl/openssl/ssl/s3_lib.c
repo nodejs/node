@@ -3676,6 +3676,12 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
     case SSL_CTRL_SET_CHAIN_CERT_STORE:
         return ssl_cert_set_cert_store(s->cert, parg, 1, larg);
 
+    case SSL_CTRL_GET_VERIFY_CERT_STORE:
+        return ssl_cert_get_cert_store(s->cert, parg, 0);
+
+    case SSL_CTRL_GET_CHAIN_CERT_STORE:
+        return ssl_cert_get_cert_store(s->cert, parg, 1);
+
     case SSL_CTRL_GET_PEER_SIGNATURE_NID:
         if (s->s3->tmp.peer_sigalg == NULL)
             return 0;
@@ -3948,6 +3954,12 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
 
     case SSL_CTRL_SET_CHAIN_CERT_STORE:
         return ssl_cert_set_cert_store(ctx->cert, parg, 1, larg);
+
+    case SSL_CTRL_GET_VERIFY_CERT_STORE:
+        return ssl_cert_get_cert_store(ctx->cert, parg, 0);
+
+    case SSL_CTRL_GET_CHAIN_CERT_STORE:
+        return ssl_cert_get_cert_store(ctx->cert, parg, 1);
 
         /* A Thawte special :-) */
     case SSL_CTRL_EXTRA_CHAIN_CERT:

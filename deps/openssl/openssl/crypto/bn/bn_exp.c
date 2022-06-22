@@ -900,14 +900,21 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 #if defined(OPENSSL_BN_ASM_MONT5)
     if (window == 5 && top > 1) {
         /*
-         * This optimization uses ideas from http://eprint.iacr.org/2011/239,
-         * specifically optimization of cache-timing attack countermeasures
-         * and pre-computation optimization.
-         */
-
-        /*
-         * Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
-         * 512-bit RSA is hardly relevant, we omit it to spare size...
+         * This optimization uses ideas from https://eprint.iacr.org/2011/239,
+         * specifically optimization of cache-timing attack countermeasures,
+         * pre-computation optimization, and Almost Montgomery Multiplication.
+         *
+         * The paper discusses a 4-bit window to optimize 512-bit modular
+         * exponentiation, used in RSA-1024 with CRT, but RSA-1024 is no longer
+         * important.
+         *
+         * |bn_mul_mont_gather5| and |bn_power5| implement the "almost"
+         * reduction variant, so the values here may not be fully reduced.
+         * They are bounded by R (i.e. they fit in |top| words), not |m|.
+         * Additionally, we pass these "almost" reduced inputs into
+         * |bn_mul_mont|, which implements the normal reduction variant.
+         * Given those inputs, |bn_mul_mont| may not give reduced
+         * output, but it will still produce "almost" reduced output.
          */
         void bn_mul_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
                                  const void *table, const BN_ULONG *np,
@@ -919,9 +926,6 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
                        const void *table, const BN_ULONG *np,
                        const BN_ULONG *n0, int num, int power);
         int bn_get_bits5(const BN_ULONG *ap, int off);
-        int bn_from_montgomery(BN_ULONG *rp, const BN_ULONG *ap,
-                               const BN_ULONG *not_used, const BN_ULONG *np,
-                               const BN_ULONG *n0, int num);
 
         BN_ULONG *n0 = mont->n0, *np;
 
@@ -1010,14 +1014,18 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
             }
         }
 
-        ret = bn_from_montgomery(tmp.d, tmp.d, NULL, np, n0, top);
         tmp.top = top;
-        bn_correct_top(&tmp);
-        if (ret) {
-            if (!BN_copy(rr, &tmp))
-                ret = 0;
-            goto err;           /* non-zero ret means it's not error */
-        }
+        /*
+         * The result is now in |tmp| in Montgomery form, but it may not be
+         * fully reduced. This is within bounds for |BN_from_montgomery|
+         * (tmp < R <= m*R) so it will, when converting from Montgomery form,
+         * produce a fully reduced result.
+         *
+         * This differs from Figure 2 of the paper, which uses AMM(h, 1) to
+         * convert from Montgomery form with unreduced output, followed by an
+         * extra reduction step. In the paper's terminology, we replace
+         * steps 9 and 10 with MM(h, 1).
+         */
     } else
 #endif
     {

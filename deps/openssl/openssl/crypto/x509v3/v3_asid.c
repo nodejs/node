@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -700,15 +700,28 @@ static int asid_contains(ASIdOrRanges *parent, ASIdOrRanges *child)
  */
 int X509v3_asid_subset(ASIdentifiers *a, ASIdentifiers *b)
 {
-    return (a == NULL ||
-            a == b ||
-            (b != NULL &&
-             !X509v3_asid_inherits(a) &&
-             !X509v3_asid_inherits(b) &&
-             asid_contains(b->asnum->u.asIdsOrRanges,
-                           a->asnum->u.asIdsOrRanges) &&
-             asid_contains(b->rdi->u.asIdsOrRanges,
-                           a->rdi->u.asIdsOrRanges)));
+    int subset;
+
+    if (a == NULL || a == b)
+        return 1;
+
+    if (b == NULL)
+        return 0;
+
+    if (X509v3_asid_inherits(a) || X509v3_asid_inherits(b))
+        return 0;
+
+    subset = a->asnum == NULL
+             || (b->asnum != NULL
+                 && asid_contains(b->asnum->u.asIdsOrRanges,
+                                  a->asnum->u.asIdsOrRanges));
+    if (!subset)
+        return 0;
+
+    return a->rdi == NULL
+           || (b->rdi != NULL
+               && asid_contains(b->rdi->u.asIdsOrRanges,
+                                a->rdi->u.asIdsOrRanges));
 }
 
 /*
