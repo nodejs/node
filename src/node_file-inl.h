@@ -159,7 +159,7 @@ FSReqPromise<AliasedBufferT>::~FSReqPromise() {
   // Validate that the promise was explicitly resolved or rejected but only if
   // the Isolate is not terminating because in this case the promise might have
   // not finished.
-  if (!env()->is_stopping()) CHECK(finished_);
+  CHECK_IMPLIES(!finished_, !env()->can_call_into_js());
 }
 
 template <typename AliasedBufferT>
