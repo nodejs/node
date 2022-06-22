@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -207,6 +207,7 @@ static int ssl3_cbc_copy_mac(size_t *reclen,
 #if defined(CBC_MAC_ROTATE_IN_PLACE)
     unsigned char rotated_mac_buf[64 + EVP_MAX_MD_SIZE];
     unsigned char *rotated_mac;
+    char aux1, aux2, aux3, mask;
 #else
     unsigned char rotated_mac[EVP_MAX_MD_SIZE];
 #endif
@@ -288,12 +289,19 @@ static int ssl3_cbc_copy_mac(size_t *reclen,
 #if defined(CBC_MAC_ROTATE_IN_PLACE)
     j = 0;
     for (i = 0; i < mac_size; i++) {
-        /* in case cache-line is 32 bytes, touch second line */
-        ((volatile unsigned char *)rotated_mac)[rotate_offset ^ 32];
+        /*
+         * in case cache-line is 32 bytes,
+         * load from both lines and select appropriately
+         */
+        aux1 = rotated_mac[rotate_offset & ~32];
+        aux2 = rotated_mac[rotate_offset | 32];
+        mask = constant_time_eq_8(rotate_offset & ~32, rotate_offset);
+        aux3 = constant_time_select_8(mask, aux1, aux2);
+        rotate_offset++;
 
         /* If the padding wasn't good we emit a random MAC */
         out[j++] = constant_time_select_8((unsigned char)(good & 0xff),
-                                          rotated_mac[rotate_offset++],
+                                          aux3,
                                           randmac[i]);
         rotate_offset &= constant_time_lt_s(rotate_offset, mac_size);
     }

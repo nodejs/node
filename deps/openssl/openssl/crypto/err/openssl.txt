@@ -181,6 +181,7 @@ BN_R_INVALID_SHIFT:119:invalid shift
 BN_R_NOT_A_SQUARE:111:not a square
 BN_R_NOT_INITIALIZED:107:not initialized
 BN_R_NO_INVERSE:108:no inverse
+BN_R_NO_PRIME_CANDIDATE:121:no prime candidate
 BN_R_NO_SOLUTION:116:no solution
 BN_R_NO_SUITABLE_DIGEST:120:no suitable digest
 BN_R_PRIVATE_KEY_TOO_LARGE:117:private key too large

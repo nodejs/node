@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,6 +93,41 @@ static const OSSL_PARAM *fake_rsa_keymgmt_imptypes(int selection)
     return fake_rsa_import_key_types;
 }
 
+static void *fake_rsa_gen_init(void *provctx, int selection,
+                               const OSSL_PARAM params[])
+{
+    unsigned char *gctx = NULL;
+
+    if (!TEST_ptr(gctx = OPENSSL_malloc(1)))
+        return NULL;
+
+    *gctx = 1;
+
+    return gctx;
+}
+
+static void *fake_rsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
+{
+    unsigned char *gctx = genctx;
+    static const unsigned char inited[] = { 1 };
+    unsigned char *keydata;
+
+    if (!TEST_ptr(gctx)
+        || !TEST_mem_eq(gctx, sizeof(*gctx), inited, sizeof(inited)))
+        return NULL;
+
+    if (!TEST_ptr(keydata = fake_rsa_keymgmt_new(NULL)))
+        return NULL;
+
+    *keydata = 2;
+    return keydata;
+}
+
+static void fake_rsa_gen_cleanup(void *genctx)
+{
+   OPENSSL_free(genctx);
+}
+
 static const OSSL_DISPATCH fake_rsa_keymgmt_funcs[] = {
     { OSSL_FUNC_KEYMGMT_NEW, (void (*)(void))fake_rsa_keymgmt_new },
     { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))fake_rsa_keymgmt_free} ,
@@ -102,6 +137,9 @@ static const OSSL_DISPATCH fake_rsa_keymgmt_funcs[] = {
     { OSSL_FUNC_KEYMGMT_IMPORT, (void (*)(void))fake_rsa_keymgmt_import },
     { OSSL_FUNC_KEYMGMT_IMPORT_TYPES,
         (void (*)(void))fake_rsa_keymgmt_imptypes },
+    { OSSL_FUNC_KEYMGMT_GEN_INIT, (void (*)(void))fake_rsa_gen_init },
+    { OSSL_FUNC_KEYMGMT_GEN, (void (*)(void))fake_rsa_gen },
+    { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))fake_rsa_gen_cleanup },
     { 0, NULL }
 };
 

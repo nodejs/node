@@ -97,7 +97,7 @@ Valid values are "default", "named" and "named-nist".
 The "named" type checks that the domain parameters match the inbuilt curve parameters,
 "named-nist" is similiar but also checks that the named curve is a nist curve.
 The "default" type does domain parameter validation for the OpenSSL default provider,
-but is equivalent to "named-nist" for the OpenSSL fips provider.
+but is equivalent to "named-nist" for the OpenSSL FIPS provider.
 
 =item "include-public" (B<OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC>) <integer>
 
@@ -166,6 +166,26 @@ I<k1>, I<k2> and I<k3> are used to get the middle bits of a pentanomial such
 that m > k3 > k2 > k1 > 0
 
 =back
+
+=head2 EC key validation
+
+For EC keys, L<EVP_PKEY_param_check(3)> behaves in the following way:
+For the OpenSSL default provider it uses either
+L<EC_GROUP_check(3)> or L<EC_GROUP_check_named_curve(3)> depending on the flag
+EC_FLAG_CHECK_NAMED_GROUP.
+The OpenSSL FIPS provider uses L<EC_GROUP_check_named_curve(3)> in order to
+conform to SP800-56Ar3 I<Assurances of Domain-Parameter Validity>.
+
+For EC keys, L<EVP_PKEY_param_check_quick(3)> is equivalent to
+L<EVP_PKEY_param_check(3)>.
+
+For EC keys, L<EVP_PKEY_public_check(3)> and L<EVP_PKEY_public_check_quick(3)>
+conform to SP800-56Ar3 I<ECC Full Public-Key Validation> and
+I<ECC Partial Public-Key Validation> respectively.
+
+For EC Keys, L<EVP_PKEY_private_check(3)> and L<EVP_PKEY_pairwise_check(3)>
+conform to SP800-56Ar3 I<Private key validity> and
+I<Owner Assurance of Pair-wise Consistency> respectively.
 
 =head1 EXAMPLES
 
@@ -240,7 +260,7 @@ L<EVP_KEYEXCH-ECDH(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

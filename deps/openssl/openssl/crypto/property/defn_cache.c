@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -85,6 +85,11 @@ OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop)
     return r != NULL ? r->defn : NULL;
 }
 
+/*
+ * Cache the property list for a given property string. Callers of this function
+ * should call ossl_prop_defn_get first to ensure that there is no existing
+ * cache entry for this property string.
+ */
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
                        OSSL_PROPERTY_LIST *pl)
 {
@@ -116,8 +121,14 @@ int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
         p->defn = pl;
         memcpy(p->body, prop, len + 1);
         old = lh_PROPERTY_DEFN_ELEM_insert(property_defns, p);
-        if (old != NULL) {
-            property_defn_free(old);
+        if (!ossl_assert(old == NULL)) {
+            /*
+             * This should not happen. Any caller of ossl_prop_defn_set should
+             * have called ossl_prop_defn_get first - so we should know that
+             * there is no existing entry. If we get here we have a bug. We
+             * deliberately leak the |old| reference in order to avoid a crash
+             * if there are any existing users of it.
+             */
             goto end;
         }
         if (!lh_PROPERTY_DEFN_ELEM_error(property_defns))

@@ -22,10 +22,17 @@
 #include "testutil.h"
 #include "threadstest.h"
 
+/* Limit the maximum number of threads */
+#define MAXIMUM_THREADS     10
+
+/* Limit the maximum number of providers loaded into a library context */
+#define MAXIMUM_PROVIDERS   4
+
 static int do_fips = 0;
 static char *privkey;
 static char *config_file = NULL;
 static int multidefault_run = 0;
+static const char *default_provider[] = { "default", NULL };
 
 static int test_lock(void)
 {
@@ -209,6 +216,94 @@ static int test_atomic(void)
 
 static OSSL_LIB_CTX *multi_libctx = NULL;
 static int multi_success;
+static OSSL_PROVIDER *multi_provider[MAXIMUM_PROVIDERS + 1];
+static size_t multi_num_threads;
+static thread_t multi_threads[MAXIMUM_THREADS];
+
+static void multi_intialise(void)
+{
+    multi_success = 1;
+    multi_libctx = NULL;
+    multi_num_threads = 0;
+    memset(multi_threads, 0, sizeof(multi_threads));
+    memset(multi_provider, 0, sizeof(multi_provider));
+}
+
+static void thead_teardown_libctx(void)
+{
+    OSSL_PROVIDER **p;
+
+    for (p = multi_provider; *p != NULL; p++)
+        OSSL_PROVIDER_unload(*p);
+    OSSL_LIB_CTX_free(multi_libctx);
+    multi_intialise();
+}
+
+static int thread_setup_libctx(int libctx, const char *providers[])
+{
+    size_t n;
+
+    if (libctx && !TEST_true(test_get_libctx(&multi_libctx, NULL, config_file,
+                                             NULL, NULL)))
+        return 0;
+
+    if (providers != NULL)
+        for (n = 0; providers[n] != NULL; n++)
+            if (!TEST_size_t_lt(n, MAXIMUM_PROVIDERS)
+                || !TEST_ptr(multi_provider[n] = OSSL_PROVIDER_load(multi_libctx,
+                                                                    providers[n]))) {
+                thead_teardown_libctx();
+                return 0;
+            }
+    return 1;
+}
+
+static int teardown_threads(void)
+{
+    size_t i;
+
+    for (i = 0; i < multi_num_threads; i++)
+        if (!TEST_true(wait_for_thread(multi_threads[i])))
+            return 0;
+    return 1;
+}
+
+static int start_threads(size_t n, void (*thread_func)(void))
+{
+    size_t i;
+
+    if (!TEST_size_t_le(multi_num_threads + n, MAXIMUM_THREADS))
+        return 0;
+
+    for (i = 0 ; i < n; i++)
+        if (!TEST_true(run_thread(multi_threads + multi_num_threads++, thread_func)))
+            return 0;
+    return 1;
+}
+
+/* Template multi-threaded test function */
+static int thread_run_test(void (*main_func)(void),
+                           size_t num_threads, void (*thread_func)(void),
+                           int libctx, const char *providers[])
+{
+    int testresult = 0;
+
+    multi_intialise();
+    if (!thread_setup_libctx(libctx, providers)
+            || !start_threads(num_threads, thread_func))
+        goto err;
+
+    if (main_func != NULL)
+        main_func();
+
+    if (!teardown_threads()
+            || !TEST_true(multi_success))
+        goto err;
+    testresult = 1;
+ err:
+    thead_teardown_libctx();
+    return testresult;
+}
 
 static void thread_general_worker(void)
 {
@@ -555,6 +650,19 @@ static int test_multi_load(void)
     return res && multi_success;
 }
 
+static void test_lib_ctx_load_config_worker(void)
+{
+    if (!TEST_int_eq(OSSL_LIB_CTX_load_config(multi_libctx, config_file), 1))
+        multi_success = 0;
+}
+
+static int test_lib_ctx_load_config(void)
+{
+    return thread_run_test(&test_lib_ctx_load_config_worker,
+                           MAXIMUM_THREADS, &test_lib_ctx_load_config_worker,
+                           1, default_provider);
+}
+
 typedef enum OPTION_choice {
     OPT_ERR = -1,
     OPT_EOF = 0,
@@ -610,6 +718,7 @@ int setup_tests(void)
     ADD_TEST(test_atomic);
     ADD_TEST(test_multi_load);
     ADD_ALL_TESTS(test_multi, 6);
+    ADD_TEST(test_lib_ctx_load_config);
     return 1;
 }
 

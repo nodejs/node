@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -172,7 +172,7 @@ int dsaparam_main(int argc, char **argv)
                        "Error, DSA key generation paramgen init failed\n");
             goto end;
         }
-        if (!EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num)) {
+        if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num) <= 0) {
             BIO_printf(bio_err,
                        "Error, DSA key generation setting bit length failed\n");
             goto end;

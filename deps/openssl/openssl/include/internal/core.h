@@ -49,7 +49,7 @@ void *ossl_method_construct(OSSL_LIB_CTX *ctx, int operation_id,
 void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
                            OSSL_PROVIDER *provider,
                            int (*pre)(OSSL_PROVIDER *, int operation_id,
-                                      void *data, int *result),
+                                      int no_store, void *data, int *result),
                            void (*fn)(OSSL_PROVIDER *provider,
                                       const OSSL_ALGORITHM *algo,
                                       int no_store, void *data),
@@ -62,7 +62,4 @@ __owur int ossl_lib_ctx_write_lock(OSSL_LIB_CTX *ctx);
 __owur int ossl_lib_ctx_read_lock(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_unlock(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_is_child(OSSL_LIB_CTX *ctx);
-
-void *ossl_c_locale(void);
-
 #endif
