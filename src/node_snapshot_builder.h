@@ -15,13 +15,14 @@ struct SnapshotData;
 
 class NODE_EXTERN_PRIVATE SnapshotBuilder {
  public:
-  static std::string Generate(const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args);
+  static int Generate(std::ostream& out,
+                      const std::vector<std::string> args,
+                      const std::vector<std::string> exec_args);
 
   // Generate the snapshot into out.
-  static void Generate(SnapshotData* out,
-                       const std::vector<std::string> args,
-                       const std::vector<std::string> exec_args);
+  static int Generate(SnapshotData* out,
+                      const std::vector<std::string> args,
+                      const std::vector<std::string> exec_args);
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.

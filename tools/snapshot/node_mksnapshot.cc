@@ -83,17 +83,18 @@ int BuildSnapshot(int argc, char* argv[]) {
     return 1;
   }
 
+  int exit_code = 0;
   {
-    std::string snapshot =
-        node::SnapshotBuilder::Generate(result.args, result.exec_args);
-    out << snapshot;
-
-    if (!out) {
-      std::cerr << "Failed to write " << out_path << "\n";
-      return 1;
+    exit_code =
+        node::SnapshotBuilder::Generate(out, result.args, result.exec_args);
+    if (exit_code == 0) {
+      if (!out) {
+        std::cerr << "Failed to write " << out_path << "\n";
+        exit_code = 1;
+      }
     }
   }
 
   node::TearDownOncePerProcess();
-  return 0;
+  return exit_code;
 }
