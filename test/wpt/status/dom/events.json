@@ -1,0 +1,52 @@
+{
+  "Event-dispatch-listener-order.window.js": { "fail": "document is not defined" },
+  "AddEventListenerOptions-passive.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_equals: Incorrect defaultPrevented for options: {\"passive\":true} expected false but got true",
+        "assert_equals: Incorrect defaultPrevented for options: undefined expected true but got false"
+      ]
+    }
+  },
+  "AddEventListenerOptions-signal.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_throws_js: function \"() => { et.addEventListener(\"foo\", () => {}, { signal: null }); }\" did not throw",
+        "assert_throws_js: function \"() => { et.addEventListener(\"foo\", null, { signal: null }); }\" did not throw"
+      ]
+    }
+  },
+  "Event-constructors.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_true: expected true got false",
+        "assert_array_equals: lengths differ, expected array [\"bubbles\", \"cancelable\"] length 2, got [\"cancelable\", \"bubbles\", \"sweet\"] length 3",
+        "CustomEvent is not defined"
+      ]
+    }
+  },
+  "EventListener-addEventListener.sub.window.js": {
+    "fail": "document is not defined"
+  },
+  "EventTarget-constructible.any.js": {
+    "fail": "CustomEvent is not defined"
+  },
+  "relatedTarget.window.js": {
+    "fail": "document is not defined"
+  },
+  "event-global.worker.js": {
+    "fail": "importScripts is not defined"
+  },
+  "event-global-extra.window.js": {
+    "fail": "document is not defined"
+  },
+  "legacy-pre-activation-behavior.window.js": {
+    "fail": "document is not defined"
+  },
+  "event-global-set-before-handleEvent-lookup.window.js": {
+    "fail": "window is not defined"
+  },
+  "EventTarget-removeEventListener.any.js": {
+    "fail": "globalThis.removeEventListener is not a function"
+  }
+}
