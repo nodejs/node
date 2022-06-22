@@ -1549,7 +1549,7 @@ success!
 [Conditional exports]: packages.md#conditional-exports
 [Core modules]: modules.md#core-modules
 [Determining module system]: packages.md#determining-module-system
-[Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [HTTPS and HTTP imports]: #https-and-http-imports
 [Import Assertions]: #import-assertions
