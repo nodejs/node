@@ -29,7 +29,6 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -39,8 +38,15 @@ using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
+SnapshotData::~SnapshotData() {
+  if (data_ownership == DataOwnership::kOwned &&
+      v8_snapshot_blob_data.data != nullptr) {
+    delete[] v8_snapshot_blob_data.data;
+  }
+}
+
 template <typename T>
-void WriteVector(std::ostringstream* ss, const T* vec, size_t size) {
+void WriteVector(std::ostream* ss, const T* vec, size_t size) {
   for (size_t i = 0; i < size; i++) {
     *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
   }
@@ -70,15 +76,14 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-static void WriteStaticCodeCacheData(std::ostringstream* ss,
+static void WriteStaticCodeCacheData(std::ostream* ss,
                                      const native_module::CodeCacheInfo& info) {
   *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
   WriteVector(ss, info.data.data(), info.data.size());
   *ss << "};";
 }
 
-static void WriteCodeCacheInitializer(std::ostringstream* ss,
-                                      const std::string& id) {
+static void WriteCodeCacheInitializer(std::ostream* ss, const std::string& id) {
   std::string def_name = GetCodeCacheDefName(id);
   *ss << "    { \"" << id << "\",\n";
   *ss << "      {" << def_name << ",\n";
@@ -87,9 +92,7 @@ static void WriteCodeCacheInitializer(std::ostringstream* ss,
   *ss << "    },\n";
 }
 
-std::string FormatBlob(SnapshotData* data) {
-  std::ostringstream ss;
-
+void FormatBlob(std::ostream& ss, SnapshotData* data) {
   ss << R"(#include <cstddef>
 #include "env.h"
 #include "node_snapshot_builder.h"
@@ -116,6 +119,9 @@ static const int v8_snapshot_blob_size = )"
   }
 
   ss << R"(SnapshotData snapshot_data {
+  // -- data_ownership begins --
+  SnapshotData::DataOwnership::kNotOwned,
+  // -- data_ownership ends --
   // -- v8_snapshot_blob_data begins --
   { v8_snapshot_blob_data, v8_snapshot_blob_size },
   // -- v8_snapshot_blob_data ends --
@@ -148,8 +154,6 @@ const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
 }
 }  // namespace node
 )";
-
-  return ss.str();
 }
 
 Mutex SnapshotBuilder::snapshot_data_mutex_;
@@ -166,175 +170,185 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-void SnapshotBuilder::Generate(SnapshotData* out,
-                               const std::vector<std::string> args,
-                               const std::vector<std::string> exec_args) {
+// TODO(joyeecheung): share these exit code constants across the code base.
+constexpr int UNCAUGHT_EXCEPTION_ERROR = 1;
+constexpr int BOOTSTRAP_ERROR = 10;
+constexpr int SNAPSHOT_ERROR = 14;
+
+int SnapshotBuilder::Generate(SnapshotData* out,
+                              const std::vector<std::string> args,
+                              const std::vector<std::string> exec_args) {
+  const std::vector<intptr_t>& external_references =
+      CollectExternalReferences();
   Isolate* isolate = Isolate::Allocate();
-  isolate->SetCaptureStackTraceForUncaughtExceptions(
-      true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
+  // Must be done before the SnapshotCreator creation so  that the
+  // memory reducer can be initialized.
   per_process::v8_platform.Platform()->RegisterIsolate(isolate,
                                                        uv_default_loop());
-  std::unique_ptr<NodeMainInstance> main_instance;
-  std::string result;
+
+  SnapshotCreator creator(isolate, external_references.data());
+
+  isolate->SetCaptureStackTraceForUncaughtExceptions(
+      true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
+
+  Environment* env = nullptr;
+  std::unique_ptr<NodeMainInstance> main_instance =
+      NodeMainInstance::Create(isolate,
+                               uv_default_loop(),
+                               per_process::v8_platform.Platform(),
+                               args,
+                               exec_args);
+
+  // The cleanups should be done in case of an early exit due to errors.
+  auto cleanup = OnScopeLeave([&]() {
+    // Must be done while the snapshot creator isolate is entered i.e. the
+    // creator is still alive. The snapshot creator destructor will destroy
+    // the isolate.
+    if (env != nullptr) {
+      FreeEnvironment(env);
+    }
+    main_instance->Dispose();
+    per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
+  });
 
   {
-    const std::vector<intptr_t>& external_references =
-        CollectExternalReferences();
-    SnapshotCreator creator(isolate, external_references.data());
-    Environment* env;
+    HandleScope scope(isolate);
+    TryCatch bootstrapCatch(isolate);
+
+    auto print_Exception = OnScopeLeave([&]() {
+      if (bootstrapCatch.HasCaught()) {
+        PrintCaughtException(
+            isolate, isolate->GetCurrentContext(), bootstrapCatch);
+      }
+    });
+
+    out->isolate_data_indices =
+        main_instance->isolate_data()->Serialize(&creator);
+
+    // The default context with only things created by V8.
+    Local<Context> default_context = Context::New(isolate);
+
+    // The Node.js-specific context with primodials, can be used by workers
+    // TODO(joyeecheung): investigate if this can be used by vm contexts
+    // without breaking compatibility.
+    Local<Context> base_context = NewContext(isolate);
+    if (base_context.IsEmpty()) {
+      return BOOTSTRAP_ERROR;
+    }
+
+    Local<Context> main_context = NewContext(isolate);
+    if (main_context.IsEmpty()) {
+      return BOOTSTRAP_ERROR;
+    }
+    // Initialize the main instance context.
     {
-      main_instance =
-          NodeMainInstance::Create(isolate,
-                                   uv_default_loop(),
-                                   per_process::v8_platform.Platform(),
-                                   args,
-                                   exec_args);
-      out->isolate_data_indices =
-          main_instance->isolate_data()->Serialize(&creator);
+      Context::Scope context_scope(main_context);
 
-      HandleScope scope(isolate);
+      // Create the environment.
+      env = new Environment(main_instance->isolate_data(),
+                            main_context,
+                            args,
+                            exec_args,
+                            nullptr,
+                            node::EnvironmentFlags::kDefaultFlags,
+                            {});
 
-      // The default context with only things created by V8.
-      creator.SetDefaultContext(Context::New(isolate));
-
-      auto CreateBaseContext = [&]() {
-        TryCatch bootstrapCatch(isolate);
-        // Run the per-context scripts.
-        Local<Context> base_context = NewContext(isolate);
-        if (bootstrapCatch.HasCaught()) {
-          PrintCaughtException(isolate, base_context, bootstrapCatch);
-          abort();
+      // Run scripts in lib/internal/bootstrap/
+      if (env->RunBootstrapping().IsEmpty()) {
+        return BOOTSTRAP_ERROR;
+      }
+      // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
+      // loaded via LoadEnvironment() to execute process.argv[1] as the entry
+      // point (we currently only support this kind of entry point, but we
+      // could also explore snapshotting other kinds of execution modes
+      // in the future).
+      if (per_process::cli_options->build_snapshot) {
+#if HAVE_INSPECTOR
+        // TODO(joyeecheung): move this before RunBootstrapping().
+        env->InitializeInspector({});
+#endif
+        if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
+          return UNCAUGHT_EXCEPTION_ERROR;
         }
-        return base_context;
-      };
-
-      // The Node.js-specific context with primodials, can be used by workers
-      // TODO(joyeecheung): investigate if this can be used by vm contexts
-      // without breaking compatibility.
-      {
-        size_t index = creator.AddContext(CreateBaseContext());
-        CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
+        // FIXME(joyeecheung): right now running the loop in the snapshot
+        // builder seems to introduces inconsistencies in JS land that need to
+        // be synchronized again after snapshot restoration.
+        int exit_code = SpinEventLoop(env).FromMaybe(UNCAUGHT_EXCEPTION_ERROR);
+        if (exit_code != 0) {
+          return exit_code;
+        }
       }
 
-      // The main instance context.
-      {
-        Local<Context> main_context = CreateBaseContext();
-        Context::Scope context_scope(main_context);
-        TryCatch bootstrapCatch(isolate);
+      if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+        env->PrintAllBaseObjects();
+        printf("Environment = %p\n", env);
+      }
 
-        // Create the environment.
-        env = new Environment(main_instance->isolate_data(),
-                              main_context,
-                              args,
-                              exec_args,
-                              nullptr,
-                              node::EnvironmentFlags::kDefaultFlags,
-                              {});
-
-        // Run scripts in lib/internal/bootstrap/
-        MaybeLocal<Value> result = env->RunBootstrapping();
-        if (bootstrapCatch.HasCaught()) {
-          // TODO(joyeecheung): fail by exiting with a non-zero exit code.
-          PrintCaughtException(isolate, main_context, bootstrapCatch);
-          abort();
-        }
-        result.ToLocalChecked();
-        // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
-        // loaded via LoadEnvironment() to execute process.argv[1] as the entry
-        // point (we currently only support this kind of entry point, but we
-        // could also explore snapshotting other kinds of execution modes
-        // in the future).
-        if (per_process::cli_options->build_snapshot) {
-#if HAVE_INSPECTOR
-          env->InitializeInspector({});
-#endif
-          // TODO(joyeecheung): we could use the result for something special,
-          // like setting up initializers that should be invoked at snapshot
-          // dehydration.
-          MaybeLocal<Value> result =
-              LoadEnvironment(env, StartExecutionCallback{});
-          if (bootstrapCatch.HasCaught()) {
-            // TODO(joyeecheung): fail by exiting with a non-zero exit code.
-            PrintCaughtException(isolate, main_context, bootstrapCatch);
-            abort();
-          }
-          result.ToLocalChecked();
-          // FIXME(joyeecheung): right now running the loop in the snapshot
-          // builder seems to introduces inconsistencies in JS land that need to
-          // be synchronized again after snapshot restoration.
-          int exit_code = SpinEventLoop(env).FromMaybe(1);
-          CHECK_EQ(exit_code, 0);
-          if (bootstrapCatch.HasCaught()) {
-            // TODO(joyeecheung): fail by exiting with a non-zero exit code.
-            PrintCaughtException(isolate, main_context, bootstrapCatch);
-            abort();
-          }
-        }
-
-        if (per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {
-          env->PrintAllBaseObjects();
-          printf("Environment = %p\n", env);
-        }
-
-        // Serialize the native states
-        out->env_info = env->Serialize(&creator);
-        // Serialize the context
-        size_t index = creator.AddContext(
-            main_context, {SerializeNodeContextInternalFields, env});
-        CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
+      // Serialize the native states
+      out->env_info = env->Serialize(&creator);
 
 #ifdef NODE_USE_NODE_CODE_CACHE
-        // Regenerate all the code cache.
-        CHECK(native_module::NativeModuleEnv::CompileAllModules(main_context));
-        native_module::NativeModuleEnv::CopyCodeCache(&(out->code_cache));
-        for (const auto& item : out->code_cache) {
-          std::string size_str = FormatSize(item.data.size());
-          per_process::Debug(DebugCategory::MKSNAPSHOT,
-                             "Generated code cache for %d: %s\n",
-                             item.id.c_str(),
-                             size_str.c_str());
-        }
-#endif
+      // Regenerate all the code cache.
+      if (!native_module::NativeModuleEnv::CompileAllModules(main_context)) {
+        return UNCAUGHT_EXCEPTION_ERROR;
       }
+      native_module::NativeModuleEnv::CopyCodeCache(&(out->code_cache));
+      for (const auto& item : out->code_cache) {
+        std::string size_str = FormatSize(item.data.size());
+        per_process::Debug(DebugCategory::MKSNAPSHOT,
+                           "Generated code cache for %d: %s\n",
+                           item.id.c_str(),
+                           size_str.c_str());
+      }
+#endif
     }
 
-    // Must be out of HandleScope
-    out->v8_snapshot_blob_data =
-        creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kClear);
-
-    // We must be able to rehash the blob when we restore it or otherwise
-    // the hash seed would be fixed by V8, introducing a vulnerability.
-    CHECK(out->v8_snapshot_blob_data.CanBeRehashed());
-
-    // We cannot resurrect the handles from the snapshot, so make sure that
-    // no handles are left open in the environment after the blob is created
-    // (which should trigger a GC and close all handles that can be closed).
-    if (!env->req_wrap_queue()->IsEmpty()
-        || !env->handle_wrap_queue()->IsEmpty()
-        || per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
-      PrintLibuvHandleInformation(env->event_loop(), stderr);
-    }
-    CHECK(env->req_wrap_queue()->IsEmpty());
-    CHECK(env->handle_wrap_queue()->IsEmpty());
-
-    // Must be done while the snapshot creator isolate is entered i.e. the
-    // creator is still alive.
-    FreeEnvironment(env);
-    main_instance->Dispose();
+    // Global handles to the contexts can't be disposed before the
+    // blob is created. So initialize all the contexts before adding them.
+    // TODO(joyeecheung): figure out how to remove this restriction.
+    creator.SetDefaultContext(default_context);
+    size_t index = creator.AddContext(base_context);
+    CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
+    index = creator.AddContext(main_context,
+                               {SerializeNodeContextInternalFields, env});
+    CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
+  // Must be out of HandleScope
+  out->v8_snapshot_blob_data =
+      creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kClear);
+
+  // We must be able to rehash the blob when we restore it or otherwise
+  // the hash seed would be fixed by V8, introducing a vulnerability.
+  if (!out->v8_snapshot_blob_data.CanBeRehashed()) {
+    return SNAPSHOT_ERROR;
+  }
+
+  // We cannot resurrect the handles from the snapshot, so make sure that
+  // no handles are left open in the environment after the blob is created
+  // (which should trigger a GC and close all handles that can be closed).
+  bool queues_are_empty =
+      env->req_wrap_queue()->IsEmpty() && env->handle_wrap_queue()->IsEmpty();
+  if (!queues_are_empty ||
+      per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    PrintLibuvHandleInformation(env->event_loop(), stderr);
+  }
+  if (!queues_are_empty) {
+    return SNAPSHOT_ERROR;
+  }
+  return 0;
 }
 
-std::string SnapshotBuilder::Generate(
-    const std::vector<std::string> args,
-    const std::vector<std::string> exec_args) {
+int SnapshotBuilder::Generate(std::ostream& out,
+                              const std::vector<std::string> args,
+                              const std::vector<std::string> exec_args) {
   SnapshotData data;
-  Generate(&data, args, exec_args);
-  std::string result = FormatBlob(&data);
-  delete[] data.v8_snapshot_blob_data.data;
-  return result;
+  int exit_code = Generate(&data, args, exec_args);
+  if (exit_code != 0) {
+    return exit_code;
+  }
+  FormatBlob(out, &data);
+  return exit_code;
 }
 
 SnapshotableObject::SnapshotableObject(Environment* env,
