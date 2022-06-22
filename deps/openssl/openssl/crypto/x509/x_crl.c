@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -103,13 +103,17 @@ static int crl_set_issuers(X509_CRL *crl)
 
         if (gtmp) {
             gens = gtmp;
-            if (!crl->issuers) {
+            if (crl->issuers == NULL) {
                 crl->issuers = sk_GENERAL_NAMES_new_null();
-                if (!crl->issuers)
+                if (crl->issuers == NULL) {
+                    GENERAL_NAMES_free(gtmp);
                     return 0;
+                }
             }
-            if (!sk_GENERAL_NAMES_push(crl->issuers, gtmp))
+            if (!sk_GENERAL_NAMES_push(crl->issuers, gtmp)) {
+                GENERAL_NAMES_free(gtmp);
                 return 0;
+            }
         }
         rev->issuer = gens;
 
@@ -255,7 +259,7 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         break;
 
     case ASN1_OP_FREE_POST:
-        if (crl->meth->crl_free) {
+        if (crl->meth != NULL && crl->meth->crl_free != NULL) {
             if (!crl->meth->crl_free(crl))
                 return 0;
         }

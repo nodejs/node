@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@ map { s/\^// } @conf_files if $^O eq "VMS";
 
 # We hard-code the number of tests to double-check that the globbing above
 # finds all files as expected.
-plan tests => 29;  # = scalar @conf_srcs
+plan tests => 30;  # = scalar @conf_srcs
 
 # Some test results depend on the configuration of enabled protocols. We only
 # verify generated sources in the default configuration.
@@ -70,6 +70,8 @@ my %conf_dependent_tests = (
   "25-cipher.conf" => disabled("poly1305") || disabled("chacha"),
   "27-ticket-appdata.conf" => !$is_default_tls,
   "28-seclevel.conf" => disabled("tls1_2") || $no_ec,
+  "30-supported-groups.conf" => disabled("tls1_2") || disabled("tls1_3")
+                                || $no_ec || $no_ec2m
 );
 
 # Add your test here if it should be skipped for some compile-time

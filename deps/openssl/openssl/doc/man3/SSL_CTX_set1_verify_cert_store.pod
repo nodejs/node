@@ -5,7 +5,9 @@
 SSL_CTX_set0_verify_cert_store, SSL_CTX_set1_verify_cert_store,
 SSL_CTX_set0_chain_cert_store, SSL_CTX_set1_chain_cert_store,
 SSL_set0_verify_cert_store, SSL_set1_verify_cert_store,
-SSL_set0_chain_cert_store, SSL_set1_chain_cert_store - set certificate
+SSL_set0_chain_cert_store, SSL_set1_chain_cert_store,
+SSL_CTX_get0_verify_cert_store, SSL_CTX_get0_chain_cert_store,
+SSL_get0_verify_cert_store, SSL_get0_chain_cert_store - set certificate
 verification or chain store
 
 =head1 SYNOPSIS
@@ -16,11 +18,15 @@ verification or chain store
  int SSL_CTX_set1_verify_cert_store(SSL_CTX *ctx, X509_STORE *st);
  int SSL_CTX_set0_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
  int SSL_CTX_set1_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
+ int SSL_CTX_get0_verify_cert_store(SSL_CTX *ctx, X509_STORE **st);
+ int SSL_CTX_get0_chain_cert_store(SSL_CTX *ctx, X509_STORE **st);
 
  int SSL_set0_verify_cert_store(SSL *ctx, X509_STORE *st);
  int SSL_set1_verify_cert_store(SSL *ctx, X509_STORE *st);
  int SSL_set0_chain_cert_store(SSL *ctx, X509_STORE *st);
  int SSL_set1_chain_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_get0_verify_cert_store(SSL *ctx, X509_STORE **st);
+ int SSL_get0_chain_cert_store(SSL *ctx, X509_STORE **st);
 
 =head1 DESCRIPTION
 
@@ -33,6 +39,11 @@ set the certificate store used for certificate chain building to B<st>.
 SSL_set0_verify_cert_store(), SSL_set1_verify_cert_store(),
 SSL_set0_chain_cert_store() and SSL_set1_chain_cert_store() are similar
 except they apply to SSL structure B<ssl>.
+
+SSL_CTX_get0_verify_chain_store(), SSL_get0_verify_chain_store(),
+SSL_CTX_get0_chain_cert_store() and SSL_get0_chain_cert_store() retrieve the
+objects previously set via the above calls. A pointer to the object (or NULL if
+no such object has been set) is written to B<*st>.
 
 All these functions are implemented as macros. Those containing a B<1>
 increment the reference count of the supplied store so it must
@@ -90,7 +101,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

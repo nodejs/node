@@ -38,9 +38,8 @@ to flush the final block through the BIO.
 The flag BIO_FLAGS_BASE64_NO_NL can be set with BIO_set_flags().
 For writing, it causes all data to be written on one line without
 newline at the end.
-For reading, it forces the decoder to process the data regardless
-of newlines. All newlines are ignored and the input does not need
-to contain any newline at all.
+For reading, it expects the data to be all on one line (with or
+without a trailing newline).
 
 =head1 NOTES
 
