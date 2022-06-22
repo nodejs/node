@@ -991,12 +991,16 @@ struct EnvSerializeInfo {
 };
 
 struct SnapshotData {
-  // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
-  // building process.
-  v8::StartupData v8_snapshot_blob_data;
+  enum class DataOwnership { kOwned, kNotOwned };
 
   static const size_t kNodeBaseContextIndex = 0;
   static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
+
+  DataOwnership data_ownership;
+
+  // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
+  // building process.
+  v8::StartupData v8_snapshot_blob_data;
 
   std::vector<size_t> isolate_data_indices;
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
@@ -1007,6 +1011,17 @@ struct SnapshotData {
   // read only space. We use native_module::CodeCacheInfo because
   // v8::ScriptCompiler::CachedData is not copyable.
   std::vector<native_module::CodeCacheInfo> code_cache;
+
+  static std::unique_ptr<SnapshotData> New();
+  ~SnapshotData();
+
+  SnapshotData(const SnapshotData&) = delete;
+  SnapshotData& operator=(const SnapshotData&) = delete;
+  SnapshotData(SnapshotData&&) = delete;
+  SnapshotData& operator=(SnapshotData&&) = delete;
+
+  // Only invoked by New().
+  SnapshotData() = default;
 };
 
 class Environment : public MemoryRetainer {
