@@ -1,4 +1,4 @@
-export function resolve(specifier, context, next) {
+export async function resolve(specifier, context, next) {
   return next(specifier, {
     ...context,
     foo: 'bar',

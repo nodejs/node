@@ -6,8 +6,8 @@ export async function load(url, context, next) {
   return next(url, context, next);
 }
 
-export function resolve(specifier, context, next) {
-  const nextResult = next(specifier, context);
+export async function resolve(specifier, context, next) {
+  const nextResult = await next(specifier, context);
   const { format } = nextResult;
 
   if (format === 'module' || specifier.endsWith('.mjs')) {

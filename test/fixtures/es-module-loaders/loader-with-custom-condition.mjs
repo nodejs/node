@@ -1,6 +1,6 @@
 import { ok, deepStrictEqual } from 'assert';
 
-export function resolve(specifier, context, nextResolve) {
+export async function resolve(specifier, context, defaultResolve) {
   ok(Array.isArray(context.conditions), 'loader receives conditions array');
 
   deepStrictEqual([...context.conditions].sort(), [
@@ -9,7 +9,7 @@ export function resolve(specifier, context, nextResolve) {
     'node-addons',
   ]);
 
-  return nextResolve(specifier, {
+  return defaultResolve(specifier, {
     ...context,
     conditions: ['custom-condition', ...context.conditions],
   });
