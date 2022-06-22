@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2101,193 +2101,6 @@ __bn_post4x_internal:
 .size	__bn_post4x_internal,.-__bn_post4x_internal
 ___
 }
-{
-$code.=<<___;
-.globl	bn_from_montgomery
-.type	bn_from_montgomery,\@abi-omnipotent
-.align	32
-bn_from_montgomery:
-.cfi_startproc
-	testl	\$7,`($win64?"48(%rsp)":"%r9d")`
-	jz	bn_from_mont8x
-	xor	%eax,%eax
-	ret
-.cfi_endproc
-.size	bn_from_montgomery,.-bn_from_montgomery
-
-.type	bn_from_mont8x,\@function,6
-.align	32
-bn_from_mont8x:
-.cfi_startproc
-	.byte	0x67
-	mov	%rsp,%rax
-.cfi_def_cfa_register	%rax
-	push	%rbx
-.cfi_push	%rbx
-	push	%rbp
-.cfi_push	%rbp
-	push	%r12
-.cfi_push	%r12
-	push	%r13
-.cfi_push	%r13
-	push	%r14
-.cfi_push	%r14
-	push	%r15
-.cfi_push	%r15
-.Lfrom_prologue:
-
-	shl	\$3,${num}d		# convert $num to bytes
-	lea	($num,$num,2),%r10	# 3*$num in bytes
-	neg	$num
-	mov	($n0),$n0		# *n0
-
-	##############################################################
-	# Ensure that stack frame doesn't alias with $rptr+3*$num
-	# modulo 4096, which covers ret[num], am[num] and n[num]
-	# (see bn_exp.c). The stack is allocated to aligned with
-	# bn_power5's frame, and as bn_from_montgomery happens to be
-	# last operation, we use the opportunity to cleanse it.
-	#
-	lea	-320(%rsp,$num,2),%r11
-	mov	%rsp,%rbp
-	sub	$rptr,%r11
-	and	\$4095,%r11
-	cmp	%r11,%r10
-	jb	.Lfrom_sp_alt
-	sub	%r11,%rbp		# align with $aptr
-	lea	-320(%rbp,$num,2),%rbp	# future alloca(frame+2*$num*8+256)
-	jmp	.Lfrom_sp_done
-
-.align	32
-.Lfrom_sp_alt:
-	lea	4096-320(,$num,2),%r10
-	lea	-320(%rbp,$num,2),%rbp	# future alloca(frame+2*$num*8+256)
-	sub	%r10,%r11
-	mov	\$0,%r10
-	cmovc	%r10,%r11
-	sub	%r11,%rbp
-.Lfrom_sp_done:
-	and	\$-64,%rbp
-	mov	%rsp,%r11
-	sub	%rbp,%r11
-	and	\$-4096,%r11
-	lea	(%rbp,%r11),%rsp
-	mov	(%rsp),%r10
-	cmp	%rbp,%rsp
-	ja	.Lfrom_page_walk
-	jmp	.Lfrom_page_walk_done
-
-.Lfrom_page_walk:
-	lea	-4096(%rsp),%rsp
-	mov	(%rsp),%r10
-	cmp	%rbp,%rsp
-	ja	.Lfrom_page_walk
-.Lfrom_page_walk_done:
-
-	mov	$num,%r10
-	neg	$num
-
-	##############################################################
-	# Stack layout
-	#
-	# +0	saved $num, used in reduction section
-	# +8	&t[2*$num], used in reduction section
-	# +32	saved *n0
-	# +40	saved %rsp
-	# +48	t[2*$num]
-	#
-	mov	$n0,  32(%rsp)
-	mov	%rax, 40(%rsp)		# save original %rsp
-.cfi_cfa_expression	%rsp+40,deref,+8
-.Lfrom_body:
-	mov	$num,%r11
-	lea	48(%rsp),%rax
-	pxor	%xmm0,%xmm0
-	jmp	.Lmul_by_1
-
-.align	32
-.Lmul_by_1:
-	movdqu	($aptr),%xmm1
-	movdqu	16($aptr),%xmm2
-	movdqu	32($aptr),%xmm3
-	movdqa	%xmm0,(%rax,$num)
-	movdqu	48($aptr),%xmm4
-	movdqa	%xmm0,16(%rax,$num)
-	.byte	0x48,0x8d,0xb6,0x40,0x00,0x00,0x00	# lea	64($aptr),$aptr
-	movdqa	%xmm1,(%rax)
-	movdqa	%xmm0,32(%rax,$num)
-	movdqa	%xmm2,16(%rax)
-	movdqa	%xmm0,48(%rax,$num)
-	movdqa	%xmm3,32(%rax)
-	movdqa	%xmm4,48(%rax)
-	lea	64(%rax),%rax
-	sub	\$64,%r11
-	jnz	.Lmul_by_1
-
-	movq	$rptr,%xmm1
-	movq	$nptr,%xmm2
-	.byte	0x67
-	mov	$nptr,%rbp
-	movq	%r10, %xmm3		# -num
-___
-$code.=<<___ if ($addx);
-	mov	OPENSSL_ia32cap_P+8(%rip),%r11d
-	and	\$0x80108,%r11d
-	cmp	\$0x80108,%r11d		# check for AD*X+BMI2+BMI1
-	jne	.Lfrom_mont_nox
-
-	lea	(%rax,$num),$rptr
-	call	__bn_sqrx8x_reduction
-	call	__bn_postx4x_internal
-
-	pxor	%xmm0,%xmm0
-	lea	48(%rsp),%rax
-	jmp	.Lfrom_mont_zero
-
-.align	32
-.Lfrom_mont_nox:
-___
-$code.=<<___;
-	call	__bn_sqr8x_reduction
-	call	__bn_post4x_internal
-
-	pxor	%xmm0,%xmm0
-	lea	48(%rsp),%rax
-	jmp	.Lfrom_mont_zero
-
-.align	32
-.Lfrom_mont_zero:
-	mov	40(%rsp),%rsi		# restore %rsp
-.cfi_def_cfa	%rsi,8
-	movdqa	%xmm0,16*0(%rax)
-	movdqa	%xmm0,16*1(%rax)
-	movdqa	%xmm0,16*2(%rax)
-	movdqa	%xmm0,16*3(%rax)
-	lea	16*4(%rax),%rax
-	sub	\$32,$num
-	jnz	.Lfrom_mont_zero
-
-	mov	\$1,%rax
-	mov	-48(%rsi),%r15
-.cfi_restore	%r15
-	mov	-40(%rsi),%r14
-.cfi_restore	%r14
-	mov	-32(%rsi),%r13
-.cfi_restore	%r13
-	mov	-24(%rsi),%r12
-.cfi_restore	%r12
-	mov	-16(%rsi),%rbp
-.cfi_restore	%rbp
-	mov	-8(%rsi),%rbx
-.cfi_restore	%rbx
-	lea	(%rsi),%rsp
-.cfi_def_cfa_register	%rsp
-.Lfrom_epilogue:
-	ret
-.cfi_endproc
-.size	bn_from_mont8x,.-bn_from_mont8x
-___
-}
 }}}
 
 if ($addx) {{{
@@ -3894,10 +3707,6 @@ mul_handler:
 	.rva	.LSEH_begin_bn_power5
 	.rva	.LSEH_end_bn_power5
 	.rva	.LSEH_info_bn_power5
-
-	.rva	.LSEH_begin_bn_from_mont8x
-	.rva	.LSEH_end_bn_from_mont8x
-	.rva	.LSEH_info_bn_from_mont8x
 ___
 $code.=<<___ if ($addx);
 	.rva	.LSEH_begin_bn_mulx4x_mont_gather5
@@ -3929,11 +3738,6 @@ $code.=<<___;
 	.byte	9,0,0,0
 	.rva	mul_handler
 	.rva	.Lpower5_prologue,.Lpower5_body,.Lpower5_epilogue	# HandlerData[]
-.align	8
-.LSEH_info_bn_from_mont8x:
-	.byte	9,0,0,0
-	.rva	mul_handler
-	.rva	.Lfrom_prologue,.Lfrom_body,.Lfrom_epilogue		# HandlerData[]
 ___
 $code.=<<___ if ($addx);
 .align	8

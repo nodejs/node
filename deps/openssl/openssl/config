@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -709,6 +709,7 @@ case "$GUESSOS" in
   ia64-*-*bsd*)		OUT="BSD-ia64" ;;
   x86_64-*-dragonfly*)  OUT="BSD-x86_64" ;;
   amd64-*-*bsd*)	OUT="BSD-x86_64" ;;
+  arm64-*-*bsd*)	OUT="BSD-aarch64" ;;
   *86*-*-*bsd*)		# mimic ld behaviour when it's looking for libc...
 			if [ -L /usr/lib/libc.so ]; then	# [Free|Net]BSD
 			    libc=/usr/lib/libc.so

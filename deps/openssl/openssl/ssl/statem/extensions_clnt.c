@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -118,6 +118,8 @@ static int use_ecc(SSL *s)
     int i, end, ret = 0;
     unsigned long alg_k, alg_a;
     STACK_OF(SSL_CIPHER) *cipher_stack = NULL;
+    const uint16_t *pgroups = NULL;
+    size_t num_groups, j;
 
     /* See if we support any ECC ciphersuites */
     if (s->version == SSL3_VERSION)
@@ -139,7 +141,19 @@ static int use_ecc(SSL *s)
     }
 
     sk_SSL_CIPHER_free(cipher_stack);
-    return ret;
+    if (!ret)
+        return 0;
+
+    /* Check we have at least one EC supported group */
+    tls1_get_supported_groups(s, &pgroups, &num_groups);
+    for (j = 0; j < num_groups; j++) {
+        uint16_t ctmp = pgroups[j];
+
+        if (tls_curve_allowed(s, ctmp, SSL_SECOP_CURVE_SUPPORTED))
+            return 1;
+    }
+
+    return 0;
 }
 
 EXT_RETURN tls_construct_ctos_ec_pt_formats(SSL *s, WPACKET *pkt,

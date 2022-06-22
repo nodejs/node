@@ -5,6 +5,12 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1o and OpenSSL 1.1.1p [21 Jun 2022]
+
+      o Fixed additional bugs in the c_rehash script which was not properly
+        sanitising shell metacharacters to prevent command injection
+        (CVE-2022-2068)
+
   Major changes between OpenSSL 1.1.1n and OpenSSL 1.1.1o [3 May 2022]
 
       o Fixed a bug in the c_rehash script which was not properly sanitising

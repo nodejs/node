@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -57,12 +57,24 @@ IMPLEMENT_ASN1_FUNCTIONS(SXNET)
 static int sxnet_i2r(X509V3_EXT_METHOD *method, SXNET *sx, BIO *out,
                      int indent)
 {
-    long v;
+    int64_t v;
     char *tmp;
     SXNETID *id;
     int i;
-    v = ASN1_INTEGER_get(sx->version);
-    BIO_printf(out, "%*sVersion: %ld (0x%lX)", indent, "", v + 1, v);
+
+    /*
+     * Since we add 1 to the version number to display it, we don't support
+     * LONG_MAX since that would cause on overflow.
+     */
+    if (!ASN1_INTEGER_get_int64(&v, sx->version)
+            || v >= LONG_MAX
+            || v < LONG_MIN) {
+        BIO_printf(out, "%*sVersion: <unsupported>", indent, "");
+    } else {
+        long vl = (long)v;
+
+        BIO_printf(out, "%*sVersion: %ld (0x%lX)", indent, "", vl + 1, vl);
+    }
     for (i = 0; i < sk_SXNETID_num(sx->ids); i++) {
         id = sk_SXNETID_value(sx->ids, i);
         tmp = i2s_ASN1_INTEGER(NULL, id->zone);
