@@ -98,11 +98,7 @@ exports[`test/lib/load-all-commands.js TAP load each command cache > must match 
 Manipulates packages cache
 
 Usage:
-npm cache add <tarball file>
-npm cache add <folder>
-npm cache add <tarball url>
-npm cache add <git url>
-npm cache add <name>@<version>
+npm cache add <package-spec>
 npm cache clean [<key>]
 npm cache ls [<name>@<version>]
 npm cache verify
@@ -178,7 +174,7 @@ exports[`test/lib/load-all-commands.js TAP load each command deprecate > must ma
 Deprecate a version of a package
 
 Usage:
-npm deprecate <pkg>[@<version>] <message>
+npm deprecate <package-spec> <message>
 
 Options:
 [--registry <registry>] [--otp <otp>]
@@ -193,10 +189,10 @@ Usage:
 npm diff [...<paths>]
 
 Options:
-[--diff <pkg-name|spec|version> [--diff <pkg-name|spec|version> ...]]
-[--diff-name-only] [--diff-unified <number>] [--diff-ignore-all-space]
-[--diff-no-prefix] [--diff-src-prefix <path>] [--diff-dst-prefix <path>]
-[--diff-text] [-g|--global] [--tag <tag>]
+[--diff <package-spec> [--diff <package-spec> ...]] [--diff-name-only]
+[--diff-unified <number>] [--diff-ignore-all-space] [--diff-no-prefix]
+[--diff-src-prefix <path>] [--diff-dst-prefix <path>] [--diff-text] [-g|--global]
+[--tag <tag>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -207,9 +203,9 @@ exports[`test/lib/load-all-commands.js TAP load each command dist-tag > must mat
 Modify package distribution tags
 
 Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
+npm dist-tag add <package-spec (with version)> [<tag>]
+npm dist-tag rm <package-spec> <tag>
+npm dist-tag ls [<package-spec>]
 
 Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -270,8 +266,7 @@ npm exec -c '<cmd> [args...]'
 npm exec --package=foo -c '<cmd> [args...]'
 
 Options:
-[--package <pkg>[@<version>] [--package <pkg>[@<version>] ...]]
-[-c|--call <call>]
+[--package <package-spec> [--package <package-spec> ...]] [-c|--call <call>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -284,7 +279,7 @@ exports[`test/lib/load-all-commands.js TAP load each command explain > must matc
 Explain installed packages
 
 Usage:
-npm explain <folder | specifier>
+npm explain <package-spec>
 
 Options:
 [--json] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -326,7 +321,7 @@ exports[`test/lib/load-all-commands.js TAP load each command fund > must match s
 Retrieve funding information
 
 Usage:
-npm fund [[<@scope>/]<pkg>]
+npm fund [<package-spec>]
 
 Options:
 [--json] [--no-browser|--browser <browser>] [--unicode]
@@ -390,12 +385,11 @@ exports[`test/lib/load-all-commands.js TAP load each command init > must match s
 Create a package.json file
 
 Usage:
-npm init [--force|-f|--yes|-y|--scope]
+npm init <package-spec> (same as \`npx <package-spec>)
 npm init <@scope> (same as \`npx <@scope>/create\`)
-npm init [<@scope>/]<name> (same as \`npx [<@scope>/]create-<name>\`)
 
 Options:
-[-y|--yes] [-f|--force]
+[-y|--yes] [-f|--force] [--scope <@scope>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--no-workspaces-update] [--include-workspace-root]
 
@@ -408,16 +402,7 @@ exports[`test/lib/load-all-commands.js TAP load each command install > must matc
 Install a package
 
 Usage:
-npm install [<@scope>/]<pkg>
-npm install [<@scope>/]<pkg>@<tag>
-npm install [<@scope>/]<pkg>@<version>
-npm install [<@scope>/]<pkg>@<version range>
-npm install <alias>@npm:<name>
-npm install <folder>
-npm install <tarball file>
-npm install <tarball url>
-npm install <git:// url>
-npm install <github username>/<github project>
+npm install [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
@@ -452,16 +437,7 @@ exports[`test/lib/load-all-commands.js TAP load each command install-test > must
 Install package(s) and run tests
 
 Usage:
-npm install-test [<@scope>/]<pkg>
-npm install-test [<@scope>/]<pkg>@<tag>
-npm install-test [<@scope>/]<pkg>@<version>
-npm install-test [<@scope>/]<pkg>@<version range>
-npm install-test <alias>@npm:<name>
-npm install-test <folder>
-npm install-test <tarball file>
-npm install-test <tarball url>
-npm install-test <git:// url>
-npm install-test <github username>/<github project>
+npm install-test [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
@@ -481,8 +457,7 @@ exports[`test/lib/load-all-commands.js TAP load each command link > must match s
 Symlink a package folder
 
 Usage:
-npm link (in package dir)
-npm link [<@scope>/]<pkg>[@<version>]
+npm link [<package-spec>]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
@@ -547,7 +522,7 @@ exports[`test/lib/load-all-commands.js TAP load each command ls > must match sna
 List installed packages
 
 Usage:
-npm ls [[<@scope>/]<pkg> ...]
+npm ls <package-spec>
 
 Options:
 [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global] [--depth <depth>]
@@ -581,7 +556,7 @@ exports[`test/lib/load-all-commands.js TAP load each command outdated > must mat
 Check for outdated packages
 
 Usage:
-npm outdated [[<@scope>/]<pkg> ...]
+npm outdated [<package-spec> ...]
 
 Options:
 [-a|--all] [--json] [-l|--long] [-p|--parseable] [-g|--global]
@@ -594,9 +569,9 @@ exports[`test/lib/load-all-commands.js TAP load each command owner > must match 
 Manage package owners
 
 Usage:
-npm owner add <user> [<@scope>/]<pkg>
-npm owner rm <user> [<@scope>/]<pkg>
-npm owner ls [<@scope>/]<pkg>
+npm owner add <user> <package-spec>
+npm owner rm <user> <package-spec>
+npm owner ls <package-spec>
 
 Options:
 [--registry <registry>] [--otp <otp>]
@@ -612,7 +587,7 @@ exports[`test/lib/load-all-commands.js TAP load each command pack > must match s
 Create a tarball from a package
 
 Usage:
-npm pack [[<@scope>/]<pkg>...]
+npm pack <package-spec>
 
 Options:
 [--dry-run] [--json] [--pack-destination <pack-destination>]
@@ -698,7 +673,7 @@ exports[`test/lib/load-all-commands.js TAP load each command publish > must matc
 Publish a package
 
 Usage:
-npm publish [<folder>]
+npm publish <package-spec>
 
 Options:
 [--tag <tag>] [--access <restricted|public>] [--dry-run] [--otp <otp>]
@@ -712,7 +687,7 @@ exports[`test/lib/load-all-commands.js TAP load each command rebuild > must matc
 Rebuild a package
 
 Usage:
-npm rebuild [[<@scope>/]<name>[@<version>] ...]
+npm rebuild [<package-spec>] ...]
 
 Options:
 [-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
@@ -829,7 +804,7 @@ exports[`test/lib/load-all-commands.js TAP load each command star > must match s
 Mark your favorite packages
 
 Usage:
-npm star [<pkg>...]
+npm star [<package-spec>...]
 
 Options:
 [--registry <registry>] [--unicode] [--otp <otp>]
@@ -938,7 +913,7 @@ exports[`test/lib/load-all-commands.js TAP load each command unpublish > must ma
 Remove a package from the registry
 
 Usage:
-npm unpublish [<@scope>/]<pkg>[@<version>]
+npm unpublish [<package-spec>]
 
 Options:
 [--dry-run] [-f|--force]
@@ -952,7 +927,7 @@ exports[`test/lib/load-all-commands.js TAP load each command unstar > must match
 Remove an item from your favorite packages
 
 Usage:
-npm unstar [<pkg>...]
+npm unstar [<package-spec>...]
 
 Options:
 [--registry <registry>] [--unicode] [--otp <otp>]
@@ -1001,7 +976,7 @@ exports[`test/lib/load-all-commands.js TAP load each command view > must match s
 View registry info
 
 Usage:
-npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
+npm view [<package-spec>] [<field>[.subfield]...]
 
 Options:
 [--json] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]

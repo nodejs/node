@@ -13,7 +13,7 @@ async function read (cache, integrity, opts = {}) {
   const { size } = opts
   const { stat, cpath, sri } = await withContentSri(cache, integrity, async (cpath, sri) => {
     // get size
-    const stat = await fs.lstat(cpath)
+    const stat = await fs.stat(cpath)
     return { stat, cpath, sri }
   })
   if (typeof size === 'number' && stat.size !== size) {
@@ -73,8 +73,8 @@ function readStream (cache, integrity, opts = {}) {
   // Set all this up to run on the stream and then just return the stream
   Promise.resolve().then(async () => {
     const { stat, cpath, sri } = await withContentSri(cache, integrity, async (cpath, sri) => {
-      // just lstat to ensure it exists
-      const stat = await fs.lstat(cpath)
+      // just stat to ensure it exists
+      const stat = await fs.stat(cpath)
       return { stat, cpath, sri }
     })
     if (typeof size === 'number' && size !== stat.size) {
@@ -111,7 +111,7 @@ async function hasContent (cache, integrity) {
 
   try {
     return await withContentSri(cache, integrity, async (cpath, sri) => {
-      const stat = await fs.lstat(cpath)
+      const stat = await fs.stat(cpath)
       return { size: stat.size, sri, stat }
     })
   } catch (err) {
@@ -139,7 +139,7 @@ function hasContentSync (cache, integrity) {
 
   return withContentSriSync(cache, integrity, (cpath, sri) => {
     try {
-      const stat = fs.lstatSync(cpath)
+      const stat = fs.statSync(cpath)
       return { size: stat.size, sri, stat }
     } catch (err) {
       if (err.code === 'ENOENT') {

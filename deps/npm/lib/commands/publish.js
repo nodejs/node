@@ -37,7 +37,7 @@ class Publish extends BaseCommand {
     'include-workspace-root',
   ]
 
-  static usage = ['[<folder>]']
+  static usage = ['<package-spec>']
   static ignoreImplicitWorkspace = false
 
   async exec (args) {

@@ -5,8 +5,7 @@
 .P
 .RS 2
 .nf
-npm link (in package dir)
-npm link [<@scope>/]<pkg>[@<version>]
+npm link [<package\-spec>]
 
 alias: ln
 .fi
@@ -18,11 +17,11 @@ test iteratively without having to continually rebuild\.
 .P
 Package linking is a two\-step process\.
 .P
-First, \fBnpm link\fP in a package folder will create a symlink in the global
-folder \fB{prefix}/lib/node_modules/<package>\fP that links to the package
-where the \fBnpm link\fP command was executed\. It will also link any bins in
-the package to \fB{prefix}/bin/{name}\fP\|\.  Note that \fBnpm link\fP uses the global
-prefix (see \fBnpm prefix \-g\fP for its value)\.
+First, \fBnpm link\fP in a package folder with no arguments will create a
+symlink in the global folder \fB{prefix}/lib/node_modules/<package>\fP that
+links to the package where the \fBnpm link\fP command was executed\. It will
+also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.  Note that
+\fBnpm link\fP uses the global prefix (see \fBnpm prefix \-g\fP for its value)\.
 .P
 Next, in some other location, \fBnpm link package\-name\fP will create a
 symbolic link from globally\-installed \fBpackage\-name\fP to \fBnode_modules/\fP of
@@ -400,6 +399,8 @@ will be packed and installed as regular dependencies instead of creating a
 symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help developers
 .IP \(bu 2

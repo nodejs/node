@@ -27,7 +27,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 class LS extends ArboristWorkspaceCmd {
   static description = 'List installed packages'
   static name = 'ls'
-  static usage = ['[[<@scope>/]<pkg> ...]']
+  static usage = ['<package-spec>']
   static params = [
     'all',
     'json',

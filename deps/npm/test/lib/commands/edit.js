@@ -1,4 +1,5 @@
 const t = require('tap')
+const fs = require('fs')
 const path = require('path')
 const tspawk = require('../../fixtures/tspawk')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
@@ -45,7 +46,14 @@ t.test('npm edit', async t => {
   spawk.spawn('testeditor', [semverPath])
   spawk.spawn(
     scriptShell,
-    args => args.includes('testinstall'),
+    args => {
+      const lastArg = args[args.length - 1]
+      const rightExtension = lastArg.endsWith('.cmd') || lastArg.endsWith('.sh')
+      const rightFilename = path.basename(lastArg).startsWith('install')
+      const rightContents = fs.readFileSync(lastArg, { encoding: 'utf8' })
+        .trim().endsWith('testinstall')
+      return rightExtension && rightFilename && rightContents
+    },
     { cwd: semverPath }
   )
   await npm.exec('edit', ['semver'])
@@ -62,7 +70,14 @@ t.test('rebuild failure', async t => {
   spawk.spawn('testeditor', [semverPath])
   spawk.spawn(
     scriptShell,
-    args => args.includes('testinstall'),
+    args => {
+      const lastArg = args[args.length - 1]
+      const rightExtension = lastArg.endsWith('.cmd') || lastArg.endsWith('.sh')
+      const rightFilename = path.basename(lastArg).startsWith('install')
+      const rightContents = fs.readFileSync(lastArg, { encoding: 'utf8' })
+        .trim().endsWith('testinstall')
+      return rightExtension && rightFilename && rightContents
+    },
     { cwd: semverPath }
   ).exit(1).stdout('test error')
   await t.rejects(
@@ -98,7 +113,14 @@ t.test('npm edit editor has flags', async t => {
   spawk.spawn('testeditor', ['--flag', semverPath])
   spawk.spawn(
     scriptShell,
-    args => args.includes('testinstall'),
+    args => {
+      const lastArg = args[args.length - 1]
+      const rightExtension = lastArg.endsWith('.cmd') || lastArg.endsWith('.sh')
+      const rightFilename = path.basename(lastArg).startsWith('install')
+      const rightContents = fs.readFileSync(lastArg, { encoding: 'utf8' })
+        .trim().endsWith('testinstall')
+      return rightExtension && rightFilename && rightContents
+    },
     { cwd: semverPath }
   )
   await npm.exec('edit', ['semver'])

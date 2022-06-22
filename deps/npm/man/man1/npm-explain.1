@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm explain <folder | specifier>
+npm explain <package\-spec>
 
 alias: why
 .fi
@@ -15,9 +15,10 @@ alias: why
 This command will print the chain of dependencies causing a given package
 to be installed in the current project\.
 .P
-Positional arguments can be either folders within \fBnode_modules\fP, or
-\fBname@version\-range\fP specifiers, which will select the dependency
-relationships to explain\.
+If one or more package specs are provided, then only packages matching
+one of the specifiers will have their relationships explained\.
+.P
+The package spec can also refer to a folder within \fB\|\./node_modules\fP
 .P
 For example, running \fBnpm explain glob\fP within npm's source tree will show:
 .P
@@ -105,6 +106,8 @@ brand new workspace within the project\.
 This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help config
 .IP \(bu 2

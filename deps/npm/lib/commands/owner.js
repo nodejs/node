@@ -27,9 +27,9 @@ class Owner extends BaseCommand {
   ]
 
   static usage = [
-    'add <user> [<@scope>/]<pkg>',
-    'rm <user> [<@scope>/]<pkg>',
-    'ls [<@scope>/]<pkg>',
+    'add <user> <package-spec>',
+    'rm <user> <package-spec>',
+    'ls <package-spec>',
   ]
 
   static ignoreImplicitWorkspace = false
