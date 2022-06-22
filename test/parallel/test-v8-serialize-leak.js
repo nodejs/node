@@ -1,7 +1,12 @@
 'use strict';
 // Flags: --expose-gc
 
-require('../common');
+const common = require('../common');
+
+// On IBMi, the rss memory always returns zero
+if (common.isIBMi)
+  common.skip('On IBMi, the rss memory always returns zero');
+
 const v8 = require('v8');
 const assert = require('assert');
 
