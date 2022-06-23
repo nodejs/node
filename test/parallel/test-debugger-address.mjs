@@ -36,7 +36,7 @@ function launchTarget(...args) {
 }
 
 {
-  const script = path('debugger/alive.js');
+  const script = fixtures.path('debugger/alive.js');
   let cli = null;
   let target = null;
 
