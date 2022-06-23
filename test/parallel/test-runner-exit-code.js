@@ -35,6 +35,6 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   const stdout = child.stdout.toString();
-  assert.match(stdout, /not ok 1 - never ending tes/);
+  assert.match(stdout, /not ok 1 - never ending test/);
   assert.match(stdout, /# cancelled 1/);
 }
