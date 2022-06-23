@@ -11,7 +11,7 @@ description: Explain installed packages
 <!-- see lib/commands/explain.js -->
 
 ```bash
-npm explain <folder | specifier>
+npm explain <package-spec>
 
 alias: why
 ```
@@ -26,9 +26,10 @@ alias: why
 This command will print the chain of dependencies causing a given package
 to be installed in the current project.
 
-Positional arguments can be either folders within `node_modules`, or
-`name@version-range` specifiers, which will select the dependency
-relationships to explain.
+If one or more package specs are provided, then only packages matching
+one of the specifiers will have their relationships explained.
+
+The package spec can also refer to a folder within `./node_modules`
 
 For example, running `npm explain glob` within npm's source tree will show:
 
@@ -110,6 +111,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
 * [npm folders](/configuring-npm/folders)

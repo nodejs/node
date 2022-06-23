@@ -5,9 +5,9 @@
 .P
 .RS 2
 .nf
-npm dist\-tag add <pkg>@<version> [<tag>]
-npm dist\-tag rm <pkg> <tag>
-npm dist\-tag ls [<pkg>]
+npm dist\-tag add <package\-spec (with version)> [<tag>]
+npm dist\-tag rm <package\-spec> <tag>
+npm dist\-tag ls [<package\-spec>]
 
 alias: dist\-tags
 .fi
@@ -17,11 +17,11 @@ alias: dist\-tags
 Add, remove, and enumerate distribution tags on a package:
 .RS 0
 .IP \(bu 2
-add: Tags the specified version of the package with the specified tag, or
-the \fB\-\-tag\fP config if not specified\. If you have two\-factor
-authentication on auth\-and\-writes then you’ll need to include a one\-time
-password on the command line with \fB\-\-otp <one\-time password>\fP, or at the
-OTP prompt\.
+add: Tags the specified version of the package with the specified tag,
+or the \fB\-\-tag\fP config if not specified\. If you have two\-factor
+authentication on auth\-and\-writes then you’ll need to include a
+one\-time password on the command line with
+\fB\-\-otp <one\-time password>\fP, or at the OTP prompt\.
 .IP \(bu 2
 rm: Clear a tag that is no longer in use from the package\. If you have
 two\-factor authentication on auth\-and\-writes then you’ll need to include
@@ -163,6 +163,8 @@ the specified workspaces, and not on the root project\.
 This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help publish
 .IP \(bu 2

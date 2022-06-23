@@ -9,7 +9,7 @@ const BaseCommand = require('../base-command.js')
 class Deprecate extends BaseCommand {
   static description = 'Deprecate a version of a package'
   static name = 'deprecate'
-  static usage = ['<pkg>[@<version>] <message>']
+  static usage = ['<package-spec> <message>']
   static params = [
     'registry',
     'otp',

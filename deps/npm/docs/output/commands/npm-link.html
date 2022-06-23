@@ -149,8 +149,7 @@ npm command-line interface
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm link (in package dir)
-npm link [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]
+<pre lang="bash"><code>npm link [&lt;package-spec&gt;]
 
 alias: ln
 </code></pre>
@@ -161,11 +160,11 @@ alias: ln
 <p>This is handy for installing your own stuff, so that you can work on it and
 test iteratively without having to continually rebuild.</p>
 <p>Package linking is a two-step process.</p>
-<p>First, <code>npm link</code> in a package folder will create a symlink in the global
-folder <code>{prefix}/lib/node_modules/&lt;package&gt;</code> that links to the package
-where the <code>npm link</code> command was executed. It will also link any bins in
-the package to <code>{prefix}/bin/{name}</code>.  Note that <code>npm link</code> uses the global
-prefix (see <code>npm prefix -g</code> for its value).</p>
+<p>First, <code>npm link</code> in a package folder with no arguments will create a
+symlink in the global folder <code>{prefix}/lib/node_modules/&lt;package&gt;</code> that
+links to the package where the <code>npm link</code> command was executed. It will
+also link any bins in the package to <code>{prefix}/bin/{name}</code>.  Note that
+<code>npm link</code> uses the global prefix (see <code>npm prefix -g</code> for its value).</p>
 <p>Next, in some other location, <code>npm link package-name</code> will create a
 symbolic link from globally-installed <code>package-name</code> to <code>node_modules/</code> of
 the current folder.</p>
@@ -452,6 +451,7 @@ symlink. This option has no effect on workspaces.</p>
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../using-npm/developers.html">npm developers</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>

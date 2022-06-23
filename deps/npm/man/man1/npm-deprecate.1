@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm deprecate <pkg>[@<version>] <message>
+npm deprecate <package\-spec> <message>
 .fi
 .RE
 .P
@@ -38,8 +38,8 @@ In this case, a version \fBmy\-thing@1\.0\.0\-beta\.0\fP will also be deprecated
 You must be the package owner to deprecate something\.  See the \fBowner\fP and
 \fBadduser\fP help topics\.
 .P
-To un\-deprecate a package, specify an empty string (\fB""\fP) for the \fBmessage\fP 
-argument\. Note that you must use double quotes with no space between them to 
+To un\-deprecate a package, specify an empty string (\fB""\fP) for the \fBmessage\fP
+argument\. Note that you must use double quotes with no space between them to
 format an empty string\.
 .SS Configuration
 .SS \fBregistry\fP
@@ -68,6 +68,8 @@ If not set, and a registry response fails with a challenge for a one\-time
 password, npm will prompt on the command line for one\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help publish
 .IP \(bu 2
