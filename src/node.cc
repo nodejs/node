@@ -1110,6 +1110,7 @@ InitializationResult InitializeOncePerProcess(
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
     OPENSSL_INIT_free(settings);
 
+#if OPENSSL_VERSION_MAJOR < 3
     if (ERR_peek_error() != 0) {
       int ossl_error_code = ERR_GET_REASON(ERR_peek_error());
       if (ossl_error_code == EVP_R_FIPS_MODE_NOT_SUPPORTED) {
@@ -1122,9 +1123,19 @@ InitializationResult InitializeOncePerProcess(
                                     &result);
       }
     }
+#else
+    if (ERR_peek_error() != 0) {
+      return handle_openssl_error(ERR_GET_REASON(ERR_peek_error()),
+                                  "OpenSSL configuration error:\n",
+                                  &result);
+      }
+#endif
+
+#if OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
       OPENSSL_init();
     }
+#endif
 
     // V8 on Windows doesn't have a good source of entropy. Seed it from
     // OpenSSL's pool.
