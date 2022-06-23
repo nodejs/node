@@ -12,7 +12,6 @@ on:
       - '!.github/workflows/test-asan.yml'
   push:
     branches:
-      - master
       - main
       - canary
       - v[0-9]+.x-staging
