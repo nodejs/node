@@ -5,7 +5,6 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
-      - master
       - main
       - v[0-9]+.x-staging
       - v[0-9]+.x

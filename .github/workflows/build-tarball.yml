@@ -12,7 +12,6 @@ on:
       - '!.github/workflows/build-tarball.yml'
   push:
     branches:
-      - master
       - main
       - v[0-9]+.x-staging
       - v[0-9]+.x

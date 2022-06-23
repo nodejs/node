@@ -12,7 +12,8 @@ on:
       - .github/**
       - '!.github/workflows/coverage-windows.yml'
   push:
-    branches: [master, main]
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - benchmark/**
