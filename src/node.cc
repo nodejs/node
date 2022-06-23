@@ -981,6 +981,7 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   return InitializeOncePerProcess(argc, argv, kDefaultInitialization);
 }
 
+#if HAVE_OPENSSL
 InitializationResult handle_openssl_error(int exit_code,
                                           const char* msg,
                                           InitializationResult* result) {
@@ -990,6 +991,7 @@ InitializationResult handle_openssl_error(int exit_code,
   ERR_print_errors_fp(stderr);
   return *result;
 }
+#endif
 
 InitializationResult InitializeOncePerProcess(
   int argc,
