@@ -1,13 +1,12 @@
-'use strict';
-const common = require('../common');
+import { skipIfInspectorDisabled } from '../common/index.mjs';
 
-common.skipIfInspectorDisabled();
+skipIfInspectorDisabled();
 
-const fixtures = require('../common/fixtures');
-const startCLI = require('../common/debugger');
+import * as fixtures from '../common/fixtures.mjs';
+import startCLI from '../common/debugger.js';
 
-const assert = require('assert');
-const { spawn } = require('child_process');
+import assert from 'assert';
+import { spawn } from 'child_process';
 
 // NOTE(oyyd): We might want to import this regexp from "lib/_inspect.js"?
 const kDebuggerMsgReg = /Debugger listening on ws:\/\/\[?(.+?)\]?:(\d+)\//;
@@ -53,22 +52,20 @@ function launchTarget(...args) {
     assert.ifError(error);
   }
 
-  (async () => {
-    try {
-      const { childProc, host, port } = await launchTarget('--inspect=0', script);
-      target = childProc;
-      cli = startCLI([`${host || '127.0.0.1'}:${port}`]);
-      await cli.waitForPrompt();
-      await cli.command('sb("alive.js", 3)');
-      await cli.waitFor(/break/);
-      await cli.waitForPrompt();
-      assert.match(
-        cli.output,
-        /> 3 {3}\+\+x;/,
-        'marks the 3rd line'
-      );
-    } finally {
-      cleanup();
-    }
-  })().then(common.mustCall());
+  try {
+    const { childProc, host, port } = await launchTarget('--inspect=0', script);
+    target = childProc;
+    cli = startCLI([`${host || '127.0.0.1'}:${port}`]);
+    await cli.waitForPrompt();
+    await cli.command('sb("alive.js", 3)');
+    await cli.waitFor(/break/);
+    await cli.waitForPrompt();
+    assert.match(
+      cli.output,
+      /> 3 {3}\+\+x;/,
+      'marks the 3rd line'
+    );
+  } finally {
+    cleanup();
+  }
 }
