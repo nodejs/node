@@ -2,7 +2,7 @@ import { skipIfInspectorDisabled } from '../common/index.mjs';
 
 skipIfInspectorDisabled();
 
-import { path } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
