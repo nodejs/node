@@ -340,12 +340,12 @@ test('timed out callback test', { timeout: 5 }, (t, done) => {
 });
 
 
-test('large timeout async test is ok', { timeout: Number.MAX_VALUE }, async (t) => {
+test('large timeout async test is ok', { timeout: 30_000_000 }, async (t) => {
   return new Promise((resolve) => {
     setTimeout(resolve, 10);
   });
 });
 
-test('large timeout callback test is ok', { timeout: Number.MAX_VALUE }, (t, done) => {
+test('large timeout callback test is ok', { timeout: 30_000_000 }, (t, done) => {
   setTimeout(done, 10);
 });
