@@ -1,7 +1,6 @@
 on:
   push:
     branches:
-      - master
       - main
 
 name: Notify on Force Push
