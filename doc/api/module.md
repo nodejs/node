@@ -62,7 +62,7 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
-### `module.isBuiltIn(moduleName)`
+### `module.isBuiltin(moduleName)`
 
 <!-- YAML
 added: REPLACEME
