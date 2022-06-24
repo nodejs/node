@@ -120,6 +120,7 @@ ok 11 - only = true, with subtests
 # tests 11
 # pass 1
 # fail 0
+# cancelled 0
 # skipped 10
 # todo 0
 # duration_ms *
