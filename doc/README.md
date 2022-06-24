@@ -12,12 +12,14 @@ this guide.
 
 ### Headings
 
-* Each page must have a single `#`-level title at the top.
-* Chapters in the same page must have `##`-level headings.
-* Sub-chapters need to increase the number of `#` in the heading according to
-  their nesting depth.
-* The page's title must follow [APA title case][title-case].
-* All chapters must follow [sentence case][sentence-style].
+* There must be exactly one `#` element at the start of each page containing
+  the title.
+* All headings that are not the title must be a level 2 heading (`##`) or below.
+* Nest headings semantically. For example, do not skip from level 2 (`##`) to
+  level 4 (`####`).
+* Follow Microsoft's conventions for [formatting titles][] and
+  [formatting headers][]. This usually means using sentence-style
+  capitalization.
 
 ### Markdown rules
 
@@ -319,8 +321,8 @@ belongs to a module or a class.
 [Use serial commas]: https://docs.microsoft.com/en-us/style-guide/punctuation/commas
 [`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
 [doctools README]: ../tools/doc/README.md
+[formatting headers]: https://docs.microsoft.com/en-us/style-guide/scannable-content/headings#formatting-headings
+[formatting titles]: https://docs.microsoft.com/en-us/style-guide/text-formatting/formatting-titles
 [info string]: https://github.github.com/gfm/#info-string
 [language]: https://github.com/highlightjs/highlight.js/blob/HEAD/SUPPORTED_LANGUAGES.md
 [plugin]: https://editorconfig.org/#download
-[sentence-style]: https://docs.microsoft.com/en-us/style-guide/scannable-content/headings#formatting-headings
-[title-case]: https://apastyle.apa.org/style-grammar-guidelines/capitalization/title-case
