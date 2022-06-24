@@ -332,7 +332,7 @@ const commonArgs = [
   assert.match(stderr, /loader-resolve-null-return\.mjs/);
   assert.match(stderr, /'resolve' hook's nextResolve\(\)/);
   assert.match(stderr, /an object/);
-  assert.match(stderr, /instance of null/);
+  assert.match(stderr, /got null/);
 }
 
 { // Verify error thrown when invalid `context` argument passed to `nextResolve`
@@ -372,7 +372,7 @@ const commonArgs = [
   assert.match(stderr, /loader-load-null-return\.mjs/);
   assert.match(stderr, /'load' hook's nextLoad\(\)/);
   assert.match(stderr, /an object/);
-  assert.match(stderr, /instance of null/);
+  assert.match(stderr, /got null/);
 }
 
 { // Verify error thrown when invalid `url` argument passed to `nextLoad`
