@@ -8,7 +8,7 @@ formatting. You do not need to learn the entire style guide before contributing
 to documentation. Someone can always edit your material later to conform with
 this guide.
 
-## Formatting and Structure
+## Formatting and structure
 
 ### Headings
 
@@ -19,7 +19,7 @@ this guide.
 * The page's title must follow [APA title case][title-case].
 * All chapters must follow [sentence case][sentence-style].
 
-### Markdown Rules
+### Markdown rules
 
 * Prefer affixing links (`[a link][]`) to inlining links
   (`[a link](http://example.com)`).
@@ -55,7 +55,7 @@ this guide.
   * No nesting lists more than 2 levels (due to the markdown renderer).
   * For unordered lists, use asterisks instead of dashes.
 
-### Document Rules
+### Document rules
 
 * Documentation is in markdown files with names formatted as
   `lowercase-with-dashes.md`.
@@ -66,7 +66,7 @@ this guide.
 
 ## Language
 
-### Spelling, Punctuation, Naming, and Referencing Rules
+### Spelling, punctuation, naming, and referencing rules
 
 * [Be direct][].
 * [Use US spelling][].
@@ -87,7 +87,7 @@ this guide.
   <!-- lint enable prohibited-strings remark-lint-->
   * When referring to the executable, _`node`_ is acceptable.
 
-## Additional Context and Rules
+## Additional context and rules
 
 * `.editorconfig` describes the preferred formatting.
   * A [plugin][] is available for some editors to apply these rules.
@@ -103,7 +103,7 @@ this guide.
 * When documenting APIs, every function should have a usage example or
   link to an example that uses the function.
 
-## API References
+## API references
 
 The following rules only apply to the documentation of APIs.
 
@@ -204,13 +204,13 @@ Using the `v8` classes as an example of some of the outlined structure:
 
 ## Class: Serializer
 
-### Instance Methods
+### Instance methods
 
 #### `serializer.writeHeader()`
 
 ## Class: Deserializer
 
-### Instance Methods
+### Instance methods
 
 #### `deserializer.readHeader()`
 
@@ -309,7 +309,7 @@ The properties chapter must be in following form:
 The heading can be `###` or `####`-levels depending on whether the property
 belongs to a module or a class.
 
-## See Also
+## See also
 
 * API documentation structure overview in [doctools README][].
 * [Microsoft Writing Style Guide][].
