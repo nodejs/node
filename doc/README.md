@@ -52,7 +52,6 @@ this guide.
     it.
   * When using underscores, asterisks, and backticks, please use
     backslash-escaping: `\_`, `\*`, and ``\` ``.
-  * No nesting lists more than 2 levels (due to the markdown renderer).
   * For unordered lists, use asterisks instead of dashes.
 
 ### Document rules
