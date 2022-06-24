@@ -127,7 +127,7 @@ Using the `querystring` module as an example:
 ### Module methods and events
 
 For modules that are not classes, their methods and events must be listed under
-the `## Methods` and `## Events` chapters.
+the `## Methods` and `## Events` headings.
 
 Using `fs` as an example:
 
