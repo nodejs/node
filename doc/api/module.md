@@ -72,10 +72,10 @@ added: REPLACEME
 * Returns: {boolean} returns true if the module is builtin else returns false
 
 ```mjs
-import { isBuiltIn } from 'node:module';
-isBuiltIn('node:fs'); // true
-isBuiltIn('fs'); // true
-isBuiltIn('wss'); // false
+import { isBuiltin } from 'node:module';
+isBuiltin('node:fs'); // true
+isBuiltin('fs'); // true
+isBuiltin('wss'); // false
 ```
 
 ### `module.syncBuiltinESMExports()`
