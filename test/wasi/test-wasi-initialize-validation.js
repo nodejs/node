@@ -47,7 +47,10 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
     Object.defineProperty(instance, 'exports', {
       get() {
-        return { _initialize: 5, memory: new Uint8Array() };
+        return {
+          _initialize: 5,
+          memory: new WebAssembly.Memory({ initial: 1 }),
+        };
       },
     });
     assert.throws(
@@ -70,7 +73,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
         return {
           _start() {},
           _initialize() {},
-          memory: new Uint8Array(),
+          memory: new WebAssembly.Memory({ initial: 1 }),
         };
       }
     });
@@ -97,53 +100,9 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.initialize(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\.memory" property must be of type object/
+        message: /"instance\.exports\.memory" property must be a WebAssembly\.Memory object/
       }
     );
-  }
-
-  {
-    // Verify that a non-ArrayBuffer memory.buffer is rejected.
-    const wasi = new WASI({});
-    const wasm = await WebAssembly.compile(bufferSource);
-    const instance = await WebAssembly.instantiate(wasm);
-
-    Object.defineProperty(instance, 'exports', {
-      get() {
-        return {
-          _initialize() {},
-          memory: {},
-        };
-      }
-    });
-    // The error message is a little white lie because any object
-    // with a .buffer property of type ArrayBuffer is accepted,
-    // but 99% of the time a WebAssembly.Memory object is used.
-    assert.throws(
-      () => { wasi.initialize(instance); },
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\.memory\.buffer" property must be an WebAssembly\.Memory/
-      }
-    );
-  }
-
-  {
-    // Verify that an argument that duck-types as a WebAssembly.Instance
-    // is accepted.
-    const wasi = new WASI({});
-    const wasm = await WebAssembly.compile(bufferSource);
-    const instance = await WebAssembly.instantiate(wasm);
-
-    Object.defineProperty(instance, 'exports', {
-      get() {
-        return {
-          _initialize() {},
-          memory: { buffer: new ArrayBuffer(0) },
-        };
-      }
-    });
-    wasi.initialize(instance);
   }
 
   {

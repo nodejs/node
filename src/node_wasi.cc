@@ -72,9 +72,7 @@ inline void Debug(WASI* wasi, Args&&... args) {
     }                                                                         \
   } while (0)
 
-
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
@@ -89,7 +87,7 @@ using v8::Object;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
-
+using v8::WasmMemoryObject;
 
 static MaybeLocal<Value> WASIException(Local<Context> context,
                                        int errorno,
@@ -1642,26 +1640,22 @@ void WASI::SockShutdown(const FunctionCallbackInfo<Value>& args) {
 
 void WASI::_SetMemory(const FunctionCallbackInfo<Value>& args) {
   WASI* wasi;
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
-  wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<Object>());
+  CHECK_EQ(args.Length(), 1);
+  if (!args[0]->IsWasmMemoryObject()) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        wasi->env(),
+        "\"instance.exports.memory\" property must be a WebAssembly.Memory "
+        "object");
+  }
+  wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<WasmMemoryObject>());
 }
 
 
 uvwasi_errno_t WASI::backingStore(char** store, size_t* byte_length) {
-  Environment* env = this->env();
-  Local<Object> memory = PersistentToLocal::Strong(this->memory_);
-  Local<Value> prop;
-
-  if (!memory->Get(env->context(), env->buffer_string()).ToLocal(&prop))
-    return UVWASI_EINVAL;
-
-  if (!prop->IsArrayBuffer())
-    return UVWASI_EINVAL;
-
-  Local<ArrayBuffer> ab = prop.As<ArrayBuffer>();
-  std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
+  Local<WasmMemoryObject> memory = PersistentToLocal::Strong(this->memory_);
+  std::shared_ptr<BackingStore> backing_store =
+      memory->Buffer()->GetBackingStore();
   *byte_length = backing_store->ByteLength();
   *store = static_cast<char*>(backing_store->Data());
   CHECK_NOT_NULL(*store);
