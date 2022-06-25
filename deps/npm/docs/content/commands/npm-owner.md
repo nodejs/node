@@ -11,9 +11,9 @@ description: Manage package owners
 <!-- see lib/commands/owner.js -->
 
 ```bash
-npm owner add <user> [<@scope>/]<pkg>
-npm owner rm <user> [<@scope>/]<pkg>
-npm owner ls [<@scope>/]<pkg>
+npm owner add <user> <package-spec>
+npm owner rm <user> <package-spec>
+npm owner ls <package-spec>
 
 alias: author
 ```
@@ -123,6 +123,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm profile](/commands/npm-profile)
 * [npm publish](/commands/npm-publish)
 * [npm registry](/using-npm/registry)

@@ -11,7 +11,7 @@ description: Remove a package from the registry
 <!-- see lib/commands/unpublish.js -->
 
 ```bash
-npm unpublish [<@scope>/]<pkg>[@<version>]
+npm unpublish [<package-spec>]
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -146,6 +146,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm deprecate](/commands/npm-deprecate)
 * [npm publish](/commands/npm-publish)
 * [npm registry](/using-npm/registry)

@@ -5,9 +5,8 @@
 .P
 .RS 2
 .nf
-npm init [\-\-force|\-f|\-\-yes|\-y|\-\-scope]
+npm init <package\-spec> (same as `npx <package\-spec>)
 npm init <@scope> (same as `npx <@scope>/create`)
-npm init [<@scope>/]<name> (same as `npx [<@scope>/]create\-<name>`)
 
 aliases: create, innit
 .fi
@@ -232,6 +231,42 @@ Allow unpublishing of entire packages (not just a single version)\.
 .P
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
+.SS \fBscope\fP
+.RS 0
+.IP \(bu 2
+Default: the scope of the current project, if any, or ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Associate an operation with a scope for a scoped registry\.
+.P
+Useful when logging in to or out of a private registry:
+.P
+.RS 2
+.nf
+# log in, linking the scope to the custom registry
+npm login \-\-scope=@mycorp \-\-registry=https://registry\.mycorp\.com
+
+# log out, removing the link and the auth token
+npm logout \-\-scope=@mycorp
+.fi
+.RE
+.P
+This will cause \fB@mycorp\fP to be mapped to the registry for future
+installation of packages specified according to the pattern
+\fB@mycorp/package\fP\|\.
+.P
+This will also cause \fBnpm init\fP to create a scoped package\.
+.P
+.RS 2
+.nf
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init \-\-scope=@foo \-\-yes
+.fi
+.RE
 .SS \fBworkspace\fP
 .RS 0
 .IP \(bu 2
@@ -315,6 +350,8 @@ the specified workspaces, and not on the root project\.
 This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 init\-package\-json module \fIhttp://npm\.im/init\-package\-json\fR
 .IP \(bu 2

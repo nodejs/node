@@ -7,7 +7,7 @@ const BaseCommand = require('../base-command.js')
 class Star extends BaseCommand {
   static description = 'Mark your favorite packages'
   static name = 'star'
-  static usage = ['[<pkg>...]']
+  static usage = ['[<package-spec>...]']
   static params = [
     'registry',
     'unicode',

@@ -11,9 +11,8 @@ description: Create a package.json file
 <!-- see lib/commands/init.js -->
 
 ```bash
-npm init [--force|-f|--yes|-y|--scope]
+npm init <package-spec> (same as `npx <package-spec>)
 npm init <@scope> (same as `npx <@scope>/create`)
-npm init [<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)
 
 aliases: create, innit
 ```
@@ -207,6 +206,39 @@ recommended that you do not use this option!
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### `scope`
+
+* Default: the scope of the current project, if any, or ""
+* Type: String
+
+Associate an operation with a scope for a scoped registry.
+
+Useful when logging in to or out of a private registry:
+
+```
+# log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
+```
+
+This will cause `@mycorp` to be mapped to the registry for future
+installation of packages specified according to the pattern
+`@mycorp/package`.
+
+This will also cause `npm init` to create a scoped package.
+
+```
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+```
+
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### `workspace`
 
 * Default:
@@ -284,6 +316,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [init-package-json module](http://npm.im/init-package-json)
 * [package.json](/configuring-npm/package-json)
 * [npm version](/commands/npm-version)

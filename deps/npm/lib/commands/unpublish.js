@@ -20,7 +20,7 @@ class Unpublish extends BaseCommand {
   static description = 'Remove a package from the registry'
   static name = 'unpublish'
   static params = ['dry-run', 'force', 'workspace', 'workspaces']
-  static usage = ['[<@scope>/]<pkg>[@<version>]']
+  static usage = ['[<package-spec>]']
   static ignoreImplicitWorkspace = false
 
   async getKeysOfVersions (name, opts) {
