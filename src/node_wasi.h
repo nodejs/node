@@ -94,7 +94,7 @@ class WASI : public BaseObject,
   inline void writeUInt64(char* memory, uint64_t value, uint32_t offset);
   uvwasi_errno_t backingStore(char** store, size_t* byte_length);
   uvwasi_t uvw_;
-  v8::Global<v8::Object> memory_;
+  v8::Global<v8::WasmMemoryObject> memory_;
   uvwasi_mem_t alloc_info_;
   size_t current_uvwasi_memory_ = 0;
 };
