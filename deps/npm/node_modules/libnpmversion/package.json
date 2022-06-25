@@ -1,6 +1,6 @@
 {
   "name": "libnpmversion",
-  "version": "3.0.4",
+  "version": "3.0.6",
   "main": "lib/index.js",
   "files": [
     "bin/",
@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@npmcli/git": "^3.0.0",
-    "@npmcli/run-script": "^3.0.0",
+    "@npmcli/run-script": "^4.1.3",
     "json-parse-even-better-errors": "^2.3.1",
     "proc-log": "^2.0.0",
     "semver": "^7.3.7"

@@ -33,6 +33,7 @@ const packument = (nv, opts) => {
       },
     },
     blue: {
+      _id: 'blue',
       name: 'blue',
       'dist-tags': {
         latest: '1.0.0',
@@ -461,6 +462,14 @@ t.test('throws when unpublished', async t => {
   await t.rejects(
     npm.exec('view', ['red']),
     { code: 'E404', pkgid: 'red@1.0.1', message: 'Unpublished on 2012-12-20T00:00:00.000Z' }
+  )
+})
+
+t.test('throws when version not matched', async t => {
+  const { npm } = await loadMockNpm(t)
+  await t.rejects(
+    npm.exec('view', ['blue@2.0.0']),
+    { code: 'E404', pkgid: 'blue@2.0.0', message: 'No match found for version 2.0.0' }
   )
 })
 
