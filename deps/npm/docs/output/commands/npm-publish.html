@@ -149,58 +149,31 @@ npm command-line interface
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm publish [&lt;folder&gt;]
+<pre lang="bash"><code>npm publish &lt;package-spec&gt;
 </code></pre>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>Publishes a package to the registry so that it can be installed by name.</p>
-<p>By default npm will publish to the public registry. This can be overridden
-by specifying a different default registry or using a
-<a href="../using-npm/scope.html"><code>scope</code></a> in the name (see
+<p>By default npm will publish to the public registry. This can be
+overridden by specifying a different default registry or using a
+<a href="../using-npm/scope.html"><code>scope</code></a> in the name, combined with a
+scope-configured registry (see
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a>).</p>
+<p>A <code>package</code> is interpreted the same way as other commands (like
+<code>npm install</code> and can be:</p>
 <ul>
-<li>
-<p><code>&lt;folder&gt;</code>: A folder containing a package.json file</p>
-</li>
-<li>
-<p><code>&lt;tarball&gt;</code>: A url or file path to a gzipped tar archive containing a
-single folder with a package.json file inside.</p>
-</li>
-<li>
-<p><code>[--tag &lt;tag&gt;]</code>: Registers the published package with the given tag, such
-that <code>npm install &lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default,
-<code>npm publish</code> updates and <code>npm install</code> installs the <code>latest</code> tag. See
-<a href="npm-dist-tag"><code>npm-dist-tag</code></a> for details about tags.</p>
-</li>
-<li>
-<p><code>[--access &lt;public|restricted&gt;]</code>: Tells the registry whether this package
-should be published as public or restricted. Only applies to scoped
-packages, which default to <code>restricted</code>.  If you don't have a paid
-account, you must publish with <code>--access public</code> to publish scoped
-packages.</p>
-</li>
-<li>
-<p><code>[--otp &lt;otpcode&gt;]</code>: If you have two-factor authentication enabled in
-<code>auth-and-writes</code> mode then you can provide a code from your
-authenticator with this. If you don't include this and you're running
-from a TTY then you'll be prompted.</p>
-</li>
-<li>
-<p><code>[--dry-run]</code>: As of <code>npm@6</code>, does everything publish would do except
-actually publishing to the registry. Reports the details of what would
-have been published.</p>
-</li>
-<li>
-<p><code>[--workspaces]</code>: Enables workspace context while publishing. All
-workspace packages will be published.</p>
-</li>
-<li>
-<p><code>[--workspace]</code>: Enables workspaces context and limits results to only
-those specified by this config item.  Only the packages in the
-workspaces given will be published.</p>
-</li>
+<li>a) a folder containing a program described by a
+<a href="../configuring-npm/package-json.html"><code>package.json</code></a> file</li>
+<li>b) a gzipped tarball containing (a)</li>
+<li>c) a url that resolves to (b)</li>
+<li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see
+<a href="../using-npm/registry.html"><code>registry</code></a>) with (c)</li>
+<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <a href="../commands/npm-dist-tag.html"><code>npm dist-tag</code></a>) that
+points to (d)</li>
+<li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
+<li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
 </ul>
 <p>The publish will fail if the package name and version combination already
 exists in the specified registry.</p>
@@ -361,6 +334,7 @@ the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="http://npm.im/npm-packlist">npm-packlist package</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../using-npm/scope.html">npm scope</a></li>

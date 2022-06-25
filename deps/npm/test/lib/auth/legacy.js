@@ -12,7 +12,7 @@ const legacy = t.mock('../../../lib/auth/legacy.js', {
     },
   },
   'npm-profile': profile,
-  '../../../lib/utils/open-url.js': (npm, url, msg) => {
+  '../../../lib/utils/open-url-prompt.js': (_npm, url) => {
     if (!url) {
       throw Object.assign(new Error('failed open url'), { code: 'ERROR' })
     }

@@ -11,7 +11,7 @@ description: List installed packages
 <!-- see lib/commands/ls.js -->
 
 ```bash
-npm ls [[<@scope>/]<pkg> ...]
+npm ls <package-spec>
 
 alias: list
 ```
@@ -301,6 +301,7 @@ symlink. This option has no effect on workspaces.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm explain](/commands/npm-explain)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

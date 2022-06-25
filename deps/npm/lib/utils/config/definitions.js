@@ -535,7 +535,7 @@ define('dev', {
 
 define('diff', {
   default: [],
-  hint: '<pkg-name|spec|version>',
+  hint: '<package-spec>',
   type: [String, Array],
   description: `
     Define arguments to compare in \`npm diff\`.
@@ -1458,7 +1458,7 @@ define('otp', {
 
 define('package', {
   default: [],
-  hint: '<pkg>[@<version>]',
+  hint: '<package-spec>',
   type: [String, Array],
   description: `
     The package to install for [\`npm exec\`](/commands/npm-exec)
@@ -1867,7 +1867,7 @@ define('script-shell', {
   type: [null, String],
   description: `
     The shell to use for scripts run with the \`npm exec\`,
-    \`npm run\` and \`npm init <pkg>\` commands.
+    \`npm run\` and \`npm init <package-spec>\` commands.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.scriptShell = obj[key] || undefined

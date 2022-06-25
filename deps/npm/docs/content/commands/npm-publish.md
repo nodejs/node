@@ -11,7 +11,7 @@ description: Publish a package
 <!-- see lib/commands/publish.js -->
 
 ```bash
-npm publish [<folder>]
+npm publish <package-spec>
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -23,42 +23,26 @@ npm publish [<folder>]
 
 Publishes a package to the registry so that it can be installed by name.
 
-By default npm will publish to the public registry. This can be overridden
-by specifying a different default registry or using a
-[`scope`](/using-npm/scope) in the name (see
+By default npm will publish to the public registry. This can be
+overridden by specifying a different default registry or using a
+[`scope`](/using-npm/scope) in the name, combined with a
+scope-configured registry (see
 [`package.json`](/configuring-npm/package-json)).
 
-* `<folder>`: A folder containing a package.json file
 
-* `<tarball>`: A url or file path to a gzipped tar archive containing a
-  single folder with a package.json file inside.
+A `package` is interpreted the same way as other commands (like
+`npm install` and can be:
 
-* `[--tag <tag>]`: Registers the published package with the given tag, such
-  that `npm install <name>@<tag>` will install this version.  By default,
-  `npm publish` updates and `npm install` installs the `latest` tag. See
-  [`npm-dist-tag`](npm-dist-tag) for details about tags.
-
-* `[--access <public|restricted>]`: Tells the registry whether this package
-  should be published as public or restricted. Only applies to scoped
-  packages, which default to `restricted`.  If you don't have a paid
-  account, you must publish with `--access public` to publish scoped
-  packages.
-
-* `[--otp <otpcode>]`: If you have two-factor authentication enabled in
-  `auth-and-writes` mode then you can provide a code from your
-  authenticator with this. If you don't include this and you're running
-  from a TTY then you'll be prompted.
-
-* `[--dry-run]`: As of `npm@6`, does everything publish would do except
-  actually publishing to the registry. Reports the details of what would
-  have been published.
-
-* `[--workspaces]`: Enables workspace context while publishing. All
-  workspace packages will be published.
-
-* `[--workspace]`: Enables workspaces context and limits results to only
-  those specified by this config item.  Only the packages in the
-  workspaces given will be published.
+* a) a folder containing a program described by a
+  [`package.json`](/configuring-npm/package-json) file
+* b) a gzipped tarball containing (a)
+* c) a url that resolves to (b)
+* d) a `<name>@<version>` that is published on the registry (see
+  [`registry`](/using-npm/registry)) with (c)
+* e) a `<name>@<tag>` (see [`npm dist-tag`](/commands/npm-dist-tag)) that
+  points to (d)
+* f) a `<name>` that has a "latest" tag satisfying (e)
+* g) a `<git remote url>` that resolves to (a)
 
 The publish will fail if the package name and version combination already
 exists in the specified registry.
@@ -247,6 +231,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm-packlist package](http://npm.im/npm-packlist)
 * [npm registry](/using-npm/registry)
 * [npm scope](/using-npm/scope)

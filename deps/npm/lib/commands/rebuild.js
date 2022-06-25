@@ -16,7 +16,7 @@ class Rebuild extends ArboristWorkspaceCmd {
     ...super.params,
   ]
 
-  static usage = ['[[<@scope>/]<name>[@<version>] ...]']
+  static usage = ['[<package-spec>] ...]']
 
   // TODO
   /* istanbul ignore next */

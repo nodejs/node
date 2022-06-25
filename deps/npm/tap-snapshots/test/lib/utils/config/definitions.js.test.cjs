@@ -1591,7 +1591,7 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for scrip
 * Type: null or String
 
 The shell to use for scripts run with the \`npm exec\`, \`npm run\` and \`npm
-init <pkg>\` commands.
+init <package-spec>\` commands.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for searchexclude 1`] = `

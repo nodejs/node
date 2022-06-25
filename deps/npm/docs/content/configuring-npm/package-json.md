@@ -222,7 +222,7 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ### funding
 
-You can specify an object containing an URL that provides up-to-date
+You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:
 

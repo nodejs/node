@@ -1,0 +1,69 @@
+const readline = require('readline')
+const opener = require('opener')
+
+function print (npm, title, url) {
+  const json = npm.config.get('json')
+
+  const message = json ? JSON.stringify({ title, url }) : `${title}:\n${url}`
+
+  npm.output(message)
+}
+
+// Prompt to open URL in browser if possible
+const promptOpen = async (npm, url, title, prompt, emitter) => {
+  const browser = npm.config.get('browser')
+  const isInteractive = process.stdin.isTTY === true && process.stdout.isTTY === true
+
+  try {
+    if (!/^https?:$/.test(new URL(url).protocol)) {
+      throw new Error()
+    }
+  } catch (_) {
+    throw new Error('Invalid URL: ' + url)
+  }
+
+  print(npm, title, url)
+
+  if (browser === false || !isInteractive) {
+    return
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+
+  const tryOpen = await new Promise(resolve => {
+    rl.question(prompt, () => {
+      resolve(true)
+    })
+
+    if (emitter && emitter.addListener) {
+      emitter.addListener('abort', () => {
+        rl.close()
+
+        // clear the prompt line
+        npm.output('')
+
+        resolve(false)
+      })
+    }
+  })
+
+  if (!tryOpen) {
+    return
+  }
+
+  const command = browser === true ? null : browser
+  await new Promise((resolve, reject) => {
+    opener(url, { command }, err => {
+      if (err) {
+        return reject(err)
+      }
+
+      return resolve()
+    })
+  })
+}
+
+module.exports = promptOpen

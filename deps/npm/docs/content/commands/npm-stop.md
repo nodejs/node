@@ -73,7 +73,7 @@ will *not* run any pre- or post-scripts.
 * Type: null or String
 
 The shell to use for scripts run with the `npm exec`, `npm run` and `npm
-init <pkg>` commands.
+init <package-spec>` commands.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

@@ -34,18 +34,7 @@ class Install extends ArboristWorkspaceCmd {
     ...super.params,
   ]
 
-  static usage = [
-    '[<@scope>/]<pkg>',
-    '[<@scope>/]<pkg>@<tag>',
-    '[<@scope>/]<pkg>@<version>',
-    '[<@scope>/]<pkg>@<version range>',
-    '<alias>@npm:<name>',
-    '<folder>',
-    '<tarball file>',
-    '<tarball url>',
-    '<git:// url>',
-    '<github username>/<github project>',
-  ]
+  static usage = ['[<package-spec> ...]']
 
   async completion (opts) {
     const { partialWord } = opts

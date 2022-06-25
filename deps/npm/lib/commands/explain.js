@@ -10,7 +10,7 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Explain extends ArboristWorkspaceCmd {
   static description = 'Explain installed packages'
   static name = 'explain'
-  static usage = ['<folder | specifier>']
+  static usage = ['<package-spec>']
   static params = [
     'json',
     'workspace',

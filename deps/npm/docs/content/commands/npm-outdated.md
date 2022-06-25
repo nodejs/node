@@ -11,7 +11,7 @@ description: Check for outdated packages
 <!-- see lib/commands/outdated.js -->
 
 ```bash
-npm outdated [[<@scope>/]<pkg> ...]
+npm outdated [<package-spec> ...]
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -192,6 +192,7 @@ This value is not exported to the environment for child processes.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm update](/commands/npm-update)
 * [npm dist-tag](/commands/npm-dist-tag)
 * [npm registry](/using-npm/registry)

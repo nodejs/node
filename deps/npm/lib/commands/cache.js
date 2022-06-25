@@ -68,11 +68,7 @@ class Cache extends BaseCommand {
   static name = 'cache'
   static params = ['cache']
   static usage = [
-    'add <tarball file>',
-    'add <folder>',
-    'add <tarball url>',
-    'add <git url>',
-    'add <name>@<version>',
+    'add <package-spec>',
     'clean [<key>]',
     'ls [<name>@<version>]',
     'verify',

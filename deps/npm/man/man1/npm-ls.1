@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm ls [[<@scope>/]<pkg> \.\.\.]
+npm ls <package\-spec>
 
 alias: list
 .fi
@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@8\.12\.1 /path/to/npm
+npm@8\.13\.1 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -300,6 +300,8 @@ will be packed and installed as regular dependencies instead of creating a
 symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help explain
 .IP \(bu 2

@@ -11,7 +11,7 @@ description: View registry info
 <!-- see lib/commands/view.js -->
 
 ```bash
-npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
+npm view [<package-spec>] [<field>[.subfield]...]
 
 aliases: info, show, v
 ```
@@ -203,6 +203,7 @@ the field name.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm search](/commands/npm-search)
 * [npm registry](/using-npm/registry)
 * [npm config](/commands/npm-config)

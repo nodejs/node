@@ -5,27 +5,27 @@
 .P
 .RS 2
 .nf
-npm fund [[<@scope>/]<pkg>]
+npm fund [<package\-spec>]
 .fi
 .RE
 .SS Description
 .P
 This command retrieves information on how to fund the dependencies of a
 given project\. If no package name is provided, it will list all
-dependencies that are looking for funding in a tree structure, listing the
-type of funding and the url to visit\. If a package name is provided then it
-tries to open its funding url using the \fB\-\-browser\fP config param; if there
-are multiple funding sources for the package, the user will be instructed
-to pass the \fB\-\-which\fP option to disambiguate\.
+dependencies that are looking for funding in a tree structure, listing
+the type of funding and the url to visit\. If a package name is provided
+then it tries to open its funding url using the \fB\-\-browser\fP config
+param; if there are multiple funding sources for the package, the user
+will be instructed to pass the \fB\-\-which\fP option to disambiguate\.
 .P
 The list will avoid duplicated entries and will stack all packages that
-share the same url as a single entry\. Thus, the list does not have the same
-shape of the output from \fBnpm ls\fP\|\.
+share the same url as a single entry\. Thus, the list does not have the
+same shape of the output from \fBnpm ls\fP\|\.
 .SS Example
 .SS Workspaces support
 .P
-It's possible to filter the results to only include a single workspace and its
-dependencies using the \fBworkspace\fP config option\.
+It's possible to filter the results to only include a single workspace
+and its dependencies using the \fBworkspace\fP config option\.
 .SS Example:
 .P
 Here's an example running \fBnpm fund\fP in a project with a configured
@@ -46,8 +46,8 @@ test\-workspaces\-fund@1\.0\.0
 .fi
 .RE
 .P
-And here is an example of the expected result when filtering only by
-a specific workspace \fBa\fP in the same project:
+And here is an example of the expected result when filtering only by a
+specific workspace \fBa\fP in the same project:
 .P
 .RS 2
 .nf
@@ -147,6 +147,8 @@ Type: null or Number
 If there are multiple funding sources, which 1\-indexed source URL to open\.
 .SH See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help install
 .IP \(bu 2

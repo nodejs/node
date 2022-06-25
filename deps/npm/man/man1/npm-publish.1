@@ -5,50 +5,39 @@
 .P
 .RS 2
 .nf
-npm publish [<folder>]
+npm publish <package\-spec>
 .fi
 .RE
 .SS Description
 .P
 Publishes a package to the registry so that it can be installed by name\.
 .P
-By default npm will publish to the public registry\. This can be overridden
-by specifying a different default registry or using a
-npm help \fBscope\fP in the name (see
+By default npm will publish to the public registry\. This can be
+overridden by specifying a different default registry or using a
+npm help \fBscope\fP in the name, combined with a
+scope\-configured registry (see
 npm help \fBpackage\.json\fP)\.
+.P
+A \fBpackage\fP is interpreted the same way as other commands (like
+\fBnpm install\fP and can be:
 .RS 0
 .IP \(bu 2
-\fB<folder>\fP: A folder containing a package\.json file
+a) a folder containing a program described by a
+npm help \fBpackage\.json\fP file
 .IP \(bu 2
-\fB<tarball>\fP: A url or file path to a gzipped tar archive containing a
-single folder with a package\.json file inside\.
+b) a gzipped tarball containing (a)
 .IP \(bu 2
-\fB[\-\-tag <tag>]\fP: Registers the published package with the given tag, such
-that \fBnpm install <name>@<tag>\fP will install this version\.  By default,
-\fBnpm publish\fP updates and \fBnpm install\fP installs the \fBlatest\fP tag\. See
-\fBnpm\-dist\-tag\fP \fInpm\-dist\-tag\fR for details about tags\.
+c) a url that resolves to (b)
 .IP \(bu 2
-\fB[\-\-access <public|restricted>]\fP: Tells the registry whether this package
-should be published as public or restricted\. Only applies to scoped
-packages, which default to \fBrestricted\fP\|\.  If you don't have a paid
-account, you must publish with \fB\-\-access public\fP to publish scoped
-packages\.
+d) a \fB<name>@<version>\fP that is published on the registry (see
+npm help \fBregistry\fP) with (c)
 .IP \(bu 2
-\fB[\-\-otp <otpcode>]\fP: If you have two\-factor authentication enabled in
-\fBauth\-and\-writes\fP mode then you can provide a code from your
-authenticator with this\. If you don't include this and you're running
-from a TTY then you'll be prompted\.
+e) a \fB<name>@<tag>\fP (see npm help \fBdist\-tag\fP) that
+points to (d)
 .IP \(bu 2
-\fB[\-\-dry\-run]\fP: As of \fBnpm@6\fP, does everything publish would do except
-actually publishing to the registry\. Reports the details of what would
-have been published\.
+f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
-\fB[\-\-workspaces]\fP: Enables workspace context while publishing\. All
-workspace packages will be published\.
-.IP \(bu 2
-\fB[\-\-workspace]\fP: Enables workspaces context and limits results to only
-those specified by this config item\.  Only the packages in the
-workspaces given will be published\.
+g) a \fB<git remote url>\fP that resolves to (a)
 
 .RE
 .P
@@ -240,6 +229,8 @@ the specified workspaces, and not on the root project\.
 This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm\-packlist package \fIhttp://npm\.im/npm\-packlist\fR
 .IP \(bu 2

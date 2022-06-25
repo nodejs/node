@@ -33,7 +33,7 @@ class View extends BaseCommand {
 
   static ignoreImplicitWorkspace = false
 
-  static usage = ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
+  static usage = ['[<package-spec>] [<field>[.subfield]...]']
 
   async completion (opts) {
     if (opts.conf.argv.remain.length <= 2) {
@@ -235,6 +235,15 @@ class View extends BaseCommand {
         })
       }
     })
+
+    // No data has been pushed because no data is matching the specified version
+    if (data.length === 0 && version !== 'latest') {
+      const er = new Error(`No match found for version ${version}`)
+      er.statusCode = 404
+      er.code = 'E404'
+      er.pkgid = `${pckmnt._id}@${version}`
+      throw er
+    }
 
     if (
       !this.npm.config.get('json') &&

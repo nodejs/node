@@ -17,7 +17,7 @@ class Pack extends BaseCommand {
     'include-workspace-root',
   ]
 
-  static usage = ['[[<@scope>/]<pkg>...]']
+  static usage = ['<package-spec>']
   static ignoreImplicitWorkspace = false
 
   async exec (args) {

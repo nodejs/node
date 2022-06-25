@@ -15,8 +15,7 @@ class Link extends ArboristWorkspaceCmd {
   static description = 'Symlink a package folder'
   static name = 'link'
   static usage = [
-    '(in package dir)',
-    '[<@scope>/]<pkg>[@<version>]',
+    '[<package-spec>]',
   ]
 
   static params = [

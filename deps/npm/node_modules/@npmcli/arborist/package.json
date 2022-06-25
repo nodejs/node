@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "5.2.1",
+  "version": "5.2.3",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -11,7 +11,7 @@
     "@npmcli/name-from-folder": "^1.0.1",
     "@npmcli/node-gyp": "^2.0.0",
     "@npmcli/package-json": "^2.0.0",
-    "@npmcli/run-script": "^3.0.0",
+    "@npmcli/run-script": "^4.1.3",
     "bin-links": "^3.0.0",
     "cacache": "^16.0.6",
     "common-ancestor-path": "^1.0.1",
@@ -25,7 +25,7 @@
     "npm-pick-manifest": "^7.0.0",
     "npm-registry-fetch": "^13.0.0",
     "npmlog": "^6.0.2",
-    "pacote": "^13.0.5",
+    "pacote": "^13.6.1",
     "parse-conflict-json": "^2.0.1",
     "proc-log": "^2.0.0",
     "promise-all-reject-late": "^1.0.0",

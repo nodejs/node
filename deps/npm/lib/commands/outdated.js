@@ -15,7 +15,7 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Outdated extends ArboristWorkspaceCmd {
   static description = 'Check for outdated packages'
   static name = 'outdated'
-  static usage = ['[[<@scope>/]<pkg> ...]']
+  static usage = ['[<package-spec> ...]']
   static params = [
     'all',
     'json',

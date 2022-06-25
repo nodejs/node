@@ -171,7 +171,7 @@ const getPath = u => u.pathname + u.search + u.hash
 
 const HttpProxyAgent = require('http-proxy-agent')
 const HttpsProxyAgent = require('https-proxy-agent')
-const SocksProxyAgent = require('socks-proxy-agent')
+const { SocksProxyAgent } = require('socks-proxy-agent')
 module.exports.getProxy = getProxy
 function getProxy (proxyUrl, opts, isHttps) {
   // our current proxy agents do not support an overridden dns lookup method, so will not
@@ -198,6 +198,9 @@ function getProxy (proxyUrl, opts, isHttps) {
       return new HttpsProxyAgent(popts)
     }
   } else if (proxyUrl.protocol.startsWith('socks')) {
+    // socks-proxy-agent uses hostname not host
+    popts.hostname = popts.host
+    delete popts.host
     return new SocksProxyAgent(popts)
   } else {
     throw Object.assign(

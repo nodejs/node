@@ -149,7 +149,7 @@ npm command-line interface
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm explain &lt;folder | specifier&gt;
+<pre lang="bash"><code>npm explain &lt;package-spec&gt;
 
 alias: why
 </code></pre>
@@ -159,9 +159,9 @@ alias: why
 <h3 id="description">Description</h3>
 <p>This command will print the chain of dependencies causing a given package
 to be installed in the current project.</p>
-<p>Positional arguments can be either folders within <code>node_modules</code>, or
-<code>name@version-range</code> specifiers, which will select the dependency
-relationships to explain.</p>
+<p>If one or more package specs are provided, then only packages matching
+one of the specifiers will have their relationships explained.</p>
+<p>The package spec can also refer to a folder within <code>./node_modules</code></p>
 <p>For example, running <code>npm explain glob</code> within npm's source tree will show:</p>
 <pre lang="bash"><code>glob@7.1.6
 node_modules/glob
@@ -229,6 +229,7 @@ brand new workspace within the project.</p>
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
