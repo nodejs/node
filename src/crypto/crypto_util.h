@@ -747,19 +747,17 @@ class ArrayBufferOrViewContents {
 
   inline ByteSource ToCopy() const {
     if (size() == 0) return ByteSource();
-    char* buf = MallocOpenSSL<char>(size());
-    CHECK_NOT_NULL(buf);
-    memcpy(buf, data(), size());
-    return ByteSource::Allocated(buf, size());
+    ByteSource::Builder buf(size());
+    memcpy(buf.data<void>(), data(), size());
+    return std::move(buf).release();
   }
 
   inline ByteSource ToNullTerminatedCopy() const {
     if (size() == 0) return ByteSource();
-    char* buf = MallocOpenSSL<char>(size() + 1);
-    CHECK_NOT_NULL(buf);
-    buf[size()] = 0;
-    memcpy(buf, data(), size());
-    return ByteSource::Allocated(buf, size());
+    ByteSource::Builder buf(size() + 1);
+    memcpy(buf.data<void>(), data(), size());
+    buf.data<char>()[size()] = 0;
+    return std::move(buf).release(size());
   }
 
   template <typename M>
