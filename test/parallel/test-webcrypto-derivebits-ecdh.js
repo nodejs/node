@@ -201,7 +201,7 @@ async function prepareKeys() {
       {
         name: 'ECDSA',
         namedCurve: 'P-521'
-      }, false, ['verify']);
+      }, false, ['sign', 'verify']);
 
     await assert.rejects(subtle.deriveBits({
       name: 'ECDH',
