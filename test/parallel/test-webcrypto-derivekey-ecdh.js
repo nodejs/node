@@ -165,7 +165,7 @@ async function prepareKeys() {
         namedCurve: 'P-521'
       },
       false,
-      ['verify']);
+      ['sign', 'verify']);
 
     await assert.rejects(
       subtle.deriveKey(
