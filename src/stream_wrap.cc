@@ -239,8 +239,7 @@ static MaybeLocal<Object> AcceptHandle(Environment* env,
   return scope.Escape(wrap_obj);
 }
 
-
-void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
+v8::Maybe<void> LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   uv_handle_type type = UV_UNKNOWN_HANDLE;
@@ -272,13 +271,13 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
           object()->Set(env()->context(),
                         env()->pending_handle_string(),
                         local_pending_obj).IsNothing()) {
-      return;
+      return v8::Nothing<void>();
     }
   }
 
   EmitRead(nread, *buf);
+  return v8::JustVoid();
 }
-
 
 void LibuvStreamWrap::GetWriteQueueSize(
     const FunctionCallbackInfo<Value>& info) {
