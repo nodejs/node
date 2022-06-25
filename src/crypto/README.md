@@ -100,9 +100,16 @@ Examples of these being used are pervasive through the `src/crypto` code.
 
 The `ByteSource` class is a helper utility representing a _read-only_ byte
 array. Instances can either wrap external ("foreign") data sources, such as
-an `ArrayBuffer` (`v8::BackingStore`) or allocated data. If allocated data
-is used, then the allocation is freed automatically when the `ByteSource` is
-destroyed.
+an `ArrayBuffer` (`v8::BackingStore`), or allocated data.
+
+* If a pointer to external data is used to create a `ByteSource`, that pointer
+  must remain valid until the `ByteSource` is destroyed.
+* If allocated data is used, then it must have been allocated using OpenSSL's
+  allocator. It will be freed automatically when the `ByteSource` is destroyed.
+
+The `ByteSource::Builder` class can be used to allocate writable memory that can
+then be released as a `ByteSource`, making it read-only, or freed by destroying
+the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
