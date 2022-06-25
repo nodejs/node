@@ -215,7 +215,7 @@ bool in_network_ipv4(
     const SocketAddress& ip,
     const SocketAddress& net,
     int prefix) {
-  uint32_t mask = ((1 << prefix) - 1) << (32 - prefix);
+  uint32_t mask = ((1ull << prefix) - 1) << (32 - prefix);
 
   const sockaddr_in* ip_in =
       reinterpret_cast<const sockaddr_in*>(ip.data());
@@ -293,7 +293,7 @@ bool in_network_ipv6_ipv4(
   if (prefix == 32)
     return compare_ipv4_ipv6(net, ip) == SocketAddress::CompareResult::SAME;
 
-  uint32_t m = ((1 << prefix) - 1) << (32 - prefix);
+  uint32_t m = ((1ull << prefix) - 1) << (32 - prefix);
 
   const sockaddr_in6* ip_in =
       reinterpret_cast<const sockaddr_in6*>(ip.data());
