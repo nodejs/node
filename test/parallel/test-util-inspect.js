@@ -30,6 +30,7 @@ const v8 = require('v8');
 const { previewEntries } = internalBinding('util');
 const { inspect } = util;
 const { MessageChannel } = require('worker_threads');
+const url = require('url');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -2811,9 +2812,15 @@ assert.strictEqual(
 }
 
 {
+  const originalCWD = process.cwd();
+
+  process.cwd = () => (process.platform === 'win32' ?
+    'C:\\workspace\\node-test-binary-windows js-suites-%percent-encoded\\node' :
+    '/home/user directory/repository%encoded/node');
+
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
-    'TypedError: Wonderful message!',
+    'Error: CWD is grayed out, even cwd that are percent encoded!',
     '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
@@ -2823,23 +2830,78 @@ assert.strictEqual(
     // This file is not an actual Node.js core file.
     '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
     '    at require (node:internal/modules/cjs/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at ${process.cwd()}/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (${process.cwd()}/node_modules/hyper_module/folder/file.js:2753:10)`,
     '    at /test/test-util-inspect.js:2239:9',
     '    at getActual (node:assert:592:5)',
   ];
-  const isNodeCoreFile = [
-    false, false, true, true, false, true, false, true, false, true,
-  ];
-  const err = new TypeError('Wonderful message!');
+  const err = new Error('CWD is grayed out, even cwd that are percent encoded!');
   err.stack = stack.join('\n');
+  if (process.platform === 'win32') {
+    err.stack = stack.map((frame) => (frame.includes('node:') ?
+      frame :
+      frame.replaceAll('/', '\\'))
+    ).join('\n');
+  }
+  const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let actual = stack[i].replace(/node_modules\/([a-z]+)/g, (a, m) => {
+    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
+    }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
+      return `\x1B[90m${m}\x1B[39m`;
     });
-    if (isNodeCoreFile[i]) {
-      actual = `\u001b[90m${actual}\u001b[39m`;
+    if (expected.includes(process.cwd()) && expected.endsWith(')')) {
+      expected = `${expected.slice(0, -1)}\x1B[90m)\x1B[39m`;
     }
-    assert.strictEqual(actual, line);
+    if (line.includes('node:')) {
+      if (!line.includes('foo') && !line.includes('aaa')) {
+        expected = `\u001b[90m${expected}\u001b[39m`;
+      }
+    } else if (process.platform === 'win32') {
+      expected = expected.replaceAll('/', '\\');
+    }
+    assert.strictEqual(line, expected);
   });
+
+  // Check ESM
+  const encodedCwd = url.pathToFileURL(process.cwd());
+  const sl = process.platform === 'win32' ? '\\' : '/';
+
+  // Use a fake stack to verify the expected colored outcome.
+  err.stack = 'Error: ESM and CJS mixed are both grayed out!\n' +
+              `    at ${encodedCwd}/test/parallel/test-esm.mjs:2760:12\n` +
+              `    at Object.<anonymous> (${encodedCwd}/node_modules/esm_module/folder/file.js:2753:10)\n` +
+              `    at ${process.cwd()}${sl}test${sl}parallel${sl}test-cjs.js:2760:12\n` +
+              `    at Object.<anonymous> (${process.cwd()}${sl}node_modules${sl}cjs_module${sl}folder${sl}file.js:2753:10)`;
+
+  let actual = util.inspect(err, { colors: true });
+  let expected = 'Error: ESM and CJS mixed are both grayed out!\n' +
+    `    at \x1B[90m${encodedCwd}/\x1B[39mtest/parallel/test-esm.mjs:2760:12\n` +
+    `    at Object.<anonymous> \x1B[90m(${encodedCwd}/\x1B[39mnode_modules/\x1B[4mesm_module\x1B[24m/folder/file.js:2753:10\x1B[90m)\x1B[39m\n` +
+    `    at \x1B[90m${process.cwd()}${sl}\x1B[39mtest${sl}parallel${sl}test-cjs.js:2760:12\n` +
+    `    at Object.<anonymous> \x1B[90m(${process.cwd()}${sl}\x1B[39mnode_modules${sl}\x1B[4mcjs_module\x1B[24m${sl}folder${sl}file.js:2753:10\x1B[90m)\x1B[39m`;
+
+  assert.strictEqual(actual, expected);
+
+  // ESM without need for encoding
+  process.cwd = () => (process.platform === 'win32' ?
+    'C:\\workspace\\node-test-binary-windows-js-suites\\node' :
+    '/home/user/repository/node');
+  let expectedCwd = process.cwd();
+  if (process.platform === 'win32') {
+    expectedCwd = `/${expectedCwd.replaceAll('\\', '/')}`;
+  }
+  // Use a fake stack to verify the expected colored outcome.
+  err.stack = 'Error: ESM without need for encoding!\n' +
+              `    at file://${expectedCwd}/file.js:15:15`;
+
+  actual = util.inspect(err, { colors: true });
+  expected = 'Error: ESM without need for encoding!\n' +
+  `    at \x1B[90mfile://${expectedCwd}/\x1B[39mfile.js:15:15`;
+  assert.strictEqual(actual, expected);
+
+  process.cwd = originalCWD;
 }
 
 {
