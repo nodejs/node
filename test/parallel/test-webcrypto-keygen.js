@@ -29,49 +29,49 @@ const allUsages = [
 const vectors = {
   'AES-CTR': {
     algorithm: { length: 256 },
+    result: 'CryptoKey',
     usages: [
       'encrypt',
       'decrypt',
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
   },
   'AES-CBC': {
     algorithm: { length: 256 },
+    result: 'CryptoKey',
     usages: [
       'encrypt',
       'decrypt',
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
   },
   'AES-GCM': {
     algorithm: { length: 256 },
+    result: 'CryptoKey',
     usages: [
       'encrypt',
       'decrypt',
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
   },
   'AES-KW': {
     algorithm: { length: 256 },
+    result: 'CryptoKey',
     usages: [
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: []
   },
   'HMAC': {
     algorithm: { length: 256, hash: 'SHA-256' },
+    result: 'CryptoKey',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: []
   },
   'RSASSA-PKCS1-v1_5': {
     algorithm: {
@@ -79,11 +79,11 @@ const vectors = {
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
+    result: 'CryptoKeyPair',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign'],
   },
   'RSA-PSS': {
     algorithm: {
@@ -91,11 +91,11 @@ const vectors = {
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
+    result: 'CryptoKeyPair',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
   },
   'RSA-OAEP': {
     algorithm: {
@@ -103,69 +103,57 @@ const vectors = {
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
+    result: 'CryptoKeyPair',
     usages: [
       'encrypt',
       'decrypt',
       'wrapKey',
       'unwrapKey',
     ],
-    mandatoryUsages: [
-      'decrypt',
-      'unwrapKey',
-    ]
   },
   'ECDSA': {
     algorithm: { namedCurve: 'P-521' },
+    result: 'CryptoKeyPair',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
   },
   'ECDH': {
     algorithm: { namedCurve: 'P-521' },
+    result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
       'deriveBits',
     ],
-    mandatoryUsages: [
-      'deriveKey',
-      'deriveBits',
-    ]
   },
   'Ed25519': {
+    result: 'CryptoKeyPair',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
   },
   'Ed448': {
+    result: 'CryptoKeyPair',
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: ['sign']
   },
   'X25519': {
+    result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
       'deriveBits',
     ],
-    mandatoryUsages: [
-      'deriveKey',
-      'deriveBits',
-    ]
   },
   'X448': {
+    result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
       'deriveBits',
     ],
-    mandatoryUsages: [
-      'deriveKey',
-      'deriveBits',
-    ]
   },
 };
 
@@ -218,6 +206,25 @@ const vectors = {
         true,
         []),
       { message: /Usages cannot be empty/ });
+
+    // For CryptoKeyPair results the private key
+    // usages must not be empty.
+    // - ECDH(-like) algorithm key pairs only have private key usages
+    // - Signing algorithm key pairs may pass a non-empty array but
+    //   with only a public key usage
+    if (
+      vectors[name].result === 'CryptoKeyPair' &&
+      vectors[name].usages.includes('verify')
+    ) {
+      await assert.rejects(
+        subtle.generateKey(
+          {
+            name, ...vectors[name].algorithm
+          },
+          true,
+          ['verify']),
+        { message: /Usages cannot be empty/ });
+    }
 
     const invalidUsages = [];
     allUsages.forEach((usage) => {
