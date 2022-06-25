@@ -5,9 +5,9 @@
 .P
 .RS 2
 .nf
-npm owner add <user> [<@scope>/]<pkg>
-npm owner rm <user> [<@scope>/]<pkg>
-npm owner ls [<@scope>/]<pkg>
+npm owner add <user> <package\-spec>
+npm owner rm <user> <package\-spec>
+npm owner ls <package\-spec>
 
 alias: author
 .fi
@@ -118,6 +118,8 @@ other things (test, exec, publish, etc\.) will operate on the root project,
 This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help profile
 .IP \(bu 2

@@ -11,7 +11,7 @@ description: Mark your favorite packages
 <!-- see lib/commands/star.js -->
 
 ```bash
-npm star [<pkg>...]
+npm star [<package-spec>...]
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -87,6 +87,7 @@ password, npm will prompt on the command line for one.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm unstar](/commands/npm-unstar)
 * [npm stars](/commands/npm-stars)
 * [npm view](/commands/npm-view)

@@ -20,7 +20,7 @@ class Fund extends ArboristWorkspaceCmd {
   static description = 'Retrieve funding information'
   static name = 'fund'
   static params = ['json', 'browser', 'unicode', 'workspace', 'which']
-  static usage = ['[[<@scope>/]<pkg>]']
+  static usage = ['[<package-spec>]']
 
   // TODO
   /* istanbul ignore next */

@@ -673,7 +673,7 @@ Try using the package name instead, e.g:
           const breakingMessage = isSemVerMajor
             ? 'a SemVer major change'
             : 'outside your stated dependency range'
-          log.warn('audit', `Updating ${name} to ${version},` +
+          log.warn('audit', `Updating ${name} to ${version}, ` +
             `which is ${breakingMessage}.`)
 
           await this[_add](node, { add: [`${name}@${version}`] })

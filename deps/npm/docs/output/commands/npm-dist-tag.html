@@ -149,9 +149,9 @@ npm command-line interface
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm dist-tag add &lt;pkg&gt;@&lt;version&gt; [&lt;tag&gt;]
-npm dist-tag rm &lt;pkg&gt; &lt;tag&gt;
-npm dist-tag ls [&lt;pkg&gt;]
+<pre lang="bash"><code>npm dist-tag add &lt;package-spec (with version)&gt; [&lt;tag&gt;]
+npm dist-tag rm &lt;package-spec&gt; &lt;tag&gt;
+npm dist-tag ls [&lt;package-spec&gt;]
 
 alias: dist-tags
 </code></pre>
@@ -162,11 +162,11 @@ alias: dist-tags
 <p>Add, remove, and enumerate distribution tags on a package:</p>
 <ul>
 <li>
-<p>add: Tags the specified version of the package with the specified tag, or
-the <code>--tag</code> config if not specified. If you have two-factor
-authentication on auth-and-writes then you’ll need to include a one-time
-password on the command line with <code>--otp &lt;one-time password&gt;</code>, or at the
-OTP prompt.</p>
+<p>add: Tags the specified version of the package with the specified tag,
+or the <code>--tag</code> config if not specified. If you have two-factor
+authentication on auth-and-writes then you’ll need to include a
+one-time password on the command line with
+<code>--otp &lt;one-time password&gt;</code>, or at the OTP prompt.</p>
 </li>
 <li>
 <p>rm: Clear a tag that is no longer in use from the package. If you have
@@ -273,6 +273,7 @@ the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-dedupe.html">npm dedupe</a></li>

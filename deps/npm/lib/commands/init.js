@@ -18,6 +18,7 @@ class Init extends BaseCommand {
   static params = [
     'yes',
     'force',
+    'scope',
     'workspace',
     'workspaces',
     'workspaces-update',
@@ -26,9 +27,8 @@ class Init extends BaseCommand {
 
   static name = 'init'
   static usage = [
-    '[--force|-f|--yes|-y|--scope]',
+    '<package-spec> (same as `npx <package-spec>)',
     '<@scope> (same as `npx <@scope>/create`)',
-    '[<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)',
   ]
 
   static ignoreImplicitWorkspace = false
