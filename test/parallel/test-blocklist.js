@@ -272,3 +272,13 @@ const util = require('util');
   const ret = util.inspect(blockList, { depth: null });
   assert(ret.includes('rules: []'));
 }
+
+{
+  // Test for https://github.com/nodejs/node/issues/43360
+  const blocklist = new BlockList();
+  blocklist.addSubnet('1.1.1.1', 32, 'ipv4');
+
+  assert(blocklist.check('1.1.1.1'));
+  assert(!blocklist.check('1.1.1.2'));
+  assert(!blocklist.check('2.3.4.5'));
+}
