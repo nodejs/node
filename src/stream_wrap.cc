@@ -44,8 +44,11 @@ using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -239,7 +242,7 @@ static MaybeLocal<Object> AcceptHandle(Environment* env,
   return scope.Escape(wrap_obj);
 }
 
-v8::Maybe<void> LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
+Maybe<void> LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   uv_handle_type type = UV_UNKNOWN_HANDLE;
@@ -271,12 +274,12 @@ v8::Maybe<void> LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
           object()->Set(env()->context(),
                         env()->pending_handle_string(),
                         local_pending_obj).IsNothing()) {
-      return v8::Nothing<void>();
+      return Nothing<void>();
     }
   }
 
   EmitRead(nread, *buf);
-  return v8::JustVoid();
+  return JustVoid();
 }
 
 void LibuvStreamWrap::GetWriteQueueSize(
