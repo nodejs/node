@@ -162,7 +162,7 @@ describe('A thing', () => {
     assert.strictEqual(1, 1);
   });
 
-  is('should be ok', () => {
+  it('should be ok', () => {
     assert.strictEqual(2, 2);
   });
 
