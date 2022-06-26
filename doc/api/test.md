@@ -391,12 +391,12 @@ all top level tests and suites will execute
 
 ## `describe.skip([name][, options][, fn])`
 
-Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][].
+Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][describe options].
 
 ## `describe.todo([name][, options][, fn])`
 
 Shorthand for marking a suite as `TODO`, same as
-[`describe([name], { todo: true }[, fn])`][].
+[`describe([name], { todo: true }[, fn])`][describe options].
 
 ## `it([name][, options][, fn])`
 
@@ -416,11 +416,13 @@ TAP output.
 
 ## `it.skip([name][, options][, fn])`
 
-Shorthand for skipping a test, same as [`it([name], { skip: true }[, fn])`][].
+Shorthand for skipping a test,
+same as [`it([name], { skip: true }[, fn])`][it options].
 
 ## `it.todo([name][, options][, fn])`
 
-Shorthand for marking a test as `TODO`, same as [`it([name], { todo: true }[, fn])`][].
+Shorthand for marking a test as `TODO`,
+same as [`it([name], { todo: true }[, fn])`][it options].
 
 ## Class: `TestContext`
 
@@ -562,4 +564,6 @@ test('top level test', async (t) => {
 [`--test`]: cli.md#--test
 [`TestContext`]: #class-testcontext
 [`test()`]: #testname-options-fn
+[describe options]: #describename-options-fn
+[it options]: #testname-options-fn
 [test runner execution model]: #test-runner-execution-model
