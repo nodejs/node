@@ -63,51 +63,51 @@ strictEqual(
 );
 
 strictEqual(
-  determineSpecificType(new Array(0)),
+  determineSpecificType(new Array()),
   'an instance of Array',
 );
 strictEqual(
-  determineSpecificType(new BigInt64Array(0)),
+  determineSpecificType(new BigInt64Array()),
   'an instance of BigInt64Array',
 );
 strictEqual(
-  determineSpecificType(new BigUint64Array(0)),
+  determineSpecificType(new BigUint64Array()),
   'an instance of BigUint64Array',
 );
 strictEqual(
-  determineSpecificType(new Int8Array(0)),
+  determineSpecificType(new Int8Array()),
   'an instance of Int8Array',
 );
 strictEqual(
-  determineSpecificType(new Int16Array(0)),
+  determineSpecificType(new Int16Array()),
   'an instance of Int16Array',
 );
 strictEqual(
-  determineSpecificType(new Int32Array(0)),
+  determineSpecificType(new Int32Array()),
   'an instance of Int32Array',
 );
 strictEqual(
-  determineSpecificType(new Float32Array(0)),
+  determineSpecificType(new Float32Array()),
   'an instance of Float32Array',
 );
 strictEqual(
-  determineSpecificType(new Float64Array(0)),
+  determineSpecificType(new Float64Array()),
   'an instance of Float64Array',
 );
 strictEqual(
-  determineSpecificType(new Uint8Array(0)),
+  determineSpecificType(new Uint8Array()),
   'an instance of Uint8Array',
 );
 strictEqual(
-  determineSpecificType(new Uint8ClampedArray(0)),
+  determineSpecificType(new Uint8ClampedArray()),
   'an instance of Uint8ClampedArray',
 );
 strictEqual(
-  determineSpecificType(new Uint16Array(0)),
+  determineSpecificType(new Uint16Array()),
   'an instance of Uint16Array',
 );
 strictEqual(
-  determineSpecificType(new Uint32Array(0)),
+  determineSpecificType(new Uint32Array()),
   'an instance of Uint32Array',
 );
 
