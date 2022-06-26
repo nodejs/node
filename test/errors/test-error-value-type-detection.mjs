@@ -33,6 +33,11 @@ strictEqual(
 );
 
 strictEqual(
+  determineSpecificType(Object.create(null)),
+  'type object ([Object: null prototype] {})',
+);
+
+strictEqual(
   determineSpecificType(''),
   "type string ('')",
 );
@@ -125,10 +130,6 @@ strictEqual(
   'an instance of WeakMap',
 );
 
-strictEqual(
-  determineSpecificType(Object.create(null)),
-  'an instance of Object',
-);
 strictEqual(
   determineSpecificType({}),
   'an instance of Object',

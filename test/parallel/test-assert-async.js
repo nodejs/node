@@ -103,7 +103,7 @@ const invalidThenableFunc = () => {
   promises.push(assert.rejects(promise, {
     name: 'TypeError',
     code: 'ERR_INVALID_RETURN_VALUE',
-    // FIXME(@JakobJingleheimer): This should match on key words, like /Promise/ and /undefined/
+    // FIXME(JakobJingleheimer): This should match on key words, like /Promise/ and /undefined/.
     message: 'Expected instance of Promise to be returned ' +
              'from the "promiseFn" function but got undefined.'
   }));
