@@ -174,14 +174,14 @@ describe('A thing', () => {
 });
 ```
 
-`describe` and `it` are imported from the `test` module
+`describe` and `it` are imported from the `node:test` module
 
 ```mjs
-import { describe, it } from 'test';
+import { describe, it } from 'node:test';
 ```
 
 ```cjs
-const { describe, it } = require('test');
+const { describe, it } = require('node:test');
 ```
 
 ### `only` tests
@@ -383,7 +383,7 @@ test('top level test', async (t) => {
   **Default:** A no-op function.
 * Returns: `undefined`.
 
-The `describe()` function imported from the `test` module. Each
+The `describe()` function imported from the `node:test` module. Each
 invocation of this function results in the creation of a Subtest
 and a test point in the TAP output.
 After invocation of top level `describe` functions,
@@ -391,13 +391,12 @@ all top level tests and suites will execute
 
 ## `describe.skip([name][, options][, fn])`
 
-shorthand for skipping a suite,
-same as `describe([name], { skip: true }[, fn])`
+Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][].
 
 ## `describe.todo([name][, options][, fn])`
 
-shorthand for marking a suite as `TODO`,
-same as `describe([name], { todo: true }[, fn])`
+Shorthand for marking a suite as `TODO`, same as
+[`describe([name], { todo: true }[, fn])`][].
 
 ## `it([name][, options][, fn])`
 
@@ -411,20 +410,17 @@ same as `describe([name], { todo: true }[, fn])`
   **Default:** A no-op function.
 * Returns: `undefined`.
 
-The `it()` function is the value imported from the `test` module.
-Each
-invocation of this function results in the creation of a test point in the TAP
-output.
+The `it()` function is the value imported from the `node:test` module.
+Each invocation of this function results in the creation of a test point in the
+TAP output.
 
 ## `it.skip([name][, options][, fn])`
 
-shorthand for skipping a test,
-same as `it([name], { skip: true }[, fn])`
+Shorthand for skipping a test, same as [`it([name], { skip: true }[, fn])`][].
 
 ## `it.todo([name][, options][, fn])`
 
-shorthand for marking a test as `TODO`,
-same as `it([name], { todo: true }[, fn])`
+Shorthand for marking a test as `TODO`, same as [`it([name], { todo: true }[, fn])`][].
 
 ## Class: `TestContext`
 
