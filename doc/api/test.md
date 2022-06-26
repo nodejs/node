@@ -148,7 +148,7 @@ test('skip() method with message', (t) => {
 });
 ```
 
-## `describe it` syntax
+## `describe`/`it` syntax
 
 Running tests can also be done using `describe` to declare a suite
 and `it` to declare a test.
