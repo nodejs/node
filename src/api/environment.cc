@@ -86,16 +86,16 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
   if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
-    ret = UncheckedCalloc(size);
+    ret = allocator_->Allocate(size);
   else
-    ret = UncheckedMalloc(size);
+    ret = allocator_->AllocateUninitialized(size);
   if (LIKELY(ret != nullptr))
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
-  void* ret = node::UncheckedMalloc(size);
+  void* ret = allocator_->AllocateUninitialized(size);
   if (LIKELY(ret != nullptr))
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
@@ -103,7 +103,7 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
 
 void* NodeArrayBufferAllocator::Reallocate(
     void* data, size_t old_size, size_t size) {
-  void* ret = UncheckedRealloc<char>(static_cast<char*>(data), size);
+  void* ret = allocator_->Reallocate(data, old_size, size);
   if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
     total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
   return ret;
@@ -111,7 +111,7 @@ void* NodeArrayBufferAllocator::Reallocate(
 
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
-  free(data);
+  allocator_->Free(data, size);
 }
 
 DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
