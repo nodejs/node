@@ -294,7 +294,7 @@ function sendResult(data) {
       // a second after completing, forcefully close it.
       setTimeout(() => {
         process.exit(0);
-      }, 1000).unref();
+      }, 5000).unref();
     });
   } else {
     // Otherwise report by stdout
