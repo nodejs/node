@@ -44,6 +44,7 @@
 #if HAVE_OPENSSL
 #include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
+#include <openssl/conf.h>
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -153,6 +154,9 @@ uint64_t node_start_time;
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
 }  // namespace per_process
+
+// The section in the OpenSSL configuration file to be loaded.
+const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
@@ -975,6 +979,7 @@ void Init(int* argc,
     argv[i] = strdup(argv_[i].c_str());
 }
 
+
 InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   // Initialized the enabled list for Debug() calls with system
   // environment variables.
@@ -1040,6 +1045,44 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
       crypto::UseExtraCaCerts(extra_ca_certs);
   }
+
+  // Passing NULL as the config file will allow the default openssl.cnf file
+  // to be loaded, but the default section in that file will not be used,
+  // instead only the section that matches the value of conf_section_name
+  // will be read from the default configuration file.
+  const char* conf_file = nullptr;
+  // Use OPENSSL_CONF environment variable is set.
+  std::string env_openssl_conf;
+  credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
+  if (!env_openssl_conf.empty()) {
+    conf_file = env_openssl_conf.c_str();
+  }
+  // Use --openssl-conf command line option if specified.
+  if (!per_process::cli_options->openssl_config.empty()) {
+    conf_file = per_process::cli_options->openssl_config.c_str();
+  }
+
+  OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+  OPENSSL_INIT_set_config_filename(settings, conf_file);
+  OPENSSL_INIT_set_config_appname(settings, conf_section_name);
+  OPENSSL_INIT_set_config_file_flags(settings,
+                                     CONF_MFLAGS_IGNORE_MISSING_FILE);
+
+  OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+  OPENSSL_INIT_free(settings);
+
+  if (ERR_peek_error() != 0) {
+    int ossl_error_code = ERR_GET_REASON(ERR_peek_error());
+    if (ossl_error_code != EVP_R_FIPS_MODE_NOT_SUPPORTED) {
+      result.exit_code = ossl_error_code;
+      result.early_return = true;
+      fprintf(stderr, "%s", "OpenSSL configuration error:\n");
+      ERR_print_errors_fp(stderr);
+      return result;
+    }
+  }
+
+
   // In the case of FIPS builds we should make sure
   // the random source is properly initialized first.
   if (FIPS_mode()) {
