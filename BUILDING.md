@@ -52,6 +52,7 @@ file a new issue.
   * [Build with a specific ICU](#build-with-a-specific-icu)
     * [Unix/macOS](#unixmacos-3)
     * [Windows](#windows-4)
+* [Configuring OpenSSL config appname](#configure-openssl-appname)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
   * [Unix/macOS](#unixmacos-4)
@@ -764,6 +765,19 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```console
 > .\vcbuild full-icu
+```
+
+### Configure OpenSSL appname
+
+Node.js can use an OpenSSL configuration file by specifying the environment
+variable `OPENSSL_CONF`, or using the command line option `--openssl-conf`, and
+if none of those are specified will default to reading the default OpenSSL
+configuration file `openssl.cnf`. Node.js will only read a section that is by
+default named `nodejs_conf`, but this name can be overridden using the following
+configure option:
+
+```console
+$ ./configure --openssl-conf-name=<some_conf_name>
 ```
 
 ## Building Node.js with FIPS-compliant OpenSSL
