@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2018-2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -303,7 +303,14 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
     if (BN_is_negative(R) && !BN_add(R, R, r1r2x2))
         goto err;
 
-    imax = 5 * bits; /* max = 5/2 * nbits */
+    /*
+     * In FIPS 186-4 imax was set to 5 * nlen/2.
+     * Analysis by Allen Roginsky (See https://csrc.nist.gov/CSRC/media/Publications/fips/186/4/final/documents/comments-received-fips186-4-december-2015.pdf
+     * page 68) indicates this has a 1 in 2 million chance of failure.
+     * The number has been updated to 20 * nlen/2 as used in
+     * FIPS186-5 Appendix B.9 Step 9.
+     */
+    imax = 20 * bits; /* max = 20/2 * nbits */
     for (;;) {
         if (Xin == NULL) {
             /*
@@ -342,7 +349,11 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
                     goto err;
             }
             /* (Step 8-10) */
-            if (++i >= imax || !BN_add(Y, Y, r1r2x2))
+            if (++i >= imax) {
+                ERR_raise(ERR_LIB_BN, BN_R_NO_PRIME_CANDIDATE);
+                goto err;
+            }
+            if (!BN_add(Y, Y, r1r2x2))
                 goto err;
         }
     }

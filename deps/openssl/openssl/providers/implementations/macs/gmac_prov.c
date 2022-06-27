@@ -235,8 +235,8 @@ static int gmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
         if (p->data_type != OSSL_PARAM_OCTET_STRING)
             return 0;
 
-        if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
-                                 p->data_size, NULL)
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                                 p->data_size, NULL) <= 0
             || !EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, p->data))
             return 0;
     }

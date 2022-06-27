@@ -213,11 +213,10 @@ static int parse_unquoted(OSSL_LIB_CTX *ctx, const char *t[],
         return 0;
     }
     v[i] = 0;
-    if (err) {
+    if (err)
         ERR_raise_data(ERR_LIB_PROP, PROP_R_STRING_TOO_LONG, "HERE-->%s", *t);
-    } else {
-        res->v.str_val = ossl_property_value(ctx, v, create);
-    }
+    else if ((res->v.str_val = ossl_property_value(ctx, v, create)) == 0)
+        err = 1;
     *t = skip_space(s);
     res->type = OSSL_PROPERTY_TYPE_STRING;
     return !err;

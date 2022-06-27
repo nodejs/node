@@ -8,9 +8,12 @@
  */
 
 #include "e_os.h"
+#include <string.h>
 #include <limits.h>
 #include <openssl/crypto.h>
+#include "crypto/ctype.h"
 #include "internal/cryptlib.h"
+#include "internal/thread_once.h"
 
 #define DEFAULT_SEPARATOR ':'
 #define CH_ZERO '\0'
@@ -337,4 +340,27 @@ int openssl_strerror_r(int errnum, char *buf, size_t buflen)
     OPENSSL_strlcpy(buf, err, buflen);
     return 1;
 #endif
+}
+
+int OPENSSL_strcasecmp(const char *s1, const char *s2)
+{
+    int t;
+
+    while ((t = ossl_tolower(*s1) - ossl_tolower(*s2++)) == 0)
+        if (*s1++ == '\0')
+            return 0;
+    return t;
+}
+
+int OPENSSL_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+    int t;
+    size_t i;
+
+    for (i = 0; i < n; i++)
+        if ((t = ossl_tolower(*s1) - ossl_tolower(*s2++)) != 0)
+            return t;
+        else if (*s1++ == '\0')
+            return 0;
+    return 0;
 }
