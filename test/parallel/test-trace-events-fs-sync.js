@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 
-const tests = new Array();
+const tests = {};
 
 let gid = 1;
 let uid = 1;
