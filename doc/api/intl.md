@@ -103,7 +103,7 @@ const spanish = new Intl.DateTimeFormat('es', { month: 'long' });
 console.log(english.format(january));
 // Prints "January"
 console.log(spanish.format(january));
-// Prints "M01" on small-icu
+// Prints either "M01" or "January" on small-icu, depending on the user’s default locale
 // Should print "enero"
 ```
 
