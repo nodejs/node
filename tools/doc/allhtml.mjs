@@ -2,6 +2,7 @@
 // of the generated html files.
 
 import fs from 'fs';
+import buildCSSForFlavoredJS from './buildCSSForFlavoredJS.mjs';
 
 const source = new URL('../../out/doc/api/', import.meta.url);
 
@@ -90,7 +91,14 @@ all = all.slice(0, tocStart.index + tocStart[0].length) +
 // Replace apicontent with the concatenated set of apicontents from each source.
 const apiStart = /<\w+ id="apicontent">\s*/.exec(all);
 const apiEnd = all.lastIndexOf('<!-- API END -->');
-all = all.slice(0, apiStart.index + apiStart[0].length) +
+all = all.slice(0, apiStart.index + apiStart[0].length)
+    .replace(
+      '\n</head>',
+      buildCSSForFlavoredJS(new Set(Array.from(
+        apicontent.matchAll(/(?<=<pre class="with-)\d+(?=-chars">)/g),
+        (x) => Number(x[0])
+      ))) + '\n</head>'
+    ) +
   apicontent +
   all.slice(apiEnd);
 
