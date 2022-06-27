@@ -62,7 +62,7 @@ function createClient(server) {
   return request;
 }
 
-server.listen(0, common.mustCall(async () => {
+server.listen(0, common.mustCall(() => (async () => {
   // Create first and second request and set headers
   const request1 = createClient(server);
   const request2 = createClient(server);
@@ -106,4 +106,4 @@ server.listen(0, common.mustCall(async () => {
   assert(request4.response.startsWith(responseOk));
   assert(request5.response.startsWith(responseTimeout)); // It is expired due to headersTimeout
   server.close();
-}));
+})().then(common.mustCall())));
