@@ -270,10 +270,13 @@ Maybe<void> LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
     }
 
     Local<Object> local_pending_obj;
-    if (pending_obj.ToLocal(&local_pending_obj) &&
-          object()->Set(env()->context(),
-                        env()->pending_handle_string(),
-                        local_pending_obj).IsNothing()) {
+    if (type != UV_UNKNOWN_HANDLE &&
+        (!pending_obj.ToLocal(&local_pending_obj) ||
+         object()
+             ->Set(env()->context(),
+                   env()->pending_handle_string(),
+                   local_pending_obj)
+             .IsNothing())) {
       return Nothing<void>();
     }
   }
