@@ -1526,3 +1526,33 @@ const tsp = require('timers/promises');
     assert.strictEqual(val, null);
   }));
 }
+
+{
+  // Mimics a legacy stream without the .destroy method
+  class LegacyWritable extends Stream {
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  }
+
+  const writable = new LegacyWritable();
+  writable.on('error', common.mustCall((err) => {
+    assert.deepStrictEqual(err, new Error('stop'));
+  }));
+
+  pipeline(
+    Readable.from({
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            return Promise.reject(new Error('stop'));
+          }
+        };
+      }
+    }),
+    writable,
+    common.mustCall((err) => {
+      assert.deepStrictEqual(err, new Error('stop'));
+    })
+  );
+}
