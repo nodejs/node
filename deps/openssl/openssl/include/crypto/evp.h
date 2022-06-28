@@ -893,7 +893,9 @@ int evp_pkey_ctx_get1_id_len_prov(EVP_PKEY_CTX *ctx, size_t *id_len);
 int evp_pkey_ctx_use_cached_data(EVP_PKEY_CTX *ctx);
 # endif /* !defined(FIPS_MODULE) */
 
-int evp_method_store_flush(OSSL_LIB_CTX *libctx);
+int evp_method_store_cache_flush(OSSL_LIB_CTX *libctx);
+int evp_method_store_remove_all_provided(const OSSL_PROVIDER *prov);
+
 int evp_default_properties_enable_fips_int(OSSL_LIB_CTX *libctx, int enable,
                                            int loadconfig);
 int evp_set_default_properties_int(OSSL_LIB_CTX *libctx, const char *propq,

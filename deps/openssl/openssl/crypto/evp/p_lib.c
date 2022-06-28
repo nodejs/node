@@ -1123,8 +1123,11 @@ static int print_set_indent(BIO **out, int *pop_f_prefix, long *saved_indent,
 
         *saved_indent =  (i < 0 ? 0 : i);
         if (BIO_set_indent(*out, indent) <= 0) {
-            if ((*out = BIO_push(BIO_new(BIO_f_prefix()), *out)) == NULL)
+            BIO *prefbio = BIO_new(BIO_f_prefix());
+
+            if (prefbio == NULL)
                 return 0;
+            *out = BIO_push(prefbio, *out);
             *pop_f_prefix = 1;
         }
         if (BIO_set_indent(*out, indent) <= 0) {
@@ -1850,7 +1853,7 @@ void *evp_pkey_export_to_provider(EVP_PKEY *pk, OSSL_LIB_CTX *libctx,
 
         if (ctx == NULL)
             goto end;
-        tmp_keymgmt = ctx->keymgmt;
+        allocated_keymgmt = tmp_keymgmt = ctx->keymgmt;
         ctx->keymgmt = NULL;
         EVP_PKEY_CTX_free(ctx);
     }
@@ -1963,8 +1966,10 @@ void *evp_pkey_export_to_provider(EVP_PKEY *pk, OSSL_LIB_CTX *libctx,
     if (keydata == NULL)
         tmp_keymgmt = NULL;
 
-    if (keymgmt != NULL)
+    if (keymgmt != NULL && tmp_keymgmt != NULL) {
         *keymgmt = tmp_keymgmt;
+        allocated_keymgmt = NULL;
+    }
 
     EVP_KEYMGMT_free(allocated_keymgmt);
     return keydata;
@@ -1973,6 +1978,8 @@ void *evp_pkey_export_to_provider(EVP_PKEY *pk, OSSL_LIB_CTX *libctx,
 #ifndef FIPS_MODULE
 int evp_pkey_copy_downgraded(EVP_PKEY **dest, const EVP_PKEY *src)
 {
+    EVP_PKEY *allocpkey = NULL;
+
     if (!ossl_assert(dest != NULL))
         return 0;
 
@@ -2003,7 +2010,7 @@ int evp_pkey_copy_downgraded(EVP_PKEY **dest, const EVP_PKEY *src)
 
         /* Make sure we have a clean slate to copy into */
         if (*dest == NULL) {
-            *dest = EVP_PKEY_new();
+            allocpkey = *dest = EVP_PKEY_new();
             if (*dest == NULL) {
                 ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
                 return 0;
@@ -2052,6 +2059,10 @@ int evp_pkey_copy_downgraded(EVP_PKEY **dest, const EVP_PKEY *src)
         }
     }
 
+    if (allocpkey != NULL) {
+        EVP_PKEY_free(allocpkey);
+        *dest = NULL;
+    }
     return 0;
 }
 
@@ -2084,7 +2095,7 @@ void *evp_pkey_get_legacy(EVP_PKEY *pk)
         return ret;
 
     if (!evp_pkey_copy_downgraded(&tmp_copy, pk))
-        return NULL;
+        goto err;
 
     if (!CRYPTO_THREAD_write_lock(pk->lock))
         goto err;
@@ -2343,10 +2354,10 @@ int EVP_PKEY_get_params(const EVP_PKEY *pkey, OSSL_PARAM params[])
 {
     if (pkey != NULL) {
         if (evp_pkey_is_provided(pkey))
-            return evp_keymgmt_get_params(pkey->keymgmt, pkey->keydata, params);
+            return evp_keymgmt_get_params(pkey->keymgmt, pkey->keydata, params) > 0;
 #ifndef FIPS_MODULE
         else if (evp_pkey_is_legacy(pkey))
-            return evp_pkey_get_params_to_ctrl(pkey, params);
+            return evp_pkey_get_params_to_ctrl(pkey, params) > 0;
 #endif
     }
     ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY);

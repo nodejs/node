@@ -2,7 +2,7 @@ LIBS=../../libcrypto
 
 $RMD160ASM=
 IF[{- !$disabled{asm} -}]
-  $RMD160ASM_x86=rmd-586.s
+  $RMD160ASM_x86=rmd-586.S
 
   # Now that we have defined all the arch specific variables, use the
   # appropriate one, and define the appropriate macros
@@ -25,5 +25,5 @@ IF[{- $disabled{'deprecated-3.0'} -}]
   DEFINE[../../providers/liblegacy.a]=$RMD160DEF
 ENDIF
 
-GENERATE[rmd-586.s]=asm/rmd-586.pl
-DEPEND[rmd-586.s]=../perlasm/x86asm.pl
+GENERATE[rmd-586.S]=asm/rmd-586.pl
+DEPEND[rmd-586.S]=../perlasm/x86asm.pl

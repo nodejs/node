@@ -343,11 +343,13 @@ include/crypto/bn_conf.h.in
 include/crypto/bn_dh.h
 include/crypto/cryptlib.h
 include/crypto/ctype.h
+include/crypto/decoder.h
 include/crypto/des_platform.h
 include/crypto/dh.h
 include/crypto/dsa.h
 include/crypto/ec.h
 include/crypto/ecx.h
+include/crypto/encoder.h
 include/crypto/evp.h
 include/crypto/lhash.h
 include/crypto/md32_common.h
@@ -358,6 +360,7 @@ include/crypto/rsa.h
 include/crypto/security_bits.h
 include/crypto/sha.h
 include/crypto/sparse_array.h
+include/crypto/store.h
 include/crypto/types.h
 include/internal/bio.h
 include/internal/constant_time.h
@@ -405,6 +408,8 @@ include/openssl/core_names.h
 include/openssl/crypto.h.in
 include/openssl/cryptoerr.h
 include/openssl/cryptoerr_legacy.h
+include/openssl/decoder.h
+include/openssl/decodererr.h
 include/openssl/des.h
 include/openssl/dh.h
 include/openssl/dherr.h
@@ -422,6 +427,7 @@ include/openssl/evperr.h
 include/openssl/fips_names.h
 include/openssl/fipskey.h.in
 include/openssl/hmac.h
+include/openssl/http.h
 include/openssl/kdf.h
 include/openssl/lhash.h.in
 include/openssl/macros.h
@@ -433,6 +439,10 @@ include/openssl/opensslconf.h
 include/openssl/opensslv.h.in
 include/openssl/param_build.h
 include/openssl/params.h
+include/openssl/pem.h
+include/openssl/pemerr.h
+include/openssl/pkcs7.h.in
+include/openssl/pkcs7err.h
 include/openssl/prov_ssl.h
 include/openssl/proverr.h
 include/openssl/provider.h
@@ -444,9 +454,16 @@ include/openssl/safestack.h.in
 include/openssl/self_test.h
 include/openssl/sha.h
 include/openssl/stack.h
+include/openssl/store.h
+include/openssl/storeerr.h
 include/openssl/symhacks.h
 include/openssl/trace.h
 include/openssl/types.h
+include/openssl/ui.h.in
+include/openssl/uierr.h
+include/openssl/x509.h.in
+include/openssl/x509_vfy.h.in
+include/openssl/x509err.h
 providers/common/bio_prov.c
 providers/common/capabilities.c
 providers/common/der/der_digests_gen.c.in

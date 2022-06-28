@@ -1186,7 +1186,9 @@ int set_dateopt(unsigned long *dateopt, const char *arg)
         *dateopt = ASN1_DTFLGS_RFC822;
     else if (OPENSSL_strcasecmp(arg, "iso_8601") == 0)
         *dateopt = ASN1_DTFLGS_ISO8601;
-    return 0;
+    else
+        return 0;
+    return 1;
 }
 
 int set_ext_copy(int *copy_type, const char *arg)
