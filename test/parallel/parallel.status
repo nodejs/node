@@ -41,6 +41,19 @@ test-net-socket-ready-without-cb: SKIP
 test-tcp-wrap-listen: SKIP
 # https://github.com/nodejs/node/issues/43446
 test-net-connect-reset-until-connected: PASS, FLAKY
+# https://github.com/nodejs/node/issues/43457
+test-domain-no-error-handler-abort-on-uncaught-0: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-1: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-2: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-3: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-4: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-5: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-6: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-7: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-8: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-9: PASS, FLAKY
+test-domain-throw-error-then-throw-from-uncaught-exception-handler: PASS, FLAKY
+test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727

@@ -1,4 +1,4 @@
-prefix async-hooks
+prefix report
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
@@ -6,18 +6,6 @@ prefix async-hooks
 
 [true] # This section applies to all platforms
 
-[$system==win32]
-
-[$system==linux]
-
-[$system==macos]
-
-[$arch==arm || $arch==arm64]
-
 [$system==solaris] # Also applies to SmartOS
 # https://github.com/nodejs/node/issues/43457
-test-callback-error: PASS, FLAKY
-
-[$system==freebsd]
-
-[$system==aix]
+test-report-fatal-error: PASS, FLAKY
