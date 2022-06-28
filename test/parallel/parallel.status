@@ -26,6 +26,8 @@ test-domain-error-types: PASS,FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
+# https://github.com/nodejs/node/issues/43465
+test-http-server-request-timeouts-mixed: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
