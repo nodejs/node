@@ -137,5 +137,4 @@ The tools are currently assigned to Tiers as follows:
 | Tracing   | LTTng                     | No                            | Removed?                | N/A         |
 | Tracing   | Systemtap                 | No                            | Partial                 | ?           |
 | Profiling | Windows Xperf             | No                            | ?                       | ?           |
-| F/P/T     | appmetrics                | No                            | No                      | ?           |
 | M/T       | eBPF tracing tool         | No                            | No                      | ?           |
