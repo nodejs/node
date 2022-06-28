@@ -135,7 +135,6 @@ The tools are currently assigned to Tiers as follows:
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | LTTng                     | No                            | Removed?                | N/A         |
-| Tracing   | Systemtap                 | No                            | Partial                 | ?           |
 | Profiling | Windows Xperf             | No                            | ?                       | ?           |
 | F/P/T     | appmetrics                | No                            | No                      | ?           |
 | M/T       | eBPF tracing tool         | No                            | No                      | ?           |
