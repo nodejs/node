@@ -134,5 +134,4 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | Command line Debug Client | ?                             | Yes                     | 1           |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
-| F/P/T     | appmetrics                | No                            | No                      | ?           |
 | M/T       | eBPF tracing tool         | No                            | No                      | ?           |
