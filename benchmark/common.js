@@ -287,7 +287,7 @@ function formatResult(data) {
 }
 
 function sendResult(data) {
-  if (process.send) {
+  if (process.send && Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
     // If forked, report by process send
     process.send(data, () => {
       // If, for any reason, the process is unable to self close within
