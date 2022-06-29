@@ -253,14 +253,16 @@ const theData = 'hello';
     start(c) { controller = c; },
 
     cancel: common.mustCall((error) => {
-      assert.strictEqual(error.code, 25);  // DataCloneError
+      assert.strictEqual(error.code, 25);
+      assert.strictEqual(error.name, 'DataCloneError');
     }),
   });
 
   port1.onmessage = ({ data }) => {
     const reader = data.getReader();
     assert.rejects(reader.read(), {
-      code: 25,  // DataCloneError
+      code: 25,
+      name: 'DataCloneError',
     });
     port1.close();
   };
@@ -354,7 +356,10 @@ const theData = 'hello';
 
   const source = {
     abort: common.mustCall((error) => {
-      process.nextTick(() => assert.strictEqual(error.code, 25));
+      process.nextTick(() => {
+        assert.strictEqual(error.code, 25);
+        assert.strictEqual(error.name, 'DataCloneError');
+      });
     })
   };
 
@@ -366,7 +371,8 @@ const theData = 'hello';
     const m = new WebAssembly.Memory({ initial: 1 });
 
     assert.rejects(writer.abort(m), {
-      code: 25
+      code: 25,
+      name: 'DataCloneError',
     });
     port1.close();
   });
@@ -437,7 +443,10 @@ const theData = 'hello';
 {
   const source = {
     cancel: common.mustCall((error) => {
-      process.nextTick(() => assert(error.code, 25));
+      process.nextTick(() => {
+        assert.strictEqual(error.code, 25);
+        assert.strictEqual(error.name, 'DataCloneError');
+      });
     }),
   };
 
@@ -455,7 +464,8 @@ const theData = 'hello';
     reader.closed.then(common.mustCall());
 
     assert.rejects(cancel, {
-      code: 25
+      code: 25,
+      name: 'DataCloneError',
     });
 
     port1.close();
@@ -469,6 +479,7 @@ const theData = 'hello';
     abort: common.mustCall((error) => {
       process.nextTick(() => {
         assert.strictEqual(error.code, 25);
+        assert.strictEqual(error.name, 'DataCloneError');
       });
     }),
   };
@@ -481,7 +492,7 @@ const theData = 'hello';
     const m = new WebAssembly.Memory({ initial: 1 });
     const writer = data.getWriter();
     const write = writer.write(m);
-    assert.rejects(write, { code: 25 });
+    assert.rejects(write, { code: 25, name: 'DataCloneError' });
     port1.close();
   });
 
@@ -492,12 +503,14 @@ const theData = 'hello';
   const readable = new ReadableStream();
   readable.getReader();
   assert.throws(() => readable[kTransfer](), {
-    code: 25
+    code: 25,
+    name: 'DataCloneError',
   });
 
   const writable = new WritableStream();
   writable.getWriter();
   assert.throws(() => writable[kTransfer](), {
-    code: 25
+    code: 25,
+    name: 'DataCloneError',
   });
 }

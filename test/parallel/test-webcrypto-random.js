@@ -63,8 +63,9 @@ for (const ctor of intTypedConstructors) {
   }
 
   if (kData !== undefined) {
-    assert.throws(() => webcrypto.getRandomValues(kData), {
-      code: 22
-    });
+    assert.throws(
+      () => webcrypto.getRandomValues(kData),
+      { name: 'QuotaExceededError', code: 22 },
+    );
   }
 }

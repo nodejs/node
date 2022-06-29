@@ -245,7 +245,10 @@ const { setTimeout: sleep } = require('timers/promises');
 
 {
   // Test abortSignal.throwIfAborted()
-  throws(() => AbortSignal.abort().throwIfAborted(), { code: 20 });
+  throws(() => AbortSignal.abort().throwIfAborted(), {
+    code: 20,
+    name: 'AbortError',
+  });
 
   // Does not throw because it's not aborted.
   const ac = new AbortController();
