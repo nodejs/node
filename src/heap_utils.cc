@@ -245,7 +245,7 @@ class FileOutputStream : public v8::OutputStream {
         status_ = num_bytes_written;
         return kAbort;
       }
-      DCHECK_LE(num_bytes_written, buf.len);
+      DCHECK_LE(static_cast<size_t>(num_bytes_written), buf.len);
       offset += num_bytes_written;
     }
     DCHECK_EQ(offset, size);
