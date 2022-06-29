@@ -105,11 +105,14 @@ replace that with the staging branch for the targeted release line.
    6. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
 
-10. If during the review process conflicts arise, use the following to rebase:
+10. Replace the `backport-requested-v10.x` label on the original pull request
+    with `backport-open-v10.x`.
+
+11. If during the review process conflicts arise, use the following to rebase:
     `git pull --rebase upstream v10.x-staging`
 
-After the pull request lands, replace the `backport-requested-v10.x` label
-on the original pull request with `backported-to-v10.x`.
+After the pull request lands, replace the `backport-open-v10.x` label on the
+original pull request with `backported-to-v10.x`.
 
 [Release Plan]: https://github.com/nodejs/Release#release-plan
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule
