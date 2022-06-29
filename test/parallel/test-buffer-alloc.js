@@ -41,7 +41,25 @@ assert.strictEqual(d.length, 0);
   assert.strictEqual(b.offset, 0);
 }
 
+// Test creating a Buffer from a Uint8Array
+{
+  const ui8 = new Uint8Array(4).fill(42);
+  const e = Buffer.from(ui8);
+  for (const [index, value] of e.entries()) {
+    assert.strictEqual(value, ui8[index]);
+  }
+}
+// Test creating a Buffer from a Uint8Array (old constructor)
+{
+  const ui8 = new Uint8Array(4).fill(42);
+  const e = Buffer(ui8);
+  for (const [key, value] of e.entries()) {
+    assert.strictEqual(value, ui8[key]);
+  }
+}
+
 // Test creating a Buffer from a Uint32Array
+// Note: it is implicitly interpreted as Array of integers modulo 256
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer.from(ui32);
@@ -50,11 +68,12 @@ assert.strictEqual(d.length, 0);
   }
 }
 // Test creating a Buffer from a Uint32Array (old constructor)
+// Note: it is implicitly interpreted as Array of integers modulo 256
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer(ui32);
   for (const [key, value] of e.entries()) {
-    assert.deepStrictEqual(value, ui32[key]);
+    assert.strictEqual(value, ui32[key]);
   }
 }
 
