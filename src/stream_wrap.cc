@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "pipe_wrap.h"
 #include "req_wrap-inl.h"
@@ -38,6 +39,7 @@
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Context;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
@@ -194,15 +196,19 @@ bool LibuvStreamWrap::IsIPCPipe() {
   return is_named_pipe_ipc();
 }
 
-
 int LibuvStreamWrap::ReadStart() {
-  return uv_read_start(stream(), [](uv_handle_t* handle,
-                                    size_t suggested_size,
-                                    uv_buf_t* buf) {
-    static_cast<LibuvStreamWrap*>(handle->data)->OnUvAlloc(suggested_size, buf);
-  }, [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    static_cast<LibuvStreamWrap*>(stream->data)->OnUvRead(nread, buf);
-  });
+  return uv_read_start(
+      stream(),
+      [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+        static_cast<LibuvStreamWrap*>(handle->data)
+            ->OnUvAlloc(suggested_size, buf);
+      },
+      [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+        LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(stream->data);
+        TryCatchScope try_catch(wrap->env());
+        try_catch.SetVerbose(true);
+        wrap->OnUvRead(nread, buf);
+      });
 }
 
 
