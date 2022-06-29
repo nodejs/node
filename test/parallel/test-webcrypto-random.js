@@ -47,10 +47,10 @@ for (const ctor of intTypedConstructors) {
 }
 
 {
-  const buf = new Uint16Array(10);
-  const before = Buffer.from(buf).toString('hex');
+  const buf = Buffer.alloc(10);
+  const before = buf.toString('hex');
   webcrypto.getRandomValues(buf);
-  const after = Buffer.from(buf).toString('hex');
+  const after = buf.toString('hex');
   assert.notStrictEqual(before, after);
 }
 
