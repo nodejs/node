@@ -746,7 +746,7 @@ npm run-script <command> [-- <args>]
 Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--if-present] [--ignore-scripts]
-[--script-shell <script-shell>]
+[--foreground-scripts] [--script-shell <script-shell>]
 
 aliases: run, rum, urn
 
