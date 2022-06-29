@@ -29,6 +29,7 @@ if (isMainThread || !workerData) {
         });
       }, {
         code: 25,
+        name: 'DataCloneError',
       });
     } finally {
       await handle.close();
