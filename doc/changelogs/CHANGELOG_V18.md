@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.5.0">18.5.0</a><br/>
 <a href="#18.4.0">18.4.0</a><br/>
 <a href="#18.3.0">18.3.0</a><br/>
 <a href="#18.2.0">18.2.0</a><br/>
@@ -36,6 +37,30 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.5.0"></a>
+
+## 2022-07-07, Version 18.5.0 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* \[[`3f0c3e142d`](https://github.com/nodejs/node/commit/3f0c3e142d)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+* \[[`9578158ff8`](https://github.com/nodejs/node/commit/9578158ff8)] - **(SEMVER-MAJOR)** **src,doc,test**: add --openssl-shared-config option (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+  * Node.js now reads `nodejs_conf` section in the `openssl` config
+* \[[`dc7af13486`](https://github.com/nodejs/node/commit/dc7af13486)] - **deps**: update archs files for quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
+* \[[`fa72c534eb`](https://github.com/nodejs/node/commit/fa72c534eb)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
+
+### Commits
+
+* \[[`dc7af13486`](https://github.com/nodejs/node/commit/dc7af13486)] - **deps**: update archs files for quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
+* \[[`fa72c534eb`](https://github.com/nodejs/node/commit/fa72c534eb)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
+* \[[`a5fc2deb43`](https://github.com/nodejs/node/commit/a5fc2deb43)] - **deps**: update default openssl.cnf directory (Michael Dawson) [nodejs-private/node-private#335](https://github.com/nodejs-private/node-private/pull/335)
+* \[[`f2407748e3`](https://github.com/nodejs/node/commit/f2407748e3)] - **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [nodejs-private/node-private#315](https://github.com/nodejs-private/node-private/pull/315)
+* \[[`e4af5eba95`](https://github.com/nodejs/node/commit/e4af5eba95)] - **src**: fix IPv4 validation in inspector\_socket (Tobias Nießen) [nodejs-private/node-private#320](https://github.com/nodejs-private/node-private/pull/320)
+* \[[`3f0c3e142d`](https://github.com/nodejs/node/commit/3f0c3e142d)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+* \[[`9578158ff8`](https://github.com/nodejs/node/commit/9578158ff8)] - **(SEMVER-MAJOR)** **src,doc,test**: add --openssl-shared-config option (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
 
 <a id="18.4.0"></a>
 

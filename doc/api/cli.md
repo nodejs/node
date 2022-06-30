@@ -788,7 +788,7 @@ against FIPS-enabled OpenSSL.
 ### `--openssl-shared-config`
 
 <!-- YAML
-added: REPLACEME
+added: v18.5.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
