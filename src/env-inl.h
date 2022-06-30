@@ -179,8 +179,6 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
 
   // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
-  // Since async_hooks is experimental, do only perform the check
-  // when async_hooks is enabled.
   if (UNLIKELY(fields_[kCheck] > 0 &&
                async_id_fields_[kExecutionAsyncId] != async_id)) {
     FailWithCorruptedAsyncStack(async_id);
