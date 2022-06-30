@@ -5,17 +5,17 @@ const http = require('http');
 const Countdown = require('../common/countdown');
 
 const expectedHeadersMultipleWrites = {
-  'connection': 'keep-alive',
+  'connection': 'close',
   'transfer-encoding': 'chunked',
 };
 
 const expectedHeadersEndWithData = {
-  'connection': 'keep-alive',
-  'content-length': String('hello world'.length),
+  'connection': 'close',
+  'content-length': String('hello world'.length)
 };
 
 const expectedHeadersEndNoData = {
-  'connection': 'keep-alive',
+  'connection': 'close',
   'content-length': '0',
 };
 
@@ -24,7 +24,6 @@ const countdown = new Countdown(3, () => server.close());
 
 const server = http.createServer(function(req, res) {
   res.removeHeader('Date');
-  res.setHeader('Keep-Alive', 'timeout=1');
 
   switch (req.url.substr(1)) {
     case 'multiple-writes':
@@ -60,8 +59,7 @@ server.listen(0, function() {
   req.write('hello ');
   req.end('world');
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersMultipleWrites, 'keep-alive': 'timeout=1' });
-    res.resume();
+    assert.deepStrictEqual(res.headers, expectedHeadersMultipleWrites);
   });
 
   req = http.request({
@@ -73,8 +71,7 @@ server.listen(0, function() {
   req.removeHeader('Host');
   req.end('hello world');
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndWithData, 'keep-alive': 'timeout=1' });
-    res.resume();
+    assert.deepStrictEqual(res.headers, expectedHeadersEndWithData);
   });
 
   req = http.request({
@@ -86,8 +83,7 @@ server.listen(0, function() {
   req.removeHeader('Host');
   req.end();
   req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndNoData, 'keep-alive': 'timeout=1' });
-    res.resume();
+    assert.deepStrictEqual(res.headers, expectedHeadersEndNoData);
   });
 
 });

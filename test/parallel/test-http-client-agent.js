@@ -27,7 +27,6 @@ const Countdown = require('../common/countdown');
 
 let name;
 const max = 3;
-const agent = new http.Agent();
 
 const server = http.Server(common.mustCall((req, res) => {
   if (req.url === '/0') {
@@ -41,28 +40,27 @@ const server = http.Server(common.mustCall((req, res) => {
   }
 }, max));
 server.listen(0, common.mustCall(() => {
-  name = agent.getName({ port: server.address().port });
+  name = http.globalAgent.getName({ port: server.address().port });
   for (let i = 0; i < max; ++i)
     request(i);
 }));
 
 const countdown = new Countdown(max, () => {
-  assert(!(name in agent.sockets));
-  assert(!(name in agent.requests));
+  assert(!(name in http.globalAgent.sockets));
+  assert(!(name in http.globalAgent.requests));
   server.close();
 });
 
 function request(i) {
   const req = http.get({
     port: server.address().port,
-    path: `/${i}`,
-    agent
+    path: `/${i}`
   }, function(res) {
     const socket = req.socket;
     socket.on('close', common.mustCall(() => {
       countdown.dec();
       if (countdown.remaining > 0) {
-        assert.strictEqual(agent.sockets[name].includes(socket),
+        assert.strictEqual(http.globalAgent.sockets[name].includes(socket),
                            false);
       }
     }));

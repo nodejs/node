@@ -82,8 +82,7 @@ function makeRequest(port, id) {
       rejectUnauthorized: true,
       ca: credentialOptions[0].ca,
       servername: 'agent1',
-      headers: { id },
-      agent: new https.Agent()
+      headers: { id }
     };
 
     let errored = false;

@@ -19,7 +19,6 @@ const options = {
 
 // Create TLS1.2 server
 https.createServer(options, function(req, res) {
-  res.writeHead(200, { 'Connection': 'close' });
   res.end('ohai');
 }).listen(0, function() {
   first(this);
@@ -45,7 +44,6 @@ function first(server) {
 function faultyServer(port) {
   options.secureProtocol = 'TLSv1_method';
   https.createServer(options, function(req, res) {
-    res.writeHead(200, { 'Connection': 'close' });
     res.end('hello faulty');
   }).listen(port, function() {
     second(this);

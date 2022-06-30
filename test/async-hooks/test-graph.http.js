@@ -12,7 +12,6 @@ const hooks = initHooks();
 hooks.enable();
 
 const server = http.createServer(common.mustCall((req, res) => {
-  res.writeHead(200, { 'Connection': 'close' });
   res.end();
   server.close(common.mustCall());
 }));

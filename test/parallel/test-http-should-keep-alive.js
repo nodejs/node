@@ -50,10 +50,6 @@ const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining;
 
 const server = net.createServer(function(socket) {
   socket.write(SERVER_RESPONSES[getCountdownIndex()]);
-
-  if (SHOULD_KEEP_ALIVE[getCountdownIndex()]) {
-    socket.end();
-  }
 }).listen(0, function() {
   function makeRequest() {
     const req = http.get({ port: server.address().port }, function(res) {
