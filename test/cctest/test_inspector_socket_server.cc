@@ -306,6 +306,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
       const std::vector<std::string>& target_ids)
       : harness_(server),
         targets_(target_ids),
+        server_(nullptr),
         session_id_(0) {}
 
   ~TestSocketServerDelegate() override {
