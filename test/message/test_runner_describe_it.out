@@ -553,6 +553,43 @@ not ok 56 - describe async throw fails
   ...
 # Subtest: invalid subtest fail
 not ok 57 - invalid subtest fail
+# Subtest: timeouts
+    # Subtest: timed out async test
+    not ok 1 - timed out async test
+      ---
+      duration_ms: *
+      failureType: 'testTimeoutFailure'
+      error: 'test timed out after 5ms'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: timed out callback test
+    not ok 2 - timed out callback test
+      ---
+      duration_ms: *
+      failureType: 'testTimeoutFailure'
+      error: 'test timed out after 5ms'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: large timeout async test is ok
+    ok 3 - large timeout async test is ok
+      ---
+      duration_ms: *
+      ...
+    # Subtest: large timeout callback test is ok
+    ok 4 - large timeout callback test is ok
+      ---
+      duration_ms: *
+      ...
+    1..4
+not ok 54 - timeouts
+  ---
+  duration_ms: *
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: invalid subtest fail
+not ok 55 - invalid subtest fail
   ---
   duration_ms: *
   failureType: 'parentAlreadyFinished'
