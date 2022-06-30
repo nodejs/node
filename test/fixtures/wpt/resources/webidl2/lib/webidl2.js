@@ -31,6 +31,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _productions_namespace_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(28);
 /* harmony import */ var _productions_callback_interface_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(29);
 /* harmony import */ var _productions_helpers_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(4);
+/* harmony import */ var _productions_token_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(10);
+
 
 
 
@@ -91,6 +93,15 @@ function parseByTokens(tokeniser, options) {
   }
 
   function definition() {
+    if (options.productions) {
+      for (const production of options.productions) {
+        const result = production(tokeniser);
+        if (result) {
+          return result;
+        }
+      }
+    }
+
     return (
       callback() ||
       interface_() ||
@@ -116,7 +127,7 @@ function parseByTokens(tokeniser, options) {
       (0,_productions_helpers_js__WEBPACK_IMPORTED_MODULE_11__.autoParenter)(def).extAttrs = ea;
       defs.push(def);
     }
-    const eof = tokeniser.consumeType("eof");
+    const eof = _productions_token_js__WEBPACK_IMPORTED_MODULE_12__.Eof.parse(tokeniser);
     if (options.concrete) {
       defs.push(eof);
     }
@@ -132,6 +143,8 @@ function parseByTokens(tokeniser, options) {
  * @param {object} [options]
  * @param {*} [options.sourceName]
  * @param {boolean} [options.concrete]
+ * @param {Function[]} [options.productions]
+ * @return {import("./productions/base").Base[]}
  */
 function parse(str, options = {}) {
   const tokeniser = new _tokeniser_js__WEBPACK_IMPORTED_MODULE_0__.Tokeniser(str);
@@ -170,7 +183,7 @@ const tokenRe = {
   identifier: /[_-]?[A-Za-z][0-9A-Z_a-z-]*/y,
   string: /"[^"]*"/y,
   whitespace: /[\t\n\r ]+/y,
-  comment: /\/\/.*|\/\*(.|\n)*?\*\//y,
+  comment: /\/\/.*|\/\*[\s\S]*?\*\//y,
   other: /[^\t\n\r 0-9A-Za-z]/y,
 };
 
@@ -184,6 +197,8 @@ const typeNameKeywords = [
   "Uint16Array",
   "Uint32Array",
   "Uint8ClampedArray",
+  "BigInt64Array",
+  "BigUint64Array",
   "Float32Array",
   "Float64Array",
   "any",
@@ -259,6 +274,7 @@ const punctuations = [
   "=",
   ">",
   "?",
+  "*",
   "[",
   "]",
   "{",
@@ -355,6 +371,8 @@ function tokenise(str) {
     type: "eof",
     value: "",
     trivia,
+    line,
+    index,
   });
 
   return tokens;
@@ -401,7 +419,7 @@ class Tokeniser {
   /**
    * @param {string} type
    */
-  probeType(type) {
+  probeKind(type) {
     return (
       this.source.length > this.position &&
       this.source[this.position].type === type
@@ -413,16 +431,16 @@ class Tokeniser {
    */
   probe(value) {
     return (
-      this.probeType("inline") && this.source[this.position].value === value
+      this.probeKind("inline") && this.source[this.position].value === value
     );
   }
 
   /**
-   * @param  {...string} candidates
+   * @param {...string} candidates
    */
-  consumeType(...candidates) {
+  consumeKind(...candidates) {
     for (const type of candidates) {
-      if (!this.probeType(type)) continue;
+      if (!this.probeKind(type)) continue;
       const token = this.source[this.position];
       this.position++;
       return token;
@@ -430,16 +448,29 @@ class Tokeniser {
   }
 
   /**
-   * @param  {...string} candidates
+   * @param {...string} candidates
    */
   consume(...candidates) {
-    if (!this.probeType("inline")) return;
+    if (!this.probeKind("inline")) return;
     const token = this.source[this.position];
     for (const value of candidates) {
       if (token.value !== value) continue;
       this.position++;
       return token;
     }
+  }
+
+  /**
+   * @param {string} value
+   */
+  consumeIdentifier(value) {
+    if (!this.probeKind("identifier")) {
+      return;
+    }
+    if (this.source[this.position].value !== value) {
+      return;
+    }
+    return this.consumeKind("identifier");
   }
 
   /**
@@ -522,6 +553,8 @@ function contextAsText(node) {
  * @typedef {object} WebIDL2ErrorOptions
  * @property {"error" | "warning"} [level]
  * @property {Function} [autofix]
+ *
+ * @typedef {ReturnType<typeof error>} WebIDLErrorData
  *
  * @param {string} message error message
  * @param {"Syntax" | "Validation"} kind error type
@@ -705,7 +738,7 @@ function list(tokeniser, { parser, allowDangler, listName = "list" }) {
  */
 function const_value(tokeniser) {
   return (
-    tokeniser.consumeType("decimal", "integer") ||
+    tokeniser.consumeKind("decimal", "integer") ||
     tokeniser.consume("true", "false", "Infinity", "-Infinity", "NaN")
   );
 }
@@ -1066,7 +1099,7 @@ function single_type(tokeniser, typeName) {
   let ret = generic_type(tokeniser, typeName) || (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.primitive_type)(tokeniser);
   if (!ret) {
     const base =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume(..._tokeniser_js__WEBPACK_IMPORTED_MODULE_2__.stringTypes, ..._tokeniser_js__WEBPACK_IMPORTED_MODULE_2__.typeNameKeywords);
     if (!base) {
       return;
@@ -1164,7 +1197,7 @@ class Type extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
 
     if (this.idlType === "void") {
       const message = `\`void\` is now replaced by \`undefined\`. Refer to the \
-[relevant GitHub issue](https://github.com/heycam/webidl/issues/60) \
+[relevant GitHub issue](https://github.com/whatwg/webidl/issues/60) \
 for more information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_3__.validationError)(this.tokens.base, this, "replace-void", message, {
         autofix: replaceVoid(this),
@@ -1457,8 +1490,13 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
     const ret = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.autoParenter)(
       new ExtendedAttributeParameters({ source: tokeniser.source, tokens })
     );
+    ret.list = [];
     if (tokens.assign) {
-      tokens.secondaryName = tokeniser.consumeType(...extAttrValueSyntax);
+      tokens.asterisk = tokeniser.consume("*");
+      if (tokens.asterisk) {
+        return ret.this;
+      }
+      tokens.secondaryName = tokeniser.consumeKind(...extAttrValueSyntax);
     }
     tokens.open = tokeniser.consume("(");
     if (tokens.open) {
@@ -1470,19 +1508,24 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
       tokens.close =
         tokeniser.consume(")") ||
         tokeniser.error("Unexpected token in extended attribute argument list");
-    } else if (ret.hasRhs && !tokens.secondaryName) {
+    } else if (tokens.assign && !tokens.secondaryName) {
       tokeniser.error("No right hand side to extended attribute assignment");
     }
     return ret.this;
   }
 
   get rhsIsList() {
-    return this.tokens.assign && !this.tokens.secondaryName;
+    return (
+      this.tokens.assign && !this.tokens.asterisk && !this.tokens.secondaryName
+    );
   }
 
   get rhsType() {
     if (this.rhsIsList) {
       return this.list[0].tokens.value.type + "-list";
+    }
+    if (this.tokens.asterisk) {
+      return "*";
     }
     if (this.tokens.secondaryName) {
       return this.tokens.secondaryName.type;
@@ -1492,26 +1535,17 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
 
   /** @param {import("../writer.js").Writer)} w */
   write(w) {
-    function extended_attribute_listitem(item) {
-      return w.ts.wrap([
-        w.token(item.tokens.value),
-        w.token(item.tokens.separator),
-      ]);
-    }
     const { rhsType } = this;
     return w.ts.wrap([
       w.token(this.tokens.assign),
+      w.token(this.tokens.asterisk),
       w.reference_token(this.tokens.secondaryName, this.parent),
       w.token(this.tokens.open),
-      ...(!this.list
-        ? []
-        : this.list.map((p) => {
-            return rhsType === "identifier-list"
-              ? w.identifier(p, this.parent)
-              : rhsType && rhsType.endsWith("-list")
-              ? extended_attribute_listitem(p)
-              : p.write(w);
-          })),
+      ...this.list.map((p) => {
+        return rhsType === "identifier-list"
+          ? w.identifier(p, this.parent)
+          : p.write(w);
+      }),
       w.token(this.tokens.close),
     ]);
   }
@@ -1522,7 +1556,7 @@ class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base
    * @param {import("../tokeniser").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const name = tokeniser.consumeType("identifier");
+    const name = tokeniser.consumeKind("identifier");
     if (name) {
       return new SimpleExtendedAttribute({
         source: tokeniser.source,
@@ -1551,7 +1585,9 @@ class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base
     }
     const value = this.params.rhsIsList
       ? list
-      : (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.unescape)(tokens.secondaryName.value);
+      : this.params.tokens.secondaryName
+      ? (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.unescape)(tokens.secondaryName.value)
+      : null;
     return { type, value };
   }
   get arguments() {
@@ -1567,7 +1603,7 @@ class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base
     if (name === "LegacyNoInterfaceObject") {
       const message = `\`[LegacyNoInterfaceObject]\` extended attribute is an \
 undesirable feature that may be removed from Web IDL in the future. Refer to the \
-[relevant upstream PR](https://github.com/heycam/webidl/pull/609) for more \
+[relevant upstream PR](https://github.com/whatwg/webidl/pull/609) for more \
 information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_4__.validationError)(
         this.tokens.name,
@@ -1579,7 +1615,7 @@ information.`;
     } else if (renamedLegacies.has(name)) {
       const message = `\`[${name}]\` extended attribute is a legacy feature \
 that is now renamed to \`[${renamedLegacies.get(name)}]\`. Refer to the \
-[relevant upstream PR](https://github.com/heycam/webidl/pull/870) for more \
+[relevant upstream PR](https://github.com/whatwg/webidl/pull/870) for more \
 information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_4__.validationError)(this.tokens.name, this, "renamed-legacy", message, {
         level: "warning",
@@ -1638,9 +1674,12 @@ class ExtendedAttributes extends _array_base_js__WEBPACK_IMPORTED_MODULE_1__.Arr
     );
     tokens.close =
       tokeniser.consume("]") ||
-      tokeniser.error("Unexpected closing token of extended attribute");
+      tokeniser.error(
+        "Expected a closing token for the extended attribute list"
+      );
     if (!ret.length) {
-      tokeniser.error("Found an empty extended attribute");
+      tokeniser.unconsume(tokens.close.index);
+      tokeniser.error("An extended attribute list must not be empty");
     }
     if (tokeniser.probe("[")) {
       tokeniser.error(
@@ -1696,7 +1735,8 @@ class ArrayBase extends Array {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "WrappedToken": () => (/* binding */ WrappedToken)
+/* harmony export */   "WrappedToken": () => (/* binding */ WrappedToken),
+/* harmony export */   "Eof": () => (/* binding */ Eof)
 /* harmony export */ });
 /* harmony import */ var _base_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(6);
 /* harmony import */ var _helpers_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
@@ -1712,7 +1752,7 @@ class WrappedToken extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
    */
   static parser(tokeniser, type) {
     return () => {
-      const value = tokeniser.consumeType(type);
+      const value = tokeniser.consumeKind(type);
       if (value) {
         return new WrappedToken({
           source: tokeniser.source,
@@ -1724,6 +1764,30 @@ class WrappedToken extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
 
   get value() {
     return (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.unescape)(this.tokens.value.value);
+  }
+
+  /** @param {import("../writer").Writer} w */
+  write(w) {
+    return w.ts.wrap([
+      w.token(this.tokens.value),
+      w.token(this.tokens.separator),
+    ]);
+  }
+}
+
+class Eof extends WrappedToken {
+  /**
+   * @param {import("../tokeniser").Tokeniser} tokeniser
+   */
+  static parse(tokeniser) {
+    const value = tokeniser.consumeKind("eof");
+    if (value) {
+      return new Eof({ source: tokeniser.source, tokens: { value } });
+    }
+  }
+
+  get type() {
+    return "eof";
   }
 }
 
@@ -1774,7 +1838,7 @@ class Argument extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       tokens.variadic = tokeniser.consume("...");
     }
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume(..._tokeniser_js__WEBPACK_IMPORTED_MODULE_4__.argumentNameKeywords);
     if (!tokens.name) {
       return tokeniser.unconsume(start_position);
@@ -1877,9 +1941,9 @@ function autofixDictionaryArgumentOptionality(arg) {
   return () => {
     const firstToken = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.getFirstToken)(arg.idlType);
     arg.tokens.optional = {
+      ...firstToken,
       type: "optional",
       value: "optional",
-      trivia: firstToken.trivia,
     };
     firstToken.trivia = " ";
     autofixOptionalDictionaryDefaultValue(arg)();
@@ -1920,7 +1984,7 @@ class Default extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     }
     const def =
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.const_value)(tokeniser) ||
-      tokeniser.consumeType("string") ||
+      tokeniser.consumeKind("string") ||
       tokeniser.consume("null", "[", "{") ||
       tokeniser.error("No value for default");
     const expression = [def];
@@ -2010,7 +2074,7 @@ class Operation extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     ret.idlType =
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.return_type)(tokeniser) || tokeniser.error("Missing return type");
     tokens.name =
-      tokeniser.consumeType("identifier") || tokeniser.consume("includes");
+      tokeniser.consumeKind("identifier") || tokeniser.consume("includes");
     tokens.open =
       tokeniser.consume("(") || tokeniser.error("Invalid operation");
     ret.arguments = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.argument_list)(tokeniser);
@@ -2135,7 +2199,7 @@ class Attribute extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.type_with_extended_attributes)(tokeniser, "attribute-type") ||
       tokeniser.error("Attribute lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume("async", "required") ||
       tokeniser.error("Attribute lacks a name");
     tokens.termination =
@@ -2233,7 +2297,7 @@ class EnumValue extends _token_js__WEBPACK_IMPORTED_MODULE_1__.WrappedToken {
    * @param {import("../tokeniser").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const value = tokeniser.consumeType("string");
+    const value = tokeniser.consumeKind("string");
     if (value) {
       return new EnumValue({ source: tokeniser.source, tokens: { value } });
     }
@@ -2272,7 +2336,7 @@ class Enum extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       return;
     }
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("No name for enum");
     const ret = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_0__.autoParenter)(new Enum({ source: tokeniser.source, tokens }));
     tokeniser.current = ret.this;
@@ -2282,7 +2346,7 @@ class Enum extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       allowDangler: true,
       listName: "enumeration",
     });
-    if (tokeniser.probeType("string")) {
+    if (tokeniser.probeKind("string")) {
       tokeniser.error("No comma between enum values");
     }
     tokens.close =
@@ -2340,7 +2404,7 @@ class Includes extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
    * @param {import("../tokeniser").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const target = tokeniser.consumeType("identifier");
+    const target = tokeniser.consumeKind("identifier");
     if (!target) {
       return;
     }
@@ -2351,7 +2415,7 @@ class Includes extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       return;
     }
     tokens.mixin =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Incomplete includes statement");
     tokens.termination =
       tokeniser.consume(";") ||
@@ -2414,7 +2478,7 @@ class Typedef extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.type_with_extended_attributes)(tokeniser, "typedef-type") ||
       tokeniser.error("Typedef lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Typedef lacks a name");
     tokeniser.current = ret.this;
     tokens.termination =
@@ -2473,7 +2537,7 @@ class CallbackFunction extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       new CallbackFunction({ source: tokeniser.source, tokens })
     );
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Callback lacks a name");
     tokeniser.current = ret.this;
     tokens.assign =
@@ -2578,7 +2642,6 @@ class Interface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Interface({ source: tokeniser.source, tokens }),
       {
-        type: "interface",
         inheritable: !partial,
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_3__.Constant.parse],
@@ -2737,7 +2800,7 @@ function inheritance(tokeniser) {
     return {};
   }
   const inheritance =
-    tokeniser.consumeType("identifier") ||
+    tokeniser.consumeKind("identifier") ||
     tokeniser.error("Inheritance lacks a type");
   return { colon, inheritance };
 }
@@ -2749,11 +2812,11 @@ class Container extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
    * @param {T} instance
    * @param {*} args
    */
-  static parse(tokeniser, instance, { type, inheritable, allowedMembers }) {
-    const { tokens } = instance;
+  static parse(tokeniser, instance, { inheritable, allowedMembers }) {
+    const { tokens, type } = instance;
     tokens.name =
-      tokeniser.consumeType("identifier") ||
-      tokeniser.error(`Missing name in ${instance.type}`);
+      tokeniser.consumeKind("identifier") ||
+      tokeniser.error(`Missing name in ${type}`);
     tokeniser.current = instance;
     instance = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_2__.autoParenter)(instance);
     if (inheritable) {
@@ -2870,7 +2933,7 @@ class Constant extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     let idlType = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_2__.primitive_type)(tokeniser);
     if (!idlType) {
       const base =
-        tokeniser.consumeType("identifier") ||
+        tokeniser.consumeKind("identifier") ||
         tokeniser.error("Const lacks a type");
       idlType = new _type_js__WEBPACK_IMPORTED_MODULE_1__.Type({ source: tokeniser.source, tokens: { base } });
     }
@@ -2879,7 +2942,7 @@ class Constant extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     }
     idlType.type = "const-type";
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Const lacks a name");
     tokens.assign =
       tokeniser.consume("=") || tokeniser.error("Const lacks value assignment");
@@ -3199,7 +3262,6 @@ class Mixin extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Mixin({ source: tokeniser.source, tokens }),
       {
-        type: "interface mixin",
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_1__.Constant.parse],
           [_helpers_js__WEBPACK_IMPORTED_MODULE_4__.stringifier],
@@ -3247,7 +3309,6 @@ class Dictionary extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Dictionary({ source: tokeniser.source, tokens }),
       {
-        type: "dictionary",
         inheritable: !partial,
         allowedMembers: [[_field_js__WEBPACK_IMPORTED_MODULE_1__.Field.parse]],
       }
@@ -3291,7 +3352,7 @@ class Field extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.type_with_extended_attributes)(tokeniser, "dictionary-type") ||
       tokeniser.error("Dictionary member lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Dictionary member lacks a name");
     ret.default = _default_js__WEBPACK_IMPORTED_MODULE_3__.Default.parse(tokeniser);
     if (tokens.required && ret.default)
@@ -3371,7 +3432,6 @@ class Namespace extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Namespace({ source: tokeniser.source, tokens }),
       {
-        type: "namespace",
         allowedMembers: [
           [_attribute_js__WEBPACK_IMPORTED_MODULE_1__.Attribute.parse, { noInherit: true, readonly: true }],
           [_constant_js__WEBPACK_IMPORTED_MODULE_5__.Constant.parse],
@@ -3441,7 +3501,6 @@ class CallbackInterface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Conta
       tokeniser,
       new CallbackInterface({ source: tokeniser.source, tokens }),
       {
-        type: "callback interface",
         inheritable: !partial,
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_2__.Constant.parse],
@@ -3525,13 +3584,7 @@ function write(ast, { templates: ts = templates } = {}) {
 
   const w = new Writer(ts);
 
-  function dispatch(it) {
-    if (it.type === "eof") {
-      return ts.trivia(it.trivia);
-    }
-    return it.write(w);
-  }
-  return ts.wrap(ast.map(dispatch));
+  return ts.wrap(ast.map((it) => it.write(w)));
 }
 
 
@@ -3544,6 +3597,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "validate": () => (/* binding */ validate)
 /* harmony export */ });
 /* harmony import */ var _error_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
+// @ts-check
+
 
 
 function getMixinMap(all, unique) {
@@ -3632,7 +3687,8 @@ function flatten(array) {
 }
 
 /**
- * @param {*} ast AST or array of ASTs
+ * @param {import("./productions/base").Base[]} ast
+ * @return {import("./error").WebIDLErrorData[]} validation errors
  */
 function validate(ast) {
   return [...validateIterable(flatten(ast))];
