@@ -287,14 +287,16 @@ function formatResult(data) {
 }
 
 function sendResult(data) {
-  if (process.send && Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+  if (process.send) {
     // If forked, report by process send
     process.send(data, () => {
-      // If, for any reason, the process is unable to self close within
-      // a second after completing, forcefully close it.
-      setTimeout(() => {
-        process.exit(0);
-      }, 5000).unref();
+      if (Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+        // If, for any reason, the process is unable to self close within
+        // a second after completing, forcefully close it.
+        setTimeout(() => {
+          process.exit(0);
+        }, 5000).unref();
+      }
     });
   } else {
     // Otherwise report by stdout
