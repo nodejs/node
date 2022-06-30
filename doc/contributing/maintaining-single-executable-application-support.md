@@ -50,7 +50,7 @@ maintain a stable [em-bedder API](https://nodejs.org/dist/latest/docs/api/embedd
 The following header must be included in a segment in order to have it run
 as a single executable application:
 
-JSCODEVVVVVVVVFFFFFFFFF
+JSCODEVVVVVVVVFFFFFFFFFAAAAAAAA
 
 where:
 
@@ -59,18 +59,20 @@ where:
 * `FFFFFFFF` represents the flags to be used in the process of starting
   the bundled application. Currently this must be `00000000` to indicate that
   no flags are set.
+* `AAAAAAAA` is the number of arguments being provided
 
-The characters in both `VVVVVVVV` and `FFFFFFFF` are restricted to being
-hexadecimal characters (`0` through `9` and `A` through `F`) that form
-a 32-bit, big endian integer.
+The characters in both `VVVVVVVV`, `FFFFFFFF` and `AAAAAAAA` are
+restricted to being hexadecimal characters (`0` through `9` and
+`A` through `F`) that form a 32-bit, big endian integer.
 
-The string following the header is treated as a set of command line options
-that are used as a prefix to any additional command line options passed when
-the executable is started. For example, for a simple single hello world
-for version `00000001` could be:
+Following the header are AAAAAAAA strings, each terminated for 0x00
+one for each of the parameters passed. These parameters are is treated
+as a set of command line options that are used as a prefix to any
+additional command line options passed when the executable is started.
+For example, for a simple single hello world for version `00000001` could be:
 
 ```text
-JSCODE0000000100000000-e \"console.log('Hello from single binary');\"
+JSCODE000000010000000000000002-e\0console.log('Hello from single binary')\0
 ```
 
 Support for bundling into existing Node.js binaries is maintained
@@ -103,7 +105,7 @@ binary = lief.parse('node')
 segment = lief.ELF.Segment()
 segment.type = lief.ELF.SEGMENT_TYPES.LOAD
 segment.flags = lief.ELF.SEGMENT_FLAGS.R
-stringContent = "JSCODE0000000100000000-e \"console.log('Hello from single binary');\""
+stringContent = "JSCODE000000010000000000000002-e\0console.log('Hello from single binary')\0"
 segment.content = bytearray(stringContent.encode())
 segment = binary.replace(segment, binary[lief.ELF.SEGMENT_TYPES.NOTE])
 

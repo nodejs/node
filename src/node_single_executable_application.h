@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_SINGLE_BINARY_H_
-#define SRC_NODE_SINGLE_BINARY_H_
+#ifndef SRC_NODE_SINGLE_EXECUTABLE_APPLICATION_H_
+#define SRC_NODE_SINGLE_EXECUTABLE_APPLICATION_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -19,4 +19,4 @@ single_executable_replacement_args* CheckForSingleBinary(int argc, char** argv);
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif  // SRC_NODE_SINGLE_BINARY_H_
+#endif  // SRC_NODE_SINGLE_EXECUTABLE_APPLICATION_H_
