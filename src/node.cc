@@ -38,10 +38,10 @@
 #include "node_process-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_single_executable_application.h"
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
-#include "node_single_binary.h"
 
 #if HAVE_OPENSSL
 #include "node_crypto.h"
@@ -1183,14 +1183,15 @@ void TearDownOncePerProcess() {
 }
 
 int Start(int argc, char** argv) {
-  node::single_binary::NewArgs* newArgs =
-     node::single_binary::checkForSingleBinary(argc, argv);
+  node::single_executable_application::single_executable_replacement_args*
+      new_args =
+          node::single_executable_application::CheckForSingleBinary(argc, argv);
 
   InitializationResult result;
-  if (!newArgs->singleBinary) {
+  if (!new_args->single_executable_application) {
     result = InitializeOncePerProcess(argc, argv);
   } else {
-    result = InitializeOncePerProcess(newArgs->argc, newArgs->argv);
+    result = InitializeOncePerProcess(new_args->argc, new_args->argv);
   }
   if (result.early_return) {
     return result.exit_code;

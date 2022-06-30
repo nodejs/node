@@ -4,17 +4,17 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 namespace node {
-namespace single_binary {
+namespace single_executable_application {
 
-struct NewArgs {
-  bool singleBinary;
+struct single_executable_replacement_args {
+  bool single_executable_application;
   int argc;
   char** argv;
 };
 
-NewArgs* checkForSingleBinary(int argc, char** argv);
+single_executable_replacement_args* CheckForSingleBinary(int argc, char** argv);
 
-}  // namespace single_binary
+}  // namespace single_executable_application
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
