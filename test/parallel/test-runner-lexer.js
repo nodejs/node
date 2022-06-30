@@ -367,18 +367,37 @@ ok 1
 
 {
   const tokens = TAPLexer(`
----
-  message: "description"
-  severity: fail
-...
+  ---
+    message: "description"
+    severity: fail
+  ...
 `);
 
   [
     { kind: TokenKind.EOL, value: '\n' },
-    {
-      kind: TokenKind.TAP_YAML,
-      value: '  message: "description"\n  severity: fail\n',
-    },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.TAP_YAML_START, value: '---' },
+    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'message:' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: '"description"' },
+    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'severity:' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'fail' },
+    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.TAP_YAML_END, value: '...' },
     { kind: TokenKind.EOL, value: '\n' },
     { kind: TokenKind.EOF, value: 'EOF' },
   ].forEach((token, index) => {

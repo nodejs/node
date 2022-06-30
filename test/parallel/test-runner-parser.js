@@ -7,9 +7,11 @@ const assert = require('assert');
 const { TapParser } = require('internal/test_runner/tap_parser');
 
 function TAPParser(input) {
-  const parser = new TapParser(input, { debug: false });
+  const parser = new TapParser(input, { debug: true });
   return parser.parse();
 }
+
+// TAP version
 
 {
   const ast = TAPParser(`TAP version 14`);
@@ -23,6 +25,24 @@ function TAPParser(input) {
     },
   });
 }
+
+{
+  assert.throws(() => TAPParser(`TAP version`), {
+    name: 'SyntaxError',
+    message:
+      'Expected Numeric, got "EOF" at line 1, column 12 (start 12, end 12)',
+  });
+}
+
+{
+  assert.throws(() => TAPParser(`TAP`), {
+    name: 'SyntaxError',
+    message:
+      'Expected "version", got "EOF" at line 1, column 4 (start 4, end 4)',
+  });
+}
+
+// Test plan
 
 {
   const ast = TAPParser(`1..5 # reason`);
@@ -51,6 +71,37 @@ function TAPParser(input) {
     },
   });
 }
+
+{
+  assert.throws(() => TAPParser(`1..`), {
+    name: 'SyntaxError',
+    message:
+      'Expected a Numeric, got "EOF" at line 1, column 4 (start 4, end 4)',
+  });
+}
+
+{
+  assert.throws(() => TAPParser(`1..abc`), {
+    name: 'SyntaxError',
+    message: 'Expected "..", got "..abc" at line 1, column 2 (start 1, end 5)',
+  });
+}
+
+{
+  assert.throws(() => TAPParser(`1..-1`), {
+    name: 'SyntaxError',
+    message: 'Expected a Numeric, got "-" at line 1, column 4 (start 3, end 3)',
+  });
+}
+
+{
+  assert.throws(() => TAPParser(`1.1`), {
+    name: 'SyntaxError',
+    message: 'Expected "..", got "." at line 1, column 2 (start 1, end 1)',
+  });
+}
+
+// Test point
 
 {
   const ast = TAPParser(`ok`);
@@ -304,6 +355,65 @@ ok 1
 }
 
 {
+  const ast = TAPParser(`ok ok ok`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              status: 'passed',
+              id: '90001',
+              description: 'ok ok',
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  const ast = TAPParser(`ok not ok`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              status: 'passed',
+              id: '90001',
+              description: 'not ok',
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  const ast = TAPParser(`ok 1..1`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              status: 'passed',
+              id: '1',
+              description: '', // this looks like an edge case
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+// Comment
+
+{
   const ast = TAPParser(`# comment`);
   assert.deepStrictEqual(ast, {
     root: {
@@ -330,11 +440,26 @@ ok 1
 }
 
 {
-  // note the leading 2 spaces!
+  const ast = TAPParser(`####`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          comments: ['###'],
+        },
+      ],
+    },
+  });
+}
+
+// Diagnostic
+
+{
+  // note the leading 2 valid spaces
   const ast = TAPParser(`
   ---
-    message: "description"
-    severity: fail
+  message: "description"
+  property: 'value'
   ...
 `);
   assert.deepStrictEqual(ast, {
@@ -343,11 +468,7 @@ ok 1
         {
           tests: [
             {
-              diagnostics: [
-                '    message: "description"',
-                '    severity: fail',
-                '  ',
-              ],
+              diagnostics: ['message: "description"', "property: 'value'"],
             },
           ],
         },
@@ -355,6 +476,139 @@ ok 1
     },
   });
 }
+
+{
+  const ast = TAPParser(`
+  ---
+  ...
+`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              diagnostics: [],
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  assert.throws(
+    () =>
+      TAPParser(
+        `
+  message: "description"
+  property: 'value'
+  ...
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message:
+        'Unexpected end of YAML block, got "..." at line 4, column 3 (start 48, end 50)',
+    }
+  );
+}
+
+{
+  assert.throws(
+    () =>
+      TAPParser(
+        `
+  ---
+  message: "description"
+  property: 'value'
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message: `Expected end of YAML block, got "'value'" at line 4, column 13 (start 44, end 50)`,
+    }
+  );
+}
+
+{
+  assert.throws(
+    () =>
+      // note the leading 3 spaces before ---
+      TAPParser(
+        `
+   ---
+  message: "description"
+  property: 'value'
+  ...
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message: `Invalid indentation level. Expected 2 spaces, got " " at line 2, column 3 (start 3, end 3)`,
+    }
+  );
+}
+
+{
+  assert.throws(
+    () =>
+      // note the leading 5 spaces before ---
+      TAPParser(
+        `
+     ---
+  message: "description"
+  property: 'value'
+  ...
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message: `Invalid indentation level. Expected 4 spaces, got " " at line 2, column 5 (start 5, end 5)`,
+    }
+  );
+}
+
+{
+  assert.throws(
+    () =>
+      // note the leading 4 spaces before ---
+      TAPParser(
+        `
+    ---
+  message: "description"
+  property: 'value'
+  ...
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message: `Expected a valid token, got "---" at line 2, column 5 (start 5, end 7)`,
+    }
+  );
+}
+
+{
+  assert.throws(
+    () =>
+      // note the leading 4 spaces before ...
+      TAPParser(
+        `
+  ---
+  message: "description"
+  property: 'value'
+    ...
+`
+      ),
+    {
+      name: 'SyntaxError',
+      message: `Expected a valid token, got "..." at line 5, column 5 (start 56, end 58)`,
+    }
+  );
+}
+
+// Pragma
 
 {
   const ast = TAPParser(`pragma +strict, -warnings`);
@@ -372,6 +626,8 @@ ok 1
   });
 }
 
+// Bail out
+
 {
   const ast = TAPParser(`Bail out! Error`);
   assert.deepStrictEqual(ast, {
@@ -382,5 +638,23 @@ ok 1
         },
       ],
     },
+  });
+}
+
+// Non-recognized
+
+{
+  assert.throws(() => TAPParser(`abc`), {
+    name: 'SyntaxError',
+    message:
+      'Expected a valid token, got "abc" at line 1, column 1 (start 0, end 2)',
+  });
+}
+
+{
+  assert.throws(() => TAPParser(`    abc`), {
+    name: 'SyntaxError',
+    message:
+      'Expected a valid token, got "abc" at line 1, column 5 (start 4, end 6)',
   });
 }
