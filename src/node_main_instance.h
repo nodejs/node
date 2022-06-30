@@ -77,7 +77,6 @@ class NodeMainInstance {
                    const std::vector<std::string>& args,
                    const std::vector<std::string>& exec_args);
 
-  static std::unique_ptr<ExternalReferenceRegistry> registry_;
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
