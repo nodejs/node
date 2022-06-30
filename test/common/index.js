@@ -736,15 +736,13 @@ function invalidArgTypeHelper(input) {
   if (typeof input === 'function' && input.name) {
     return ` Received function ${input.name}`;
   }
-  if (typeof input === 'object') {
-    if (input.constructor && input.constructor.name) {
-      return ` Received an instance of ${input.constructor.name}`;
-    }
-    return ` Received ${inspect(input, { depth: -1 })}`;
+  if (typeof input === 'object' && input.constructor?.name) {
+    return ` Received an instance of ${input.constructor.name}`;
   }
+
   let inspected = inspect(input, { colors: false });
-  if (inspected.length > 25)
-    inspected = `${inspected.slice(0, 25)}...`;
+  if (inspected.length > 28) { inspected = `${inspected.slice(inspected, 0, 25)}...`; }
+
   return ` Received type ${typeof input} (${inspected})`;
 }
 
