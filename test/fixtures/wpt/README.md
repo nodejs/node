@@ -23,9 +23,9 @@ Last update:
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
 - interfaces: https://github.com/web-platform-tests/wpt/tree/fc086c82d5/interfaces
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
-- resources: https://github.com/web-platform-tests/wpt/tree/fbee645164/resources
+- resources: https://github.com/web-platform-tests/wpt/tree/c5b428f15a/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/8f60d94439/streams
-- url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
+- url: https://github.com/web-platform-tests/wpt/tree/0e5b126cd0/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/1dd414c796/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
