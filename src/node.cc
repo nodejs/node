@@ -342,8 +342,6 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
-  Local<Object> global = context()->Global();
-
   // process, require, internalBinding, primordials
   std::vector<Local<String>> node_params = {
       process_string(),
