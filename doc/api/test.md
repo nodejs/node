@@ -446,6 +446,120 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
 
+### `before([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running before running a suite.
+
+```js
+describe('tests', async () => {
+  before(() => console.log('about to run some test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `after([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running after  running a suite.
+
+```js
+describe('tests', async () => {
+  after(() => console.log('finished running tests'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `beforeEach([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+before each subtest of the current suite.
+
+```js
+describe('tests', async () => {
+  beforeEach(() => t.diagnostics('about to run a test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `afterEach([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+after each subtest of the current test.
+
+```js
+describe('tests', async () => {
+  afterEach(() => t.diagnostics('about to run a test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
 ## Class: `TestContext`
 
 <!-- YAML
@@ -455,6 +569,70 @@ added: v18.0.0
 An instance of `TestContext` is passed to each test function in order to
 interact with the test runner. However, the `TestContext` constructor is not
 exposed as part of the API.
+
+### `context.beforeEach([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function. The first argument
+  to this function is a [`TestContext`][] object. If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+before each subtest of the current test.
+
+```js
+test('top level test', async (t) => {
+  t.beforeEach((t) => t.diagnostics(`about to run ${t.name}`));
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    }
+  );
+});
+```
+
+### `context.afterEach([, fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function. The first argument
+  to this function is a [`TestContext`][] object. If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+after each subtest of the current test.
+
+```js
+test('top level test', async (t) => {
+  t.afterEach((t) => t.diagnostics(`finished running ${t.name}`));
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    }
+  );
+});
+```
 
 ### `context.diagnostic(message)`
 
@@ -473,6 +651,14 @@ test('top level test', (t) => {
   t.diagnostic('A diagnostic message');
 });
 ```
+
+### `context.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The name of the test
 
 ### `context.runOnly(shouldRunOnlyTests)`
 
@@ -616,6 +802,14 @@ added: v18.7.0
 An instance of `SuiteContext` is passed to each suite function in order to
 interact with the test runner. However, the `SuiteContext` constructor is not
 exposed as part of the API.
+
+### `context.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The name of the suite
 
 ### `context.signal`
 
