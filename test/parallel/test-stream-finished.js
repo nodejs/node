@@ -651,6 +651,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
 {
   const server = http.createServer(common.mustCall(function(req, res) {
+    res.writeHead(200, { 'Connection': 'close' });
     fs.createReadStream(__filename).pipe(res);
     finished(res, common.mustCall(function(err) {
       assert.strictEqual(err, undefined);
