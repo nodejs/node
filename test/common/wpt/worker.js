@@ -8,7 +8,8 @@ const resource = new ResourceLoader(workerData.wptPath);
 
 global.self = global;
 global.GLOBAL = {
-  isWindow() { return false; }
+  isWindow() { return false; },
+  isShadowRealm() { return false; }
 };
 global.require = require;
 
