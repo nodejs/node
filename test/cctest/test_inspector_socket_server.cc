@@ -301,9 +301,8 @@ class ServerHolder {
 
 class TestSocketServerDelegate : public SocketServerDelegate {
  public:
-  explicit TestSocketServerDelegate(
-      ServerHolder* server,
-      const std::vector<std::string>& target_ids)
+  explicit TestSocketServerDelegate(ServerHolder* server,
+                                    const std::vector<std::string>& target_ids)
       : harness_(server),
         targets_(target_ids),
         server_(nullptr),
