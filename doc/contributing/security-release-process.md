@@ -42,6 +42,8 @@ The current security stewards are documented in the main Node.js
 * [ ] PR release announcements in [private](https://github.com/nodejs-private/nodejs.org-private):
   * (Use previous PRs as templates. Don't forget to update the site banner and
     the date in the slug so that it will move to the top of the blog list.)
+  * (Consider using a [Vulnerability Score System](https://www.first.org/cvss/calculator/3.1)
+    to identify severity of each report)
   * [ ] pre-release: _**LINK TO PR**_
   * [ ] post-release: _**LINK TO PR**_
     * List vulnerabilities in order of descending severity
