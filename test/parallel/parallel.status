@@ -7,6 +7,8 @@ prefix parallel
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/41123
 test-repl-sigint-nested-eval: PASS, FLAKY
+# https://github.com/nodejs/node/issues/43084
+test-worker-http2-stream-terminate: PASS, FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
@@ -15,8 +17,6 @@ test-timers-immediate-queue: PASS,FLAKY
 test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
 test-fs-rmdir-recursive: PASS, FLAKY
-# https://github.com/nodejs/node/issues/43084
-test-worker-http2-stream-terminate: PASS, FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
