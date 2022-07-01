@@ -7,7 +7,8 @@ const assert = require('assert');
 const { TapParser } = require('internal/test_runner/tap_parser');
 
 function TAPParser(input) {
-  const parser = new TapParser(input, { debug: true });
+  // parse but don't validate
+  const parser = new TapParser(input, { debug: true, validate: false });
   return parser.parse();
 }
 
