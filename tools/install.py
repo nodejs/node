@@ -147,9 +147,6 @@ def files(action):
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
 
-  # behave similarly for systemtap
-  action(['src/node.stp'], 'share/systemtap/tapset/')
-
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
   action(['deps/v8/tools/lldb_commands.py'], 'share/doc/node/')
 
