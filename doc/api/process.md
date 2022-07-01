@@ -1075,7 +1075,6 @@ An example of the possible output looks like:
      node_shared_http_parser: 'false',
      node_shared_libuv: 'false',
      node_shared_zlib: 'false',
-     node_use_dtrace: 'false',
      node_use_openssl: 'true',
      node_shared_openssl: 'false',
      strict_aliasing: 'true',
