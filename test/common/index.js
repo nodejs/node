@@ -736,8 +736,11 @@ function invalidArgTypeHelper(input) {
   if (typeof input === 'function' && input.name) {
     return ` Received function ${input.name}`;
   }
-  if (typeof input === 'object' && input.constructor?.name) {
-    return ` Received an instance of ${input.constructor.name}`;
+  if (typeof input === 'object') {
+    if (input?.constructor?.name) {
+      return ` Received an instance of ${input.constructor.name}`;
+    }
+    return ` Received ${inspect(input, { depth: -1 })}`;
   }
 
   let inspected = inspect(input, { colors: false });

@@ -34,7 +34,7 @@ strictEqual(
 
 strictEqual(
   determineSpecificType(Object.create(null)),
-  'type object ([Object: null prototype] {})',
+  '[Object: null prototype] {}',
 );
 
 strictEqual(
