@@ -111,9 +111,15 @@ function TAPParser(input) {
         {
           tests: [
             {
-              status: 'passed',
               id: '90001',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: '',
+              reason: '',
             },
           ],
         },
@@ -130,9 +136,15 @@ function TAPParser(input) {
         {
           tests: [
             {
-              status: 'failed',
               id: '90001',
+              status: {
+                pass: false,
+                fail: true,
+                skip: false,
+                todo: false,
+              },
               description: '',
+              reason: '',
             },
           ],
         },
@@ -149,9 +161,15 @@ function TAPParser(input) {
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: '',
+              reason: '',
             },
           ],
         },
@@ -165,18 +183,33 @@ function TAPParser(input) {
 ok 1
 not ok 2
 `);
+  console.log(JSON.stringify(ast, null, 2));
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
+              description: '',
+              reason: '',
             },
             {
-              status: 'failed',
               id: '2',
+              status: {
+                pass: false,
+                fail: true,
+                skip: false,
+                todo: false,
+              },
+              description: '',
+              reason: '',
             },
           ],
         },
@@ -197,16 +230,30 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
+              description: '',
+              reason: '',
             },
           ],
           documents: [
             {
               tests: [
                 {
-                  status: 'passed',
                   id: '1',
+                  status: {
+                    pass: true,
+                    fail: false,
+                    skip: false,
+                    todo: false,
+                  },
+                  description: '',
+                  reason: '',
                 },
               ],
             },
@@ -225,9 +272,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'description',
+              reason: '',
             },
           ],
         },
@@ -244,9 +297,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'description',
+              reason: '',
             },
           ],
         },
@@ -263,9 +322,15 @@ ok 1
         {
           tests: [
             {
-              status: 'todo',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: true,
+              },
               description: 'description',
+              reason: '',
             },
           ],
         },
@@ -282,9 +347,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'description # todo',
+              reason: '',
             },
           ],
         },
@@ -301,9 +372,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
-              description: 'description  # todo',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: true,
+              },
+              description: 'description',
+              reason: '',
             },
           ],
         },
@@ -322,8 +399,13 @@ ok 1
         {
           tests: [
             {
-              status: 'todo',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: true,
+              },
               description: 'description # \\ world',
               reason: 'escape # characters with \\',
             },
@@ -342,10 +424,68 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'description',
               reason: '##',
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  const ast = TAPParser(
+    `ok 2 not skipped: https://example.com/page.html#skip is a url`
+  );
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              id: '2',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
+              description:
+                'not skipped: https://example.com/page.html#skip is a url',
+              reason: '',
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  const ast = TAPParser(`ok 3 - #SkIp case insensitive, so this is skipped`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
+              id: '3',
+              status: {
+                pass: true,
+                fail: false,
+                skip: true,
+                todo: false,
+              },
+              reason: 'case insensitive, so this is skipped',
+              description: '',
             },
           ],
         },
@@ -362,9 +502,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '90001',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'ok ok',
+              reason: '',
             },
           ],
         },
@@ -381,9 +527,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '90001',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: 'not ok',
+              reason: '',
             },
           ],
         },
@@ -400,10 +552,15 @@ ok 1
         {
           tests: [
             {
-              status: 'passed',
               id: '1',
+              status: {
+                pass: true,
+                fail: false,
+                skip: false,
+                todo: false,
+              },
               description: '', // this looks like an edge case
-            },
+              reason: '',            },
           ],
         },
       ],
