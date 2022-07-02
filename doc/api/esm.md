@@ -815,7 +815,7 @@ export async function resolve(specifier, context, nextResolve) {
 
   // Defer to the next hook in the chain, which would be the
   // Node.js default resolve if this is the last user-specified loader.
-  return nextResolve(specifier, context);
+  return nextResolve(specifier);
 }
 ```
 
@@ -910,7 +910,7 @@ export async function load(url, context, nextLoad) {
   }
 
   // Defer to the next hook in the chain.
-  return nextLoad(url, context);
+  return nextLoad(url);
 }
 ```
 
@@ -1026,7 +1026,7 @@ export function resolve(specifier, context, nextResolve) {
   }
 
   // Let Node.js handle all other specifiers.
-  return nextResolve(specifier, context);
+  return nextResolve(specifier);
 }
 
 export function load(url, context, nextLoad) {
@@ -1049,7 +1049,7 @@ export function load(url, context, nextLoad) {
   }
 
   // Let Node.js handle all other URLs.
-  return nextLoad(url, context);
+  return nextLoad(url);
 }
 ```
 
@@ -1102,7 +1102,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
 
   // Let Node.js handle all other specifiers.
-  return nextResolve(specifier, context);
+  return nextResolve(specifier);
 }
 
 export async function load(url, context, nextLoad) {
@@ -1143,7 +1143,7 @@ export async function load(url, context, nextLoad) {
   }
 
   // Let Node.js handle all other URLs.
-  return nextLoad(url, context);
+  return nextLoad(url);
 }
 
 async function getPackageType(url) {

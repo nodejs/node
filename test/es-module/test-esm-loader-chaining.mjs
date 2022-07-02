@@ -229,7 +229,7 @@ const commonArgs = [
   assert.strictEqual(status, 0);
 }
 
-{ // Verify chain does break and throws appropriately
+{ // Verify resolve chain does break and throws appropriately
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
@@ -273,7 +273,7 @@ const commonArgs = [
   assert.strictEqual(status, 1);
 }
 
-{ // Verify chain does break and throws appropriately
+{ // Verify load chain does break and throws appropriately
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
@@ -314,6 +314,27 @@ const commonArgs = [
   assert.match(stderr, /'resolve' hook's nextResolve\(\) specifier/);
 }
 
+{ // Verify error thrown when resolve hook is invalid
+  const { status, stderr } = spawnSync(
+    process.execPath,
+    [
+      '--loader',
+      fixtures.fileURL('es-module-loaders', 'loader-resolve-passthru.mjs'),
+      '--loader',
+      fixtures.fileURL('es-module-loaders', 'loader-resolve-null-return.mjs'),
+      ...commonArgs,
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(status, 1);
+  assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
+  assert.match(stderr, /loader-resolve-null-return\.mjs/);
+  assert.match(stderr, /'resolve' hook's nextResolve\(\)/);
+  assert.match(stderr, /an object/);
+  assert.match(stderr, /got null/);
+}
+
 { // Verify error thrown when invalid `context` argument passed to `nextResolve`
   const { status, stderr } = spawnSync(
     process.execPath,
@@ -331,6 +352,27 @@ const commonArgs = [
   assert.match(stderr, /loader-resolve-bad-next-context\.mjs/);
   assert.match(stderr, /'resolve' hook's nextResolve\(\) context/);
   assert.strictEqual(status, 1);
+}
+
+{ // Verify error thrown when load hook is invalid
+  const { status, stderr } = spawnSync(
+    process.execPath,
+    [
+      '--loader',
+      fixtures.fileURL('es-module-loaders', 'loader-load-passthru.mjs'),
+      '--loader',
+      fixtures.fileURL('es-module-loaders', 'loader-load-null-return.mjs'),
+      ...commonArgs,
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(status, 1);
+  assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
+  assert.match(stderr, /loader-load-null-return\.mjs/);
+  assert.match(stderr, /'load' hook's nextLoad\(\)/);
+  assert.match(stderr, /an object/);
+  assert.match(stderr, /got null/);
 }
 
 { // Verify error thrown when invalid `url` argument passed to `nextLoad`
