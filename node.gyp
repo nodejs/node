@@ -172,6 +172,12 @@
           'RandomizedBaseAddress': 2, # enable ASLR
           'DataExecutionPrevention': 2, # enable DEP
           'AllowIsolation': 'true',
+          # By default, the MSVC linker only reserves 1 MiB of stack memory for
+          # each thread, whereas other platforms typically allow much larger
+          # stack memory sections. We raise the limit to make it more consistent
+          # across platforms and to support the few use cases that require large
+          # amounts of stack memory, without having to modify the node binary.
+          'StackReserveSize': 0x800000,
         },
       },
 
