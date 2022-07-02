@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.16.0">16.16.0</a><br/>
 <a href="#16.15.1">16.15.1</a><br/>
 <a href="#16.15.0">16.15.0</a><br/>
 <a href="#16.14.2">16.14.2</a><br/>
@@ -61,6 +62,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.16.0"></a>
+
+## 2022-07-07, Version 16.16.0 'Gallium' (LTS), @danielleadams
+
+This is a security release.
+
+### Notable changes
+
+* **deps**:
+  * upgrade openssl sources to OpenSSL\_1\_1\_1q (RafaelGSS) [#43692](https://github.com/nodejs/node/pull/43692)
+* **src**:
+  * add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+
+### Commits
+
+* \[[`2303fd3fe5`](https://github.com/nodejs/node/commit/2303fd3fe5)] - **deps**: update archs files for OpenSSL-1.1.1q (RafaelGSS) [#43692](https://github.com/nodejs/node/pull/43692)
+* \[[`b219a63c28`](https://github.com/nodejs/node/commit/b219a63c28)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1q (RafaelGSS) [#43692](https://github.com/nodejs/node/pull/43692)
+* \[[`c6553a4ef5`](https://github.com/nodejs/node/commit/c6553a4ef5)] - **deps**: update archs files for OpenSSL-1.1.1p+quic (RafaelGSS) [#43535](https://github.com/nodejs/node/pull/43535)
+* \[[`e9084a3e90`](https://github.com/nodejs/node/commit/e9084a3e90)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1p+quic (RafaelGSS) [#43535](https://github.com/nodejs/node/pull/43535)
+* \[[`1da22eb482`](https://github.com/nodejs/node/commit/1da22eb482)] - **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [nodejs-private/node-private#315](https://github.com/nodejs-private/node-private/pull/315)
+* \[[`754c9bfde0`](https://github.com/nodejs/node/commit/754c9bfde0)] - **src**: fix IPv4 validation in inspector\_socket (Tobias Nießen) [nodejs-private/node-private#320](https://github.com/nodejs-private/node-private/pull/320)
+* \[[`447cf680b0`](https://github.com/nodejs/node/commit/447cf680b0)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
 
 <a id="16.15.1"></a>
 
