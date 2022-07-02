@@ -103,18 +103,41 @@ bool HKDFTraits::DeriveBits(
   EVPKeyCtxPointer ctx =
       EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
   if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
-      !EVP_PKEY_CTX_hkdf_mode(ctx.get(),
-                              EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
       !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), params.digest) ||
-      !EVP_PKEY_CTX_set1_hkdf_salt(
-          ctx.get(), params.salt.data<unsigned char>(), params.salt.size()) ||
-      !EVP_PKEY_CTX_set1_hkdf_key(
-          ctx.get(),
-          reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
-          params.key->GetSymmetricKeySize()) ||
       !EVP_PKEY_CTX_add1_hkdf_info(
           ctx.get(), params.info.data<unsigned char>(), params.info.size())) {
     return false;
+  }
+
+  if (params.key->GetSymmetricKeySize() != 0) {
+    if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(),
+                                EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
+        !EVP_PKEY_CTX_set1_hkdf_salt(
+            ctx.get(), params.salt.data<unsigned char>(), params.salt.size()) ||
+        !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(),
+                                    reinterpret_cast<const unsigned char*>(
+                                        params.key->GetSymmetricKey()),
+                                    params.key->GetSymmetricKeySize())) {
+      return false;
+    }
+  } else {
+    unsigned int len = EVP_MD_size(params.digest);
+    uint8_t tempKey[len];  // NOLINT(runtime/arrays)
+    if (params.salt.size()) {
+      HMAC(params.digest,
+           params.salt.data(),
+           params.salt.size(),
+           nullptr,
+           0,
+           tempKey,
+           &len);
+    } else {
+      HMAC(params.digest, new char[len]{}, len, nullptr, 0, tempKey, &len);
+    }
+    if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
+        !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), tempKey, len)) {
+      return false;
+    }
   }
 
   size_t length = params.length;

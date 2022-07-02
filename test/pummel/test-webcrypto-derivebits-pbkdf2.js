@@ -448,15 +448,18 @@ async function testDeriveBitsBadLengths(
   return Promise.all([
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], 0), {
-        message: /length cannot be zero/
+        name: 'OperationError',
+        message: /length cannot be zero/,
       }),
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], null), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        name: 'OperationError',
+        message: 'length cannot be null',
       }),
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], 15), {
-        message: /length must be a multiple of 8/
+        name: 'OperationError',
+        message: /length must be a multiple of 8/,
       }),
   ]);
 }

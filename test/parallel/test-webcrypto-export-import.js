@@ -46,15 +46,6 @@ const { subtle } = webcrypto;
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
         hash: 'SHA-256',
-        length: 0
-      }, false, ['sign', 'verify']), {
-        name: 'DataError',
-        message: 'Zero-length key is not supported'
-      });
-    await assert.rejects(
-      subtle.importKey('raw', keyData, {
-        name: 'HMAC',
-        hash: 'SHA-256',
         length: 1
       }, false, ['sign', 'verify']), {
         name: 'DataError',
