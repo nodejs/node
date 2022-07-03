@@ -14,13 +14,6 @@ var __publicField = (obj, key, value) => {
 var require_errors = __commonJS({
   "lib/core/errors.js"(exports2, module2) {
     "use strict";
-    var AbortError = class extends Error {
-      constructor() {
-        super("The operation was aborted");
-        this.code = "ABORT_ERR";
-        this.name = "AbortError";
-      }
-    };
     var UndiciError = class extends Error {
       constructor(message) {
         super(message);
@@ -65,12 +58,13 @@ var require_errors = __commonJS({
       }
     };
     var ResponseStatusCodeError = class extends UndiciError {
-      constructor(message, statusCode, headers) {
+      constructor(message, statusCode, headers, body) {
         super(message);
         Error.captureStackTrace(this, ResponseStatusCodeError);
         this.name = "ResponseStatusCodeError";
         this.message = message || "Response Status Code Error";
         this.code = "UND_ERR_RESPONSE_STATUS_CODE";
+        this.body = body;
         this.status = statusCode;
         this.statusCode = statusCode;
         this.headers = headers;
@@ -186,7 +180,6 @@ var require_errors = __commonJS({
       }
     };
     module2.exports = {
-      AbortError,
       HTTPParserError,
       UndiciError,
       HeadersTimeoutError,
@@ -1021,7 +1014,15 @@ var require_constants = __commonJS({
       "xslt",
       ""
     ];
+    var DOMException = globalThis.DOMException ?? (() => {
+      try {
+        atob("~");
+      } catch (err) {
+        return Object.getPrototypeOf(err).constructor;
+      }
+    })();
     module2.exports = {
+      DOMException,
       subresource,
       forbiddenMethods,
       requestBodyHeader,
@@ -1053,18 +1054,344 @@ var require_symbols2 = __commonJS({
   }
 });
 
+// lib/fetch/webidl.js
+var require_webidl = __commonJS({
+  "lib/fetch/webidl.js"(exports2, module2) {
+    "use strict";
+    var { toUSVString, types } = require("util");
+    var webidl = {};
+    webidl.converters = {};
+    webidl.util = {};
+    webidl.errors = {};
+    webidl.errors.exception = function(message) {
+      throw new TypeError(`${message.header}: ${message.message}`);
+    };
+    webidl.errors.conversionFailed = function(context) {
+      const plural = context.types.length === 1 ? "" : " one of";
+      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+      return webidl.errors.exception({
+        header: context.prefix,
+        message
+      });
+    };
+    webidl.errors.invalidArgument = function(context) {
+      return webidl.errors.exception({
+        header: context.prefix,
+        message: `"${context.value}" is an invalid ${context.type}.`
+      });
+    };
+    webidl.util.Type = function(V) {
+      switch (typeof V) {
+        case "undefined":
+          return "Undefined";
+        case "boolean":
+          return "Boolean";
+        case "string":
+          return "String";
+        case "symbol":
+          return "Symbol";
+        case "number":
+          return "Number";
+        case "bigint":
+          return "BigInt";
+        case "function":
+        case "object": {
+          if (V === null) {
+            return "Null";
+          }
+          return "Object";
+        }
+      }
+    };
+    webidl.util.ConvertToInt = function(V, bitLength, signedness, opts = {}) {
+      let upperBound;
+      let lowerBound;
+      if (bitLength === 64) {
+        upperBound = Math.pow(2, 53) - 1;
+        if (signedness === "unsigned") {
+          lowerBound = 0;
+        } else {
+          lowerBound = Math.pow(-2, 53) + 1;
+        }
+      } else if (signedness === "unsigned") {
+        lowerBound = 0;
+        upperBound = Math.pow(2, bitLength) - 1;
+      } else {
+        lowerBound = Math.pow(-2, bitLength) - 1;
+        upperBound = Math.pow(2, bitLength - 1) - 1;
+      }
+      let x = Number(V);
+      if (Object.is(-0, x)) {
+        x = 0;
+      }
+      if (opts.enforceRange === true) {
+        if (Number.isNaN(x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
+          webidl.errors.exception({
+            header: "Integer conversion",
+            message: `Could not convert ${V} to an integer.`
+          });
+        }
+        x = webidl.util.IntegerPart(x);
+        if (x < lowerBound || x > upperBound) {
+          webidl.errors.exception({
+            header: "Integer conversion",
+            message: `Value must be between ${lowerBound}-${upperBound}, got ${x}.`
+          });
+        }
+        return x;
+      }
+      if (!Number.isNaN(x) && opts.clamp === true) {
+        x = Math.min(Math.max(x, lowerBound), upperBound);
+        if (Math.floor(x) % 2 === 0) {
+          x = Math.floor(x);
+        } else {
+          x = Math.ceil(x);
+        }
+        return x;
+      }
+      if (Number.isNaN(x) || Object.is(0, x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
+        return 0;
+      }
+      x = webidl.util.IntegerPart(x);
+      x = x % Math.pow(2, bitLength);
+      if (signedness === "signed" && x >= Math.pow(2, bitLength) - 1) {
+        return x - Math.pow(2, bitLength);
+      }
+      return x;
+    };
+    webidl.util.IntegerPart = function(n) {
+      const r = Math.floor(Math.abs(n));
+      if (n < 0) {
+        return -1 * r;
+      }
+      return r;
+    };
+    webidl.sequenceConverter = function(converter) {
+      return (V) => {
+        if (webidl.util.Type(V) !== "Object") {
+          webidl.errors.exception({
+            header: "Sequence",
+            message: `Value of type ${webidl.util.Type(V)} is not an Object.`
+          });
+        }
+        const method = V?.[Symbol.iterator]?.();
+        const seq = [];
+        if (method === void 0 || typeof method.next !== "function") {
+          webidl.errors.exception({
+            header: "Sequence",
+            message: "Object is not an iterator."
+          });
+        }
+        while (true) {
+          const { done, value } = method.next();
+          if (done) {
+            break;
+          }
+          seq.push(converter(value));
+        }
+        return seq;
+      };
+    };
+    webidl.recordConverter = function(keyConverter, valueConverter) {
+      return (V) => {
+        const record = {};
+        const type = webidl.util.Type(V);
+        if (type === "Undefined" || type === "Null") {
+          return record;
+        }
+        if (type !== "Object") {
+          webidl.errors.exception({
+            header: "Record",
+            message: `Expected ${V} to be an Object type.`
+          });
+        }
+        for (let [key, value] of Object.entries(V)) {
+          key = keyConverter(key);
+          value = valueConverter(value);
+          record[key] = value;
+        }
+        return record;
+      };
+    };
+    webidl.interfaceConverter = function(i) {
+      return (V, opts = {}) => {
+        if (opts.strict !== false && !(V instanceof i)) {
+          webidl.errors.exception({
+            header: i.name,
+            message: `Expected ${V} to be an instance of ${i.name}.`
+          });
+        }
+        return V;
+      };
+    };
+    webidl.dictionaryConverter = function(converters) {
+      return (dictionary) => {
+        const type = webidl.util.Type(dictionary);
+        const dict = {};
+        if (type !== "Null" && type !== "Undefined" && type !== "Object") {
+          webidl.errors.exception({
+            header: "Dictionary",
+            message: `Expected ${dictionary} to be one of: Null, Undefined, Object.`
+          });
+        }
+        for (const options of converters) {
+          const { key, defaultValue, required, converter } = options;
+          if (required === true) {
+            if (!Object.hasOwn(dictionary, key)) {
+              webidl.errors.exception({
+                header: "Dictionary",
+                message: `Missing required key "${key}".`
+              });
+            }
+          }
+          let value = dictionary[key];
+          const hasDefault = Object.hasOwn(options, "defaultValue");
+          if (hasDefault && value !== null) {
+            value = value ?? defaultValue;
+          }
+          if (required || hasDefault || value !== void 0) {
+            value = converter(value);
+            if (options.allowedValues && !options.allowedValues.includes(value)) {
+              webidl.errors.exception({
+                header: "Dictionary",
+                message: `${value} is not an accepted type. Expected one of ${options.allowedValues.join(", ")}.`
+              });
+            }
+            dict[key] = value;
+          }
+        }
+        return dict;
+      };
+    };
+    webidl.nullableConverter = function(converter) {
+      return (V) => {
+        if (V === null) {
+          return V;
+        }
+        return converter(V);
+      };
+    };
+    webidl.converters.DOMString = function(V, opts = {}) {
+      if (V === null && opts.legacyNullToEmptyString) {
+        return "";
+      }
+      if (typeof V === "symbol") {
+        throw new TypeError("Could not convert argument of type symbol to string.");
+      }
+      return String(V);
+    };
+    var isNotLatin1 = /[^\u0000-\u00ff]/;
+    webidl.converters.ByteString = function(V) {
+      const x = webidl.converters.DOMString(V);
+      if (isNotLatin1.test(x)) {
+        throw new TypeError("Argument is not a ByteString");
+      }
+      return x;
+    };
+    webidl.converters.USVString = toUSVString;
+    webidl.converters.boolean = function(V) {
+      const x = Boolean(V);
+      return x;
+    };
+    webidl.converters.any = function(V) {
+      return V;
+    };
+    webidl.converters["long long"] = function(V, opts) {
+      const x = webidl.util.ConvertToInt(V, 64, "signed", opts);
+      return x;
+    };
+    webidl.converters["unsigned short"] = function(V) {
+      const x = webidl.util.ConvertToInt(V, 16, "unsigned");
+      return x;
+    };
+    webidl.converters.ArrayBuffer = function(V, opts = {}) {
+      if (webidl.util.Type(V) !== "Object" || !types.isAnyArrayBuffer(V)) {
+        webidl.errors.conversionFailed({
+          prefix: `${V}`,
+          argument: `${V}`,
+          types: ["ArrayBuffer"]
+        });
+      }
+      if (opts.allowShared === false && types.isSharedArrayBuffer(V)) {
+        webidl.errors.exception({
+          header: "ArrayBuffer",
+          message: "SharedArrayBuffer is not allowed."
+        });
+      }
+      return V;
+    };
+    webidl.converters.TypedArray = function(V, T, opts = {}) {
+      if (webidl.util.Type(V) !== "Object" || !types.isTypedArray(V) || V.constructor.name !== T.name) {
+        webidl.errors.conversionFailed({
+          prefix: `${T.name}`,
+          argument: `${V}`,
+          types: [T.name]
+        });
+      }
+      if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
+        webidl.errors.exception({
+          header: "ArrayBuffer",
+          message: "SharedArrayBuffer is not allowed."
+        });
+      }
+      return V;
+    };
+    webidl.converters.DataView = function(V, opts = {}) {
+      if (webidl.util.Type(V) !== "Object" || !types.isDataView(V)) {
+        webidl.errors.exception({
+          header: "DataView",
+          message: "Object is not a DataView."
+        });
+      }
+      if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
+        webidl.errors.exception({
+          header: "ArrayBuffer",
+          message: "SharedArrayBuffer is not allowed."
+        });
+      }
+      return V;
+    };
+    webidl.converters.BufferSource = function(V, opts = {}) {
+      if (types.isAnyArrayBuffer(V)) {
+        return webidl.converters.ArrayBuffer(V, opts);
+      }
+      if (types.isTypedArray(V)) {
+        return webidl.converters.TypedArray(V, V.constructor);
+      }
+      if (types.isDataView(V)) {
+        return webidl.converters.DataView(V, opts);
+      }
+      throw new TypeError(`Could not convert ${V} to a BufferSource.`);
+    };
+    webidl.converters["sequence<ByteString>"] = webidl.sequenceConverter(webidl.converters.ByteString);
+    webidl.converters["sequence<sequence<ByteString>>"] = webidl.sequenceConverter(webidl.converters["sequence<ByteString>"]);
+    webidl.converters["record<ByteString, ByteString>"] = webidl.recordConverter(webidl.converters.ByteString, webidl.converters.ByteString);
+    module2.exports = {
+      webidl
+    };
+  }
+});
+
 // lib/fetch/file.js
 var require_file = __commonJS({
   "lib/fetch/file.js"(exports2, module2) {
     "use strict";
     var { Blob } = require("buffer");
+    var { types } = require("util");
     var { kState } = require_symbols2();
+    var { isBlobLike } = require_util2();
+    var { webidl } = require_webidl();
     var File = class extends Blob {
       constructor(fileBits, fileName, options = {}) {
+        if (arguments.length < 2) {
+          throw new TypeError("2 arguments required");
+        }
+        fileBits = webidl.converters["sequence<BlobPart>"](fileBits);
+        fileName = webidl.converters.USVString(fileName);
+        options = webidl.converters.FilePropertyBag(options);
         const n = fileName;
-        const t = options.type;
-        const d = options.lastModified ?? Date.now();
-        super(fileBits, { type: t });
+        const d = options.lastModified;
+        super(processBlobParts(fileBits, options), { type: options.type });
         this[kState] = {
           name: n,
           lastModified: d
@@ -1150,7 +1477,73 @@ var require_file = __commonJS({
         return "File";
       }
     };
-    module2.exports = { File: globalThis.File ?? File, FileLike };
+    webidl.converters.Blob = webidl.interfaceConverter(Blob);
+    webidl.converters.BlobPart = function(V, opts) {
+      if (webidl.util.Type(V) === "Object") {
+        if (isBlobLike(V)) {
+          return webidl.converters.Blob(V, { strict: false });
+        }
+        return webidl.converters.BufferSource(V, opts);
+      } else {
+        return webidl.converters.USVString(V, opts);
+      }
+    };
+    webidl.converters["sequence<BlobPart>"] = webidl.sequenceConverter(webidl.converters.BlobPart);
+    webidl.converters.FilePropertyBag = webidl.dictionaryConverter([
+      {
+        key: "lastModified",
+        converter: webidl.converters["long long"],
+        get defaultValue() {
+          return Date.now();
+        }
+      },
+      {
+        key: "type",
+        converter: webidl.converters.DOMString,
+        defaultValue: ""
+      },
+      {
+        key: "endings",
+        converter: (value) => {
+          value = webidl.converters.DOMString(value);
+          value = value.toLowerCase();
+          if (value !== "native") {
+            value = "transparent";
+          }
+          return value;
+        },
+        defaultValue: "transparent"
+      }
+    ]);
+    function processBlobParts(parts, options) {
+      const bytes = [];
+      for (const element of parts) {
+        if (typeof element === "string") {
+          let s = element;
+          if (options.endings === "native") {
+            s = convertLineEndingsNative(s);
+          }
+          bytes.push(new TextEncoder().encode(s));
+        } else if (types.isAnyArrayBuffer(element) || types.isTypedArray(element)) {
+          if (!element.buffer) {
+            bytes.push(new Uint8Array(element));
+          } else {
+            bytes.push(element.buffer);
+          }
+        } else if (isBlobLike(element)) {
+          bytes.push(element);
+        }
+      }
+      return bytes;
+    }
+    function convertLineEndingsNative(s) {
+      let nativeLineEnding = "\n";
+      if (process.platform === "win32") {
+        nativeLineEnding = "\r\n";
+      }
+      return s.replace(/\r?\n/g, nativeLineEnding);
+    }
+    module2.exports = { File, FileLike };
   }
 });
 
@@ -1159,7 +1552,7 @@ var require_util2 = __commonJS({
   "lib/fetch/util.js"(exports2, module2) {
     "use strict";
     var { redirectStatus } = require_constants();
-    var { performance } = require("perf_hooks");
+    var { performance: performance2 } = require("perf_hooks");
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
     var assert = require("assert");
     var File;
@@ -1301,6 +1694,26 @@ var require_util2 = __commonJS({
       }
       return true;
     }
+    function isValidHeaderName(potentialValue) {
+      if (potentialValue.length === 0) {
+        return false;
+      }
+      for (const char of potentialValue) {
+        if (!isValidHTTPToken(char)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function isValidHeaderValue(potentialValue) {
+      if (potentialValue.startsWith("	") || potentialValue.startsWith(" ") || potentialValue.endsWith("	") || potentialValue.endsWith(" ")) {
+        return false;
+      }
+      if (potentialValue.includes("\0") || potentialValue.includes("\r") || potentialValue.includes("\n")) {
+        return false;
+      }
+      return true;
+    }
     function setRequestReferrerPolicyOnRedirect(request, actualResponse) {
       const policy = "";
       if (policy !== "") {
@@ -1352,7 +1765,7 @@ var require_util2 = __commonJS({
       }
     }
     function coarsenedSharedCurrentTime(crossOriginIsolatedCapability) {
-      return performance.now();
+      return performance2.now();
     }
     function createOpaqueTimingInfo(timingInfo) {
       return {
@@ -1459,7 +1872,9 @@ var require_util2 = __commonJS({
       sameOrigin,
       normalizeMethod,
       serializeJavascriptValueToJSONString,
-      makeIterator
+      makeIterator,
+      isValidHeaderName,
+      isValidHeaderValue
     };
   }
 });
@@ -1471,38 +1886,43 @@ var require_formdata = __commonJS({
     var { isBlobLike, isFileLike, toUSVString, makeIterator } = require_util2();
     var { kState } = require_symbols2();
     var { File, FileLike } = require_file();
+    var { webidl } = require_webidl();
     var { Blob } = require("buffer");
     var _FormData = class {
-      constructor(...args) {
-        if (args.length > 0 && !(args[0]?.constructor?.name === "HTMLFormElement")) {
-          throw new TypeError("Failed to construct 'FormData': parameter 1 is not of type 'HTMLFormElement'");
+      constructor(form) {
+        if (arguments.length > 0 && form != null) {
+          webidl.errors.conversionFailed({
+            prefix: "FormData constructor",
+            argument: "Argument 1",
+            types: ["null"]
+          });
         }
         this[kState] = [];
       }
-      append(...args) {
+      append(name, value, filename = void 0) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'FormData': 2 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 2) {
+          throw new TypeError(`Failed to execute 'append' on 'FormData': 2 arguments required, but only ${arguments.length} present.`);
         }
-        if (args.length === 3 && !isBlobLike(args[1])) {
+        if (arguments.length === 3 && !isBlobLike(value)) {
           throw new TypeError("Failed to execute 'append' on 'FormData': parameter 2 is not of type 'Blob'");
         }
-        const name = toUSVString(args[0]);
-        const filename = args.length === 3 ? toUSVString(args[2]) : void 0;
-        const value = isBlobLike(args[1]) ? args[1] : toUSVString(args[1]);
+        name = webidl.converters.USVString(name);
+        value = isBlobLike(value) ? webidl.converters.Blob(value, { strict: false }) : webidl.converters.USVString(value);
+        filename = arguments.length === 3 ? webidl.converters.USVString(filename) : void 0;
         const entry = makeEntry(name, value, filename);
         this[kState].push(entry);
       }
-      delete(...args) {
+      delete(name) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
         }
-        const name = toUSVString(args[0]);
+        name = webidl.converters.USVString(name);
         const next = [];
         for (const entry of this[kState]) {
           if (entry.name !== name) {
@@ -1511,53 +1931,53 @@ var require_formdata = __commonJS({
         }
         this[kState] = next;
       }
-      get(...args) {
+      get(name) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'get' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
         }
-        const name = toUSVString(args[0]);
+        name = webidl.converters.USVString(name);
         const idx = this[kState].findIndex((entry) => entry.name === name);
         if (idx === -1) {
           return null;
         }
         return this[kState][idx].value;
       }
-      getAll(...args) {
+      getAll(name) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
         }
-        const name = toUSVString(args[0]);
+        name = webidl.converters.USVString(name);
         return this[kState].filter((entry) => entry.name === name).map((entry) => entry.value);
       }
-      has(...args) {
+      has(name) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'has' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
         }
-        const name = toUSVString(args[0]);
+        name = webidl.converters.USVString(name);
         return this[kState].findIndex((entry) => entry.name === name) !== -1;
       }
-      set(...args) {
+      set(name, value, filename = void 0) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'FormData': 2 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 2) {
+          throw new TypeError(`Failed to execute 'set' on 'FormData': 2 arguments required, but only ${arguments.length} present.`);
         }
-        if (args.length === 3 && !isBlobLike(args[1])) {
+        if (arguments.length === 3 && !isBlobLike(value)) {
           throw new TypeError("Failed to execute 'set' on 'FormData': parameter 2 is not of type 'Blob'");
         }
-        const name = toUSVString(args[0]);
-        const filename = args.length === 3 ? toUSVString(args[2]) : void 0;
-        const value = isBlobLike(args[1]) ? args[1] : toUSVString(args[1]);
+        name = webidl.converters.USVString(name);
+        value = isBlobLike(value) ? webidl.converters.Blob(value, { strict: false }) : webidl.converters.USVString(value);
+        filename = arguments.length === 3 ? toUSVString(filename) : void 0;
         const entry = makeEntry(name, value, filename);
         const idx = this[kState].findIndex((entry2) => entry2.name === name);
         if (idx !== -1) {
@@ -1610,19 +2030,18 @@ var require_formdata = __commonJS({
     __publicField(FormData, "name", "FormData");
     FormData.prototype[Symbol.iterator] = FormData.prototype.entries;
     function makeEntry(name, value, filename) {
-      const entry = {
-        name: null,
-        value: null
-      };
-      entry.name = name;
-      if (isBlobLike(value) && !isFileLike(value)) {
-        value = value instanceof Blob ? new File([value], "blob", value) : new FileLike(value, "blob", value);
+      name = Buffer.from(name).toString("utf8");
+      if (typeof value === "string") {
+        value = Buffer.from(value).toString("utf8");
+      } else {
+        if (!isFileLike(value)) {
+          value = value instanceof Blob ? new File([value], "blob", { type: value.type }) : new FileLike(value, "blob", { type: value.type });
+        }
+        if (filename !== void 0) {
+          value = value instanceof File ? new File([value], filename, { type: value.type }) : new FileLike(value, filename, { type: value.type });
+        }
       }
-      if (isFileLike(value) && filename != null) {
-        value = value instanceof File ? new File([value], filename, value) : new FileLike(value, filename, value);
-      }
-      entry.value = value;
-      return entry;
+      return { name, value };
     }
     function* makeIterable(entries, type) {
       for (const { name, value } of entries) {
@@ -1647,6 +2066,7 @@ var require_body = __commonJS({
     var { ReadableStreamFrom, toUSVString, isBlobLike } = require_util2();
     var { FormData } = require_formdata();
     var { kState } = require_symbols2();
+    var { webidl } = require_webidl();
     var { Blob } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
@@ -1783,77 +2203,104 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         source: body.source
       };
     }
-    var methods = {
-      async blob() {
-        const chunks = [];
-        if (this[kState].body) {
-          if (isUint8Array(this[kState].body)) {
-            chunks.push(this[kState].body);
+    function bodyMixinMethods(instance) {
+      const methods = {
+        async blob() {
+          if (!(this instanceof instance)) {
+            throw new TypeError("Illegal invocation");
+          }
+          const chunks = [];
+          if (this[kState].body) {
+            if (isUint8Array(this[kState].body)) {
+              chunks.push(this[kState].body);
+            } else {
+              const stream = this[kState].body.stream;
+              if (util.isDisturbed(stream)) {
+                throw new TypeError("disturbed");
+              }
+              if (stream.locked) {
+                throw new TypeError("locked");
+              }
+              stream[kBodyUsed] = true;
+              for await (const chunk of stream) {
+                chunks.push(chunk);
+              }
+            }
+          }
+          return new Blob(chunks, { type: this.headers.get("Content-Type") || "" });
+        },
+        async arrayBuffer() {
+          if (!(this instanceof instance)) {
+            throw new TypeError("Illegal invocation");
+          }
+          const blob = await this.blob();
+          return await blob.arrayBuffer();
+        },
+        async text() {
+          if (!(this instanceof instance)) {
+            throw new TypeError("Illegal invocation");
+          }
+          const blob = await this.blob();
+          return toUSVString(await blob.text());
+        },
+        async json() {
+          if (!(this instanceof instance)) {
+            throw new TypeError("Illegal invocation");
+          }
+          return JSON.parse(await this.text());
+        },
+        async formData() {
+          if (!(this instanceof instance)) {
+            throw new TypeError("Illegal invocation");
+          }
+          const contentType = this.headers.get("Content-Type");
+          if (/multipart\/form-data/.test(contentType)) {
+            throw new NotSupportedError("multipart/form-data not supported");
+          } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
+            let entries;
+            try {
+              entries = new URLSearchParams(await this.text());
+            } catch (err) {
+              throw Object.assign(new TypeError(), { cause: err });
+            }
+            const formData = new FormData();
+            for (const [name, value] of entries) {
+              formData.append(name, value);
+            }
+            return formData;
           } else {
-            const stream = this[kState].body.stream;
-            if (util.isDisturbed(stream)) {
-              throw new TypeError("disturbed");
-            }
-            if (stream.locked) {
-              throw new TypeError("locked");
-            }
-            stream[kBodyUsed] = true;
-            for await (const chunk of stream) {
-              chunks.push(chunk);
-            }
+            webidl.errors.exception({
+              header: `${instance.name}.formData`,
+              value: "Could not parse content as FormData."
+            });
           }
         }
-        return new Blob(chunks, { type: this.headers.get("Content-Type") || "" });
-      },
-      async arrayBuffer() {
-        const blob = await this.blob();
-        return await blob.arrayBuffer();
-      },
-      async text() {
-        const blob = await this.blob();
-        return toUSVString(await blob.text());
-      },
-      async json() {
-        return JSON.parse(await this.text());
-      },
-      async formData() {
-        const contentType = this.headers.get("Content-Type");
-        if (/multipart\/form-data/.test(contentType)) {
-          throw new NotSupportedError("multipart/form-data not supported");
-        } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
-          let entries;
-          try {
-            entries = new URLSearchParams(await this.text());
-          } catch (err) {
-            throw Object.assign(new TypeError(), { cause: err });
-          }
-          const formData = new FormData();
-          for (const [name, value] of entries) {
-            formData.append(name, value);
-          }
-          return formData;
-        } else {
-          throw new TypeError();
-        }
-      }
-    };
+      };
+      return methods;
+    }
     var properties = {
       body: {
         enumerable: true,
         get() {
+          if (!this || !this[kState]) {
+            throw new TypeError("Illegal invocation");
+          }
           return this[kState].body ? this[kState].body.stream : null;
         }
       },
       bodyUsed: {
         enumerable: true,
         get() {
+          if (!this || !this[kState]) {
+            throw new TypeError("Illegal invocation");
+          }
           return !!this[kState].body && util.isDisturbed(this[kState].body.stream);
         }
       }
     };
     function mixinBody(prototype) {
-      Object.assign(prototype, methods);
-      Object.defineProperties(prototype, properties);
+      Object.assign(prototype.prototype, bodyMixinMethods(prototype));
+      Object.defineProperties(prototype.prototype, properties);
     }
     module2.exports = {
       extractBody,
@@ -3237,7 +3684,7 @@ var require_client = __commonJS({
             this.timeout.refresh();
           }
         }
-        if (request.method === "CONNECT" && statusCode >= 200 && statusCode < 300) {
+        if (request.method === "CONNECT") {
           assert(client[kRunning] === 1);
           this.upgrade = true;
           return 2;
@@ -3361,10 +3808,8 @@ var require_client = __commonJS({
     function onParserTimeout(parser) {
       const { socket, timeoutType, client } = parser;
       if (timeoutType === TIMEOUT_HEADERS) {
-        if (!socket[kWriting]) {
-          assert(!parser.paused, "cannot be paused while waiting for headers");
-          util.destroy(socket, new HeadersTimeoutError());
-        }
+        assert(!parser.paused, "cannot be paused while waiting for headers");
+        util.destroy(socket, new HeadersTimeoutError());
       } else if (timeoutType === TIMEOUT_BODY) {
         if (!parser.paused) {
           util.destroy(socket, new BodyTimeoutError());
@@ -4233,52 +4678,41 @@ var require_global = __commonJS({
 var require_headers = __commonJS({
   "lib/fetch/headers.js"(exports2, module2) {
     "use strict";
-    var { validateHeaderName, validateHeaderValue } = require("http");
     var { kHeadersList } = require_symbols();
     var { kGuard } = require_symbols2();
     var { kEnumerableProperty } = require_util();
-    var { makeIterator } = require_util2();
+    var {
+      makeIterator,
+      isValidHeaderName,
+      isValidHeaderValue
+    } = require_util2();
+    var { webidl } = require_webidl();
     var kHeadersMap = Symbol("headers map");
     var kHeadersSortedMap = Symbol("headers map sorted");
-    function normalizeAndValidateHeaderName(name) {
-      if (name === void 0) {
-        throw new TypeError(`Header name ${name}`);
-      }
-      const normalizedHeaderName = name.toLocaleLowerCase();
-      validateHeaderName(normalizedHeaderName);
-      return normalizedHeaderName;
-    }
-    function normalizeAndValidateHeaderValue(name, value) {
-      if (value === void 0) {
-        throw new TypeError(value, name);
-      }
-      const normalizedHeaderValue = `${value}`.replace(/^[\n\t\r\x20]+|[\n\t\r\x20]+$/g, "");
-      validateHeaderValue(name, normalizedHeaderValue);
-      return normalizedHeaderValue;
+    function headerValueNormalize(potentialValue) {
+      return potentialValue.replace(/^[\r\n\t ]+|[\r\n\t ]+$/g, "");
     }
     function fill(headers, object) {
-      if (object[Symbol.iterator]) {
-        for (let header of object) {
-          if (!header[Symbol.iterator]) {
-            throw new TypeError();
-          }
-          if (typeof header === "string") {
-            throw new TypeError();
-          }
-          if (!Array.isArray(header)) {
-            header = [...header];
-          }
+      if (Array.isArray(object)) {
+        for (const header of object) {
           if (header.length !== 2) {
-            throw new TypeError();
+            webidl.errors.exception({
+              header: "Headers constructor",
+              message: `expected name/value pair to be length 2, found ${header.length}.`
+            });
           }
           headers.append(header[0], header[1]);
         }
-      } else if (object && typeof object === "object") {
-        for (const header of Object.entries(object)) {
-          headers.append(header[0], header[1]);
+      } else if (typeof object === "object" && object !== null) {
+        for (const [key, value] of Object.entries(object)) {
+          headers.append(key, value);
         }
       } else {
-        throw TypeError();
+        webidl.errors.conversionFailed({
+          prefix: "Headers constructor",
+          argument: "Argument 1",
+          types: ["sequence<sequence<ByteString>>", "record<ByteString, ByteString>"]
+        });
       }
     }
     var HeadersList = class {
@@ -4291,38 +4725,43 @@ var require_headers = __commonJS({
           this[kHeadersSortedMap] = null;
         }
       }
+      contains(name) {
+        name = name.toLowerCase();
+        return this[kHeadersMap].has(name);
+      }
       clear() {
         this[kHeadersMap].clear();
         this[kHeadersSortedMap] = null;
       }
       append(name, value) {
         this[kHeadersSortedMap] = null;
-        const normalizedName = normalizeAndValidateHeaderName(name);
-        const normalizedValue = normalizeAndValidateHeaderValue(name, value);
-        const exists = this[kHeadersMap].get(normalizedName);
+        name = name.toLowerCase();
+        const exists = this[kHeadersMap].get(name);
         if (exists) {
-          this[kHeadersMap].set(normalizedName, `${exists}, ${normalizedValue}`);
+          this[kHeadersMap].set(name, `${exists}, ${value}`);
         } else {
-          this[kHeadersMap].set(normalizedName, `${normalizedValue}`);
+          this[kHeadersMap].set(name, `${value}`);
         }
       }
       set(name, value) {
         this[kHeadersSortedMap] = null;
-        const normalizedName = normalizeAndValidateHeaderName(name);
-        return this[kHeadersMap].set(normalizedName, value);
+        return this[kHeadersMap].set(name, value);
       }
       delete(name) {
         this[kHeadersSortedMap] = null;
-        const normalizedName = normalizeAndValidateHeaderName(name);
-        return this[kHeadersMap].delete(normalizedName);
+        name = name.toLowerCase();
+        return this[kHeadersMap].delete(name);
       }
       get(name) {
-        const normalizedName = normalizeAndValidateHeaderName(name);
-        return this[kHeadersMap].get(normalizedName) ?? null;
+        name = name.toLowerCase();
+        if (!this.contains(name)) {
+          return null;
+        }
+        return this[kHeadersMap].get(name) ?? null;
       }
       has(name) {
-        const normalizedName = normalizeAndValidateHeaderName(name);
-        return this[kHeadersMap].has(normalizedName);
+        name = name.toLowerCase();
+        return this[kHeadersMap].has(name);
       }
       keys() {
         return this[kHeadersMap].keys();
@@ -4338,14 +4777,13 @@ var require_headers = __commonJS({
       }
     };
     var Headers = class {
-      constructor(...args) {
-        if (args[0] !== void 0 && !(typeof args[0] === "object" && args[0] != null) && !Array.isArray(args[0])) {
-          throw new TypeError("Failed to construct 'Headers': The provided value is not of type '(record<ByteString, ByteString> or sequence<sequence<ByteString>>");
-        }
-        const init = args.length >= 1 ? args[0] ?? {} : {};
+      constructor(init = void 0) {
         this[kHeadersList] = new HeadersList();
         this[kGuard] = "none";
-        fill(this, init);
+        if (init !== void 0) {
+          init = webidl.converters.HeadersInit(init);
+          fill(this, init);
+        }
       }
       get [Symbol.toStringTag]() {
         return this.constructor.name;
@@ -4357,11 +4795,27 @@ var require_headers = __commonJS({
         if (arguments.length < 2) {
           throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
         }
+        name = webidl.converters.ByteString(name);
+        value = webidl.converters.ByteString(value);
+        value = headerValueNormalize(value);
+        if (!isValidHeaderName(name)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.append",
+            value: name,
+            type: "header name"
+          });
+        } else if (!isValidHeaderValue(value)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.append",
+            value,
+            type: "header value"
+          });
+        }
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
         } else if (this[kGuard] === "request-no-cors") {
         }
-        return this[kHeadersList].append(String(name), String(value));
+        return this[kHeadersList].append(name, value);
       }
       delete(name) {
         if (!(this instanceof Headers)) {
@@ -4370,11 +4824,22 @@ var require_headers = __commonJS({
         if (arguments.length < 1) {
           throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.delete",
+            value: name,
+            type: "header name"
+          });
+        }
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
         } else if (this[kGuard] === "request-no-cors") {
         }
-        return this[kHeadersList].delete(String(name));
+        if (!this[kHeadersList].contains(name)) {
+          return;
+        }
+        return this[kHeadersList].delete(name);
       }
       get(name) {
         if (!(this instanceof Headers)) {
@@ -4383,7 +4848,15 @@ var require_headers = __commonJS({
         if (arguments.length < 1) {
           throw new TypeError(`Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        return this[kHeadersList].get(String(name));
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.get",
+            value: name,
+            type: "header name"
+          });
+        }
+        return this[kHeadersList].get(name);
       }
       has(name) {
         if (!(this instanceof Headers)) {
@@ -4392,7 +4865,15 @@ var require_headers = __commonJS({
         if (arguments.length < 1) {
           throw new TypeError(`Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        return this[kHeadersList].has(String(name));
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.has",
+            value: name,
+            type: "header name"
+          });
+        }
+        return this[kHeadersList].contains(name);
       }
       set(name, value) {
         if (!(this instanceof Headers)) {
@@ -4401,11 +4882,27 @@ var require_headers = __commonJS({
         if (arguments.length < 2) {
           throw new TypeError(`Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
         }
+        name = webidl.converters.ByteString(name);
+        value = webidl.converters.ByteString(value);
+        value = headerValueNormalize(value);
+        if (!isValidHeaderName(name)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.set",
+            value: name,
+            type: "header name"
+          });
+        } else if (!isValidHeaderValue(value)) {
+          webidl.errors.invalidArgument({
+            prefix: "Headers.set",
+            value,
+            type: "header value"
+          });
+        }
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
         } else if (this[kGuard] === "request-no-cors") {
         }
-        return this[kHeadersList].set(String(name), String(value));
+        return this[kHeadersList].set(name, value);
       }
       get [kHeadersSortedMap]() {
         this[kHeadersList][kHeadersSortedMap] ??= new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1));
@@ -4462,12 +4959,23 @@ var require_headers = __commonJS({
       entries: kEnumerableProperty,
       forEach: kEnumerableProperty
     });
+    webidl.converters.HeadersInit = function(V) {
+      if (webidl.util.Type(V) === "Object") {
+        if (V[Symbol.iterator]) {
+          return webidl.converters["sequence<sequence<ByteString>>"](V);
+        }
+        return webidl.converters["record<ByteString, ByteString>"](V);
+      }
+      webidl.errors.conversionFailed({
+        prefix: "Headers constructor",
+        argument: "Argument 1",
+        types: ["sequence<sequence<ByteString>>", "record<ByteString, ByteString>"]
+      });
+    };
     module2.exports = {
       fill,
       Headers,
-      HeadersList,
-      normalizeAndValidateHeaderName,
-      normalizeAndValidateHeaderValue
+      HeadersList
     };
   }
 });
@@ -4477,18 +4985,29 @@ var require_response = __commonJS({
   "lib/fetch/response.js"(exports2, module2) {
     "use strict";
     var { Headers, HeadersList, fill } = require_headers();
-    var { AbortError } = require_errors();
     var { extractBody, cloneBody, mixinBody } = require_body();
     var util = require_util();
     var { kEnumerableProperty } = util;
-    var { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require_util2();
+    var {
+      responseURL,
+      isValidReasonPhrase,
+      isCancelled,
+      isAborted,
+      isBlobLike,
+      serializeJavascriptValueToJSONString
+    } = require_util2();
     var {
       redirectStatus,
-      nullBodyStatus
+      nullBodyStatus,
+      DOMException
     } = require_constants();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
+    var { webidl } = require_webidl();
+    var { FormData } = require_formdata();
     var { kHeadersList } = require_symbols();
     var assert = require("assert");
+    var { types } = require("util");
+    var ReadableStream = globalThis.ReadableStream || require("stream/web").ReadableStream;
     var Response = class {
       static error() {
         const relevantRealm = { settingsObject: {} };
@@ -4504,15 +5023,9 @@ var require_response = __commonJS({
         if (arguments.length === 0) {
           throw new TypeError("Failed to execute 'json' on 'Response': 1 argument required, but 0 present.");
         }
-        if (init === null || typeof init !== "object") {
-          throw new TypeError(`Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`);
+        if (init !== null) {
+          init = webidl.converters.ResponseInit(init);
         }
-        init = {
-          status: 200,
-          statusText: "",
-          headers: new HeadersList(),
-          ...init
-        };
         const bytes = new TextEncoder("utf-8").encode(serializeJavascriptValueToJSONString(data));
         const body = extractBody(bytes);
         const relevantRealm = { settingsObject: {} };
@@ -4523,13 +5036,13 @@ var require_response = __commonJS({
         initializeResponse(responseObject, init, { body: body[0], type: "application/json" });
         return responseObject;
       }
-      static redirect(...args) {
+      static redirect(url, status = 302) {
         const relevantRealm = { settingsObject: {} };
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'redirect' on 'Response': 1 argument required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'redirect' on 'Response': 1 argument required, but only ${arguments.length} present.`);
         }
-        const status = args.length >= 2 ? args[1] : 302;
-        const url = toUSVString(args[0]);
+        url = webidl.converters.USVString(url);
+        status = webidl.converters["unsigned short"](status);
         let parsedURL;
         try {
           parsedURL = new URL(url);
@@ -4550,12 +5063,11 @@ var require_response = __commonJS({
         responseObject[kState].headersList.append("location", value);
         return responseObject;
       }
-      constructor(...args) {
-        if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-          throw new TypeError("Failed to construct 'Request': cannot convert to dictionary.");
+      constructor(body = null, init = {}) {
+        if (body !== null) {
+          body = webidl.converters.BodyInit(body);
         }
-        const body = args.length >= 1 ? args[0] : null;
-        const init = args.length >= 2 ? args[1] ?? {} : {};
+        init = webidl.converters.ResponseInit(init);
         this[kRealm] = { settingsObject: {} };
         this[kState] = makeResponse({});
         this[kHeaders] = new Headers();
@@ -4627,7 +5139,10 @@ var require_response = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (this.bodyUsed || this.body && this.body.locked) {
-          throw new TypeError();
+          webidl.errors.exception({
+            header: "Response.clone",
+            message: "Body has already been consumed."
+          });
         }
         const clonedResponse = cloneResponse(this[kState]);
         const clonedResponseObject = new Response();
@@ -4639,7 +5154,7 @@ var require_response = __commonJS({
         return clonedResponseObject;
       }
     };
-    mixinBody(Response.prototype);
+    mixinBody(Response);
     Object.defineProperties(Response.prototype, {
       type: kEnumerableProperty,
       url: kEnumerableProperty,
@@ -4735,10 +5250,10 @@ var require_response = __commonJS({
     }
     function makeAppropriateNetworkError(fetchParams) {
       assert(isCancelled(fetchParams));
-      return isAborted(fetchParams) ? makeNetworkError(new AbortError()) : makeNetworkError(fetchParams.controller.terminated.reason);
+      return isAborted(fetchParams) ? makeNetworkError(new DOMException("The operation was aborted.", "AbortError")) : makeNetworkError(fetchParams.controller.terminated.reason);
     }
     function initializeResponse(response, init, body) {
-      if (init.status != null && (init.status < 200 || init.status > 599)) {
+      if (init.status !== null && (init.status < 200 || init.status > 599)) {
         throw new RangeError('init["status"] must be in the range of 200 to 599, inclusive.');
       }
       if ("statusText" in init && init.statusText != null) {
@@ -4757,7 +5272,10 @@ var require_response = __commonJS({
       }
       if (body) {
         if (nullBodyStatus.includes(response.status)) {
-          throw new TypeError();
+          webidl.errors.exception({
+            header: "Response constructor",
+            message: "Invalid response status code."
+          });
         }
         response[kState].body = body.body;
         if (body.type != null && !response[kState].headersList.has("Content-Type")) {
@@ -4765,6 +5283,52 @@ var require_response = __commonJS({
         }
       }
     }
+    webidl.converters.ReadableStream = webidl.interfaceConverter(ReadableStream);
+    webidl.converters.FormData = webidl.interfaceConverter(FormData);
+    webidl.converters.URLSearchParams = webidl.interfaceConverter(URLSearchParams);
+    webidl.converters.XMLHttpRequestBodyInit = function(V) {
+      if (typeof V === "string") {
+        return webidl.converters.USVString(V);
+      }
+      if (isBlobLike(V)) {
+        return webidl.converters.Blob(V);
+      }
+      if (types.isAnyArrayBuffer(V) || types.isTypedArray(V) || types.isDataView(V)) {
+        return webidl.converters.BufferSource(V);
+      }
+      if (V instanceof FormData) {
+        return webidl.converters.FormData(V);
+      }
+      if (V instanceof URLSearchParams) {
+        return webidl.converters.URLSearchParams(V);
+      }
+      return webidl.converters.DOMString(V);
+    };
+    webidl.converters.BodyInit = function(V) {
+      if (V instanceof ReadableStream) {
+        return webidl.converters.ReadableStream(V);
+      }
+      if (V?.[Symbol.asyncIterator]) {
+        return V;
+      }
+      return webidl.converters.XMLHttpRequestBodyInit(V);
+    };
+    webidl.converters.ResponseInit = webidl.dictionaryConverter([
+      {
+        key: "status",
+        converter: webidl.converters["unsigned short"],
+        defaultValue: 200
+      },
+      {
+        key: "statusText",
+        converter: webidl.converters.ByteString,
+        defaultValue: ""
+      },
+      {
+        key: "headers",
+        converter: webidl.converters.HeadersInit
+      }
+    ]);
     module2.exports = {
       makeNetworkError,
       makeResponse,
@@ -4785,7 +5349,6 @@ var require_request2 = __commonJS({
     var {
       isValidHTTPToken,
       sameOrigin,
-      toUSVString,
       normalizeMethod
     } = require_util2();
     var {
@@ -4799,6 +5362,7 @@ var require_request2 = __commonJS({
     } = require_constants();
     var { kEnumerableProperty } = util;
     var { kHeaders, kSignal, kState, kGuard, kRealm } = require_symbols2();
+    var { webidl } = require_webidl();
     var { kHeadersList } = require_symbols();
     var assert = require("assert");
     var TransformStream;
@@ -4807,18 +5371,15 @@ var require_request2 = __commonJS({
       signal.removeEventListener("abort", abort);
     });
     var Request = class {
-      constructor(...args) {
-        if (args[0] === kInit) {
+      constructor(input, init = {}) {
+        if (input === kInit) {
           return;
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to construct 'Request': 1 argument required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to construct 'Request': 1 argument required, but only ${arguments.length} present.`);
         }
-        if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-          throw new TypeError("Failed to construct 'Request': cannot convert to dictionary.");
-        }
-        const input = args[0] instanceof Request ? args[0] : toUSVString(args[0]);
-        const init = args.length >= 1 ? args[1] ?? {} : {};
+        input = webidl.converters.RequestInfo(input);
+        init = webidl.converters.RequestInit(init);
         this[kRealm] = { settingsObject: {} };
         let request = null;
         let fallbackMode = null;
@@ -4914,7 +5475,10 @@ var require_request2 = __commonJS({
           mode = fallbackMode;
         }
         if (mode === "navigate") {
-          throw new TypeError();
+          webidl.errors.exception({
+            header: "Request constructor",
+            message: "invalid request mode navigate."
+          });
         }
         if (mode != null) {
           request.mode = mode;
@@ -5160,7 +5724,7 @@ var require_request2 = __commonJS({
         return clonedRequestObject;
       }
     };
-    mixinBody(Request.prototype);
+    mixinBody(Request);
     function makeRequest(init) {
       const request = {
         method: "GET",
@@ -5219,6 +5783,108 @@ var require_request2 = __commonJS({
       clone: kEnumerableProperty,
       signal: kEnumerableProperty
     });
+    webidl.converters.Request = webidl.interfaceConverter(Request);
+    webidl.converters.RequestInfo = function(V) {
+      if (typeof V === "string") {
+        return webidl.converters.USVString(V);
+      }
+      if (V instanceof Request) {
+        return webidl.converters.Request(V);
+      }
+      return webidl.converters.USVString(V);
+    };
+    webidl.converters.AbortSignal = webidl.interfaceConverter(AbortSignal);
+    webidl.converters.RequestInit = webidl.dictionaryConverter([
+      {
+        key: "method",
+        converter: webidl.converters.ByteString,
+        defaultValue: "GET"
+      },
+      {
+        key: "headers",
+        converter: webidl.converters.HeadersInit
+      },
+      {
+        key: "body",
+        converter: webidl.nullableConverter(webidl.converters.BodyInit)
+      },
+      {
+        key: "referrer",
+        converter: webidl.converters.USVString
+      },
+      {
+        key: "referrerPolicy",
+        converter: webidl.converters.DOMString,
+        allowedValues: [
+          "",
+          "no-referrer",
+          "no-referrer-when-downgrade",
+          "same-origin",
+          "origin",
+          "strict-origin",
+          "origin-when-cross-origin",
+          "strict-origin-when-cross-origin",
+          "unsafe-url"
+        ]
+      },
+      {
+        key: "mode",
+        converter: webidl.converters.DOMString,
+        allowedValues: [
+          "same-origin",
+          "cors",
+          "no-cors",
+          "navigate",
+          "websocket"
+        ]
+      },
+      {
+        key: "credentials",
+        converter: webidl.converters.DOMString,
+        allowedValues: [
+          "omit",
+          "same-origin",
+          "include"
+        ]
+      },
+      {
+        key: "cache",
+        converter: webidl.converters.DOMString,
+        allowedValues: [
+          "default",
+          "no-store",
+          "reload",
+          "no-cache",
+          "force-cache",
+          "only-if-cached"
+        ]
+      },
+      {
+        key: "redirect",
+        converter: webidl.converters.DOMString,
+        allowedValues: [
+          "follow",
+          "error",
+          "manual"
+        ]
+      },
+      {
+        key: "integrity",
+        converter: webidl.converters.DOMString
+      },
+      {
+        key: "keepalive",
+        converter: webidl.converters.boolean
+      },
+      {
+        key: "signal",
+        converter: webidl.nullableConverter(webidl.converters.AbortSignal)
+      },
+      {
+        key: "window",
+        converter: webidl.converters.any
+      }
+    ]);
     module2.exports = { Request, makeRequest };
   }
 });
@@ -5227,7 +5893,7 @@ var require_request2 = __commonJS({
 var require_dataURL = __commonJS({
   "lib/fetch/dataURL.js"(exports2, module2) {
     var assert = require("assert");
-    var { atob } = require("buffer");
+    var { atob: atob2 } = require("buffer");
     var encoder = new TextEncoder();
     function dataURLProcessor(dataURL) {
       assert(dataURL.protocol === "data:");
@@ -5382,7 +6048,7 @@ var require_dataURL = __commonJS({
       if (/[^+/0-9A-Za-z]/.test(data)) {
         return "failure";
       }
-      const binary = atob(data);
+      const binary = atob2(data);
       const bytes = new Uint8Array(binary.length);
       for (let byte = 0; byte < binary.length; byte++) {
         bytes[byte] = binary.charCodeAt(byte);
@@ -5467,7 +6133,6 @@ var require_fetch = __commonJS({
       isAborted
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
-    var { AbortError } = require_errors();
     var assert = require("assert");
     var { safelyExtractBody, extractBody } = require_body();
     var {
@@ -5475,7 +6140,8 @@ var require_fetch = __commonJS({
       nullBodyStatus,
       safeMethods,
       requestBodyHeader,
-      subresource
+      subresource,
+      DOMException
     } = require_constants();
     var { kHeadersList } = require_symbols();
     var EE = require("events");
@@ -5485,6 +6151,9 @@ var require_fetch = __commonJS({
     var { TransformStream } = require("stream/web");
     var resolveObjectURL;
     var ReadableStream;
+    var nodeVersion = process.versions.node.split(".");
+    var nodeMajor = Number(nodeVersion[0]);
+    var nodeMinor = Number(nodeVersion[1]);
     var Fetch = class extends EE {
       constructor(dispatcher) {
         super();
@@ -5505,23 +6174,24 @@ var require_fetch = __commonJS({
         if (this.state !== "ongoing") {
           return;
         }
-        const reason = new AbortError();
+        const reason = new DOMException("The operation was aborted.", "AbortError");
         this.state = "aborted";
         this.connection?.destroy(reason);
         this.emit("terminated", reason);
       }
     };
-    async function fetch2(...args) {
-      if (args.length < 1) {
-        throw new TypeError(`Failed to execute 'fetch' on 'Window': 1 argument required, but only ${args.length} present.`);
+    async function fetch2(input, init = void 0) {
+      if (arguments.length < 1) {
+        throw new TypeError(`Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`);
       }
-      if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-        throw new TypeError("Failed to execute 'fetch' on 'Window': cannot convert to dictionary.");
-      }
-      const resource = args[0];
-      const init = args.length >= 1 ? args[1] ?? {} : {};
       const p = createDeferredPromise();
-      const requestObject = new Request(resource, init);
+      let requestObject;
+      try {
+        requestObject = new Request(input, init);
+      } catch (e) {
+        p.reject(e);
+        return p.promise;
+      }
       const request = requestObject[kState];
       if (requestObject.signal.aborted) {
         abortFetch(p, request, null);
@@ -5597,10 +6267,13 @@ var require_fetch = __commonJS({
       response.timingInfo = timingInfo;
       markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState);
     }
-    function markResourceTiming() {
+    function markResourceTiming(timingInfo, originalURL, initiatorType, globalThis2, cacheState) {
+      if (nodeMajor >= 18 && nodeMinor >= 2) {
+        performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis2, cacheState);
+      }
     }
     function abortFetch(p, request, responseObject) {
-      const error = new AbortError();
+      const error = new DOMException("The operation was aborted.", "AbortError");
       p.reject(error);
       if (request.body != null && isReadable(request.body?.stream)) {
         request.body.stream.cancel(error).catch((err) => {
@@ -5929,7 +6602,7 @@ var require_fetch = __commonJS({
       if (redirectStatus.includes(actualResponse.status)) {
         fetchParams.controller.connection.destroy();
         if (request.redirect === "error") {
-          response = makeNetworkError();
+          response = makeNetworkError("unexpected redirect");
         } else if (request.redirect === "manual") {
           response = actualResponse;
         } else if (request.redirect === "follow") {
@@ -6103,7 +6776,7 @@ var require_fetch = __commonJS({
         destroy(err) {
           if (!this.destroyed) {
             this.destroyed = true;
-            this.abort?.(err ?? new AbortError());
+            this.abort?.(err ?? new DOMException("The operation was aborted.", "AbortError"));
           }
         }
       };
@@ -6238,7 +6911,7 @@ var require_fetch = __commonJS({
         if (isAborted(fetchParams)) {
           response.aborted = true;
           if (isReadable(stream)) {
-            fetchParams.controller.controller.error(new AbortError());
+            fetchParams.controller.controller.error(new DOMException("The operation was aborted.", "AbortError"));
           }
         } else {
           if (isReadable(stream)) {
@@ -6267,7 +6940,7 @@ var require_fetch = __commonJS({
           onConnect(abort) {
             const { connection } = fetchParams.controller;
             if (connection.destroyed) {
-              abort(new AbortError());
+              abort(new DOMException("The operation was aborted.", "AbortError"));
             } else {
               fetchParams.controller.on("terminated", abort);
               this.abort = connection.abort = abort;

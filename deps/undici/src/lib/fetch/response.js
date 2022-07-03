@@ -1,18 +1,30 @@
 'use strict'
 
 const { Headers, HeadersList, fill } = require('./headers')
-const { AbortError } = require('../core/errors')
 const { extractBody, cloneBody, mixinBody } = require('./body')
 const util = require('../core/util')
 const { kEnumerableProperty } = util
-const { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require('./util')
+const {
+  responseURL,
+  isValidReasonPhrase,
+  isCancelled,
+  isAborted,
+  isBlobLike,
+  serializeJavascriptValueToJSONString
+} = require('./util')
 const {
   redirectStatus,
-  nullBodyStatus
+  nullBodyStatus,
+  DOMException
 } = require('./constants')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
+const { webidl } = require('./webidl')
+const { FormData } = require('./formdata')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
+const { types } = require('util')
+
+const ReadableStream = globalThis.ReadableStream || require('stream/web').ReadableStream
 
 // https://fetch.spec.whatwg.org/#response-class
 class Response {
@@ -41,17 +53,8 @@ class Response {
       )
     }
 
-    if (init === null || typeof init !== 'object') {
-      throw new TypeError(
-        `Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`
-      )
-    }
-
-    init = {
-      status: 200,
-      statusText: '',
-      headers: new HeadersList(),
-      ...init
+    if (init !== null) {
+      init = webidl.converters.ResponseInit(init)
     }
 
     // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
@@ -78,17 +81,17 @@ class Response {
   }
 
   // Creates a redirect Response that redirects to url with status status.
-  static redirect (...args) {
+  static redirect (url, status = 302) {
     const relevantRealm = { settingsObject: {} }
 
-    if (args.length < 1) {
+    if (arguments.length < 1) {
       throw new TypeError(
-        `Failed to execute 'redirect' on 'Response': 1 argument required, but only ${args.length} present.`
+        `Failed to execute 'redirect' on 'Response': 1 argument required, but only ${arguments.length} present.`
       )
     }
 
-    const status = args.length >= 2 ? args[1] : 302
-    const url = toUSVString(args[0])
+    url = webidl.converters.USVString(url)
+    status = webidl.converters['unsigned short'](status)
 
     // 1. Let parsedURL be the result of parsing url with current settings
     // object’s API base URL.
@@ -130,19 +133,12 @@ class Response {
   }
 
   // https://fetch.spec.whatwg.org/#dom-response
-  constructor (...args) {
-    if (
-      args.length >= 1 &&
-      typeof args[1] !== 'object' &&
-      args[1] !== undefined
-    ) {
-      throw new TypeError(
-        "Failed to construct 'Request': cannot convert to dictionary."
-      )
+  constructor (body = null, init = {}) {
+    if (body !== null) {
+      body = webidl.converters.BodyInit(body)
     }
 
-    const body = args.length >= 1 ? args[0] : null
-    const init = args.length >= 2 ? args[1] ?? {} : {}
+    init = webidl.converters.ResponseInit(init)
 
     // TODO
     this[kRealm] = { settingsObject: {} }
@@ -269,7 +265,10 @@ class Response {
 
     // 1. If this is unusable, then throw a TypeError.
     if (this.bodyUsed || (this.body && this.body.locked)) {
-      throw new TypeError()
+      webidl.errors.exception({
+        header: 'Response.clone',
+        message: 'Body has already been consumed.'
+      })
     }
 
     // 2. Let clonedResponse be the result of cloning this’s response.
@@ -287,7 +286,8 @@ class Response {
     return clonedResponseObject
   }
 }
-mixinBody(Response.prototype)
+
+mixinBody(Response)
 
 Object.defineProperties(Response.prototype, {
   type: kEnumerableProperty,
@@ -440,7 +440,7 @@ function makeAppropriateNetworkError (fetchParams) {
   // 2. Return an aborted network error if fetchParams is aborted;
   // otherwise return a network error.
   return isAborted(fetchParams)
-    ? makeNetworkError(new AbortError())
+    ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
     : makeNetworkError(fetchParams.controller.terminated.reason)
 }
 
@@ -448,7 +448,7 @@ function makeAppropriateNetworkError (fetchParams) {
 function initializeResponse (response, init, body) {
   // 1. If init["status"] is not in the range 200 to 599, inclusive, then
   //    throw a RangeError.
-  if (init.status != null && (init.status < 200 || init.status > 599)) {
+  if (init.status !== null && (init.status < 200 || init.status > 599)) {
     throw new RangeError('init["status"] must be in the range of 200 to 599, inclusive.')
   }
 
@@ -481,7 +481,10 @@ function initializeResponse (response, init, body) {
   if (body) {
     // 1. If response's status is a null body status, then throw a TypeError.
     if (nullBodyStatus.includes(response.status)) {
-      throw new TypeError()
+      webidl.errors.exception({
+        header: 'Response constructor',
+        message: 'Invalid response status code.'
+      })
     }
 
     // 2. Set response's body to body's body.
@@ -494,6 +497,79 @@ function initializeResponse (response, init, body) {
     }
   }
 }
+
+webidl.converters.ReadableStream = webidl.interfaceConverter(
+  ReadableStream
+)
+
+webidl.converters.FormData = webidl.interfaceConverter(
+  FormData
+)
+
+webidl.converters.URLSearchParams = webidl.interfaceConverter(
+  URLSearchParams
+)
+
+// https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
+webidl.converters.XMLHttpRequestBodyInit = function (V) {
+  if (typeof V === 'string') {
+    return webidl.converters.USVString(V)
+  }
+
+  if (isBlobLike(V)) {
+    return webidl.converters.Blob(V)
+  }
+
+  if (
+    types.isAnyArrayBuffer(V) ||
+    types.isTypedArray(V) ||
+    types.isDataView(V)
+  ) {
+    return webidl.converters.BufferSource(V)
+  }
+
+  if (V instanceof FormData) {
+    return webidl.converters.FormData(V)
+  }
+
+  if (V instanceof URLSearchParams) {
+    return webidl.converters.URLSearchParams(V)
+  }
+
+  return webidl.converters.DOMString(V)
+}
+
+// https://fetch.spec.whatwg.org/#bodyinit
+webidl.converters.BodyInit = function (V) {
+  if (V instanceof ReadableStream) {
+    return webidl.converters.ReadableStream(V)
+  }
+
+  // Note: the spec doesn't include async iterables,
+  // this is an undici extension.
+  if (V?.[Symbol.asyncIterator]) {
+    return V
+  }
+
+  return webidl.converters.XMLHttpRequestBodyInit(V)
+}
+
+webidl.converters.ResponseInit = webidl.dictionaryConverter([
+  {
+    key: 'status',
+    converter: webidl.converters['unsigned short'],
+    defaultValue: 200
+  },
+  {
+    key: 'statusText',
+    converter: webidl.converters.ByteString,
+    defaultValue: ''
+  },
+  {
+    key: 'headers',
+    converter: webidl.converters.HeadersInit
+  }
+])
 
 module.exports = {
   makeNetworkError,
