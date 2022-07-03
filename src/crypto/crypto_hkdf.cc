@@ -121,21 +121,31 @@ bool HKDFTraits::DeriveBits(
       return false;
     }
   } else {
-    unsigned int len = EVP_MD_size(params.digest);
-    uint8_t tempKey[len];  // NOLINT(runtime/arrays)
+    unsigned char temp_key[EVP_MAX_MD_SIZE];
+    unsigned int len = sizeof(temp_key);
     if (params.salt.size()) {
-      HMAC(params.digest,
+      if (HMAC(params.digest,
            params.salt.data(),
            params.salt.size(),
            nullptr,
            0,
-           tempKey,
-           &len);
+           temp_key,
+           &len) == nullptr) {
+             return false;
+           }
     } else {
-      HMAC(params.digest, new char[len]{}, len, nullptr, 0, tempKey, &len);
+      if (HMAC(params.digest,
+           new char[len]{},
+           len,
+           nullptr,
+           0,
+           temp_key,
+           &len) == nullptr) {
+             return false;
+           }
     }
     if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
-        !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), tempKey, len)) {
+        !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), temp_key, len)) {
       return false;
     }
   }
