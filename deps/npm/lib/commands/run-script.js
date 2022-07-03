@@ -35,6 +35,7 @@ class RunScript extends BaseCommand {
     'include-workspace-root',
     'if-present',
     'ignore-scripts',
+    'foreground-scripts',
     'script-shell',
   ]
 
