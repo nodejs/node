@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+const { setTimeout } = require('timers/promises');
 
 if (process.argv[2] === 'child') {
   const test = require('node:test');
@@ -18,7 +19,7 @@ if (process.argv[2] === 'child') {
   } else if (process.argv[3] === 'never_ends') {
     assert.strictEqual(process.argv[3], 'never_ends');
     test('never ending test', () => {
-      return new Promise(() => {});
+      return setTimeout(100_000_000);
     });
     process.kill(process.pid, 'SIGINT');
   }
