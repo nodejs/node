@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `null` comparisons without type-checking operators",
+            description: "Disallow `null` comparisons without type-checking operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-eq-null"
         },

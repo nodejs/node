@@ -226,7 +226,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow the use of variables before they are defined",
+            description: "Disallow the use of variables before they are defined",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-use-before-define"
         },

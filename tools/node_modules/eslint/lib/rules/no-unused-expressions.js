@@ -30,7 +30,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unused expressions",
+            description: "Disallow unused expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unused-expressions"
         },

@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce the use of `u` flag on RegExp",
+            description: "Enforce the use of `u` flag on RegExp",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-unicode-regexp"
         },

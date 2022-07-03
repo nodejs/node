@@ -34,7 +34,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of lines per file",
+            description: "Enforce a maximum number of lines per file",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines"
         },

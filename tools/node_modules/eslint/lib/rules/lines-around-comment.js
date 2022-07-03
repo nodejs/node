@@ -55,7 +55,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require empty lines around comments",
+            description: "Require empty lines around comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/lines-around-comment"
         },

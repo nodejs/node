@@ -1,4 +1,4 @@
-import definitions from "../../lib/definitions/index.js";
+import * as definitions from "../../lib/definitions/index.js";
 
 function addAssertHelper(type) {
   const result =

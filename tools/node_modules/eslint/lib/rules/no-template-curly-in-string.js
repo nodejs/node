@@ -14,7 +14,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow template literal placeholder syntax in regular strings",
+            description: "Disallow template literal placeholder syntax in regular strings",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-template-curly-in-string"
         },

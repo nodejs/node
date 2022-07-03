@@ -18,7 +18,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require a newline after each call in a method chain",
+            description: "Require a newline after each call in a method chain",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-per-chained-call"
         },

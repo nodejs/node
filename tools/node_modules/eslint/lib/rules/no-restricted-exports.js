@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified names in exports",
+            description: "Disallow specified names in exports",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-exports"
         },

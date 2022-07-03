@@ -26,7 +26,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent indentation",
+            description: "Enforce consistent indentation",
             recommended: false,
             url: "https://eslint.org/docs/rules/indent-legacy"
         },

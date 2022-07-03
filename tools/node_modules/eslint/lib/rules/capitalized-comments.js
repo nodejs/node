@@ -105,7 +105,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce or disallow capitalization of the first letter of a comment",
+            description: "Enforce or disallow capitalization of the first letter of a comment",
             recommended: false,
             url: "https://eslint.org/docs/rules/capitalized-comments"
         },

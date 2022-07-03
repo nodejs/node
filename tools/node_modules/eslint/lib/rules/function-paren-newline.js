@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent line breaks inside function parentheses",
+            description: "Enforce consistent line breaks inside function parentheses",
             recommended: false,
             url: "https://eslint.org/docs/rules/function-paren-newline"
         },

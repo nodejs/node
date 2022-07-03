@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow assignments to native objects or read-only global variables",
+            description: "Disallow assignments to native objects or read-only global variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-global-assign"
         },

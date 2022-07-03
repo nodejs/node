@@ -64,7 +64,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow useless backreferences in regular expressions",
+            description: "Disallow useless backreferences in regular expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-useless-backreference"
         },
