@@ -7,7 +7,6 @@ prefix wpt
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/40449
 test-user-timing: PASS,FLAKY
-test-webcrypto: SLOW
 
 [$system==win32]
 
