@@ -34,10 +34,13 @@ const glob = require('glob')
 const globify = pattern => pattern.split('\\').join('/')
 
 const readOutOfTreeIgnoreFiles = (root, rel, result = '') => {
-  for (const file of ['.gitignore', '.npmignore']) {
+  for (const file of ['.npmignore', '.gitignore']) {
     try {
       const ignoreContent = fs.readFileSync(path.join(root, file), { encoding: 'utf8' })
       result += ignoreContent + '\n'
+      // break the loop immediately after concatting, this allows us to prioritize the
+      // .npmignore and discard the .gitignore if one exists
+      break
     } catch (err) {
       // we ignore ENOENT errors completely because we don't care if the file doesn't exist
       // but we throw everything else because failing to read a file that does exist is

@@ -166,8 +166,8 @@ class Advisory {
     // we can try to be a *little* smarter up front by doing x-y for all
     // contiguous version sets in the list
     const ranges = []
-    this.versions = semver.sort(this.versions)
-    this.vulnerableVersions = semver.sort(this.vulnerableVersions)
+    this.versions = semver.sort(this.versions, semverOpt)
+    this.vulnerableVersions = semver.sort(this.vulnerableVersions, semverOpt)
     for (let v = 0, vulnVer = 0; v < this.versions.length; v++) {
       // figure out the vulnerable subrange
       const vr = [this.versions[v]]

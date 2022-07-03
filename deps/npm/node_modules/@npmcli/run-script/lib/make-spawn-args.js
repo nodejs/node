@@ -30,6 +30,7 @@ const makeSpawnArgs = options => {
     npm_config_node_gyp,
   })
 
+  const fileName = escape.filename(`${event}-${Date.now()}`)
   let scriptFile
   let script = ''
 
@@ -61,7 +62,7 @@ const makeSpawnArgs = options => {
 
     const doubleEscape = pathToInitial.endsWith('.cmd') || pathToInitial.endsWith('.bat')
 
-    scriptFile = resolve(tmpdir(), `${event}-${Date.now()}.cmd`)
+    scriptFile = resolve(tmpdir(), `${fileName}.cmd`)
     script += '@echo off\n'
     script += cmd
     if (args.length) {
@@ -71,7 +72,7 @@ const makeSpawnArgs = options => {
     const shebang = isAbsolute(scriptShell)
       ? `#!${scriptShell}`
       : `#!/usr/bin/env ${scriptShell}`
-    scriptFile = resolve(tmpdir(), `${event}-${Date.now()}.sh`)
+    scriptFile = resolve(tmpdir(), `${fileName}.sh`)
     script += `${shebang}\n`
     script += cmd
     if (args.length) {
