@@ -162,7 +162,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow unmodified loop conditions",
+            description: "Disallow unmodified loop conditions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unmodified-loop-condition"
         },

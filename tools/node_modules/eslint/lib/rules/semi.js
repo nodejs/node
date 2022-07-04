@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow semicolons instead of ASI",
+            description: "Require or disallow semicolons instead of ASI",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi"
         },

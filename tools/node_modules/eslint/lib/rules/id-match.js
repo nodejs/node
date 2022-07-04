@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require identifiers to match a specified regular expression",
+            description: "Require identifiers to match a specified regular expression",
             recommended: false,
             url: "https://eslint.org/docs/rules/id-match"
         },

@@ -139,7 +139,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "enforce `return` statements in callbacks of array methods",
+            description: "Enforce `return` statements in callbacks of array methods",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-callback-return"
         },

@@ -16,7 +16,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow comparisons where both sides are exactly the same",
+            description: "Disallow comparisons where both sides are exactly the same",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-self-compare"
         },

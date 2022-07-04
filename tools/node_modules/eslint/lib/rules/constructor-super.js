@@ -122,7 +122,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "require `super()` calls in constructors",
+            description: "Require `super()` calls in constructors",
             recommended: true,
             url: "https://eslint.org/docs/rules/constructor-super"
         },

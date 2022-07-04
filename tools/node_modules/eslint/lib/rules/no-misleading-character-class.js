@@ -107,7 +107,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow characters which are made with multiple code points in character class syntax",
+            description: "Disallow characters which are made with multiple code points in character class syntax",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-misleading-character-class"
         },

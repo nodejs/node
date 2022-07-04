@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `Reflect` methods where applicable",
+            description: "Require `Reflect` methods where applicable",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-reflect"
         },

@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce newlines between operands of ternary expressions",
+            description: "Enforce newlines between operands of ternary expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/multiline-ternary"
         },

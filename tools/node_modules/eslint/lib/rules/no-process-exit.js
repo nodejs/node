@@ -19,7 +19,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `process.exit()`",
+            description: "Disallow the use of `process.exit()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-process-exit"
         },

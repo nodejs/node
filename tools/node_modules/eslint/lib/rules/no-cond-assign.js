@@ -34,7 +34,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow assignment operators in conditional expressions",
+            description: "Disallow assignment operators in conditional expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-cond-assign"
         },

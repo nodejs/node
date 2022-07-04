@@ -23,7 +23,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum cyclomatic complexity allowed in a program",
+            description: "Enforce a maximum cyclomatic complexity allowed in a program",
             recommended: false,
             url: "https://eslint.org/docs/rules/complexity"
         },

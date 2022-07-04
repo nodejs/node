@@ -34,7 +34,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow async functions which have no `await` expression",
+            description: "Disallow async functions which have no `await` expression",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-await"
         },
