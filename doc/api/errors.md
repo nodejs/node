@@ -2690,7 +2690,7 @@ added:
  - v12.17.0
 -->
 
-The TLS socket must be connected and security established. Ensure the 'secure'
+The TLS socket must be connected and securely established. Ensure the 'secure'
 event is emitted before continuing.
 
 <a id="ERR_TLS_PROTOCOL_VERSION_CONFLICT"></a>
