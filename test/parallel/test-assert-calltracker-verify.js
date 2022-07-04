@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const tracker = new assert.CallTracker();
 
-const generic_msg = 'Function(s) were not called the expected number of times';
+const generic_msg = 'Functions were not called the expected number of times';
 
 function foo() {}
 
