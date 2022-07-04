@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { setTimeout } = require('timers/promises');
@@ -35,7 +35,11 @@ if (process.argv[2] === 'child') {
   child = spawnSync(process.execPath, [__filename, 'child', 'never_ends']);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
-  const stdout = child.stdout.toString();
-  assert.match(stdout, /not ok 1 - never ending test/);
-  assert.match(stdout, /# cancelled 1/);
+  if (common.isWindows) {
+    common.printSkipMessage('signals are not supported in windows');
+  } else {
+    const stdout = child.stdout.toString();
+    assert.match(stdout, /not ok 1 - never ending test/);
+    assert.match(stdout, /# cancelled 1/);
+  }
 }
