@@ -1034,7 +1034,12 @@ InitializationResult InitializeOncePerProcess(
   argv = uv_setup_args(argc, argv);
 
   InitializationResult result;
-  result.args = std::vector<std::string>(argv, argv + argc);
+  if (single_executable_application::CheckForSingleBinary(
+          argc, argv, &(result.args))) {
+    per_process::single_executable_application = true;
+  } else {
+    result.args = std::vector<std::string>(argv, argv + argc);
+  }
   std::vector<std::string> errors;
 
   // This needs to run *before* V8::Initialize().
@@ -1190,17 +1195,7 @@ void TearDownOncePerProcess() {
 }
 
 int Start(int argc, char** argv) {
-  node::single_executable_application::single_executable_replacement_args*
-      new_args =
-          node::single_executable_application::CheckForSingleBinary(argc, argv);
-
-  InitializationResult result;
-  if (!new_args->single_executable_application) {
-    result = InitializeOncePerProcess(argc, argv);
-  } else {
-    per_process::single_executable_application = true;
-    result = InitializeOncePerProcess(new_args->argc, new_args->argv);
-  }
+  InitializationResult result = InitializeOncePerProcess(argc, argv);
   if (result.early_return) {
     return result.exit_code;
   }

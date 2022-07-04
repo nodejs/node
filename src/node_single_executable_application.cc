@@ -33,11 +33,10 @@ static int callback(struct dl_phdr_info* info, size_t size, void* data) {
 }
 #endif  // defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
 
-struct single_executable_replacement_args* CheckForSingleBinary(int argc,
-                                                                char** argv) {
-  struct single_executable_replacement_args* new_args =
-      new single_executable_replacement_args;
-  new_args->single_executable_application = false;
+bool CheckForSingleBinary(int argc,
+                          char** argv,
+                          std::vector<std::string>* new_argv) {
+  bool single_executable_application = false;
 
   char* single_executable_data = nullptr;
 #if defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
@@ -50,16 +49,12 @@ struct single_executable_replacement_args* CheckForSingleBinary(int argc,
     int argument_count = std::stoi(argc_string, 0, 16);
     char* arguments = &(single_executable_data[ARGC_OFFSET + ARGC_LENGTH]);
 
-    // set up new argc count and space for new argv
-    new_args->argc = 0;
-    new_args->argc = argc + argument_count;
-    new_args->argv = new char*[new_args->argc];
-    new_args->argv[0] = argv[0];
-    int index = 1;
+    // copy over the first argument which needs to stay in place
+    new_argv->push_back(argv[0]);
 
     // copy over the new arguments
     for (int i = 0; i < argument_count; i++) {
-      new_args->argv[index++] = arguments;
+      new_argv->push_back(arguments);
       int length = strlen(arguments);
       // TODO(mhdawson): add check that we don't overrun the segment
       arguments = arguments + length + 1;
@@ -71,12 +66,12 @@ struct single_executable_replacement_args* CheckForSingleBinary(int argc,
 
     // copy over the arguments passed when the executable was started
     for (int i = 1; i < argc; i++) {
-      new_args->argv[index++] = argv[i];
+      new_argv->push_back(argv[i]);
     }
 
-    new_args->single_executable_application = true;
+    single_executable_application = true;
   }
-  return new_args;
+  return single_executable_application;
 }
 
 }  // namespace single_executable_application

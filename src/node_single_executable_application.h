@@ -3,16 +3,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <string>
+#include <vector>
+
 namespace node {
 namespace single_executable_application {
 
-struct single_executable_replacement_args {
-  bool single_executable_application;
-  int argc;
-  char** argv;
-};
-
-single_executable_replacement_args* CheckForSingleBinary(int argc, char** argv);
+bool CheckForSingleBinary(int argc,
+                          char** argv,
+                          std::vector<std::string>* new_argv);
 
 }  // namespace single_executable_application
 }  // namespace node
