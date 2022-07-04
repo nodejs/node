@@ -161,6 +161,8 @@ PVOID old_vectored_exception_handler;
 
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
+
+bool single_executable_application = false;
 }  // namespace per_process
 
 // The section in the OpenSSL configuration file to be loaded.
@@ -518,6 +520,11 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
+  }
+
+  if (env->options()->has_eval_string &&
+      per_process::single_executable_application) {
+    return StartExecution(env, "internal/main/single_executable_application");
   }
 
   // -e/--eval without -i/--interactive
@@ -1191,6 +1198,7 @@ int Start(int argc, char** argv) {
   if (!new_args->single_executable_application) {
     result = InitializeOncePerProcess(argc, argv);
   } else {
+    per_process::single_executable_application = true;
     result = InitializeOncePerProcess(new_args->argc, new_args->argv);
   }
   if (result.early_return) {
