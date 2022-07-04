@@ -27,7 +27,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `new` operators with the `Function` object",
+            description: "Disallow `new` operators with the `Function` object",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-func"
         },

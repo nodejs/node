@@ -2,7 +2,7 @@ import util from "util";
 import stringifyValidator from "../utils/stringifyValidator.js";
 import toFunctionName from "../utils/toFunctionName.js";
 
-import t from "../../lib/index.js";
+import * as t from "../../lib/index.js";
 
 const readme = [
   `---

@@ -70,7 +70,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary concatenation of literals or template literals",
+            description: "Disallow unnecessary concatenation of literals or template literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-concat"
         },

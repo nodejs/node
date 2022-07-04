@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "disallow unnecessary parentheses",
+            description: "Disallow unnecessary parentheses",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extra-parens"
         },

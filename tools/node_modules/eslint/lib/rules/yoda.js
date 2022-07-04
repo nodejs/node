@@ -121,7 +121,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: 'require or disallow "Yoda" conditions',
+            description: 'Require or disallow "Yoda" conditions',
             recommended: false,
             url: "https://eslint.org/docs/rules/yoda"
         },

@@ -19,7 +19,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow use of the `Buffer()` constructor",
+            description: "Disallow use of the `Buffer()` constructor",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-buffer-constructor"
         },

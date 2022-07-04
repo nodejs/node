@@ -29,7 +29,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow ternary operators when simpler alternatives exist",
+            description: "Disallow ternary operators when simpler alternatives exist",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unneeded-ternary"
         },

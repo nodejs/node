@@ -1,7 +1,15 @@
 self.Flatted = (function (exports) {
   'use strict';
 
-  
+  function _typeof(obj) {
+    "@babel/helpers - typeof";
+
+    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) {
+      return typeof obj;
+    } : function (obj) {
+      return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    }, _typeof(obj);
+  }
 
   /*! (c) 2020 Andrea Giammarchi */
   var $parse = JSON.parse,
@@ -23,7 +31,7 @@ self.Flatted = (function (exports) {
   };
 
   var Primitives = function Primitives(_, value) {
-    return typeof(value) === primitive ? new Primitive(value) : value;
+    return _typeof(value) === primitive ? new Primitive(value) : value;
   };
 
   var revive = function revive(input, parsed, output, $) {
@@ -36,7 +44,7 @@ self.Flatted = (function (exports) {
       if (value instanceof Primitive) {
         var tmp = input[value];
 
-        if (typeof(tmp) === object && !parsed.has(tmp)) {
+        if (_typeof(tmp) === object && !parsed.has(tmp)) {
           parsed.add(tmp);
           output[k] = ignore;
           lazy.push({
@@ -67,13 +75,13 @@ self.Flatted = (function (exports) {
     var input = $parse(text, Primitives).map(primitives);
     var value = input[0];
     var $ = reviver || noop;
-    var tmp = typeof(value) === object && value ? revive(input, new Set(), value, $) : value;
+    var tmp = _typeof(value) === object && value ? revive(input, new Set(), value, $) : value;
     return $.call({
       '': tmp
     }, '', tmp);
   };
   var stringify = function stringify(value, replacer, space) {
-    var $ = replacer && typeof(replacer) === object ? function (k, v) {
+    var $ = replacer && _typeof(replacer) === object ? function (k, v) {
       return k === '' || -1 < replacer.indexOf(k) ? v : void 0;
     } : replacer || noop;
     var known = new Map();
@@ -99,7 +107,7 @@ self.Flatted = (function (exports) {
 
       var after = $.call(this, key, value);
 
-      switch (typeof(after)) {
+      switch (_typeof(after)) {
         case object:
           if (after === null) return after;
 

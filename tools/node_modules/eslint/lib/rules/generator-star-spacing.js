@@ -31,7 +31,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing around `*` operators in generator functions",
+            description: "Enforce consistent spacing around `*` operators in generator functions",
             recommended: false,
             url: "https://eslint.org/docs/rules/generator-star-spacing"
         },

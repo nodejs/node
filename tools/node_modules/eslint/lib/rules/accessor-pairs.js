@@ -140,7 +140,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce getter and setter pairs in objects and classes",
+            description: "Enforce getter and setter pairs in objects and classes",
             recommended: false,
             url: "https://eslint.org/docs/rules/accessor-pairs"
         },

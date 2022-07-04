@@ -32,7 +32,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow magic numbers",
+            description: "Disallow magic numbers",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-magic-numbers"
         },

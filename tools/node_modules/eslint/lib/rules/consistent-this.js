@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce consistent naming when capturing the current execution context",
+            description: "Enforce consistent naming when capturing the current execution context",
             recommended: false,
             url: "https://eslint.org/docs/rules/consistent-this"
         },

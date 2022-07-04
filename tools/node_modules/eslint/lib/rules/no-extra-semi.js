@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary semicolons",
+            description: "Disallow unnecessary semicolons",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-semi"
         },

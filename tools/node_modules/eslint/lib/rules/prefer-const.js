@@ -332,7 +332,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `const` declarations for variables that are never reassigned after declared",
+            description: "Require `const` declarations for variables that are never reassigned after declared",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-const"
         },
