@@ -1116,7 +1116,7 @@ properties describing:
   * `inlineValue` { boolean | undefined } Whether option value specified inline,
     like `--foo=bar`.
 * positional tokens
-  * `value` { string } Positional value (i.e. `args[index]`).
+  * `value` { string } the value of the positional argument in args (i.e. `args[index]`).
 * option-terminator token
 
 For example, assuming the following script which uses
