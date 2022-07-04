@@ -50,7 +50,7 @@ maintain a stable [em-bedder API](https://nodejs.org/dist/latest/docs/api/embedd
 The following header must be included in a segment in order to have it run
 as a single executable application:
 
-JSCODEVVVVVVVVFFFFFFFFFAAAAAAAA
+NODEJSSEAVVVVVVVVFFFFFFFFFAAAAAAAA
 
 where:
 
@@ -72,7 +72,7 @@ additional command line options passed when the executable is started.
 For example, for a simple single hello world for version `00000001` could be:
 
 ```text
-JSCODE000000010000000000000002-e\0console.log('Hello from single binary')\0
+NODEJSSEA000000010000000000000002-e\0console.log('Hello from single binary')\0
 ```
 
 Support for bundling into existing Node.js binaries is maintained
@@ -105,7 +105,7 @@ binary = lief.parse('node')
 segment = lief.ELF.Segment()
 segment.type = lief.ELF.SEGMENT_TYPES.LOAD
 segment.flags = lief.ELF.SEGMENT_FLAGS.R
-stringContent = "JSCODE000000010000000000000002-e\0console.log('Hello from single binary')\0"
+stringContent = "NODEJSSEA000000010000000000000002-e\0console.log('Hello from single binary')\0"
 segment.content = bytearray(stringContent.encode())
 segment = binary.replace(segment, binary[lief.ELF.SEGMENT_TYPES.NOTE])
 

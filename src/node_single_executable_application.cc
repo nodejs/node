@@ -9,7 +9,7 @@
 namespace node {
 namespace single_executable_application {
 
-#define MAGIC_HEADER "JSCODE"
+#define MAGIC_HEADER "NODEJSSEA"
 #define VERSION_CHARS "00000001"
 #define FLAG_CHARS "00000000"
 #define ARGC_OFFSET                                                            \
