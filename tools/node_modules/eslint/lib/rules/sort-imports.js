@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce sorted import declarations within modules",
+            description: "Enforce sorted import declarations within modules",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-imports"
         },

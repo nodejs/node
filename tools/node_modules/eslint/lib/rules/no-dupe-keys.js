@@ -88,7 +88,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow duplicate keys in object literals",
+            description: "Disallow duplicate keys in object literals",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-keys"
         },

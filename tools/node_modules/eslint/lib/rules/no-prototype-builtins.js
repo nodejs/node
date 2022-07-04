@@ -20,7 +20,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow calling some `Object.prototype` methods directly on objects",
+            description: "Disallow calling some `Object.prototype` methods directly on objects",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-prototype-builtins"
         },

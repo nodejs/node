@@ -139,7 +139,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing between keys and values in object literal properties",
+            description: "Enforce consistent spacing between keys and values in object literal properties",
             recommended: false,
             url: "https://eslint.org/docs/rules/key-spacing"
         },

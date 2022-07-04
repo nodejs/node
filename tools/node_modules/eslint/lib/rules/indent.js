@@ -500,7 +500,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent indentation",
+            description: "Enforce consistent indentation",
             recommended: false,
             url: "https://eslint.org/docs/rules/indent"
         },
@@ -1211,7 +1211,7 @@ module.exports = {
                 }
             },
 
-            "DoWhileStatement, WhileStatement, ForInStatement, ForOfStatement": node => addBlocklessNodeIndent(node.body),
+            "DoWhileStatement, WhileStatement, ForInStatement, ForOfStatement, WithStatement": node => addBlocklessNodeIndent(node.body),
 
             ExportNamedDeclaration(node) {
                 if (node.declaration === null) {
@@ -1268,7 +1268,7 @@ module.exports = {
              *
              * Traversal into the node sets indentation of the semicolon, so we need to override it on exit.
              */
-            ":matches(DoWhileStatement, ForStatement, ForInStatement, ForOfStatement, IfStatement, WhileStatement):exit"(node) {
+            ":matches(DoWhileStatement, ForStatement, ForInStatement, ForOfStatement, IfStatement, WhileStatement, WithStatement):exit"(node) {
                 let nodesToCheck;
 
                 if (node.type === "IfStatement") {

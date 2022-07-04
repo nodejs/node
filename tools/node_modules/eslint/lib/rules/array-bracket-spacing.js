@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing inside array brackets",
+            description: "Enforce consistent spacing inside array brackets",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-bracket-spacing"
         },

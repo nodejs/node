@@ -39,7 +39,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow multiple spaces in regular expressions",
+            description: "Disallow multiple spaces in regular expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-regex-spaces"
         },

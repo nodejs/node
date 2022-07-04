@@ -14,7 +14,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "enforce comparing `typeof` expressions against valid strings",
+            description: "Enforce comparing `typeof` expressions against valid strings",
             recommended: true,
             url: "https://eslint.org/docs/rules/valid-typeof"
         },

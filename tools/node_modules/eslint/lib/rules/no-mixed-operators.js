@@ -88,7 +88,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow mixed binary operators",
+            description: "Disallow mixed binary operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-operators"
         },

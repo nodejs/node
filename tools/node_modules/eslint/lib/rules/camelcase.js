@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce camelcase naming convention",
+            description: "Enforce camelcase naming convention",
             recommended: false,
             url: "https://eslint.org/docs/rules/camelcase"
         },

@@ -17,7 +17,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow throwing literals as exceptions",
+            description: "Disallow throwing literals as exceptions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-throw-literal"
         },
