@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
+            description: "Disallow `catch` clause parameters from shadowing variables in the outer scope",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-catch-shadow"
         },

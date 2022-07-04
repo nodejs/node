@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified global variables",
+            description: "Disallow specified global variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-globals"
         },

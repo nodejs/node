@@ -1,4 +1,4 @@
-import virtualTypes from "../../lib/path/lib/virtual-types.js";
+import * as virtualTypes from "../../lib/path/lib/virtual-types.js";
 
 export default function generateValidators() {
   let output = `/*
@@ -11,6 +11,9 @@ export interface VirtualTypeAliases {
 `;
 
   for (const type of Object.keys(virtualTypes)) {
+    // TODO: Remove this check once we stop compiling to CJS
+    if (type === "default" || type === "__esModule") continue;
+
     output += `  ${type}: ${(virtualTypes[type].types || ["Node"])
       .map(t => `t.${t}`)
       .join(" | ")};`;

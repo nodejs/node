@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow bitwise operators",
+            description: "Disallow bitwise operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-bitwise"
         },

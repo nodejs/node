@@ -82,7 +82,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require constructor names to begin with a capital letter",
+            description: "Require constructor names to begin with a capital letter",
             recommended: false,
             url: "https://eslint.org/docs/rules/new-cap"
         },

@@ -28,7 +28,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow method and property shorthand syntax for object literals",
+            description: "Require or disallow method and property shorthand syntax for object literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-shorthand"
         },

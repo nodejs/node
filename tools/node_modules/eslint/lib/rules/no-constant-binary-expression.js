@@ -432,7 +432,7 @@ module.exports = {
     meta: {
         type: "problem",
         docs: {
-            description: "disallow expressions where the operation doesn't affect the value",
+            description: "Disallow expressions where the operation doesn't affect the value",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-constant-binary-expression"
         },

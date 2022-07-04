@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow use of chained assignment expressions",
+            description: "Disallow use of chained assignment expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-multi-assign"
         },

@@ -19,7 +19,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `process.env`",
+            description: "Disallow the use of `process.env`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-process-env"
         },

@@ -151,7 +151,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require using arrow functions for callbacks",
+            description: "Require using arrow functions for callbacks",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-arrow-callback"
         },

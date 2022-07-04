@@ -99,7 +99,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified identifiers",
+            description: "Disallow specified identifiers",
             recommended: false,
             url: "https://eslint.org/docs/rules/id-denylist"
         },

@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent brace style for blocks",
+            description: "Enforce consistent brace style for blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/brace-style"
         },

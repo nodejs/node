@@ -69,7 +69,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow strict mode directives",
+            description: "Require or disallow strict mode directives",
             recommended: false,
             url: "https://eslint.org/docs/rules/strict"
         },

@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary nested blocks",
+            description: "Disallow unnecessary nested blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-lone-blocks"
         },

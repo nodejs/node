@@ -185,7 +185,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `let` or `const` instead of `var`",
+            description: "Require `let` or `const` instead of `var`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-var"
         },

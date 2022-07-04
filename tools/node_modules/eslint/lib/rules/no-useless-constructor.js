@@ -138,7 +138,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary constructors",
+            description: "Disallow unnecessary constructors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-constructor"
         },

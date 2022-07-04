@@ -1,4 +1,4 @@
-import definitions from "../../lib/definitions/index.js";
+import * as definitions from "../../lib/definitions/index.js";
 
 const has = Function.call.bind(Object.prototype.hasOwnProperty);
 

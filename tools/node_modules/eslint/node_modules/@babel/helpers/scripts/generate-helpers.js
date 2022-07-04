@@ -14,7 +14,7 @@ export default async function generateHelpers() {
 
 import template from "@babel/template";
 
-function helper(minVersion, source) {
+function helper(minVersion: string, source: string) {
   return Object.freeze({
     minVersion,
     ast: () => template.program.ast(source, { preserveComments: true }),

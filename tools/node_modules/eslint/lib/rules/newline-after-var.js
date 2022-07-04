@@ -22,7 +22,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow an empty line after variable declarations",
+            description: "Require or disallow an empty line after variable declarations",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-after-var"
         },

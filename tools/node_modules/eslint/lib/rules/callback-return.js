@@ -19,7 +19,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `return` statements after callbacks",
+            description: "Require `return` statements after callbacks",
             recommended: false,
             url: "https://eslint.org/docs/rules/callback-return"
         },

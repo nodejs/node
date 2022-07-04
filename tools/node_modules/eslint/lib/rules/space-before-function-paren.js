@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before `function` definition opening parenthesis",
+            description: "Enforce consistent spacing before `function` definition opening parenthesis",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-before-function-paren"
         },

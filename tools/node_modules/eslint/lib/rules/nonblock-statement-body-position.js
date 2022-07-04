@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce the location of single-line statements",
+            description: "Enforce the location of single-line statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/nonblock-statement-body-position"
         },

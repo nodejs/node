@@ -17,7 +17,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow reassigning class members",
+            description: "Disallow reassigning class members",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-class-assign"
         },

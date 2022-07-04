@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified warning terms in comments",
+            description: "Disallow specified warning terms in comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-warning-comments"
         },

@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unused labels",
+            description: "Disallow unused labels",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unused-labels"
         },

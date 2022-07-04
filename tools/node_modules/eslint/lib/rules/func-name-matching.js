@@ -74,7 +74,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require function names to match the name of the variable or property to which they are assigned",
+            description: "Require function names to match the name of the variable or property to which they are assigned",
             recommended: false,
             url: "https://eslint.org/docs/rules/func-name-matching"
         },

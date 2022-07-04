@@ -43,7 +43,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `eval()`",
+            description: "Disallow the use of `eval()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-eval"
         },

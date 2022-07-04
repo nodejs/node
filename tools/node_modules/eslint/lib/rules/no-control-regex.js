@@ -54,7 +54,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow control characters in regular expressions",
+            description: "Disallow control characters in regular expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-control-regex"
         },

@@ -25,7 +25,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce or disallow parentheses when invoking a constructor with no arguments",
+            description: "Enforce or disallow parentheses when invoking a constructor with no arguments",
             recommended: false,
             url: "https://eslint.org/docs/rules/new-parens"
         },

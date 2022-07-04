@@ -128,7 +128,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require template literals instead of string concatenation",
+            description: "Require template literals instead of string concatenation",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-template"
         },

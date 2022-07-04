@@ -18,7 +18,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `javascript:` urls",
+            description: "Disallow `javascript:` urls",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-script-url"
         },

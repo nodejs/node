@@ -95,7 +95,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow empty functions",
+            description: "Disallow empty functions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-empty-function"
         },

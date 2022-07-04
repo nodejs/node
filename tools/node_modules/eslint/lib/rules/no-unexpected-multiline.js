@@ -20,7 +20,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow confusing multiline expressions",
+            description: "Disallow confusing multiline expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unexpected-multiline"
         },

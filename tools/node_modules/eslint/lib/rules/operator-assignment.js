@@ -63,7 +63,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow assignment operator shorthand where possible",
+            description: "Require or disallow assignment operator shorthand where possible",
             recommended: false,
             url: "https://eslint.org/docs/rules/operator-assignment"
         },

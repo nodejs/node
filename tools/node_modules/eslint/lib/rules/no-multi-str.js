@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow multiline strings",
+            description: "Disallow multiline strings",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-multi-str"
         },

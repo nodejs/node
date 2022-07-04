@@ -14,7 +14,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow comparing against -0",
+            description: "Disallow comparing against -0",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-compare-neg-zero"
         },

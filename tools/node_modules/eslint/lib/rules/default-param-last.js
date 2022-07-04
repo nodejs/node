@@ -11,7 +11,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce default parameters to be last",
+            description: "Enforce default parameters to be last",
             recommended: false,
             url: "https://eslint.org/docs/rules/default-param-last"
         },

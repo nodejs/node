@@ -81,7 +81,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require object keys to be sorted",
+            description: "Require object keys to be sorted",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-keys"
         },

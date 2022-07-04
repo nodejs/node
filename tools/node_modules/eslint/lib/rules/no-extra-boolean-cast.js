@@ -24,7 +24,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary boolean casts",
+            description: "Disallow unnecessary boolean casts",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-boolean-cast"
         },

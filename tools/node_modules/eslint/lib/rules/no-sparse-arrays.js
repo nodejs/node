@@ -14,7 +14,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow sparse arrays",
+            description: "Disallow sparse arrays",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-sparse-arrays"
         },

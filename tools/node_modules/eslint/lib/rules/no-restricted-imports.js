@@ -58,6 +58,14 @@ const arrayOfStringsOrObjectPatterns = {
             items: {
                 type: "object",
                 properties: {
+                    importNames: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        },
+                        minItems: 1,
+                        uniqueItems: true
+                    },
                     group: {
                         type: "array",
                         items: {
@@ -88,7 +96,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified modules when loaded by `import`",
+            description: "Disallow specified modules when loaded by `import`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-imports"
         },
@@ -101,6 +109,14 @@ module.exports = {
             patterns: "'{{importSource}}' import is restricted from being used by a pattern.",
             // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             patternWithCustomMessage: "'{{importSource}}' import is restricted from being used by a pattern. {{customMessage}}",
+
+            patternAndImportName: "'{{importName}}' import from '{{importSource}}' is restricted from being used by a pattern.",
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
+            patternAndImportNameWithCustomMessage: "'{{importName}}' import from '{{importSource}}' is restricted from being used by a pattern. {{customMessage}}",
+
+            patternAndEverything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted from being used by a pattern.",
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
+            patternAndEverythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted from being used by a pattern. {{customMessage}}",
 
             everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
             // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
@@ -159,9 +175,10 @@ module.exports = {
         }
 
         // relative paths are supported for this rule
-        const restrictedPatternGroups = restrictedPatterns.map(({ group, message, caseSensitive }) => ({
+        const restrictedPatternGroups = restrictedPatterns.map(({ group, message, caseSensitive, importNames }) => ({
             matcher: ignore({ allowRelativePaths: true, ignorecase: !caseSensitive }).add(group),
-            customMessage: message
+            customMessage: message,
+            importNames
         }));
 
         // if no imports are restricted we don't need to check
@@ -234,20 +251,68 @@ module.exports = {
         /**
          * Report a restricted path specifically for patterns.
          * @param {node} node representing the restricted path reference
-         * @param {Object} group contains a Ignore instance for paths, and the customMessage to show if it fails
+         * @param {Object} group contains an Ignore instance for paths, the customMessage to show on failure,
+         * and any restricted import names that have been specified in the config
+         * @param {Map<string,Object[]>} importNames Map of import names that are being imported
          * @returns {void}
          * @private
          */
-        function reportPathForPatterns(node, group) {
+        function reportPathForPatterns(node, group, importNames) {
             const importSource = node.source.value.trim();
 
-            context.report({
-                node,
-                messageId: group.customMessage ? "patternWithCustomMessage" : "patterns",
-                data: {
-                    importSource,
-                    customMessage: group.customMessage
+            const customMessage = group.customMessage;
+            const restrictedImportNames = group.importNames;
+
+            /*
+             * If we are not restricting to any specific import names and just the pattern itself,
+             * report the error and move on
+             */
+            if (!restrictedImportNames) {
+                context.report({
+                    node,
+                    messageId: customMessage ? "patternWithCustomMessage" : "patterns",
+                    data: {
+                        importSource,
+                        customMessage
+                    }
+                });
+                return;
+            }
+
+            if (importNames.has("*")) {
+                const specifierData = importNames.get("*")[0];
+
+                context.report({
+                    node,
+                    messageId: customMessage ? "patternAndEverythingWithCustomMessage" : "patternAndEverything",
+                    loc: specifierData.loc,
+                    data: {
+                        importSource,
+                        importNames: restrictedImportNames,
+                        customMessage
+                    }
+                });
+            }
+
+            restrictedImportNames.forEach(importName => {
+                if (!importNames.has(importName)) {
+                    return;
                 }
+
+                const specifiers = importNames.get(importName);
+
+                specifiers.forEach(specifier => {
+                    context.report({
+                        node,
+                        messageId: customMessage ? "patternAndImportNameWithCustomMessage" : "patternAndImportName",
+                        loc: specifier.loc,
+                        data: {
+                            importSource,
+                            customMessage,
+                            importName
+                        }
+                    });
+                });
             });
         }
 
@@ -304,7 +369,7 @@ module.exports = {
             checkRestrictedPathAndReport(importSource, importNames, node);
             restrictedPatternGroups.forEach(group => {
                 if (isRestrictedPattern(importSource, group)) {
-                    reportPathForPatterns(node, group);
+                    reportPathForPatterns(node, group, importNames);
                 }
             });
         }

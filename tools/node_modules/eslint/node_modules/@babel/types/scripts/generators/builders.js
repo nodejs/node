@@ -1,5 +1,5 @@
-import t from "../../lib/index.js";
-import definitions from "../../lib/definitions/index.js";
+import * as t from "../../lib/index.js";
+import * as definitions from "../../lib/definitions/index.js";
 import formatBuilderName from "../utils/formatBuilderName.js";
 import lowerFirst from "../utils/lowerFirst.js";
 import stringifyValidator from "../utils/stringifyValidator.js";

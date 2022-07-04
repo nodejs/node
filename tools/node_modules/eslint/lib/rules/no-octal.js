@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow octal literals",
+            description: "Disallow octal literals",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-octal"
         },

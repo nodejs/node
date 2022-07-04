@@ -15,7 +15,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow spacing between template tags and their literals",
+            description: "Require or disallow spacing between template tags and their literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/template-tag-spacing"
         },

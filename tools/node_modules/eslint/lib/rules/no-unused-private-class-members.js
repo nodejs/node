@@ -15,7 +15,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow unused private class members",
+            description: "Disallow unused private class members",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unused-private-class-members"
         },

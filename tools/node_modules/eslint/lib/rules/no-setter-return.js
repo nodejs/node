@@ -142,7 +142,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow returning values from setters",
+            description: "Disallow returning values from setters",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-setter-return"
         },

@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require quotes around object literal property names",
+            description: "Require quotes around object literal property names",
             recommended: false,
             url: "https://eslint.org/docs/rules/quote-props"
         },

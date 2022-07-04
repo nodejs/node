@@ -52,7 +52,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow duplicate conditions in if-else-if chains",
+            description: "Disallow duplicate conditions in if-else-if chains",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-else-if"
         },

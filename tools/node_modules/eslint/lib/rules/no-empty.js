@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow empty block statements",
+            description: "Disallow empty block statements",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-empty"
         },

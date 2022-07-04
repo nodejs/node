@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of the `__iterator__` property",
+            description: "Disallow the use of the `__iterator__` property",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-iterator"
         },

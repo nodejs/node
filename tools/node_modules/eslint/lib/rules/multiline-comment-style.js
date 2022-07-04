@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a particular style for multiline comments",
+            description: "Enforce a particular style for multiline comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/multiline-comment-style"
         },

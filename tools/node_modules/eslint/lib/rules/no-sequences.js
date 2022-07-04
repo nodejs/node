@@ -29,7 +29,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow comma operators",
+            description: "Disallow comma operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-sequences"
         },

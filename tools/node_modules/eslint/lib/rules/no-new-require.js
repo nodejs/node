@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `new` operators with calls to `require`",
+            description: "Disallow `new` operators with calls to `require`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-require"
         },

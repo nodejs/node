@@ -22,7 +22,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow duplicate case labels",
+            description: "Disallow duplicate case labels",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-duplicate-case"
         },

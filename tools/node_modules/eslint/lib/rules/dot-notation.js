@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce dot notation whenever possible",
+            description: "Enforce dot notation whenever possible",
             recommended: false,
             url: "https://eslint.org/docs/rules/dot-notation"
         },

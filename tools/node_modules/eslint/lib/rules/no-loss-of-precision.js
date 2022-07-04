@@ -15,7 +15,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow literal numbers that lose precision",
+            description: "Disallow literal numbers that lose precision",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-loss-of-precision"
         },

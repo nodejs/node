@@ -15,7 +15,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require an empty line before `return` statements",
+            description: "Require an empty line before `return` statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-before-return"
         },

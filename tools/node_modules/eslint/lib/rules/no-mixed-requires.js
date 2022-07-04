@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `require` calls to be mixed with regular variable declarations",
+            description: "Disallow `require` calls to be mixed with regular variable declarations",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-requires"
         },

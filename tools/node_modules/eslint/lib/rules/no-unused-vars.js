@@ -33,7 +33,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow unused variables",
+            description: "Disallow unused variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unused-vars"
         },

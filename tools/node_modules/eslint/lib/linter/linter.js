@@ -1119,6 +1119,10 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
             };
         }
 
+        if (typeof ruleListeners === "undefined" || ruleListeners === null) {
+            throw new Error(`The create() function for rule '${ruleId}' did not return an object.`);
+        }
+
         // add all the selectors from the rule as listeners
         Object.keys(ruleListeners).forEach(selector => {
             const ruleListener = timing.enabled

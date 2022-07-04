@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow an empty line between class members",
+            description: "Require or disallow an empty line between class members",
             recommended: false,
             url: "https://eslint.org/docs/rules/lines-between-class-members"
         },

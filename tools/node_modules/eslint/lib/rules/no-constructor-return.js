@@ -15,7 +15,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow returning value from constructor",
+            description: "Disallow returning value from constructor",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-constructor-return"
         },

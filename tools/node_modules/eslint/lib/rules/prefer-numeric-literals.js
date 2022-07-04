@@ -45,7 +45,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
+            description: "Disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-numeric-literals"
         },

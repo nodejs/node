@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow octal escape sequences in string literals",
+            description: "Disallow octal escape sequences in string literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-octal-escape"
         },

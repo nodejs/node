@@ -71,7 +71,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of lines of code in a function",
+            description: "Enforce a maximum number of lines of code in a function",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines-per-function"
         },

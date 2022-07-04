@@ -14,7 +14,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "disallow mixed spaces and tabs for indentation",
+            description: "Disallow mixed spaces and tabs for indentation",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-mixed-spaces-and-tabs"
         },

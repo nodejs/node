@@ -67,7 +67,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before and after keywords",
+            description: "Enforce consistent spacing before and after keywords",
             recommended: false,
             url: "https://eslint.org/docs/rules/keyword-spacing"
         },

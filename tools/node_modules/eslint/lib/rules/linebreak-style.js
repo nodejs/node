@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent linebreak style",
+            description: "Enforce consistent linebreak style",
             recommended: false,
             url: "https://eslint.org/docs/rules/linebreak-style"
         },

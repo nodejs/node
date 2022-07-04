@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified syntax",
+            description: "Disallow specified syntax",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-syntax"
         },

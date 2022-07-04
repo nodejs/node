@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require spacing around infix operators",
+            description: "Require spacing around infix operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-infix-ops"
         },

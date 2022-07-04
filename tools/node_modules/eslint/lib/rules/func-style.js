@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce the consistent use of either `function` declarations or expressions",
+            description: "Enforce the consistent use of either `function` declarations or expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/func-style"
         },

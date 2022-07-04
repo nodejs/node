@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before and after commas",
+            description: "Enforce consistent spacing before and after commas",
             recommended: false,
             url: "https://eslint.org/docs/rules/comma-spacing"
         },

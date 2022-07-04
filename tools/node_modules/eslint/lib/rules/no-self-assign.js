@@ -130,7 +130,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow assignments where both sides are exactly the same",
+            description: "Disallow assignments where both sides are exactly the same",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-self-assign"
         },

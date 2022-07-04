@@ -17,7 +17,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow initializing variables to `undefined`",
+            description: "Disallow initializing variables to `undefined`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-undef-init"
         },

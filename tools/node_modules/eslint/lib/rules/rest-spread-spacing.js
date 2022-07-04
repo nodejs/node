@@ -15,7 +15,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce spacing between rest and spread operators and their expressions",
+            description: "Enforce spacing between rest and spread operators and their expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/rest-spread-spacing"
         },

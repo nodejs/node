@@ -36,7 +36,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow use of `this` in contexts where the value of `this` is `undefined`",
+            description: "Disallow use of `this` in contexts where the value of `this` is `undefined`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-invalid-this"
         },

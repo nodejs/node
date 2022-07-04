@@ -42,7 +42,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce the consistent use of either double or single quotes in JSX attributes",
+            description: "Enforce the consistent use of either double or single quotes in JSX attributes",
             recommended: false,
             url: "https://eslint.org/docs/rules/jsx-quotes"
         },

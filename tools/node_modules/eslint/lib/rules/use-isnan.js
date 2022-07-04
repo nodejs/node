@@ -37,7 +37,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "require calls to `isNaN()` when checking for `NaN`",
+            description: "Require calls to `isNaN()` when checking for `NaN`",
             recommended: true,
             url: "https://eslint.org/docs/rules/use-isnan"
         },

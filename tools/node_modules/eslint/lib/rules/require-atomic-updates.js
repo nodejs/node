@@ -171,7 +171,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow assignments that can lead to race conditions due to usage of `await` or `yield`",
+            description: "Disallow assignments that can lead to race conditions due to usage of `await` or `yield`",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-atomic-updates"
         },

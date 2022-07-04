@@ -173,7 +173,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow shorthand type conversions",
+            description: "Disallow shorthand type conversions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-implicit-coercion"
         },

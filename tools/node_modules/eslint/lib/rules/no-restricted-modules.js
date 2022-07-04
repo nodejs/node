@@ -49,7 +49,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified modules when loaded by `require`",
+            description: "Disallow specified modules when loaded by `require`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-modules"
         },

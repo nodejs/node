@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require generator functions to contain `yield`",
+            description: "Require generator functions to contain `yield`",
             recommended: true,
             url: "https://eslint.org/docs/rules/require-yield"
         },

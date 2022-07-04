@@ -65,7 +65,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require rest parameters instead of `arguments`",
+            description: "Require rest parameters instead of `arguments`",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-rest-params"
         },

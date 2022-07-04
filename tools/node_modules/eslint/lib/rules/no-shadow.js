@@ -30,7 +30,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow variable declarations from shadowing variables declared in the outer scope",
+            description: "Disallow variable declarations from shadowing variables declared in the outer scope",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-shadow"
         },

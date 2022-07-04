@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce minimum and maximum identifier lengths",
+            description: "Enforce minimum and maximum identifier lengths",
             recommended: false,
             url: "https://eslint.org/docs/rules/id-length"
         },

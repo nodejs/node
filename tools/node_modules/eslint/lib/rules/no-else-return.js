@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `else` blocks after `return` statements in `if` statements",
+            description: "Disallow `else` blocks after `return` statements in `if` statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-else-return"
         },

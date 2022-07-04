@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require symbol descriptions",
+            description: "Require symbol descriptions",
             recommended: false,
             url: "https://eslint.org/docs/rules/symbol-description"
         },

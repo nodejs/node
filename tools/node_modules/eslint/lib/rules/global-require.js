@@ -58,7 +58,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `require()` calls to be placed at top-level module scope",
+            description: "Require `require()` calls to be placed at top-level module scope",
             recommended: false,
             url: "https://eslint.org/docs/rules/global-require"
         },

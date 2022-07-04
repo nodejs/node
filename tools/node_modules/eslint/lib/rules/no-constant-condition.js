@@ -21,7 +21,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow constant expressions in conditions",
+            description: "Disallow constant expressions in conditions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-constant-condition"
         },

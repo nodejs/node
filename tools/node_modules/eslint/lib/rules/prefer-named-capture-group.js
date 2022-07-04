@@ -33,7 +33,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce using named capture group in regular expression",
+            description: "Enforce using named capture group in regular expression",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-named-capture-group"
         },

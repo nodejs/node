@@ -91,7 +91,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary computed property keys in objects and classes",
+            description: "Disallow unnecessary computed property keys in objects and classes",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-computed-key"
         },

@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require destructuring from arrays and/or objects",
+            description: "Require destructuring from arrays and/or objects",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-destructuring"
         },
