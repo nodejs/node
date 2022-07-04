@@ -89,7 +89,12 @@ const { inspect } = require('util');
     strictEqual(data.enable, undefined);
     mc.port1.close();
   });
-  setTimeout(() => mc.port2.postMessage(e), 100);
+  const interval = setInterval(() => {
+    if (e.count > 0) {
+      clearInterval(interval);
+      mc.port2.postMessage(e);
+    }
+  }, 50);
 }
 
 {
