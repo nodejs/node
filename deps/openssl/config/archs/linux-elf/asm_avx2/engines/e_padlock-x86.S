@@ -4,10 +4,10 @@
 .align	16
 padlock_capability:
 .L_padlock_capability_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebx
 	pushfl
@@ -69,10 +69,10 @@ padlock_capability:
 .align	16
 padlock_key_bswap:
 .L_padlock_key_bswap_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	movl	4(%esp),%edx
 	movl	240(%edx),%ecx
@@ -90,10 +90,10 @@ padlock_key_bswap:
 .align	16
 padlock_verify_context:
 .L_padlock_verify_context_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	movl	4(%esp),%edx
 	leal	.Lpadlock_saved_context-.L004verify_pic_point,%eax
@@ -106,10 +106,10 @@ padlock_verify_context:
 .type	_padlock_verify_ctx,@function
 .align	16
 _padlock_verify_ctx:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	addl	(%esp),%eax
 	btl	$30,4(%esp)
@@ -127,10 +127,10 @@ _padlock_verify_ctx:
 .align	16
 padlock_reload_key:
 .L_padlock_reload_key_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushfl
 	popfl
@@ -141,10 +141,10 @@ padlock_reload_key:
 .align	16
 padlock_aes_block:
 .L_padlock_aes_block_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi
@@ -166,10 +166,10 @@ padlock_aes_block:
 .align	16
 padlock_ecb_encrypt:
 .L_padlock_ecb_encrypt_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -350,10 +350,10 @@ padlock_ecb_encrypt:
 .align	16
 padlock_cbc_encrypt:
 .L_padlock_cbc_encrypt_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -538,10 +538,10 @@ padlock_cbc_encrypt:
 .align	16
 padlock_cfb_encrypt:
 .L_padlock_cfb_encrypt_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -665,10 +665,10 @@ padlock_cfb_encrypt:
 .align	16
 padlock_ofb_encrypt:
 .L_padlock_ofb_encrypt_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -792,10 +792,10 @@ padlock_ofb_encrypt:
 .align	16
 padlock_ctr32_encrypt:
 .L_padlock_ctr32_encrypt_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -904,10 +904,10 @@ padlock_ctr32_encrypt:
 .align	16
 padlock_xstore:
 .L_padlock_xstore_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	movl	8(%esp),%edi
@@ -919,10 +919,10 @@ padlock_xstore:
 .type	_win32_segv_handler,@function
 .align	16
 _win32_segv_handler:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	movl	$1,%eax
 	movl	4(%esp),%edx
@@ -939,10 +939,10 @@ _win32_segv_handler:
 .align	16
 padlock_sha1_oneshot:
 .L_padlock_sha1_oneshot_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi
@@ -975,10 +975,10 @@ padlock_sha1_oneshot:
 .align	16
 padlock_sha1_blocks:
 .L_padlock_sha1_blocks_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi
@@ -1010,10 +1010,10 @@ padlock_sha1_blocks:
 .align	16
 padlock_sha256_oneshot:
 .L_padlock_sha256_oneshot_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi
@@ -1046,10 +1046,10 @@ padlock_sha256_oneshot:
 .align	16
 padlock_sha256_blocks:
 .L_padlock_sha256_blocks_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi
@@ -1081,10 +1081,10 @@ padlock_sha256_blocks:
 .align	16
 padlock_sha512_blocks:
 .L_padlock_sha512_blocks_begin:
-	#ifdef __CET__
+	%ifdef __CET__
 
 .byte	243,15,30,251
-	#endif
+	%endif
 
 	pushl	%edi
 	pushl	%esi

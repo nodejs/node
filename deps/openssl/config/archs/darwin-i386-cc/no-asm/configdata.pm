@@ -18,13 +18,14 @@ our %config = (
     "ARFLAGS" => [
         "qc"
     ],
-    "CC" => "cc",
+    "CC" => "gcc",
     "CFLAGS" => [
         "-O3 -fomit-frame-pointer"
     ],
     "CPPDEFINES" => [],
     "CPPFLAGS" => [],
     "CPPINCLUDES" => [],
+    "CXX" => "ccache g++",
     "CXXFLAGS" => [],
     "FIPSKEY" => "f4556650ac31d35461610bac4ed81b1a181b2d8a43ea2854cbae22ca74560813",
     "HASHBANGPERL" => "/usr/bin/env perl",
@@ -224,14 +225,14 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => undef,
+        "CC" => "gcc",
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
         "CPPFLAGS" => undef,
         "CPPINCLUDES" => undef,
         "CROSS_COMPILE" => undef,
-        "CXX" => undef,
+        "CXX" => "ccache g++",
         "CXXFLAGS" => undef,
         "HASHBANGPERL" => undef,
         "LD" => undef,

@@ -25,7 +25,7 @@ our %config = (
     "CPPDEFINES" => [],
     "CPPFLAGS" => [],
     "CPPINCLUDES" => [],
-    "CXX" => "g++",
+    "CXX" => "ccache g++",
     "CXXFLAGS" => [
         "-Wall -O3"
     ],
@@ -232,7 +232,7 @@ our %config = (
         "CPPFLAGS" => undef,
         "CPPINCLUDES" => undef,
         "CROSS_COMPILE" => undef,
-        "CXX" => undef,
+        "CXX" => "ccache g++",
         "CXXFLAGS" => undef,
         "HASHBANGPERL" => undef,
         "LD" => undef,

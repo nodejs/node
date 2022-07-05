@@ -22,7 +22,7 @@ our %config = (
     "ASFLAGS" => [
         "-g"
     ],
-    "CC" => "cl",
+    "CC" => "gcc",
     "CFLAGS" => [
         "/W3 /wd4090 /nologo /O2"
     ],
@@ -30,6 +30,7 @@ our %config = (
     "CPPDEFINES" => [],
     "CPPFLAGS" => [],
     "CPPINCLUDES" => [],
+    "CXX" => "ccache g++",
     "CXXFLAGS" => [],
     "FIPSKEY" => "f4556650ac31d35461610bac4ed81b1a181b2d8a43ea2854cbae22ca74560813",
     "HASHBANGPERL" => "/usr/bin/env perl",
@@ -237,14 +238,14 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => undef,
+        "CC" => "gcc",
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
         "CPPFLAGS" => undef,
         "CPPINCLUDES" => undef,
         "CROSS_COMPILE" => undef,
-        "CXX" => undef,
+        "CXX" => "ccache g++",
         "CXXFLAGS" => undef,
         "HASHBANGPERL" => undef,
         "LD" => undef,
@@ -290,7 +291,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55ff34ff5698)",
+    "RANLIB" => "CODE(0x5618639f82e0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
