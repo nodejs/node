@@ -416,7 +416,7 @@ changes:
                  specifically `options.ttl`.
 -->
 
-* `hostname` {string} host name to resolve.
+* `hostname` {string} Host name to resolve.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
