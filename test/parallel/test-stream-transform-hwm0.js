@@ -19,10 +19,8 @@ t.on('drain', common.mustCall(() => {
 
 t.once('readable', common.mustCall(() => {
   assert.strictEqual(t.read(), 1);
-  setImmediate(common.mustCall(() => {
-    assert.strictEqual(t.read(), null);
-    t.once('readable', common.mustCall(() => {
-      assert.strictEqual(t.read(), 2);
-    }));
+  assert.strictEqual(t.read(), null);
+  t.once('readable', common.mustCall(() => {
+    assert.strictEqual(t.read(), 2);
   }));
 }));

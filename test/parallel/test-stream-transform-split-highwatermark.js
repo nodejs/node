@@ -39,21 +39,6 @@ testTransform(555, 555, {
   writableHighWaterMark: 777,
 });
 
-// Test highWaterMark = 0 overriding
-testTransform(0, 0, {
-  highWaterMark: 0,
-  readableHighWaterMark: 666,
-});
-testTransform(0, 0, {
-  highWaterMark: 0,
-  writableHighWaterMark: 777,
-});
-testTransform(0, 0, {
-  highWaterMark: 0,
-  readableHighWaterMark: 666,
-  writableHighWaterMark: 777,
-});
-
 // Test undefined, null
 [undefined, null].forEach((v) => {
   testTransform(DEFAULT, DEFAULT, { readableHighWaterMark: v });
