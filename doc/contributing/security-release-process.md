@@ -190,6 +190,130 @@ out a better way, forward the email you receive to
   [Security release stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards).
   If necessary add the next rotation of the steward rotation.
 
+***
+
+## Creating proposal
+
+The process to create a proposal for a Security Release is very similar to the
+common release lines. The major difference is that the base repository is [`node-private`](https://github.com/nodejs-private/node-private)
+instead of [`node`](https://github.com/nodejs/node).
+
+Once the [previous steps](#planning) were completed, you should be able to
+create a proposal against `node-private`.
+
+### Step 1 - Sync vXX.x-staging branch
+
+The first step is to make sure that the
+`origin`[\[1\]](#glossary)/`vXX.x-staging`[\[2\]](#glossary) branch is updated:
+
+```console
+$ git remote -v
+origin  git@github.com:nodejs-private/node-private.git (fetch)
+origin  git@github.com:nodejs-private/node-private.git (push)
+upstream        git@github.com:nodejs/node.git (fetch)
+upstream        git@github.com:nodejs/node.git (push)
+$ git remote update upstream
+$ git reset --hard upstream/vXX.x
+```
+
+### 2. Create a new branch for the release
+
+Then as usual, create the proposal branch:
+
+```console
+$ git checkout -b vXX.X.X-proposal
+```
+
+### 3. Land all the PRs on your proposal branch
+
+**Important**: if you are using `git cherry-pick $SHA1` you will need to
+manually add the `Reviewed-By` and `PR-URL`
+metadata as `git node land` doesn't work on `node-private`.
+
+```console
+$ git cherry-pick 1b27a7152309aa87993596f3802d472dcb15f439
+$ git commit --amend
+
+# add metadata
+$ git push origin vXX.X.X-proposal # IMPORTANT: origin is `node-private` not a public fork
+```
+
+### 4. Update `src/node_version.h`
+
+See: [releases.md](./releases.md#3-update-srcnode_versionh)
+
+### 5. Update the changelog
+
+See: [releases.md](./releases.md#4-update-the-changelog)
+
+**Note**: make sure to include the right entry to the `CHANGELOG_Vx.md`.
+
+The new entry should take the following form:
+
+```markdown
+<a id="x.y.x"></a>
+## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
+
+This is a security release.
+
+### Notable changes
+
+* List interesting changes here
+* Particularly changes that are responsible for minor or major version bumps
+* Also be sure to look at any changes introduced by dependencies such as npm
+* ... and include any notable items from there
+
+### Commits
+
+* Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
+```
+
+### 6. Create release commit
+
+The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
+`REPLACEME` changes should be the final commit that will be tagged for the
+release. When committing these to git, use the following message format:
+
+```text
+YYYY-MM-DD, Version x.y.z (Release Type)
+This is a security release.
+Notable changes:
+* Copy the notable changes list here, reformatted for plain-text
+PR-URL: TBD
+```
+
+### 7. Propose release on GitHub
+
+Push the release branch to `nodejs-private/node-private`, not to your own fork.
+This allows release branches to more easily be passed between members of the
+release team if necessary.
+
+Create a pull request targeting the correct release line. For example, a
+`v5.3.0-proposal` PR should target `v5.x`, not `main`. Paste the CHANGELOG
+modifications into the body of the PR so that collaborators can see what is
+changing. These PRs should be left open for at least 24 hours, and can be
+updated as new commits land. If the CHANGELOG pasted into the pull request
+is long enough that it slows down the GitHub UI, consider pasting the commits
+into `<details>` tags or in follow up comments.
+
+If using the `<details>` tag, use the following format:
+
+```markdown
+<details>
+<summary>Commits</summary>
+
+* Full list of commits...
+</details>
+```
+
+If you need any additional information about any of the commits, this PR is a
+good place to @-mention the relevant contributors.
+
+After opening the PR, update the release commit to include `PR-URL` metadata and
+force-push the proposal.
+
+***
+
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
