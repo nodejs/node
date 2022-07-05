@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1p and OpenSSL 1.1.1q [5 Jul 2022]
+
+      o Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
+        (CVE-2022-2097)
+
   Major changes between OpenSSL 1.1.1o and OpenSSL 1.1.1p [21 Jun 2022]
 
       o Fixed additional bugs in the c_rehash script which was not properly

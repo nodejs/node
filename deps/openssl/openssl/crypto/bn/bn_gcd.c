@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,7 +47,8 @@ BIGNUM *bn_mod_inverse_no_branch(BIGNUM *in,
     if (R == NULL)
         goto err;
 
-    BN_one(X);
+    if (!BN_one(X))
+        goto err;
     BN_zero(Y);
     if (BN_copy(B, a) == NULL)
         goto err;
@@ -235,7 +236,8 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
     if (R == NULL)
         goto err;
 
-    BN_one(X);
+    if (!BN_one(X))
+        goto err;
     BN_zero(Y);
     if (BN_copy(B, a) == NULL)
         goto err;
