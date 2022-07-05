@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
 #include "internal/cryptlib.h"
 #include <openssl/conf.h>
@@ -342,8 +344,13 @@ static int range_should_be_prefix(const unsigned char *min,
     unsigned char mask;
     int i, j;
 
-    if (memcmp(min, max, length) <= 0)
-        return -1;
+    /*
+     * It is the responsibility of the caller to confirm min <= max. We don't
+     * use ossl_assert() here since we have no way of signalling an error from
+     * this function - so we just use a plain assert instead.
+     */
+    assert(memcmp(min, max, length) <= 0);
+
     for (i = 0; i < length && min[i] == max[i]; i++) ;
     for (j = length - 1; j >= 0 && min[j] == 0x00 && max[j] == 0xFF; j--) ;
     if (i < j)
@@ -425,6 +432,9 @@ static int make_addressRange(IPAddressOrRange **result,
 {
     IPAddressOrRange *aor;
     int i, prefixlen;
+
+    if (memcmp(min, max, length) > 0)
+        return 0;
 
     if ((prefixlen = range_should_be_prefix(min, max, length)) >= 0)
         return make_addressPrefix(result, min, prefixlen);
