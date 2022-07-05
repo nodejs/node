@@ -1056,18 +1056,16 @@ changes:
   * `allowPositionals` {boolean} Whether this command accepts positional
     arguments.
     **Default:** `false` if `strict` is `true`, otherwise `true`.
-  * `tokens` {boolean} Return the
-    parsed tokens. This is useful for extending the built-in behaviour,
-    from adding additional checks through to reprocessing the tokens
-    in different ways.
+  * `tokens` {boolean} Return the parsed tokens. This is useful for extending
+    the built-in behavior, from adding additional checks through to reprocessing
+    the tokens in different ways.
     **Default:** `false`.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
-  * `tokens` {Object} Array of parsed tokens with detailed information
-    (see below for more). Only returned if `config` includes `tokens: true`.
+  * `tokens` {Object\[]|undefined} See [`parseArgs`' `tokens`][] section.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -1113,10 +1111,11 @@ console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
+### `parseArgs`' `tokens`
+
 Detailed parse information is available for adding custom behaviours by
 specifying `tokens: true` in the configuration.
-The returned tokens have
-properties describing:
+The returned tokens have properties describing:
 
 * all tokens
   * `kind` { string } One of 'option', 'positional', or 'option-terminator'.
