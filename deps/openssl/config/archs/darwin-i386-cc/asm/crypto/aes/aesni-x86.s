@@ -1910,7 +1910,7 @@ L077grandloop:
 	movdqu	%xmm6,-32(%edi,%esi,1)
 	movdqu	%xmm7,-16(%edi,%esi,1)
 	cmpl	%eax,%esi
-	jb	L077grandloop
+	jbe	L077grandloop
 L076short:
 	addl	$96,%eax
 	subl	%esi,%eax
@@ -2303,7 +2303,7 @@ L087grandloop:
 	pxor	%xmm7,%xmm1
 	movdqu	%xmm7,-16(%edi,%esi,1)
 	cmpl	%eax,%esi
-	jb	L087grandloop
+	jbe	L087grandloop
 L086short:
 	addl	$96,%eax
 	subl	%esi,%eax
