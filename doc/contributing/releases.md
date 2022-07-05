@@ -251,7 +251,7 @@ Collect a formatted list of commits since the last release. Use
 [`changelog-maker`](https://github.com/nodejs/changelog-maker) to do this:
 
 ```console
-$ changelog-maker --group
+$ changelog-maker --group --markdown
 ```
 
 `changelog-maker` counts commits since the last tag and if the last tag
@@ -259,7 +259,7 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```console
-$ changelog-maker --group --filter-release --start-ref v1.2.2
+$ changelog-maker --group --markdown --filter-release --start-ref v1.2.2
 ```
 
 `--filter-release` will remove the release commit from the previous release.
@@ -299,7 +299,7 @@ You can use `branch-diff` to get a list of commits with the `notable-change`
 label:
 
 ```console
-$ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change -format=simple
+$ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change --plaintext
 ```
 
 Be sure that the `<a>` tag, as well as the two headings, are not indented at
