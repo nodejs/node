@@ -229,9 +229,10 @@ static int rsa_export(void *keydata, int selection,
         ok = ok && ossl_rsa_todata(rsa, tmpl, NULL, include_private);
     }
 
-    if (!ok
-        || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL)
+    if (!ok || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL) {
+        ok = 0;
         goto err;
+    }
 
     ok = param_callback(params, cbarg);
     OSSL_PARAM_free(params);

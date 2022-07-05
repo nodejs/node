@@ -52,12 +52,12 @@ provider_query_operation() function
 All these "functions" have a corresponding function type definition named
 B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the function pointer
 from a B<OSSL_DISPATCH> element named B<OSSL_get_{name}>.
-For example, the "function" OSSL_FUNC_store_load() has these:
+For example, the "function" OSSL_FUNC_store_attach() has these:
 
- typedef void *(OSSL_OSSL_FUNC_store_load_fn)(void *provctx,
-                                              const OSSL_PARAM params[]);
- static ossl_inline OSSL_OSSL_FUNC_store_load_fn
-     OSSL_OSSL_FUNC_store_load(const OSSL_DISPATCH *opf);
+ typedef void *(OSSL_FUNC_store_attach_fn)(void *provctx,
+                                           OSSL_CORE_BIO * bio);
+ static ossl_inline OSSL_FUNC_store_attach_fn
+     OSSL_FUNC_store_attach(const OSSL_DISPATCH *opf);
 
 B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as macros
 in L<openssl-core_dispatch.h(7)>, as follows:
@@ -104,6 +104,15 @@ URI has been reached.  When that happens, there's no point trying to do any
 further loading.
 
 OSSL_FUNC_store_close() frees the provider side context I<ctx>.
+
+When a provider-native object is created by a store manager it would be unsuitable
+for direct use with a foreign provider. The export function allows for
+exporting the object to that foreign provider if the foreign provider
+supports the type of the object and provides an import function.
+
+OSSL_FUNC_store_export_object() should export the object of size I<objref_sz>
+referenced by I<objref> as an B<OSSL_PARAM> array and pass that to the
+I<export_cb> as well as the given I<export_cbarg>.
 
 =head2 Load Parameters
 
@@ -179,7 +188,7 @@ The STORE interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1556,13 +1556,23 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     /* This is the simple named group case */
     ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
     if (ptmp != NULL) {
-        group = group_new_from_name(ptmp, libctx, propq);
-        if (group != NULL) {
-            if (!ossl_ec_group_set_params(group, params)) {
-                EC_GROUP_free(group);
-                group = NULL;
-            }
+        int decoded = 0;
+
+        if ((group = group_new_from_name(ptmp, libctx, propq)) == NULL)
+            return NULL;
+        if (!ossl_ec_group_set_params(group, params)) {
+            EC_GROUP_free(group);
+            return NULL;
         }
+
+        ptmp = OSSL_PARAM_locate_const(params,
+                                       OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS);
+        if (ptmp != NULL && !OSSL_PARAM_get_int(ptmp, &decoded)) {
+            ERR_raise(ERR_LIB_EC, EC_R_WRONG_CURVE_PARAMETERS);
+            EC_GROUP_free(group);
+            return NULL;
+        }
+        group->decoded_from_explicit_params = decoded > 0;
         return group;
     }
 #ifdef FIPS_MODULE
@@ -1733,6 +1743,8 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         EC_GROUP_free(group);
         group = named_group;
     }
+    /* We've imported the group from explicit parameters, set it so. */
+    group->decoded_from_explicit_params = 1;
     ok = 1;
  err:
     if (!ok) {

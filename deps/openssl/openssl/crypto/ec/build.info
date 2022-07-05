@@ -1,6 +1,6 @@
 $ECASM=
 IF[{- !$disabled{asm} -}]
-  $ECASM_x86=ecp_nistz256.c ecp_nistz256-x86.s
+  $ECASM_x86=ecp_nistz256.c ecp_nistz256-x86.S
   $ECDEF_x86=ECP_NISTZ256_ASM
 
   $ECASM_x86_64=ecp_nistz256.c ecp_nistz256-x86_64.s x25519-x86_64.s
@@ -72,7 +72,7 @@ SOURCE[../../providers/libfips.a]=$COMMON
 DEFINE[../../libcrypto]=$ECDEF
 DEFINE[../../providers/libfips.a]=$ECDEF
 
-GENERATE[ecp_nistz256-x86.s]=asm/ecp_nistz256-x86.pl
+GENERATE[ecp_nistz256-x86.S]=asm/ecp_nistz256-x86.pl
 
 GENERATE[ecp_nistz256-x86_64.s]=asm/ecp_nistz256-x86_64.pl
 
