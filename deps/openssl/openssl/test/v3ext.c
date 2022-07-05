@@ -12,6 +12,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include "internal/nelem.h"
 
 #include "testutil.h"
 
@@ -37,6 +38,7 @@ end:
     return ret;
 }
 
+#ifndef OPENSSL_NO_RFC3779
 static int test_asid(void)
 {
     ASN1_INTEGER *val1 = NULL, *val2 = NULL;
@@ -114,12 +116,125 @@ static int test_asid(void)
     return testresult;
 }
 
+static struct ip_ranges_st {
+    const unsigned int afi;
+    const char *ip1;
+    const char *ip2;
+    int rorp;
+} ranges[] = {
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.0.1", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.0.2", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.0.3", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.0.254", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.0.255", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV4, "192.168.0.1", "192.168.0.255", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV4, "192.168.0.1", "192.168.0.1", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV4, "192.168.0.0", "192.168.255.255", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV4, "192.168.1.0", "192.168.255.255", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV6, "2001:0db8::0", "2001:0db8::1", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV6, "2001:0db8::0", "2001:0db8::2", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV6, "2001:0db8::0", "2001:0db8::3", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV6, "2001:0db8::0", "2001:0db8::fffe", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV6, "2001:0db8::0", "2001:0db8::ffff", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV6, "2001:0db8::1", "2001:0db8::ffff", IPAddressOrRange_addressRange},
+    { IANA_AFI_IPV6, "2001:0db8::1", "2001:0db8::1", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV6, "2001:0db8::0:0", "2001:0db8::ffff:ffff", IPAddressOrRange_addressPrefix},
+    { IANA_AFI_IPV6, "2001:0db8::1:0", "2001:0db8::ffff:ffff", IPAddressOrRange_addressRange}
+};
+
+static int check_addr(IPAddrBlocks *addr, int type)
+{
+    IPAddressFamily *fam;
+    IPAddressOrRange *aorr;
+
+    if (!TEST_int_eq(sk_IPAddressFamily_num(addr), 1))
+        return 0;
+
+    fam = sk_IPAddressFamily_value(addr, 0);
+    if (!TEST_ptr(fam))
+        return 0;
+
+    if (!TEST_int_eq(fam->ipAddressChoice->type, IPAddressChoice_addressesOrRanges))
+        return 0;
+
+    if (!TEST_int_eq(sk_IPAddressOrRange_num(fam->ipAddressChoice->u.addressesOrRanges), 1))
+        return 0;
+
+    aorr = sk_IPAddressOrRange_value(fam->ipAddressChoice->u.addressesOrRanges, 0);
+    if (!TEST_ptr(aorr))
+        return 0;
+
+    if (!TEST_int_eq(aorr->type, type))
+        return 0;
+
+    return 1;
+}
+
+static int test_addr_ranges(void)
+{
+    IPAddrBlocks *addr = NULL;
+    ASN1_OCTET_STRING *ip1 = NULL, *ip2 = NULL;
+    size_t i;
+    int testresult = 0;
+
+    for (i = 0; i < OSSL_NELEM(ranges); i++) {
+        addr = sk_IPAddressFamily_new_null();
+        if (!TEST_ptr(addr))
+            goto end;
+        /*
+         * Has the side effect of installing the comparison function onto the
+         * stack.
+         */
+        if (!TEST_true(X509v3_addr_canonize(addr)))
+            goto end;
+
+        ip1 = a2i_IPADDRESS(ranges[i].ip1);
+        if (!TEST_ptr(ip1))
+            goto end;
+        if (!TEST_true(ip1->length == 4 || ip1->length == 16))
+            goto end;
+        ip2 = a2i_IPADDRESS(ranges[i].ip2);
+        if (!TEST_ptr(ip2))
+            goto end;
+        if (!TEST_int_eq(ip2->length, ip1->length))
+            goto end;
+        if (!TEST_true(memcmp(ip1->data, ip2->data, ip1->length) <= 0))
+            goto end;
+
+        if (!TEST_true(X509v3_addr_add_range(addr, ranges[i].afi, NULL, ip1->data, ip2->data)))
+            goto end;
+
+        if (!TEST_true(X509v3_addr_is_canonical(addr)))
+            goto end;
+
+        if (!check_addr(addr, ranges[i].rorp))
+            goto end;
+
+        sk_IPAddressFamily_pop_free(addr, IPAddressFamily_free);
+        addr = NULL;
+        ASN1_OCTET_STRING_free(ip1);
+        ASN1_OCTET_STRING_free(ip2);
+        ip1 = ip2 = NULL;
+    }
+
+    testresult = 1;
+ end:
+    sk_IPAddressFamily_pop_free(addr, IPAddressFamily_free);
+    ASN1_OCTET_STRING_free(ip1);
+    ASN1_OCTET_STRING_free(ip2);
+    return testresult;
+}
+#endif /* OPENSSL_NO_RFC3779 */
+
 int setup_tests(void)
 {
     if (!TEST_ptr(infile = test_get_argument(0)))
         return 0;
 
     ADD_TEST(test_pathlen);
+#ifndef OPENSSL_NO_RFC3779
     ADD_TEST(test_asid);
+    ADD_TEST(test_addr_ranges);
+#endif /* OPENSSL_NO_RFC3779 */
     return 1;
 }

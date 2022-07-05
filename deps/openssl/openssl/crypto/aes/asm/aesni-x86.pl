@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2027,7 +2027,7 @@ my ($l_,$block,$i1,$i3,$i5) = ($rounds_,$key_,$rounds,$len,$out);
 	&movdqu		(&QWP(-16*2,$out,$inp),$inout4);
 	&movdqu		(&QWP(-16*1,$out,$inp),$inout5);
 	&cmp		($inp,$len);			# done yet?
-	&jb		(&label("grandloop"));
+	&jbe		(&label("grandloop"));
 
 &set_label("short");
 	&add		($len,16*6);
@@ -2453,7 +2453,7 @@ my ($l_,$block,$i1,$i3,$i5) = ($rounds_,$key_,$rounds,$len,$out);
 	&pxor		($rndkey1,$inout5);
 	&movdqu		(&QWP(-16*1,$out,$inp),$inout5);
 	&cmp		($inp,$len);			# done yet?
-	&jb		(&label("grandloop"));
+	&jbe		(&label("grandloop"));
 
 &set_label("short");
 	&add		($len,16*6);

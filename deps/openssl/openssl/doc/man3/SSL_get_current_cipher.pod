@@ -10,8 +10,8 @@ SSL_get_pending_cipher - get SSL_CIPHER of a connection
 
  #include <openssl/ssl.h>
 
- SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
- SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl);
+ const SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
+ const SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl);
 
  const char *SSL_get_cipher_name(const SSL *s);
  const char *SSL_get_cipher(const SSL *s);
@@ -61,7 +61,7 @@ L<ssl(7)>, L<SSL_CIPHER_get_name(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
