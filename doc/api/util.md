@@ -1044,18 +1044,25 @@ added: v18.3.0
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-  * `strict`: {boolean} Should an error be thrown when unknown arguments
+  * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
     **Default:** `true`.
-  * `allowPositionals`: {boolean} Whether this command accepts positional
+  * `allowPositionals` {boolean} Whether this command accepts positional
     arguments.
     **Default:** `false` if `strict` is `true`, otherwise `true`.
+  * `tokens` {boolean} Return the
+    parsed tokens. This is useful for extending the built-in behaviour,
+    from adding additional checks through to reprocessing the tokens
+    in different ways.
+    **Default:** `false`.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
+  * `tokens` {Object} [tokens] Detailed parse information (see below for details).
+    Only returned if `config` includes `tokens: true`.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
