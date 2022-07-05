@@ -1066,6 +1066,7 @@ changes:
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens) section.
+    Only returned if `config` includes `tokens: true`.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -1111,6 +1112,9 @@ console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
+`util.parseArgs` is experimental and behavior may change. Join the
+conversation in [pkgjs/parseargs][] to contribute to the design.
+
 ### `parseArgs` `tokens`
 
 Detailed parse information is available for adding custom behaviours by
@@ -1118,18 +1122,18 @@ specifying `tokens: true` in the configuration.
 The returned tokens have properties describing:
 
 * all tokens
-  * `kind` { string } One of 'option', 'positional', or 'option-terminator'.
-  * `index` { number } Index of element in `args` containing token. So the
+  * `kind` {string} One of 'option', 'positional', or 'option-terminator'.
+  * `index` {number} Index of element in `args` containing token. So the
     source argument for a token is `args[token.index]`.
 * option tokens
-  * `name` { string } Long name of option.
-  * `rawName` { string } How option used in args, like `-f` of `--foo`.
-  * `value` { string | undefined } Option value specified in args.
+  * `name` {string} Long name of option.
+  * `rawName` {string} How option used in args, like `-f` of `--foo`.
+  * `value` {string | undefined} Option value specified in args.
     Undefined for boolean options.
-  * `inlineValue` { boolean | undefined } Whether option value specified inline,
+  * `inlineValue` {boolean | undefined} Whether option value specified inline,
     like `--foo=bar`.
 * positional tokens
-  * `value` { string } The value of the positional argument in args (i.e. `args[index]`).
+  * `value` {string} The value of the positional argument in args (i.e. `args[index]`).
 * option-terminator token
 
 The returned tokens are in the order encountered in the input args. Options
@@ -1218,9 +1222,6 @@ $ node negate.js --logfile=test.log --color
 $ node negate.js --no-logfile --logfile=test.log --color --no-color
 { logfile: 'test.log', color: false }
 ```
-
-`util.parseArgs` is experimental and behavior may change. Join the
-conversation in [pkgjs/parseargs][] to contribute to the design.
 
 ## `util.promisify(original)`
 
