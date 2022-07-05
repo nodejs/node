@@ -28,16 +28,22 @@ assert.throws(
   () => tracker.verify(),
   { message: 'Expected the bar function to be executed 1 time(s) but was executed 0 time(s).' }
 );
+callsbar();
+
+// Will throw an error if callsfoo() and callsbar isn't called exactly once.
+tracker.verify();
+
+const callsfoobar = tracker.calls(foo, 1);
 
 callsfoo();
 
-// Expects an error as callsfoo() was called more than once and callsbar() was called less than one time.
+// Expects an error as callsfoo() was called more than once and callsfoobar() was called less than one time.
 assert.throws(
   () => tracker.verify(),
   { message: generic_msg }
 );
 
-callsbar();
+callsfoobar();
 
 
 // Expects an error as callsfoo() was called more than once
