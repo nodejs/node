@@ -3164,7 +3164,8 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
 {
 #ifndef OPENSSL_NO_GOST
     /* GOST 2018 key exchange message creation */
-    unsigned char rnd_dgst[32], tmp[255];
+    unsigned char rnd_dgst[32];
+    unsigned char *encdata = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
     X509 *peer_cert;
     unsigned char *pms = NULL;
@@ -3229,18 +3230,19 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
         goto err;
     }
 
-    msglen = 255;
-    if (EVP_PKEY_encrypt(pkey_ctx, tmp, &msglen, pms, pmslen) <= 0) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_LIBRARY_BUG);
+    if (EVP_PKEY_encrypt(pkey_ctx, NULL, &msglen, pms, pmslen) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
         goto err;
     }
 
-    if (!WPACKET_memcpy(pkt, tmp, msglen)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+    if (!WPACKET_allocate_bytes(pkt, msglen, &encdata)
+            || EVP_PKEY_encrypt(pkey_ctx, encdata, &msglen, pms, pmslen) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
         goto err;
     }
 
     EVP_PKEY_CTX_free(pkey_ctx);
+    pkey_ctx = NULL;
     s->s3.tmp.pms = pms;
     s->s3.tmp.pmslen = pmslen;
 

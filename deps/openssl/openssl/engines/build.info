@@ -1,7 +1,7 @@
 IF[{- !$disabled{"engine"} -}]
   $PADLOCKASM=
   IF[{- !$disabled{asm} -}]
-    $PADLOCKASM_x86=e_padlock-x86.s
+    $PADLOCKASM_x86=e_padlock-x86.S
     $PADLOCKASM_x86_64=e_padlock-x86_64.s
 
     # Now that we have defined all the arch specific variables, use the
@@ -98,6 +98,6 @@ IF[{- !$disabled{"engine"} -}]
       GENERATE[ossltest.ld]=../util/engines.num
     ENDIF
   ENDIF
-  GENERATE[e_padlock-x86.s]=asm/e_padlock-x86.pl
+  GENERATE[e_padlock-x86.S]=asm/e_padlock-x86.pl
   GENERATE[e_padlock-x86_64.s]=asm/e_padlock-x86_64.pl
 ENDIF

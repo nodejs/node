@@ -49,9 +49,12 @@ static int collect_numbers(STACK_OF(BIGNUM) *numbers,
         if (p != NULL) {
             BIGNUM *tmp = NULL;
 
-            if (!OSSL_PARAM_get_BN(p, &tmp)
-                || sk_BIGNUM_push(numbers, tmp) == 0)
+            if (!OSSL_PARAM_get_BN(p, &tmp))
                 return 0;
+            if (sk_BIGNUM_push(numbers, tmp) == 0) {
+                BN_clear_free(tmp);
+                return 0;
+            }
         }
     }
 

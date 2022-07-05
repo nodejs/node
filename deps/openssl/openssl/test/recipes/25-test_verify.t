@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@ use warnings;
 
 use File::Spec::Functions qw/canonpath/;
 use File::Copy;
-use OpenSSL::Test qw/:DEFAULT srctop_file ok_nofips with/;
+use OpenSSL::Test qw/:DEFAULT srctop_file bldtop_dir ok_nofips with/;
 use OpenSSL::Test::Utils;
 
 setup("test_verify");
@@ -29,7 +29,7 @@ sub verify {
     run(app([@args]));
 }
 
-plan tests => 160;
+plan tests => 163;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -308,6 +308,29 @@ SKIP: {
     ok(verify("ee-cert-ec-named-named", "", ["root-cert"],
               ["ca-cert-ec-named"]),
         "accept named curve leaf with named curve intermediate");
+}
+# Same as above but with base provider used for decoding
+SKIP: {
+    my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+    skip "EC is not supported or FIPS is disabled", 3
+        if disabled("ec") || $no_fips;
+
+    my $provconf = srctop_file("test", "fips-and-base.cnf");
+    my $provpath = bldtop_dir("providers");
+    my @prov = ("-provider-path", $provpath);
+    $ENV{OPENSSL_CONF} = $provconf;
+
+    ok(!verify("ee-cert-ec-explicit", "", ["root-cert"],
+               ["ca-cert-ec-named"], @prov),
+        "reject explicit curve leaf with named curve intermediate w/fips");
+    ok(!verify("ee-cert-ec-named-explicit", "", ["root-cert"],
+               ["ca-cert-ec-explicit"], @prov),
+        "reject named curve leaf with explicit curve intermediate w/fips");
+    ok(verify("ee-cert-ec-named-named", "", ["root-cert"],
+              ["ca-cert-ec-named"], @prov),
+        "accept named curve leaf with named curve intermediate w/fips");
+
+    delete $ENV{OPENSSL_CONF};
 }
 
 # Depth tests, note the depth limit bounds the number of CA certificates

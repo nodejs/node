@@ -27,7 +27,6 @@
 #ifndef FIPS_MODULE
 # include "crypto/asn1.h"
 #endif
-#include "crypto/ctype.h"
 #include "crypto/evp.h"
 #include "crypto/dh.h"
 #include "crypto/ec.h"
@@ -200,7 +199,6 @@ static EVP_PKEY_CTX *int_ctx_new(OSSL_LIB_CTX *libctx,
             }
 #ifndef FIPS_MODULE
             if (keytype != NULL) {
-                ossl_init_casecmp();
                 id = evp_pkey_name2type(keytype);
                 if (id == NID_undef)
                     id = -1;

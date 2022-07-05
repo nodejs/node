@@ -206,18 +206,21 @@ static int dh_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     dplen = i2d_ASN1_INTEGER(prkey, &dp);
 
     ASN1_STRING_clear_free(prkey);
-    prkey = NULL;
+
+    if (dplen <= 0) {
+        ERR_raise(ERR_LIB_DH, DH_R_BN_ERROR);
+        goto err;
+    }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(pkey->ameth->pkey_id), 0,
-                         V_ASN1_SEQUENCE, params, dp, dplen))
+                         V_ASN1_SEQUENCE, params, dp, dplen)) {
+        OPENSSL_clear_free(dp, dplen);
         goto err;
-
+    }
     return 1;
 
  err:
-    OPENSSL_free(dp);
     ASN1_STRING_free(params);
-    ASN1_STRING_clear_free(prkey);
     return 0;
 }
 
@@ -393,14 +396,21 @@ int DHparams_print(BIO *bp, const DH *x)
 
 static int dh_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 {
+    DH *dh;
     switch (op) {
     case ASN1_PKEY_CTRL_SET1_TLS_ENCPT:
         /* We should only be here if we have a legacy key */
         if (!ossl_assert(evp_pkey_is_legacy(pkey)))
             return 0;
-        return ossl_dh_buf2key(evp_pkey_get0_DH_int(pkey), arg2, arg1);
+        dh = (DH *) evp_pkey_get0_DH_int(pkey);
+        if (dh == NULL)
+            return 0;
+        return ossl_dh_buf2key(dh, arg2, arg1);
     case ASN1_PKEY_CTRL_GET1_TLS_ENCPT:
-        return ossl_dh_key2buf(EVP_PKEY_get0_DH(pkey), arg2, 0, 1);
+        dh = (DH *) EVP_PKEY_get0_DH(pkey);
+        if (dh == NULL)
+            return 0;
+        return ossl_dh_key2buf(dh, arg2, 0, 1);
     default:
         return -2;
     }

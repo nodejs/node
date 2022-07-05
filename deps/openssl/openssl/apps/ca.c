@@ -2467,18 +2467,18 @@ static int make_revoked(X509_REVOKED *rev, const char *str)
         rtmp = ASN1_ENUMERATED_new();
         if (rtmp == NULL || !ASN1_ENUMERATED_set(rtmp, reason_code))
             goto end;
-        if (!X509_REVOKED_add1_ext_i2d(rev, NID_crl_reason, rtmp, 0, 0))
+        if (X509_REVOKED_add1_ext_i2d(rev, NID_crl_reason, rtmp, 0, 0) <= 0)
             goto end;
     }
 
     if (rev && comp_time) {
-        if (!X509_REVOKED_add1_ext_i2d
-            (rev, NID_invalidity_date, comp_time, 0, 0))
+        if (X509_REVOKED_add1_ext_i2d
+            (rev, NID_invalidity_date, comp_time, 0, 0) <= 0)
             goto end;
     }
     if (rev && hold) {
-        if (!X509_REVOKED_add1_ext_i2d
-            (rev, NID_hold_instruction_code, hold, 0, 0))
+        if (X509_REVOKED_add1_ext_i2d
+            (rev, NID_hold_instruction_code, hold, 0, 0) <= 0)
             goto end;
     }
 

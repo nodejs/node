@@ -2,7 +2,7 @@ LIBS=../../libcrypto
 
 $MD5ASM=
 IF[{- !$disabled{asm} -}]
-  $MD5ASM_x86=md5-586.s
+  $MD5ASM_x86=md5-586.S
   $MD5ASM_x86_64=md5-x86_64.s
   $MD5ASM_sparcv9=md5-sparcv9.S
 
@@ -32,7 +32,7 @@ ENDIF
 DEFINE[../../libcrypto]=$MD5DEF
 DEFINE[../../providers/liblegacy.a]=$MD5DEF
 
-GENERATE[md5-586.s]=asm/md5-586.pl
+GENERATE[md5-586.S]=asm/md5-586.pl
 
 GENERATE[md5-x86_64.s]=asm/md5-x86_64.pl
 
