@@ -2368,7 +2368,7 @@ value is provided for an option of type {boolean}.
 added: REPLACEME
 -->
 
-Thrown by [`util.parseArgs()`][], when a postional argument is provided and
+Thrown by [`util.parseArgs()`][], when a positional argument is provided and
 `allowPositionals` is set to `false`.
 
 <a id="ERR_PARSE_ARGS_UNKNOWN_OPTION"></a>
@@ -2669,7 +2669,7 @@ added:
  - v12.17.0
 -->
 
-The TLS socket must be connected and securily established. Ensure the 'secure'
+The TLS socket must be connected and securely established. Ensure the 'secure'
 event is emitted before continuing.
 
 <a id="ERR_TLS_PROTOCOL_VERSION_CONFLICT"></a>
