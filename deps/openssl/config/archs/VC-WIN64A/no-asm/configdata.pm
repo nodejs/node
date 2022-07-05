@@ -115,8 +115,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64A",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1p+quic",
-  version_num => "0x1010110fL",
+  version => "1.1.1q+quic",
+  version_num => "0x1010111fL",
 );
 
 our %target = (
@@ -132,7 +132,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x5592573f1210)",
+  RANLIB => "CODE(0x5639f0faa118)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c",
