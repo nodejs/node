@@ -78,6 +78,8 @@ static int sxnet_i2r(X509V3_EXT_METHOD *method, SXNET *sx, BIO *out,
     for (i = 0; i < sk_SXNETID_num(sx->ids); i++) {
         id = sk_SXNETID_value(sx->ids, i);
         tmp = i2s_ASN1_INTEGER(NULL, id->zone);
+        if (tmp == NULL)
+            return 0;
         BIO_printf(out, "\n%*sZone: %s, User: ", indent, "", tmp);
         OPENSSL_free(tmp);
         ASN1_STRING_print(out, id->user);

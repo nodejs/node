@@ -197,18 +197,21 @@ static int dsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     dplen = i2d_ASN1_INTEGER(prkey, &dp);
 
     ASN1_STRING_clear_free(prkey);
-    prkey = NULL;
+
+    if (dplen <= 0) {
+        ERR_raise(ERR_LIB_DSA, DSA_R_BN_ERROR);
+        goto err;
+    }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(NID_dsa), 0,
-                         V_ASN1_SEQUENCE, params, dp, dplen))
+                         V_ASN1_SEQUENCE, params, dp, dplen)) {
+        OPENSSL_clear_free(dp, dplen);
         goto err;
-
+    }
     return 1;
 
  err:
-    OPENSSL_free(dp);
     ASN1_STRING_free(params);
-    ASN1_STRING_clear_free(prkey);
     return 0;
 }
 

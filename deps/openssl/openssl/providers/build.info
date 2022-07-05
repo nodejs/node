@@ -118,6 +118,12 @@ IF[{- !$disabled{fips} -}]
   GENERATE[fipsmodule.cnf]=../util/mk-fipsmodule-cnf.pl \
           -module $(FIPSMODULE) -section_name fips_sect -key $(FIPSKEY)
   DEPEND[fipsmodule.cnf]=$FIPSGOAL
+
+  # Add VERSIONINFO resource for windows
+  IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
+    GENERATE[fips.rc]=../util/mkrc.pl fips
+    SOURCE[$FIPSGOAL]=fips.rc
+  ENDIF
 ENDIF
 
 #
@@ -146,6 +152,13 @@ IF[{- !$disabled{legacy} -}]
       SOURCE[legacy]=legacy.ld
       GENERATE[legacy.ld]=../util/providers.num
     ENDIF
+
+    # Add VERSIONINFO resource for windows
+    IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
+      GENERATE[legacy.rc]=../util/mkrc.pl legacy
+      SOURCE[$LEGACYGOAL]=legacy.rc
+    ENDIF
+
     SOURCE[$LIBLEGACY]=prov_running.c
   ENDIF
 

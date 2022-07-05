@@ -12,19 +12,6 @@
 #include "crypto/ctype.h"
 #include <openssl/ebcdic.h>
 
-#include <openssl/crypto.h>
-#include "internal/core.h"
-#include "internal/thread_once.h"
-
-#ifndef OPENSSL_SYS_WINDOWS
-#include <strings.h>
-#endif
-#include <locale.h>
-
-#ifdef OPENSSL_SYS_MACOSX
-#include <xlocale.h>
-#endif
-
 /*
  * Define the character classes for each character in the seven bit ASCII
  * character set.  This is independent of the host's character set, characters
@@ -270,6 +257,36 @@ int ossl_ctype_check(int c, unsigned int mask)
     return a >= 0 && a < max && (ctype_char_map[a] & mask) != 0;
 }
 
+/*
+ * Implement some of the simplier functions directly to avoid the overhead of
+ * accessing memory via ctype_char_map[].
+ */
+
+#define ASCII_IS_DIGIT(c)   (c >= 0x30 && c <= 0x39)
+#define ASCII_IS_UPPER(c)   (c >= 0x41 && c <= 0x5A)
+#define ASCII_IS_LOWER(c)   (c >= 0x61 && c <= 0x7A)
+
+int ossl_isdigit(int c)
+{
+    int a = ossl_toascii(c);
+
+    return ASCII_IS_DIGIT(a);
+}
+
+int ossl_isupper(int c)
+{
+    int a = ossl_toascii(c);
+
+    return ASCII_IS_UPPER(a);
+}
+
+int ossl_islower(int c)
+{
+    int a = ossl_toascii(c);
+
+    return ASCII_IS_LOWER(a);
+}
+
 #if defined(CHARSET_EBCDIC) && !defined(CHARSET_EBCDIC_TEST)
 static const int case_change = 0x40;
 #else
@@ -278,103 +295,19 @@ static const int case_change = 0x20;
 
 int ossl_tolower(int c)
 {
-    return ossl_isupper(c) ? c ^ case_change : c;
+    int a = ossl_toascii(c);
+
+    return ASCII_IS_UPPER(a) ? c ^ case_change : c;
 }
 
 int ossl_toupper(int c)
 {
-    return ossl_islower(c) ? c ^ case_change : c;
+    int a = ossl_toascii(c);
+
+    return ASCII_IS_LOWER(a) ? c ^ case_change : c;
 }
 
-int ossl_ascii_isdigit(const char inchar) {
-    if (inchar > 0x2F && inchar < 0x3A)
-        return 1;
-    return 0;
-}
-
-/* str[n]casecmp_l is defined in POSIX 2008-01. Value is taken accordingly
- * https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
-
-#if (defined OPENSSL_SYS_WINDOWS) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L)
-
-# if defined OPENSSL_SYS_WINDOWS
-# define locale_t _locale_t
-# define freelocale _free_locale
-# define strcasecmp_l _stricmp_l
-# define strncasecmp_l _strnicmp_l
-# endif
-
-# ifndef FIPS_MODULE
-static locale_t loc;
-
-static int locale_base_inited = 0;
-static CRYPTO_ONCE locale_base = CRYPTO_ONCE_STATIC_INIT;
-static CRYPTO_ONCE locale_base_deinit = CRYPTO_ONCE_STATIC_INIT;
-
-void *ossl_c_locale() {
-    return (void *)loc;
-}
-
-DEFINE_RUN_ONCE_STATIC(ossl_init_locale_base)
+int ossl_ascii_isdigit(int c)
 {
-# ifdef OPENSSL_SYS_WINDOWS
-    loc = _create_locale(LC_COLLATE, "C");
-# else
-    loc = newlocale(LC_COLLATE_MASK, "C", (locale_t) 0);
-# endif
-    locale_base_inited = 1;
-    return (loc == (locale_t) 0) ? 0 : 1;
+    return ASCII_IS_DIGIT(c);
 }
-
-DEFINE_RUN_ONCE_STATIC(ossl_deinit_locale_base)
-{
-    if (locale_base_inited && loc) {
-        freelocale(loc);
-        loc = NULL;
-    }
-    return 1;
-}
-
-int ossl_init_casecmp()
-{
-   return RUN_ONCE(&locale_base, ossl_init_locale_base);
-}
-
-void ossl_deinit_casecmp() {
-    (void)RUN_ONCE(&locale_base_deinit, ossl_deinit_locale_base);
-}
-# endif
-
-int OPENSSL_strcasecmp(const char *s1, const char *s2)
-{
-    return strcasecmp_l(s1, s2, (locale_t)ossl_c_locale());
-}
-
-int OPENSSL_strncasecmp(const char *s1, const char *s2, size_t n)
-{
-    return strncasecmp_l(s1, s2, n, (locale_t)ossl_c_locale());
-}
-#else
-# ifndef FIPS_MODULE
-void *ossl_c_locale() {
-    return NULL;
-}
-# endif
-
-int ossl_init_casecmp() {
-    return 1;
-}
-
-void ossl_deinit_casecmp() {
-}
-
-int OPENSSL_strcasecmp(const char *s1, const char *s2)
-{
-    return strcasecmp(s1, s2);
-}
-
-int OPENSSL_strncasecmp(const char *s1, const char *s2, size_t n)
-{
-    return strncasecmp(s1, s2, n);
-}
-#endif

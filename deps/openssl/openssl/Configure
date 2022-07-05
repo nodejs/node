@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -17,6 +17,7 @@ use lib "$FindBin::Bin/util/perl";
 use File::Basename;
 use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs splitdir/;
 use File::Path qw/mkpath/;
+use File::Compare qw(compare_text);
 use OpenSSL::fallback "$FindBin::Bin/external/perl/MODULES.txt";
 use OpenSSL::Glob;
 use OpenSSL::Template;
@@ -2214,9 +2215,10 @@ if ($builder eq "unified") {
                                 \$attributes{depends}, $+{ATTRIBS},
                                 tokenize($expand_variables->($+{VALUE})))
                          if !@skip || $skip[$#skip] > 0; },
-            qr/^\s* GENERATE ${index_re} \s* = \s* ${value_re} \s* $/x
+            qr/^\s* GENERATE ${index_re} ${attribs_re} \s* = \s* ${value_re} \s* $/x
             => sub { $push_to->(\%generate, $expand_variables->($+{INDEX}),
-                                undef, undef, $expand_variables->($+{VALUE}))
+                                \$attributes{generate}, $+{ATTRIBS},
+                                $expand_variables->($+{VALUE}))
                          if !@skip || $skip[$#skip] > 0; },
             qr/^\s* (?:\#.*)? $/x => sub { },
             "OTHERWISE" => sub { die "Something wrong with this line:\n$_\nat $sourced/$f" },
@@ -2384,6 +2386,10 @@ EOF
             $check_generate{$ddest}->{$generator[0]}++;
 
             $unified_info{generate}->{$ddest} = [ @generator ];
+            # Fix up associated attributes
+            $unified_info{attributes}->{generate}->{$ddest} =
+                $attributes{generate}->{$dest}->{$gen}
+                if defined $attributes{generate}->{$dest}->{$gen};
         }
 
         foreach (keys %depends) {
@@ -2774,7 +2780,7 @@ EOF
                                   keys %{$unified_info{htmldocs} // {}}),
                                  (map { @{$unified_info{mandocs}->{$_} // []} }
                                   keys %{$unified_info{mandocs} // {}}) ] );
-    foreach my $type (keys %loopinfo) {
+    foreach my $type (sort keys %loopinfo) {
         foreach my $product (@{$loopinfo{$type}}) {
             my %dirs = ();
             my $pd = dirname($product);
@@ -2795,7 +2801,7 @@ EOF
                 push @{$unified_info{dirinfo}->{$d}->{deps}}, $_
                     if $d ne $pd;
             }
-            foreach (keys %dirs) {
+            foreach (sort keys %dirs) {
                 push @{$unified_info{dirinfo}->{$_}->{products}->{$type}},
                     $product;
             }
@@ -2830,7 +2836,6 @@ my %template_vars = (
     user_crossable => \@user_crossable,
 );
 my $configdata_outname = 'configdata.pm';
-print "Creating $configdata_outname\n";
 open CONFIGDATA, ">$configdata_outname.new"
     or die "Trying to create $configdata_outname.new: $!";
 my $configdata_tmplname = cleanfile($srcdir, "configdata.pm.in", $blddir);
@@ -2846,19 +2851,60 @@ $configdata_tmpl->fill_in(
               ] }
 ) or die $Text::Template::ERROR;
 close CONFIGDATA;
-rename "$configdata_outname.new", $configdata_outname;
-if ($builder_platform eq 'unix') {
-    my $mode = (0755 & ~umask);
-    chmod $mode, 'configdata.pm'
-        or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
+
+# When using stat() on Windows, we can get it to perform better by avoid some
+# data.  This doesn't affect the mtime field, so we're not losing anything...
+${^WIN32_SLOPPY_STAT} = 1;
+
+my $update_configdata = 0;
+my $run_configdata = 0;
+if (-f $configdata_outname) {
+    my $Configure_mtime = (stat($0))[9];
+    my $configdata_mtime = (stat($configdata_outname))[9];
+
+    # If this script was updated after the last configdata.pm, or if
+    # configdata.pm.new differs from configdata.pm, we update configdata.pm
+    if ($configdata_mtime < $Configure_mtime
+        || compare_text("$configdata_outname.new", $configdata_outname) != 0) {
+        $update_configdata = 1;
+    } else {
+        # If nothing has changed, let's just drop the new one and pretend
+        # like nothing happened
+        unlink "$configdata_outname.new";
+
+        # We still run configdata.pm if one of the build file (Makefile) or
+        # the configuration header file are missing
+        $run_configdata =
+            !( -f $target{build_file} )
+            || !( -f catfile('include', 'openssl', 'configuration.h') );
+    }
+} else {
+    $update_configdata = 1;
 }
 
-print "Running $configdata_outname\n";
-my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
-my $cmd = "$perlcmd $configdata_outname";
-#print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
-system($cmd);
-exit 1 if $? != 0;
+if ($update_configdata) {
+    # If something did change, or there was no previous configdata.pm, we
+    # rename the new one, set permissions as needed, and run it.
+    rename "$configdata_outname.new", $configdata_outname;
+    if ($builder_platform eq 'unix') {
+        my $mode = (0755 & ~umask);
+        chmod $mode, 'configdata.pm'
+            or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
+    }
+    $run_configdata = 1;
+    print "Created $configdata_outname\n";
+}
+
+if ($run_configdata) {
+    print "Running $configdata_outname\n";
+    my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
+    my $cmd = "$perlcmd $configdata_outname";
+    #print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
+    system($cmd);
+    exit 1 if $? != 0;
+} else {
+    print "No changes in $configdata_outname, no need to run it\n";
+}
 
 $SIG{__DIE__} = $orig_death_handler;
 

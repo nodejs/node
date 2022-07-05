@@ -755,8 +755,8 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
     }
     if (expected->iv) {
         if (expected->aead) {
-            if (!EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_AEAD_SET_IVLEN,
-                                     expected->iv_len, 0)) {
+            if (EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_AEAD_SET_IVLEN,
+                                     expected->iv_len, 0) <= 0) {
                 t->err = "INVALID_IV_LENGTH";
                 goto err;
             }
@@ -779,8 +779,8 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
             tag = expected->tag;
         }
         if (tag || expected->aead != EVP_CIPH_GCM_MODE) {
-            if (!EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_AEAD_SET_TAG,
-                                     expected->tag_len, tag))
+            if (EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_AEAD_SET_TAG,
+                                     expected->tag_len, tag) <= 0)
                 goto err;
         }
     }
@@ -788,7 +788,7 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
     if (expected->rounds > 0) {
         int  rounds = (int)expected->rounds;
 
-        if (!EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_SET_RC5_ROUNDS, rounds, NULL)) {
+        if (EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_SET_RC5_ROUNDS, rounds, NULL) <= 0) {
             t->err = "INVALID_ROUNDS";
             goto err;
         }
@@ -801,7 +801,7 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
     if (expected->key_bits > 0) {
         int bits = (int)expected->key_bits;
 
-        if (!EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_SET_RC2_KEY_BITS, bits, NULL)) {
+        if (EVP_CIPHER_CTX_ctrl(ctx_base, EVP_CTRL_SET_RC2_KEY_BITS, bits, NULL) <= 0) {
             t->err = "INVALID KEY BITS";
             goto err;
         }
@@ -836,9 +836,9 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
     ERR_pop_to_mark();
 
     if (expected->mac_key != NULL
-        && !EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_MAC_KEY,
+        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_MAC_KEY,
                                 (int)expected->mac_key_len,
-                                (void *)expected->mac_key)) {
+                                (void *)expected->mac_key) <= 0) {
         t->err = "SET_MAC_KEY_ERROR";
         goto err;
     }
@@ -914,8 +914,8 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
         OPENSSL_free(tls_aad);
     } else if (!enc && (expected->aead == EVP_CIPH_OCB_MODE
                         || expected->tag_late)) {
-        if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
-                                 expected->tag_len, expected->tag)) {
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                                 expected->tag_len, expected->tag) <= 0) {
             t->err = "TAG_SET_ERROR";
             goto err;
         }
@@ -977,8 +977,8 @@ static int cipher_test_enc(EVP_TEST *t, int enc,
             t->err = "TAG_LENGTH_INTERNAL_ERROR";
             goto err;
         }
-        if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
-                                 expected->tag_len, rtag)) {
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                                 expected->tag_len, rtag) <= 0) {
             t->err = "TAG_RETRIEVE_ERROR";
             goto err;
         }
@@ -1236,7 +1236,7 @@ static int mac_test_parse(EVP_TEST *t,
         return parse_bin(value, &mdata->salt, &mdata->salt_len);
     if (strcmp(keyword, "Algorithm") == 0) {
         mdata->alg = OPENSSL_strdup(value);
-        if (!mdata->alg)
+        if (mdata->alg == NULL)
             return -1;
         return 1;
     }
@@ -1248,9 +1248,13 @@ static int mac_test_parse(EVP_TEST *t,
         return mdata->xof = 1;
     if (strcmp(keyword, "NoReinit") == 0)
         return mdata->no_reinit = 1;
-    if (strcmp(keyword, "Ctrl") == 0)
-        return sk_OPENSSL_STRING_push(mdata->controls,
-                                      OPENSSL_strdup(value)) != 0;
+    if (strcmp(keyword, "Ctrl") == 0) {
+        char *data = OPENSSL_strdup(value);
+
+        if (data == NULL)
+            return -1;
+        return sk_OPENSSL_STRING_push(mdata->controls, data) != 0;
+    }
     if (strcmp(keyword, "OutputSize") == 0) {
         mdata->output_size = atoi(value);
         if (mdata->output_size < 0)
@@ -2862,7 +2866,23 @@ static int pkey_kdf_test_run(EVP_TEST *t)
 {
     PKEY_KDF_DATA *expected = t->data;
     unsigned char *got = NULL;
-    size_t got_len = expected->output_len;
+    size_t got_len = 0;
+
+    /* Find out the KDF output size */
+    if (EVP_PKEY_derive(expected->ctx, NULL, &got_len) <= 0) {
+        t->err = "INTERNAL_ERROR";
+        goto err;
+    }
+
+    /*
+     * We may get an absurd output size, which signals that anything goes.
+     * If not, we specify a too big buffer for the output, to test that
+     * EVP_PKEY_derive() can cope with it.
+     */
+    if (got_len == SIZE_MAX || got_len == 0)
+        got_len = expected->output_len;
+    else
+        got_len = expected->output_len * 2;
 
     if (!TEST_ptr(got = OPENSSL_malloc(got_len == 0 ? 1 : got_len))) {
         t->err = "INTERNAL_ERROR";

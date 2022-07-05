@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -219,6 +219,12 @@ int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
     /* Convert rr_i back to regular radix */
     from_words52(res1, factor_size, rr1_red);
     from_words52(res2, factor_size, rr2_red);
+
+    /* bn_reduce_once_in_place expects number of BN_ULONG, not bit size */
+    factor_size /= sizeof(BN_ULONG) * 8;
+
+    bn_reduce_once_in_place(res1, /*carry=*/0, m1, storage, factor_size);
+    bn_reduce_once_in_place(res2, /*carry=*/0, m2, storage, factor_size);
 
     ret = 1;
 err:

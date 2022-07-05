@@ -16,7 +16,7 @@ IF[{- !$disabled{asm} -}]
   # All variables are named in such a way that they can be "indexed" with
   # $target{asm_arch}
 
-  $BNASM_x86=bn-586.s co-586.s x86-mont.s x86-gf2m.s
+  $BNASM_x86=bn-586.S co-586.S x86-mont.S x86-gf2m.S
   # bn-586 is the only one implementing bn_*_part_words
   # => OPENSSL_BN_ASM_PART_WORDS
   $BNDEF_x86=OPENSSL_BN_ASM_PART_WORDS OPENSSL_BN_ASM_MONT OPENSSL_BN_ASM_GF2m
@@ -79,7 +79,7 @@ IF[{- !$disabled{asm} -}]
 
   $BNASM_ppc32=bn_ppc.c bn-ppc.s ppc-mont.s
   $BNDEF_ppc32=OPENSSL_BN_ASM_MONT
-  $BNASM_ppc64=$BNASM_ppc32 ppc64-mont-fixed.s
+  $BNASM_ppc64=$BNASM_ppc32
   $BNDEF_ppc64=$BNDEF_ppc32
 
   $BNASM_c64xplus=asm/bn-c64xplus.asm
@@ -127,14 +127,14 @@ DEFINE[../../providers/libcommon.a]=$BNDEF
 
 INCLUDE[bn_exp.o]=..
 
-GENERATE[bn-586.s]=asm/bn-586.pl
-DEPEND[bn-586.s]=../perlasm/x86asm.pl
-GENERATE[co-586.s]=asm/co-586.pl
-DEPEND[co-586.s]=../perlasm/x86asm.pl
-GENERATE[x86-mont.s]=asm/x86-mont.pl
-DEPEND[x86-mont.s]=../perlasm/x86asm.pl
-GENERATE[x86-gf2m.s]=asm/x86-gf2m.pl
-DEPEND[x86-gf2m.s]=../perlasm/x86asm.pl
+GENERATE[bn-586.S]=asm/bn-586.pl
+DEPEND[bn-586.S]=../perlasm/x86asm.pl
+GENERATE[co-586.S]=asm/co-586.pl
+DEPEND[co-586.S]=../perlasm/x86asm.pl
+GENERATE[x86-mont.S]=asm/x86-mont.pl
+DEPEND[x86-mont.S]=../perlasm/x86asm.pl
+GENERATE[x86-gf2m.S]=asm/x86-gf2m.pl
+DEPEND[x86-gf2m.S]=../perlasm/x86asm.pl
 
 GENERATE[sparcv9a-mont.S]=asm/sparcv9a-mont.pl
 INCLUDE[sparcv9a-mont.o]=..
@@ -171,7 +171,6 @@ GENERATE[parisc-mont.s]=asm/parisc-mont.pl
 GENERATE[bn-ppc.s]=asm/ppc.pl
 GENERATE[ppc-mont.s]=asm/ppc-mont.pl
 GENERATE[ppc64-mont.s]=asm/ppc64-mont.pl
-GENERATE[ppc64-mont-fixed.s]=asm/ppc64-mont-fixed.pl
 
 GENERATE[alpha-mont.S]=asm/alpha-mont.pl
 

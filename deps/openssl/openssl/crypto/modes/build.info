@@ -2,7 +2,7 @@ LIBS=../../libcrypto
 
 $MODESASM=
 IF[{- !$disabled{asm} -}]
-  $MODESASM_x86=ghash-x86.s
+  $MODESASM_x86=ghash-x86.S
   $MODESDEF_x86=GHASH_ASM
   $MODESASM_x86_64=ghash-x86_64.s aesni-gcm-x86_64.s
   $MODESDEF_x86_64=GHASH_ASM
@@ -63,7 +63,7 @@ DEFINE[../../providers/libfips.a]=$MODESDEF
 INCLUDE[gcm128.o]=..
 
 GENERATE[ghash-ia64.s]=asm/ghash-ia64.pl
-GENERATE[ghash-x86.s]=asm/ghash-x86.pl
+GENERATE[ghash-x86.S]=asm/ghash-x86.pl
 GENERATE[ghash-x86_64.s]=asm/ghash-x86_64.pl
 GENERATE[aesni-gcm-x86_64.s]=asm/aesni-gcm-x86_64.pl
 GENERATE[ghash-sparcv9.S]=asm/ghash-sparcv9.pl

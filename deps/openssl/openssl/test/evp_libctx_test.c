@@ -576,7 +576,7 @@ static int test_cipher_tdes_randkey(void)
           && TEST_int_ne(EVP_CIPHER_get_flags(tdes_cipher) & EVP_CIPH_RAND_KEY, 0)
           && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
           && TEST_true(EVP_CipherInit_ex(ctx, tdes_cipher, NULL, NULL, NULL, 1))
-          && TEST_true(EVP_CIPHER_CTX_rand_key(ctx, key));
+          && TEST_int_gt(EVP_CIPHER_CTX_rand_key(ctx, key), 0);
 
     EVP_CIPHER_CTX_free(ctx);
     EVP_CIPHER_free(tdes_cipher);

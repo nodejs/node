@@ -11,12 +11,12 @@ use strict;
 use warnings;
 
 use File::Spec;
-use OpenSSL::Test qw/:DEFAULT with srctop_file/;
+use OpenSSL::Test qw/:DEFAULT with srctop_file data_file/;
 use OpenSSL::Test::Utils;
 
 setup("test_rsapss");
 
-plan tests => 9;
+plan tests => 10;
 
 #using test/testrsa.pem which happens to be a 512 bit RSA
 ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha1',
@@ -74,3 +74,7 @@ ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
    ok(run(app(['openssl', 'rsa', '-check',
                '-in', $rsapss])));
 }
+
+ok(!run(app([ 'openssl', 'rsa',
+             '-in' => data_file('negativesaltlen.pem')],
+             '-out' => 'badout')));

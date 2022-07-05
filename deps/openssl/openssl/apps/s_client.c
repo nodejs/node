@@ -703,7 +703,6 @@ typedef enum PROTOCOL_choice {
     PROTO_TELNET,
     PROTO_XMPP,
     PROTO_XMPP_SERVER,
-    PROTO_CONNECT,
     PROTO_IRC,
     PROTO_MYSQL,
     PROTO_POSTGRES,
@@ -986,7 +985,6 @@ int s_client_main(int argc, char **argv)
             break;
         case OPT_PROXY:
             proxystr = opt_arg();
-            starttls_proto = PROTO_CONNECT;
             break;
         case OPT_PROXY_USER:
             proxyuser = opt_arg();
@@ -2157,6 +2155,13 @@ int s_client_main(int argc, char **argv)
     sbuf_len = 0;
     sbuf_off = 0;
 
+    if (proxystr != NULL) {
+        /* Here we must use the connect string target host & port */
+        if (!OSSL_HTTP_proxy_connect(sbio, thost, tport, proxyuser, proxypass,
+                                     0 /* no timeout */, bio_err, prog))
+            goto shut;
+    }
+
     switch ((PROTOCOL_CHOICE) starttls_proto) {
     case PROTO_OFF:
         break;
@@ -2343,12 +2348,6 @@ int s_client_main(int argc, char **argv)
             if (bytes != 6 || memcmp(mbuf, tls_follows, 6) != 0)
                 goto shut;
         }
-        break;
-    case PROTO_CONNECT:
-        /* Here we must use the connect string target host & port */
-        if (!OSSL_HTTP_proxy_connect(sbio, thost, tport, proxyuser, proxypass,
-                                     0 /* no timeout */, bio_err, prog))
-            goto shut;
         break;
     case PROTO_IRC:
         {

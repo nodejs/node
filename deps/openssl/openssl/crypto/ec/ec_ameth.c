@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -165,7 +165,7 @@ static int eckey_priv_decode_ex(EVP_PKEY *pkey, const PKCS8_PRIV_KEY_INFO *p8,
 static int eckey_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
 {
     EC_KEY ec_key = *(pkey->pkey.ec);
-    unsigned char *ep, *p;
+    unsigned char *ep = NULL;
     int eplen, ptype;
     void *pval;
     unsigned int old_flags;
@@ -184,26 +184,18 @@ static int eckey_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     old_flags = EC_KEY_get_enc_flags(&ec_key);
     EC_KEY_set_enc_flags(&ec_key, old_flags | EC_PKEY_NO_PARAMETERS);
 
-    eplen = i2d_ECPrivateKey(&ec_key, NULL);
-    if (!eplen) {
+    eplen = i2d_ECPrivateKey(&ec_key, &ep);
+    if (eplen <= 0) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
-        return 0;
-    }
-    ep = OPENSSL_malloc(eplen);
-    if (ep == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
-        return 0;
-    }
-    p = ep;
-    if (!i2d_ECPrivateKey(&ec_key, &p)) {
-        OPENSSL_free(ep);
-        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+        ASN1_STRING_free(pval);
         return 0;
     }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(NID_X9_62_id_ecPublicKey), 0,
                          ptype, pval, ep, eplen)) {
-        OPENSSL_free(ep);
+        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+        ASN1_STRING_free(pval);
+        OPENSSL_clear_free(ep, eplen);
         return 0;
     }
 

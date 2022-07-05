@@ -2,7 +2,7 @@ LIBS=../../libcrypto
 
 $SHA1ASM=
 IF[{- !$disabled{asm} -}]
-  $SHA1ASM_x86=sha1-586.s sha256-586.s sha512-586.s
+  $SHA1ASM_x86=sha1-586.S sha256-586.S sha512-586.S
   $SHA1DEF_x86=SHA1_ASM SHA256_ASM SHA512_ASM
   $SHA1ASM_x86_64=\
         sha1-x86_64.s sha256-x86_64.s sha512-x86_64.s sha1-mb-x86_64.s \
@@ -83,12 +83,12 @@ SOURCE[../../providers/libfips.a]= $COMMON
 DEFINE[../../libcrypto]=$SHA1DEF $KECCAK1600DEF
 DEFINE[../../providers/libfips.a]=$SHA1DEF $KECCAK1600DEF
 
-GENERATE[sha1-586.s]=asm/sha1-586.pl
-DEPEND[sha1-586.s]=../perlasm/x86asm.pl
-GENERATE[sha256-586.s]=asm/sha256-586.pl
-DEPEND[sha256-586.s]=../perlasm/x86asm.pl
-GENERATE[sha512-586.s]=asm/sha512-586.pl
-DEPEND[sha512-586.s]=../perlasm/x86asm.pl
+GENERATE[sha1-586.S]=asm/sha1-586.pl
+DEPEND[sha1-586.S]=../perlasm/x86asm.pl
+GENERATE[sha256-586.S]=asm/sha256-586.pl
+DEPEND[sha256-586.S]=../perlasm/x86asm.pl
+GENERATE[sha512-586.S]=asm/sha512-586.pl
+DEPEND[sha512-586.S]=../perlasm/x86asm.pl
 
 GENERATE[sha1-ia64.s]=asm/sha1-ia64.pl
 GENERATE[sha256-ia64.s]=asm/sha512-ia64.pl

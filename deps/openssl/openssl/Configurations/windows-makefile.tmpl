@@ -478,6 +478,7 @@ clean: libclean
 	-rd /Q /S test\test-runs
 
 distclean: clean
+	-del /Q /F include\openssl\configuration.h
 	-del /Q /F configdata.pm
 	-del /Q /F makefile
 
@@ -744,7 +745,7 @@ EOF
               $args{generator}->[1] || platform->dsoname($args{product});
           return <<"EOF";
 $target: $gen0 $deps $mkdef
-	"\$(PERL)" $mkdef$ord_ver --ordinals $gen0 --name $ord_name --OS windows > $target
+	"\$(PERL)" "$mkdef"$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name --OS windows > $target
 EOF
       } elsif (platform->isasm($args{src})) {
           #
@@ -760,7 +761,7 @@ EOF
 
           my $generator;
           if ($gen0 =~ /\.pl$/) {
-              $generator = '"$(PERL)"'.$gen_incs.' '.$gen0.$gen_args
+              $generator = '"$(PERL)"'.$gen_incs.' "'.$gen0.'"'.$gen_args
                   .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSSOR)';
           } elsif ($gen0 =~ /\.S$/) {
               $generator = undef;
@@ -817,7 +818,7 @@ EOF
           $gen0 = platform->bin($gen0);
           return <<"EOF";
 $args{src}: $gen0 $deps "\$(BLDDIR)\\util\\wrap.pl"
-	"\$(PERL)" "\$(BLDDIR)\\util\\wrap.pl" $gen0$gen_args > \$@
+	"\$(PERL)" "\$(BLDDIR)\\util\\wrap.pl" "$gen0"$gen_args > \$@
 EOF
       } else {
           #
@@ -825,7 +826,7 @@ EOF
           #
           return <<"EOF";
 $args{src}: "$gen0" $deps
-	"\$(PERL)"$gen_incs $gen0$gen_args > \$@
+	"\$(PERL)"$gen_incs "$gen0"$gen_args > \$@
 EOF
       }
   }

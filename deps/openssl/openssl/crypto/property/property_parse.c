@@ -213,11 +213,10 @@ static int parse_unquoted(OSSL_LIB_CTX *ctx, const char *t[],
         return 0;
     }
     v[i] = 0;
-    if (err) {
+    if (err)
         ERR_raise_data(ERR_LIB_PROP, PROP_R_STRING_TOO_LONG, "HERE-->%s", *t);
-    } else {
-        res->v.str_val = ossl_property_value(ctx, v, create);
-    }
+    else if ((res->v.str_val = ossl_property_value(ctx, v, create)) == 0)
+        err = 1;
     *t = skip_space(s);
     res->type = OSSL_PROPERTY_TYPE_STRING;
     return !err;
@@ -578,7 +577,7 @@ static void put_char(char ch, char **buf, size_t *remain, size_t *needed)
         ++*needed;
         return;
     }
-    if(*remain == 1)
+    if (*remain == 1)
         **buf = '\0';
     else
         **buf = ch;
@@ -597,16 +596,16 @@ static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
     if (*remain == 0)
         return;
 
-    if(*remain < len + 1)
+    if (*remain < len + 1)
         len = *remain - 1;
 
-    if(len > 0) {
-        strncpy(*buf, str, len);
+    if (len > 0) {
+        memcpy(*buf, str, len);
         *buf += len;
         *remain -= len;
     }
 
-    if(len < olen && *remain == 1) {
+    if (len < olen && *remain == 1) {
         **buf = '\0';
         ++*buf;
         --*remain;

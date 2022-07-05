@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -134,7 +134,7 @@ int gendsa_main(int argc, char **argv)
                    "         Your key size is %d! Larger key size may behave not as expected.\n",
                    OPENSSL_DSA_MAX_MODULUS_BITS, EVP_PKEY_get_bits(pkey));
 
-    ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey, app_get0_propq());
     if (ctx == NULL) {
         BIO_printf(bio_err, "unable to create PKEY context\n");
         goto end;

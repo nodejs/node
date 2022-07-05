@@ -1135,6 +1135,14 @@ BIO *OSSL_HTTP_get(const char *url, const char *proxy, const char *no_proxy,
                 current_url = redirection_url;
                 if (*redirection_url == '/') { /* redirection to same server */
                     path = OPENSSL_strdup(redirection_url);
+                    if (path == NULL) {
+                        OPENSSL_free(host);
+                        OPENSSL_free(port);
+                        (void)OSSL_HTTP_close(rctx, 1);
+                        BIO_free(resp);
+                        OPENSSL_free(current_url);
+                        return NULL;
+                    }
                     goto new_rpath;
                 }
                 OPENSSL_free(host);

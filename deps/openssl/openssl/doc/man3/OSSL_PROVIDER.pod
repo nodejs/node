@@ -184,19 +184,22 @@ OSSL_PROVIDER_self_test() returns 1 if the self tests pass, or 0 on error.
 =head1 EXAMPLES
 
 This demonstrates how to load the provider module "foo" and ask for
-its build number.
+its build information.
+
+ #include <openssl/params.h>
+ #include <openssl/provider.h>
+ #include <openssl/err.h>
 
  OSSL_PROVIDER *prov = NULL;
  const char *build = NULL;
- size_t built_l = 0;
  OSSL_PARAM request[] = {
-     { "build", OSSL_PARAM_UTF8_STRING_PTR, &build, 0, &build_l },
-     { NULL, 0, NULL, 0, NULL }
+     { "buildinfo", OSSL_PARAM_UTF8_PTR, &build, 0, 0 },
+     { NULL, 0, NULL, 0, 0 }
  };
 
  if ((prov = OSSL_PROVIDER_load(NULL, "foo")) != NULL
      && OSSL_PROVIDER_get_params(prov, request))
-     printf("Provider 'foo' build %s\n", build);
+     printf("Provider 'foo' buildinfo: %s\n", build);
  else
      ERR_print_errors_fp(stderr);
 
@@ -210,7 +213,7 @@ The type and functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

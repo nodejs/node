@@ -310,6 +310,11 @@ static int cb_server_alpn(SSL *s, const unsigned char **out,
      * verify_alpn.
      */
     alpn_selected = OPENSSL_malloc(*outlen);
+    if (alpn_selected == NULL) {
+        fprintf(stderr, "failed to allocate memory\n");
+        OPENSSL_free(protos);
+        abort();
+    }
     memcpy(alpn_selected, *out, *outlen);
     *out = alpn_selected;
 
@@ -666,9 +671,9 @@ static void sv_usage(void)
 #endif
     fprintf(stderr, " -CApath arg   - PEM format directory of CA's\n");
     fprintf(stderr, " -CAfile arg   - PEM format file of CA's\n");
-    fprintf(stderr, " -cert arg     - Server certificate file\n");
+    fprintf(stderr, " -s_cert arg   - Server certificate file\n");
     fprintf(stderr,
-            " -key arg      - Server key file (default: same as -cert)\n");
+            " -s_key arg    - Server key file (default: same as -cert)\n");
     fprintf(stderr, " -c_cert arg   - Client certificate file\n");
     fprintf(stderr,
             " -c_key arg    - Client key file (default: same as -c_cert)\n");
@@ -1296,7 +1301,7 @@ int main(int argc, char *argv[])
     }
 
     if (print_time) {
-        if (bio_type != BIO_PAIR) {
+        if (bio_type == BIO_MEM) {
             fprintf(stderr, "Using BIO pair (-bio_pair)\n");
             bio_type = BIO_PAIR;
         }
@@ -1741,6 +1746,8 @@ int main(int argc, char *argv[])
         /* Use a fixed key so that we can decrypt the ticket. */
         size = SSL_CTX_set_tlsext_ticket_keys(s_ctx, NULL, 0);
         keys = OPENSSL_zalloc(size);
+        if (keys == NULL)
+            goto end;
         SSL_CTX_set_tlsext_ticket_keys(s_ctx, keys, size);
         OPENSSL_free(keys);
     }
@@ -2024,7 +2031,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_write(c_ssl_bio, cbuf, i);
                 if (r < 0) {
                     if (!BIO_should_retry(c_ssl_bio)) {
-                        fprintf(stderr, "ERROR in CLIENT\n");
+                        fprintf(stderr, "ERROR in CLIENT (write)\n");
                         err_in_client = 1;
                         goto err;
                     }
@@ -2050,7 +2057,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_read(c_ssl_bio, cbuf, sizeof(cbuf));
                 if (r < 0) {
                     if (!BIO_should_retry(c_ssl_bio)) {
-                        fprintf(stderr, "ERROR in CLIENT\n");
+                        fprintf(stderr, "ERROR in CLIENT (read)\n");
                         err_in_client = 1;
                         goto err;
                     }
@@ -2103,7 +2110,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_write(s_ssl_bio, sbuf, i);
                 if (r < 0) {
                     if (!BIO_should_retry(s_ssl_bio)) {
-                        fprintf(stderr, "ERROR in SERVER\n");
+                        fprintf(stderr, "ERROR in SERVER (write)\n");
                         err_in_server = 1;
                         goto err;
                     }
@@ -2124,7 +2131,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_read(s_ssl_bio, sbuf, sizeof(sbuf));
                 if (r < 0) {
                     if (!BIO_should_retry(s_ssl_bio)) {
-                        fprintf(stderr, "ERROR in SERVER\n");
+                        fprintf(stderr, "ERROR in SERVER (read)\n");
                         err_in_server = 1;
                         goto err;
                     }
@@ -2144,8 +2151,25 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
     }
     while (cw_num > 0 || cr_num > 0 || sw_num > 0 || sr_num > 0);
 
-    if (verbose)
+    if (verbose) {
         print_details(c_ssl, "DONE via TCP connect: ");
+
+        if (BIO_get_ktls_send(SSL_get_wbio(s_ssl))
+                && BIO_get_ktls_recv(SSL_get_rbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS in both directions\n");
+        else if (BIO_get_ktls_send(SSL_get_wbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS for sending\n");
+        else if (BIO_get_ktls_recv(SSL_get_rbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS for receiving\n");
+
+        if (BIO_get_ktls_send(SSL_get_wbio(c_ssl))
+                && BIO_get_ktls_recv(SSL_get_rbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS in both directions\n");
+        else if (BIO_get_ktls_send(SSL_get_wbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS for sending\n");
+        else if (BIO_get_ktls_recv(SSL_get_rbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS for receiving\n");
+    }
 # ifndef OPENSSL_NO_NEXTPROTONEG
     if (verify_npn(c_ssl, s_ssl) < 0)
         goto end;

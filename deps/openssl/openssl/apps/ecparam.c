@@ -284,7 +284,7 @@ int ecparam_main(int argc, char **argv)
                 goto end;
         }
         pctx = EVP_PKEY_CTX_new_from_pkey(NULL, params_key, NULL);
-        if (pctx == NULL || !EVP_PKEY_param_check(pctx)) {
+        if (pctx == NULL || EVP_PKEY_param_check(pctx) <= 0) {
             BIO_printf(bio_err, "failed\n");
             goto end;
         }

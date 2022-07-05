@@ -115,6 +115,7 @@ static void *hmac_dup(void *vsrc)
     *dst = *src;
     dst->ctx = ctx;
     dst->key = NULL;
+    memset(&dst->digest, 0, sizeof(dst->digest));
 
     if (!HMAC_CTX_copy(dst->ctx, src->ctx)
         || !ossl_prov_digest_copy(&dst->digest, &src->digest)) {

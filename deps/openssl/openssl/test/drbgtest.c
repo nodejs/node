@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -531,7 +531,7 @@ static int test_rand_fork_safety(int i)
         success = 0;
 
     /* request a single byte from each of the DRBGs before the next run */
-    if (!TEST_true(RAND_bytes(random, 1) && RAND_priv_bytes(random, 1)))
+    if (!TEST_int_gt(RAND_bytes(random, 1), 0) || !TEST_int_gt(RAND_priv_bytes(random, 1), 0))
         success = 0;
 
     return success;

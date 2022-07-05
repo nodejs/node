@@ -151,8 +151,7 @@ static CRYPTO_THREAD_LOCAL default_context_thread_local;
 DEFINE_RUN_ONCE_STATIC(default_context_do_init)
 {
     return CRYPTO_THREAD_init_local(&default_context_thread_local, NULL)
-        && context_init(&default_context_int)
-        && ossl_init_casecmp();
+        && context_init(&default_context_int);
 }
 
 void ossl_lib_ctx_default_deinit(void)

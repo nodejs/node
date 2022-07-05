@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -426,20 +426,22 @@ static int rsa_keygen(OSSL_LIB_CTX *libctx, RSA *rsa, int bits, int primes,
 {
     int ok = 0;
 
+#ifdef FIPS_MODULE
+    ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb);
+    pairwise_test = 1; /* FIPS MODE needs to always run the pairwise test */
+#else
     /*
-     * Only multi-prime keys or insecure keys with a small key length will use
-     * the older rsa_multiprime_keygen().
+     * Only multi-prime keys or insecure keys with a small key length or a
+     * public exponent <= 2^16 will use the older rsa_multiprime_keygen().
      */
-    if (primes == 2 && bits >= 2048)
+    if (primes == 2
+            && bits >= 2048
+            && (e_value == NULL || BN_num_bits(e_value) > 16))
         ok = ossl_rsa_sp800_56b_generate_key(rsa, bits, e_value, cb);
-#ifndef FIPS_MODULE
     else
         ok = rsa_multiprime_keygen(rsa, bits, primes, e_value, cb);
 #endif /* FIPS_MODULE */
 
-#ifdef FIPS_MODULE
-    pairwise_test = 1; /* FIPS MODE needs to always run the pairwise test */
-#endif
     if (pairwise_test && ok > 0) {
         OSSL_CALLBACK *stcb = NULL;
         void *stcbarg = NULL;

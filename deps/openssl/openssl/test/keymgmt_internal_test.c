@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 #include <openssl/provider.h>
 #include <openssl/core_names.h>
 #include "internal/core.h"
@@ -32,6 +33,9 @@ typedef struct {
     OSSL_LIB_CTX *ctx2;
     OSSL_PROVIDER *prov2;
 } FIXTURE;
+
+/* Collected arguments */
+static const char *cert_filename = NULL;
 
 static void tear_down(FIXTURE *fixture)
 {
@@ -285,8 +289,70 @@ static int test_pass_key(int n)
     return result;
 }
 
+static int test_evp_pkey_export_to_provider(int n)
+{
+    OSSL_LIB_CTX *libctx = NULL;
+    OSSL_PROVIDER *prov = NULL;
+    X509 *cert = NULL;
+    BIO *bio = NULL;
+    X509_PUBKEY *pubkey = NULL;
+    EVP_KEYMGMT *keymgmt = NULL;
+    EVP_PKEY *pkey = NULL;
+    void *keydata = NULL;
+    int ret = 0;
+
+    if (!TEST_ptr(libctx = OSSL_LIB_CTX_new())
+         || !TEST_ptr(prov = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    if ((bio = BIO_new_file(cert_filename, "r")) == NULL) {
+        TEST_error("Couldn't open '%s' for reading\n", cert_filename);
+        TEST_openssl_errors();
+        goto end;
+    }
+
+    if ((cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)) == NULL) {
+        TEST_error("'%s' doesn't appear to be a X.509 certificate in PEM format\n",
+                   cert_filename);
+        TEST_openssl_errors();
+        goto end;
+    }
+
+    pubkey = X509_get_X509_PUBKEY(cert);
+    pkey = X509_PUBKEY_get0(pubkey);
+
+    if (n == 0) {
+        if (!TEST_ptr(keydata = evp_pkey_export_to_provider(pkey, NULL,
+                                                            NULL, NULL)))
+            goto end;
+    } else if (n == 1) {
+        if (!TEST_ptr(keydata = evp_pkey_export_to_provider(pkey, NULL,
+                                                            &keymgmt, NULL)))
+            goto end;
+    } else {
+        keymgmt = EVP_KEYMGMT_fetch(libctx, "RSA", NULL);
+
+        if (!TEST_ptr(keydata = evp_pkey_export_to_provider(pkey, NULL,
+                                                            &keymgmt, NULL)))
+            goto end;
+    }
+
+    ret = 1;
+ end:
+    BIO_free(bio);
+    X509_free(cert);
+    EVP_KEYMGMT_free(keymgmt);
+    OSSL_PROVIDER_unload(prov);
+    OSSL_LIB_CTX_free(libctx);
+    return ret;
+}
+
 int setup_tests(void)
 {
+    if (!TEST_ptr(cert_filename = test_get_argument(0)))
+        return 0;
+
     ADD_ALL_TESTS(test_pass_key, 1);
+    ADD_ALL_TESTS(test_evp_pkey_export_to_provider, 3);
     return 1;
 }

@@ -2,7 +2,7 @@ LIBS=../../libcrypto
 
 $BFASM=bf_enc.c
 IF[{- !$disabled{asm} -}]
-  $BFASM_x86=bf-586.s
+  $BFASM_x86=bf-586.S
 
   # Now that we have defined all the arch specific variables, use the
   # appropriate one
@@ -21,5 +21,5 @@ IF[{- $disabled{'deprecated-3.0'} -}]
   SOURCE[../../providers/liblegacy.a]=$ALL
 ENDIF
 
-GENERATE[bf-586.s]=asm/bf-586.pl
-DEPEND[bf-586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl
+GENERATE[bf-586.S]=asm/bf-586.pl
+DEPEND[bf-586.S]=../perlasm/x86asm.pl ../perlasm/cbc.pl

@@ -350,7 +350,7 @@ The Miller-Rabin test now uses 64 rounds, which is used for all prime generation
 including RSA key generation. This affects the time for larger keys sizes.
 
 The default key generation method for the regular 2-prime RSA keys was changed
-to the FIPS 186-4 B.3.6 method (Generation of Probable Primes with Conditions
+to the FIPS186-4 B.3.6 method (Generation of Probable Primes with Conditions
 Based on Auxiliary Probable Primes). This method is slower than the original
 method.
 
@@ -359,7 +359,7 @@ method.
 This checks that the salt length is at least 128 bits, the derived key length is
 at least 112 bits, and that the iteration count is at least 1000.
 For backwards compatibility these checks are disabled by default in the
-default provider, but are enabled by default in the fips provider.
+default provider, but are enabled by default in the FIPS provider.
 
 To enable or disable the checks see B<OSSL_KDF_PARAM_PKCS5> in
 L<EVP_KDF-PBKDF2(7)>. The parameter can be set using L<EVP_KDF_derive(3)>.
@@ -2409,7 +2409,7 @@ L<fips_module(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

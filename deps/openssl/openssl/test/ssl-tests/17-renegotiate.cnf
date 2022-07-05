@@ -1,6 +1,6 @@
 # Generated with generate_ssl_tests.pl
 
-num_tests = 17
+num_tests = 18
 
 test-0 = 0-renegotiate-client-no-resume
 test-1 = 1-renegotiate-client-resume
@@ -8,17 +8,18 @@ test-2 = 2-renegotiate-server-no-resume
 test-3 = 3-renegotiate-server-resume
 test-4 = 4-renegotiate-client-auth-require
 test-5 = 5-renegotiate-client-auth-once
-test-6 = 6-renegotiate-aead-to-non-aead
-test-7 = 7-renegotiate-non-aead-to-aead
-test-8 = 8-renegotiate-non-aead-to-non-aead
-test-9 = 9-renegotiate-aead-to-aead
-test-10 = 10-no-renegotiation-server-by-client
-test-11 = 11-no-renegotiation-server-by-server
-test-12 = 12-no-renegotiation-client-by-server
-test-13 = 13-no-renegotiation-client-by-client
-test-14 = 14-no-extms-on-renegotiation
-test-15 = 15-allow-client-renegotiation
-test-16 = 16-no-client-renegotiation
+test-6 = 6-renegotiate-client-legacy-connect
+test-7 = 7-renegotiate-aead-to-non-aead
+test-8 = 8-renegotiate-non-aead-to-aead
+test-9 = 9-renegotiate-non-aead-to-non-aead
+test-10 = 10-renegotiate-aead-to-aead
+test-11 = 11-no-renegotiation-server-by-client
+test-12 = 12-no-renegotiation-server-by-server
+test-13 = 13-no-renegotiation-client-by-server
+test-14 = 14-no-renegotiation-client-by-client
+test-15 = 15-no-extms-on-renegotiation
+test-16 = 16-allow-client-renegotiation
+test-17 = 17-no-client-renegotiation
 # ===========================================================
 
 [0-renegotiate-client-no-resume]
@@ -195,22 +196,22 @@ ResumptionExpected = No
 
 # ===========================================================
 
-[6-renegotiate-aead-to-non-aead]
-ssl_conf = 6-renegotiate-aead-to-non-aead-ssl
+[6-renegotiate-client-legacy-connect]
+ssl_conf = 6-renegotiate-client-legacy-connect-ssl
 
-[6-renegotiate-aead-to-non-aead-ssl]
-server = 6-renegotiate-aead-to-non-aead-server
-client = 6-renegotiate-aead-to-non-aead-client
+[6-renegotiate-client-legacy-connect-ssl]
+server = 6-renegotiate-client-legacy-connect-server
+client = 6-renegotiate-client-legacy-connect-client
 
-[6-renegotiate-aead-to-non-aead-server]
+[6-renegotiate-client-legacy-connect-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
-Options = NoResumptionOnRenegotiation
+MaxProtocol = TLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[6-renegotiate-aead-to-non-aead-client]
-CipherString = AES128-GCM-SHA256
-MaxProtocol = TLSv1.2
+[6-renegotiate-client-legacy-connect-client]
+CipherString = DEFAULT
+Options = UnsafeLegacyServerConnect
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -218,30 +219,26 @@ VerifyMode = Peer
 ExpectedResult = Success
 HandshakeMode = RenegotiateClient
 Method = TLS
-ResumptionExpected = No
-client = 6-renegotiate-aead-to-non-aead-client-extra
-
-[6-renegotiate-aead-to-non-aead-client-extra]
-RenegotiateCiphers = AES128-SHA
+ResumptionExpected = Yes
 
 
 # ===========================================================
 
-[7-renegotiate-non-aead-to-aead]
-ssl_conf = 7-renegotiate-non-aead-to-aead-ssl
+[7-renegotiate-aead-to-non-aead]
+ssl_conf = 7-renegotiate-aead-to-non-aead-ssl
 
-[7-renegotiate-non-aead-to-aead-ssl]
-server = 7-renegotiate-non-aead-to-aead-server
-client = 7-renegotiate-non-aead-to-aead-client
+[7-renegotiate-aead-to-non-aead-ssl]
+server = 7-renegotiate-aead-to-non-aead-server
+client = 7-renegotiate-aead-to-non-aead-client
 
-[7-renegotiate-non-aead-to-aead-server]
+[7-renegotiate-aead-to-non-aead-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 Options = NoResumptionOnRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[7-renegotiate-non-aead-to-aead-client]
-CipherString = AES128-SHA
+[7-renegotiate-aead-to-non-aead-client]
+CipherString = AES128-GCM-SHA256
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -251,28 +248,28 @@ ExpectedResult = Success
 HandshakeMode = RenegotiateClient
 Method = TLS
 ResumptionExpected = No
-client = 7-renegotiate-non-aead-to-aead-client-extra
+client = 7-renegotiate-aead-to-non-aead-client-extra
 
-[7-renegotiate-non-aead-to-aead-client-extra]
-RenegotiateCiphers = AES128-GCM-SHA256
+[7-renegotiate-aead-to-non-aead-client-extra]
+RenegotiateCiphers = AES128-SHA
 
 
 # ===========================================================
 
-[8-renegotiate-non-aead-to-non-aead]
-ssl_conf = 8-renegotiate-non-aead-to-non-aead-ssl
+[8-renegotiate-non-aead-to-aead]
+ssl_conf = 8-renegotiate-non-aead-to-aead-ssl
 
-[8-renegotiate-non-aead-to-non-aead-ssl]
-server = 8-renegotiate-non-aead-to-non-aead-server
-client = 8-renegotiate-non-aead-to-non-aead-client
+[8-renegotiate-non-aead-to-aead-ssl]
+server = 8-renegotiate-non-aead-to-aead-server
+client = 8-renegotiate-non-aead-to-aead-client
 
-[8-renegotiate-non-aead-to-non-aead-server]
+[8-renegotiate-non-aead-to-aead-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 Options = NoResumptionOnRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[8-renegotiate-non-aead-to-non-aead-client]
+[8-renegotiate-non-aead-to-aead-client]
 CipherString = AES128-SHA
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
@@ -283,29 +280,29 @@ ExpectedResult = Success
 HandshakeMode = RenegotiateClient
 Method = TLS
 ResumptionExpected = No
-client = 8-renegotiate-non-aead-to-non-aead-client-extra
+client = 8-renegotiate-non-aead-to-aead-client-extra
 
-[8-renegotiate-non-aead-to-non-aead-client-extra]
-RenegotiateCiphers = AES256-SHA
+[8-renegotiate-non-aead-to-aead-client-extra]
+RenegotiateCiphers = AES128-GCM-SHA256
 
 
 # ===========================================================
 
-[9-renegotiate-aead-to-aead]
-ssl_conf = 9-renegotiate-aead-to-aead-ssl
+[9-renegotiate-non-aead-to-non-aead]
+ssl_conf = 9-renegotiate-non-aead-to-non-aead-ssl
 
-[9-renegotiate-aead-to-aead-ssl]
-server = 9-renegotiate-aead-to-aead-server
-client = 9-renegotiate-aead-to-aead-client
+[9-renegotiate-non-aead-to-non-aead-ssl]
+server = 9-renegotiate-non-aead-to-non-aead-server
+client = 9-renegotiate-non-aead-to-non-aead-client
 
-[9-renegotiate-aead-to-aead-server]
+[9-renegotiate-non-aead-to-non-aead-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 Options = NoResumptionOnRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[9-renegotiate-aead-to-aead-client]
-CipherString = AES128-GCM-SHA256
+[9-renegotiate-non-aead-to-non-aead-client]
+CipherString = AES128-SHA
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -315,34 +312,66 @@ ExpectedResult = Success
 HandshakeMode = RenegotiateClient
 Method = TLS
 ResumptionExpected = No
-client = 9-renegotiate-aead-to-aead-client-extra
+client = 9-renegotiate-non-aead-to-non-aead-client-extra
 
-[9-renegotiate-aead-to-aead-client-extra]
+[9-renegotiate-non-aead-to-non-aead-client-extra]
+RenegotiateCiphers = AES256-SHA
+
+
+# ===========================================================
+
+[10-renegotiate-aead-to-aead]
+ssl_conf = 10-renegotiate-aead-to-aead-ssl
+
+[10-renegotiate-aead-to-aead-ssl]
+server = 10-renegotiate-aead-to-aead-server
+client = 10-renegotiate-aead-to-aead-client
+
+[10-renegotiate-aead-to-aead-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Options = NoResumptionOnRenegotiation
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[10-renegotiate-aead-to-aead-client]
+CipherString = AES128-GCM-SHA256
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-10]
+ExpectedResult = Success
+HandshakeMode = RenegotiateClient
+Method = TLS
+ResumptionExpected = No
+client = 10-renegotiate-aead-to-aead-client-extra
+
+[10-renegotiate-aead-to-aead-client-extra]
 RenegotiateCiphers = AES256-GCM-SHA384
 
 
 # ===========================================================
 
-[10-no-renegotiation-server-by-client]
-ssl_conf = 10-no-renegotiation-server-by-client-ssl
+[11-no-renegotiation-server-by-client]
+ssl_conf = 11-no-renegotiation-server-by-client-ssl
 
-[10-no-renegotiation-server-by-client-ssl]
-server = 10-no-renegotiation-server-by-client-server
-client = 10-no-renegotiation-server-by-client-client
+[11-no-renegotiation-server-by-client-ssl]
+server = 11-no-renegotiation-server-by-client-server
+client = 11-no-renegotiation-server-by-client-client
 
-[10-no-renegotiation-server-by-client-server]
+[11-no-renegotiation-server-by-client-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 Options = NoRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[10-no-renegotiation-server-by-client-client]
+[11-no-renegotiation-server-by-client-client]
 CipherString = DEFAULT
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-10]
+[test-11]
 ExpectedResult = ClientFail
 HandshakeMode = RenegotiateClient
 Method = TLS
@@ -351,50 +380,22 @@ ResumptionExpected = No
 
 # ===========================================================
 
-[11-no-renegotiation-server-by-server]
-ssl_conf = 11-no-renegotiation-server-by-server-ssl
+[12-no-renegotiation-server-by-server]
+ssl_conf = 12-no-renegotiation-server-by-server-ssl
 
-[11-no-renegotiation-server-by-server-ssl]
-server = 11-no-renegotiation-server-by-server-server
-client = 11-no-renegotiation-server-by-server-client
+[12-no-renegotiation-server-by-server-ssl]
+server = 12-no-renegotiation-server-by-server-server
+client = 12-no-renegotiation-server-by-server-client
 
-[11-no-renegotiation-server-by-server-server]
+[12-no-renegotiation-server-by-server-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 Options = NoRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[11-no-renegotiation-server-by-server-client]
+[12-no-renegotiation-server-by-server-client]
 CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-11]
-ExpectedResult = ServerFail
-HandshakeMode = RenegotiateServer
-Method = TLS
-ResumptionExpected = No
-
-
-# ===========================================================
-
-[12-no-renegotiation-client-by-server]
-ssl_conf = 12-no-renegotiation-client-by-server-ssl
-
-[12-no-renegotiation-client-by-server-ssl]
-server = 12-no-renegotiation-client-by-server-server
-client = 12-no-renegotiation-client-by-server-client
-
-[12-no-renegotiation-client-by-server-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-MaxProtocol = TLSv1.2
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[12-no-renegotiation-client-by-server-client]
-CipherString = DEFAULT
-Options = NoRenegotiation
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -407,26 +408,54 @@ ResumptionExpected = No
 
 # ===========================================================
 
-[13-no-renegotiation-client-by-client]
-ssl_conf = 13-no-renegotiation-client-by-client-ssl
+[13-no-renegotiation-client-by-server]
+ssl_conf = 13-no-renegotiation-client-by-server-ssl
 
-[13-no-renegotiation-client-by-client-ssl]
-server = 13-no-renegotiation-client-by-client-server
-client = 13-no-renegotiation-client-by-client-client
+[13-no-renegotiation-client-by-server-ssl]
+server = 13-no-renegotiation-client-by-server-server
+client = 13-no-renegotiation-client-by-server-client
 
-[13-no-renegotiation-client-by-client-server]
+[13-no-renegotiation-client-by-server-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[13-no-renegotiation-client-by-client-client]
+[13-no-renegotiation-client-by-server-client]
 CipherString = DEFAULT
 Options = NoRenegotiation
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
 [test-13]
+ExpectedResult = ServerFail
+HandshakeMode = RenegotiateServer
+Method = TLS
+ResumptionExpected = No
+
+
+# ===========================================================
+
+[14-no-renegotiation-client-by-client]
+ssl_conf = 14-no-renegotiation-client-by-client-ssl
+
+[14-no-renegotiation-client-by-client-ssl]
+server = 14-no-renegotiation-client-by-client-server
+client = 14-no-renegotiation-client-by-client-client
+
+[14-no-renegotiation-client-by-client-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[14-no-renegotiation-client-by-client-client]
+CipherString = DEFAULT
+Options = NoRenegotiation
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-14]
 ExpectedResult = ClientFail
 HandshakeMode = RenegotiateClient
 Method = TLS
@@ -435,58 +464,58 @@ ResumptionExpected = No
 
 # ===========================================================
 
-[14-no-extms-on-renegotiation]
-ssl_conf = 14-no-extms-on-renegotiation-ssl
+[15-no-extms-on-renegotiation]
+ssl_conf = 15-no-extms-on-renegotiation-ssl
 
-[14-no-extms-on-renegotiation-ssl]
-server = 14-no-extms-on-renegotiation-server
-client = 14-no-extms-on-renegotiation-client
+[15-no-extms-on-renegotiation-ssl]
+server = 15-no-extms-on-renegotiation-server
+client = 15-no-extms-on-renegotiation-client
 
-[14-no-extms-on-renegotiation-server]
+[15-no-extms-on-renegotiation-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[14-no-extms-on-renegotiation-client]
-CipherString = DEFAULT
-MaxProtocol = TLSv1.2
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-14]
-ExpectedResult = ServerFail
-HandshakeMode = RenegotiateClient
-Method = TLS
-ResumptionExpected = No
-client = 14-no-extms-on-renegotiation-client-extra
-
-[14-no-extms-on-renegotiation-client-extra]
-RenegotiateNoExtms = Yes
-
-
-# ===========================================================
-
-[15-allow-client-renegotiation]
-ssl_conf = 15-allow-client-renegotiation-ssl
-
-[15-allow-client-renegotiation-ssl]
-server = 15-allow-client-renegotiation-server
-client = 15-allow-client-renegotiation-client
-
-[15-allow-client-renegotiation-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-MaxProtocol = TLSv1.2
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[15-allow-client-renegotiation-client]
+[15-no-extms-on-renegotiation-client]
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
 [test-15]
+ExpectedResult = ServerFail
+HandshakeMode = RenegotiateClient
+Method = TLS
+ResumptionExpected = No
+client = 15-no-extms-on-renegotiation-client-extra
+
+[15-no-extms-on-renegotiation-client-extra]
+RenegotiateNoExtms = Yes
+
+
+# ===========================================================
+
+[16-allow-client-renegotiation]
+ssl_conf = 16-allow-client-renegotiation-ssl
+
+[16-allow-client-renegotiation-ssl]
+server = 16-allow-client-renegotiation-server
+client = 16-allow-client-renegotiation-client
+
+[16-allow-client-renegotiation-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[16-allow-client-renegotiation-client]
+CipherString = DEFAULT
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-16]
 ExpectedResult = Success
 HandshakeMode = RenegotiateClient
 Method = TLS
@@ -495,27 +524,27 @@ ResumptionExpected = Yes
 
 # ===========================================================
 
-[16-no-client-renegotiation]
-ssl_conf = 16-no-client-renegotiation-ssl
+[17-no-client-renegotiation]
+ssl_conf = 17-no-client-renegotiation-ssl
 
-[16-no-client-renegotiation-ssl]
-server = 16-no-client-renegotiation-server
-client = 16-no-client-renegotiation-client
+[17-no-client-renegotiation-ssl]
+server = 17-no-client-renegotiation-server
+client = 17-no-client-renegotiation-client
 
-[16-no-client-renegotiation-server]
+[17-no-client-renegotiation-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 Options = -ClientRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[16-no-client-renegotiation-client]
+[17-no-client-renegotiation-client]
 CipherString = DEFAULT
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-16]
+[test-17]
 ExpectedResult = ClientFail
 ExpectedServerAlert = NoRenegotiation
 HandshakeMode = RenegotiateClient

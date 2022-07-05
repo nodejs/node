@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -612,7 +612,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
              * length. The key length is determined by the size of the
              * decrypted RSA key.
              */
-            if (!EVP_CIPHER_CTX_set_key_length(evp_ctx, eklen)) {
+            if (EVP_CIPHER_CTX_set_key_length(evp_ctx, eklen) <= 0) {
                 /* Use random key as MMA defence */
                 OPENSSL_clear_free(ek, eklen);
                 ek = tkey;

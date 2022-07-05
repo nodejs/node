@@ -2,10 +2,10 @@ LIBS=../../libcrypto
 
 $POLY1305ASM=
 IF[{- !$disabled{asm} -}]
-  $POLY1305ASM_x86=poly1305-x86.s
+  $POLY1305ASM_x86=poly1305-x86.S
   $POLY1305ASM_x86_64=poly1305-x86_64.s
 
-  $POLY1305ASM_ia64=asm/poly1305-ia64.s
+  $POLY1305ASM_ia64=poly1305-ia64.s
 
   $POLY1305ASM_sparcv9=poly1305-sparcv9.S
 
@@ -37,8 +37,9 @@ DEFINE[../../libcrypto]=$POLY1305DEF
 
 GENERATE[poly1305-sparcv9.S]=asm/poly1305-sparcv9.pl
 INCLUDE[poly1305-sparcv9.o]=..
-GENERATE[poly1305-x86.s]=asm/poly1305-x86.pl
+GENERATE[poly1305-x86.S]=asm/poly1305-x86.pl
 GENERATE[poly1305-x86_64.s]=asm/poly1305-x86_64.pl
+GENERATE[poly1305-ia64.s]=asm/poly1305-ia64.S
 GENERATE[poly1305-ppc.s]=asm/poly1305-ppc.pl
 GENERATE[poly1305-ppcfp.s]=asm/poly1305-ppcfp.pl
 GENERATE[poly1305-armv4.S]=asm/poly1305-armv4.pl

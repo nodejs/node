@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_x509");
 
-plan tests => 18;
+plan tests => 21;
 
 # Prevent MSys2 filename munging for arguments that look like file paths but
 # aren't
@@ -135,3 +135,14 @@ SKIP: {
     ok(test_errors("Unable to load Public Key", "sm2.pem", '-text'),
        "error loading unsupported sm2 cert");
 }
+
+# 3 tests for -dateopts formats
+ok(run(app(["openssl", "x509", "-noout", "-dates", "-dateopt", "rfc_822",
+	     "-in", srctop_file("test/certs", "ca-cert.pem")])),
+   "Run with rfc_8222 -dateopt format");
+ok(run(app(["openssl", "x509", "-noout", "-dates", "-dateopt", "iso_8601",
+	     "-in", srctop_file("test/certs", "ca-cert.pem")])),
+   "Run with iso_8601 -dateopt format");
+ok(!run(app(["openssl", "x509", "-noout", "-dates", "-dateopt", "invalid_format",
+	     "-in", srctop_file("test/certs", "ca-cert.pem")])),
+   "Run with invalid -dateopt format");

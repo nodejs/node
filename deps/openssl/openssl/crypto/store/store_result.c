@@ -191,13 +191,15 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
     EVP_PKEY *pk = NULL;
     EVP_KEYMGMT *keymgmt = NULL;
     void *keydata = NULL;
+    int try_fallback = 2;
 
     /* If we have an object reference, we must have a data type */
     if (data->data_type == NULL)
         return 0;
 
     keymgmt = EVP_KEYMGMT_fetch(libctx, data->data_type, propq);
-    if (keymgmt != NULL) {
+    ERR_set_mark();
+    while (keymgmt != NULL && keydata == NULL && try_fallback-- > 0) {
         /*
          * There are two possible cases
          *
@@ -207,6 +209,8 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
          *     do the export/import dance.
          */
         if (EVP_KEYMGMT_get0_provider(keymgmt) == provider) {
+            /* no point trying fallback here */
+            try_fallback = 0;
             keydata = evp_keymgmt_load(keymgmt, data->ref, data->ref_size);
         } else {
             struct evp_keymgmt_util_try_import_data_st import_data;
@@ -230,9 +234,23 @@ static EVP_PKEY *try_key_ref(struct extracted_param_data_st *data,
 
             keydata = import_data.keydata;
         }
+
+        if (keydata == NULL && try_fallback > 0) {
+            EVP_KEYMGMT_free(keymgmt);
+            keymgmt = evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)provider,
+                                                  data->data_type, propq);
+            if (keymgmt != NULL) {
+                ERR_pop_to_mark();
+                ERR_set_mark();
+            }
+        }
     }
-    if (keydata != NULL)
+    if (keydata != NULL) {
+        ERR_pop_to_mark();
         pk = evp_keymgmt_util_make_pkey(keymgmt, keydata);
+    } else {
+        ERR_clear_last_mark();
+    }
     EVP_KEYMGMT_free(keymgmt);
 
     return pk;

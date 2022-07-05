@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -305,6 +305,15 @@ int ossl_DER_w_RSASSA_PSS_params(WPACKET *pkt, int tag,
     saltlen = ossl_rsa_pss_params_30_saltlen(pss);
     trailerfield = ossl_rsa_pss_params_30_trailerfield(pss);
 
+    if (saltlen < 0) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_SALT_LENGTH);
+        return 0;
+    }
+    if (trailerfield != 1) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_TRAILER);
+        return 0;
+    }
+
     /* Getting default values */
     default_hashalg_nid = ossl_rsa_pss_params_30_hashalg(NULL);
     default_saltlen = ossl_rsa_pss_params_30_saltlen(NULL);
@@ -338,8 +347,8 @@ int ossl_DER_w_RSASSA_PSS_params(WPACKET *pkt, int tag,
 
     return ossl_DER_w_begin_sequence(pkt, tag)
         && (trailerfield == default_trailerfield
-            || ossl_DER_w_ulong(pkt, 3, trailerfield))
-        && (saltlen == default_saltlen || ossl_DER_w_ulong(pkt, 2, saltlen))
+            || ossl_DER_w_uint32(pkt, 3, (uint32_t)trailerfield))
+        && (saltlen == default_saltlen || ossl_DER_w_uint32(pkt, 2, (uint32_t)saltlen))
         && DER_w_MaskGenAlgorithm(pkt, 1, pss)
         && (hashalg_nid == default_hashalg_nid
             || ossl_DER_w_precompiled(pkt, 0, hashalg, hashalg_sz))

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,8 @@
 struct algorithm_data_st {
     OSSL_LIB_CTX *libctx;
     int operation_id;            /* May be zero for finding them all */
-    int (*pre)(OSSL_PROVIDER *, int operation_id, void *data, int *result);
+    int (*pre)(OSSL_PROVIDER *, int operation_id, int no_store, void *data,
+               int *result);
     void (*fn)(OSSL_PROVIDER *, const OSSL_ALGORITHM *, int no_store,
                void *data);
     int (*post)(OSSL_PROVIDER *, int operation_id, int no_store, void *data,
@@ -24,10 +25,71 @@ struct algorithm_data_st {
     void *data;
 };
 
+/*
+ * Process one OSSL_ALGORITHM array, for the operation |cur_operation|,
+ * by constructing methods for all its implementations and adding those
+ * to the appropriate method store.
+ * Which method store is appropriate is given by |no_store| ("permanent"
+ * if 0, temporary if 1) and other data in |data->data|.
+ *
+ * Returns:
+ * -1 to quit adding algorithm implementations immediately
+ * 0 if not successful, but adding should continue
+ * 1 if successful so far, and adding should continue
+ */
+static int algorithm_do_map(OSSL_PROVIDER *provider, const OSSL_ALGORITHM *map,
+                            int cur_operation, int no_store, void *cbdata)
+{
+    struct algorithm_data_st *data = cbdata;
+    int ret = 0;
+
+    /* Do we fulfill pre-conditions? */
+    if (data->pre == NULL) {
+        /* If there is no pre-condition function, assume "yes" */
+        ret = 1;
+    } else if (!data->pre(provider, cur_operation, no_store, data->data,
+                          &ret)) {
+        /* Error, bail out! */
+        return -1;
+    }
+
+    /*
+     * If pre-condition not fulfilled don't add this set of implementations,
+     * but do continue with the next.  This simply means that another thread
+     * got to it first.
+     */
+    if (ret == 0)
+        return 1;
+
+    if (map != NULL) {
+        const OSSL_ALGORITHM *thismap;
+
+        for (thismap = map; thismap->algorithm_names != NULL; thismap++)
+            data->fn(provider, thismap, no_store, data->data);
+    }
+
+    /* Do we fulfill post-conditions? */
+    if (data->post == NULL) {
+        /* If there is no post-condition function, assume "yes" */
+        ret = 1;
+    } else if (!data->post(provider, cur_operation, no_store, data->data,
+                           &ret)) {
+        /* Error, bail out! */
+        return -1;
+    }
+
+    return ret;
+}
+
+/*
+ * Given a provider, process one operation given by |data->operation_id|, or
+ * if that's zero, process all known operations.
+ * For each such operation, query the associated OSSL_ALGORITHM array from
+ * the provider, then process that array with |algorithm_do_map()|.
+ */
 static int algorithm_do_this(OSSL_PROVIDER *provider, void *cbdata)
 {
     struct algorithm_data_st *data = cbdata;
-    int no_store = 0;    /* Assume caching is ok */
     int first_operation = 1;
     int last_operation = OSSL_OP__HIGHEST;
     int cur_operation;
@@ -39,43 +101,18 @@ static int algorithm_do_this(OSSL_PROVIDER *provider, void *cbdata)
     for (cur_operation = first_operation;
          cur_operation <= last_operation;
          cur_operation++) {
+        int no_store = 0;        /* Assume caching is ok */
         const OSSL_ALGORITHM *map = NULL;
         int ret;
 
-        /* Do we fulfill pre-conditions? */
-        if (data->pre == NULL) {
-            /* If there is no pre-condition function, assume "yes" */
-            ret = 1;
-        } else {
-            if (!data->pre(provider, cur_operation, data->data, &ret))
-                /* Error, bail out! */
-                return 0;
-        }
-
-        /* If pre-condition not fulfilled, go to the next operation */
-        if (!ret)
-            continue;
-
         map = ossl_provider_query_operation(provider, cur_operation,
                                             &no_store);
-        if (map != NULL) {
-            const OSSL_ALGORITHM *thismap;
-
-            for (thismap = map; thismap->algorithm_names != NULL; thismap++)
-                data->fn(provider, thismap, no_store, data->data);
-        }
+        ret = algorithm_do_map(provider, map, cur_operation, no_store, data);
         ossl_provider_unquery_operation(provider, cur_operation, map);
 
-        /* Do we fulfill post-conditions? */
-        if (data->post == NULL) {
-            /* If there is no post-condition function, assume "yes" */
-            ret = 1;
-        } else {
-            if (!data->post(provider, cur_operation, no_store, data->data,
-                            &ret))
-                /* Error, bail out! */
-                return 0;
-        }
+        if (ret < 0)
+            /* Hard error, bail out immediately! */
+            return 0;
 
         /* If post-condition not fulfilled, set general failure */
         if (!ret)
@@ -88,7 +125,7 @@ static int algorithm_do_this(OSSL_PROVIDER *provider, void *cbdata)
 void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
                            OSSL_PROVIDER *provider,
                            int (*pre)(OSSL_PROVIDER *, int operation_id,
-                                      void *data, int *result),
+                                      int no_store, void *data, int *result),
                            void (*fn)(OSSL_PROVIDER *provider,
                                       const OSSL_ALGORITHM *algo,
                                       int no_store, void *data),

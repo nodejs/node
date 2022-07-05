@@ -34,7 +34,7 @@ make sure to get implementations of this provider and none other.
 
 The "fips=yes" property can be use to make sure only FIPS approved
 implementations are used for crypto operations.  This may also include
-other non-crypto support operations that are not in the fips provider,
+other non-crypto support operations that are not in the FIPS provider,
 such as asymmetric key encoders,
 see L<OSSL_PROVIDER-default(7)/Asymmetric Key Management>.
 
@@ -160,9 +160,17 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item DH, see L<EVP_KEYMGMT-DH(7)>
 
+=item DHX, see L<EVP_KEYMGMT-DHX(7)>
+
 =item DSA, see L<EVP_KEYMGMT-DSA(7)>
 
 =item RSA, see L<EVP_KEYMGMT-RSA(7)>
+
+=item EC, see L<EVP_KEYMGMT-EC(7)>
+
+=item X25519, see L<EVP_KEYMGMT-X25519(7)>
+
+=item X448, see L<EVP_KEYMGMT-X448(7)>
 
 =back
 
@@ -403,7 +411,7 @@ The type and functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -41,9 +41,9 @@ be used for the actual signing. See L<provider(7)/Implicit fetch> for
 more information about implicit fetches.
 
 The OpenSSL default and legacy providers support fetching digests and can fetch
-those digests from any available provider. The OpenSSL fips provider also
+those digests from any available provider. The OpenSSL FIPS provider also
 supports fetching digests but will only fetch digests that are themselves
-implemented inside the fips provider.
+implemented inside the FIPS provider.
 
 B<ctx> must be created with EVP_MD_CTX_new() before calling this function. If
 B<pctx> is not NULL, the EVP_PKEY_CTX of the verification operation will be
@@ -182,7 +182,7 @@ EVP_DigestVerifyUpdate() was converted from a macro to a function in OpenSSL
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

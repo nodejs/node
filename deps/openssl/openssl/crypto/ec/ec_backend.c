@@ -318,6 +318,11 @@ int ossl_ec_group_todata(const EC_GROUP *group, OSSL_PARAM_BLD *tmpl,
         return 0;
     }
 
+    if (!ossl_param_build_set_int(tmpl, params,
+                                  OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS,
+                                  group->decoded_from_explicit_params))
+        return 0;
+
     curve_nid = EC_GROUP_get_curve_name(group);
 
     /*

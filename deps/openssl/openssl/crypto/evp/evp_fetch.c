@@ -429,12 +429,22 @@ void *evp_generic_fetch_from_prov(OSSL_PROVIDER *prov, int operation_id,
     return method;
 }
 
-int evp_method_store_flush(OSSL_LIB_CTX *libctx)
+int evp_method_store_cache_flush(OSSL_LIB_CTX *libctx)
 {
     OSSL_METHOD_STORE *store = get_evp_method_store(libctx);
 
     if (store != NULL)
-        return ossl_method_store_flush_cache(store, 1);
+        return ossl_method_store_cache_flush_all(store);
+    return 1;
+}
+
+int evp_method_store_remove_all_provided(const OSSL_PROVIDER *prov)
+{
+    OSSL_LIB_CTX *libctx = ossl_provider_libctx(prov);
+    OSSL_METHOD_STORE *store = get_evp_method_store(libctx);
+
+    if (store != NULL)
+        return ossl_method_store_remove_all_provided(store, prov);
     return 1;
 }
 
@@ -481,7 +491,7 @@ static int evp_set_parsed_default_properties(OSSL_LIB_CTX *libctx,
         ossl_property_free(*plp);
         *plp = def_prop;
         if (store != NULL)
-            return ossl_method_store_flush_cache(store, 0);
+            return ossl_method_store_cache_flush_all(store);
     }
     ERR_raise(ERR_LIB_EVP, ERR_R_INTERNAL_ERROR);
     return 0;

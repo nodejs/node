@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -181,6 +181,10 @@ int dhparam_main(int argc, char **argv)
     if (num) {
         const char *alg = dsaparam ? "DSA" : "DH";
 
+        if (infile != NULL) {
+            BIO_printf(bio_err, "Warning, input file %s ignored\n", infile);
+        }
+
         ctx = EVP_PKEY_CTX_new_from_name(NULL, alg, NULL);
         if (ctx == NULL) {
             BIO_printf(bio_err,
@@ -202,16 +206,16 @@ int dhparam_main(int argc, char **argv)
         }
 
         if (dsaparam) {
-            if (!EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num)) {
+            if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, num) <= 0) {
                 BIO_printf(bio_err, "Error, unable to set DSA prime length\n");
                 goto end;
             }
         } else {
-            if (!EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, num)) {
+            if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, num) <= 0) {
                 BIO_printf(bio_err, "Error, unable to set DH prime length\n");
                 goto end;
             }
-            if (!EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, g)) {
+            if (EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, g) <= 0) {
                 BIO_printf(bio_err, "Error, unable to set generator\n");
                 goto end;
             }
@@ -314,7 +318,7 @@ int dhparam_main(int argc, char **argv)
             BIO_printf(bio_err, "Error, failed to check DH parameters\n");
             goto end;
         }
-        if (!EVP_PKEY_param_check(ctx)) {
+        if (EVP_PKEY_param_check(ctx) <= 0) {
             BIO_printf(bio_err, "Error, invalid parameters generated\n");
             goto end;
         }

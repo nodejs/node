@@ -24,6 +24,7 @@
 #include <openssl/dh.h>
 #include <openssl/ec.h>
 #include "crypto/evp.h"
+#include "crypto/cryptlib.h"
 #include "internal/provider.h"
 #include "evp_local.h"
 
@@ -1094,6 +1095,8 @@ int EVP_CIPHER_CTX_test_flags(const EVP_CIPHER_CTX *ctx, int flags)
     return (ctx->flags & flags);
 }
 
+#if !defined(FIPS_MODULE)
+
 int EVP_PKEY_CTX_set_group_name(EVP_PKEY_CTX *ctx, const char *name)
 {
     OSSL_PARAM params[] = { OSSL_PARAM_END, OSSL_PARAM_END };
@@ -1189,3 +1192,5 @@ EVP_PKEY *EVP_PKEY_Q_keygen(OSSL_LIB_CTX *libctx, const char *propq,
     va_end(args);
     return ret;
 }
+
+#endif /* !defined(FIPS_MODULE) */

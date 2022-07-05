@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-ossl_DER_w_boolean, ossl_DER_w_ulong, ossl_DER_w_bn, ossl_DER_w_null,
+ossl_DER_w_boolean, ossl_DER_w_uint32, ossl_DER_w_bn, ossl_DER_w_null,
 ossl_DER_w_octet_string, ossl_DER_w_octet_string_uint32
 - internal DER writers for DER primitives
 
@@ -11,7 +11,7 @@ ossl_DER_w_octet_string, ossl_DER_w_octet_string_uint32
  #include "internal/der.h"
 
  int ossl_DER_w_boolean(WPACKET *pkt, int tag, int b);
- int ossl_DER_w_ulong(WPACKET *pkt, int tag, unsigned long v);
+ int ossl_DER_w_uint32(WPACKET *pkt, int tag, uint32_t v);
  int ossl_DER_w_bn(WPACKET *pkt, int tag, const BIGNUM *v);
  int ossl_DER_w_null(WPACKET *pkt, int tag);
  int ossl_DER_w_octet_string(WPACKET *pkt, int tag,
@@ -29,7 +29,7 @@ ossl_DER_w_boolean() writes the primitive BOOLEAN using the value I<b>.
 Any value that evaluates as true will render a B<true> BOOLEAN,
 otherwise a B<false> BOOLEAN.
 
-ossl_DER_w_ulong() and ossl_DER_w_bn() both write the primitive INTEGER using
+ossl_DER_w_uint32() and ossl_DER_w_bn() both write the primitive INTEGER using
 the value I<v>.
 
 =for comment Other similar functions for diverse C integers should be
@@ -56,7 +56,7 @@ L<DERlib(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

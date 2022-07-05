@@ -79,7 +79,7 @@ These functions only work for B<EVP_PKEY>s that contain a provider side key.
 
 =head1 RETURN VALUES
 
-EVP_PKEY_gettable_params() returns NULL on error or if it is not supported,
+EVP_PKEY_gettable_params() returns NULL on error or if it is not supported.
 
 All other methods return 1 if a value associated with the key's I<key_name> was
 successfully returned, or 0 if there was an error.

@@ -77,6 +77,7 @@ unless (caller) {
     use Getopt::Long;
     use File::Spec::Functions;
     use File::Basename;
+    use File::Compare qw(compare_text);
     use File::Copy;
     use Pod::Usage;
 
@@ -111,7 +112,6 @@ unless (caller) {
         use lib '{- sourcedir('Configurations') -}';
         use gentemplate;
 
-        print 'Creating ',$buildfile_template,"\n";
         open my $buildfile_template_fh, ">$buildfile_template"
             or die "Trying to create $buildfile_template: $!";
         foreach (@{$config{build_file_templates}}) {
@@ -120,6 +120,7 @@ unless (caller) {
         }
         gentemplate(output => $buildfile_template_fh, %gendata);
         close $buildfile_template_fh;
+        print 'Created ',$buildfile_template,"\n";
 
         use OpenSSL::Template;
 
@@ -131,11 +132,11 @@ use lib '{- $config{builddir} -}';
 use platform;
 _____
 
-        print 'Creating ',$buildfile,"\n";
+        my $tmpl;
         open BUILDFILE, ">$buildfile.new"
             or die "Trying to create $buildfile.new: $!";
-        my $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
-                                          SOURCE => $buildfile_template);
+        $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
+                                       SOURCE => $buildfile_template);
         $tmpl->fill_in(FILENAME => $_,
                        OUTPUT => \*BUILDFILE,
                        HASH => \%gendata,
@@ -148,6 +149,57 @@ _____
         close BUILDFILE;
         rename("$buildfile.new", $buildfile)
             or die "Trying to rename $buildfile.new to $buildfile: $!";
+        print 'Created ',$buildfile,"\n";
+
+        my $configuration_h =
+            catfile('include', 'openssl', 'configuration.h');
+        my $configuration_h_in =
+            catfile($config{sourcedir}, 'include', 'openssl', 'configuration.h.in');
+        open CONFIGURATION_H, ">${configuration_h}.new"
+            or die "Trying to create ${configuration_h}.new: $!";
+        $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
+                                       SOURCE => $configuration_h_in);
+        $tmpl->fill_in(FILENAME => $_,
+                       OUTPUT => \*CONFIGURATION_H,
+                       HASH => \%gendata,
+                       PREPEND => $prepend,
+                       # To ensure that global variables and functions
+                       # defined in one template stick around for the
+                       # next, making them combinable
+                       PACKAGE => 'OpenSSL::safe')
+            or die $Text::Template::ERROR;
+        close CONFIGURATION_H;
+
+        # When using stat() on Windows, we can get it to perform better by
+        # avoid some data.  This doesn't affect the mtime field, so we're not
+        # losing anything...
+        ${^WIN32_SLOPPY_STAT} = 1;
+
+        my $update_configuration_h = 0;
+        if (-f $configuration_h) {
+            my $configuration_h_mtime = (stat($configuration_h))[9];
+            my $configuration_h_in_mtime = (stat($configuration_h_in))[9];
+
+            # If configuration.h.in was updated after the last configuration.h,
+            # or if configuration.h.new differs configuration.h, we update
+            # configuration.h
+            if ($configuration_h_mtime < $configuration_h_in_mtime
+                || compare_text("${configuration_h}.new", $configuration_h) != 0) {
+                $update_configuration_h = 1;
+            } else {
+                # If nothing has changed, let's just drop the new one and
+                # pretend like nothing happened
+                unlink "${configuration_h}.new"
+            }
+        } else {
+            $update_configuration_h = 1;
+        }
+
+        if ($update_configuration_h) {
+            rename("${configuration_h}.new", $configuration_h)
+                or die "Trying to rename ${configuration_h}.new to $configuration_h: $!";
+            print 'Created ',$configuration_h,"\n";
+        }
 
         exit(0);
     }
