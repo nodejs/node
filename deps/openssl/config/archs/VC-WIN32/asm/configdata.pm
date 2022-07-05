@@ -165,7 +165,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.3+quic",
+    "full_version" => "3.0.5+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -216,10 +216,10 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "3",
-    "perl_archname" => "x86_64-linux-thread-multi",
+    "patch" => "5",
+    "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.34.1",
+    "perl_version" => "5.30.0",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -268,11 +268,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "3 May 2022",
+    "release_date" => "5 Jul 2022",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "VC-WIN32",
-    "version" => "3.0.3"
+    "version" => "3.0.5"
 );
 our %target = (
     "AR" => "lib",
@@ -287,7 +287,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55faf816d238)",
+    "RANLIB" => "CODE(0x55ff7f777cb8)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -800,6 +800,11 @@ our %unified_info = (
                 "libcrypto" => {
                     "weak" => "1"
                 }
+            }
+        },
+        "generate" => {
+            "include/openssl/configuration.h" => {
+                "skip" => "1"
             }
         },
         "libraries" => {
@@ -1691,7 +1696,6 @@ our %unified_info = (
             "include/openssl/cmp.h",
             "include/openssl/cms.h",
             "include/openssl/conf.h",
-            "include/openssl/configuration.h",
             "include/openssl/crmf.h",
             "include/openssl/crypto.h",
             "include/openssl/ct.h",
@@ -1893,49 +1897,49 @@ our %unified_info = (
         "build_modules_nodep" => [
             "providers/fipsmodule.cnf"
         ],
-        "crypto/aes/aes-586.s" => [
+        "crypto/aes/aes-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/aes/aesni-586.s" => [
+        "crypto/aes/aesni-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
         "crypto/aes/aest4-sparcv9.S" => [
             "crypto/perlasm/sparcv9_modes.pl"
         ],
-        "crypto/aes/vpaes-586.s" => [
+        "crypto/aes/vpaes-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/bf/bf-586.s" => [
+        "crypto/bf/bf-586.S" => [
             "crypto/perlasm/cbc.pl",
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/bn/bn-586.s" => [
+        "crypto/bn/bn-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/bn/co-586.s" => [
+        "crypto/bn/co-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/bn/x86-gf2m.s" => [
+        "crypto/bn/x86-gf2m.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/bn/x86-mont.s" => [
+        "crypto/bn/x86-mont.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/camellia/cmll-x86.s" => [
+        "crypto/camellia/cmll-x86.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
         "crypto/camellia/cmllt4-sparcv9.S" => [
             "crypto/perlasm/sparcv9_modes.pl"
         ],
-        "crypto/cast/cast-586.s" => [
+        "crypto/cast/cast-586.S" => [
             "crypto/perlasm/cbc.pl",
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/des/crypt586.s" => [
+        "crypto/des/crypt586.S" => [
             "crypto/perlasm/cbc.pl",
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/des/des-586.s" => [
+        "crypto/des/des-586.S" => [
             "crypto/perlasm/cbc.pl",
             "crypto/perlasm/x86asm.pl"
         ],
@@ -1945,22 +1949,22 @@ our %unified_info = (
         "crypto/libcrypto-lib-info.o" => [
             "crypto/buildinf.h"
         ],
-        "crypto/rc4/rc4-586.s" => [
+        "crypto/rc4/rc4-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/ripemd/rmd-586.s" => [
+        "crypto/ripemd/rmd-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/sha/sha1-586.s" => [
+        "crypto/sha/sha1-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/sha/sha256-586.s" => [
+        "crypto/sha/sha256-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/sha/sha512-586.s" => [
+        "crypto/sha/sha512-586.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
-        "crypto/whrlpool/wp-mmx.s" => [
+        "crypto/whrlpool/wp-mmx.S" => [
             "crypto/perlasm/x86asm.pl"
         ],
         "crypto/x86cpuid.s" => [
@@ -10356,7 +10360,7 @@ our %unified_info = (
             "\"-H\"",
             "\$(APPS_OPENSSL)"
         ],
-        "crypto/aes/aes-586.s" => [
+        "crypto/aes/aes-586.S" => [
             "crypto/aes/asm/aes-586.pl"
         ],
         "crypto/aes/aes-armv4.S" => [
@@ -10398,7 +10402,7 @@ our %unified_info = (
         "crypto/aes/aesni-sha256-x86_64.s" => [
             "crypto/aes/asm/aesni-sha256-x86_64.pl"
         ],
-        "crypto/aes/aesni-x86.s" => [
+        "crypto/aes/aesni-x86.S" => [
             "crypto/aes/asm/aesni-x86.pl"
         ],
         "crypto/aes/aesni-x86_64.s" => [
@@ -10425,7 +10429,7 @@ our %unified_info = (
         "crypto/aes/vpaes-ppc.s" => [
             "crypto/aes/asm/vpaes-ppc.pl"
         ],
-        "crypto/aes/vpaes-x86.s" => [
+        "crypto/aes/vpaes-x86.S" => [
             "crypto/aes/asm/vpaes-x86.pl"
         ],
         "crypto/aes/vpaes-x86_64.s" => [
@@ -10440,7 +10444,7 @@ our %unified_info = (
         "crypto/armv4cpuid.S" => [
             "crypto/armv4cpuid.pl"
         ],
-        "crypto/bf/bf-586.s" => [
+        "crypto/bf/bf-586.S" => [
             "crypto/bf/asm/bf-586.pl"
         ],
         "crypto/bn/alpha-mont.S" => [
@@ -10455,7 +10459,7 @@ our %unified_info = (
         "crypto/bn/armv8-mont.S" => [
             "crypto/bn/asm/armv8-mont.pl"
         ],
-        "crypto/bn/bn-586.s" => [
+        "crypto/bn/bn-586.S" => [
             "crypto/bn/asm/bn-586.pl"
         ],
         "crypto/bn/bn-ia64.s" => [
@@ -10467,7 +10471,7 @@ our %unified_info = (
         "crypto/bn/bn-ppc.s" => [
             "crypto/bn/asm/ppc.pl"
         ],
-        "crypto/bn/co-586.s" => [
+        "crypto/bn/co-586.S" => [
             "crypto/bn/asm/co-586.pl"
         ],
         "crypto/bn/ia64-mont.s" => [
@@ -10481,9 +10485,6 @@ our %unified_info = (
         ],
         "crypto/bn/ppc-mont.s" => [
             "crypto/bn/asm/ppc-mont.pl"
-        ],
-        "crypto/bn/ppc64-mont-fixed.s" => [
-            "crypto/bn/asm/ppc64-mont-fixed.pl"
         ],
         "crypto/bn/ppc64-mont.s" => [
             "crypto/bn/asm/ppc64-mont.pl"
@@ -10518,10 +10519,10 @@ our %unified_info = (
         "crypto/bn/vis3-mont.S" => [
             "crypto/bn/asm/vis3-mont.pl"
         ],
-        "crypto/bn/x86-gf2m.s" => [
+        "crypto/bn/x86-gf2m.S" => [
             "crypto/bn/asm/x86-gf2m.pl"
         ],
-        "crypto/bn/x86-mont.s" => [
+        "crypto/bn/x86-mont.S" => [
             "crypto/bn/asm/x86-mont.pl"
         ],
         "crypto/bn/x86_64-gf2m.s" => [
@@ -10540,7 +10541,7 @@ our %unified_info = (
             "\$(CPPFLAGS_Q)\"",
             "\"\$(PLATFORM)\""
         ],
-        "crypto/camellia/cmll-x86.s" => [
+        "crypto/camellia/cmll-x86.S" => [
             "crypto/camellia/asm/cmll-x86.pl"
         ],
         "crypto/camellia/cmll-x86_64.s" => [
@@ -10549,7 +10550,7 @@ our %unified_info = (
         "crypto/camellia/cmllt4-sparcv9.S" => [
             "crypto/camellia/asm/cmllt4-sparcv9.pl"
         ],
-        "crypto/cast/cast-586.s" => [
+        "crypto/cast/cast-586.S" => [
             "crypto/cast/asm/cast-586.pl"
         ],
         "crypto/chacha/chacha-armv4.S" => [
@@ -10561,8 +10562,11 @@ our %unified_info = (
         "crypto/chacha/chacha-c64xplus.S" => [
             "crypto/chacha/asm/chacha-c64xplus.pl"
         ],
-        "crypto/chacha/chacha-ia64.s" => [
+        "crypto/chacha/chacha-ia64.S" => [
             "crypto/chacha/asm/chacha-ia64.pl"
+        ],
+        "crypto/chacha/chacha-ia64.s" => [
+            "crypto/chacha/chacha-ia64.S"
         ],
         "crypto/chacha/chacha-ppc.s" => [
             "crypto/chacha/asm/chacha-ppc.pl"
@@ -10570,16 +10574,16 @@ our %unified_info = (
         "crypto/chacha/chacha-s390x.S" => [
             "crypto/chacha/asm/chacha-s390x.pl"
         ],
-        "crypto/chacha/chacha-x86.s" => [
+        "crypto/chacha/chacha-x86.S" => [
             "crypto/chacha/asm/chacha-x86.pl"
         ],
         "crypto/chacha/chacha-x86_64.s" => [
             "crypto/chacha/asm/chacha-x86_64.pl"
         ],
-        "crypto/des/crypt586.s" => [
+        "crypto/des/crypt586.S" => [
             "crypto/des/asm/crypt586.pl"
         ],
-        "crypto/des/des-586.s" => [
+        "crypto/des/des-586.S" => [
             "crypto/des/asm/des-586.pl"
         ],
         "crypto/des/des_enc-sparc.S" => [
@@ -10606,7 +10610,7 @@ our %unified_info = (
         "crypto/ec/ecp_nistz256-sparcv9.S" => [
             "crypto/ec/asm/ecp_nistz256-sparcv9.pl"
         ],
-        "crypto/ec/ecp_nistz256-x86.s" => [
+        "crypto/ec/ecp_nistz256-x86.S" => [
             "crypto/ec/asm/ecp_nistz256-x86.pl"
         ],
         "crypto/ec/ecp_nistz256-x86_64.s" => [
@@ -10621,7 +10625,7 @@ our %unified_info = (
         "crypto/ia64cpuid.s" => [
             "crypto/ia64cpuid.S"
         ],
-        "crypto/md5/md5-586.s" => [
+        "crypto/md5/md5-586.S" => [
             "crypto/md5/asm/md5-586.pl"
         ],
         "crypto/md5/md5-sparcv9.S" => [
@@ -10657,7 +10661,7 @@ our %unified_info = (
         "crypto/modes/ghash-sparcv9.S" => [
             "crypto/modes/asm/ghash-sparcv9.pl"
         ],
-        "crypto/modes/ghash-x86.s" => [
+        "crypto/modes/ghash-x86.S" => [
             "crypto/modes/asm/ghash-x86.pl"
         ],
         "crypto/modes/ghash-x86_64.s" => [
@@ -10681,6 +10685,9 @@ our %unified_info = (
         "crypto/poly1305/poly1305-c64xplus.S" => [
             "crypto/poly1305/asm/poly1305-c64xplus.pl"
         ],
+        "crypto/poly1305/poly1305-ia64.s" => [
+            "crypto/poly1305/asm/poly1305-ia64.S"
+        ],
         "crypto/poly1305/poly1305-mips.S" => [
             "crypto/poly1305/asm/poly1305-mips.pl"
         ],
@@ -10696,7 +10703,7 @@ our %unified_info = (
         "crypto/poly1305/poly1305-sparcv9.S" => [
             "crypto/poly1305/asm/poly1305-sparcv9.pl"
         ],
-        "crypto/poly1305/poly1305-x86.s" => [
+        "crypto/poly1305/poly1305-x86.S" => [
             "crypto/poly1305/asm/poly1305-x86.pl"
         ],
         "crypto/poly1305/poly1305-x86_64.s" => [
@@ -10705,7 +10712,7 @@ our %unified_info = (
         "crypto/ppccpuid.s" => [
             "crypto/ppccpuid.pl"
         ],
-        "crypto/rc4/rc4-586.s" => [
+        "crypto/rc4/rc4-586.S" => [
             "crypto/rc4/asm/rc4-586.pl"
         ],
         "crypto/rc4/rc4-c64xplus.s" => [
@@ -10723,7 +10730,7 @@ our %unified_info = (
         "crypto/rc4/rc4-x86_64.s" => [
             "crypto/rc4/asm/rc4-x86_64.pl"
         ],
-        "crypto/ripemd/rmd-586.s" => [
+        "crypto/ripemd/rmd-586.S" => [
             "crypto/ripemd/asm/rmd-586.pl"
         ],
         "crypto/s390xcpuid.S" => [
@@ -10762,7 +10769,7 @@ our %unified_info = (
         "crypto/sha/keccak1600p8-ppc.S" => [
             "crypto/sha/asm/keccak1600p8-ppc.pl"
         ],
-        "crypto/sha/sha1-586.s" => [
+        "crypto/sha/sha1-586.S" => [
             "crypto/sha/asm/sha1-586.pl"
         ],
         "crypto/sha/sha1-alpha.S" => [
@@ -10807,7 +10814,7 @@ our %unified_info = (
         "crypto/sha/sha1-x86_64.s" => [
             "crypto/sha/asm/sha1-x86_64.pl"
         ],
-        "crypto/sha/sha256-586.s" => [
+        "crypto/sha/sha256-586.S" => [
             "crypto/sha/asm/sha256-586.pl"
         ],
         "crypto/sha/sha256-armv4.S" => [
@@ -10846,7 +10853,7 @@ our %unified_info = (
         "crypto/sha/sha256p8-ppc.s" => [
             "crypto/sha/asm/sha512p8-ppc.pl"
         ],
-        "crypto/sha/sha512-586.s" => [
+        "crypto/sha/sha512-586.S" => [
             "crypto/sha/asm/sha512-586.pl"
         ],
         "crypto/sha/sha512-armv4.S" => [
@@ -10885,13 +10892,13 @@ our %unified_info = (
         "crypto/uplink-ia64.s" => [
             "ms/uplink-ia64.pl"
         ],
-        "crypto/uplink-x86.s" => [
+        "crypto/uplink-x86.S" => [
             "ms/uplink-x86.pl"
         ],
         "crypto/uplink-x86_64.s" => [
             "ms/uplink-x86_64.pl"
         ],
-        "crypto/whrlpool/wp-mmx.s" => [
+        "crypto/whrlpool/wp-mmx.S" => [
             "crypto/whrlpool/asm/wp-mmx.pl"
         ],
         "crypto/whrlpool/wp-x86_64.s" => [
@@ -10900,7 +10907,7 @@ our %unified_info = (
         "crypto/x86_64cpuid.s" => [
             "crypto/x86_64cpuid.pl"
         ],
-        "crypto/x86cpuid.s" => [
+        "crypto/x86cpuid.S" => [
             "crypto/x86cpuid.pl"
         ],
         "doc/html/man1/CA.pl.html" => [
@@ -15757,7 +15764,7 @@ our %unified_info = (
         "doc/man7/openssl_user_macros.pod" => [
             "doc/man7/openssl_user_macros.pod.in"
         ],
-        "engines/e_padlock-x86.s" => [
+        "engines/e_padlock-x86.S" => [
             "engines/asm/e_padlock-x86.pl"
         ],
         "engines/e_padlock-x86_64.s" => [
@@ -15905,6 +15912,10 @@ our %unified_info = (
         "providers/fips.ld" => [
             "util/providers.num"
         ],
+        "providers/fips.rc" => [
+            "util/mkrc.pl",
+            "fips"
+        ],
         "providers/fipsmodule.cnf" => [
             "util/mk-fipsmodule-cnf.pl",
             "-module",
@@ -15916,6 +15927,10 @@ our %unified_info = (
         ],
         "providers/legacy.ld" => [
             "util/providers.num"
+        ],
+        "providers/legacy.rc" => [
+            "util/mkrc.pl",
+            "legacy"
         ],
         "test/buildtest_aes.c" => [
             "test/generate_buildtest.pl",
@@ -20523,7 +20538,7 @@ our %unified_info = (
             "apps/tsget.in"
         ],
         "crypto/aes/libcrypto-lib-aes-586.o" => [
-            "crypto/aes/aes-586.s"
+            "crypto/aes/aes-586.S"
         ],
         "crypto/aes/libcrypto-lib-aes_cfb.o" => [
             "crypto/aes/aes_cfb.c"
@@ -20544,13 +20559,13 @@ our %unified_info = (
             "crypto/aes/aes_wrap.c"
         ],
         "crypto/aes/libcrypto-lib-aesni-x86.o" => [
-            "crypto/aes/aesni-x86.s"
+            "crypto/aes/aesni-x86.S"
         ],
         "crypto/aes/libcrypto-lib-vpaes-x86.o" => [
-            "crypto/aes/vpaes-x86.s"
+            "crypto/aes/vpaes-x86.S"
         ],
         "crypto/aes/libfips-lib-aes-586.o" => [
-            "crypto/aes/aes-586.s"
+            "crypto/aes/aes-586.S"
         ],
         "crypto/aes/libfips-lib-aes_ecb.o" => [
             "crypto/aes/aes_ecb.c"
@@ -20559,10 +20574,10 @@ our %unified_info = (
             "crypto/aes/aes_misc.c"
         ],
         "crypto/aes/libfips-lib-aesni-x86.o" => [
-            "crypto/aes/aesni-x86.s"
+            "crypto/aes/aesni-x86.S"
         ],
         "crypto/aes/libfips-lib-vpaes-x86.o" => [
-            "crypto/aes/vpaes-x86.s"
+            "crypto/aes/vpaes-x86.S"
         ],
         "crypto/aria/libcrypto-lib-aria.o" => [
             "crypto/aria/aria.c"
@@ -20778,7 +20793,7 @@ our %unified_info = (
             "crypto/async/async_wait.c"
         ],
         "crypto/bf/libcrypto-lib-bf-586.o" => [
-            "crypto/bf/bf-586.s"
+            "crypto/bf/bf-586.S"
         ],
         "crypto/bf/libcrypto-lib-bf_cfb64.o" => [
             "crypto/bf/bf_cfb64.c"
@@ -20874,7 +20889,7 @@ our %unified_info = (
             "crypto/bio/ossl_core_bio.c"
         ],
         "crypto/bn/libcrypto-lib-bn-586.o" => [
-            "crypto/bn/bn-586.s"
+            "crypto/bn/bn-586.S"
         ],
         "crypto/bn/libcrypto-lib-bn_add.o" => [
             "crypto/bn/bn_add.c"
@@ -20973,16 +20988,16 @@ our %unified_info = (
             "crypto/bn/bn_x931p.c"
         ],
         "crypto/bn/libcrypto-lib-co-586.o" => [
-            "crypto/bn/co-586.s"
+            "crypto/bn/co-586.S"
         ],
         "crypto/bn/libcrypto-lib-x86-gf2m.o" => [
-            "crypto/bn/x86-gf2m.s"
+            "crypto/bn/x86-gf2m.S"
         ],
         "crypto/bn/libcrypto-lib-x86-mont.o" => [
-            "crypto/bn/x86-mont.s"
+            "crypto/bn/x86-mont.S"
         ],
         "crypto/bn/libfips-lib-bn-586.o" => [
-            "crypto/bn/bn-586.s"
+            "crypto/bn/bn-586.S"
         ],
         "crypto/bn/libfips-lib-bn_add.o" => [
             "crypto/bn/bn_add.c"
@@ -21066,25 +21081,25 @@ our %unified_info = (
             "crypto/bn/bn_word.c"
         ],
         "crypto/bn/libfips-lib-co-586.o" => [
-            "crypto/bn/co-586.s"
+            "crypto/bn/co-586.S"
         ],
         "crypto/bn/libfips-lib-x86-gf2m.o" => [
-            "crypto/bn/x86-gf2m.s"
+            "crypto/bn/x86-gf2m.S"
         ],
         "crypto/bn/libfips-lib-x86-mont.o" => [
-            "crypto/bn/x86-mont.s"
+            "crypto/bn/x86-mont.S"
         ],
         "crypto/bn/liblegacy-lib-bn-586.o" => [
-            "crypto/bn/bn-586.s"
+            "crypto/bn/bn-586.S"
         ],
         "crypto/bn/liblegacy-lib-co-586.o" => [
-            "crypto/bn/co-586.s"
+            "crypto/bn/co-586.S"
         ],
         "crypto/bn/liblegacy-lib-x86-gf2m.o" => [
-            "crypto/bn/x86-gf2m.s"
+            "crypto/bn/x86-gf2m.S"
         ],
         "crypto/bn/liblegacy-lib-x86-mont.o" => [
-            "crypto/bn/x86-mont.s"
+            "crypto/bn/x86-mont.S"
         ],
         "crypto/buffer/libcrypto-lib-buf_err.o" => [
             "crypto/buffer/buf_err.c"
@@ -21096,7 +21111,7 @@ our %unified_info = (
             "crypto/buffer/buffer.c"
         ],
         "crypto/camellia/libcrypto-lib-cmll-x86.o" => [
-            "crypto/camellia/cmll-x86.s"
+            "crypto/camellia/cmll-x86.S"
         ],
         "crypto/camellia/libcrypto-lib-cmll_cfb.o" => [
             "crypto/camellia/cmll_cfb.c"
@@ -21126,7 +21141,7 @@ our %unified_info = (
             "crypto/cast/c_skey.c"
         ],
         "crypto/chacha/libcrypto-lib-chacha-x86.o" => [
-            "crypto/chacha/chacha-x86.s"
+            "crypto/chacha/chacha-x86.S"
         ],
         "crypto/cmac/libcrypto-lib-cmac.o" => [
             "crypto/cmac/cmac.c"
@@ -21303,10 +21318,10 @@ our %unified_info = (
             "crypto/des/cfb_enc.c"
         ],
         "crypto/des/libcrypto-lib-crypt586.o" => [
-            "crypto/des/crypt586.s"
+            "crypto/des/crypt586.S"
         ],
         "crypto/des/libcrypto-lib-des-586.o" => [
-            "crypto/des/des-586.s"
+            "crypto/des/des-586.S"
         ],
         "crypto/des/libcrypto-lib-ecb3_enc.o" => [
             "crypto/des/ecb3_enc.c"
@@ -21345,10 +21360,10 @@ our %unified_info = (
             "crypto/des/xcbc_enc.c"
         ],
         "crypto/des/libfips-lib-crypt586.o" => [
-            "crypto/des/crypt586.s"
+            "crypto/des/crypt586.S"
         ],
         "crypto/des/libfips-lib-des-586.o" => [
-            "crypto/des/des-586.s"
+            "crypto/des/des-586.S"
         ],
         "crypto/des/libfips-lib-ecb3_enc.o" => [
             "crypto/des/ecb3_enc.c"
@@ -21357,10 +21372,10 @@ our %unified_info = (
             "crypto/des/set_key.c"
         ],
         "crypto/des/liblegacy-lib-crypt586.o" => [
-            "crypto/des/crypt586.s"
+            "crypto/des/crypt586.S"
         ],
         "crypto/des/liblegacy-lib-des-586.o" => [
-            "crypto/des/des-586.s"
+            "crypto/des/des-586.S"
         ],
         "crypto/dh/libcrypto-lib-dh_ameth.o" => [
             "crypto/dh/dh_ameth.c"
@@ -21639,7 +21654,7 @@ our %unified_info = (
             "crypto/ec/ecp_nist.c"
         ],
         "crypto/ec/libcrypto-lib-ecp_nistz256-x86.o" => [
-            "crypto/ec/ecp_nistz256-x86.s"
+            "crypto/ec/ecp_nistz256-x86.S"
         ],
         "crypto/ec/libcrypto-lib-ecp_nistz256.o" => [
             "crypto/ec/ecp_nistz256.c"
@@ -21720,7 +21735,7 @@ our %unified_info = (
             "crypto/ec/ecp_nist.c"
         ],
         "crypto/ec/libfips-lib-ecp_nistz256-x86.o" => [
-            "crypto/ec/ecp_nistz256-x86.s"
+            "crypto/ec/ecp_nistz256-x86.S"
         ],
         "crypto/ec/libfips-lib-ecp_nistz256.o" => [
             "crypto/ec/ecp_nistz256.c"
@@ -22383,7 +22398,7 @@ our %unified_info = (
             "crypto/uid.c"
         ],
         "crypto/libcrypto-lib-x86cpuid.o" => [
-            "crypto/x86cpuid.s"
+            "crypto/x86cpuid.S"
         ],
         "crypto/libfips-lib-asn1_dsa.o" => [
             "crypto/asn1_dsa.c"
@@ -22467,7 +22482,7 @@ our %unified_info = (
             "crypto/threads_win.c"
         ],
         "crypto/libfips-lib-x86cpuid.o" => [
-            "crypto/x86cpuid.s"
+            "crypto/x86cpuid.S"
         ],
         "crypto/md4/libcrypto-lib-md4_dgst.o" => [
             "crypto/md4/md4_dgst.c"
@@ -22476,7 +22491,7 @@ our %unified_info = (
             "crypto/md4/md4_one.c"
         ],
         "crypto/md5/libcrypto-lib-md5-586.o" => [
-            "crypto/md5/md5-586.s"
+            "crypto/md5/md5-586.S"
         ],
         "crypto/md5/libcrypto-lib-md5_dgst.o" => [
             "crypto/md5/md5_dgst.c"
@@ -22488,7 +22503,7 @@ our %unified_info = (
             "crypto/md5/md5_sha1.c"
         ],
         "crypto/md5/liblegacy-lib-md5-586.o" => [
-            "crypto/md5/md5-586.s"
+            "crypto/md5/md5-586.S"
         ],
         "crypto/md5/liblegacy-lib-md5_dgst.o" => [
             "crypto/md5/md5_dgst.c"
@@ -22524,7 +22539,7 @@ our %unified_info = (
             "crypto/modes/gcm128.c"
         ],
         "crypto/modes/libcrypto-lib-ghash-x86.o" => [
-            "crypto/modes/ghash-x86.s"
+            "crypto/modes/ghash-x86.S"
         ],
         "crypto/modes/libcrypto-lib-ocb128.o" => [
             "crypto/modes/ocb128.c"
@@ -22557,7 +22572,7 @@ our %unified_info = (
             "crypto/modes/gcm128.c"
         ],
         "crypto/modes/libfips-lib-ghash-x86.o" => [
-            "crypto/modes/ghash-x86.s"
+            "crypto/modes/ghash-x86.S"
         ],
         "crypto/modes/libfips-lib-ofb128.o" => [
             "crypto/modes/ofb128.c"
@@ -22719,7 +22734,7 @@ our %unified_info = (
             "crypto/pkcs7/pkcs7err.c"
         ],
         "crypto/poly1305/libcrypto-lib-poly1305-x86.o" => [
-            "crypto/poly1305/poly1305-x86.s"
+            "crypto/poly1305/poly1305-x86.S"
         ],
         "crypto/poly1305/libcrypto-lib-poly1305.o" => [
             "crypto/poly1305/poly1305.c"
@@ -22797,10 +22812,10 @@ our %unified_info = (
             "crypto/rc2/rc2ofb64.c"
         ],
         "crypto/rc4/libcrypto-lib-rc4-586.o" => [
-            "crypto/rc4/rc4-586.s"
+            "crypto/rc4/rc4-586.S"
         ],
         "crypto/ripemd/libcrypto-lib-rmd-586.o" => [
-            "crypto/ripemd/rmd-586.s"
+            "crypto/ripemd/rmd-586.S"
         ],
         "crypto/ripemd/libcrypto-lib-rmd_dgst.o" => [
             "crypto/ripemd/rmd_dgst.c"
@@ -22956,7 +22971,7 @@ our %unified_info = (
             "crypto/sha/keccak1600.c"
         ],
         "crypto/sha/libcrypto-lib-sha1-586.o" => [
-            "crypto/sha/sha1-586.s"
+            "crypto/sha/sha1-586.S"
         ],
         "crypto/sha/libcrypto-lib-sha1_one.o" => [
             "crypto/sha/sha1_one.c"
@@ -22965,7 +22980,7 @@ our %unified_info = (
             "crypto/sha/sha1dgst.c"
         ],
         "crypto/sha/libcrypto-lib-sha256-586.o" => [
-            "crypto/sha/sha256-586.s"
+            "crypto/sha/sha256-586.S"
         ],
         "crypto/sha/libcrypto-lib-sha256.o" => [
             "crypto/sha/sha256.c"
@@ -22974,7 +22989,7 @@ our %unified_info = (
             "crypto/sha/sha3.c"
         ],
         "crypto/sha/libcrypto-lib-sha512-586.o" => [
-            "crypto/sha/sha512-586.s"
+            "crypto/sha/sha512-586.S"
         ],
         "crypto/sha/libcrypto-lib-sha512.o" => [
             "crypto/sha/sha512.c"
@@ -22983,13 +22998,13 @@ our %unified_info = (
             "crypto/sha/keccak1600.c"
         ],
         "crypto/sha/libfips-lib-sha1-586.o" => [
-            "crypto/sha/sha1-586.s"
+            "crypto/sha/sha1-586.S"
         ],
         "crypto/sha/libfips-lib-sha1dgst.o" => [
             "crypto/sha/sha1dgst.c"
         ],
         "crypto/sha/libfips-lib-sha256-586.o" => [
-            "crypto/sha/sha256-586.s"
+            "crypto/sha/sha256-586.S"
         ],
         "crypto/sha/libfips-lib-sha256.o" => [
             "crypto/sha/sha256.c"
@@ -22998,7 +23013,7 @@ our %unified_info = (
             "crypto/sha/sha3.c"
         ],
         "crypto/sha/libfips-lib-sha512-586.o" => [
-            "crypto/sha/sha512-586.s"
+            "crypto/sha/sha512-586.S"
         ],
         "crypto/sha/libfips-lib-sha512.o" => [
             "crypto/sha/sha512.c"
@@ -23112,7 +23127,7 @@ our %unified_info = (
             "crypto/ui/ui_util.c"
         ],
         "crypto/whrlpool/libcrypto-lib-wp-mmx.o" => [
-            "crypto/whrlpool/wp-mmx.s"
+            "crypto/whrlpool/wp-mmx.S"
         ],
         "crypto/whrlpool/libcrypto-lib-wp_block.o" => [
             "crypto/whrlpool/wp_block.c"
@@ -23352,7 +23367,7 @@ our %unified_info = (
             "engines/e_capi.c"
         ],
         "engines/libcrypto-lib-e_padlock-x86.o" => [
-            "engines/e_padlock-x86.s"
+            "engines/e_padlock-x86.S"
         ],
         "engines/libcrypto-lib-e_padlock.o" => [
             "engines/e_padlock.c"
@@ -24397,8 +24412,12 @@ our %unified_info = (
             "providers/common/securitycheck_fips.c"
         ],
         "providers/fips" => [
+            "providers/fips-dso-fips.res",
             "providers/fips.ld",
             "providers/fips/fips-dso-fips_entry.o"
+        ],
+        "providers/fips-dso-fips.res" => [
+            "providers/fips.rc"
         ],
         "providers/fips/fips-dso-fips_entry.o" => [
             "providers/fips/fips_entry.c"
@@ -25016,8 +25035,12 @@ our %unified_info = (
             "providers/implementations/storemgmt/file_store_any2obj.c"
         ],
         "providers/legacy" => [
+            "providers/legacy-dso-legacy.res",
             "providers/legacy-dso-legacyprov.o",
             "providers/legacy.ld"
+        ],
+        "providers/legacy-dso-legacy.res" => [
+            "providers/legacy.rc"
         ],
         "providers/legacy-dso-legacyprov.o" => [
             "providers/legacyprov.c"
@@ -27415,11 +27438,12 @@ unless (caller) {
     use Getopt::Long;
     use File::Spec::Functions;
     use File::Basename;
+    use File::Compare qw(compare_text);
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/rafaelgss/repos/os/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27446,10 +27470,9 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
+        use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
-        print 'Creating ',$buildfile_template,"\n";
         open my $buildfile_template_fh, ">$buildfile_template"
             or die "Trying to create $buildfile_template: $!";
         foreach (@{$config{build_file_templates}}) {
@@ -27458,22 +27481,23 @@ unless (caller) {
         }
         gentemplate(output => $buildfile_template_fh, %gendata);
         close $buildfile_template_fh;
+        print 'Created ',$buildfile_template,"\n";
 
         use OpenSSL::Template;
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
-use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
+use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
+use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
 
-        print 'Creating ',$buildfile,"\n";
+        my $tmpl;
         open BUILDFILE, ">$buildfile.new"
             or die "Trying to create $buildfile.new: $!";
-        my $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
-                                          SOURCE => $buildfile_template);
+        $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
+                                       SOURCE => $buildfile_template);
         $tmpl->fill_in(FILENAME => $_,
                        OUTPUT => \*BUILDFILE,
                        HASH => \%gendata,
@@ -27486,6 +27510,57 @@ _____
         close BUILDFILE;
         rename("$buildfile.new", $buildfile)
             or die "Trying to rename $buildfile.new to $buildfile: $!";
+        print 'Created ',$buildfile,"\n";
+
+        my $configuration_h =
+            catfile('include', 'openssl', 'configuration.h');
+        my $configuration_h_in =
+            catfile($config{sourcedir}, 'include', 'openssl', 'configuration.h.in');
+        open CONFIGURATION_H, ">${configuration_h}.new"
+            or die "Trying to create ${configuration_h}.new: $!";
+        $tmpl = OpenSSL::Template->new(TYPE => 'FILE',
+                                       SOURCE => $configuration_h_in);
+        $tmpl->fill_in(FILENAME => $_,
+                       OUTPUT => \*CONFIGURATION_H,
+                       HASH => \%gendata,
+                       PREPEND => $prepend,
+                       # To ensure that global variables and functions
+                       # defined in one template stick around for the
+                       # next, making them combinable
+                       PACKAGE => 'OpenSSL::safe')
+            or die $Text::Template::ERROR;
+        close CONFIGURATION_H;
+
+        # When using stat() on Windows, we can get it to perform better by
+        # avoid some data.  This doesn't affect the mtime field, so we're not
+        # losing anything...
+        ${^WIN32_SLOPPY_STAT} = 1;
+
+        my $update_configuration_h = 0;
+        if (-f $configuration_h) {
+            my $configuration_h_mtime = (stat($configuration_h))[9];
+            my $configuration_h_in_mtime = (stat($configuration_h_in))[9];
+
+            # If configuration.h.in was updated after the last configuration.h,
+            # or if configuration.h.new differs configuration.h, we update
+            # configuration.h
+            if ($configuration_h_mtime < $configuration_h_in_mtime
+                || compare_text("${configuration_h}.new", $configuration_h) != 0) {
+                $update_configuration_h = 1;
+            } else {
+                # If nothing has changed, let's just drop the new one and
+                # pretend like nothing happened
+                unlink "${configuration_h}.new"
+            }
+        } else {
+            $update_configuration_h = 1;
+        }
+
+        if ($update_configuration_h) {
+            rename("${configuration_h}.new", $configuration_h)
+                or die "Trying to rename ${configuration_h}.new to $configuration_h: $!";
+            print 'Created ',$configuration_h,"\n";
+        }
 
         exit(0);
     }
