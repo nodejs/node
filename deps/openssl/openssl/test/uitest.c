@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,8 +44,8 @@ static int test_old(void)
     /* The wrapper passes the UI userdata as the callback userdata param */
     UI_add_user_data(ui, defpass);
 
-    if (!UI_add_input_string(ui, "prompt", UI_INPUT_FLAG_DEFAULT_PWD,
-                             pass, 0, sizeof(pass) - 1))
+    if (UI_add_input_string(ui, "prompt", UI_INPUT_FLAG_DEFAULT_PWD,
+                             pass, 0, sizeof(pass) - 1) <= 0)
         goto err;
 
     switch (UI_process(ui)) {

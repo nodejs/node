@@ -18,6 +18,20 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.4 and OpenSSL 3.0.5 [5 Jul 2022]
+
+  * Fixed heap memory corruption with RSA private key operation
+    ([CVE-2022-2274])
+  * Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
+    ([CVE-2022-2097])
+
+
+### Major changes between OpenSSL 3.0.3 and OpenSSL 3.0.4 [21 Jun 2022]
+
+  * Fixed additional bugs in the c_rehash script which was not properly
+    sanitising shell metacharacters to prevent command injection
+    ([CVE-2022-2068])
+
 ### Major changes between OpenSSL 3.0.2 and OpenSSL 3.0.3 [3 May 2022]
 
   * Fixed a bug in the c_rehash script which was not properly sanitising shell
@@ -111,7 +125,8 @@ OpenSSL 3.0
     RC4, RC5 and SEED cipher functions have been deprecated.
   * All of the low-level DH, DSA, ECDH, ECDSA and RSA public key functions
     have been deprecated.
-  * SSL 3, TLS 1.0, TLS 1.1, and DTLS 1.0 only work at security level 0.
+  * SSL 3, TLS 1.0, TLS 1.1, and DTLS 1.0 only work at security level 0,
+    except when RSA key exchange without SHA1 is used.
   * Added providers, a new pluggability concept that will replace the
     ENGINE API and ENGINE implementations.
 
@@ -1393,6 +1408,8 @@ OpenSSL 0.9.x
 
 <!-- Links -->
 
+[CVE-2022-2274]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
+[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
 [CVE-2020-1971]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1971
 [CVE-2020-1967]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1967
 [CVE-2019-1563]: https://www.openssl.org/news/vulnerabilities.html#CVE-2019-1563

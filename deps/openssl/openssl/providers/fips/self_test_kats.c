@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,10 +72,10 @@ static int cipher_init(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
         in_tag = (unsigned char *)t->tag;
 
     return EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc)
-           && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, t->iv_len, NULL)
+           && (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, t->iv_len, NULL) > 0)
            && (in_tag == NULL
                || EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, t->tag_len,
-                                      in_tag))
+                                      in_tag) > 0)
            && EVP_CipherInit_ex(ctx, NULL, NULL, t->key, t->iv, enc)
            && EVP_CIPHER_CTX_set_padding(ctx, pad)
            && EVP_CipherUpdate(ctx, NULL, &tmp, t->aad, t->aad_len);
@@ -117,8 +117,8 @@ static int self_test_cipher(const ST_KAT_CIPHER *t, OSSL_SELF_TEST *st,
         if (t->tag != NULL) {
             unsigned char tag[16] = { 0 };
 
-            if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, t->tag_len,
-                                     tag)
+            if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, t->tag_len,
+                                     tag) <= 0
                 || memcmp(tag, t->tag, t->tag_len) != 0)
                 goto err;
         }

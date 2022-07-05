@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -920,11 +920,17 @@ static int ssl_set_cert_and_key(SSL *ssl, SSL_CTX *ctx, X509 *x509, EVP_PKEY *pr
                 goto out;
             } else {
                 /* copy to privatekey from pubkey */
-                EVP_PKEY_copy_parameters(privatekey, pubkey);
+                if (!EVP_PKEY_copy_parameters(privatekey, pubkey)) {
+                    ERR_raise(ERR_LIB_SSL, SSL_R_COPY_PARAMETERS_FAILED);
+                    goto out;
+                }
             }
         } else if (EVP_PKEY_missing_parameters(pubkey)) {
             /* copy to pubkey from privatekey */
-            EVP_PKEY_copy_parameters(pubkey, privatekey);
+            if (!EVP_PKEY_copy_parameters(pubkey, privatekey)) {
+                ERR_raise(ERR_LIB_SSL, SSL_R_COPY_PARAMETERS_FAILED);
+                goto out;
+            }
         } /* else both have parameters */
 
         /* check that key <-> cert match */

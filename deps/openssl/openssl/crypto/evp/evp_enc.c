@@ -304,7 +304,7 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
         /* Preserve wrap enable flag, zero everything else */
         ctx->flags &= EVP_CIPHER_CTX_FLAG_WRAP_ALLOW;
         if (ctx->cipher->flags & EVP_CIPH_CTRL_INIT) {
-            if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_INIT, 0, NULL)) {
+            if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_INIT, 0, NULL) <= 0) {
                 ctx->cipher = NULL;
                 ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
                 return 0;

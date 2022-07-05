@@ -304,7 +304,7 @@ int rsa_main(int argc, char **argv)
         } else if (r == 0) {
             BIO_printf(bio_err, "RSA key not ok\n");
             ERR_print_errors(bio_err);
-        } else if (r == -1) {
+        } else if (r < 0) {
             ERR_print_errors(bio_err);
             goto end;
         }

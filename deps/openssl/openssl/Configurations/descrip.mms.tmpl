@@ -549,6 +549,7 @@ clean : libclean
         - DELETE []vmsconfig.pm;*
 
 distclean : clean
+        - DELETE [.include.openssl]configuration.h;*
         - DELETE configdata.pm;*
         - DELETE descrip.mms;*
 
@@ -981,7 +982,7 @@ EOF
               ? '' : ' --case-insensitive';
           return <<"EOF";
 $target : $gen0 $deps $mkdef
-	\$(PERL) $mkdef$ord_ver --ordinals $gen0 --name $ord_name "--OS" "VMS"$case_insensitive > $target
+	\$(PERL) $mkdef$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name "--OS" "VMS"$case_insensitive > $target
 EOF
       } elsif (platform->isasm($args{src})) {
           #

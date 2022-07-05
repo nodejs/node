@@ -160,6 +160,7 @@ static int rsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
                          strtype, str, rk, rklen)) {
         ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
         ASN1_STRING_free(str);
+        OPENSSL_clear_free(rk, rklen);
         return 0;
     }
 
@@ -454,7 +455,7 @@ static RSA_PSS_PARAMS *rsa_ctx_to_pss(EVP_PKEY_CTX *pkctx)
         return NULL;
     if (EVP_PKEY_CTX_get_rsa_mgf1_md(pkctx, &mgf1md) <= 0)
         return NULL;
-    if (!EVP_PKEY_CTX_get_rsa_pss_saltlen(pkctx, &saltlen))
+    if (EVP_PKEY_CTX_get_rsa_pss_saltlen(pkctx, &saltlen) <= 0)
         return NULL;
     if (saltlen == -1) {
         saltlen = EVP_MD_get_size(sigmd);

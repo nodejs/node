@@ -360,7 +360,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
                        "%s%s, Scheme (%s : %d), Properties (%s)",
                        helpful_msg,
                        ossl_lib_ctx_get_descriptor(methdata->libctx),
-                       scheme = NULL ? "<null>" : scheme, id,
+                       scheme == NULL ? "<null>" : scheme, id,
                        properties == NULL ? "<null>" : properties);
     }
 
@@ -393,6 +393,25 @@ OSSL_STORE_LOADER *ossl_store_loader_fetch_by_number(OSSL_LIB_CTX *libctx,
     method = inner_loader_fetch(&methdata, scheme_id, NULL, properties);
     dealloc_tmp_loader_store(methdata.tmp_store);
     return method;
+}
+
+int ossl_store_loader_store_cache_flush(OSSL_LIB_CTX *libctx)
+{
+    OSSL_METHOD_STORE *store = get_loader_store(libctx);
+
+    if (store != NULL)
+        return ossl_method_store_cache_flush_all(store);
+    return 1;
+}
+
+int ossl_store_loader_store_remove_all_provided(const OSSL_PROVIDER *prov)
+{
+    OSSL_LIB_CTX *libctx = ossl_provider_libctx(prov);
+    OSSL_METHOD_STORE *store = get_loader_store(libctx);
+
+    if (store != NULL)
+        return ossl_method_store_remove_all_provided(store, prov);
+    return 1;
 }
 
 /*
