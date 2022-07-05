@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert')
+const assert = require('assert');
 const { PassThrough } = require('stream');
 
 const pt = new PassThrough({ highWaterMark: 0 });
