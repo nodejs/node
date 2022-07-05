@@ -6639,6 +6639,9 @@ A numeric device identifier if the file represents a device.
 
 The size of the file in bytes.
 
+If the underlying file system does not support getting the size of the file,
+this will be `0`.
+
 #### `stats.blksize`
 
 * {number|bigint}
