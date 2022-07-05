@@ -22,7 +22,7 @@ if (process.argv[2] === 'child') {
       return setTimeout(100_000_000);
     });
     process.kill(process.pid, 'SIGINT');
-  }
+  } else assert.fail('unreachable');
 } else {
   let child = spawnSync(process.execPath, [__filename, 'child', 'pass']);
   assert.strictEqual(child.status, 0);
