@@ -1065,8 +1065,8 @@ changes:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
-  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens) section.
-    Only returned if `config` includes `tokens: true`.
+  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
+    section. Only returned if `config` includes `tokens: true`.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
