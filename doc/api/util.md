@@ -1065,7 +1065,7 @@ changes:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
-  * `tokens` {Object\[]|undefined} See [`parseArgs`' `tokens`][] section.
+  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens) section.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -1111,7 +1111,7 @@ console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
-### `parseArgs`' `tokens`
+### `parseArgs` `tokens`
 
 Detailed parse information is available for adding custom behaviours by
 specifying `tokens: true` in the configuration.
