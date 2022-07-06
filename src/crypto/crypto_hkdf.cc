@@ -96,8 +96,6 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   return Just(true);
 }
 
-char salt[EVP_MAX_KEY_LENGTH] = {0};
-
 bool HKDFTraits::DeriveBits(
     Environment* env,
     const HKDFConfig& params,
@@ -136,6 +134,7 @@ bool HKDFTraits::DeriveBits(
         return false;
       }
     } else {
+      char salt[EVP_MAX_KEY_LENGTH] = {0};
       if (HMAC(params.digest, salt, sizeof(salt), nullptr, 0, temp_key, &len) ==
           nullptr) {
         return false;
