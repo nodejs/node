@@ -3,7 +3,7 @@
 
 #define LLHTTP_VERSION_MAJOR 2
 #define LLHTTP_VERSION_MINOR 1
-#define LLHTTP_VERSION_PATCH 4
+#define LLHTTP_VERSION_PATCH 5
 
 #ifndef LLHTTP_STRICT_MODE
 # define LLHTTP_STRICT_MODE 0
@@ -58,6 +58,7 @@ enum llhttp_errno {
   HPE_OK = 0,
   HPE_INTERNAL = 1,
   HPE_STRICT = 2,
+  HPE_CR_EXPECTED = 25,
   HPE_LF_EXPECTED = 3,
   HPE_UNEXPECTED_CONTENT_LENGTH = 4,
   HPE_CLOSED_CONNECTION = 5,
@@ -78,7 +79,7 @@ enum llhttp_errno {
   HPE_CB_CHUNK_COMPLETE = 20,
   HPE_PAUSED = 21,
   HPE_PAUSED_UPGRADE = 22,
-  HPE_USER = 23
+  HPE_USER = 24
 };
 typedef enum llhttp_errno llhttp_errno_t;
 
@@ -153,6 +154,7 @@ typedef enum llhttp_method llhttp_method_t;
   XX(0, OK, OK) \
   XX(1, INTERNAL, INTERNAL) \
   XX(2, STRICT, STRICT) \
+  XX(25, CR_EXPECTED, CR_EXPECTED) \
   XX(3, LF_EXPECTED, LF_EXPECTED) \
   XX(4, UNEXPECTED_CONTENT_LENGTH, UNEXPECTED_CONTENT_LENGTH) \
   XX(5, CLOSED_CONNECTION, CLOSED_CONNECTION) \
@@ -173,7 +175,7 @@ typedef enum llhttp_method llhttp_method_t;
   XX(20, CB_CHUNK_COMPLETE, CB_CHUNK_COMPLETE) \
   XX(21, PAUSED, PAUSED) \
   XX(22, PAUSED_UPGRADE, PAUSED_UPGRADE) \
-  XX(23, USER, USER) \
+  XX(24, USER, USER) \
 
 
 #define HTTP_METHOD_MAP(XX) \
