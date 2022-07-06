@@ -20,10 +20,6 @@ testTransform(666, 777, {
   writableHighWaterMark: 777,
 });
 
-// test 0 overriding defaultHwm
-testTransform(0, DEFAULT, { readableHighWaterMark: 0 });
-testTransform(DEFAULT, 0, { writableHighWaterMark: 0 });
-
 // Test highWaterMark overriding
 testTransform(555, 555, {
   highWaterMark: 555,
