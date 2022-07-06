@@ -7,32 +7,23 @@ const http = require('http');
 const net = require('net');
 
 const msg = [
-  'POST / HTTP/1.1',
-  'Host: 127.0.0.1',
-  'Transfer-Encoding: chunked',
-  'Transfer-Encoding: chunked-false',
-  'Connection: upgrade',
+  'GET / HTTP/1.1',
+  'Host: localhost',
+  'Dummy: x\nContent-Length: 23',
   '',
-  '1',
-  'A',
-  '0',
-  '',
-  'GET /flag HTTP/1.1',
-  'Host: 127.0.0.1',
+  'GET / HTTP/1.1',
+  'Dummy: GET /admin HTTP/1.1',
+  'Host: localhost',
   '',
   '',
 ].join('\r\n');
 
-const server = http.createServer(common.mustNotCall((req, res) => {
-  res.end();
-}, 1));
+const server = http.createServer(common.mustNotCall());
 
 server.listen(0, common.mustSucceed(() => {
   const client = net.connect(server.address().port, 'localhost');
 
   let response = '';
-
-  // Verify that the server listener is never called
 
   client.on('data', common.mustCall((chunk) => {
     response += chunk.toString('utf-8');
