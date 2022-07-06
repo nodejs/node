@@ -125,7 +125,7 @@ added: v8.3.0
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
-callbacks will be called with an error with the code `ECANCELLED`.
+callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress([ipv4][, ipv6])`
 
