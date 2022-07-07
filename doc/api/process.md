@@ -342,7 +342,7 @@ changes:
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from a synchronous error. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`. The latter is used when in an exception happens in a
+  `'unhandledRejection'`. The latter is used when an exception happens in a
   `Promise` based async context (or if a `Promise` is rejected) and
   [`--unhandled-rejections`][] flag set to `strict` or `throw` (which is the
   default) and the rejection is not handled, or when a rejection happens during
@@ -440,7 +440,7 @@ added:
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from synchronous errors. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`. The latter is used when in an exception happens in a
+  `'unhandledRejection'`. The latter is used when an exception happens in a
   `Promise` based async context (or if a `Promise` is rejected) and
   [`--unhandled-rejections`][] flag set to `strict` or `throw` (which is the
   default) and the rejection is not handled, or when a rejection happens during
