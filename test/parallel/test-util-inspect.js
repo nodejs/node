@@ -2637,6 +2637,14 @@ assert.strictEqual(
 
   assert.strictEqual(out, expected);
 
+  // Unicode character width support.
+  out = util.inspect(
+    `${('あ').repeat(5)}\n${('あ').repeat(5)}`,
+    { compact: 3, breakLength: 15 }
+  );
+  expected = "'あああああ\\n' +\n  'あああああ'";
+  assert.strictEqual(out, expected);
+
   // Array grouping should prevent lining up outer elements on a single line.
   obj = [[[1, 2, 3, 4, 5, 6, 7, 8, 9]]];
 
