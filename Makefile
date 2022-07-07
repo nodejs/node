@@ -1440,7 +1440,7 @@ ifneq ("","$(wildcard tools/clang-format/node_modules/)")
 		$(CLANG_FORMAT_START) -- \
 		$(LINT_CPP_FILES)
 else
-	$(info clang-format is not installed.)
+	$(info Required tooling for C++ code formatting is not installed.)
 	$(info To install (requires internet access) run: $$ make format-cpp-build)
 endif
 
