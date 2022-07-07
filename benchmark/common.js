@@ -261,6 +261,12 @@ class Benchmark {
       time: nanoSecondsToString(elapsed),
       type: 'report',
     });
+
+    // If, for any reason, the process is unable to self close within
+    // a second after completing, forcefully close it.
+    setTimeout(() => {
+      process.exit(0);
+    }, 5000).unref();
   }
 }
 
@@ -287,15 +293,9 @@ function formatResult(data) {
 }
 
 function sendResult(data) {
-  if (process.send && Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+  if (process.send) {
     // If forked, report by process send
-    process.send(data, () => {
-      // If, for any reason, the process is unable to self close within
-      // a second after completing, forcefully close it.
-      setTimeout(() => {
-        process.exit(0);
-      }, 5000).unref();
-    });
+    process.send(data);
   } else {
     // Otherwise report by stdout
     process.stdout.write(formatResult(data));
