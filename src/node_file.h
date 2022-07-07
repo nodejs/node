@@ -18,7 +18,7 @@ class BindingData : public SnapshotableObject {
   explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
-  AliasedBigUint64Array stats_field_bigint_array;
+  AliasedBigInt64Array stats_field_bigint_array;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
