@@ -75,6 +75,25 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
+<a id="14.20.0"></a>
+
+## 2022-07-07, Version 14.20.0 'Fermium' (LTS), @danielleadams prepared by @juanarbol
+
+### Notable Changes
+
+* \[[`8e8aef836c`](https://github.com/nodejs/node/commit/8e8aef836c)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+* \[[`98965b137d`](https://github.com/nodejs/node/commit/98965b137d)] - **deps**: upgrade openssl sources to 1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+
+### Commits
+
+* \[[`b93e048bf6`](https://github.com/nodejs/node/commit/b93e048bf6)] - **deps**: update archs files for OpenSSL-1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+* \[[`98965b137d`](https://github.com/nodejs/node/commit/98965b137d)] - **deps**: upgrade openssl sources to 1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+* \[[`837a1d803e`](https://github.com/nodejs/node/commit/837a1d803e)] - **deps**: update archs files for OpenSSL-1.1.1p (RafaelGSS) [#43527](https://github.com/nodejs/node/pull/43527)
+* \[[`c5d9c9a49e`](https://github.com/nodejs/node/commit/c5d9c9a49e)] - **deps**: upgrade openssl sources to 1.1.1p (RafaelGSS) [#43527](https://github.com/nodejs/node/pull/43527)
+* \[[`da0fda0fe8`](https://github.com/nodejs/node/commit/da0fda0fe8)] - **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [#315](https://github.com/nodejs/node/pull/315)
+* \[[`48c5aa5cab`](https://github.com/nodejs/node/commit/48c5aa5cab)] - **src**: fix IPv4 validation in inspector\_socket (Tobias Nießen) [nodejs-private/node-private#320](https://github.com/nodejs-private/node-private/pull/320)
+* \[[`8e8aef836c`](https://github.com/nodejs/node/commit/8e8aef836c)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+
 <a id="14.19.3"></a>
 
 ## 2022-05-17, Version 14.19.3 'Fermium' (LTS), @richardlau
