@@ -170,6 +170,8 @@ For information about the governance of the Node.js project, see
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
+* [GeoffreyBooth](https://github.com/geoffreybooth) -
+  **Geoffrey Booth** <<webadmin@geoffreybooth.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [jasnell](https://github.com/jasnell) -
