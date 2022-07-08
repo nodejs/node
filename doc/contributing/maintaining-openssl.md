@@ -93,6 +93,7 @@ Use `make` to regenerate all platform dependent files in
 % make gen-openssl
 
 # On Linux machines
+% make -C deps/openssl/config clean
 % make -C deps/openssl/config
 ```
 
