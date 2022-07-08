@@ -34,7 +34,7 @@ server.listen(0, common.mustSucceed(() => {
   let response = '';
 
   client.on('data', common.mustCall((chunk) => {
-    response += chunk.toString('utf-8');
+    response += chunk;
   }));
 
   client.setEncoding('utf8');
