@@ -49,7 +49,7 @@ This is a security release.
 The following CVEs are fixed in this release:
 
 * **[CVE-2022-2097](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-2097)**: OpenSSL - AES OCB fails to encrypt some bytes (Medium)
-* **[CVE-2022-32212]()**: DNS rebinding in --inspect via invalid IP addresses (High)
+* **[CVE-2022-32212](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32212)**: DNS rebinding in --inspect via invalid IP addresses (High)
 * **[CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213)**: HTTP Request Smuggling - Flawed Parsing of Transfer-Encoding (Medium)
 * **[CVE-2022-32214](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32214)**: HTTP Request Smuggling - Improper Delimiting of Header Fields (Medium)
 * **[CVE-2022-32215](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32215)**: HTTP Request Smuggling - Incorrect Parsing of Multi-line Transfer-Encoding (Medium)
