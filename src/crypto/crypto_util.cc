@@ -218,8 +218,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(!per_process::cli_options->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
-  // TODO(addaleax): This should not be possible to set from worker threads.
-  // CHECK(env->owns_process_state());
+  CHECK(env->owns_process_state());
   bool enable = args[0]->BooleanValue(env->isolate());
 
 #if OPENSSL_VERSION_MAJOR >= 3
