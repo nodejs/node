@@ -44,23 +44,59 @@
 
 This is a security release.
 
-### Notable Changes
+### Notable changes
 
-* \[[`3f0c3e142d`](https://github.com/nodejs/node/commit/3f0c3e142d)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
-* \[[`9578158ff8`](https://github.com/nodejs/node/commit/9578158ff8)] - **(SEMVER-MAJOR)** **src,doc,test**: add --openssl-shared-config option (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
-  * Node.js now reads `nodejs_conf` section in the `openssl` config
-* \[[`dc7af13486`](https://github.com/nodejs/node/commit/dc7af13486)] - **deps**: update archs files for quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
-* \[[`fa72c534eb`](https://github.com/nodejs/node/commit/fa72c534eb)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-2097](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-2097)**: OpenSSL - AES OCB fails to encrypt some bytes (Medium)
+* **[CVE-2022-32212](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32212)**: DNS rebinding in --inspect via invalid IP addresses (High)
+* **[CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213)**: HTTP Request Smuggling - Flawed Parsing of Transfer-Encoding (Medium)
+* **[CVE-2022-32214](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32214)**: HTTP Request Smuggling - Improper Delimiting of Header Fields (Medium)
+* **[CVE-2022-32215](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32215)**: HTTP Request Smuggling - Incorrect Parsing of Multi-line Transfer-Encoding (Medium)
+* **[CVE-2022-32222](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32222)**: Attempt to read openssl.cnf from /home/iojs/build/ upon startup (Medium)
+* **[CVE-2022-32223](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32223)**: DLL Hijacking on Windows (High)
+
+More detailed information on each of the vulnerabilities can be found in [July 7th 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/july-2022-security-releases/) blog post.
+
+#### llhttp updated to 6.0.7
+
+`llhttp` is updated to 6.0.7 which includes fixes for the following vulnerabilities.
+
+* **HTTP Request Smuggling - Flawed Parsing of Transfer-Encoding (Medium)([CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32214) )**: The `llhttp` parser in the `http` module does not correctly parse and validate Transfer-Encoding headers. This can lead to HTTP Request Smuggling (HRS).
+* **HTTP Request Smuggling - Improper Delimiting of Header Fields (Medium)([CVE-2022-32214](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32214))**: The `llhttp` parser in the `http` module does not strictly use the CRLF sequence to delimit HTTP requests. This can lead to HTTP Request Smuggling.
+  * **Note**: This can be considered a breaking change due to disabling LF header delimiting. To enable LF header delimiting you can specify the `--insecure-http-parser` command-line flag, but note that this will additionally enable other insecure behaviours.
+* **HTTP Request Smuggling - Incorrect Parsing of Multi-line Transfer-Encoding (Medium)([CVE-2022-32215](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32215))**: The `llhttp` parser in the `http` module does not correctly handle multi-line Transfer-Encoding headers. This can lead to HTTP Request Smuggling (HRS).
+
+Some of these fixes required breaking changes, so you may be impacted by this update.
+
+#### Default OpenSSL Configuration
+
+To resolve **[CVE-2022-32223](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32223)**: DLL Hijacking on Windows (High), changes were made to how Node.js loads OpenSSL configuration by default.
+
+**[CVE-2022-32223](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32223)** could be exploited if the victim has the following dependencies on Windows machine:
+
+* OpenSSL has been installed and `C:\Program Files\Common Files\SSL\openssl.cnf` exists.
+
+Whenever the above conditions are present, `node.exe` will search for `providers.dll` in the current user directory. After that, `node.exe` will try to search for `providers.dll` by the DLL Search Order in Windows. An attacker can place the malicious file `providers.dll` under a variety of paths to exploit this vulnerability.
+
+Node.js can use an OpenSSL configuration file by specifying the environment variable `OPENSSL_CONF`, or using the command-line option `--openssl-conf`, and if none of those are specified will default to reading the default OpenSSL configuration file `openssl.cnf`.
+
+From this release, Node.js will only read a section that is, by default, named `nodejs_conf`. If you were previously relying on the configuration specified in the shared section of the `openssl.cnf` file, you may be affected by this change. You can fall back to the previous behavior to read the default section by:
+
+* Specifying the `--openssl-shared-config` command-line flag; or
+* Creating a new `nodejs_conf` section in that file and copying the contents of the default section into the new `nodejs_conf` section.
+
+Note that when specifying `--openssl-shared-config` or defining `nodejs_conf` in your `openssl.cnf`, you should be cautious and review your configuration as it could lead to you being vulnerable to similar DLL exploit attacks.
 
 ### Commits
 
 * \[[`dc7af13486`](https://github.com/nodejs/node/commit/dc7af13486)] - **deps**: update archs files for quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
 * \[[`fa72c534eb`](https://github.com/nodejs/node/commit/fa72c534eb)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.5+quic (RafaelGSS) [#43693](https://github.com/nodejs/node/pull/43693)
 * \[[`a5fc2deb43`](https://github.com/nodejs/node/commit/a5fc2deb43)] - **deps**: update default openssl.cnf directory (Michael Dawson) [nodejs-private/node-private#335](https://github.com/nodejs-private/node-private/pull/335)
-* \[[`f2407748e3`](https://github.com/nodejs/node/commit/f2407748e3)] - **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [nodejs-private/node-private#315](https://github.com/nodejs-private/node-private/pull/315)
+* \[[`f2407748e3`](https://github.com/nodejs/node/commit/f2407748e3)] - **(SEMVER-MAJOR)** **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [nodejs-private/node-private#315](https://github.com/nodejs-private/node-private/pull/315)
 * \[[`e4af5eba95`](https://github.com/nodejs/node/commit/e4af5eba95)] - **src**: fix IPv4 validation in inspector\_socket (Tobias Nießen) [nodejs-private/node-private#320](https://github.com/nodejs-private/node-private/pull/320)
 * \[[`3f0c3e142d`](https://github.com/nodejs/node/commit/3f0c3e142d)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
-* \[[`9578158ff8`](https://github.com/nodejs/node/commit/9578158ff8)] - **(SEMVER-MAJOR)** **src,doc,test**: add --openssl-shared-config option (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+* \[[`9578158ff8`](https://github.com/nodejs/node/commit/9578158ff8)] - **(SEMVER-MINOR)** **src,doc,test**: add --openssl-shared-config option (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
 
 <a id="18.4.0"></a>
 
