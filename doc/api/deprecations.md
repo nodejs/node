@@ -3163,6 +3163,20 @@ Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
 [`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
 thing instead.
 
+### DEP0164: `process.exit([code])` coercion to integer
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43738
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Implicit coercion of a non-integer `code` parameter in [`process.exit()`][] is
+deprecated. Please use an integer value.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3241,6 +3255,7 @@ thing instead.
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
+[`process.exit()`]: process.md#processexitcode
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
