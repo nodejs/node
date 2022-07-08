@@ -213,7 +213,7 @@ inline size_t base64_encode_scalar(const char* src,
 
 
 #if (defined(__x86_64) || defined(__x86_64__)) && \
-    (defined(__linux) || defined(__linux__))
+    (defined(__GNUC__) || defined(__GNUC))
 #pragma GCC target("avx512vl", "avx512vbmi")
 #include <immintrin.h>
 inline size_t base64_encode_avx512vl(const char* src,
