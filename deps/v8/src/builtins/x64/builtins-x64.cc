@@ -2786,6 +2786,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   __ Pop(r15);
   // Convert to Smi for the runtime call.
   __ SmiTag(r15);
+
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2809,7 +2810,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       offset += kSimd128Size;
     }
 
-    // Push the Wasm instance as an explicit argument to WasmCompileLazy.
+    // Push the Wasm instance for loading the jump table address after the
+    // runtime call.
+    __ Push(kWasmInstanceRegister);
+
+    // Push the Wasm instance again as an explicit argument to the runtime
+    // function.
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(r15);
@@ -2817,8 +2823,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
-    // The entrypoint address is the return value.
-    __ movq(r15, kReturnRegister0);
+    // The runtime function returns the jump table slot offset as a Smi. Use
+    // that to compute the jump target in r15.
+    __ Pop(kWasmInstanceRegister);
+    __ movq(r15, MemOperand(kWasmInstanceRegister,
+                            wasm::ObjectAccess::ToTagged(
+                                WasmInstanceObject::kJumpTableStartOffset)));
+    __ SmiUntag(kReturnRegister0);
+    __ addq(r15, kReturnRegister0);
+    // r15 now holds the jump table slot where we want to jump to in the end.
 
     // Restore registers.
     for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
@@ -2831,7 +2844,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       __ Pop(reg);
     }
   }
-  // Finally, jump to the entrypoint.
+
+  // Finally, jump to the jump table slot for the function.
   __ jmp(r15);
 }
 
@@ -3597,7 +3611,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ j(equal, &place_float_param);
 
   // ref params have already been pushed, so go through directly
-  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
   __ jmp(&loop_through_valuetypes);
 
   // All other types are reference types. We can just fall through to place them

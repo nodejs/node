@@ -2643,31 +2643,44 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in t0 by the jump table trampoline.
   // Convert to Smi for the runtime call
   __ SmiTag(kWasmCompileLazyFuncIndexRegister);
+
+  // Compute register lists for parameters to be saved. We save all parameter
+  // registers (see wasm-linkage.h). They might be overwritten in the runtime
+  // call below. We don't have any callee-saved registers in wasm, so no need to
+  // store anything else.
+  constexpr RegList kSavedGpRegs = ([]() constexpr {
+    RegList saved_gp_regs;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      saved_gp_regs.set(gp_param_reg);
+    }
+
+    // All set registers were unique.
+    CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
+    // The Wasm instance must be part of the saved registers.
+    CHECK(saved_gp_regs.has(kWasmInstanceRegister));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+             saved_gp_regs.Count());
+    return saved_gp_regs;
+  })();
+
+  constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
+    DoubleRegList saved_fp_regs;
+    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+      saved_fp_regs.set(fp_param_reg);
+    }
+
+    CHECK_EQ(saved_fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
+             saved_fp_regs.Count());
+    return saved_fp_regs;
+  })();
+
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    RegList gp_regs;
-    for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs.set(gp_param_reg);
-    }
-
-    DoubleRegList fp_regs;
-    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-      fp_regs.set(fp_param_reg);
-    }
-
-    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
-    CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
-             gp_regs.Count());
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
-             fp_regs.Count());
-
-    __ MultiPush(gp_regs);
+    // Save registers that we need to keep alive across the runtime call.
+    __ MultiPush(kSavedGpRegs);
     // Check if machine has simd enabled, if so push vector registers. If not
     // then only push double registers.
     Label push_doubles, simd_pushed;
@@ -2679,15 +2692,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     {
       CpuFeatureScope msa_scope(
           masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-      __ MultiPushMSA(fp_regs);
+      __ MultiPushMSA(kSavedFpRegs);
     }
     __ Branch(&simd_pushed);
     __ bind(&push_doubles);
-    __ MultiPushFPU(fp_regs);
+    __ MultiPushFPU(kSavedFpRegs);
     // kFixedFrameSizeFromFp is hard coded to include space for Simd
     // registers, so we still need to allocate extra (unused) space on the stack
     // as if they were saved.
-    __ Dsubu(sp, sp, fp_regs.Count() * kDoubleSize);
+    __ Dsubu(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
     __ bind(&simd_pushed);
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
@@ -2707,17 +2720,30 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     {
       CpuFeatureScope msa_scope(
           masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-      __ MultiPopMSA(fp_regs);
+      __ MultiPopMSA(kSavedFpRegs);
     }
     __ Branch(&simd_popped);
     __ bind(&pop_doubles);
-    __ Daddu(sp, sp, fp_regs.Count() * kDoubleSize);
-    __ MultiPopFPU(fp_regs);
+    __ Daddu(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
+    __ MultiPopFPU(kSavedFpRegs);
     __ bind(&simd_popped);
-    __ MultiPop(gp_regs);
+    __ MultiPop(kSavedGpRegs);
   }
-  // Finally, jump to the entrypoint.
-  __ Jump(v0);
+
+  // Untag the returned Smi, for later use.
+  static_assert(!kSavedGpRegs.has(v0));
+  __ SmiUntag(v0);
+
+  // The runtime function returned the jump table slot offset as a Smi (now in
+  // t8). Use that to compute the jump target.
+  static_assert(!kSavedGpRegs.has(t8));
+  __ Ld(t8,
+        MemOperand(kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+  __ Daddu(t8, v0, t8);
+
+  // Finally, jump to the jump table slot for the function.
+  __ Jump(t8);
 }
 
 void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
