@@ -1,16 +1,10 @@
 {
   'defines': ['OPENSSL_NO_ASM'],
   'conditions': [
-    ['target_arch=="ppc" and OS=="aix"', {
-      'includes': ['config/archs/aix-gcc/no-asm/openssl-fips.gypi'],
-    }, 'target_arch=="ppc" and OS=="linux"', {
-      'includes': ['config/archs/linux-ppc/no-asm/openssl-fips.gypi'],
-    }, 'target_arch=="ppc64" and OS=="aix"', {
+    ['target_arch=="ppc64" and OS=="aix"', {
       'includes': ['config/archs/aix64-gcc-as/no-asm/openssl-fips.gypi'],
     }, 'target_arch=="ppc64" and OS=="linux" and node_byteorder =="little"', {
       'includes': ['config/archs/linux-ppc64le/no-asm/openssl-fips.gypi'],
-    }, 'target_arch=="ppc64" and OS=="linux"', {
-      'includes': ['config/archs/linux-ppc64/no-asm/openssl-fips.gypi'],
     }, 'target_arch=="s390x" and OS=="linux"', {
       'includes': ['config/archs/linux64-s390x/no-asm/openssl-fips.gypi'],
     }, 'target_arch=="arm" and OS in ("linux", "android")', {
