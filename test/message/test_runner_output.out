@@ -582,6 +582,7 @@ not ok 57 - invalid subtest fail
 # tests 57
 # pass 24
 # fail 18
+# cancelled 0
 # skipped 10
 # todo 5
 # duration_ms *
