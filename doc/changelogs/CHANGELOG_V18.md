@@ -74,6 +74,7 @@ Some of these fixes required breaking changes, so you may be impacted by this up
 To resolve **[CVE-2022-32223](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32223)**: DLL Hijacking on Windows (High), changes were made to how Node.js loads OpenSSL configuration by default.
 
 **[CVE-2022-32223](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32223)** could be exploited if the victim has the following dependencies on Windows machine:
+
 * OpenSSL has been installed and `C:\Program Files\Common Files\SSL\openssl.cnf` exists.
 
 Whenever the above conditions are present, `node.exe` will search for `providers.dll` in the current user directory. After that, `node.exe` will try to search for `providers.dll` by the DLL Search Order in Windows. An attacker can place the malicious file `providers.dll` under a variety of paths to exploit this vulnerability.
