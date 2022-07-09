@@ -3174,8 +3174,8 @@ changes:
 
 Type: Documentation-only
 
-Implicit coercion of a non-integer `code` parameter in [`process.exit()`][] is
-deprecated. Please use an integer value.
+`code` values other than `undefined`, `null`, integer numbers and integer
+strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
