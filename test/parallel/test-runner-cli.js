@@ -35,6 +35,22 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
+  // Same but with a prototype mutation in require scripts.
+  const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test', testFixtures];
+  const child = spawnSync(process.execPath, args);
+
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /ok 1 - .+index\.test\.js/);
+  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
+  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 4 - .+random\.cjs/);
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+}
+
+{
   // User specified files that don't match the pattern are still run.
   const args = ['--test', testFixtures, join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args);
