@@ -3240,3 +3240,12 @@ assert.strictEqual(
     '-123_456_789.123_456_78'
   );
 }
+
+// Regression test for https://github.com/nodejs/node/issues/41244
+{
+  assert.strictEqual(util.inspect({
+    get [Symbol.iterator]() {
+      throw new Error();
+    }
+  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+}
