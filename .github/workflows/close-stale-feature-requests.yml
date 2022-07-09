@@ -28,8 +28,14 @@ env:
     [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
 # yamllint enable
 
+permissions:
+  contents: read
+
 jobs:
   stale:
+    permissions:
+      issues: write  # for actions/stale to close stale issues
+      pull-requests: write  # for actions/stale to close stale PRs
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
