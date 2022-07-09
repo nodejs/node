@@ -118,6 +118,10 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
   std::atomic<size_t> total_mem_usage_ {0};
+
+  // Delegate to V8's allocator for compatibility with the V8 memory cage.
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
