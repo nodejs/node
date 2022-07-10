@@ -1,8 +1,7 @@
 import '../common/index.mjs';
-import fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 
 
 { // Verify unadulterated source is loaded when there are no loaders
@@ -12,7 +11,7 @@ import { fileURLToPath } from 'node:url';
       '--loader',
       fixtures.fileURL('es-module-loaders', 'loader-resolve-passthru.mjs'),
       '--no-warnings',
-      fileURLToPath(fixtures.fileURL('es-modules', 'runmain.mjs')),
+      fixtures.path('es-modules', 'runmain.mjs'),
     ],
     { encoding: 'utf8' },
   );
