@@ -6,6 +6,7 @@ const { execFile, execFileSync } = require('child_process');
 const { getEventListeners } = require('events');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
+const os = require('os');
 
 const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
@@ -107,12 +108,12 @@ const execOpts = { encoding: 'utf8', shell: true };
 
   // Test with and without `{ shell: true }`
   [
-     // Skipping shell-less test on Windows because …
-    ...(common.isWindows ? [] : [{ encoding: 'utf8' }]),
-    { shell: true, encoding: 'utf8' },
-].forEach((options) => {
+    // Skipping shell-less test on Windows because …
+    ...(common.isWindows ? [] : [null]),
+    { shell: true },
+  ].forEach((options) => {
     const execFileSyncStdout = execFileSync(file, args, options);
-    assert.strictEqual(execFileSyncStdout.toString().trim(), 'foo bar');
+    assert.deepStrictEqual(execFileSyncStdout, Buffer.from(`foo bar${os.EOL}`));
 
     execFile(file, args, options, common.mustCall((_, stdout) => {
       assert.deepStrictEqual(Buffer.from(stdout), execFileSyncStdout);
