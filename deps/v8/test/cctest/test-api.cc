@@ -24649,6 +24649,122 @@ TEST(ImportFromSyntheticModuleThrow) {
   CHECK(try_catch.HasCaught());
 }
 
+namespace {
+
+v8::MaybeLocal<Module> ModuleEvaluateTerminateExecutionResolveCallback(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  v8::Isolate* isolate = context->GetIsolate();
+
+  Local<String> url = v8_str("www.test.com");
+  Local<String> source_text = v8_str("await Promise.resolve();");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, true);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module
+      ->InstantiateModule(context,
+                          ModuleEvaluateTerminateExecutionResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(module->GetStatus(), Module::kInstantiated);
+  return module;
+}
+
+void ModuleEvaluateTerminateExecution(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate::GetCurrent()->TerminateExecution();
+}
+}  // namespace
+
+TEST(ModuleEvaluateTerminateExecution) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  v8::Local<v8::Function> terminate_execution =
+      v8::Function::New(context, ModuleEvaluateTerminateExecution,
+                        v8_str("terminate_execution"))
+          .ToLocalChecked();
+  context->Global()
+      ->Set(context, v8_str("terminate_execution"), terminate_execution)
+      .FromJust();
+
+  Local<String> url = v8_str("www.test.com");
+  Local<String> source_text = v8_str(
+      "terminate_execution();"
+      "await Promise.resolve();");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, true);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module
+      ->InstantiateModule(context,
+                          ModuleEvaluateTerminateExecutionResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(module->GetStatus(), Module::kInstantiated);
+  TryCatch try_catch(isolate);
+  v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
+  CHECK(completion_value.IsEmpty());
+
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+}
+
+TEST(ModuleEvaluateImportTerminateExecution) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  v8::Local<v8::Function> terminate_execution =
+      v8::Function::New(context, ModuleEvaluateTerminateExecution,
+                        v8_str("terminate_execution"))
+          .ToLocalChecked();
+  context->Global()
+      ->Set(context, v8_str("terminate_execution"), terminate_execution)
+      .FromJust();
+
+  Local<String> url = v8_str("www.test.com");
+  Local<String> source_text = v8_str(
+      "import './synthetic.module';"
+      "terminate_execution();"
+      "await Promise.resolve();");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, true);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module
+      ->InstantiateModule(context,
+                          ModuleEvaluateTerminateExecutionResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(module->GetStatus(), Module::kInstantiated);
+  TryCatch try_catch(isolate);
+  v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
+  Local<v8::Promise> promise(
+      Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
+  CHECK_EQ(promise->State(), v8::Promise::kPending);
+  isolate->PerformMicrotaskCheckpoint();
+
+  // The exception thrown by terminate execution is not catchable by JavaScript
+  // so the promise can not be settled.
+  CHECK_EQ(promise->State(), v8::Promise::kPending);
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+}
+
 // Tests that the code cache does not confuse the same source code compiled as a
 // script and as a module.
 TEST(CodeCacheModuleScriptMismatch) {
