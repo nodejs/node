@@ -766,14 +766,14 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
   return result;
 }
 
-void SourceTextModule::AsyncModuleExecutionFulfilled(
+Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
     Isolate* isolate, Handle<SourceTextModule> module) {
   // 1. If module.[[Status]] is evaluated, then
   if (module->status() == kErrored) {
     // a. Assert: module.[[EvaluationError]] is not empty.
     DCHECK(!module->exception().IsTheHole(isolate));
     // b. Return.
-    return;
+    return Just(true);
   }
   // 3. Assert: module.[[AsyncEvaluating]] is true.
   DCHECK(module->IsAsyncEvaluating());
@@ -829,7 +829,9 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
     } else if (m->async()) {
       //  ii. Otherwise, if m.[[Async]] is *true*, then
       //   a. Perform ! ExecuteAsyncModule(m).
-      ExecuteAsyncModule(isolate, m);
+      // The execution may have been terminated and can not be resumed, so just
+      // raise the exception.
+      MAYBE_RETURN(ExecuteAsyncModule(isolate, m), Nothing<bool>());
     } else {
       //  iii. Otherwise,
       //   a. Let _result_ be m.ExecuteModule().
@@ -863,6 +865,7 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
   }
 
   // 10. Return undefined.
+  return Just(true);
 }
 
 void SourceTextModule::AsyncModuleExecutionRejected(
@@ -922,8 +925,9 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   }
 }
 
-void SourceTextModule::ExecuteAsyncModule(Isolate* isolate,
-                                          Handle<SourceTextModule> module) {
+// static
+Maybe<bool> SourceTextModule::ExecuteAsyncModule(
+    Isolate* isolate, Handle<SourceTextModule> module) {
   // 1. Assert: module.[[Status]] is "evaluating" or "evaluated".
   CHECK(module->status() == kEvaluating || module->status() == kEvaluated);
 
@@ -973,9 +977,19 @@ void SourceTextModule::ExecuteAsyncModule(Isolate* isolate,
   // Note: In V8 we have broken module.ExecuteModule into
   // ExecuteModule for synchronous module execution and
   // InnerExecuteAsyncModule for asynchronous execution.
-  InnerExecuteAsyncModule(isolate, module, capability).ToHandleChecked();
+  MaybeHandle<Object> ret =
+      InnerExecuteAsyncModule(isolate, module, capability);
+  if (ret.is_null()) {
+    // The evaluation of async module can not throwing a JavaScript observable
+    // exception.
+    DCHECK(isolate->has_pending_exception());
+    DCHECK_EQ(isolate->pending_exception(),
+              ReadOnlyRoots(isolate).termination_exception());
+    return Nothing<bool>();
+  }
 
   // 13. Return.
+  return Just<bool>(true);
 }
 
 MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
@@ -1171,8 +1185,11 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
     // c. If module.[[PendingAsyncDependencies]] is 0,
     //    perform ! ExecuteAsyncModule(_module_).
+    // The execution may have been terminated and can not be resumed, so just
+    // raise the exception.
     if (!module->HasPendingAsyncDependencies()) {
-      SourceTextModule::ExecuteAsyncModule(isolate, module);
+      MAYBE_RETURN(SourceTextModule::ExecuteAsyncModule(isolate, module),
+                   MaybeHandle<Object>());
     }
   } else {
     // 15. Otherwise, perform ? module.ExecuteModule().
