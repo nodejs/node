@@ -1,27 +1,23 @@
-import '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
-import { strictEqual, ok } from 'assert';
-import { spawn } from 'child_process';
+import { mustCall } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
 
 import secret from '../fixtures/experimental.json' assert { type: 'json' };
+import spawn from './helper.spawnAsPromised.mjs';
 
-strictEqual(secret.ofLife, 42);
+
+assert.strictEqual(secret.ofLife, 42);
 
 // Test warning message
-const child = spawn(process.execPath, [
-  path('/es-modules/json-modules.mjs'),
-]);
-
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
-});
-child.on('close', (code, signal) => {
-  strictEqual(code, 0);
-  strictEqual(signal, null);
-  ok(stderr.toString().includes(
-    'ExperimentalWarning: Importing JSON modules is an experimental feature. ' +
-    'This feature could change at any time'
-  ));
-});
+spawn(execPath, [
+  fixtures.path('/es-modules/json-modules.mjs'),
+])
+  .then(mustCall(({ code, signal, stderr }) => {
+    assert.ok(stderr.includes(
+      'ExperimentalWarning: Importing JSON modules is an experimental feature. ' +
+      'This feature could change at any time'
+    ));
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  }));

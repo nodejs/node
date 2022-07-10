@@ -1,10 +1,12 @@
 import { mustCall } from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
-import { strictEqual } from 'node:assert';
-import { spawn } from 'node:child_process';
+import assert from 'node:assert';
 import http from 'node:http';
 import path from 'node:path';
+import { execPath } from 'node:process';
 import { promisify } from 'node:util';
+
+import spawn from './helper.spawnAsPromised.mjs';
 
 
 const files = {
@@ -40,33 +42,23 @@ const {
   port,
 } = server.address();
 
-{ // Verify nested HTTP imports work
-  const child = spawn( // ! `spawn` MUST be used (vs `spawnSync`) to avoid blocking the event loop
-    process.execPath,
-    [
-      '--no-warnings',
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
-      '--input-type=module',
-      '--eval',
-      `import * as main from 'http://${host}:${port}/main.mjs'; console.log(main)`,
-    ]
-  );
-
-  let stderr = '';
-  let stdout = '';
-
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => stderr += data);
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (data) => stdout += data);
-
-  child.on('close', mustCall((code, signal) => {
-    strictEqual(stderr, '');
-    strictEqual(stdout, '[Module: null prototype] { sum: [Function: sum] }\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+// Verify nested HTTP imports work
+spawn( // ! `spawn` MUST be used (vs `spawnSync`) to avoid blocking the event loop
+  execPath,
+  [
+    '--no-warnings',
+    '--loader',
+    fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
+    '--input-type=module',
+    '--eval',
+    `import * as main from 'http://${host}:${port}/main.mjs'; console.log(main)`,
+  ]
+)
+  .then(mustCall(({ code, signal, stderr, stdout }) => {
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '[Module: null prototype] { sum: [Function: sum] }\n');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
 
     server.close();
   }));
-}
