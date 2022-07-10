@@ -106,9 +106,9 @@ const execOpts = { encoding: 'utf8', shell: true };
   const args = ['foo', 'bar'];
 
   // Test with and without `{ shell: true }`
-  [null, { shell: true }].forEach((options) => {
+  [{ shell: common.isWindows }, { shell: true }].forEach((options) => {
     const execFileSyncStdout = execFileSync(file, args, options);
-    assert.deepStrictEqual(execFileSyncStdout, Buffer.from('foo bar\n'));
+    assert.strictEqual(execFileSyncStdout.toString().trim(), 'foo bar');
 
     execFile(file, args, options, common.mustCall((_, stdout) => {
       assert.deepStrictEqual(Buffer.from(stdout), execFileSyncStdout);
