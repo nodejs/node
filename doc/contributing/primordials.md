@@ -360,17 +360,20 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
          <code>%Promise.race%</code> iterate over an array</summary>
 
 ```js
-const array = [promise];
-const set = new SafeSet().add(promise);
-
 // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
+PromiseAll([]); // unsafe
+
+PromiseAll(new SafeArrayIterator([])); // safe
+
+const array = [promise];
+const set = new SafeSet().add(promise);
+// When running one of these functions on a non-empty iterable, it will also:
 // 4. Lookup `then` property on `promise` (user-mutable if user-provided).
 // 5. Lookup `then` property on `%Promise.prototype%` (user-mutable).
-PromiseAll(array); // unsafe
-
 PromiseAll(new SafeArrayIterator(array)); // unsafe
+
 PromiseAll(set); // unsafe
 
 SafePromiseAll(array); // safe
