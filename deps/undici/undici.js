@@ -2613,7 +2613,7 @@ var require_redirect = __commonJS({
         if (!this.location) {
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
-        const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin));
+        const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
         const path = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
         this.opts.path = path;
@@ -5797,8 +5797,7 @@ var require_request2 = __commonJS({
     webidl.converters.RequestInit = webidl.dictionaryConverter([
       {
         key: "method",
-        converter: webidl.converters.ByteString,
-        defaultValue: "GET"
+        converter: webidl.converters.ByteString
       },
       {
         key: "headers",
@@ -6180,7 +6179,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
     };
-    async function fetch2(input, init = void 0) {
+    async function fetch2(input, init = {}) {
       if (arguments.length < 1) {
         throw new TypeError(`Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`);
       }

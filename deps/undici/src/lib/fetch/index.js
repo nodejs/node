@@ -95,7 +95,7 @@ class Fetch extends EE {
 }
 
 // https://fetch.spec.whatwg.org/#fetch-method
-async function fetch (input, init = undefined) {
+async function fetch (input, init = {}) {
   if (arguments.length < 1) {
     throw new TypeError(
       `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`

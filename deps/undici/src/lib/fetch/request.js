@@ -843,8 +843,7 @@ webidl.converters.AbortSignal = webidl.interfaceConverter(
 webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'method',
-    converter: webidl.converters.ByteString,
-    defaultValue: 'GET'
+    converter: webidl.converters.ByteString
   },
   {
     key: 'headers',
