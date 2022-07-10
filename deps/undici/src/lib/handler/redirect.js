@@ -99,7 +99,7 @@ class RedirectHandler {
       return this.handler.onHeaders(statusCode, headers, resume, statusText)
     }
 
-    const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin))
+    const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
     const path = search ? `${pathname}${search}` : pathname
 
     // Remove headers referring to the original URL.
