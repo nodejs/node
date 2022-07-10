@@ -24,7 +24,7 @@ The current security stewards are documented in the main Node.js
 | NearForm   | Matteo          | 2021-Oct-12  |
 | Datadog    | Bryan           | 2022-Jan-10  |
 | RH and IBM | Joe             | 2022-Mar-18  |
-| NearForm   | Matteo / Rafael |              |
+| NearForm   | Matteo / Rafael | 2022-Jul-07  |
 | Datadog    | Vladimir        |              |
 | NodeSource | Juan            |              |
 | RH and IBM | Michael         |              |
