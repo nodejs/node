@@ -16,8 +16,8 @@ import { spawnSync } from 'node:child_process';
     { encoding: 'utf8' },
   );
 
-  const resolveHookRunCount = [...(stdout.matchAll(/resolve passthru/g) ?? new Array())]
-    .length - 1; // less 1 because the first is the needle
+  // Length minus 1 because the first match is the needle.
+  const resolveHookRunCount = (stdout.match(/resolve passthru/g)?.length ?? 0) - 1;
 
   assert.strictEqual(stderr, '');
   /**
