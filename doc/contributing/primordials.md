@@ -366,8 +366,8 @@ const set = new SafeSet().add(promise);
 // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
-// 3. Lookup `then` property on `promise` (user-mutable if user-provided).
-// 3. Lookup `then` property on `%Promise.prototype%` (user-mutable).
+// 4. Lookup `then` property on `promise` (user-mutable if user-provided).
+// 5. Lookup `then` property on `%Promise.prototype%` (user-mutable).
 PromiseAll(array); // unsafe
 
 PromiseAll(new SafeArrayIterator(array)); // unsafe
