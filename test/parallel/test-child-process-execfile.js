@@ -106,7 +106,11 @@ const execOpts = { encoding: 'utf8', shell: true };
   const args = ['foo', 'bar'];
 
   // Test with and without `{ shell: true }`
-  [{ shell: common.isWindows }, { shell: true }].forEach((options) => {
+  [
+     // Skipping shell-less test on Windows because …
+    ...(common.isWindows ? [] : [{ encoding: 'utf8' }]),
+    { shell: true, encoding: 'utf8' },
+].forEach((options) => {
     const execFileSyncStdout = execFileSync(file, args, options);
     assert.strictEqual(execFileSyncStdout.toString().trim(), 'foo bar');
 
