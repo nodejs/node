@@ -109,14 +109,14 @@ const execOpts = { encoding: 'utf8', shell: true };
   // Test with and without `{ shell: true }`
   [
     // Skipping shell-less test on Windows because its echo command is a shell built-in command.
-    ...(common.isWindows ? [] : [null]),
-    { shell: true },
+    ...(common.isWindows ? [] : [{ encoding: 'utf8' }]),
+    { shell: true, encoding: 'utf8' },
   ].forEach((options) => {
     const execFileSyncStdout = execFileSync(file, args, options);
-    assert.deepStrictEqual(execFileSyncStdout, Buffer.from(`foo bar${os.EOL}`));
+    assert.strictEqual(execFileSyncStdout, `foo bar${os.EOL}`);
 
     execFile(file, args, options, common.mustCall((_, stdout) => {
-      assert.deepStrictEqual(Buffer.from(stdout), execFileSyncStdout);
+      assert.strictEqual(stdout, execFileSyncStdout);
     }));
   });
 }
