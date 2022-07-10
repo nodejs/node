@@ -108,7 +108,7 @@ const execOpts = { encoding: 'utf8', shell: true };
 
   // Test with and without `{ shell: true }`
   [
-    // Skipping shell-less test on Windows because …
+    // Skipping shell-less test on Windows because its echo command is a shell built-in command.
     ...(common.isWindows ? [] : [null]),
     { shell: true },
   ].forEach((options) => {
