@@ -40,8 +40,9 @@ server.listen(0, common.mustCall(() => {
   const client = connect(server.address().port);
   let response = '';
 
+  client.setEncoding('utf8');
   client.on('data', common.mustCall((chunk) => {
-    response += chunk.toString('utf-8');
+    response += chunk;
   }));
 
   const errOrEnd = common.mustSucceed(function(err) {

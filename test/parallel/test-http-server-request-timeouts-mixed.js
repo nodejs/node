@@ -43,8 +43,9 @@ function createClient(server) {
     completed: false
   };
 
+  request.client.setEncoding('utf8');
   request.client.on('data', common.mustCallAtLeast((chunk) => {
-    request.response += chunk.toString('utf-8');
+    request.response += chunk;
   }));
 
   request.client.on('end', common.mustCall(() => {

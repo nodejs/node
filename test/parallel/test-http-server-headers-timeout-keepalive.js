@@ -47,8 +47,9 @@ server.listen(0, common.mustCall(() => {
   let second = false;
   let response = '';
 
+  client.setEncoding('utf8');
   client.on('data', common.mustCallAtLeast((chunk) => {
-    response += chunk.toString('utf-8');
+    response += chunk;
 
     // First response has ended
     if (!second && response.endsWith('\r\n\r\n')) {

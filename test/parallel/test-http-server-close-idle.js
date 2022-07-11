@@ -33,8 +33,10 @@ server.listen(0, function() {
     const client2 = connect(port);
     let response = '';
 
+    client2.setEncoding('utf8');
+
     client2.on('data', common.mustCall((chunk) => {
-      response += chunk.toString('utf-8');
+      response += chunk;
 
       if (response.endsWith('0\r\n\r\n')) {
         assert(response.startsWith('HTTP/1.1 200 OK\r\nConnection: keep-alive'));
