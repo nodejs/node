@@ -2832,8 +2832,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in a register by the jump table trampoline.
   // Convert to Smi for the runtime call.
-  __ SmiTag(kWasmCompileLazyFuncIndexRegister,
-            kWasmCompileLazyFuncIndexRegister);
+  __ SmiTag(kWasmCompileLazyFuncIndexRegister);
+
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2867,21 +2867,37 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPush(gp_regs);
     __ MultiPushF64AndV128(fp_regs, simd_regs);
 
-    // Pass instance and function index as explicit arguments to the runtime
+    // Push the Wasm instance for loading the jump table address after the
+    // runtime call.
+    __ Push(kWasmInstanceRegister);
+
+    // Push the Wasm instance again as an explicit argument to the runtime
     // function.
-    __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
+    __ Push(kWasmInstanceRegister);
+    // Push the function index as second argument.
+    __ Push(kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ LoadSmiLiteral(cp, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
-    // The entrypoint address is the return value.
-    __ mr(r11, kReturnRegister0);
+    // The runtime function returns the jump table slot offset as a Smi. Use
+    // that to compute the jump target in r11.
+    __ Pop(kWasmInstanceRegister);
+    __ LoadU64(
+        r11,
+        MemOperand(kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag),
+        r0);
+    __ SmiUntag(kReturnRegister0);
+    __ AddS64(r11, r11, kReturnRegister0);
+    // r11 now holds the jump table slot where we want to jump to in the end.
 
     // Restore registers.
     __ MultiPopF64AndV128(fp_regs, simd_regs);
     __ MultiPop(gp_regs);
   }
-  // Finally, jump to the entrypoint.
+
+  // Finally, jump to the jump table slot for the function.
   __ Jump(r11);
 }
 

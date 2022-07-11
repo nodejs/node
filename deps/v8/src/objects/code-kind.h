@@ -57,10 +57,6 @@ inline constexpr bool CodeKindIsBaselinedJSFunction(CodeKind kind) {
   return kind == CodeKind::BASELINE;
 }
 
-inline constexpr bool CodeKindIsStaticallyCompiled(CodeKind kind) {
-  return kind == CodeKind::BYTECODE_HANDLER || kind == CodeKind::BUILTIN;
-}
-
 inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
   STATIC_ASSERT(static_cast<int>(CodeKind::INTERPRETED_FUNCTION) + 1 ==
                 static_cast<int>(CodeKind::BASELINE));

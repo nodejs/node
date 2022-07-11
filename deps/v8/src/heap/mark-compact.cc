@@ -3054,14 +3054,11 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       // unregister_token field set to undefined when processing the first
       // WeakCell. Like above, we're modifying pointers during GC, so record the
       // slots.
-      HeapObject undefined = ReadOnlyRoots(isolate()).undefined_value();
       JSFinalizationRegistry finalization_registry =
           JSFinalizationRegistry::cast(weak_cell.finalization_registry());
       finalization_registry.RemoveUnregisterToken(
           JSReceiver::cast(unregister_token), isolate(),
-          [undefined](WeakCell matched_cell) {
-            matched_cell.set_unregister_token(undefined);
-          },
+          JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
           gc_notify_updated_slot);
     } else {
       // The unregister_token is alive.
