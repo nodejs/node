@@ -148,9 +148,7 @@ class ContextifyScript : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
-  static void CreateCachedData(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
