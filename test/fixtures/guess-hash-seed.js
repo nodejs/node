@@ -67,9 +67,6 @@ function hash_to_bucket(hash, numBuckets) {
 function time_set_lookup(set, value) {
   const t1 = process.hrtime();
   for (let i = 0; i < 100; i++) {
-    // annoyingly, SetHas() is JS code and therefore potentially optimizable.
-    // However, SetHas() looks up the table using native code, and it seems like
-    // that's sufficient to prevent the optimizer from doing anything?
     set.has(value);
   }
   const t = process.hrtime(t1);
@@ -77,6 +74,9 @@ function time_set_lookup(set, value) {
   const nanos = t[1];
   return secs * 1e9 + nanos;
 }
+
+// Prevent optimization of SetHas().
+%NeverOptimizeFunction(time_set_lookup);
 
 // Set with 256 buckets; bucket 0 full, others empty
 const tester_set_buckets = 256;
