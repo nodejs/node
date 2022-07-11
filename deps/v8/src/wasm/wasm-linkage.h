@@ -143,6 +143,8 @@ constexpr DoubleRegister kFpReturnRegisters[] = {};
 // The parameter index where the instance parameter should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
 constexpr int kWasmInstanceParameterIndex = 0;
+static_assert(kWasmInstanceRegister ==
+              kGpParamRegisters[kWasmInstanceParameterIndex]);
 
 class LinkageAllocator {
  public:

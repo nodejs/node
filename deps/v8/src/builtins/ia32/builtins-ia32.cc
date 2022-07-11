@@ -2878,20 +2878,28 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       offset += kSimd128Size;
     }
 
-    // Push the Wasm instance as an explicit argument to WasmCompileLazy.
+    // Push the Wasm instance for loading the jump table address after the
+    // runtime call.
+    __ Push(kWasmInstanceRegister);
+
+    // Push the Wasm instance again as an explicit argument to the runtime
+    // function.
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
-    {
-      // At this point, ebx has been spilled to the stack but is not yet
-      // overwritten with another value. We can still use it as kRootRegister.
-      __ CallRuntime(Runtime::kWasmCompileLazy, 2);
-    }
-    // The entrypoint address is the return value.
-    __ mov(edi, kReturnRegister0);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+    // The runtime function returns the jump table slot offset as a Smi. Use
+    // that to compute the jump target in edi.
+    __ Pop(kWasmInstanceRegister);
+    __ mov(edi, MemOperand(kWasmInstanceRegister,
+                           WasmInstanceObject::kJumpTableStartOffset -
+                               kHeapObjectTag));
+    __ SmiUntag(kReturnRegister0);
+    __ add(edi, kReturnRegister0);
+    // edi now holds the jump table slot where we want to jump to in the end.
 
     // Restore registers.
     for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
@@ -2904,7 +2912,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       __ Pop(reg);
     }
   }
-  // Finally, jump to the entrypoint.
+
+  // Finally, jump to the jump table slot for the function.
   __ jmp(edi);
 }
 

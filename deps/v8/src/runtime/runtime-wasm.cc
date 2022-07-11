@@ -224,14 +224,11 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
+    return ReadOnlyRoots{isolate}.exception();
   }
 
-  Address entrypoint =
-      instance->module_object().native_module()->GetCallTargetForFunction(
-          func_index);
-
-  return Object(entrypoint);
+  auto* native_module = instance->module_object().native_module();
+  return Smi::FromInt(native_module->GetJumpTableOffset(func_index));
 }
 
 namespace {

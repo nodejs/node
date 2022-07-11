@@ -821,10 +821,9 @@ class Runtime : public AllStatic {
   // private field definition), this method throws if the field already exists
   // on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  DefineObjectOwnProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Object> key,
-      Handle<Object> value, StoreOrigin store_origin,
-      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
+  DefineObjectOwnProperty(Isolate* isolate, Handle<Object> object,
+                          Handle<Object> key, Handle<Object> value,
+                          StoreOrigin store_origin);
 
   // When "receiver" is not passed, it defaults to "lookup_start_object".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>

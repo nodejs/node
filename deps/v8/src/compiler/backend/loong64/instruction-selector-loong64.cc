@@ -1446,7 +1446,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   if (CanCover(node, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord64Sar: {
-        if (CanCoverTransitively(node, value, value->InputAt(0)) &&
+        if (CanCover(value, value->InputAt(0)) &&
             TryEmitExtendingLoad(this, value, node)) {
           return;
         } else {

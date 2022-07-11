@@ -2609,8 +2609,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in a register by the jump table trampoline.
   // Convert to Smi for the runtime call.
-  __ SmiTag(kWasmCompileLazyFuncIndexRegister,
-            kWasmCompileLazyFuncIndexRegister);
+  __ SmiTag(kWasmCompileLazyFuncIndexRegister);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2640,22 +2639,34 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ stm(db_w, sp, gp_regs);
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
 
-    // Pass instance and function index as explicit arguments to the runtime
+    // Push the Wasm instance for loading the jump table address after the
+    // runtime call.
+    __ push(kWasmInstanceRegister);
+
+    // Push the Wasm instance again as an explicit argument to the runtime
     // function.
     __ push(kWasmInstanceRegister);
+    // Push the function index as second argument.
     __ push(kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(cp, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
-    // The entrypoint address is the return value.
-    __ mov(r8, kReturnRegister0);
+    // The runtime function returns the jump table slot offset as a Smi. Use
+    // that to compute the jump target in r8.
+    __ pop(kWasmInstanceRegister);
+    __ ldr(r8, MemOperand(
+                   kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+    __ add(r8, r8, Operand::SmiUntag(kReturnRegister0));
+    // r8 now holds the jump table slot where we want to jump to in the end.
 
     // Restore registers.
     __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
     __ ldm(ia_w, sp, gp_regs);
   }
-  // Finally, jump to the entrypoint.
+
+  // Finally, jump to the jump table slot for the function.
   __ Jump(r8);
 }
 

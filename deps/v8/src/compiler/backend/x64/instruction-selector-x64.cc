@@ -1822,7 +1822,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
       case IrOpcode::kWord64Shr: {
         Int64BinopMatcher m(value);
         if (m.right().Is(32)) {
-          if (CanCoverTransitively(node, value, value->InputAt(0)) &&
+          if (CanCover(value, value->InputAt(0)) &&
               TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
             return EmitIdentity(node);
           }

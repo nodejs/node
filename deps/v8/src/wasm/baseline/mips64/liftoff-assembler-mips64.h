@@ -748,13 +748,13 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     Daddu(temp0, dst_op.rm(), dst_op.offset());                          \
     switch (type.value()) {                                              \
       case StoreType::kI64Store8:                                        \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 8, inst64, 7);                 \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 8, inst64, 7);               \
         break;                                                           \
       case StoreType::kI32Store8:                                        \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 8, inst32, 3);                 \
         break;                                                           \
       case StoreType::kI64Store16:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 16, inst64, 7);                \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 16, inst64, 7);              \
         break;                                                           \
       case StoreType::kI32Store16:                                       \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 16, inst32, 3);                \
@@ -823,13 +823,13 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   Daddu(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 7);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, 8, 7);
       break;
     case StoreType::kI32Store8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 3);
       break;
     case StoreType::kI64Store16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 7);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, 16, 7);
       break;
     case StoreType::kI32Store16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 3);
@@ -899,13 +899,13 @@ void LiftoffAssembler::AtomicCompareExchange(
   Daddu(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 7);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, 8, 7);
       break;
     case StoreType::kI32Store8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 3);
       break;
     case StoreType::kI64Store16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 7);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, 16, 7);
       break;
     case StoreType::kI32Store16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 3);

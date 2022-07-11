@@ -570,6 +570,8 @@ void ContextFilter::OnMoveEvent(Address from_address, Address to_address) {
 
 using v8::tracing::TracedValue;
 
+std::atomic<ProfilerId> CpuProfilesCollection::last_id_{0};
+
 CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
                        CpuProfilingOptions options,
                        std::unique_ptr<DiscardedSamplesDelegate> delegate)
@@ -892,10 +894,7 @@ size_t CodeMap::GetEstimatedMemoryUsage() const {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : profiler_(nullptr),
-      current_profiles_semaphore_(1),
-      last_id_(0),
-      isolate_(isolate) {
+    : profiler_(nullptr), current_profiles_semaphore_(1), isolate_(isolate) {
   USE(isolate_);
 }
 

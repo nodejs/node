@@ -60,16 +60,14 @@ bool JSFinalizationRegistry::Unregister(
   // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
   // its FinalizationRegistry; remove it from there.
   return finalization_registry->RemoveUnregisterToken(
-      *unregister_token, isolate,
-      [isolate](WeakCell matched_cell) {
-        matched_cell.RemoveFromFinalizationRegistryCells(isolate);
-      },
+      *unregister_token, isolate, kRemoveMatchedCellsFromRegistry,
       [](HeapObject, ObjectSlot, Object) {});
 }
 
-template <typename MatchCallback, typename GCNotifyUpdatedSlotCallback>
+template <typename GCNotifyUpdatedSlotCallback>
 bool JSFinalizationRegistry::RemoveUnregisterToken(
-    JSReceiver unregister_token, Isolate* isolate, MatchCallback match_callback,
+    JSReceiver unregister_token, Isolate* isolate,
+    RemoveUnregisterTokenMode removal_mode,
     GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // This method is called from both FinalizationRegistry#unregister and for
   // removing weakly-held dead unregister tokens. The latter is during GC so
@@ -107,7 +105,16 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
     value = weak_cell.key_list_next();
     if (weak_cell.unregister_token() == unregister_token) {
       // weak_cell has the same unregister token; remove it from the key list.
-      match_callback(weak_cell);
+      switch (removal_mode) {
+        case kRemoveMatchedCellsFromRegistry:
+          weak_cell.RemoveFromFinalizationRegistryCells(isolate);
+          break;
+        case kKeepMatchedCellsInRegistry:
+          // Do nothing.
+          break;
+      }
+      // Clear unregister token-related fields.
+      weak_cell.set_unregister_token(undefined);
       weak_cell.set_key_list_prev(undefined);
       weak_cell.set_key_list_next(undefined);
       was_present = true;

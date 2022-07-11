@@ -1264,7 +1264,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map.is_access_check_needed()) {
-        if (is_element || !name_->IsPrivate(isolate_)) return ACCESS_CHECK;
+        if (is_element || !name_->IsPrivate(isolate_) ||
+            name_->IsPrivateName(isolate_))
+          return ACCESS_CHECK;
       }
       V8_FALLTHROUGH;
     case ACCESS_CHECK:

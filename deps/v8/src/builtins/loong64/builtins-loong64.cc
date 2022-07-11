@@ -2648,37 +2648,50 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in t0 by the jump table trampoline.
   // Convert to Smi for the runtime call
   __ SmiTag(kWasmCompileLazyFuncIndexRegister);
+
+  // Compute register lists for parameters to be saved. We save all parameter
+  // registers (see wasm-linkage.h). They might be overwritten in the runtime
+  // call below. We don't have any callee-saved registers in wasm, so no need to
+  // store anything else.
+  constexpr RegList kSavedGpRegs = ([]() constexpr {
+    RegList saved_gp_regs;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      saved_gp_regs.set(gp_param_reg);
+    }
+
+    // All set registers were unique.
+    CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
+    // The Wasm instance must be part of the saved registers.
+    CHECK(saved_gp_regs.has(kWasmInstanceRegister));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+             saved_gp_regs.Count());
+    return saved_gp_regs;
+  })();
+
+  constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
+    DoubleRegList saved_fp_regs;
+    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+      saved_fp_regs.set(fp_param_reg);
+    }
+
+    CHECK_EQ(saved_fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
+             saved_fp_regs.Count());
+    return saved_fp_regs;
+  })();
+
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    RegList gp_regs;
-    for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs.set(gp_param_reg);
-    }
-
-    DoubleRegList fp_regs;
-    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-      fp_regs.set(fp_param_reg);
-    }
-
-    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
-    CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
-             gp_regs.Count());
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
-             fp_regs.Count());
-
-    __ MultiPush(gp_regs);
-    __ MultiPushFPU(fp_regs);
+    // Save registers that we need to keep alive across the runtime call.
+    __ MultiPush(kSavedGpRegs);
+    __ MultiPushFPU(kSavedFpRegs);
 
     // kFixedFrameSizeFromFp is hard coded to include space for Simd
     // registers, so we still need to allocate extra (unused) space on the stack
     // as if they were saved.
-    __ Sub_d(sp, sp, fp_regs.Count() * kDoubleSize);
+    __ Sub_d(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
 
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
@@ -2687,15 +2700,27 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
-    __ mov(t8, a0);
 
-    __ Add_d(sp, sp, fp_regs.Count() * kDoubleSize);
+    // Untag the returned Smi into into t7, for later use.
+    static_assert(!kSavedGpRegs.has(t7));
+    __ SmiUntag(t7, a0);
+
+    __ Add_d(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
     // Restore registers.
-    __ MultiPopFPU(fp_regs);
-    __ MultiPop(gp_regs);
+    __ MultiPopFPU(kSavedFpRegs);
+    __ MultiPop(kSavedGpRegs);
   }
-  // Finally, jump to the entrypoint.
-  __ Jump(t8);
+
+  // The runtime function returned the jump table slot offset as a Smi (now in
+  // t7). Use that to compute the jump target.
+  static_assert(!kSavedGpRegs.has(t8));
+  __ Ld_d(t8, MemOperand(
+                  kWasmInstanceRegister,
+                  WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+  __ Add_d(t7, t8, Operand(t7));
+
+  // Finally, jump to the jump table slot for the function.
+  __ Jump(t7);
 }
 
 void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {

@@ -3486,8 +3486,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   std::unique_ptr<const RegisterConfiguration> restricted_config;
+  // The mid-tier register allocator keeps values in stack slots for too long.
+  // This is incompatible with left-trimming, therefore we cannot enable it for
+  // JS functions.
   bool use_mid_tier_register_allocator =
-      !CodeKindIsStaticallyCompiled(data->info()->code_kind()) &&
+      data->info()->code_kind() == CodeKind::WASM_FUNCTION &&
       (FLAG_turbo_force_mid_tier_regalloc ||
        (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
         data->sequence()->VirtualRegisterCount() >
