@@ -33,8 +33,9 @@ server.listen(0, common.mustCall(() => {
   const client = connect(server.address().port);
   let response = '';
 
+  client.setEncoding('utf8');
   client.on('data', common.mustCallAtLeast((chunk) => {
-    response += chunk.toString('utf-8');
+    response += chunk;
   }, 1));
 
   client.on('end', common.mustCall(() => {
