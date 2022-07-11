@@ -331,11 +331,11 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 
 void V8CpuProfilerConnection::Start() {
   DispatchMessage("Profiler.enable");
-  DispatchMessage("Profiler.start");
   std::string params = R"({ "interval": )";
   params += std::to_string(env()->cpu_prof_interval());
   params += " }";
   DispatchMessage("Profiler.setSamplingInterval", params.c_str());
+  DispatchMessage("Profiler.start");
 }
 
 void V8CpuProfilerConnection::End() {
