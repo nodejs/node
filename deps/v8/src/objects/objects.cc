@@ -6981,7 +6981,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
   }
 
   // weak_cell is now removed from the unregister token map, so clear its
-  // unregister token-related fields for heap verification.
+  // unregister token-related fields.
   weak_cell.set_unregister_token(undefined);
   weak_cell.set_key_list_prev(undefined);
   weak_cell.set_key_list_next(undefined);

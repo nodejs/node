@@ -48,6 +48,9 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
       LookupIterator(isolate, receiver, lookup_key, lookup_start_object);
 
   MaybeHandle<Object> result = Object::GetProperty(&it);
+  if (result.is_null()) {
+    return result;
+  }
   if (is_found) *is_found = it.IsFound();
 
   if (!it.IsFound() && key->IsSymbol() &&
@@ -572,15 +575,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
   LookupIterator it(isolate, object, lookup_key);
-
-  if (!it.IsFound() && key->IsSymbol() &&
-      Symbol::cast(*key).is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
-    DCHECK(name_string->IsString());
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
-                                 name_string, object),
-                    Object);
+  if (key->IsSymbol() && Symbol::cast(*key).is_private_name() &&
+      !JSReceiver::CheckPrivateNameStore(&it, false)) {
+    return MaybeHandle<Object>();
   }
 
   MAYBE_RETURN_NULL(
@@ -589,10 +586,11 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   return value;
 }
 
-MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
-    Isolate* isolate, Handle<Object> object, Handle<Object> key,
-    Handle<Object> value, StoreOrigin store_origin,
-    Maybe<ShouldThrow> should_throw) {
+MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
+                                                     Handle<Object> object,
+                                                     Handle<Object> key,
+                                                     Handle<Object> value,
+                                                     StoreOrigin store_origin) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -607,20 +605,15 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
   if (key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
-    Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
-    if (it.IsFound()) {
-      Handle<Object> name_string(private_symbol->description(), isolate);
-      DCHECK(name_string->IsString());
-      MessageTemplate message =
-          private_symbol->is_private_brand()
-              ? MessageTemplate::kInvalidPrivateBrandReinitialization
-              : MessageTemplate::kInvalidPrivateFieldReinitialization;
-      THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
-    } else {
-      MAYBE_RETURN_NULL(JSReceiver::AddPrivateField(&it, value, should_throw));
+    if (!JSReceiver::CheckPrivateNameStore(&it, true)) {
+      return MaybeHandle<Object>();
     }
+    DCHECK(!it.IsFound());
+    MAYBE_RETURN_NULL(
+        JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
   } else {
-    MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(&it, value, should_throw));
+    MAYBE_RETURN_NULL(
+        JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
   }
 
   return value;

@@ -161,6 +161,11 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
+  // Check if private name property can be store on the object. It will return
+  // false with an error when it cannot.
+  V8_WARN_UNUSED_RESULT static bool CheckPrivateNameStore(LookupIterator* it,
+                                                          bool is_define);
+
   // Check if a data property can be created on the object. It will fail with
   // an error when it cannot.
   V8_WARN_UNUSED_RESULT static Maybe<bool> CheckIfCanDefine(
