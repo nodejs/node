@@ -663,7 +663,6 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
   script_tmpl->SetClassName(class_name);
   env->SetProtoMethod(script_tmpl, "createCachedData", CreateCachedData);
   env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
-  env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
   Local<Context> context = env->context();
 
@@ -677,7 +676,6 @@ void ContextifyScript::RegisterExternalReferences(
   registry->Register(New);
   registry->Register(CreateCachedData);
   registry->Register(RunInContext);
-  registry->Register(RunInThisContext);
 }
 
 void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
@@ -844,41 +842,6 @@ void ContextifyScript::CreateCachedData(
   }
 }
 
-void ContextifyScript::RunInThisContext(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  ContextifyScript* wrapped_script;
-  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
-
-  TRACE_EVENT0(TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext");
-
-  // TODO(addaleax): Use an options object or otherwise merge this with
-  // RunInContext().
-  CHECK_EQ(args.Length(), 4);
-
-  CHECK(args[0]->IsNumber());
-  int64_t timeout = args[0]->IntegerValue(env->context()).FromJust();
-
-  CHECK(args[1]->IsBoolean());
-  bool display_errors = args[1]->IsTrue();
-
-  CHECK(args[2]->IsBoolean());
-  bool break_on_sigint = args[2]->IsTrue();
-
-  CHECK(args[3]->IsBoolean());
-  bool break_on_first_line = args[3]->IsTrue();
-
-  // Do the eval within this context
-  EvalMachine(env,
-              timeout,
-              display_errors,
-              break_on_sigint,
-              break_on_first_line,
-              nullptr,  // microtask_queue
-              args);
-}
-
 void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -886,17 +849,26 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
   CHECK_EQ(args.Length(), 5);
+  CHECK(args[0]->IsObject() || args[0]->IsNull());
 
-  CHECK(args[0]->IsObject());
-  Local<Object> sandbox = args[0].As<Object>();
-  // Get the context from the sandbox
-  ContextifyContext* contextify_context =
-      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
-  CHECK_NOT_NULL(contextify_context);
+  Local<Context> context;
+  std::shared_ptr<v8::MicrotaskQueue> microtask_queue;
 
-  Local<Context> context = contextify_context->context();
-  if (context.IsEmpty())
-    return;
+  if (args[0]->IsObject()) {
+    Local<Object> sandbox = args[0].As<Object>();
+    // Get the context from the sandbox
+    ContextifyContext* contextify_context =
+        ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+    CHECK_NOT_NULL(contextify_context);
+    CHECK_EQ(contextify_context->env(), env);
+
+    context = contextify_context->context();
+    if (context.IsEmpty()) return;
+
+    microtask_queue = contextify_context->microtask_queue();
+  } else {
+    context = env->context();
+  }
 
   TRACE_EVENT0(TRACING_CATEGORY_NODE2(vm, script), "RunInContext");
 
@@ -914,12 +886,12 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
 
   // Do the eval within the context
   Context::Scope context_scope(context);
-  EvalMachine(contextify_context->env(),
+  EvalMachine(env,
               timeout,
               display_errors,
               break_on_sigint,
               break_on_first_line,
-              contextify_context->microtask_queue(),
+              microtask_queue,
               args);
 }
 
