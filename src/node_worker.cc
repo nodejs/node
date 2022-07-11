@@ -816,8 +816,7 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   double loop_start_time = w->env_->performance_state()->milestones[
       node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
   CHECK_GE(loop_start_time, 0);
-  args.GetReturnValue().Set(
-      (loop_start_time - node::performance::timeOrigin) / 1e6);
+  args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
 namespace {

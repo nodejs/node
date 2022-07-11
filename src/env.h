@@ -1363,6 +1363,13 @@ class Environment : public MemoryRetainer {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
+  inline uint64_t time_origin() {
+    return time_origin_;
+  }
+  inline double time_origin_timestamp() {
+    return time_origin_timestamp_;
+  }
+
   inline bool EmitProcessEnvWarning() {
     bool current_value = emit_env_nonstring_warning_;
     emit_env_nonstring_warning_ = false;
@@ -1550,7 +1557,10 @@ class Environment : public MemoryRetainer {
 
   AliasedInt32Array stream_base_state_;
 
-  uint64_t environment_start_time_;
+  // https://w3c.github.io/hr-time/#dfn-time-origin
+  uint64_t time_origin_;
+  // https://w3c.github.io/hr-time/#dfn-get-time-origin-timestamp
+  double time_origin_timestamp_;
   std::unique_ptr<performance::PerformanceState> performance_state_;
 
   bool has_run_bootstrapping_code_ = false;
