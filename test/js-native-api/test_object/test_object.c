@@ -605,9 +605,12 @@ static napi_value TestSeal(napi_env env,
 }
 
 // We create two type tags. They are basically 128-bit UUIDs.
-static const napi_type_tag type_tags[2] = {
+static const napi_type_tag type_tags[5] = {
   { 0xdaf987b3cc62481a, 0xb745b0497f299531 },
-  { 0xbb7936c374084d9b, 0xa9548d0762eeedb9 }
+  { 0xbb7936c374084d9b, 0xa9548d0762eeedb9 },
+  { 0xa5ed9ce2e4c00c38, 0 },
+  { 0, 0 },
+  { 0xa5ed9ce2e4c00c38, 0xdaf987b3cc62481a },
 };
 
 static napi_value
