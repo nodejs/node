@@ -6,8 +6,14 @@ on:
     - cron: 0 0 * * 1
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   update_license:
+    permissions:
+      contents: write  # for gr2m/create-or-update-pull-request-action to push local changes
+      pull-requests: write  # for gr2m/create-or-update-pull-request-action to create a PR
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:

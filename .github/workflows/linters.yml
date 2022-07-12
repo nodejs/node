@@ -17,6 +17,9 @@ env:
   PYTHON_VERSION: '3.10'
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   lint-addon-docs:
     if: github.event.pull_request.draft == false
