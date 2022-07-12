@@ -139,19 +139,16 @@ function createServer() {
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const host = 'localhost';
-    const options = {
+    const options = common.mustNotMutateObjectDeep({
       port: 3000,
-      rejectUnauthorized: false
-    };
+      rejectUnauthorized: false,
+    });
 
     const socket = agent.createConnection(port, host, options);
     socket.on('connect', common.mustCall((data) => {
       socket.end();
     }));
     socket.on('end', common.mustCall(() => {
-      assert.deepStrictEqual(options, {
-        port: 3000, rejectUnauthorized: false
-      });
       server.close();
     }));
   }));
