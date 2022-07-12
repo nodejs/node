@@ -519,6 +519,52 @@ function mustNotCall(msg) {
   };
 }
 
+const _mustNotMutateObjectDeepProxies = new WeakMap();
+
+function mustNotMutateObjectDeep(original) {
+  // Return primitives and functions directly. Primitives are immutable, and
+  // proxied functions are impossible to compare against originals, e.g. with
+  // `assert.deepEqual()`.
+  if (original === null || typeof original !== 'object') {
+    return original;
+  }
+
+  const cachedProxy = _mustNotMutateObjectDeepProxies.get(original);
+  if (cachedProxy) {
+    return cachedProxy;
+  }
+
+  const _mustNotMutateObjectDeepHandler = {
+    __proto__: null,
+    defineProperty(target, property, descriptor) {
+      assert.fail(`Expected no side effects, got ${inspect(property)} ` +
+                  'defined');
+    },
+    deleteProperty(target, property) {
+      assert.fail(`Expected no side effects, got ${inspect(property)} ` +
+                  'deleted');
+    },
+    get(target, prop, receiver) {
+      return mustNotMutateObjectDeep(Reflect.get(target, prop, receiver));
+    },
+    preventExtensions(target) {
+      assert.fail('Expected no side effects, got extensions prevented on ' +
+                  inspect(target));
+    },
+    set(target, property, value, receiver) {
+      assert.fail(`Expected no side effects, got ${inspect(value)} ` +
+                  `assigned to ${inspect(property)}`);
+    },
+    setPrototypeOf(target, prototype) {
+      assert.fail(`Expected no side effects, got set prototype to ${prototype}`);
+    }
+  };
+
+  const proxy = new Proxy(original, _mustNotMutateObjectDeepHandler);
+  _mustNotMutateObjectDeepProxies.set(original, proxy);
+  return proxy;
+}
+
 function printSkipMessage(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
 }
@@ -827,6 +873,7 @@ const common = {
   mustCall,
   mustCallAtLeast,
   mustNotCall,
+  mustNotMutateObjectDeep,
   mustSucceed,
   nodeProcessAborted,
   PIPE,
