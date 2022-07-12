@@ -299,6 +299,40 @@ If `fn` is not provided, an empty function will be used.
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
+### `mustNotMutateObjectDeep([target])`
+
+* `target` [\<any>][<any>] default = `undefined`
+* return [\<any>][<any>]
+
+If `target` is an Object, returns a proxy object that triggers
+an `AssertionError` on mutation attempt, including mutation of deeply nested
+Objects. Otherwise, it returns `target` directly.
+
+Use of this function is encouraged for relevant regression tests.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { mustNotMutateObjectDeep } from '../common/index.mjs';
+
+const _mutableOptions = { length: 4, position: 8 };
+const options = mustNotMutateObjectDeep(_mutableOptions);
+
+// In filehandle.read or filehandle.write, attempt to mutate options will throw
+// In the test code, options can still be mutated via _mutableOptions
+const fh = await open('/path/to/file', 'r+');
+const { buffer } = await fh.read(options);
+_mutableOptions.position = 4;
+await fh.write(buffer, options);
+
+// Inline usage
+const stats = await fh.stat(mustNotMutateObjectDeep({ bigint: true }));
+console.log(stats.size);
+```
+
+Caveats: built-in objects that make use of their internal slots (for example,
+`Map`s and `Set`s) might not work with this function. It returns Functions
+directly, not preventing their mutation.
+
 ### `mustSucceed([fn])`
 
 * `fn` [\<Function>][<Function>] default = () => {}
@@ -1024,6 +1058,7 @@ See [the WPT tests README][] for details.
 [<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [<RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[<any>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Data_types
 [<bigint>]: https://github.com/tc39/proposal-bigint
 [<boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [<number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
