@@ -17,7 +17,7 @@ We only use a subset of the sources for each.
 
 The `nghttp3` library depends on `ngtcp2`. Both should always be updated
 together. From `ngtcp2` we only want the contents of the `lib` and `crypto`
-directories; from `nghttp3` we only want the contents o the `lib`.
+directories; from `nghttp3` we only want the contents of the `lib`.
 
 ### Updating ngtcp2
 
