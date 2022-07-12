@@ -45,6 +45,11 @@ it('async throw fail', async () => {
   throw new Error('thrown from async throw fail');
 });
 
+it('async skip fail', async (t) => {
+  t.skip();
+  throw new Error('thrown from async throw fail');
+});
+
 it('async assertion fail', async () => {
   // Make sure the assert module is handled.
   assert.strictEqual(true, false);
@@ -300,4 +305,14 @@ describe('subtest sync throw fails', () => {
   it('sync throw fails at second', () => {
     throw new Error('thrown from subtest sync throw fails at second');
   });
+});
+
+describe('describe sync throw fails', () => {
+  it('should not run', () => {});
+  throw new Error('thrown from describe');
+});
+
+describe('describe async throw fails', async () => {
+  it('should not run', () => {});
+  throw new Error('thrown from describe');
 });
