@@ -67,9 +67,9 @@ function tryRepeatedTimer() {
 // Test if the callback of `process.nextTick` can be invoked.
 function tryNextTick1() {
   process.nextTick(common.mustCall(function() {
-    setTimeout(common.mustCall(() => {
+    setImmediate(common.mustCall(() => {
       process.once('beforeExit', common.mustCall(tryNextTick2));
-    }), 0);
+    }));
   }));
 }
 
