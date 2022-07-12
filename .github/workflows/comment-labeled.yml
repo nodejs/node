@@ -11,8 +11,14 @@ env:
     If it should remain open, please leave a comment explaining why it should remain open.
   FAST_TRACK_MESSAGE: Fast-track has been requested by @${{ github.actor }}. Please 👍 to approve.
 
+permissions:
+  contents: read
+
 jobs:
   stale-comment:
+    permissions:
+      issues: write
+      pull-requests: write
     if: github.repository == 'nodejs/node' && github.event.label.name == 'stalled'
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +29,8 @@ jobs:
         run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
 
   fast-track:
+    permissions:
+      pull-requests: write
     if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
     runs-on: ubuntu-latest
     steps:

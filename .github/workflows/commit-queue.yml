@@ -18,8 +18,13 @@ concurrency: ${{ github.workflow }}
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   get_mergeable_prs:
+    permissions:
+      pull-requests: read
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     outputs:

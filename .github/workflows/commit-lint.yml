@@ -5,6 +5,9 @@ on: [pull_request]
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
