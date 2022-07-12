@@ -284,7 +284,7 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 ### Event: `'drop'`
 
 <!-- YAML
-added: REPLACEME
+added: v18.6.0
 -->
 
 When the number of connections reaches the threshold of `server.maxConnections`,

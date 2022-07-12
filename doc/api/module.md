@@ -65,7 +65,7 @@ const siblingModule = require('./sibling-module');
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.6.0
 -->
 
 * `moduleName` {string} name of the module
