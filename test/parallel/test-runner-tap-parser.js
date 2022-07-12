@@ -3,13 +3,14 @@
 
 require('../common');
 const assert = require('assert');
+const util = require('util');
 
 const { TapParser } = require('internal/test_runner/tap_parser');
 
 function TAPParser(input) {
-  // parse but don't validate
-  const parser = new TapParser(input, { debug: true, validate: false });
-  return parser.parse();
+  const parser = new TapParser(input);
+  const ast = parser.parse();
+  return ast;
 }
 
 // TAP version
@@ -31,7 +32,7 @@ function TAPParser(input) {
   assert.throws(() => TAPParser(`TAP version`), {
     name: 'SyntaxError',
     message:
-      'Expected Numeric, got "EOF" at line 1, column 12 (start 12, end 12)',
+      'Expected a version number, got "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
   });
 }
 
@@ -39,7 +40,7 @@ function TAPParser(input) {
   assert.throws(() => TAPParser(`TAP`), {
     name: 'SyntaxError',
     message:
-      'Expected "version", got "EOF" at line 1, column 4 (start 4, end 4)',
+      'Expected "version" keyword, got "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
   });
 }
 
@@ -77,28 +78,31 @@ function TAPParser(input) {
   assert.throws(() => TAPParser(`1..`), {
     name: 'SyntaxError',
     message:
-      'Expected a Numeric, got "EOF" at line 1, column 4 (start 4, end 4)',
+      'Expected a plan end count, got "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
   });
 }
 
 {
   assert.throws(() => TAPParser(`1..abc`), {
     name: 'SyntaxError',
-    message: 'Expected "..", got "..abc" at line 1, column 2 (start 1, end 5)',
+    message:
+      'Expected ".." symbol, got "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
   });
 }
 
 {
   assert.throws(() => TAPParser(`1..-1`), {
     name: 'SyntaxError',
-    message: 'Expected a Numeric, got "-" at line 1, column 4 (start 3, end 3)',
+    message:
+      'Expected a plan end count, got "-" (Dash) at line 1, column 4 (start 3, end 3)',
   });
 }
 
 {
   assert.throws(() => TAPParser(`1.1`), {
     name: 'SyntaxError',
-    message: 'Expected "..", got "." at line 1, column 2 (start 1, end 1)',
+    message:
+      'Expected ".." symbol, got "." (Literal) at line 1, column 2 (start 1, end 1)',
   });
 }
 
@@ -112,7 +116,7 @@ function TAPParser(input) {
         {
           tests: [
             {
-              id: '90001',
+              id: '',
               status: {
                 pass: true,
                 fail: false,
@@ -137,7 +141,7 @@ function TAPParser(input) {
         {
           tests: [
             {
-              id: '90001',
+              id: '',
               status: {
                 pass: false,
                 fail: true,
@@ -184,7 +188,6 @@ function TAPParser(input) {
 ok 1
 not ok 2
 `);
-  console.log(JSON.stringify(ast, null, 2));
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -503,7 +506,7 @@ ok 1
         {
           tests: [
             {
-              id: '90001',
+              id: '',
               status: {
                 pass: true,
                 fail: false,
@@ -528,7 +531,7 @@ ok 1
         {
           tests: [
             {
-              id: '90001',
+              id: '',
               status: {
                 pass: true,
                 fail: false,
@@ -561,7 +564,8 @@ ok 1
                 todo: false,
               },
               description: '', // this looks like an edge case
-              reason: '',            },
+              reason: '',
+            },
           ],
         },
       ],
@@ -616,7 +620,7 @@ ok 1
   // note the leading 2 valid spaces
   const ast = TAPParser(`
   ---
-  message: "description"
+  message: 'description'
   property: 'value'
   ...
 `);
@@ -626,7 +630,10 @@ ok 1
         {
           tests: [
             {
-              diagnostics: ['message: "description"', "property: 'value'"],
+              diagnostics: [
+                "message: 'description'",
+                "property: 'value'",
+              ],
             },
           ],
         },
@@ -660,7 +667,7 @@ ok 1
     () =>
       TAPParser(
         `
-  message: "description"
+  message: 'description'
   property: 'value'
   ...
 `
@@ -668,7 +675,7 @@ ok 1
     {
       name: 'SyntaxError',
       message:
-        'Unexpected end of YAML block, got "..." at line 4, column 3 (start 48, end 50)',
+        'Unexpected YAML end marker, got "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
     }
   );
 }
@@ -679,13 +686,13 @@ ok 1
       TAPParser(
         `
   ---
-  message: "description"
+  message: 'description'
   property: 'value'
 `
       ),
     {
       name: 'SyntaxError',
-      message: `Expected end of YAML block, got "'value'" at line 4, column 13 (start 44, end 50)`,
+      message: `Expected end of YAML block, got "'value'" (Literal) at line 4, column 13 (start 44, end 50)`,
     }
   );
 }
@@ -697,14 +704,14 @@ ok 1
       TAPParser(
         `
    ---
-  message: "description"
+  message: 'description'
   property: 'value'
   ...
 `
       ),
     {
       name: 'SyntaxError',
-      message: `Invalid indentation level. Expected 2 spaces, got " " at line 2, column 3 (start 3, end 3)`,
+      message: `Expected 2 spaces, got " " (Whitespace) at line 2, column 3 (start 3, end 3)`,
     }
   );
 }
@@ -716,14 +723,14 @@ ok 1
       TAPParser(
         `
      ---
-  message: "description"
+  message: 'description'
   property: 'value'
   ...
 `
       ),
     {
       name: 'SyntaxError',
-      message: `Invalid indentation level. Expected 4 spaces, got " " at line 2, column 5 (start 5, end 5)`,
+      message: `Expected 4 spaces, got " " (Whitespace) at line 2, column 5 (start 5, end 5)`,
     }
   );
 }
@@ -735,14 +742,14 @@ ok 1
       TAPParser(
         `
     ---
-  message: "description"
+  message: 'description'
   property: 'value'
   ...
 `
       ),
     {
       name: 'SyntaxError',
-      message: `Expected a valid token, got "---" at line 2, column 5 (start 5, end 7)`,
+      message: `Expected a valid token, got "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)`,
     }
   );
 }
@@ -754,14 +761,14 @@ ok 1
       TAPParser(
         `
   ---
-  message: "description"
+  message: 'description'
   property: 'value'
     ...
 `
       ),
     {
       name: 'SyntaxError',
-      message: `Expected a valid token, got "..." at line 5, column 5 (start 56, end 58)`,
+      message: `Expected valid YAML indentation level, got " " (Whitespace) at line 5, column 4 (start 55, end 55)`,
     }
   );
 }
@@ -805,7 +812,7 @@ ok 1
   assert.throws(() => TAPParser(`abc`), {
     name: 'SyntaxError',
     message:
-      'Expected a valid token, got "abc" at line 1, column 1 (start 0, end 2)',
+      'Expected a valid token, got "abc" (Literal) at line 1, column 1 (start 0, end 2)',
   });
 }
 
@@ -813,6 +820,6 @@ ok 1
   assert.throws(() => TAPParser(`    abc`), {
     name: 'SyntaxError',
     message:
-      'Expected a valid token, got "abc" at line 1, column 5 (start 4, end 6)',
+      'Expected a valid token, got "abc" (Literal) at line 1, column 5 (start 4, end 6)',
   });
 }
