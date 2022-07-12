@@ -2452,8 +2452,16 @@ napi_status NAPI_CDECL napi_check_object_type_tag(napi_env env,
     napi_type_tag tag;
     val.As<v8::BigInt>()->ToWordsArray(
         &sign, &size, reinterpret_cast<uint64_t*>(&tag));
-    if (size == 2 && sign == 0)
-      *result = (tag.lower == type_tag->lower && tag.upper == type_tag->upper);
+    if (sign == 0) {
+      if (size == 2) {
+        *result =
+            (tag.lower == type_tag->lower && tag.upper == type_tag->upper);
+      } else if (size == 1) {
+        *result = (tag.lower == type_tag->lower && 0 == type_tag->upper);
+      } else if (size == 0) {
+        *result = (0 == type_tag->lower && 0 == type_tag->upper);
+      }
+    }
   }
 
   return GET_RETURN_STATUS(env);
