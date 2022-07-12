@@ -5,15 +5,13 @@ require('../common');
 const assert = require('assert');
 
 const { TapParser } = require('internal/test_runner/tap_parser');
-
-const {
-  TapChecker,
-  TAP14ValidationStrategy,
-} = require('internal/test_runner/tap_checker');
+const { TapChecker } = require('internal/test_runner/tap_checker');
 
 function TAPChecker(input) {
-  // parse and validate
-  new TapParser(input, { validate: true, specs: '14' }).parse();
+  // parse
+  const parser = new TapParser(input, { specs: TapChecker.TAP14 });
+  parser.parse();
+  parser.check();
 }
 
 {
@@ -147,16 +145,16 @@ ok
   message: "Board layout"
   severity: comment
   dump:
-      board:
-        - '      16G         05C        '
-        - '      G N C       C C G      '
-        - '        G           C  +     '
-        - '10C   01G         03C        '
-        - 'R N G G A G       C C C      '
-        - '  R     G           C  +     '
-        - '      01G   17C   00C        '
-        - '      G A G G N R R N R      '
-        - '        G     R     G        '
+    board:
+      - '      16G         05C        '
+      - '      G N C       C C G      '
+      - '        G           C  +     '
+      - '10C   01G         03C        '
+      - 'R N G G A G       C C C      '
+      - '  R     G           C  +     '
+      - '      01G   17C   00C        '
+      - '      G A G G N R R N R      '
+      - '        G     R     G        '
   ...
 ok - board has 7 tiles + starter tile
 1..9
