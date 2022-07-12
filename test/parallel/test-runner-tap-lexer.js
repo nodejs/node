@@ -265,7 +265,7 @@ ok 1
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.ESCAPE, value: '\\' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
-    { kind: TokenKind.LITERAL, value: '#' },
+    { kind: TokenKind.HASH, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'todo' },
     { kind: TokenKind.EOF, value: 'EOF' },
@@ -341,7 +341,6 @@ ok 1
 
 {
   const tokens = TAPLexer(`# comment`);
-
   [
     { kind: TokenKind.COMMENT, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
