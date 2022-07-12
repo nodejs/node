@@ -23,7 +23,6 @@ not ok 3 - sync fail todo # TODO
     *
     *
     *
-    *
   ...
 # Subtest: sync fail todo with message
 not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -33,7 +32,6 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
   error: 'thrown from sync fail todo with message'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -101,16 +99,24 @@ not ok 11 - async throw fail
     *
     *
   ...
+# Subtest: async skip fail
+not ok 12 - async skip fail
+  ---
+  duration_ms: *
+  failureType: 'callbackAndPromisePresent'
+  error: 'passed a callback but also returned a Promise'
+  code: 'ERR_TEST_FAILURE'
+  ...
 # Subtest: async assertion fail
-not ok 12 - async assertion fail
+not ok 13 - async assertion fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-
+    
     true !== false
-
+    
   code: 'ERR_ASSERTION'
   stack: |-
     *
@@ -122,12 +128,12 @@ not ok 12 - async assertion fail
     *
   ...
 # Subtest: resolve pass
-ok 13 - resolve pass
+ok 14 - resolve pass
   ---
   duration_ms: *
   ...
 # Subtest: reject fail
-not ok 14 - reject fail
+not ok 15 - reject fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -143,27 +149,27 @@ not ok 14 - reject fail
     *
   ...
 # Subtest: unhandled rejection - passes but warns
-ok 15 - unhandled rejection - passes but warns
+ok 16 - unhandled rejection - passes but warns
   ---
   duration_ms: *
   ...
 # Subtest: async unhandled rejection - passes but warns
-ok 16 - async unhandled rejection - passes but warns
+ok 17 - async unhandled rejection - passes but warns
   ---
   duration_ms: *
   ...
 # Subtest: immediate throw - passes but warns
-ok 17 - immediate throw - passes but warns
+ok 18 - immediate throw - passes but warns
   ---
   duration_ms: *
   ...
 # Subtest: immediate reject - passes but warns
-ok 18 - immediate reject - passes but warns
+ok 19 - immediate reject - passes but warns
   ---
   duration_ms: *
   ...
 # Subtest: immediate resolve pass
-ok 19 - immediate resolve pass
+ok 20 - immediate resolve pass
   ---
   duration_ms: *
   ...
@@ -184,7 +190,7 @@ ok 19 - immediate resolve pass
         *
       ...
     1..1
-not ok 20 - subtest sync throw fail
+not ok 21 - subtest sync throw fail
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
@@ -192,7 +198,7 @@ not ok 20 - subtest sync throw fail
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: sync throw non-error fail
-not ok 21 - sync throw non-error fail
+not ok 22 - sync throw non-error fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -221,7 +227,7 @@ not ok 21 - sync throw non-error fail
       duration_ms: *
       ...
     1..4
-ok 22 - level 0a
+ok 23 - level 0a
   ---
   duration_ms: *
   ...
@@ -243,27 +249,27 @@ ok 22 - level 0a
       duration_ms: *
       ...
     1..2
-ok 23 - top level
+ok 24 - top level
   ---
   duration_ms: *
   ...
 # Subtest: invalid subtest - pass but subtest fails
-ok 24 - invalid subtest - pass but subtest fails
+ok 25 - invalid subtest - pass but subtest fails
   ---
   duration_ms: *
   ...
 # Subtest: sync skip option
-ok 25 - sync skip option # SKIP
+ok 26 - sync skip option # SKIP
   ---
   duration_ms: *
   ...
 # Subtest: sync skip option with message
-ok 26 - sync skip option with message # SKIP this is skipped
+ok 27 - sync skip option with message # SKIP this is skipped
   ---
   duration_ms: *
   ...
 # Subtest: sync skip option is false fail
-not ok 27 - sync skip option is false fail
+not ok 28 - sync skip option is false fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -279,67 +285,67 @@ not ok 27 - sync skip option is false fail
     *
   ...
 # Subtest: <anonymous>
-ok 28 - <anonymous>
+ok 29 - <anonymous>
   ---
   duration_ms: *
   ...
 # Subtest: functionOnly
-ok 29 - functionOnly
+ok 30 - functionOnly
   ---
   duration_ms: *
   ...
 # Subtest: <anonymous>
-ok 30 - <anonymous>
+ok 31 - <anonymous>
   ---
   duration_ms: *
   ...
 # Subtest: test with only a name provided
-ok 31 - test with only a name provided
+ok 32 - test with only a name provided
   ---
   duration_ms: *
   ...
 # Subtest: <anonymous>
-ok 32 - <anonymous>
+ok 33 - <anonymous>
   ---
   duration_ms: *
   ...
 # Subtest: <anonymous>
-ok 33 - <anonymous> # SKIP
+ok 34 - <anonymous> # SKIP
   ---
   duration_ms: *
   ...
 # Subtest: test with a name and options provided
-ok 34 - test with a name and options provided # SKIP
+ok 35 - test with a name and options provided # SKIP
   ---
   duration_ms: *
   ...
 # Subtest: functionAndOptions
-ok 35 - functionAndOptions # SKIP
+ok 36 - functionAndOptions # SKIP
   ---
   duration_ms: *
   ...
 # Subtest: escaped description \\ \# \\\#\\
-ok 36 - escaped description \\ \# \\\#\\
+ok 37 - escaped description \\ \# \\\#\\
   ---
   duration_ms: *
   ...
 # Subtest: escaped skip message
-ok 37 - escaped skip message # SKIP \#skip
+ok 38 - escaped skip message # SKIP \#skip
   ---
   duration_ms: *
   ...
 # Subtest: escaped todo message
-ok 38 - escaped todo message # TODO \#todo
+ok 39 - escaped todo message # TODO \#todo
   ---
   duration_ms: *
   ...
 # Subtest: callback pass
-ok 39 - callback pass
+ok 40 - callback pass
   ---
   duration_ms: *
   ...
 # Subtest: callback fail
-not ok 40 - callback fail
+not ok 41 - callback fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -350,22 +356,22 @@ not ok 40 - callback fail
     *
   ...
 # Subtest: sync t is this in test
-ok 41 - sync t is this in test
+ok 42 - sync t is this in test
   ---
   duration_ms: *
   ...
 # Subtest: async t is this in test
-ok 42 - async t is this in test
+ok 43 - async t is this in test
   ---
   duration_ms: *
   ...
 # Subtest: callback t is this in test
-ok 43 - callback t is this in test
+ok 44 - callback t is this in test
   ---
   duration_ms: *
   ...
 # Subtest: callback also returns a Promise
-not ok 44 - callback also returns a Promise
+not ok 45 - callback also returns a Promise
   ---
   duration_ms: *
   failureType: 'callbackAndPromisePresent'
@@ -373,7 +379,7 @@ not ok 44 - callback also returns a Promise
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: callback throw
-not ok 45 - callback throw
+not ok 46 - callback throw
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -389,7 +395,7 @@ not ok 45 - callback throw
     *
   ...
 # Subtest: callback called twice
-not ok 46 - callback called twice
+not ok 47 - callback called twice
   ---
   duration_ms: *
   failureType: 'multipleCallbackInvocations'
@@ -400,12 +406,12 @@ not ok 46 - callback called twice
     *
   ...
 # Subtest: callback called twice in different ticks
-ok 47 - callback called twice in different ticks
+ok 48 - callback called twice in different ticks
   ---
   duration_ms: *
   ...
 # Subtest: callback called twice in future tick
-not ok 48 - callback called twice in future tick
+not ok 49 - callback called twice in future tick
   ---
   duration_ms: *
   failureType: 'uncaughtException'
@@ -415,7 +421,7 @@ not ok 48 - callback called twice in future tick
     *
   ...
 # Subtest: callback async throw
-not ok 49 - callback async throw
+not ok 50 - callback async throw
   ---
   duration_ms: *
   failureType: 'uncaughtException'
@@ -425,12 +431,12 @@ not ok 49 - callback async throw
     *
   ...
 # Subtest: callback async throw after done
-ok 50 - callback async throw after done
+ok 51 - callback async throw after done
   ---
   duration_ms: *
   ...
 # Subtest: custom inspect symbol fail
-not ok 51 - custom inspect symbol fail
+not ok 52 - custom inspect symbol fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -438,7 +444,7 @@ not ok 51 - custom inspect symbol fail
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: custom inspect symbol that throws fail
-not ok 52 - custom inspect symbol that throws fail
+not ok 53 - custom inspect symbol that throws fail
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -482,15 +488,71 @@ not ok 52 - custom inspect symbol that throws fail
         *
       ...
     1..2
-not ok 53 - subtest sync throw fails
+not ok 54 - subtest sync throw fails
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
+# Subtest: describe sync throw fails
+    # Subtest: should not run
+    not ok 1 - should not run
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..1
+not ok 55 - describe sync throw fails
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'thrown from describe'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+# Subtest: describe async throw fails
+    # Subtest: should not run
+    not ok 1 - should not run
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..1
+not ok 56 - describe async throw fails
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'thrown from describe'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
 # Subtest: invalid subtest fail
-not ok 54 - invalid subtest fail
+not ok 57 - invalid subtest fail
   ---
   duration_ms: *
   failureType: 'parentAlreadyFinished'
@@ -499,16 +561,16 @@ not ok 54 - invalid subtest fail
   stack: |-
     *
   ...
-1..54
+1..57
 # Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "immediate throw - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# tests 54
+# tests 57
 # pass 23
-# fail 17
+# fail 20
 # cancelled 0
 # skipped 9
 # todo 5
