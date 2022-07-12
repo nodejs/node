@@ -13,8 +13,13 @@ concurrency: ${{ github.workflow }}
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   get-prs-for-ci:
+    permissions:
+      pull-requests: read
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     outputs:
@@ -32,6 +37,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   start-ci:
+    permissions:
+      contents: read
+      pull-requests: write
     needs: get-prs-for-ci
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-latest

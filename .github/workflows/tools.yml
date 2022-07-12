@@ -6,6 +6,9 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tools-deps-update:
     if: github.repository == 'nodejs/node'

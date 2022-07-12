@@ -10,6 +10,9 @@ on:
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   find:
     if: github.repository == 'nodejs/node'

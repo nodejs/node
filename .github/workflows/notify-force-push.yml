@@ -4,6 +4,9 @@ on:
       - main
 
 name: Notify on Force Push
+permissions:
+  contents: read
+
 jobs:
   slackNotification:
     name: Slack Notification

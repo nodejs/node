@@ -9,8 +9,14 @@ env:
     is still relevant, or to ping the collaborator who labelled it stalled if
     you have any questions.
 
+permissions:
+  contents: read
+
 jobs:
   stale:
+    permissions:
+      issues: write  # for actions/stale to close stale issues
+      pull-requests: write  # for actions/stale to close stale PRs
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
