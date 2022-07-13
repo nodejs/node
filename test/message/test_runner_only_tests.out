@@ -1,0 +1,126 @@
+TAP version 13
+# Subtest: only = undefined
+ok 1 - only = undefined # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = undefined, skip = string
+ok 2 - only = undefined, skip = string # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = undefined, skip = true
+ok 3 - only = undefined, skip = true # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = undefined, skip = false
+ok 4 - only = undefined, skip = false # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = false
+ok 5 - only = false # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = false, skip = string
+ok 6 - only = false, skip = string # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = false, skip = true
+ok 7 - only = false, skip = true # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = false, skip = false
+ok 8 - only = false, skip = false # SKIP 'only' option not set
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = true, skip = string
+ok 9 - only = true, skip = string # SKIP skip message
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = true, skip = true
+ok 10 - only = true, skip = true # SKIP
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = true, with subtests
+    # Subtest: running subtest 1
+    ok 1 - running subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 2
+    ok 2 - running subtest 2
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 1
+    ok 3 - skipped subtest 1 # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 2
+    ok 4 - skipped subtest 2 # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 3
+    ok 5 - running subtest 3
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 4
+        # Subtest: running sub-subtest 1
+        ok 1 - running sub-subtest 1
+          ---
+          duration_ms: *
+          ...
+        # Subtest: running sub-subtest 2
+        ok 2 - running sub-subtest 2
+          ---
+          duration_ms: *
+          ...
+        # Subtest: skipped sub-subtest 1
+        ok 3 - skipped sub-subtest 1 # SKIP 'only' option not set
+          ---
+          duration_ms: *
+          ...
+        # Subtest: skipped sub-subtest 2
+        ok 4 - skipped sub-subtest 2 # SKIP 'only' option not set
+          ---
+          duration_ms: *
+          ...
+        1..4
+    ok 6 - running subtest 4
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 3
+    ok 7 - skipped subtest 3 # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 4
+    ok 8 - skipped subtest 4 # SKIP
+      ---
+      duration_ms: *
+      ...
+    1..8
+ok 11 - only = true, with subtests
+  ---
+  duration_ms: *
+  ...
+1..11
+# tests 11
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 10
+# todo 0
+# duration_ms *

@@ -1,0 +1,51 @@
+.TH "NPM\-HELP" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-help\fR \- Get help on npm
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm help <term> [<terms\.\.>]
+
+alias: hlep
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+If supplied a topic, then show the appropriate documentation page\.
+.P
+If the topic does not exist, or if multiple terms are provided, then npm
+will run the \fBhelp\-search\fP command to find a match\.  Note that, if
+\fBhelp\-search\fP finds a single subject, then it will run \fBhelp\fP on that
+topic, so unique matches are equivalent to specifying a topic name\.
+.SS Configuration
+.SS \fBviewer\fP
+.RS 0
+.IP \(bu 2
+Default: "man" on Posix, "browser" on Windows
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The program to use to view help content\.
+.P
+Set to \fB"browser"\fP to view html help content in the default web browser\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help npm
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help package\.json
+.IP \(bu 2
+npm help help\-search
+
+.RE

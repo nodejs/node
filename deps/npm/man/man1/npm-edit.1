@@ -1,0 +1,50 @@
+.TH "NPM\-EDIT" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-edit\fR \- Edit an installed package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm edit <pkg>[/<subpkg>\.\.\.]
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Selects a dependency in the current project and opens the package folder in
+the default editor (or whatever you've configured as the npm \fBeditor\fP
+config \-\- see \fBnpm\-config\fP \fInpm\-config)\.\fR
+.P
+After it has been edited, the package is rebuilt so as to pick up any
+changes in compiled packages\.
+.P
+For instance, you can do \fBnpm install connect\fP to install connect
+into your package, and then \fBnpm edit connect\fP to make a few
+changes to your locally installed copy\.
+.SS Configuration
+.SS \fBeditor\fP
+.RS 0
+.IP \(bu 2
+Default: The EDITOR or VISUAL environment variables, or 'notepad\.exe' on
+Windows, or 'vim' on Unix systems
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help explore
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

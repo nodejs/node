@@ -1,0 +1,5 @@
+*%(basename)s:6: TypeError: x is not iterable (cannot read property undefined)
+p(1, ...x);
+        ^
+TypeError: x is not iterable (cannot read property undefined)
+    at *%(basename)s:6:1

@@ -1,0 +1,52 @@
+.TH "NPM\-BIN" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-bin\fR \- Display npm bin folder
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm bin
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Print the folder where npm will install executables\.
+.SS Configuration
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help prefix
+.IP \(bu 2
+npm help root
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

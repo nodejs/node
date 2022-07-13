@@ -1,0 +1,54 @@
+{
+  "name": "@npmcli/config",
+  "version": "4.1.0",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "description": "Configuration management for the npm cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/config.git"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.3.2",
+    "tap": "^16.0.1"
+  },
+  "dependencies": {
+    "@npmcli/map-workspaces": "^2.0.2",
+    "ini": "^3.0.0",
+    "mkdirp-infer-owner": "^2.0.0",
+    "nopt": "^5.0.0",
+    "proc-log": "^2.0.0",
+    "read-package-json-fast": "^2.0.3",
+    "semver": "^7.3.5",
+    "walk-up-path": "^1.0.0"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.3.2"
+  }
+}

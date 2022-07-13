@@ -1,0 +1,82 @@
+.TH "NPM\-DEPRECATE" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-deprecate\fR \- Deprecate a version of a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm deprecate <package\-spec> <message>
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+This command will update the npm registry entry for a package, providing a
+deprecation warning to all who attempt to install it\.
+.P
+It works on version ranges \fIhttps://semver\.npmjs\.com/\fR as well as specific
+versions, so you can do something like this:
+.P
+.RS 2
+.nf
+npm deprecate my\-thing@"< 0\.2\.3" "critical bug fixed in v0\.2\.3"
+.fi
+.RE
+.P
+SemVer ranges passed to this command are interpreted such that they \fIdo\fR
+include prerelease versions\.  For example:
+.P
+.RS 2
+.nf
+npm deprecate my\-thing@1\.x "1\.x is no longer supported"
+.fi
+.RE
+.P
+In this case, a version \fBmy\-thing@1\.0\.0\-beta\.0\fP will also be deprecated\.
+.P
+You must be the package owner to deprecate something\.  See the \fBowner\fP and
+\fBadduser\fP help topics\.
+.P
+To un\-deprecate a package, specify an empty string (\fB""\fP) for the \fBmessage\fP
+argument\. Note that you must use double quotes with no space between them to
+format an empty string\.
+.SS Configuration
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS \fBotp\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+This is a one\-time password from a two\-factor authenticator\. It's needed
+when publishing or changing package permissions with \fBnpm access\fP\|\.
+.P
+If not set, and a registry response fails with a challenge for a one\-time
+password, npm will prompt on the command line for one\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help package spec
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help owner
+.IP \(bu 2
+npm help adduser
+
+.RE

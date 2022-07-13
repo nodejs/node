@@ -1,0 +1,6 @@
+Checks that we only send along non-data urls.
+Test log with data uri.
+console api called: Hello World!
+  callFrame: function test (url: )
+  callFrame: function  (url: test.js)
+exception details: Uncaught ReferenceError: Exception is not defined (url: )

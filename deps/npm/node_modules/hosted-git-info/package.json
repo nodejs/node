@@ -1,0 +1,56 @@
+{
+  "name": "hosted-git-info",
+  "version": "5.0.0",
+  "description": "Provides metadata and conversions from repository urls for GitHub, Bitbucket and GitLab",
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/hosted-git-info.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "bitbucket",
+    "gitlab"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/hosted-git-info/issues"
+  },
+  "homepage": "https://github.com/npm/hosted-git-info",
+  "scripts": {
+    "posttest": "npm run lint",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "preversion": "npm test",
+    "snap": "tap",
+    "test": "tap",
+    "test:coverage": "tap --coverage-report=html",
+    "lint": "eslint '**/*.js'",
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force",
+    "lintfix": "npm run lint -- --fix"
+  },
+  "dependencies": {
+    "lru-cache": "^7.5.1"
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.9.2",
+    "tap": "^15.1.6"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "tap": {
+    "color": 1,
+    "coverage": true
+  },
+  "templateOSS": {
+    "version": "2.9.2"
+  }
+}

@@ -1,0 +1,55 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+// ES #sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
+// https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
+transitioning builtin ProxyHasProperty(implicit context: Context)(
+    proxy: JSProxy, name: PropertyKey): JSAny {
+  dcheck(Is<JSProxy>(proxy));
+
+  PerformStackCheck();
+
+  // 1. Assert: IsPropertyKey(P) is true.
+  dcheck(Is<Name>(name));
+  dcheck(!IsPrivateSymbol(name));
+
+  try {
+    // 2. Let handler be O.[[ProxyHandler]].
+    // 3. If handler is null, throw a TypeError exception.
+    // 4. Assert: Type(handler) is Object.
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+
+    // 5. Let target be O.[[ProxyTarget]].
+    const target = Cast<JSReceiver>(proxy.target) otherwise unreachable;
+
+    // 6. Let trap be ? GetMethod(handler, "has").
+    // 7. If trap is undefined, then (see 7.a below).
+    const trap: Callable = GetMethod(handler, 'has')
+        otherwise goto TrapUndefined(target);
+
+    // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «
+    // target»)).
+    // 9. If booleanTrapResult is false, then (see 9.a. in
+    // CheckHasTrapResult).
+    // 10. Return booleanTrapResult.
+    const trapResult = Call(context, trap, handler, target, name);
+    if (ToBoolean(trapResult)) {
+      return True;
+    }
+    CheckHasTrapResult(target, proxy, name);
+    return False;
+  } label TrapUndefined(target: JSAny) {
+    // 7.a. Return ? target.[[HasProperty]](P).
+    tail HasProperty(target, name);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, 'has');
+  }
+}
+}

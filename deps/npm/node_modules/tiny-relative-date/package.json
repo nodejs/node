@@ -1,0 +1,39 @@
+{
+  "name": "tiny-relative-date",
+  "version": "1.3.0",
+  "description": "Tiny function that provides relative, human-readable dates.",
+  "main": "lib/index.js",
+  "module": "src/index.js",
+  "scripts": {
+    "build": "babel src -d lib",
+    "test": "npm run eslint && npm run jasmine",
+    "eslint": "eslint --fix src/**/*.js",
+    "jasmine": "jasmine",
+    "prepublish": "npm run build"
+  },
+  "files": [
+    "lib/",
+    "src/",
+    "translations/"
+  ],
+  "license": "MIT",
+  "author": "Joseph Wynn <joseph@wildlyinaccurate.com> (https://wildlyinaccurate.com/)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wildlyinaccurate/relative-date.git"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-register": "^6.24.1",
+    "eslint": "^4.1.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.6.0",
+    "eslint-plugin-node": "^5.0.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "jasmine": "^2.6.0",
+    "jasmine-spec-reporter": "^4.1.1"
+  }
+}

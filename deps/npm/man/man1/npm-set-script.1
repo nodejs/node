@@ -1,0 +1,116 @@
+.TH "NPM\-SET\-SCRIPT" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-set-script\fR \- Set tasks in the scripts section of package\.json
+.SS Synopsis
+.P
+An npm command that lets you create a task in the \fBscripts\fP section of the \fBpackage\.json\fP\|\.
+.P
+Deprecated\.
+.P
+.RS 2
+.nf
+npm set\-script [<script>] [<command>]
+.fi
+.RE
+.P
+\fBExample:\fR
+.RS 0
+.IP \(bu 2
+\fBnpm set\-script start "http\-server \."\fP
+
+.RE
+.P
+.RS 2
+.nf
+{
+  "name": "my\-project",
+  "scripts": {
+    "start": "http\-server \.",
+    "test": "some existing value"
+  }
+}
+.fi
+.RE
+.SS Configuration
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+
+.RE

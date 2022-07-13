@@ -1,0 +1,50 @@
+<!doctype html>
+<!--
+Copyright 2017 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<html>
+  <head>
+    <style>
+    body {
+      overflow: hidden;
+      padding: 5px;
+      width: 310px;
+    }
+    input, textarea, select, button {
+      width : 300px;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    label {
+      clear: both;
+    }
+    </style>
+    <script src="popup.js"></script>
+  </head>
+  <body>
+    <form>
+      <p>
+        <label>Min click-interval <span id="minIntervalValue"></span>:
+          <input type="range" id="minInterval" min="1000" max="60000">
+        </label>
+      </p>
+      <p>
+        <label> Max click-interval <span id="maxIntervalValue"></span>:
+          <input type="range" id="maxInterval" min="1000" max="60000">
+        </label>
+      </p>
+      <p>
+        <label>Link regexp:
+          <input type="input" id="pattern" >
+        </label>
+      </p>
+      <p>
+        <label>Enable:
+          <input type="checkbox" id="enabled" >
+        </label>
+      </p>
+    </form>
+  </body>
+</html>

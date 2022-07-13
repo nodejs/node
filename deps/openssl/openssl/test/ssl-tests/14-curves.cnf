@@ -1,0 +1,1604 @@
+# Generated with generate_ssl_tests.pl
+
+num_tests = 55
+
+test-0 = 0-curve-prime256v1
+test-1 = 1-curve-secp384r1
+test-2 = 2-curve-secp521r1
+test-3 = 3-curve-X25519
+test-4 = 4-curve-X448
+test-5 = 5-curve-sect233k1
+test-6 = 6-curve-sect233r1
+test-7 = 7-curve-sect283k1
+test-8 = 8-curve-sect283r1
+test-9 = 9-curve-sect409k1
+test-10 = 10-curve-sect409r1
+test-11 = 11-curve-sect571k1
+test-12 = 12-curve-sect571r1
+test-13 = 13-curve-secp224r1
+test-14 = 14-curve-sect163k1
+test-15 = 15-curve-sect163r2
+test-16 = 16-curve-prime192v1
+test-17 = 17-curve-sect163r1
+test-18 = 18-curve-sect193r1
+test-19 = 19-curve-sect193r2
+test-20 = 20-curve-sect239k1
+test-21 = 21-curve-secp160k1
+test-22 = 22-curve-secp160r1
+test-23 = 23-curve-secp160r2
+test-24 = 24-curve-secp192k1
+test-25 = 25-curve-secp224k1
+test-26 = 26-curve-secp256k1
+test-27 = 27-curve-brainpoolP256r1
+test-28 = 28-curve-brainpoolP384r1
+test-29 = 29-curve-brainpoolP512r1
+test-30 = 30-curve-sect233k1-tls13
+test-31 = 31-curve-sect233r1-tls13
+test-32 = 32-curve-sect283k1-tls13
+test-33 = 33-curve-sect283r1-tls13
+test-34 = 34-curve-sect409k1-tls13
+test-35 = 35-curve-sect409r1-tls13
+test-36 = 36-curve-sect571k1-tls13
+test-37 = 37-curve-sect571r1-tls13
+test-38 = 38-curve-secp224r1-tls13
+test-39 = 39-curve-sect163k1-tls13
+test-40 = 40-curve-sect163r2-tls13
+test-41 = 41-curve-prime192v1-tls13
+test-42 = 42-curve-sect163r1-tls13
+test-43 = 43-curve-sect193r1-tls13
+test-44 = 44-curve-sect193r2-tls13
+test-45 = 45-curve-sect239k1-tls13
+test-46 = 46-curve-secp160k1-tls13
+test-47 = 47-curve-secp160r1-tls13
+test-48 = 48-curve-secp160r2-tls13
+test-49 = 49-curve-secp192k1-tls13
+test-50 = 50-curve-secp224k1-tls13
+test-51 = 51-curve-secp256k1-tls13
+test-52 = 52-curve-brainpoolP256r1-tls13
+test-53 = 53-curve-brainpoolP384r1-tls13
+test-54 = 54-curve-brainpoolP512r1-tls13
+# ===========================================================
+
+[0-curve-prime256v1]
+ssl_conf = 0-curve-prime256v1-ssl
+
+[0-curve-prime256v1-ssl]
+server = 0-curve-prime256v1-server
+client = 0-curve-prime256v1-client
+
+[0-curve-prime256v1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = prime256v1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[0-curve-prime256v1-client]
+CipherString = ECDHE
+Curves = prime256v1
+MaxProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-0]
+ExpectedProtocol = TLSv1.3
+ExpectedResult = Success
+ExpectedTmpKeyType = prime256v1
+
+
+# ===========================================================
+
+[1-curve-secp384r1]
+ssl_conf = 1-curve-secp384r1-ssl
+
+[1-curve-secp384r1-ssl]
+server = 1-curve-secp384r1-server
+client = 1-curve-secp384r1-client
+
+[1-curve-secp384r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp384r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[1-curve-secp384r1-client]
+CipherString = ECDHE
+Curves = secp384r1
+MaxProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-1]
+ExpectedProtocol = TLSv1.3
+ExpectedResult = Success
+ExpectedTmpKeyType = secp384r1
+
+
+# ===========================================================
+
+[2-curve-secp521r1]
+ssl_conf = 2-curve-secp521r1-ssl
+
+[2-curve-secp521r1-ssl]
+server = 2-curve-secp521r1-server
+client = 2-curve-secp521r1-client
+
+[2-curve-secp521r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp521r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[2-curve-secp521r1-client]
+CipherString = ECDHE
+Curves = secp521r1
+MaxProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-2]
+ExpectedProtocol = TLSv1.3
+ExpectedResult = Success
+ExpectedTmpKeyType = secp521r1
+
+
+# ===========================================================
+
+[3-curve-X25519]
+ssl_conf = 3-curve-X25519-ssl
+
+[3-curve-X25519-ssl]
+server = 3-curve-X25519-server
+client = 3-curve-X25519-client
+
+[3-curve-X25519-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = X25519
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[3-curve-X25519-client]
+CipherString = ECDHE
+Curves = X25519
+MaxProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-3]
+ExpectedProtocol = TLSv1.3
+ExpectedResult = Success
+ExpectedTmpKeyType = X25519
+
+
+# ===========================================================
+
+[4-curve-X448]
+ssl_conf = 4-curve-X448-ssl
+
+[4-curve-X448-ssl]
+server = 4-curve-X448-server
+client = 4-curve-X448-client
+
+[4-curve-X448-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = X448
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[4-curve-X448-client]
+CipherString = ECDHE
+Curves = X448
+MaxProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-4]
+ExpectedProtocol = TLSv1.3
+ExpectedResult = Success
+ExpectedTmpKeyType = X448
+
+
+# ===========================================================
+
+[5-curve-sect233k1]
+ssl_conf = 5-curve-sect233k1-ssl
+
+[5-curve-sect233k1-ssl]
+server = 5-curve-sect233k1-server
+client = 5-curve-sect233k1-client
+
+[5-curve-sect233k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect233k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[5-curve-sect233k1-client]
+CipherString = ECDHE
+Curves = sect233k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-5]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect233k1
+
+
+# ===========================================================
+
+[6-curve-sect233r1]
+ssl_conf = 6-curve-sect233r1-ssl
+
+[6-curve-sect233r1-ssl]
+server = 6-curve-sect233r1-server
+client = 6-curve-sect233r1-client
+
+[6-curve-sect233r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect233r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[6-curve-sect233r1-client]
+CipherString = ECDHE
+Curves = sect233r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-6]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect233r1
+
+
+# ===========================================================
+
+[7-curve-sect283k1]
+ssl_conf = 7-curve-sect283k1-ssl
+
+[7-curve-sect283k1-ssl]
+server = 7-curve-sect283k1-server
+client = 7-curve-sect283k1-client
+
+[7-curve-sect283k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect283k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[7-curve-sect283k1-client]
+CipherString = ECDHE
+Curves = sect283k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-7]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect283k1
+
+
+# ===========================================================
+
+[8-curve-sect283r1]
+ssl_conf = 8-curve-sect283r1-ssl
+
+[8-curve-sect283r1-ssl]
+server = 8-curve-sect283r1-server
+client = 8-curve-sect283r1-client
+
+[8-curve-sect283r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect283r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[8-curve-sect283r1-client]
+CipherString = ECDHE
+Curves = sect283r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-8]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect283r1
+
+
+# ===========================================================
+
+[9-curve-sect409k1]
+ssl_conf = 9-curve-sect409k1-ssl
+
+[9-curve-sect409k1-ssl]
+server = 9-curve-sect409k1-server
+client = 9-curve-sect409k1-client
+
+[9-curve-sect409k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect409k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[9-curve-sect409k1-client]
+CipherString = ECDHE
+Curves = sect409k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-9]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect409k1
+
+
+# ===========================================================
+
+[10-curve-sect409r1]
+ssl_conf = 10-curve-sect409r1-ssl
+
+[10-curve-sect409r1-ssl]
+server = 10-curve-sect409r1-server
+client = 10-curve-sect409r1-client
+
+[10-curve-sect409r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect409r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[10-curve-sect409r1-client]
+CipherString = ECDHE
+Curves = sect409r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-10]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect409r1
+
+
+# ===========================================================
+
+[11-curve-sect571k1]
+ssl_conf = 11-curve-sect571k1-ssl
+
+[11-curve-sect571k1-ssl]
+server = 11-curve-sect571k1-server
+client = 11-curve-sect571k1-client
+
+[11-curve-sect571k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect571k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[11-curve-sect571k1-client]
+CipherString = ECDHE
+Curves = sect571k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-11]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect571k1
+
+
+# ===========================================================
+
+[12-curve-sect571r1]
+ssl_conf = 12-curve-sect571r1-ssl
+
+[12-curve-sect571r1-ssl]
+server = 12-curve-sect571r1-server
+client = 12-curve-sect571r1-client
+
+[12-curve-sect571r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect571r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[12-curve-sect571r1-client]
+CipherString = ECDHE
+Curves = sect571r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-12]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect571r1
+
+
+# ===========================================================
+
+[13-curve-secp224r1]
+ssl_conf = 13-curve-secp224r1-ssl
+
+[13-curve-secp224r1-ssl]
+server = 13-curve-secp224r1-server
+client = 13-curve-secp224r1-client
+
+[13-curve-secp224r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp224r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[13-curve-secp224r1-client]
+CipherString = ECDHE
+Curves = secp224r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-13]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp224r1
+
+
+# ===========================================================
+
+[14-curve-sect163k1]
+ssl_conf = 14-curve-sect163k1-ssl
+
+[14-curve-sect163k1-ssl]
+server = 14-curve-sect163k1-server
+client = 14-curve-sect163k1-client
+
+[14-curve-sect163k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[14-curve-sect163k1-client]
+CipherString = ECDHE
+Curves = sect163k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-14]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect163k1
+
+
+# ===========================================================
+
+[15-curve-sect163r2]
+ssl_conf = 15-curve-sect163r2-ssl
+
+[15-curve-sect163r2-ssl]
+server = 15-curve-sect163r2-server
+client = 15-curve-sect163r2-client
+
+[15-curve-sect163r2-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[15-curve-sect163r2-client]
+CipherString = ECDHE
+Curves = sect163r2
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-15]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect163r2
+
+
+# ===========================================================
+
+[16-curve-prime192v1]
+ssl_conf = 16-curve-prime192v1-ssl
+
+[16-curve-prime192v1-ssl]
+server = 16-curve-prime192v1-server
+client = 16-curve-prime192v1-client
+
+[16-curve-prime192v1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = prime192v1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[16-curve-prime192v1-client]
+CipherString = ECDHE
+Curves = prime192v1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-16]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = prime192v1
+
+
+# ===========================================================
+
+[17-curve-sect163r1]
+ssl_conf = 17-curve-sect163r1-ssl
+
+[17-curve-sect163r1-ssl]
+server = 17-curve-sect163r1-server
+client = 17-curve-sect163r1-client
+
+[17-curve-sect163r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[17-curve-sect163r1-client]
+CipherString = ECDHE
+Curves = sect163r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-17]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect163r1
+
+
+# ===========================================================
+
+[18-curve-sect193r1]
+ssl_conf = 18-curve-sect193r1-ssl
+
+[18-curve-sect193r1-ssl]
+server = 18-curve-sect193r1-server
+client = 18-curve-sect193r1-client
+
+[18-curve-sect193r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect193r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[18-curve-sect193r1-client]
+CipherString = ECDHE
+Curves = sect193r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-18]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect193r1
+
+
+# ===========================================================
+
+[19-curve-sect193r2]
+ssl_conf = 19-curve-sect193r2-ssl
+
+[19-curve-sect193r2-ssl]
+server = 19-curve-sect193r2-server
+client = 19-curve-sect193r2-client
+
+[19-curve-sect193r2-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect193r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[19-curve-sect193r2-client]
+CipherString = ECDHE
+Curves = sect193r2
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-19]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect193r2
+
+
+# ===========================================================
+
+[20-curve-sect239k1]
+ssl_conf = 20-curve-sect239k1-ssl
+
+[20-curve-sect239k1-ssl]
+server = 20-curve-sect239k1-server
+client = 20-curve-sect239k1-client
+
+[20-curve-sect239k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect239k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[20-curve-sect239k1-client]
+CipherString = ECDHE
+Curves = sect239k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-20]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = sect239k1
+
+
+# ===========================================================
+
+[21-curve-secp160k1]
+ssl_conf = 21-curve-secp160k1-ssl
+
+[21-curve-secp160k1-ssl]
+server = 21-curve-secp160k1-server
+client = 21-curve-secp160k1-client
+
+[21-curve-secp160k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[21-curve-secp160k1-client]
+CipherString = ECDHE
+Curves = secp160k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-21]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp160k1
+
+
+# ===========================================================
+
+[22-curve-secp160r1]
+ssl_conf = 22-curve-secp160r1-ssl
+
+[22-curve-secp160r1-ssl]
+server = 22-curve-secp160r1-server
+client = 22-curve-secp160r1-client
+
+[22-curve-secp160r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[22-curve-secp160r1-client]
+CipherString = ECDHE
+Curves = secp160r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-22]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp160r1
+
+
+# ===========================================================
+
+[23-curve-secp160r2]
+ssl_conf = 23-curve-secp160r2-ssl
+
+[23-curve-secp160r2-ssl]
+server = 23-curve-secp160r2-server
+client = 23-curve-secp160r2-client
+
+[23-curve-secp160r2-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[23-curve-secp160r2-client]
+CipherString = ECDHE
+Curves = secp160r2
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-23]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp160r2
+
+
+# ===========================================================
+
+[24-curve-secp192k1]
+ssl_conf = 24-curve-secp192k1-ssl
+
+[24-curve-secp192k1-ssl]
+server = 24-curve-secp192k1-server
+client = 24-curve-secp192k1-client
+
+[24-curve-secp192k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp192k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[24-curve-secp192k1-client]
+CipherString = ECDHE
+Curves = secp192k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-24]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp192k1
+
+
+# ===========================================================
+
+[25-curve-secp224k1]
+ssl_conf = 25-curve-secp224k1-ssl
+
+[25-curve-secp224k1-ssl]
+server = 25-curve-secp224k1-server
+client = 25-curve-secp224k1-client
+
+[25-curve-secp224k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp224k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[25-curve-secp224k1-client]
+CipherString = ECDHE
+Curves = secp224k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-25]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp224k1
+
+
+# ===========================================================
+
+[26-curve-secp256k1]
+ssl_conf = 26-curve-secp256k1-ssl
+
+[26-curve-secp256k1-ssl]
+server = 26-curve-secp256k1-server
+client = 26-curve-secp256k1-client
+
+[26-curve-secp256k1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp256k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[26-curve-secp256k1-client]
+CipherString = ECDHE
+Curves = secp256k1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-26]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = secp256k1
+
+
+# ===========================================================
+
+[27-curve-brainpoolP256r1]
+ssl_conf = 27-curve-brainpoolP256r1-ssl
+
+[27-curve-brainpoolP256r1-ssl]
+server = 27-curve-brainpoolP256r1-server
+client = 27-curve-brainpoolP256r1-client
+
+[27-curve-brainpoolP256r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP256r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[27-curve-brainpoolP256r1-client]
+CipherString = ECDHE
+Curves = brainpoolP256r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-27]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = brainpoolP256r1
+
+
+# ===========================================================
+
+[28-curve-brainpoolP384r1]
+ssl_conf = 28-curve-brainpoolP384r1-ssl
+
+[28-curve-brainpoolP384r1-ssl]
+server = 28-curve-brainpoolP384r1-server
+client = 28-curve-brainpoolP384r1-client
+
+[28-curve-brainpoolP384r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP384r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[28-curve-brainpoolP384r1-client]
+CipherString = ECDHE
+Curves = brainpoolP384r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-28]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = brainpoolP384r1
+
+
+# ===========================================================
+
+[29-curve-brainpoolP512r1]
+ssl_conf = 29-curve-brainpoolP512r1-ssl
+
+[29-curve-brainpoolP512r1-ssl]
+server = 29-curve-brainpoolP512r1-server
+client = 29-curve-brainpoolP512r1-client
+
+[29-curve-brainpoolP512r1-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP512r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[29-curve-brainpoolP512r1-client]
+CipherString = ECDHE
+Curves = brainpoolP512r1
+MaxProtocol = TLSv1.2
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-29]
+ExpectedProtocol = TLSv1.2
+ExpectedResult = Success
+ExpectedTmpKeyType = brainpoolP512r1
+
+
+# ===========================================================
+
+[30-curve-sect233k1-tls13]
+ssl_conf = 30-curve-sect233k1-tls13-ssl
+
+[30-curve-sect233k1-tls13-ssl]
+server = 30-curve-sect233k1-tls13-server
+client = 30-curve-sect233k1-tls13-client
+
+[30-curve-sect233k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect233k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[30-curve-sect233k1-tls13-client]
+CipherString = ECDHE
+Curves = sect233k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-30]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[31-curve-sect233r1-tls13]
+ssl_conf = 31-curve-sect233r1-tls13-ssl
+
+[31-curve-sect233r1-tls13-ssl]
+server = 31-curve-sect233r1-tls13-server
+client = 31-curve-sect233r1-tls13-client
+
+[31-curve-sect233r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect233r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[31-curve-sect233r1-tls13-client]
+CipherString = ECDHE
+Curves = sect233r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-31]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[32-curve-sect283k1-tls13]
+ssl_conf = 32-curve-sect283k1-tls13-ssl
+
+[32-curve-sect283k1-tls13-ssl]
+server = 32-curve-sect283k1-tls13-server
+client = 32-curve-sect283k1-tls13-client
+
+[32-curve-sect283k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect283k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[32-curve-sect283k1-tls13-client]
+CipherString = ECDHE
+Curves = sect283k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-32]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[33-curve-sect283r1-tls13]
+ssl_conf = 33-curve-sect283r1-tls13-ssl
+
+[33-curve-sect283r1-tls13-ssl]
+server = 33-curve-sect283r1-tls13-server
+client = 33-curve-sect283r1-tls13-client
+
+[33-curve-sect283r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect283r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[33-curve-sect283r1-tls13-client]
+CipherString = ECDHE
+Curves = sect283r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-33]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[34-curve-sect409k1-tls13]
+ssl_conf = 34-curve-sect409k1-tls13-ssl
+
+[34-curve-sect409k1-tls13-ssl]
+server = 34-curve-sect409k1-tls13-server
+client = 34-curve-sect409k1-tls13-client
+
+[34-curve-sect409k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect409k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[34-curve-sect409k1-tls13-client]
+CipherString = ECDHE
+Curves = sect409k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-34]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[35-curve-sect409r1-tls13]
+ssl_conf = 35-curve-sect409r1-tls13-ssl
+
+[35-curve-sect409r1-tls13-ssl]
+server = 35-curve-sect409r1-tls13-server
+client = 35-curve-sect409r1-tls13-client
+
+[35-curve-sect409r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect409r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[35-curve-sect409r1-tls13-client]
+CipherString = ECDHE
+Curves = sect409r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-35]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[36-curve-sect571k1-tls13]
+ssl_conf = 36-curve-sect571k1-tls13-ssl
+
+[36-curve-sect571k1-tls13-ssl]
+server = 36-curve-sect571k1-tls13-server
+client = 36-curve-sect571k1-tls13-client
+
+[36-curve-sect571k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect571k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[36-curve-sect571k1-tls13-client]
+CipherString = ECDHE
+Curves = sect571k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-36]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[37-curve-sect571r1-tls13]
+ssl_conf = 37-curve-sect571r1-tls13-ssl
+
+[37-curve-sect571r1-tls13-ssl]
+server = 37-curve-sect571r1-tls13-server
+client = 37-curve-sect571r1-tls13-client
+
+[37-curve-sect571r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect571r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[37-curve-sect571r1-tls13-client]
+CipherString = ECDHE
+Curves = sect571r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-37]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[38-curve-secp224r1-tls13]
+ssl_conf = 38-curve-secp224r1-tls13-ssl
+
+[38-curve-secp224r1-tls13-ssl]
+server = 38-curve-secp224r1-tls13-server
+client = 38-curve-secp224r1-tls13-client
+
+[38-curve-secp224r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp224r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[38-curve-secp224r1-tls13-client]
+CipherString = ECDHE
+Curves = secp224r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-38]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[39-curve-sect163k1-tls13]
+ssl_conf = 39-curve-sect163k1-tls13-ssl
+
+[39-curve-sect163k1-tls13-ssl]
+server = 39-curve-sect163k1-tls13-server
+client = 39-curve-sect163k1-tls13-client
+
+[39-curve-sect163k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[39-curve-sect163k1-tls13-client]
+CipherString = ECDHE
+Curves = sect163k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-39]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[40-curve-sect163r2-tls13]
+ssl_conf = 40-curve-sect163r2-tls13-ssl
+
+[40-curve-sect163r2-tls13-ssl]
+server = 40-curve-sect163r2-tls13-server
+client = 40-curve-sect163r2-tls13-client
+
+[40-curve-sect163r2-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[40-curve-sect163r2-tls13-client]
+CipherString = ECDHE
+Curves = sect163r2
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-40]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[41-curve-prime192v1-tls13]
+ssl_conf = 41-curve-prime192v1-tls13-ssl
+
+[41-curve-prime192v1-tls13-ssl]
+server = 41-curve-prime192v1-tls13-server
+client = 41-curve-prime192v1-tls13-client
+
+[41-curve-prime192v1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = prime192v1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[41-curve-prime192v1-tls13-client]
+CipherString = ECDHE
+Curves = prime192v1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-41]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[42-curve-sect163r1-tls13]
+ssl_conf = 42-curve-sect163r1-tls13-ssl
+
+[42-curve-sect163r1-tls13-ssl]
+server = 42-curve-sect163r1-tls13-server
+client = 42-curve-sect163r1-tls13-client
+
+[42-curve-sect163r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect163r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[42-curve-sect163r1-tls13-client]
+CipherString = ECDHE
+Curves = sect163r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-42]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[43-curve-sect193r1-tls13]
+ssl_conf = 43-curve-sect193r1-tls13-ssl
+
+[43-curve-sect193r1-tls13-ssl]
+server = 43-curve-sect193r1-tls13-server
+client = 43-curve-sect193r1-tls13-client
+
+[43-curve-sect193r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect193r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[43-curve-sect193r1-tls13-client]
+CipherString = ECDHE
+Curves = sect193r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-43]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[44-curve-sect193r2-tls13]
+ssl_conf = 44-curve-sect193r2-tls13-ssl
+
+[44-curve-sect193r2-tls13-ssl]
+server = 44-curve-sect193r2-tls13-server
+client = 44-curve-sect193r2-tls13-client
+
+[44-curve-sect193r2-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect193r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[44-curve-sect193r2-tls13-client]
+CipherString = ECDHE
+Curves = sect193r2
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-44]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[45-curve-sect239k1-tls13]
+ssl_conf = 45-curve-sect239k1-tls13-ssl
+
+[45-curve-sect239k1-tls13-ssl]
+server = 45-curve-sect239k1-tls13-server
+client = 45-curve-sect239k1-tls13-client
+
+[45-curve-sect239k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = sect239k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[45-curve-sect239k1-tls13-client]
+CipherString = ECDHE
+Curves = sect239k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-45]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[46-curve-secp160k1-tls13]
+ssl_conf = 46-curve-secp160k1-tls13-ssl
+
+[46-curve-secp160k1-tls13-ssl]
+server = 46-curve-secp160k1-tls13-server
+client = 46-curve-secp160k1-tls13-client
+
+[46-curve-secp160k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[46-curve-secp160k1-tls13-client]
+CipherString = ECDHE
+Curves = secp160k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-46]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[47-curve-secp160r1-tls13]
+ssl_conf = 47-curve-secp160r1-tls13-ssl
+
+[47-curve-secp160r1-tls13-ssl]
+server = 47-curve-secp160r1-tls13-server
+client = 47-curve-secp160r1-tls13-client
+
+[47-curve-secp160r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[47-curve-secp160r1-tls13-client]
+CipherString = ECDHE
+Curves = secp160r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-47]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[48-curve-secp160r2-tls13]
+ssl_conf = 48-curve-secp160r2-tls13-ssl
+
+[48-curve-secp160r2-tls13-ssl]
+server = 48-curve-secp160r2-tls13-server
+client = 48-curve-secp160r2-tls13-client
+
+[48-curve-secp160r2-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp160r2
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[48-curve-secp160r2-tls13-client]
+CipherString = ECDHE
+Curves = secp160r2
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-48]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[49-curve-secp192k1-tls13]
+ssl_conf = 49-curve-secp192k1-tls13-ssl
+
+[49-curve-secp192k1-tls13-ssl]
+server = 49-curve-secp192k1-tls13-server
+client = 49-curve-secp192k1-tls13-client
+
+[49-curve-secp192k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp192k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[49-curve-secp192k1-tls13-client]
+CipherString = ECDHE
+Curves = secp192k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-49]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[50-curve-secp224k1-tls13]
+ssl_conf = 50-curve-secp224k1-tls13-ssl
+
+[50-curve-secp224k1-tls13-ssl]
+server = 50-curve-secp224k1-tls13-server
+client = 50-curve-secp224k1-tls13-client
+
+[50-curve-secp224k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp224k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[50-curve-secp224k1-tls13-client]
+CipherString = ECDHE
+Curves = secp224k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-50]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[51-curve-secp256k1-tls13]
+ssl_conf = 51-curve-secp256k1-tls13-ssl
+
+[51-curve-secp256k1-tls13-ssl]
+server = 51-curve-secp256k1-tls13-server
+client = 51-curve-secp256k1-tls13-client
+
+[51-curve-secp256k1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = secp256k1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[51-curve-secp256k1-tls13-client]
+CipherString = ECDHE
+Curves = secp256k1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-51]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[52-curve-brainpoolP256r1-tls13]
+ssl_conf = 52-curve-brainpoolP256r1-tls13-ssl
+
+[52-curve-brainpoolP256r1-tls13-ssl]
+server = 52-curve-brainpoolP256r1-tls13-server
+client = 52-curve-brainpoolP256r1-tls13-client
+
+[52-curve-brainpoolP256r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP256r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[52-curve-brainpoolP256r1-tls13-client]
+CipherString = ECDHE
+Curves = brainpoolP256r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-52]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[53-curve-brainpoolP384r1-tls13]
+ssl_conf = 53-curve-brainpoolP384r1-tls13-ssl
+
+[53-curve-brainpoolP384r1-tls13-ssl]
+server = 53-curve-brainpoolP384r1-tls13-server
+client = 53-curve-brainpoolP384r1-tls13-client
+
+[53-curve-brainpoolP384r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP384r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[53-curve-brainpoolP384r1-tls13-client]
+CipherString = ECDHE
+Curves = brainpoolP384r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-53]
+ExpectedResult = ClientFail
+
+
+# ===========================================================
+
+[54-curve-brainpoolP512r1-tls13]
+ssl_conf = 54-curve-brainpoolP512r1-tls13-ssl
+
+[54-curve-brainpoolP512r1-tls13-ssl]
+server = 54-curve-brainpoolP512r1-tls13-server
+client = 54-curve-brainpoolP512r1-tls13-client
+
+[54-curve-brainpoolP512r1-tls13-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+Curves = brainpoolP512r1
+MaxProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[54-curve-brainpoolP512r1-tls13-client]
+CipherString = ECDHE
+Curves = brainpoolP512r1
+MinProtocol = TLSv1.3
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-54]
+ExpectedResult = ClientFail
+
+

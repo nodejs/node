@@ -1,0 +1,53 @@
+{
+  "name": "write-file-atomic",
+  "version": "4.0.1",
+  "description": "Write files in an atomic fashion w/configurable ownership",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "lint": "eslint '**/*.js'",
+    "postlint": "npm-template-check",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "template-copy": "npm-template-copy --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/write-file-atomic.git"
+  },
+  "keywords": [
+    "writeFile",
+    "atomic"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/write-file-atomic/issues"
+  },
+  "homepage": "https://github.com/npm/write-file-atomic",
+  "dependencies": {
+    "imurmurhash": "^0.1.4",
+    "signal-exit": "^3.0.7"
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.7.1",
+    "mkdirp": "^1.0.4",
+    "rimraf": "^3.0.2",
+    "tap": "^15.1.6"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "templateOSS": {
+    "windowsCI": false,
+    "version": "2.7.1"
+  }
+}

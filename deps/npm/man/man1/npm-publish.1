@@ -1,0 +1,253 @@
+.TH "NPM\-PUBLISH" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-publish\fR \- Publish a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm publish <package\-spec>
+.fi
+.RE
+.SS Description
+.P
+Publishes a package to the registry so that it can be installed by name\.
+.P
+By default npm will publish to the public registry\. This can be
+overridden by specifying a different default registry or using a
+npm help \fBscope\fP in the name, combined with a
+scope\-configured registry (see
+npm help \fBpackage\.json\fP)\.
+.P
+A \fBpackage\fP is interpreted the same way as other commands (like
+\fBnpm install\fP and can be:
+.RS 0
+.IP \(bu 2
+a) a folder containing a program described by a
+npm help \fBpackage\.json\fP file
+.IP \(bu 2
+b) a gzipped tarball containing (a)
+.IP \(bu 2
+c) a url that resolves to (b)
+.IP \(bu 2
+d) a \fB<name>@<version>\fP that is published on the registry (see
+npm help \fBregistry\fP) with (c)
+.IP \(bu 2
+e) a \fB<name>@<tag>\fP (see npm help \fBdist\-tag\fP) that
+points to (d)
+.IP \(bu 2
+f) a \fB<name>\fP that has a "latest" tag satisfying (e)
+.IP \(bu 2
+g) a \fB<git remote url>\fP that resolves to (a)
+
+.RE
+.P
+The publish will fail if the package name and version combination already
+exists in the specified registry\.
+.P
+Once a package is published with a given name and version, that specific
+name and version combination can never be used again, even if it is removed
+with npm help \fBunpublish\fP\|\.
+.P
+As of \fBnpm@5\fP, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication\. Subsequent
+installs will use the strongest supported algorithm to verify downloads\.
+.P
+Similar to \fB\-\-dry\-run\fP see npm help \fBpack\fP, which figures
+out the files to be included and packs them into a tarball to be uploaded
+to the registry\.
+.SS Files included in package
+.P
+To see what will be included in your package, run \fBnpx npm\-packlist\fP\|\.  All
+files are included by default, with the following exceptions:
+.RS 0
+.IP \(bu 2
+Certain files that are relevant to package installation and distribution
+are always included\.  For example, \fBpackage\.json\fP, \fBREADME\.md\fP,
+\fBLICENSE\fP, and so on\.
+.IP \(bu 2
+If there is a "files" list in
+npm help \fBpackage\.json\fP, then only the files
+specified will be included\.  (If directories are specified, then they
+will be walked recursively and their contents included, subject to the
+same ignore rules\.)
+.IP \(bu 2
+If there is a \fB\|\.gitignore\fP or \fB\|\.npmignore\fP file, then ignored files in
+that and all child directories will be excluded from the package\.  If
+\fIboth\fR files exist, then the \fB\|\.gitignore\fP is ignored, and only the
+\fB\|\.npmignore\fP is used\.
+\fB\|\.npmignore\fP files follow the same pattern
+rules \fIhttps://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#_ignoring\fR
+as \fB\|\.gitignore\fP files
+.IP \(bu 2
+If the file matches certain patterns, then it will \fInever\fR be included,
+unless explicitly added to the \fB"files"\fP list in \fBpackage\.json\fP, or
+un\-ignored with a \fB!\fP rule in a \fB\|\.npmignore\fP or \fB\|\.gitignore\fP file\.
+.IP \(bu 2
+Symbolic links are never included in npm packages\.
+
+.RE
+.P
+See npm help \fBdevelopers\fP for full details on what's
+included in the published package, as well as details on how the package is
+built\.
+.SS Configuration
+.SS \fBtag\fP
+.RS 0
+.IP \(bu 2
+Default: "latest"
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+If you ask npm to install a package and don't tell it a specific version,
+then it will install the specified tag\.
+.P
+Also the tag that is added to the package@version specified by the \fBnpm tag\fP
+command, if no explicit tag is given\.
+.P
+When used by the \fBnpm diff\fP command, this is the tag used to fetch the
+tarball that will be compared with the local files by default\.
+.SS \fBaccess\fP
+.RS 0
+.IP \(bu 2
+Default: 'restricted' for scoped packages, 'public' for unscoped packages
+.IP \(bu 2
+Type: null, "restricted", or "public"
+
+.RE
+.P
+When publishing scoped packages, the access level defaults to \fBrestricted\fP\|\.
+If you want your scoped package to be publicly viewable (and installable)
+set \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
+\fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+.P
+Note: Using the \fB\-\-access\fP flag on the \fBnpm publish\fP command will only set
+the package access level on the initial publish of the package\. Any
+subsequent \fBnpm publish\fP commands using the \fB\-\-access\fP flag will not have an
+effect to the access level\. To make changes to the access level after the
+initial publish use \fBnpm access\fP\|\.
+.SS \fBdry\-run\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done\. This can be passed into any of the
+commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
+\fBdedupe\fP, \fBuninstall\fP, as well as \fBpack\fP and \fBpublish\fP\|\.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist\-tags\fP,
+\fBowner\fP, etc\.
+.SS \fBotp\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+This is a one\-time password from a two\-factor authenticator\. It's needed
+when publishing or changing package permissions with \fBnpm access\fP\|\.
+.P
+If not set, and a registry response fails with a challenge for a one\-time
+password, npm will prompt on the command line for one\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help package spec
+.IP \(bu 2
+npm\-packlist package \fIhttp://npm\.im/npm\-packlist\fR
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help scope
+.IP \(bu 2
+npm help adduser
+.IP \(bu 2
+npm help owner
+.IP \(bu 2
+npm help deprecate
+.IP \(bu 2
+npm help dist\-tag
+.IP \(bu 2
+npm help pack
+.IP \(bu 2
+npm help profile
+
+.RE

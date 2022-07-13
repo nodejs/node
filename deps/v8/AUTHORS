@@ -1,0 +1,274 @@
+# Below is a list of people and organizations that have contributed
+# to the V8 project.  Names should be added to the list like so:
+#
+#   Name/Organization <email address>
+
+Google Inc. <*@google.com>
+The Chromium Authors <*@chromium.org>
+Sigma Designs Inc. <*@sdesigns.com>
+ARM Ltd. <*@arm.com>
+Hewlett-Packard Development Company, LP <*@palm.com>
+Igalia, S.L. <*@igalia.com>
+Joyent, Inc. <*@joyent.com>
+Bloomberg Finance L.P. <*@bloomberg.net>
+NVIDIA Corporation <*@nvidia.com>
+BlackBerry Limited <*@blackberry.com>
+Opera Software ASA <*@opera.com>
+Intel Corporation <*@intel.com>
+LG Electronics, Inc. <*@lge.com>
+Microsoft <*@microsoft.com>
+MIPS Technologies, Inc. <*@mips.com>
+Imagination Technologies, LLC <*@imgtec.com>
+Wave Computing, Inc. <*@wavecomp.com>
+Loongson Technology Corporation Limited <*@loongson.cn>
+Code Aurora Forum <*@codeaurora.org>
+Home Jinni Inc. <*@homejinni.com>
+IBM Inc. <*@*.ibm.com>
+IBM Inc. <*@ibm.com>
+Red Hat Inc. <*@redhat.com>
+Samsung <*@*.samsung.com>
+Samsung <*@samsung.com>
+RT-RK Computer Based System <*@rt-rk.com>
+Amazon, Inc <*@amazon.com>
+ST Microelectronics <*@st.com>
+Yandex LLC <*@yandex-team.ru>
+StrongLoop, Inc. <*@strongloop.com>
+Facebook, Inc. <*@fb.com>
+Facebook, Inc. <*@oculus.com>
+Vewd Software AS <*@vewd.com>
+Groupon <*@groupon.com>
+Meteor Development Group <*@meteor.com>
+Cloudflare, Inc. <*@cloudflare.com>
+Julia Computing, Inc. <*@juliacomputing.com>
+CodeWeavers, Inc. <*@codeweavers.com>
+Alibaba, Inc. <*@alibaba-inc.com>
+
+Aaron Bieber <deftly@gmail.com>
+Aaron O'Mullan <aaron.omullan@gmail.com>
+Abdulla Kamar <abdulla.kamar@gmail.com>
+Adam Kallai <kadam@inf.u-szeged.hu>
+Akinori MUSHA <knu@FreeBSD.org>
+Alessandro Pignotti <alessandro@leaningtech.com>
+Alex Kodat <akodat@rocketsoftware.com>
+Alexander Botero-Lowry <alexbl@FreeBSD.org>
+Alexander Karpinsky <homm86@gmail.com>
+Alexander Neville <dark@volatile.bz>
+Alexandre Vassalotti <avassalotti@gmail.com>
+Alexis Campailla <alexis@janeasystems.com>
+Allan Sandfeld Jensen <allan.jensen@qt.io>
+Amos Lim <eui-sang.lim@samsung.com>
+Andreas Anyuru <andreas.anyuru@gmail.com>
+Andrei Kashcha <anvaka@gmail.com>
+Andrew Paprocki <andrew@ishiboo.com>
+Anna Henningsen <anna@addaleax.net>
+Antoine du Hamel <duhamelantoine1995@gmail.com>
+Anton Bershanskiy <8knots@protonmail.com>
+Anton Bikineev <ant.bikineev@gmail.com>
+Ao Wang <wangao.james@bytedance.com>
+Archil Sharashenidze <achosharashenidze@gmail.com>
+Bala Avulapati <bavulapati@gmail.com>
+Bangfu Tao <bangfu.tao@samsung.com>
+Ben Coe <bencoe@gmail.com>
+Ben Newman <ben@meteor.com>
+Ben Noordhuis <info@bnoordhuis.nl>
+Benjamin Tan <demoneaux@gmail.com>
+Bert Belder <bertbelder@gmail.com>
+Brendon Tiszka <btiszka@gmail.com>
+Brice Dobry <brice.dobry@futurewei.com>
+Burcu Dogan <burcujdogan@gmail.com>
+Caitlin Potter <caitpotter88@gmail.com>
+Chao Wang <chao.w@rioslab.org>
+Charles Kerr <charles@charleskerr.com>
+Chengzhong Wu <legendecas@gmail.com>
+Choongwoo Han <cwhan.tunz@gmail.com>
+Chris Nardi <hichris123@gmail.com>
+Christopher A. Taylor <chris@gameclosure.com>
+Colin Ihrig <cjihrig@gmail.com>
+Cong Zuo <zckevinzc@gmail.com>
+Craig Schlenter <craig.schlenter@gmail.com>
+Daniel Andersson <kodandersson@gmail.com>
+Daniel Bevenius <daniel.bevenius@gmail.com>
+Daniel Dromboski <dandromb@gmail.com>
+Daniel James <dnljms@gmail.com>
+Daniel Shelton <d1.shelton@samsung.com>
+Danylo Boiko <danielboyko02@gmail.com>
+Darshan Sen <raisinten@gmail.com>
+David Carlier <devnexen@gmail.com>
+David Manouchehri <david@davidmanouchehri.com>
+David Sanders <dsanders11@ucsbalum.com>
+Deepak Mohan <hop2deep@gmail.com>
+Deon Dior <diaoyuanjie@gmail.com>
+Derek Tu <derek.t@rioslab.org>
+Dominic Chen <d.c.ddcc@gmail.com>
+Dominic Farolini <domfarolino@gmail.com>
+Douglas Crosher <dtc-v8@scieneer.com>
+Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
+Eric Rannaud <eric.rannaud@gmail.com>
+Erich Ocean <erich.ocean@me.com>
+Evan Lucas <evan.lucas@help.com>
+Fedor Indutny <fedor@indutny.com>
+Felix Geisendörfer <haimuiba@gmail.com>
+Filipe David Manana <fdmanana@gmail.com>
+Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
+Gao Sheng <gaosheng08@meituan.com>
+Geoffrey Garside <ggarside@gmail.com>
+Gergely Nagy <ngg@ngg.hu>
+Gilang Mentari Hamidy <gilang@hamidy.net>
+Gus Caplan <me@gus.host>
+Gwang Yoon Hwang <ryumiel@company100.net>
+Haichuan Wang <hc.opensource@gmail.com>
+Hannu Trey <hannu.trey@gmail.com>
+Harshal Nandigramwar <pro.bbcom18@gmail.com>
+Harshil Jain <twitharshil@gmail.com>
+Henrique Ferreiro <henrique.ferreiro@gmail.com>
+Hirofumi Mako <mkhrfm@gmail.com>
+Honggyu Kim <honggyu.kp@gmail.com>
+Huáng Jùnliàng <jlhwung@gmail.com>
+HyeockJin Kim <kherootz@gmail.com>
+Iain Ireland <iireland@mozilla.com>
+Ingvar Stepanyan <me@rreverser.com>
+Ioseb Dzmanashvili <ioseb.dzmanashvili@gmail.com>
+Isiah Meadows <impinball@gmail.com>
+Jaime Bernardo <jaime@janeasystems.com>
+James M Snell <jasnell@gmail.com>
+James Pike <g00gle@chilon.net>
+Jan Krems <jan.krems@gmail.com>
+Jan de Mooij <jandemooij@gmail.com>
+Janusz Majnert <jmajnert@gmail.com>
+Javad Amiri <javad.amiri@anu.edu.au>
+Jay Freeman <saurik@saurik.com>
+Jesper van den Ende <jespertheend@gmail.com>
+Ji Qiu <qiuji@iscas.ac.cn>
+Jiawen Geng <technicalcute@gmail.com>
+Jiaxun Yang <jiaxun.yang@flygoat.com>
+Joel Stanley <joel@jms.id.au>
+Johan Bergström <johan@bergstroem.nu>
+Jonathan Liu <net147@gmail.com>
+Julien Brianceau <jbriance@cisco.com>
+JunHo Seo <sejunho@gmail.com>
+Junha Park <jpark3@scu.edu>
+Junming Huang <kiminghjm@gmail.com>
+Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
+Karl Skomski <karl@skomski.com>
+Keith Smiley <keithbsmiley@gmail.com>
+Kevin Gibbons <bakkot@gmail.com>
+Kris Selden <kris.selden@gmail.com>
+Kyounga Ra <kyounga@alticast.com>
+Loo Rong Jie <loorongjie@gmail.com>
+Lu Yahan <yahan@iscas.ac.cn>
+Luis Reis <luis.m.reis@gmail.com>
+Luke Zarko <lukezarko@gmail.com>
+Ma Aiguo <maaiguo@uniontech.com>
+Maciej Małecki <me@mmalecki.com>
+Marcel Laverdet <marcel@laverdet.com>
+Marcin Cieślak <saper@marcincieslak.com>
+Marcin Wiącek <marcin@mwiacek.com>
+Martin Bidlingmaier <martin.bidlingmaier@gmail.com>
+Mateusz Czeladka <mateusz.szczap@gmail.com>
+Matheus Marchini <mat@mmarchini.me>
+Matheus Marchini <mmarchini@netflix.com>
+Mathias Bynens <mathias@qiwi.be>
+Matt Hanselman <mjhanselman@gmail.com>
+Matthew Sporleder <msporleder@gmail.com>
+Maxim Mazurok <maxim@mazurok.com>
+Maxim Mossienko <maxim.mossienko@gmail.com>
+Michael Lutz <michi@icosahedron.de>
+Michael Mclaughlin <m8ch88l@gmail.com>
+Michael Smith <mike@w3.org>
+Michaël Zasso <mic.besace@gmail.com>
+Mihir Shah <mihirshah.11204@gmail.com>
+Mike Gilbert <floppymaster@gmail.com>
+Mike Pennisi <mike@mikepennisi.com>
+Mikhail Gusarov <dottedmag@dottedmag.net>
+Milton Chiang <milton.chiang@mediatek.com>
+Mu Tao <pamilty@gmail.com>
+Myeong-bo Shim <m0609.shim@samsung.com>
+Nicolas Antonius Ernst Leopold Maria Kaiser <nikai@nikai.net>
+Nicolò Ribaudo <nicolo.ribaudo@gmail.com>
+Niek van der Maas <mail@niekvandermaas.nl>
+Niklas Hambüchen <mail@nh2.me>
+Noj Vek <nojvek@gmail.com>
+Oleksandr Chekhovskyi <oleksandr.chekhovskyi@gmail.com>
+Oliver Dunk <oliver@oliverdunk.com>
+Paolo Giarrusso <p.giarrusso@gmail.com>
+Patrick Gansterer <paroga@paroga.com>
+Paul Lind <plind44@gmail.com>
+Pavel Medvedev <pmedvedev@gmail.com>
+Peng Fei <pfgenyun@gmail.com>
+Peng Wu <peng.w@rioslab.org>
+Peng-Yu Chen <pengyu@libstarrify.so>
+Peter Rybin <peter.rybin@gmail.com>
+Peter Varga <pvarga@inf.u-szeged.hu>
+Peter Wong <peter.wm.wong@gmail.com>
+PhistucK <phistuck@gmail.com>
+Rafal Krypa <rafal@krypa.net>
+Raul Tambre <raul@tambre.ee>
+Ray Glover <ray@rayglover.net>
+Ray Wang <ray@isrc.iscas.ac.cn>
+Refael Ackermann <refack@gmail.com>
+Rene Rebe <rene@exactcode.de>
+Reza Yazdani <ryazdani@futurewei.com>
+Rick Waldron <waldron.rick@gmail.com>
+Rob Wu <rob@robwu.nl>
+Robert Meijer <robert.s.meijer@gmail.com>
+Robert Mustacchi <rm@fingolfin.org>
+Robert Nagy <robert.nagy@gmail.com>
+Robert O'Callahan <rocallahan@gmail.com>
+Rong Wang <wangrong089@gmail.com>
+Ross Kirsling <rkirsling@gmail.com>
+Ruben Bridgewater <ruben@bridgewater.de>
+Ryan Dahl <ry@tinyclouds.org>
+Sakthipriyan Vairamani (thefourtheye) <thechargingvolcano@gmail.com>
+Sander Mathijs van Veen <sander@leaningtech.com>
+Sandro Santilli <strk@keybit.net>
+Sanjoy Das <sanjoy@playingwithpointers.com>
+Seo Sanghyeon <sanxiyn@gmail.com>
+Shawn Anastasio <shawnanastasio@gmail.com>
+Shawn Presser <shawnpresser@gmail.com>
+Stefan Penner <stefan.penner@gmail.com>
+Stephan Hartmann <stha09@googlemail.com>
+Stephen Belanger <stephen.belanger@datadoghq.com>
+Sylvestre Ledru <sledru@mozilla.com>
+Takeshi Yoneda <takeshi@tetrate.io>
+Taketoshi Aono <brn@b6n.ch>
+Tao Liqiang <taolq@outlook.com>
+Teddy Katz <teddy.katz@gmail.com>
+Thomas Young <wenzhang5800@gmail.com>
+Tiancheng "Timothy" Gu <timothygu99@gmail.com>
+Tianping Yang <yangtianping@oppo.com>
+Timo Teräs <timo.teras@iki.fi>
+Tobias Burnus <burnus@net-b.de>
+Tobias Nießen <tniessen@tnie.de>
+Ujjwal Sharma <usharma1998@gmail.com>
+Vadim Gorbachev <bmsdave@gmail.com>
+Varun Varada <varuncvarada@gmail.com>
+Victor Costan <costan@gmail.com>
+Vlad Burlik <vladbph@gmail.com>
+Vladimir Krivosheev <develar@gmail.com>
+Vladimir Shutoff <vovan@shutoff.ru>
+Wael Almattar <waelsy123@gmail.com>
+Wei Wu <lazyparser@gmail.com>
+Wenlu Wang <kingwenlu@gmail.com>
+Wenming Yang <yangwenming@bytedance.com>
+Wenyu Zhao <wenyu.zhao@anu.edu.au>
+Wiktor Garbacz <wiktor.garbacz@gmail.com>
+Wouter Vermeiren <wouter.vermeiren@essensium.com>
+Xiaofang Zou <zouxiaofang@iscas.ac.cn>
+Xiaoyin Liu <xiaoyin.l@outlook.com>
+Yanbo Li <lybvinci@gmail.com>
+Yannic Bonenberger <contact@yannic-bonenberger.com>
+Yi Wang <wangyi8848@gmail.com>
+Yong Wang <ccyongwang@tencent.com>
+Youfeng Hao <ajihyf@gmail.com>
+Yu Yin <xwafish@gmail.com>
+Yujie Wang <hex6770@gmail.com>
+Yuri Iozzelli <yuri@leaningtech.com>
+Yusif Khudhur <yusif.khudhur@gmail.com>
+Yuxiang Cao <caoyxsh@outlook.com>
+Zac Hansen <xaxxon@gmail.com>
+Zeynep Cankara <zeynepcankara402@gmail.com>
+Zhao Jiazhong <kyslie3100@gmail.com>
+Zheng Liu <i6122f@gmail.com>
+Zhongping Wang <kewpie.w.zp@gmail.com>
+柳荣一 <admin@web-tinker.com>
+Yang Xiang <xiangyangemail@gmail.com>

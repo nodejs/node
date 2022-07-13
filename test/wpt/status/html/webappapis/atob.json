@@ -1,0 +1,5 @@
+{
+  "base64.any.js": {
+    "fail": "promise_test: Unhandled rejection with value: object \"Error: ENOENT: no such file or directory, open '/root/node/node/fetch/data-urls/resources/base64.json'\""
+  }
+}

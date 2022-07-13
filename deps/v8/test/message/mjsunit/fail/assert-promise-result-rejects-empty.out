@@ -1,0 +1,12 @@
+test/mjsunit/mjsunit.js:{NUMBER}: Error: Error in creation
+              throw concatenateErrors(stack, e);
+              ^
+Error
+    at assertPromiseResult (test/mjsunit/mjsunit.js:{NUMBER}:{NUMBER})
+    at *%(basename)s:11:1
+
+Error: Error in creation
+    at *%(basename)s:8:9
+    at new Promise (<anonymous>)
+    at *%(basename)s:7:15
+

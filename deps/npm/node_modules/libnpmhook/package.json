@@ -1,0 +1,54 @@
+{
+  "name": "libnpmhook",
+  "version": "8.0.3",
+  "description": "programmatic API for managing npm registry hooks",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "prerelease": "npm t",
+    "postrelease": "npm publish && git push --follow-tags",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "snap": "tap",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmhook"
+  },
+  "keywords": [
+    "npm",
+    "hooks",
+    "registry",
+    "npm api"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "npm-registry-fetch": "^13.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "nock": "^13.2.4",
+    "tap": "^16.0.1"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}

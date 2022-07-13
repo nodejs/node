@@ -1,0 +1,4 @@
+*%(basename)s:9: SyntaxError: Identifier 'x' has already been declared
+  var x;
+      ^
+SyntaxError: Identifier 'x' has already been declared

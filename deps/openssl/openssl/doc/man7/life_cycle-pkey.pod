@@ -1,0 +1,713 @@
+=pod
+
+=head1 NAME
+
+life_cycle-pkey - The PKEY algorithm life-cycle
+
+=head1 DESCRIPTION
+
+All public keys (PKEYs) go through a number of stages in their life-cycle:
+
+=over 4
+
+=item start
+
+This state represents the PKEY before it has been allocated.  It is the
+starting state for any life-cycle transitions.
+
+=item newed
+
+This state represents the PKEY after it has been allocated.
+
+=item decapsulate
+
+This state represents the PKEY when it is ready to perform a private key decapsulation
+opeartion.
+
+=item decrypt
+
+This state represents the PKEY when it is ready to decrypt some ciphertext.
+
+=item derive
+
+This state represents the PKEY when it is ready to derive a shared secret.
+
+=item digest sign
+
+This state represents the PKEY when it is ready to perform a private key signature
+operation.
+
+=item encapsulate
+
+This state represents the PKEY when it is ready to perform a public key encapsulation
+opeartion.
+
+=item encrypt
+
+This state represents the PKEY when it is ready to encrypt some plaintext.
+
+=item key generation
+
+This state represents the PKEY when it is ready to generate a new public/private key.
+
+=item parameter generation
+
+This state represents the PKEY when it is ready to generate key parameters.
+
+=item verify
+
+This state represents the PKEY when it is ready to verify a public key signature.
+
+=item verify recover
+
+This state represents the PKEY when it is ready to recover a public key signature data.
+
+=item freed
+
+This state is entered when the PKEY is freed.  It is the terminal state
+for all life-cycle transitions.
+
+=back
+
+=head2 State Transition Diagram
+
+The usual life-cycle of a PKEY object is illustrated:
+
+=begin man
+
+                                                   +-------------+
+                                                   |             |
+                                                   |    start    |
+                                                   |             |
+                   EVP_PKEY_derive                 +-------------+
+ +-------------+   EVP_PKEY_derive_set_peer               |                                          +-------------+
+ |             |----------------------------+             |             +----------------------------|             |
+ |   derive    |                            |             |             |  EVP_PKEY_verify           |   verify    |
+ |             |<---------------------------+             |             +--------------------------->|             |
+ +-------------+                                          |                                          +-------------+
+             ^                                            |                                            ^
+             |   EVP_PKEY_derive_init                     |             EVP_PKEY_verify_init           |
+             +---------------------------------------+    |    +---------------------------------------+
+                                                     |    |    |
+ +-------------+                                     |    |    |                                     +-------------+
+ |             |----------------------------+        |    |    |        +----------------------------|             |
+ | digest sign |   EVP_PKEY_sign            |        |    |    |        |  EVP_PKEY_verify_recover   |   verify    |
+ |             |<---------------------------+        |    |    |        +--------------------------->|   recover   |
+ +-------------+                                     |    |    |                                     +-------------+
+             ^                                       |    |    |                                       ^
+             |     EVP_PKEY_sign_init                |    |    |        EVP_PKEY_verify_recover_init   |
+             +---------------------------------+     |    |    |     +---------------------------------+
+                                               |     |    |    |     |
+ +-------------+                               |     |    |    |     |                               +-------------+
+ |             |----------------------------+  |     |    |    |     |  +----------------------------|             |
+ | decapsulate |   EVP_PKEY_decapsulate     |  |     |    |    |     |  |  EVP_PKEY_decrypt          |   decrypt   |
+ |             |<---------------------------+  |     |    v    |     |  +--------------------------->|             |
+ +-------------+                               |   +-------------+   |                               +-------------+
+             ^                                 +---|             |---+                                 ^
+             |     EVP_PKEY_decapsulate_init       |             |      EVP_PKEY_decrypt_init          |
+             +-------------------------------------|    newed    |-------------------------------------+
+                                                   |             |
+                                               +---|             |---+
+ +-------------+                               |   +-------------+   |                               +-------------+
+ |             |----------------------------+  |     |         |     |  +----------------------------|             |
+ | encapsulate |   EVP_PKEY_encapsulate     |  |     |         |     |  |  EVP_PKEY_encrypt          |   encrypt   |
+ |             |<---------------------------+  |     |         |     |  +--------------------------->|             |
+ +-------------+                               |     |         |     |                               +-------------+
+             ^                                 |     |         |     |                                 ^
+             |     EVP_PKEY_encapsulate_init   |     |         |     |  EVP_PKEY_encrypt_init          |
+             +---------------------------------+     |         |     +---------------------------------+
+                                                     |         |
+             +---------------------------------------+         +---------------------------------------+
+             |     EVP_PKEY_paramgen_init                               EVP_PKEY_keygen_init           |
+             v                                                                                         v
+ +-------------+                                                                                     +-------------+
+ |             |----------------------------+                           +----------------------------|             |
+ |  parameter  |                            |                           |                            |     key     |
+ |  generation |<---------------------------+                           +--------------------------->|  generation |
+ +-------------+   EVP_PKEY_paramgen                                       EVP_PKEY_keygen           +-------------+
+                   EVP_PKEY_gen                                            EVP_PKEY_gen
+
+
+                                    + - - - - - +                    +-----------+
+                                    '           ' EVP_PKEY_CTX_free  |           |
+                                    ' any state '------------------->|   freed   |
+                                    '           '                    |           |
+                                    + - - - - - +                    +-----------+
+
+=end man
+
+=for html <img src="img/pkey.png">
+
+=head2 Formal State Transitions
+
+This section defines all of the legal state transitions.
+This is the canonical list.
+
+=begin man
+
+ Function Call                 ---------------------------------------------------------------------- Current State ----------------------------------------------------------------------
+                               start    newed       digest       verify       verify       encrypt      decrypt      derive      encapsulate  decapsulate  parameter       key       freed
+                                                     sign                     recover                                                                      generation   generation
+ EVP_PKEY_CTX_new              newed
+ EVP_PKEY_CTX_new_id           newed
+ EVP_PKEY_CTX_new_from_name    newed
+ EVP_PKEY_CTX_new_from_pkey    newed
+ EVP_PKEY_sign_init                    digest       digest       digest       digest       digest       digest       digest       digest       digest       digest       digest
+                                        sign         sign         sign         sign         sign         sign         sign         sign         sign         sign         sign
+ EVP_PKEY_sign                                      digest
+                                                     sign
+ EVP_PKEY_verify_init                  verify       verify       verify       verify       verify       verify       verify       verify       verify       verify       verify
+ EVP_PKEY_verify                                                 verify
+ EVP_PKEY_verify_recover_init          verify       verify       verify       verify       verify       verify       verify       verify       verify       verify       verify
+                                       recover      recover      recover      recover      recover      recover      recover      recover      recover      recover      recover
+ EVP_PKEY_verify_recover                                                      verify
+                                                                              recover
+ EVP_PKEY_encrypt_init                 encrypt      encrypt      encrypt      encrypt      encrypt      encrypt      encrypt      encrypt      encrypt      encrypt      encrypt
+ EVP_PKEY_encrypt                                                                          encrypt
+ EVP_PKEY_decrypt_init                 decrypt      decrypt      decrypt      decrypt      decrypt      decrypt      decrypt      decrypt      decrypt      decrypt      decrypt
+ EVP_PKEY_decrypt                                                                                       decrypt
+ EVP_PKEY_derive_init                  derive       derive       derive       derive       derive       derive       derive       derive       derive       derive       derive
+ EVP_PKEY_derive_set_peer                                                                                            derive
+ EVP_PKEY_derive                                                                                                     derive
+ EVP_PKEY_encapsulate_init            encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate  encapsulate
+ EVP_PKEY_encapsulate                                                                                                            encapsulate
+ EVP_PKEY_decapsulate_init            decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate  decapsulate
+ EVP_PKEY_decapsulate                                                                                                                         decapsulate
+ EVP_PKEY_paramgen_init               parameter    parameter    parameter    parameter    parameter    parameter    parameter    parameter    parameter    parameter    parameter
+                                      generation   generation   generation   generation   generation   generation   generation   generation   generation   generation   generation
+ EVP_PKEY_paramgen                                                                                                                                         parameter
+                                                                                                                                                           generation
+ EVP_PKEY_keygen_init                    key          key          key          key          key          key          key          key          key          key          key
+                                      generation   generation   generation   generation   generation   generation   generation   generation   generation   generation   generation
+ EVP_PKEY_keygen                                                                                                                                                           key
+                                                                                                                                                                        generation
+ EVP_PKEY_gen                                                                                                                                              parameter       key
+                                                                                                                                                           generation   generation
+ EVP_PKEY_CTX_get_params                newed       digest       verify       verify       encrypt      decrypt      derive      encapsulate  decapsulate  parameter       key
+                                                     sign                     recover                                                                      generation   generation
+ EVP_PKEY_CTX_set_params                newed       digest       verify       verify       encrypt      decrypt      derive      encapsulate  decapsulate  parameter       key
+                                                     sign                     recover                                                                      generation   generation
+ EVP_PKEY_CTX_gettable_params           newed       digest       verify       verify       encrypt      decrypt      derive      encapsulate  decapsulate  parameter       key
+                                                     sign                     recover                                                                      generation   generation
+ EVP_PKEY_CTX_settable_params           newed       digest       verify       verify       encrypt      decrypt      derive      encapsulate  decapsulate  parameter       key
+                                                     sign                     recover                                                                      generation   generation
+ EVP_PKEY_CTX_free             freed    freed        freed        freed        freed        freed        freed        freed        freed        freed        freed        freed
+
+=end man
+
+=begin html
+
+<table style="border:1px solid; border-collapse:collapse">
+<tr><th style="border:1px solid" align="left">Function Call</th>
+    <th style="border:1px solid" colspan="13">Current State</th></tr>
+<tr><th style="border:1px solid"></th>
+    <th style="border:1px solid" align="center">start</th>
+    <th style="border:1px solid" align="center">newed</th>
+    <th style="border:1px solid" align="center">digest<br>sign</th>
+    <th style="border:1px solid" align="center">verify</th>
+    <th style="border:1px solid" align="center">verify<br>recover</th>
+    <th style="border:1px solid" align="center">encrypt</th>
+    <th style="border:1px solid" align="center">decrypt</th>
+    <th style="border:1px solid" align="center">derive</th>
+    <th style="border:1px solid" align="center">encapsulate</th>
+    <th style="border:1px solid" align="center">decapsulate</th>
+    <th style="border:1px solid" align="center">parameter<br>generation</th>
+    <th style="border:1px solid" align="center">key<br>generation</th>
+    <th style="border:1px solid" align="center">freed</th>
+</tr>
+
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_new</th>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_new_id</th>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_new_from_name</th>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_new_from_pkey</th>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_sign_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_sign</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_verify_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_verify</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_verify_recover_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_verify_recover</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_encrypt_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_encrypt</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_decrypt_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_decrypt</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_derive_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_derive_set_peer</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_derive</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_encapsulate_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_encapsulate</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_decapsulate_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_decapsulate</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_paramgen_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_paramgen</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_keygen_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_keygen</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_gen</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_get_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_set_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_gettable_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_settable_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">digest<br>sign</td>
+    <td style="border:1px solid" align="center">verify</td>
+    <td style="border:1px solid" align="center">verify<br>recover</td>
+    <td style="border:1px solid" align="center">encrypt</td>
+    <td style="border:1px solid" align="center">decrypt</td>
+    <td style="border:1px solid" align="center">derive</td>
+    <td style="border:1px solid" align="center">encapsulate</td>
+    <td style="border:1px solid" align="center">decapsulate</td>
+    <td style="border:1px solid" align="center">parameter<br>generation</td>
+    <td style="border:1px solid" align="center">key<br>generation</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+<tr><th style="border:1px solid" align="left">EVP_PKEY_CTX_free</th>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center"></td>
+</tr>
+</table>
+
+=end html
+
+=head1 NOTES
+
+At some point the EVP layer will begin enforcing the transitions described
+herein.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_new(3)>,
+L<EVP_PKEY_decapsulate(3)>, L<EVP_PKEY_decrypt(3)>, L<EVP_PKEY_encapsulate(3)>,
+L<EVP_PKEY_encrypt(3)>, L<EVP_PKEY_derive(3)>, L<EVP_PKEY_keygen(3)>,
+L<EVP_PKEY_sign(3)>, L<EVP_PKEY_verify(3)>, L<EVP_PKEY_verify_recover(3)>
+
+=head1 HISTORY
+
+The provider PKEY interface was introduced in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

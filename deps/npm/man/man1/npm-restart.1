@@ -1,0 +1,91 @@
+.TH "NPM\-RESTART" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-restart\fR \- Restart a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm restart [\-\- <args>]
+.fi
+.RE
+.SS Description
+.P
+This restarts a project\.  It is equivalent to running \fBnpm run\-script
+restart\fP\|\.
+.P
+If the current project has a \fB"restart"\fP script specified in
+\fBpackage\.json\fP, then the following scripts will be run:
+.RS 0
+.IP 1. 3
+prerestart
+.IP 2. 3
+restart
+.IP 3. 3
+postrestart
+
+.RE
+.P
+If it does \fInot\fR have a \fB"restart"\fP script specified, but it does have
+\fBstop\fP and/or \fBstart\fP scripts, then the following scripts will be run:
+.RS 0
+.IP 1. 3
+prerestart
+.IP 2. 3
+prestop
+.IP 3. 3
+stop
+.IP 4. 3
+poststop
+.IP 5. 3
+prestart
+.IP 6. 3
+start
+.IP 7. 3
+poststart
+.IP 8. 3
+postrestart
+
+.RE
+.SS Configuration
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBscript\-shell\fP
+.RS 0
+.IP \(bu 2
+Default: '/bin/sh' on POSIX systems, 'cmd\.exe' on Windows
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <package\-spec>\fP commands\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help stop
+.IP \(bu 2
+npm help restart
+
+.RE

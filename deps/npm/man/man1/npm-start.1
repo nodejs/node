@@ -1,0 +1,88 @@
+.TH "NPM\-START" "1" "June 2022" "" ""
+.SH "NAME"
+\fBnpm-start\fR \- Start a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm start [\-\- <args>]
+.fi
+.RE
+.SS Description
+.P
+This runs a predefined command specified in the \fB"start"\fP property of
+a package's \fB"scripts"\fP object\.
+.P
+If the \fB"scripts"\fP object does not define a  \fB"start"\fP property, npm
+will run \fBnode server\.js\fP\|\.
+.P
+Note that this is different from the default node behavior of running
+the file specified in a package's \fB"main"\fP attribute when evoking with
+\fBnode \.\fP
+.P
+As of \fBnpm@2\.0\.0\fP \fIhttps://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. Refer to npm help \fBrun\-script\fP for more details\.
+.SS Example
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "start": "node foo\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm start
+
+> npm@x\.x\.x start
+> node foo\.js
+
+(foo\.js output would be here)
+
+.fi
+.RE
+.SS Configuration
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBscript\-shell\fP
+.RS 0
+.IP \(bu 2
+Default: '/bin/sh' on POSIX systems, 'cmd\.exe' on Windows
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <package\-spec>\fP commands\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+
+.RE

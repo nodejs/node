@@ -1,0 +1,51 @@
+{
+  "name": "libnpmaccess",
+  "version": "6.0.3",
+  "description": "programmatic library for `npm access` commands",
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "main": "lib/index.js",
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags",
+    "lint": "eslint \"**/*.js\"",
+    "test": "tap",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "prepublishOnly": "git push origin --follow-tags",
+    "snap": "tap",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "nock": "^13.2.4",
+    "tap": "^16.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmaccess"
+  },
+  "bugs": "https://github.com/npm/libnpmaccess/issues",
+  "homepage": "https://npmjs.com/package/libnpmaccess",
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "minipass": "^3.1.1",
+    "npm-package-arg": "^9.0.1",
+    "npm-registry-fetch": "^13.0.0"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}
