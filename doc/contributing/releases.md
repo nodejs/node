@@ -468,7 +468,20 @@ failed build if you start again!
 Jenkins collects the artifacts from the builds, allowing you to download and
 install the new build. Make sure that the build appears correct. Check the
 version numbers, and perform some basic checks to confirm that all is well with
-the build before moving forward.
+the build before moving forward. Use the following list as a baseline:
+
+* `process.version` is as expected
+* `process.release` is as expected
+* `process.versions` is as expected (for example, `openssl` or `llhttp` version
+  must be in the expected updated version)
+* npm version (check it matches what we expect)
+* Run the test suite against the built binaries (optional)
+
+```console
+./tools/test.py --shell ~/Downloads/node-v18.5.0-linux-x64/bin/node
+```
+
+<sup>There may be test issues if the branch used to test does not match the Node.js binary.</sup>
 
 ### 11. Tag and sign the release commit
 
@@ -509,6 +522,8 @@ include the release code name.
 
 The tag **must** be signed using the GPG key that's listed for you on the
 project README.
+
+**Note**: Don't push the tag to remote at this point.
 
 ### 12. Set up for the next release
 
