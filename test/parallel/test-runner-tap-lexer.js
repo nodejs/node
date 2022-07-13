@@ -12,7 +12,7 @@ function TAPLexer(input) {
 }
 
 {
-  const tokens = TAPLexer(`TAP version 14`);
+  const tokens = TAPLexer('TAP version 14');
 
   assert.strictEqual(tokens.length, 6);
 
@@ -30,7 +30,7 @@ function TAPLexer(input) {
 }
 
 {
-  const tokens = TAPLexer(`1..5 # reason`);
+  const tokens = TAPLexer('1..5 # reason');
 
   [
     { kind: TokenKind.NUMERIC, value: '1' },
@@ -49,7 +49,7 @@ function TAPLexer(input) {
 
 {
   const tokens = TAPLexer(
-    `1..5 # reason "\\ !"\\#$%&'()*+,\\-./:;<=>?@[]^_\`{|}~`
+    '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~'
   );
 
   [
@@ -81,7 +81,7 @@ function TAPLexer(input) {
 }
 
 {
-  const tokens = TAPLexer(`ok`);
+  const tokens = TAPLexer('ok');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -93,7 +93,7 @@ function TAPLexer(input) {
 }
 
 {
-  const tokens = TAPLexer(`not ok`);
+  const tokens = TAPLexer('not ok');
 
   [
     { kind: TokenKind.TAP_TEST_NOTOK, value: 'not' },
@@ -107,7 +107,7 @@ function TAPLexer(input) {
 }
 
 {
-  const tokens = TAPLexer(`ok 1`);
+  const tokens = TAPLexer('ok 1');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -173,7 +173,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 description`);
+  const tokens = TAPLexer('ok 1 description');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -189,7 +189,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 - description`);
+  const tokens = TAPLexer('ok 1 - description');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -207,7 +207,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 - description # todo`);
+  const tokens = TAPLexer('ok 1 - description # todo');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -229,7 +229,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 - description \\# todo`);
+  const tokens = TAPLexer('ok 1 - description \\# todo');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -252,7 +252,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 - description \\ # todo`);
+  const tokens = TAPLexer('ok 1 - description \\ # todo');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -277,7 +277,7 @@ ok 1
 
 {
   const tokens = TAPLexer(
-    `ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\`
+    'ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\'
   );
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -317,7 +317,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`ok 1 - description # ##`);
+  const tokens = TAPLexer('ok 1 - description # ##');
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
@@ -340,7 +340,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`# comment`);
+  const tokens = TAPLexer('# comment');
   [
     { kind: TokenKind.COMMENT, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
@@ -353,7 +353,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`#`);
+  const tokens = TAPLexer('#');
 
   [
     { kind: TokenKind.COMMENT, value: '#' },
@@ -406,7 +406,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`pragma +strict -warnings`);
+  const tokens = TAPLexer('pragma +strict -warnings');
 
   [
     { kind: TokenKind.TAP_PRAGMA, value: 'pragma' },
@@ -424,7 +424,7 @@ ok 1
 }
 
 {
-  const tokens = TAPLexer(`Bail out! Error`);
+  const tokens = TAPLexer('Bail out! Error');
 
   [
     { kind: TokenKind.LITERAL, value: 'Bail' },

@@ -3,7 +3,6 @@
 
 require('../common');
 const assert = require('assert');
-const util = require('util');
 
 const { TapParser } = require('internal/test_runner/tap_parser');
 
@@ -16,7 +15,7 @@ function TAPParser(input) {
 // TAP version
 
 {
-  const ast = TAPParser(`TAP version 14`);
+  const ast = TAPParser('TAP version 14');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -29,25 +28,25 @@ function TAPParser(input) {
 }
 
 {
-  assert.throws(() => TAPParser(`TAP version`), {
+  assert.throws(() => TAPParser('TAP version'), {
     name: 'SyntaxError',
     message:
-      'Expected a version number, got "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
+      'Expected a version number, received "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
   });
 }
 
 {
-  assert.throws(() => TAPParser(`TAP`), {
+  assert.throws(() => TAPParser('TAP'), {
     name: 'SyntaxError',
     message:
-      'Expected "version" keyword, got "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+      'Expected "version" keyword, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
   });
 }
 
 // Test plan
 
 {
-  const ast = TAPParser(`1..5 # reason`);
+  const ast = TAPParser('1..5 # reason');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [{ plan: { start: '1', end: '5', reason: 'reason' } }],
@@ -57,7 +56,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser(
-    `1..5 # reason "\\ !"\\#$%&'()*+,\\-./:;<=>?@[]^_\`{|}~`
+    '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~'
   );
   assert.deepStrictEqual(ast, {
     root: {
@@ -75,41 +74,41 @@ function TAPParser(input) {
 }
 
 {
-  assert.throws(() => TAPParser(`1..`), {
+  assert.throws(() => TAPParser('1..'), {
     name: 'SyntaxError',
     message:
-      'Expected a plan end count, got "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+      'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
   });
 }
 
 {
-  assert.throws(() => TAPParser(`1..abc`), {
+  assert.throws(() => TAPParser('1..abc'), {
     name: 'SyntaxError',
     message:
-      'Expected ".." symbol, got "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
+      'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
   });
 }
 
 {
-  assert.throws(() => TAPParser(`1..-1`), {
+  assert.throws(() => TAPParser('1..-1'), {
     name: 'SyntaxError',
     message:
-      'Expected a plan end count, got "-" (Dash) at line 1, column 4 (start 3, end 3)',
+      'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
   });
 }
 
 {
-  assert.throws(() => TAPParser(`1.1`), {
+  assert.throws(() => TAPParser('1.1'), {
     name: 'SyntaxError',
     message:
-      'Expected ".." symbol, got "." (Literal) at line 1, column 2 (start 1, end 1)',
+      'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
   });
 }
 
 // Test point
 
 {
-  const ast = TAPParser(`ok`);
+  const ast = TAPParser('ok');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -134,7 +133,7 @@ function TAPParser(input) {
 }
 
 {
-  const ast = TAPParser(`not ok`);
+  const ast = TAPParser('not ok');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -159,7 +158,7 @@ function TAPParser(input) {
 }
 
 {
-  const ast = TAPParser(`ok 1`);
+  const ast = TAPParser('ok 1');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -223,7 +222,7 @@ not ok 2
 }
 
 {
-  // a subtest is indented by 4 spaces
+  // A subtest is indented by 4 spaces
   const ast = TAPParser(`
 ok 1
     ok 1
@@ -269,7 +268,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 description`);
+  const ast = TAPParser('ok 1 description');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -294,7 +293,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 - description`);
+  const ast = TAPParser('ok 1 - description');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -319,7 +318,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 - description # todo`);
+  const ast = TAPParser('ok 1 - description # todo');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -344,7 +343,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 - description \\# todo`);
+  const ast = TAPParser('ok 1 - description \\# todo');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -369,7 +368,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 - description \\ # todo`);
+  const ast = TAPParser('ok 1 - description \\ # todo');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -395,7 +394,7 @@ ok 1
 
 {
   const ast = TAPParser(
-    `ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\`
+    'ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\'
   );
   assert.deepStrictEqual(ast, {
     root: {
@@ -421,7 +420,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1 - description # ##`);
+  const ast = TAPParser('ok 1 - description # ##');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -447,7 +446,7 @@ ok 1
 
 {
   const ast = TAPParser(
-    `ok 2 not skipped: https://example.com/page.html#skip is a url`
+    'ok 2 not skipped: https://example.com/page.html#skip is a url'
   );
   assert.deepStrictEqual(ast, {
     root: {
@@ -474,7 +473,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 3 - #SkIp case insensitive, so this is skipped`);
+  const ast = TAPParser('ok 3 - #SkIp case insensitive, so this is skipped');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -499,7 +498,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok ok ok`);
+  const ast = TAPParser('ok ok ok');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -524,7 +523,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok not ok`);
+  const ast = TAPParser('ok not ok');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -549,7 +548,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`ok 1..1`);
+  const ast = TAPParser('ok 1..1');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -563,7 +562,7 @@ ok 1
                 skip: false,
                 todo: false,
               },
-              description: '', // this looks like an edge case
+              description: '', // This looks like an edge case
               reason: '',
             },
           ],
@@ -576,7 +575,7 @@ ok 1
 // Comment
 
 {
-  const ast = TAPParser(`# comment`);
+  const ast = TAPParser('# comment');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -589,7 +588,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`#`);
+  const ast = TAPParser('#');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -602,7 +601,7 @@ ok 1
 }
 
 {
-  const ast = TAPParser(`####`);
+  const ast = TAPParser('####');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -617,7 +616,7 @@ ok 1
 // Diagnostic
 
 {
-  // note the leading 2 valid spaces
+  // Note the leading 2 valid spaces
   const ast = TAPParser(`
   ---
   message: 'description'
@@ -630,9 +629,54 @@ ok 1
         {
           tests: [
             {
+              diagnostics: ["message: 'description'", "property: 'value'"],
+            },
+          ],
+        },
+      ],
+    },
+  });
+}
+
+{
+  // Note the leading 2 valid spaces
+  const ast = TAPParser(`
+  ---
+  message: "Board layout"
+  severity: comment
+  dump:
+    board:
+      - '      16G         05C        '
+      - '      G N C       C C G      '
+      - '        G           C  +     '
+      - '10C   01G         03C        '
+      - 'R N G G A G       C C C      '
+      - '  R     G           C  +     '
+      - '      01G   17C   00C        '
+      - '      G A G G N R R N R      '
+      - '        G     R     G        '
+  ...
+`);
+  assert.deepStrictEqual(ast, {
+    root: {
+      documents: [
+        {
+          tests: [
+            {
               diagnostics: [
-                "message: 'description'",
-                "property: 'value'",
+                'message: "Board layout"',
+                'severity: comment',
+                'dump:',
+                '  board:',
+                "    - '      16G         05C        '",
+                "    - '      G N C       C C G      '",
+                "    - '        G           C  +     '",
+                "    - '10C   01G         03C        '",
+                "    - 'R N G G A G       C C C      '",
+                "    - '  R     G           C  +     '",
+                "    - '      01G   17C   00C        '",
+                "    - '      G A G G N R R N R      '",
+                "    - '        G     R     G        '",
               ],
             },
           ],
@@ -675,7 +719,7 @@ ok 1
     {
       name: 'SyntaxError',
       message:
-        'Unexpected YAML end marker, got "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
+        'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
     }
   );
 }
@@ -692,7 +736,8 @@ ok 1
       ),
     {
       name: 'SyntaxError',
-      message: `Expected end of YAML block, got "'value'" (Literal) at line 4, column 13 (start 44, end 50)`,
+      message:
+        'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
     }
   );
 }
@@ -700,7 +745,7 @@ ok 1
 {
   assert.throws(
     () =>
-      // note the leading 3 spaces before ---
+      // Note the leading 3 spaces before ---
       TAPParser(
         `
    ---
@@ -711,7 +756,8 @@ ok 1
       ),
     {
       name: 'SyntaxError',
-      message: `Expected 2 spaces, got " " (Whitespace) at line 2, column 3 (start 3, end 3)`,
+      message:
+        'Expected valid YAML indentation (2 spaces), received 3 spaces at line 2, column 3 (start 3, end 3)',
     }
   );
 }
@@ -719,7 +765,7 @@ ok 1
 {
   assert.throws(
     () =>
-      // note the leading 5 spaces before ---
+      // Note the leading 5 spaces before ---
       TAPParser(
         `
      ---
@@ -730,7 +776,8 @@ ok 1
       ),
     {
       name: 'SyntaxError',
-      message: `Expected 4 spaces, got " " (Whitespace) at line 2, column 5 (start 5, end 5)`,
+      message:
+        'Expected valid YAML indentation (2 spaces), received 5 spaces at line 2, column 5 (start 5, end 5)',
     }
   );
 }
@@ -738,7 +785,7 @@ ok 1
 {
   assert.throws(
     () =>
-      // note the leading 4 spaces before ---
+      // Note the leading 4 spaces before ---
       TAPParser(
         `
     ---
@@ -749,7 +796,8 @@ ok 1
       ),
     {
       name: 'SyntaxError',
-      message: `Expected a valid token, got "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)`,
+      message:
+        'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
     }
   );
 }
@@ -757,7 +805,7 @@ ok 1
 {
   assert.throws(
     () =>
-      // note the leading 4 spaces before ...
+      // Note the leading 4 spaces before ...
       TAPParser(
         `
   ---
@@ -768,7 +816,8 @@ ok 1
       ),
     {
       name: 'SyntaxError',
-      message: `Expected valid YAML indentation level, got " " (Whitespace) at line 5, column 4 (start 55, end 55)`,
+      message:
+        'Expected end of YAML block, received "..." (YamlEndKeyword) at line 5, column 5 (start 56, end 58)',
     }
   );
 }
@@ -776,7 +825,7 @@ ok 1
 // Pragma
 
 {
-  const ast = TAPParser(`pragma +strict, -warnings`);
+  const ast = TAPParser('pragma +strict, -warnings');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -794,7 +843,7 @@ ok 1
 // Bail out
 
 {
-  const ast = TAPParser(`Bail out! Error`);
+  const ast = TAPParser('Bail out! Error');
   assert.deepStrictEqual(ast, {
     root: {
       documents: [
@@ -809,17 +858,17 @@ ok 1
 // Non-recognized
 
 {
-  assert.throws(() => TAPParser(`abc`), {
+  assert.throws(() => TAPParser('abc'), {
     name: 'SyntaxError',
     message:
-      'Expected a valid token, got "abc" (Literal) at line 1, column 1 (start 0, end 2)',
+      'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
   });
 }
 
 {
-  assert.throws(() => TAPParser(`    abc`), {
+  assert.throws(() => TAPParser('    abc'), {
     name: 'SyntaxError',
     message:
-      'Expected a valid token, got "abc" (Literal) at line 1, column 5 (start 4, end 6)',
+      'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
   });
 }

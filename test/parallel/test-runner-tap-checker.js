@@ -15,9 +15,9 @@ function TAPChecker(input) {
 }
 
 {
-  assert.throws(() => TAPChecker(`TAP version 14`), {
+  assert.throws(() => TAPChecker('TAP version 14'), {
     name: 'TAPValidationError',
-    message: `Missing Plan`,
+    message: 'Missing Plan',
   });
 }
 
@@ -30,19 +30,19 @@ TAP version 14
 `),
     {
       name: 'TAPValidationError',
-      message: `Missing Test Points`,
+      message: 'Missing Test Points',
     }
   );
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+
+  // Valid TAP14 should not throw
+  TAPChecker(`
 TAP version 14
 1..1
 ok
-`)
-  );
+`);
 }
 
 {
@@ -55,7 +55,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: `Test 2 is out of Plan range 1..1`,
+      message: 'Test 2 is out of Plan range 1..1',
     }
   );
 }
@@ -70,7 +70,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: `Plan start 3 is greater than Plan end 1`,
+      message: 'Plan start 3 is greater than Plan end 1',
     }
   );
 }
@@ -87,14 +87,14 @@ ok 3
 `),
     {
       name: 'TAPValidationError',
-      message: `Test 1 is out of Plan range 2..3`,
+      message: 'Test 1 is out of Plan range 2..3',
     }
   );
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+// Valid comment line shout not throw.
+  TAPChecker(`
 TAP version 14
 1..5
 ok 1 - approved operating system
@@ -103,35 +103,33 @@ ok 2 - # SKIP no /sys directory
 ok 3 - # SKIP no /sys directory
 ok 4 - # SKIP no /sys directory
 ok 5 - # SKIP no /sys directory
-`)
-  );
+`);
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+// Valida empty test plan should not throw.
+  TAPChecker(`
 TAP version 14
 1..0 # skip because English-to-French translator isn't installed
-`)
-  );
+`);
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+// Valid test plan count should not throw.
+  TAPChecker(`
 TAP version 14
 1..4
 ok 1 - Creating test program
 ok 2 - Test program runs, no error
 not ok 3 - infinite loop # TODO halting problem unsolved
 not ok 4 - infinite loop 2 # TODO halting problem unsolved
-`)
-  );
+`);
+
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+// Valid YAML diagnostic should not throw.
+  TAPChecker(`
 TAP version 14
 ok - created Board
 ok
@@ -158,17 +156,15 @@ ok
   ...
 ok - board has 7 tiles + starter tile
 1..9
-`)
-  );
+`);
 }
 
 {
-  assert.doesNotThrow(() =>
-    TAPChecker(`
+  // Valid Bail out should not throw.
+  TAPChecker(`
 TAP version 14
 1..573
 not ok 1 - database handle
 Bail out! Couldn't connect to database.
-`)
-  );
+`);
 }
