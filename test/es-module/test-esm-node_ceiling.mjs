@@ -1,4 +1,4 @@
-import * as common from '../common/index.mjs';
+import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import path from 'node:path';

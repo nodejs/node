@@ -106,7 +106,7 @@ if (process.argv[2] === 'child') {
   env.HOME = env.USERPROFILE = bothHomeDir;
   env.NODE_PATH = path.join(testFixturesDir, 'node_path');
   const child2 = child_process.execFileSync(testExecPath,
-                                           [ path.join(localDir, 'nested-with-node_ceiling', 'test.js') ],
-                                           { encoding: 'utf8', env: env });
+                                            [ path.join(localDir, 'nested-with-node_ceiling', 'test.js') ],
+                                            { encoding: 'utf8', env: env });
   assert.strictEqual(child2.trim(), '$NODE_PATH');
 }

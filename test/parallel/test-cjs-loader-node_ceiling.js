@@ -19,9 +19,10 @@ assert.throws(
 
 assert.throws(
   () => {
-    require(path.resolve(fixtures.path('/cjs-loader-node_ceiling/package-not-found-due-to-node_ceiling/dir-with-node_ceiling/dep-not-found.js')));
+    require(path.resolve(fixtures.path(
+      '/cjs-loader-node_ceiling/package-not-found-due-to-node_ceiling/dir-with-node_ceiling/dep-not-found.js'
+    )));
   }, {
     code: 'MODULE_NOT_FOUND',
   }
 );
-
