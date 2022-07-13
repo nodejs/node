@@ -730,10 +730,10 @@ class AsyncHooks : public MemoryRetainer {
   // The `js_execution_async_resources` array contains the value in that case.
   inline v8::Local<v8::Object> native_execution_async_resource(size_t index);
 
-  inline void SetJSPromiseHooks(v8::Local<v8::Function> init,
-                                v8::Local<v8::Function> before,
-                                v8::Local<v8::Function> after,
-                                v8::Local<v8::Function> resolve);
+  void SetJSPromiseHooks(v8::Local<v8::Function> init,
+                         v8::Local<v8::Function> before,
+                         v8::Local<v8::Function> after,
+                         v8::Local<v8::Function> resolve);
 
   inline v8::Local<v8::String> provider_string(int idx);
 
@@ -743,13 +743,14 @@ class AsyncHooks : public MemoryRetainer {
   // NB: This call does not take (co-)ownership of `execution_async_resource`.
   // The lifetime of the `v8::Local<>` pointee must last until
   // `pop_async_context()` or `clear_async_id_stack()` are called.
-  inline void push_async_context(double async_id, double trigger_async_id,
-      v8::Local<v8::Object> execution_async_resource);
-  inline bool pop_async_context(double async_id);
-  inline void clear_async_id_stack();  // Used in fatal exceptions.
+  void push_async_context(double async_id,
+                          double trigger_async_id,
+                          v8::Local<v8::Object> execution_async_resource);
+  bool pop_async_context(double async_id);
+  void clear_async_id_stack();  // Used in fatal exceptions.
 
-  inline void AddContext(v8::Local<v8::Context> ctx);
-  inline void RemoveContext(v8::Local<v8::Context> ctx);
+  void AddContext(v8::Local<v8::Context> ctx);
+  void RemoveContext(v8::Local<v8::Context> ctx);
 
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
@@ -1129,17 +1130,15 @@ class Environment : public MemoryRetainer {
   template <typename T, typename OnCloseCallback>
   inline void CloseHandle(T* handle, OnCloseCallback callback);
 
-  inline void AssignToContext(v8::Local<v8::Context> context,
-                              const ContextInfo& info);
+  void AssignToContext(v8::Local<v8::Context> context, const ContextInfo& info);
 
   void StartProfilerIdleNotifier();
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline void TryLoadAddon(
-      const char* filename,
-      int flags,
-      const std::function<bool(binding::DLib*)>& was_loaded);
+  void TryLoadAddon(const char* filename,
+                    int flags,
+                    const std::function<bool(binding::DLib*)>& was_loaded);
 
   static inline Environment* from_timer_handle(uv_timer_t* handle);
   inline uv_timer_t* timer_handle();
@@ -1229,7 +1228,7 @@ class Environment : public MemoryRetainer {
   // loop alive.
   // This is used by Workers to manage their own .ref()/.unref() implementation,
   // as Workers aren't directly associated with their own libuv handles.
-  inline void add_refs(int64_t diff);
+  void add_refs(int64_t diff);
 
   inline bool has_run_bootstrapping_code() const;
   inline void DoneBootstrapping();
@@ -1281,7 +1280,7 @@ class Environment : public MemoryRetainer {
                                const char* path = nullptr,
                                const char* dest = nullptr);
 
-  inline v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
+  v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
       v8::FunctionCallback callback,
       v8::Local<v8::Signature> signature = v8::Local<v8::Signature>(),
       v8::ConstructorBehavior behavior = v8::ConstructorBehavior::kAllow,
@@ -1289,48 +1288,47 @@ class Environment : public MemoryRetainer {
       const v8::CFunction* c_function = nullptr);
 
   // Convenience methods for NewFunctionTemplate().
-  inline void SetMethod(v8::Local<v8::Object> that,
-                        const char* name,
-                        v8::FunctionCallback callback);
+  void SetMethod(v8::Local<v8::Object> that,
+                 const char* name,
+                 v8::FunctionCallback callback);
 
-  inline void SetFastMethod(v8::Local<v8::Object> that,
-                            const char* name,
-                            v8::FunctionCallback slow_callback,
-                            const v8::CFunction* c_function);
+  void SetFastMethod(v8::Local<v8::Object> that,
+                     const char* name,
+                     v8::FunctionCallback slow_callback,
+                     const v8::CFunction* c_function);
 
-  inline void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
-                             const char* name,
-                             v8::FunctionCallback callback);
+  void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
+                      const char* name,
+                      v8::FunctionCallback callback);
 
-  inline void SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
-                                const char* name,
-                                v8::FunctionCallback callback);
-
+  void SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
+                         const char* name,
+                         v8::FunctionCallback callback);
 
   // Safe variants denote the function has no side effects.
-  inline void SetMethodNoSideEffect(v8::Local<v8::Object> that,
-                                    const char* name,
-                                    v8::FunctionCallback callback);
-  inline void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
-                                         const char* name,
-                                         v8::FunctionCallback callback);
+  void SetMethodNoSideEffect(v8::Local<v8::Object> that,
+                             const char* name,
+                             v8::FunctionCallback callback);
+  void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
+                                  const char* name,
+                                  v8::FunctionCallback callback);
 
   enum class SetConstructorFunctionFlag {
     NONE,
     SET_CLASS_NAME,
   };
 
-  inline void SetConstructorFunction(v8::Local<v8::Object> that,
-                          const char* name,
-                          v8::Local<v8::FunctionTemplate> tmpl,
-                          SetConstructorFunctionFlag flag =
-                              SetConstructorFunctionFlag::SET_CLASS_NAME);
+  void SetConstructorFunction(v8::Local<v8::Object> that,
+                              const char* name,
+                              v8::Local<v8::FunctionTemplate> tmpl,
+                              SetConstructorFunctionFlag flag =
+                                  SetConstructorFunctionFlag::SET_CLASS_NAME);
 
-  inline void SetConstructorFunction(v8::Local<v8::Object> that,
-                          v8::Local<v8::String> name,
-                          v8::Local<v8::FunctionTemplate> tmpl,
-                          SetConstructorFunctionFlag flag =
-                              SetConstructorFunctionFlag::SET_CLASS_NAME);
+  void SetConstructorFunction(v8::Local<v8::Object> that,
+                              v8::Local<v8::String> name,
+                              v8::Local<v8::FunctionTemplate> tmpl,
+                              SetConstructorFunctionFlag flag =
+                                  SetConstructorFunctionFlag::SET_CLASS_NAME);
 
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
@@ -1488,9 +1486,8 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
-  inline uv_buf_t allocate_managed_buffer(const size_t suggested_size);
-  inline std::unique_ptr<v8::BackingStore> release_managed_buffer(
-      const uv_buf_t& buf);
+  uv_buf_t allocate_managed_buffer(const size_t suggested_size);
+  std::unique_ptr<v8::BackingStore> release_managed_buffer(const uv_buf_t& buf);
 
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
