@@ -1,16 +1,20 @@
 // Make sure `setTimeout()` and friends don't throw if the user-supplied
-// function has .call() and .apply() monkey-patched to undesirable values.
+// function doesn't provide valid .call() or .apply().
 
 // Refs: https://github.com/nodejs/node/issues/12956
 
 'use strict';
 
 const common = require('../common');
+const assert = require('node:assert');
 
 {
-  const fn = common.mustCall(10);
-  fn.call = 'not a function';
-  fn.apply = 'also not a function';
+  const fn = new Proxy(common.mustCall(10), {
+    get(target, property, receiver) {
+      // We don't want `call` and `apply` to be accessed in particular
+      assert.fail(`tried to access .${property} property on fn`);
+    }
+  });
   setTimeout(fn, 1);
   setTimeout(fn, 1, 'oneArg');
   setTimeout(fn, 1, 'two', 'args');
@@ -26,9 +30,12 @@ const common = require('../common');
 
 {
   const testInterval = (...args) => {
-    const fn = common.mustCall(() => { clearInterval(interval); });
-    fn.call = 'not a function';
-    fn.apply = 'also not a function';
+    const fn = new Proxy(common.mustCall(() => { clearInterval(interval); }), {
+      get(target, property, receiver) {
+        // We don't want `call` and `apply` to be accessed in particular
+        assert.fail(`tried to access .${property} property on fn`);
+      }
+    });
     const interval = setInterval(fn, 1, ...args);
   };
 

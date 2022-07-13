@@ -454,7 +454,7 @@ function _mustCallInner(fn, criteria = 1, field) {
       configurable: true,
     },
   });
-  return _return;
+  return Object.freeze(_return);
 }
 
 function hasMultiLocalhost() {
@@ -510,13 +510,13 @@ function getCallSite(top) {
 
 function mustNotCall(msg) {
   const callSite = getCallSite(mustNotCall);
-  return function mustNotCall(...args) {
+  return Object.freeze(function mustNotCall(...args) {
     const argsInfo = args.length > 0 ?
       `\ncalled with arguments: ${args.map((arg) => inspect(arg)).join(', ')}` : '';
     assert.fail(
       `${msg || 'function should not have been called'} at ${callSite}` +
       argsInfo);
-  };
+  });
 }
 
 const _mustNotMutateObjectDeepProxies = new WeakMap();
