@@ -11,7 +11,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
 #include "node_v8.h"
@@ -289,10 +289,10 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
-      if (!native_module::NativeModuleEnv::CompileAllModules(main_context)) {
+      if (!native_module::NativeModuleLoader::CompileAllModules(main_context)) {
         return UNCAUGHT_EXCEPTION_ERROR;
       }
-      native_module::NativeModuleEnv::CopyCodeCache(&(out->code_cache));
+      native_module::NativeModuleLoader::CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
         std::string size_str = FormatSize(item.data.size());
         per_process::Debug(DebugCategory::MKSNAPSHOT,
