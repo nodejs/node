@@ -396,8 +396,6 @@ For information about the governance of the Node.js project, see
   **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him)
-* [rexagod](https://github.com/rexagod) -
-  **Pranshu Srivastava** <<rexagod@gmail.com>> (he/him)
 * [richardlau](https://github.com/richardlau) -
   **Richard Lau** <<rlau@redhat.com>>
 * [rickyes](https://github.com/rickyes) -
@@ -584,6 +582,8 @@ For information about the governance of the Node.js project, see
   **Peter Marshall** <<petermarshall@chromium.org>> (he/him)
 * [refack](https://github.com/refack) -
   **Refael Ackermann (רפאל פלחי)** <<refack@gmail.com>> (he/him/הוא/אתה)
+* [rexagod](https://github.com/rexagod) -
+  **Pranshu Srivastava** <<rexagod@gmail.com>> (he/him)
 * [rlidwka](https://github.com/rlidwka) -
   **Alex Kocharin** <<alex@kocharin.ru>>
 * [rmg](https://github.com/rmg) -
