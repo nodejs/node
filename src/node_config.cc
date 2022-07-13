@@ -2,7 +2,7 @@
 #include "memory_tracker.h"
 #include "node.h"
 #include "node_i18n.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_options.h"
 #include "util-inl.h"
 

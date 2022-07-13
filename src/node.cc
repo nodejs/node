@@ -32,7 +32,7 @@
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_process-inl.h"
@@ -121,7 +121,7 @@
 
 namespace node {
 
-using native_module::NativeModuleEnv;
+using native_module::NativeModuleLoader;
 
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -174,7 +174,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
+      NativeModuleLoader::LookupAndCompile(env->context(), id, parameters, env);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -1188,8 +1188,7 @@ int Start(int argc, char** argv) {
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
     if (snapshot_data != nullptr) {
-      native_module::NativeModuleEnv::RefreshCodeCache(
-          snapshot_data->code_cache);
+      NativeModuleLoader::RefreshCodeCache(snapshot_data->code_cache);
     }
     NodeMainInstance main_instance(snapshot_data,
                                    uv_default_loop(),
