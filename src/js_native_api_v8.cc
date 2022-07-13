@@ -2457,9 +2457,9 @@ napi_status NAPI_CDECL napi_check_object_type_tag(napi_env env,
         *result =
             (tag.lower == type_tag->lower && tag.upper == type_tag->upper);
       } else if (size == 1) {
-        *result = (tag.lower == type_tag->lower);
+        *result = (tag.lower == type_tag->lower && 0 == type_tag->upper);
       } else if (size == 0) {
-        *result = (type_tag->lower == 0 && type_tag->upper == 0);
+        *result = (0 == type_tag->lower && 0 == type_tag->upper);
       }
     }
   }
