@@ -5,6 +5,9 @@
 #include <string.h>
 #include <string>
 #endif  // defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
+#include <fstream>
+
+#include "env-inl.h"
 
 namespace node {
 namespace single_executable_application {
@@ -42,11 +45,96 @@ bool CheckFuse(void) {
                   FUSE_SENTINAL_LENGTH + 2) == 0);
 }
 
+// from Jesec's version
+// 4096 chars should be more than enough to deal with
+// header + node options + script size
+// but definitely not elegant to have this limit
+#define SEA_BUF_SIZE 4096
+char sea_buf[SEA_BUF_SIZE];
+std::string executable_path() {
+  char exec_path_buf[2 * PATH_MAX];
+  size_t exec_path_len = sizeof(exec_path_buf);
+
+  if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
+    return std::string(exec_path_buf, exec_path_len);
+  }
+
+  return "";
+}
+
+char* search_single_binary_data() {
+  auto exec = executable_path();
+  if (exec.empty()) {
+    return nullptr;
+  }
+
+  auto f = new std::ifstream(exec);
+  if (!f->is_open() || !f->good() || f->eof()) {
+    delete f;
+    return nullptr;
+  }
+
+  std::string needle;
+  needle += MAGIC_HEADER;
+  needle += VERSION_CHARS;
+
+  constexpr auto buf_size = 1 << 20;
+
+  auto buf = new char[buf_size];
+  auto buf_view = std::string_view(buf, buf_size);
+  auto buf_pos = buf_view.npos;
+
+  size_t f_pos = 0;
+
+  // first read
+  f->read(buf, buf_size);
+  f_pos += f->gcount();
+  buf_pos = buf_view.find(needle);
+  if (buf_pos != buf_view.npos) {
+    f_pos = f_pos - f->gcount() + buf_pos;
+
+    f->clear();
+    f->seekg(f_pos, std::ios::beg);
+
+    delete[] buf;
+    f->read(sea_buf, SEA_BUF_SIZE);
+    return (sea_buf);
+  }
+
+  // subsequent reads, moving window
+  while (!f->eof()) {
+    std::memcpy(buf, buf + buf_size - needle.size(), needle.size());
+    f->read(buf + needle.size(), buf_size - needle.size());
+    f_pos += f->gcount();
+    buf_pos = buf_view.find(needle);
+    if (buf_pos != buf_view.npos) {
+      f_pos = f_pos - f->gcount() - needle.size() + buf_pos;
+
+      f->clear();
+      f->seekg(f_pos, std::ios::beg);
+
+      delete[] buf;
+      f->read(sea_buf, SEA_BUF_SIZE);
+      return (sea_buf);
+    }
+  }
+
+  delete[] buf;
+  delete f;
+  return nullptr;
+}
+
 char* GetSEAData() {
   char* single_executable_data = nullptr;
 #if defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
   dl_iterate_phdr(callback, static_cast<void*>(&single_executable_data));
 #endif  // defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
+
+  if (single_executable_data == nullptr) {
+    // no special segment so read binary instead
+    single_executable_data = search_single_binary_data();
+  }
+
   return single_executable_data;
 }
 
