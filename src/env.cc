@@ -36,6 +36,7 @@ using v8::Context;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapSpaceStatistics;
@@ -56,11 +57,186 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 using worker::Worker;
 
 int const Environment::kNodeContextTag = 0x6e6f64;
 void* const Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
+
+void AsyncHooks::SetJSPromiseHooks(Local<Function> init,
+                                   Local<Function> before,
+                                   Local<Function> after,
+                                   Local<Function> resolve) {
+  js_promise_hooks_[0].Reset(env()->isolate(), init);
+  js_promise_hooks_[1].Reset(env()->isolate(), before);
+  js_promise_hooks_[2].Reset(env()->isolate(), after);
+  js_promise_hooks_[3].Reset(env()->isolate(), resolve);
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      contexts_.erase(it--);
+      continue;
+    }
+    PersistentToLocal::Weak(env()->isolate(), *it)
+        ->SetPromiseHooks(init, before, after, resolve);
+  }
+}
+
+// Remember to keep this code aligned with pushAsyncContext() in JS.
+void AsyncHooks::push_async_context(double async_id,
+                                    double trigger_async_id,
+                                    Local<Object> resource) {
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0) {
+    CHECK_GE(async_id, -1);
+    CHECK_GE(trigger_async_id, -1);
+  }
+
+  uint32_t offset = fields_[kStackLength];
+  if (offset * 2 >= async_ids_stack_.Length()) grow_async_ids_stack();
+  async_ids_stack_[2 * offset] = async_id_fields_[kExecutionAsyncId];
+  async_ids_stack_[2 * offset + 1] = async_id_fields_[kTriggerAsyncId];
+  fields_[kStackLength] += 1;
+  async_id_fields_[kExecutionAsyncId] = async_id;
+  async_id_fields_[kTriggerAsyncId] = trigger_async_id;
+
+#ifdef DEBUG
+  for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
+    CHECK(native_execution_async_resources_[i].IsEmpty());
+#endif
+
+  // When this call comes from JS (as a way of increasing the stack size),
+  // `resource` will be empty, because JS caches these values anyway.
+  if (!resource.IsEmpty()) {
+    native_execution_async_resources_.resize(offset + 1);
+    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    native_execution_async_resources_[offset] = resource;
+  }
+}
+
+// Remember to keep this code aligned with popAsyncContext() in JS.
+bool AsyncHooks::pop_async_context(double async_id) {
+  // In case of an exception then this may have already been reset, if the
+  // stack was multiple MakeCallback()'s deep.
+  if (UNLIKELY(fields_[kStackLength] == 0)) return false;
+
+  // Ask for the async_id to be restored as a check that the stack
+  // hasn't been corrupted.
+  if (UNLIKELY(fields_[kCheck] > 0 &&
+               async_id_fields_[kExecutionAsyncId] != async_id)) {
+    FailWithCorruptedAsyncStack(async_id);
+  }
+
+  uint32_t offset = fields_[kStackLength] - 1;
+  async_id_fields_[kExecutionAsyncId] = async_ids_stack_[2 * offset];
+  async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
+  fields_[kStackLength] = offset;
+
+  if (LIKELY(offset < native_execution_async_resources_.size() &&
+             !native_execution_async_resources_[offset].IsEmpty())) {
+#ifdef DEBUG
+    for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
+         i++) {
+      CHECK(native_execution_async_resources_[i].IsEmpty());
+    }
+#endif
+    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() <
+            native_execution_async_resources_.capacity() / 2 &&
+        native_execution_async_resources_.size() > 16) {
+      native_execution_async_resources_.shrink_to_fit();
+    }
+  }
+
+  if (UNLIKELY(js_execution_async_resources()->Length() > offset)) {
+    HandleScope handle_scope(env()->isolate());
+    USE(js_execution_async_resources()->Set(
+        env()->context(),
+        env()->length_string(),
+        Integer::NewFromUnsigned(env()->isolate(), offset)));
+  }
+
+  return fields_[kStackLength] > 0;
+}
+
+void AsyncHooks::clear_async_id_stack() {
+  Isolate* isolate = env()->isolate();
+  HandleScope handle_scope(isolate);
+  if (!js_execution_async_resources_.IsEmpty()) {
+    USE(PersistentToLocal::Strong(js_execution_async_resources_)
+            ->Set(env()->context(),
+                  env()->length_string(),
+                  Integer::NewFromUnsigned(isolate, 0)));
+  }
+  native_execution_async_resources_.clear();
+  native_execution_async_resources_.shrink_to_fit();
+
+  async_id_fields_[kExecutionAsyncId] = 0;
+  async_id_fields_[kTriggerAsyncId] = 0;
+  fields_[kStackLength] = 0;
+}
+
+void AsyncHooks::AddContext(Local<Context> ctx) {
+  ctx->SetPromiseHooks(js_promise_hooks_[0].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[0]),
+                       js_promise_hooks_[1].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[1]),
+                       js_promise_hooks_[2].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[2]),
+                       js_promise_hooks_[3].IsEmpty()
+                           ? Local<Function>()
+                           : PersistentToLocal::Strong(js_promise_hooks_[3]));
+
+  size_t id = contexts_.size();
+  contexts_.resize(id + 1);
+  contexts_[id].Reset(env()->isolate(), ctx);
+  contexts_[id].SetWeak();
+}
+
+void AsyncHooks::RemoveContext(Local<Context> ctx) {
+  Isolate* isolate = env()->isolate();
+  HandleScope handle_scope(isolate);
+  contexts_.erase(std::remove_if(contexts_.begin(),
+                                 contexts_.end(),
+                                 [&](auto&& el) { return el.IsEmpty(); }),
+                  contexts_.end());
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    Local<Context> saved_context = PersistentToLocal::Weak(isolate, *it);
+    if (saved_context == ctx) {
+      it->Reset();
+      contexts_.erase(it);
+      break;
+    }
+  }
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
+    Environment* env, double default_trigger_async_id)
+    : async_hooks_(env->async_hooks()) {
+  if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(default_trigger_async_id, 0);
+  }
+
+  old_default_trigger_async_id_ =
+      async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
+      default_trigger_async_id;
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::~DefaultTriggerAsyncIdScope() {
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
+      old_default_trigger_async_id_;
+}
+
+AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
+    AsyncWrap* async_wrap)
+    : DefaultTriggerAsyncIdScope(async_wrap->env(),
+                                 async_wrap->get_async_id()) {}
 
 std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
@@ -251,6 +427,221 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   try_catch.SetVerbose(true);
   Local<Value> args[] = {Boolean::New(isolate, async_hooks_enabled)};
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
+}
+
+void Environment::AssignToContext(Local<v8::Context> context,
+                                  const ContextInfo& info) {
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                           this);
+  // Used by Environment::GetCurrent to know that we are on a node context.
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag,
+                                           Environment::kNodeContextTagPtr);
+  // Used to retrieve bindings
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
+
+#if HAVE_INSPECTOR
+  inspector_agent()->ContextCreated(context, info);
+#endif  // HAVE_INSPECTOR
+
+  this->async_hooks()->AddContext(context);
+}
+
+void Environment::TryLoadAddon(
+    const char* filename,
+    int flags,
+    const std::function<bool(binding::DLib*)>& was_loaded) {
+  loaded_addons_.emplace_back(filename, flags);
+  if (!was_loaded(&loaded_addons_.back())) {
+    loaded_addons_.pop_back();
+  }
+}
+
+std::string Environment::GetCwd() {
+  char cwd[PATH_MAX_BYTES];
+  size_t size = PATH_MAX_BYTES;
+  const int err = uv_cwd(cwd, &size);
+
+  if (err == 0) {
+    CHECK_GT(size, 0);
+    return cwd;
+  }
+
+  // This can fail if the cwd is deleted. In that case, fall back to
+  // exec_path.
+  const std::string& exec_path = exec_path_;
+  return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
+}
+
+void Environment::add_refs(int64_t diff) {
+  task_queues_async_refs_ += diff;
+  CHECK_GE(task_queues_async_refs_, 0);
+  if (task_queues_async_refs_ == 0)
+    uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  else
+    uv_ref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+}
+
+uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
+  NoArrayBufferZeroFillScope no_zero_fill_scope(isolate_data());
+  std::unique_ptr<v8::BackingStore> bs =
+      v8::ArrayBuffer::NewBackingStore(isolate(), suggested_size);
+  uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
+  released_allocated_buffers_.emplace(buf.base, std::move(bs));
+  return buf;
+}
+
+std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
+    const uv_buf_t& buf) {
+  std::unique_ptr<v8::BackingStore> bs;
+  if (buf.base != nullptr) {
+    auto it = released_allocated_buffers_.find(buf.base);
+    CHECK_NE(it, released_allocated_buffers_.end());
+    bs = std::move(it->second);
+    released_allocated_buffers_.erase(it);
+  }
+  return bs;
+}
+
+Local<v8::FunctionTemplate> Environment::NewFunctionTemplate(
+    v8::FunctionCallback callback,
+    Local<v8::Signature> signature,
+    v8::ConstructorBehavior behavior,
+    v8::SideEffectType side_effect_type,
+    const v8::CFunction* c_function) {
+  return v8::FunctionTemplate::New(isolate(),
+                                   callback,
+                                   Local<v8::Value>(),
+                                   signature,
+                                   0,
+                                   behavior,
+                                   side_effect_type,
+                                   c_function);
+}
+
+void Environment::SetMethod(Local<v8::Object> that,
+                            const char* name,
+                            v8::FunctionCallback callback) {
+  Local<v8::Context> context = isolate()->GetCurrentContext();
+  Local<v8::Function> function =
+      NewFunctionTemplate(callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void Environment::SetFastMethod(Local<v8::Object> that,
+                                const char* name,
+                                v8::FunctionCallback slow_callback,
+                                const v8::CFunction* c_function) {
+  Local<v8::Context> context = isolate()->GetCurrentContext();
+  Local<v8::Function> function =
+      NewFunctionTemplate(slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          c_function)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
+void Environment::SetMethodNoSideEffect(Local<v8::Object> that,
+                                        const char* name,
+                                        v8::FunctionCallback callback) {
+  Local<v8::Context> context = isolate()->GetCurrentContext();
+  Local<v8::Function> function =
+      NewFunctionTemplate(callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void Environment::SetProtoMethod(Local<v8::FunctionTemplate> that,
+                                 const char* name,
+                                 v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void Environment::SetProtoMethodNoSideEffect(Local<v8::FunctionTemplate> that,
+                                             const char* name,
+                                             v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void Environment::SetInstanceMethod(Local<v8::FunctionTemplate> that,
+                                    const char* name,
+                                    v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->InstanceTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
+void Environment::SetConstructorFunction(Local<v8::Object> that,
+                                         const char* name,
+                                         Local<v8::FunctionTemplate> tmpl,
+                                         SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl, flag);
+}
+
+void Environment::SetConstructorFunction(Local<v8::Object> that,
+                                         Local<v8::String> name,
+                                         Local<v8::FunctionTemplate> tmpl,
+                                         SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(context(), name, tmpl->GetFunction(context()).ToLocalChecked())
+      .Check();
 }
 
 void Environment::CreateProperties() {
@@ -1732,6 +2123,107 @@ void Environment::RunWeakRefCleanup() {
 }
 
 // Not really any better place than env.cc at this moment.
+BaseObject::BaseObject(Environment* env, Local<Object> object)
+    : persistent_handle_(env->isolate(), object), env_(env) {
+  CHECK_EQ(false, object.IsEmpty());
+  CHECK_GT(object->InternalFieldCount(), 0);
+  object->SetAlignedPointerInInternalField(BaseObject::kSlot,
+                                           static_cast<void*>(this));
+  env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
+  env->modify_base_object_count(1);
+}
+
+BaseObject::~BaseObject() {
+  env()->modify_base_object_count(-1);
+  env()->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
+
+  if (UNLIKELY(has_pointer_data())) {
+    PointerData* metadata = pointer_data();
+    CHECK_EQ(metadata->strong_ptr_count, 0);
+    metadata->self = nullptr;
+    if (metadata->weak_ptr_count == 0) delete metadata;
+  }
+
+  if (persistent_handle_.IsEmpty()) {
+    // This most likely happened because the weak callback below cleared it.
+    return;
+  }
+
+  {
+    HandleScope handle_scope(env()->isolate());
+    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+  }
+}
+
+void BaseObject::MakeWeak() {
+  if (has_pointer_data()) {
+    pointer_data()->wants_weak_jsobj = true;
+    if (pointer_data()->strong_ptr_count > 0) return;
+  }
+
+  persistent_handle_.SetWeak(
+      this,
+      [](const WeakCallbackInfo<BaseObject>& data) {
+        BaseObject* obj = data.GetParameter();
+        // Clear the persistent handle so that ~BaseObject() doesn't attempt
+        // to mess with internal fields, since the JS object may have
+        // transitioned into an invalid state.
+        // Refs: https://github.com/nodejs/node/issues/18897
+        obj->persistent_handle_.Reset();
+        CHECK_IMPLIES(obj->has_pointer_data(),
+                      obj->pointer_data()->strong_ptr_count == 0);
+        obj->OnGCCollect();
+      },
+      WeakCallbackType::kParameter);
+}
+
+void BaseObject::LazilyInitializedJSTemplateConstructor(
+    const FunctionCallbackInfo<Value>& args) {
+  DCHECK(args.IsConstructCall());
+  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+}
+
+Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> t =
+      env->NewFunctionTemplate(LazilyInitializedJSTemplateConstructor);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  return t;
+}
+
+BaseObject::PointerData* BaseObject::pointer_data() {
+  if (!has_pointer_data()) {
+    PointerData* metadata = new PointerData();
+    metadata->wants_weak_jsobj = persistent_handle_.IsWeak();
+    metadata->self = this;
+    pointer_data_ = metadata;
+  }
+  CHECK(has_pointer_data());
+  return pointer_data_;
+}
+
+void BaseObject::decrease_refcount() {
+  CHECK(has_pointer_data());
+  PointerData* metadata = pointer_data();
+  CHECK_GT(metadata->strong_ptr_count, 0);
+  unsigned int new_refcount = --metadata->strong_ptr_count;
+  if (new_refcount == 0) {
+    if (metadata->is_detached) {
+      OnGCCollect();
+    } else if (metadata->wants_weak_jsobj && !persistent_handle_.IsEmpty()) {
+      MakeWeak();
+    }
+  }
+}
+
+void BaseObject::increase_refcount() {
+  unsigned int prev_refcount = pointer_data()->strong_ptr_count++;
+  if (prev_refcount == 0 && !persistent_handle_.IsEmpty())
+    persistent_handle_.ClearWeak();
+}
+
 void BaseObject::DeleteMe(void* data) {
   BaseObject* self = static_cast<BaseObject*>(data);
   if (self->has_pointer_data() &&
