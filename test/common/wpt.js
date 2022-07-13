@@ -368,7 +368,7 @@ class WPTRunner {
 
   // TODO(joyeecheung): work with the upstream to port more tests in .html
   // to .js.
-  runJsTests() {
+  async runJsTests() {
     let queue = [];
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,
@@ -459,6 +459,12 @@ class WPTRunner {
         );
         this.inProgress.delete(testFileName);
       });
+
+      await new Promise((resolve) => {
+        worker.on('exit', () => {
+          resolve()
+        })
+      })
     }
 
     process.on('exit', () => {
