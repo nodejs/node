@@ -7,6 +7,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 #include "node_mutex.h"
 #include "node_union_bytes.h"
 #include "v8.h"
@@ -16,6 +17,7 @@ class PerProcessTest;
 
 namespace node {
 class SnapshotBuilder;
+class ExternalReferenceRegistry;
 namespace native_module {
 
 using NativeModuleRecordMap = std::map<std::string, UnionBytes>;
@@ -32,17 +34,35 @@ struct CodeCacheInfo {
 // handles compilation and caching of builtin modules (NativeModule)
 // and bootstrappers, whose source are bundled into the binary
 // as static data.
-// This class should not depend on any Environment, or depend on access to
-// the its own singleton - that should be encapsulated in NativeModuleEnv
-// instead.
 class NODE_EXTERN_PRIVATE NativeModuleLoader {
  public:
   NativeModuleLoader(const NativeModuleLoader&) = delete;
   NativeModuleLoader& operator=(const NativeModuleLoader&) = delete;
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context,
+                         void* priv);
+
+  static v8::MaybeLocal<v8::Function> LookupAndCompile(
+      v8::Local<v8::Context> context,
+      const char* id,
+      std::vector<v8::Local<v8::String>>* parameters,
+      Environment* optional_env);
+
+  static v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
+  // Returns config.gypi as a JSON string
+  static v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
+  static bool Exists(const char* id);
+  static bool Add(const char* id, const UnionBytes& source);
+
+  static bool CompileAllModules(v8::Local<v8::Context> context);
+  static void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
+  static void CopyCodeCache(std::vector<CodeCacheInfo>* out);
+
  private:
   // Only allow access from friends.
-  friend class NativeModuleEnv;
   friend class CodeCacheBuilder;
 
   NativeModuleLoader();
@@ -52,11 +72,6 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   void LoadJavaScriptSource();  // Loads data into source_
   UnionBytes GetConfig();       // Return data for config.gypi
 
-  bool Exists(const char* id);
-  bool Add(const char* id, const UnionBytes& source);
-
-  v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
-  v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   std::vector<std::string> GetModuleIds();
 
   struct ModuleCategories {
@@ -80,7 +95,7 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
                                                      const char* id);
   // If an exception is encountered (e.g. source code contains
   // syntax error), the returned value is empty.
-  v8::MaybeLocal<v8::Function> LookupAndCompile(
+  v8::MaybeLocal<v8::Function> LookupAndCompileInternal(
       v8::Local<v8::Context> context,
       const char* id,
       std::vector<v8::Local<v8::String>>* parameters,
@@ -88,6 +103,26 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   v8::MaybeLocal<v8::Function> CompileAsModule(v8::Local<v8::Context> context,
                                                const char* id,
                                                Result* result);
+
+  static void RecordResult(const char* id,
+                           NativeModuleLoader::Result result,
+                           Environment* env);
+  static void GetModuleCategories(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void GetCacheUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // Passing ids of builtin module source code into JS land as
+  // internalBinding('native_module').moduleIds
+  static void ModuleIdsGetter(v8::Local<v8::Name> property,
+                              const v8::PropertyCallbackInfo<v8::Value>& info);
+  // Passing config.gypi into JS land as internalBinding('native_module').config
+  static void ConfigStringGetter(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  // Compile a specific native module as a function
+  static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasCachedBuiltins(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static NativeModuleLoader instance_;
   ModuleCategories module_categories_;
@@ -97,6 +132,8 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
 
   // Used to synchronize access to the code cache map
   Mutex code_cache_mutex_;
+
+  bool has_code_cache_;
 
   friend class ::PerProcessTest;
 };
