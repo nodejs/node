@@ -16,6 +16,9 @@ const dest = path.resolve(tmpdir.path, 'tmp.txt');
 const buffer = Buffer.from('zyx');
 
 function testInvalid(dest, expectedCode, ...bufferAndOptions) {
+  if (bufferAndOptions.length >= 2) {
+    bufferAndOptions[1] = common.mustNotMutateObjectDeep(bufferAndOptions[1]);
+  }
   let fd;
   try {
     fd = fs.openSync(dest, 'w+');
@@ -68,13 +71,13 @@ function testValid(dest, buffer, options) {
   testInvalid(dest, 'ERR_INVALID_ARG_TYPE');
 
   // Various invalid options
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: 5 }));
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ offset: 5 }));
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: 1, offset: 3 }));
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: -1 }));
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ offset: -1 }));
-  testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, common.mustNotMutateObjectDeep({ offset: false }));
-  testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, common.mustNotMutateObjectDeep({ offset: true }));
+  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 5 });
+  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: 5 });
+  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 1, offset: 3 });
+  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: -1 });
+  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: -1 });
+  testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, { offset: false });
+  testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, { offset: true });
 
   // Test compatibility with fs.readSync counterpart with reused options
   for (const options of [

@@ -16,6 +16,9 @@ const dest = path.resolve(tmpdir.path, 'tmp.txt');
 const buffer = Buffer.from('zyx');
 
 async function testInvalid(dest, expectedCode, ...params) {
+  if (params.length >= 2) {
+    params[1] = common.mustNotMutateObjectDeep(params[1]);
+  }
   let fh;
   try {
     fh = await fsPromises.open(dest, 'w+');
@@ -68,23 +71,20 @@ async function testValid(dest, buffer, options) {
     { toString() { return 'amObject'; } },
     { [Symbol.toPrimitive]: (hint) => 'amObject' },
   ]) {
-    await testInvalid(dest,
-                      'ERR_INVALID_ARG_TYPE',
-                      common.mustNotMutateObjectDeep(badBuffer),
-                      common.mustNotMutateObjectDeep({}));
+    await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', common.mustNotMutateObjectDeep(badBuffer), {});
   }
 
   // First argument (buffer or string) is mandatory
   await testInvalid(dest, 'ERR_INVALID_ARG_TYPE');
 
   // Various invalid options
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: 5 }));
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ offset: 5 }));
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: 1, offset: 3 }));
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ length: -1 }));
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, common.mustNotMutateObjectDeep({ offset: -1 }));
-  await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, common.mustNotMutateObjectDeep({ offset: false }));
-  await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, common.mustNotMutateObjectDeep({ offset: true }));
+  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 5 });
+  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: 5 });
+  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 1, offset: 3 });
+  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: -1 });
+  await testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: -1 });
+  await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, { offset: false });
+  await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', buffer, { offset: true });
 
   // Test compatibility with filehandle.read counterpart
   for (const options of [
