@@ -89,7 +89,7 @@ const http2 = require('node:http2');
 const fs = require('node:fs');
 
 const server = http2.createSecureServer({
-  key: fs.readFileSync('localhost-privkey.pem'),
+  key: fs.readFileSync('localhost-privkey.key'),
   cert: fs.readFileSync('localhost-cert.pem')
 });
 server.on('error', (err) => console.error(err));
