@@ -462,9 +462,9 @@ class WPTRunner {
 
       await new Promise((resolve) => {
         worker.on('exit', () => {
-          resolve()
-        })
-      })
+          resolve();
+        });
+      });
     }
 
     process.on('exit', () => {
