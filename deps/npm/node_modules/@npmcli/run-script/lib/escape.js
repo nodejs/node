@@ -68,7 +68,7 @@ const sh = (input) => {
 // disabling the no-control-regex rule for this line as we very specifically _do_ want to
 // replace those characters if they somehow exist at this point, which is highly unlikely
 // eslint-disable-next-line no-control-regex
-const filename = (input) => input.replace(/[<>:"/\\|?*\x00-\x31]/g, '')
+const filename = (input) => input.replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
 
 module.exports = {
   cmd,

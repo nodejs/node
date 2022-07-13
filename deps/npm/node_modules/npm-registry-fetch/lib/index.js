@@ -213,6 +213,10 @@ function getHeaders (uri, auth, opts) {
     'user-agent': opts.userAgent,
   }, opts.headers || {})
 
+  if (opts.authType) {
+    headers['npm-auth-type'] = opts.authType
+  }
+
   if (opts.scope) {
     headers['npm-scope'] = opts.scope
   }

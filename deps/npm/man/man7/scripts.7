@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "June 2022" "" ""
+.TH "SCRIPTS" "7" "July 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -37,7 +37,7 @@ situations\. These scripts happen in addition to the \fBpre<event>\fP, \fBpost<e
 \fB<event>\fP scripts\.
 .RS 0
 .IP \(bu 2
-\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP
+\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP, \fBdependencies\fP
 
 .RE
 .P
@@ -95,6 +95,15 @@ NOTE: "\fBnpm run pack\fP" is NOT the same as "\fBnpm pack\fP"\. "\fBnpm run pac
 Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
 
 .RE
+.P
+\fBdependencies\fR
+.RS 0
+.IP \(bu 2
+Runs AFTER any operations that modify the \fBnode_modules\fP directory IF changes occurred\.
+.IP \(bu 2
+Does NOT run in global mode
+
+.RE
 .SS Prepare and Prepublish
 .P
 \fBDeprecation Note: prepublish\fR
@@ -129,6 +138,9 @@ You don't need to rely on your users having \fBcurl\fP or \fBwget\fP or
 other system tools on the target machines\.
 
 .RE
+.SS Dependencies
+.P
+The \fBdependencies\fP script is run any time an \fBnpm\fP command causes changes to the \fBnode_modules\fP directory\. It is run AFTER the changes have been applied and the \fBpackage\.json\fP and \fBpackage\-lock\.json\fP files have been updated\.
 .SS Life Cycle Operation Order
 .SS npm help \fBcache add\fP
 .RS 0

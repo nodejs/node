@@ -142,14 +142,14 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#audit-signatures">Audit Signatures</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm audit [fix]
+<pre lang="bash"><code>npm audit [fix|signatures]
 </code></pre>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -170,6 +170,14 @@ vulnerability is found. It may be useful in CI environments to include the
 <code>--audit-level</code> parameter to specify the minimum vulnerability level that
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.</p>
+<h3 id="audit-signatures">Audit Signatures</h3>
+<p>This command can also audit the integrity values of the packages in your
+tree against any signatures present in the registry they were downloaded
+from.  npm will attempt to download the keys from <code>/-/npm/v1/keys</code> on
+each the registry used to download any given package.  It will then
+check the <code>dist.signatures</code> object in the package itself, and verify the
+<code>sig</code> present there using the <code>keyid</code> there, matching it with a key
+returned from the registry.  The command for this is <code>npm audit signatures</code></p>
 <h3 id="audit-endpoints">Audit Endpoints</h3>
 <p>There are two audit endpoints that npm may use to fetch vulnerability
 information: the <code>Bulk Advisory</code> endpoint and the <code>Quick Audit</code> endpoint.</p>

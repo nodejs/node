@@ -1,11 +1,11 @@
-.TH "NPM\-AUDIT" "1" "June 2022" "" ""
+.TH "NPM\-AUDIT" "1" "July 2022" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm audit [fix]
+npm audit [fix|signatures]
 .fi
 .RE
 .SS Description
@@ -29,6 +29,16 @@ vulnerability is found\. It may be useful in CI environments to include the
 \fB\-\-audit\-level\fP parameter to specify the minimum vulnerability level that
 will cause the command to fail\. This option does not filter the report
 output, it simply changes the command's failure threshold\.
+.SS Audit Signatures
+.P
+This command can also audit the integrity values of the packages in your
+tree against any signatures present in the registry they were downloaded
+from\.  npm will attempt to download the keys from \fB/\-/npm/v1/keys\fP on
+each the registry used to download any given package\.  It will then
+check the \fBdist\.signatures\fP object in the package itself, and verify the
+\fBsig\fP present there using the \fBkeyid\fP there, matching it with a key
+returned from the registry\.  The command for this is \fBnpm audit
+signatures\fP
 .SS Audit Endpoints
 .P
 There are two audit endpoints that npm may use to fetch vulnerability
