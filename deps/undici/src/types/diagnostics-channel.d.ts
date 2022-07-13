@@ -1,4 +1,5 @@
 import { Socket } from "net";
+import { URL } from "url";
 import { connector } from "./connector";
 import { HttpMethod } from "./dispatcher";
 

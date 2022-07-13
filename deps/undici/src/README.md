@@ -176,7 +176,7 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 * https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 * https://fetch.spec.whatwg.org/#fetch-method
 
-Only supported on Node 16.5+.
+Only supported on Node 16.8+.
 
 This is [experimental](https://nodejs.org/api/documentation.html#documentation_stability_index) and is not yet fully compliant with the Fetch Standard.
 We plan to ship breaking changes to this feature until it is out of experimental.
@@ -280,6 +280,13 @@ const headers = await fetch(url)
 
 // Do not
 const headers = await fetch(url)
+  .then(res => res.headers)
+```
+
+However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
+
+```js
+const headers = await fetch(url, { method: 'HEAD' })
   .then(res => res.headers)
 ```
 

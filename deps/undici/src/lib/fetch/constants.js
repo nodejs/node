@@ -60,7 +60,19 @@ const subresource = [
   ''
 ]
 
+/** @type {globalThis['DOMException']} */
+const DOMException = globalThis.DOMException ?? (() => {
+  // DOMException was only made a global in Node v17.0.0,
+  // but fetch supports >= v16.8.
+  try {
+    atob('~')
+  } catch (err) {
+    return Object.getPrototypeOf(err).constructor
+  }
+})()
+
 module.exports = {
+  DOMException,
   subresource,
   forbiddenMethods,
   requestBodyHeader,
