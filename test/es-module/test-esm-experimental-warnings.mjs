@@ -1,18 +1,20 @@
-import { mustCall } from '../common/index.mjs';
+import '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
-import { doesNotMatch, match, strictEqual } from 'assert';
+import { doesNotMatch, match, strictEqual } from 'node:assert';
 import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
 import spawn from './helper.spawnAsPromised.mjs';
 
 
-// Verify no warnings are printed when no experimental features are enabled or used
-spawn(execPath, [
-  '--input-type=module',
-  '--eval',
-  `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
-])
-  .then(mustCall(({ code, signal, stderr }) => {
+describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
+  it('should not print warnings when no experimental features are enabled or used', async () => {
+    const { code, signal, stderr } = await spawn(execPath, [
+      '--input-type=module',
+      '--eval',
+      `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+    ]);
+
     doesNotMatch(
       stderr,
       /ExperimentalWarning/,
@@ -20,26 +22,29 @@ spawn(execPath, [
     );
     strictEqual(code, 0);
     strictEqual(signal, null);
-  }));
+  });
 
-// Verify experimental warning is printed when experimental feature is enabled
-for (
-  const [experiment, arg] of [
-    [/Custom ESM Loaders/, `--experimental-loader=${fileURL('es-module-loaders', 'hooks-custom.mjs')}`],
-    [/Network Imports/, '--experimental-network-imports'],
-    [/specifier resolution/, '--experimental-specifier-resolution=node'],
-  ]
-) {
-  spawn(execPath, [
-    arg,
-    '--input-type=module',
-    '--eval',
-    `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
-  ])
-    .then(mustCall(({ code, signal, stderr }) => {
-      match(stderr, /ExperimentalWarning/);
-      match(stderr, experiment);
-      strictEqual(code, 0);
-      strictEqual(signal, null);
-    }));
-}
+  describe('experimental warnings for enabled experimental feature', () => {
+    for (
+      const [experiment, arg] of [
+        [/Custom ESM Loaders/, `--experimental-loader=${fileURL('es-module-loaders', 'hooks-custom.mjs')}`],
+        [/Network Imports/, '--experimental-network-imports'],
+        [/specifier resolution/, '--experimental-specifier-resolution=node'],
+      ]
+    ) {
+      it(`should print for ${experiment.toString().replaceAll(/\//g, '')}`, async () => {
+        const { code, signal, stderr } = await spawn(execPath, [
+          arg,
+          '--input-type=module',
+          '--eval',
+          `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+        ]);
+
+        match(stderr, /ExperimentalWarning/);
+        match(stderr, experiment);
+        strictEqual(code, 0);
+        strictEqual(signal, null);
+      });
+    }
+  });
+});

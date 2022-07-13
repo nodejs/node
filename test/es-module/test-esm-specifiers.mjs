@@ -1,62 +1,81 @@
-// Flags: --experimental-specifier-resolution=node
-import { mustNotCall } from '../common/index.mjs';
-import assert from 'assert';
-import path from 'path';
-import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import { match, strictEqual } from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-// commonJS index.js
-import commonjs from '../fixtures/es-module-specifiers/package-type-commonjs';
-// esm index.js
-import module from '../fixtures/es-module-specifiers/package-type-module';
-// Notice the trailing slash
-import success, { explicit, implicit, implicitModule, getImplicitCommonjs }
-  from '../fixtures/es-module-specifiers/';
+import spawn from './helper.spawnAsPromised.mjs';
 
-assert.strictEqual(commonjs, 'commonjs');
-assert.strictEqual(module, 'module');
-assert.strictEqual(success, 'success');
-assert.strictEqual(explicit, 'esm');
-assert.strictEqual(implicit, 'cjs');
-assert.strictEqual(implicitModule, 'cjs');
 
-async function main() {
-  try {
-    await import('../fixtures/es-module-specifiers/do-not-exist.js');
-  } catch (e) {
-    // Files that do not exist should throw
-    assert.strictEqual(e.name, 'Error');
-  }
-  try {
-    await getImplicitCommonjs();
-  } catch (e) {
-    // Legacy loader cannot resolve .mjs automatically from main
-    assert.strictEqual(e.name, 'Error');
-  }
-}
+describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
+  it(async () => {
+    const { code, stderr, stdout } = await spawn(execPath, [
+      '--no-warnings',
+      '--experimental-specifier-resolution=node',
+      '--input-type=module',
+      '--eval',
+      [
+        'import { strictEqual } from "node:assert";',
+        // commonJS index.js
+        `import commonjs from "${fixtures.path('es-module-specifiers/package-type-commonjs')}";`,
+        // esm index.js
+        `import module from "${fixtures.path('es-module-specifiers/package-type-module')}";`,
+        // Notice the trailing slash
+        `import success, { explicit, implicit, implicitModule } from "${fixtures.path('es-module-specifiers/')}";`,
+        'strictEqual(commonjs, "commonjs");',
+        'strictEqual(module, "module");',
+        'strictEqual(success, "success");',
+        'strictEqual(explicit, "esm");',
+        'strictEqual(implicit, "cjs");',
+        'strictEqual(implicitModule, "cjs");',
+      ].join('\n'),
+    ]);
 
-main().catch(mustNotCall);
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+  });
 
-// Test path from command line arguments
-[
-  'package-type-commonjs',
-  'package-type-module',
-  '/',
-  '/index',
-].forEach((item) => {
-  const modulePath = path.join(
-    fileURLToPath(import.meta.url),
-    '../../fixtures/es-module-specifiers',
-    item,
-  );
-  [
-    '--experimental-specifier-resolution',
-    '--es-module-specifier-resolution',
-  ].forEach((option) => {
-    spawn(process.execPath,
-          [`${option}=node`, modulePath],
-          { stdio: 'inherit' }).on('exit', (code) => {
-      assert.strictEqual(code, 0);
-    });
+  it('should throw when the file doesn\'t exist', async () => {
+    const { code, stderr, stdout } = await spawn(execPath, [
+      '--no-warnings',
+      fixtures.path('es-module-specifiers/do-not-exist.js'),
+    ]);
+
+    match(stderr, /Cannot find module/);
+    strictEqual(stdout, '');
+    strictEqual(code, 1);
+  });
+
+  it('should throw when the omitted file extension is .mjs (legacy loader doesn\'t support it)', async () => {
+    const { code, stderr, stdout } = await spawn(execPath, [
+      '--no-warnings',
+      '--experimental-specifier-resolution=node',
+      '--input-type=module',
+      '--eval',
+      `import whatever from "${fixtures.path('es-module-specifiers/implicit-main-type-commonjs')}";`,
+    ]);
+
+    match(stderr, /ERR_MODULE_NOT_FOUND/);
+    strictEqual(stdout, '');
+    strictEqual(code, 1);
+  });
+
+  for (
+    const item of [
+      'package-type-commonjs',
+      'package-type-module',
+      '/',
+      '/index',
+    ]
+  ) it('should ', async () => {
+    const { code } = await spawn(execPath, [
+      '--no-warnings',
+      '--experimental-specifier-resolution=node',
+      '--es-module-specifier-resolution=node',
+      fixtures.path('es-module-specifiers', item),
+    ]);
+
+    strictEqual(code, 0);
   });
 });

@@ -1,7 +1,8 @@
-import { mustCall } from '../common/index.mjs';
+import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
 import spawn from './helper.spawnAsPromised.mjs';
 
@@ -12,21 +13,29 @@ const importStatementMultiline = `import {
 } from './module-named-exports.mjs';
 `;
 
-for (
-  const input
-  of [
-    importStatement,
-    importStatementMultiline,
-  ]
-) {
-  spawn(execPath, [
-    '--input-type=module',
-    '--eval',
-    input,
-  ], {
-    cwd: fixtures.path('es-module-loaders'),
-  })
-    .then(mustCall(({ code, stderr, stdout }) => {
+describe('ESM: nonexistent exports', { concurrency: true }, () => {
+  for (
+    const { name, input }
+    of [
+      {
+        input: importStatement,
+        name: 'single-line import',
+      },
+      {
+        input: importStatementMultiline,
+        name: 'multi-line import',
+      },
+    ]
+  ) {
+    it(`should throw for nonexistent exports via ${name}`, async () => {
+      const { code, stderr } = await spawn(execPath, [
+        '--input-type=module',
+        '--eval',
+        input,
+      ], {
+        cwd: fixtures.path('es-module-loaders'),
+      });
+
       assert.notStrictEqual(code, 0);
 
       // SyntaxError: The requested module './module-named-exports.mjs'
@@ -35,5 +44,6 @@ for (
       // The quotes ensure that the path starts with ./ and not ../
       assert.match(stderr, /'\.\/module-named-exports\.mjs'/);
       assert.match(stderr, /notfound/);
-    }));
-}
+    });
+  }
+});

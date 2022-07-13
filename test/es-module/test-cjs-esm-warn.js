@@ -1,10 +1,11 @@
-import { mustCall } from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.mjs';
-import assert from 'node:assert';
-import path from 'node:path';
-import { execPath } from 'node:process';
+'use strict';
 
-import spawn from './helper.spawnAsPromised.mjs';
+const { mustCall } = require('../common');
+const fixtures = require('../common/fixtures.js');
+const assert = require('node:assert');
+const path = require('node:path');
+const { execPath } = require('node:process');
+const { describe, it } = require('node:test');
 
 
 const requiringCjsAsEsm = path.resolve(fixtures.path('/es-modules/cjs-esm.js'));
@@ -13,13 +14,18 @@ const pjson = path.resolve(
   fixtures.path('/es-modules/package-type-module/package.json')
 );
 
-{
-  const required = path.resolve(
-    fixtures.path('/es-modules/package-type-module/cjs.js')
-  );
-  const basename = 'cjs.js';
-  spawn(execPath, [requiringCjsAsEsm])
-    .then(mustCall(({ code, signal, stderr }) => {
+(async () => {
+  const { default: spawn } = await import('./helper.spawnAsPromised.mjs');
+
+  describe('CJS ↔︎ ESM interop warnings', { concurrency: true }, () => {
+
+    it(async () => {
+      const required = path.resolve(
+        fixtures.path('/es-modules/package-type-module/cjs.js')
+      );
+      const basename = 'cjs.js';
+      const { code, signal, stderr } = await spawn(execPath, [requiringCjsAsEsm]);
+
       assert.ok(
         stderr.replaceAll('\r', '').includes(
           `Error [ERR_REQUIRE_ESM]: require() of ES Module ${required} from ${requiringCjsAsEsm} not supported.\n`
@@ -37,16 +43,15 @@ const pjson = path.resolve(
 
       assert.strictEqual(code, 1);
       assert.strictEqual(signal, null);
-    }));
-}
+    });
 
-{
-  const required = path.resolve(
-    fixtures.path('/es-modules/package-type-module/esm.js')
-  );
-  const basename = 'esm.js';
-  spawn(execPath, [requiringEsm])
-    .then(mustCall(({ code, signal, stderr }) => {
+    it(async () => {
+      const required = path.resolve(
+        fixtures.path('/es-modules/package-type-module/esm.js')
+      );
+      const basename = 'esm.js';
+      const { code, signal, stderr } = await spawn(execPath, [requiringEsm]);
+
       assert.ok(
         stderr.replace(/\r/g, '').includes(
           `Error [ERR_REQUIRE_ESM]: require() of ES Module ${required} from ${requiringEsm} not supported.\n`
@@ -61,5 +66,6 @@ const pjson = path.resolve(
 
       assert.strictEqual(code, 1);
       assert.strictEqual(signal, null);
-    }));
-}
+    });
+  });
+})().then(mustCall());

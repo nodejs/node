@@ -1,48 +1,50 @@
 import { mustCall } from '../common/index.mjs';
-import { match, notStrictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { match, notStrictEqual } from 'node:assert';
+import { spawn as spawnAsync } from 'node:child_process';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-{
-  const child = spawn(execPath, [
-    '--experimental-network-imports',
-    '--input-type=module',
-    '-e',
-    'import "http://example.com"',
-  ]);
+import spawn from './helper.spawnAsPromised.mjs';
 
-  let stderr = '';
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => {
-    stderr += data;
-  });
-  child.on('close', mustCall((code, _signal) => {
+
+describe('ESM: http import via CLI', { concurrency: true }, () => {
+  const disallowedSpecifier = 'http://example.com';
+
+  it('should throw disallowed error for insecure protocol', async () => {
+    const { code, stderr } = await spawn(execPath, [
+      '--experimental-network-imports',
+      '--input-type=module',
+      '--eval',
+      `import "${disallowedSpecifier}"`,
+    ]);
+
     notStrictEqual(code, 0);
 
     // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
     //   …/[eval1] is not supported: http can only be used to load local
     // resources (use https instead).
     match(stderr, /[ERR_NETWORK_IMPORT_DISALLOWED]/);
-  }));
-}
-{
-  const child = spawn(execPath, [
-    '--experimental-network-imports',
-    '--input-type=module',
-  ]);
-  child.stdin.end('import "http://example.com"');
-
-  let stderr = '';
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => {
-    stderr += data;
+    match(stderr, new RegExp(disallowedSpecifier));
   });
-  child.on('close', mustCall((code, _signal) => {
-    notStrictEqual(code, 0);
 
-    // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
-    //   …/[stdin] is not supported: http can only be used to load local
-    // resources (use https instead).
-    match(stderr, /[ERR_NETWORK_IMPORT_DISALLOWED]/);
-  }));
-}
+  it('should throw disallowed error for insecure protocol in REPL', () => {
+    const child = spawnAsync(execPath, [
+      '--experimental-network-imports',
+      '--input-type=module',
+    ]);
+    child.stdin.end(`import "${disallowedSpecifier}"`);
+
+    let stderr = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (data) => stderr += data);
+    child.on('close', mustCall((code, _signal) => {
+      notStrictEqual(code, 0);
+
+      // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
+      //   …/[stdin] is not supported: http can only be used to load local
+      // resources (use https instead).
+      match(stderr, /[ERR_NETWORK_IMPORT_DISALLOWED]/);
+      match(stderr, new RegExp(disallowedSpecifier));
+    }));
+  });
+});

@@ -1,3 +1,4 @@
+import '../common/index.mjs';
 import cp from 'node:child_process';
 
 
