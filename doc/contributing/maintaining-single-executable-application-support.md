@@ -58,7 +58,8 @@ where:
   for example `00000001`.
 * `FFFFFFFF` represents the flags to be used in the process of starting
   the bundled application. Currently this must be `00000000` to indicate that
-  no flags are set.
+  no flags are set or `000000001` to indicate that a binary block
+  of data is included in addition to the arguments.
 * `AAAAAAAA` is the number of arguments being provided
 
 The characters in both `VVVVVVVV`, `FFFFFFFF` and `AAAAAAAA` are
@@ -74,6 +75,10 @@ For example, for a simple single hello world for version `00000001` could be:
 ```text
 NODEJSSEA000000010000000000000002-e\0console.log('Hello from single binary')\0
 ```
+
+If the flags are set to `00000001` then there must be at least one charater
+of binary data following the argument strings and a pointer to this
+data will be exposed through `process.seaBinaryData`.
 
 Support for bundling into existing Node.js binaries is maintained
 in `src/node_single_binary.*`.

@@ -17,10 +17,11 @@ constexpr const int fuse_sentinal_length = 33;
 
 constexpr const char* magic_header = "NODEJSSEA";
 constexpr const char* version_chars = "00000001";
-constexpr const char* flag_chars = "00000000";
-constexpr const int argc_offset =
-    strlen(magic_header) + strlen(version_chars) + strlen(flag_chars);
-constexpr const int argc_length = 8;
+constexpr const int kFlagsLength = 8;
+constexpr const int flags_offset = strlen(magic_header) + strlen(version_chars);
+constexpr const int argc_offset = flags_offset + kFlagsLength;
+constexpr const int kArgcLength = 8;
+constexpr const int kBinaryDataIncludedFlag = 0x1;
 
 #if defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
 static int callback(struct dl_phdr_info* info, size_t size, void* data) {
@@ -49,8 +50,8 @@ bool CheckFuse(void) {
 // 4096 chars should be more than enough to deal with
 // header + node options + script size
 // but definitely not elegant to have this limit
-constexpr const int sea_buf_size = 4096;
-char sea_buf[sea_buf_size];
+constexpr const int kSeaBufSize = 4096;
+char sea_buf[kSeaBufSize];
 std::string GetExecutablePath() {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
@@ -97,7 +98,7 @@ char* SearchExecutableForSEAData() {
     f->seekg(f_pos, std::ios::beg);
 
     delete[] buf;
-    f->read(sea_buf, sea_buf_size);
+    f->read(sea_buf, kSeaBufSize);
     return (sea_buf);
   }
 
@@ -114,7 +115,7 @@ char* SearchExecutableForSEAData() {
       f->seekg(f_pos, std::ios::beg);
 
       delete[] buf;
-      f->read(sea_buf, sea_buf_size);
+      f->read(sea_buf, kSeaBufSize);
       return (sea_buf);
     }
   }
@@ -138,20 +139,27 @@ char* GetSEAData() {
   return single_executable_data;
 }
 
-bool CheckForSingleBinary(int argc,
-                          char** argv,
-                          std::vector<std::string>* new_argv) {
+bool CheckForSEA(int argc,
+                 char** argv,
+                 std::vector<std::string>* new_argv,
+                 char** sea_binary_data) {
   bool single_executable_application = false;
 
   if (CheckFuse()) {
     char* single_executable_data = GetSEAData();
     if (single_executable_data != nullptr) {
+      // get the Flags
+      std::string flags_string(
+          static_cast<char*>(&single_executable_data[flags_offset]),
+          kFlagsLength);
+      int flags = std::stoi(flags_string, 0, 16);
+
       // get the new arguments info
       std::string argc_string(
           static_cast<char*>(&single_executable_data[argc_offset]),
-          argc_length);
+          kArgcLength);
       int argument_count = std::stoi(argc_string, 0, 16);
-      char* arguments = &(single_executable_data[argc_offset + argc_length]);
+      char* arguments = &(single_executable_data[argc_offset + kArgcLength]);
 
       // copy over the first argument which needs to stay in place
       new_argv->push_back(argv[0]);
@@ -164,9 +172,11 @@ bool CheckForSingleBinary(int argc,
         arguments = arguments + length + 1;
       }
 
-      // TODO(mhdawson): remaining data after arguments in binary data
+      // remaining data after arguments in binary data
       // that can be used by the single executable applicaiton.
-      // Add a way for the application to get that data.
+      if (flags & kBinaryDataIncludedFlag) {
+        *sea_binary_data = arguments;
+      }
 
       // copy over the arguments passed when the executable was started
       for (int i = 1; i < argc; i++) {

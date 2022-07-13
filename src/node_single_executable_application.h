@@ -9,9 +9,10 @@
 namespace node {
 namespace single_executable_application {
 
-bool CheckForSingleBinary(int argc,
-                          char** argv,
-                          std::vector<std::string>* new_argv);
+bool CheckForSEA(int argc,
+                 char** argv,
+                 std::vector<std::string>* new_argv,
+                 char** sea_binary_data);
 
 }  // namespace single_executable_application
 }  // namespace node

@@ -163,6 +163,7 @@ PVOID old_vectored_exception_handler;
 struct V8Platform v8_platform;
 
 bool single_executable_application = false;
+char* sea_binary_data = nullptr;
 }  // namespace per_process
 
 // The section in the OpenSSL configuration file to be loaded.
@@ -524,6 +525,16 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (env->options()->has_eval_string &&
       per_process::single_executable_application) {
+    if (per_process::sea_binary_data != nullptr) {
+      Isolate* isolate = env->isolate();
+      Local<v8::Context> context = env->context();
+      READONLY_PROPERTY(
+          env->process_object(),
+          "seaBinaryData",
+          ToV8Value(context,
+                    reinterpret_cast<size_t>(per_process::sea_binary_data))
+              .ToLocalChecked());
+    }
     return StartExecution(env, "internal/main/single_executable_application");
   }
 
@@ -1034,8 +1045,8 @@ InitializationResult InitializeOncePerProcess(
   argv = uv_setup_args(argc, argv);
 
   InitializationResult result;
-  if (single_executable_application::CheckForSingleBinary(
-          argc, argv, &(result.args))) {
+  if (single_executable_application::CheckForSEA(
+          argc, argv, &(result.args), &per_process::sea_binary_data)) {
     per_process::single_executable_application = true;
   } else {
     result.args = std::vector<std::string>(argv, argv + argc);
