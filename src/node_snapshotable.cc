@@ -177,7 +177,10 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-constexpr int INTERNAL_ERROR = 12;
+// TODO(joyeecheung): share these exit code constants across the code base.
+constexpr int UNCAUGHT_EXCEPTION_ERROR = 1;
+constexpr int BOOTSTRAP_ERROR = 10;
+constexpr int SNAPSHOT_ERROR = 14;
 
 int SnapshotBuilder::Generate(SnapshotData* out,
                               const std::vector<std::string> args,
@@ -237,12 +240,12 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // without breaking compatibility.
     Local<Context> base_context = NewContext(isolate);
     if (base_context.IsEmpty()) {
-      return INTERNAL_ERROR;
+      return BOOTSTRAP_ERROR;
     }
 
     Local<Context> main_context = NewContext(isolate);
     if (main_context.IsEmpty()) {
-      return INTERNAL_ERROR;
+      return BOOTSTRAP_ERROR;
     }
     // Initialize the main instance context.
     {
@@ -259,7 +262,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
       // Run scripts in lib/internal/bootstrap/
       if (env->RunBootstrapping().IsEmpty()) {
-        return INTERNAL_ERROR;
+        return BOOTSTRAP_ERROR;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
       // loaded via LoadEnvironment() to execute process.argv[1] as the entry
@@ -272,12 +275,12 @@ int SnapshotBuilder::Generate(SnapshotData* out,
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
-          return 1;
+          return UNCAUGHT_EXCEPTION_ERROR;
         }
         // FIXME(joyeecheung): right now running the loop in the snapshot
         // builder seems to introduces inconsistencies in JS land that need to
         // be synchronized again after snapshot restoration.
-        int exit_code = SpinEventLoop(env).FromMaybe(1);
+        int exit_code = SpinEventLoop(env).FromMaybe(UNCAUGHT_EXCEPTION_ERROR);
         if (exit_code != 0) {
           return exit_code;
         }
@@ -294,7 +297,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
       if (!native_module::NativeModuleEnv::CompileAllModules(main_context)) {
-        return INTERNAL_ERROR;
+        return UNCAUGHT_EXCEPTION_ERROR;
       }
       native_module::NativeModuleEnv::CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
@@ -325,7 +328,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
   if (!out->v8_snapshot_blob_data.CanBeRehashed()) {
-    return INTERNAL_ERROR;
+    return SNAPSHOT_ERROR;
   }
 
   // We cannot resurrect the handles from the snapshot, so make sure that
@@ -338,7 +341,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     PrintLibuvHandleInformation(env->event_loop(), stderr);
   }
   if (!queues_are_empty) {
-    return INTERNAL_ERROR;
+    return SNAPSHOT_ERROR;
   }
   return 0;
 }
