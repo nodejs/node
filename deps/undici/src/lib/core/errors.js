@@ -1,13 +1,5 @@
 'use strict'
 
-class AbortError extends Error {
-  constructor () {
-    super('The operation was aborted')
-    this.code = 'ABORT_ERR'
-    this.name = 'AbortError'
-  }
-}
-
 class UndiciError extends Error {
   constructor (message) {
     super(message)
@@ -57,12 +49,13 @@ class BodyTimeoutError extends UndiciError {
 }
 
 class ResponseStatusCodeError extends UndiciError {
-  constructor (message, statusCode, headers) {
+  constructor (message, statusCode, headers, body) {
     super(message)
     Error.captureStackTrace(this, ResponseStatusCodeError)
     this.name = 'ResponseStatusCodeError'
     this.message = message || 'Response Status Code Error'
     this.code = 'UND_ERR_RESPONSE_STATUS_CODE'
+    this.body = body
     this.status = statusCode
     this.statusCode = statusCode
     this.headers = headers
@@ -191,7 +184,6 @@ class HTTPParserError extends Error {
 }
 
 module.exports = {
-  AbortError,
   HTTPParserError,
   UndiciError,
   HeadersTimeoutError,
