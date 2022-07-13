@@ -142,14 +142,20 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#scope"><code>scope</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm adduser [--registry=url] [--scope=@orgname] [--auth-type=legacy]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm adduser
 
 aliases: login, add-user
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Create or verify a user named <code>&lt;username&gt;</code> in the specified registry, and
@@ -196,6 +202,17 @@ installation of packages specified according to the pattern
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="auth-type"><code>auth-type</code></h4>
+<ul>
+<li>Default: "legacy"</li>
+<li>Type: "legacy", "webauthn", "sso", "saml", or "oauth"</li>
+<li>DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
+a future version of npm in favor of web-based login.</li>
+</ul>
+<p>What authentication strategy to use with <code>adduser</code>/<code>login</code>.</p>
+<p>Pass <code>webauthn</code> to use a web-based login.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

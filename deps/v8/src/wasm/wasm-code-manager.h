@@ -61,7 +61,6 @@ struct WasmModule;
   V(WasmFloat64ToNumber)                  \
   V(WasmTaggedToFloat64)                  \
   V(WasmAllocateJSArray)                  \
-  V(WasmAllocatePair)                     \
   V(WasmAtomicNotify)                     \
   V(WasmI32AtomicWait32)                  \
   V(WasmI32AtomicWait64)                  \
@@ -81,11 +80,13 @@ struct WasmModule;
   V(WasmAllocateFixedArray)               \
   V(WasmThrow)                            \
   V(WasmRethrow)                          \
+  V(WasmRethrowExplicitContext)           \
   V(WasmTraceEnter)                       \
   V(WasmTraceExit)                        \
   V(WasmTraceMemory)                      \
   V(BigIntToI32Pair)                      \
   V(BigIntToI64)                          \
+  V(CallRefIC)                            \
   V(DoubleToI)                            \
   V(I32PairToBigInt)                      \
   V(I64ToBigInt)                          \
@@ -117,12 +118,13 @@ struct WasmModule;
   V(WasmAllocateArray_Uninitialized)      \
   V(WasmAllocateArray_InitNull)           \
   V(WasmAllocateArray_InitZero)           \
+  V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
-  V(WasmAllocateRtt)                      \
-  V(WasmAllocateFreshRtt)                 \
+  V(WasmArrayInitFromData)                \
   V(WasmAllocateStructWithRtt)            \
   V(WasmSubtypeCheck)                     \
-  V(WasmOnStackReplace)
+  V(WasmOnStackReplace)                   \
+  V(WasmSuspend)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -290,7 +292,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint32_t raw_tagged_parameter_slots_for_serialization() const {
     return tagged_parameter_slots_;
   }
+
   bool is_liftoff() const { return tier() == ExecutionTier::kLiftoff; }
+
+  bool is_turbofan() const { return tier() == ExecutionTier::kTurbofan; }
+
   bool contains(Address pc) const {
     return reinterpret_cast<Address>(instructions_) <= pc &&
            pc < reinterpret_cast<Address>(instructions_ + instructions_size_);
@@ -489,7 +495,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // often for rather small functions.
 // Increase the limit if needed, but first check if the size increase is
 // justified.
+#ifndef V8_GC_MOLE
 STATIC_ASSERT(sizeof(WasmCode) <= 88);
+#endif
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
 
@@ -502,6 +510,9 @@ class WasmCodeAllocator {
 #if V8_TARGET_ARCH_ARM64
   // ARM64 only supports direct calls within a 128 MB range.
   static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
+#elif V8_TARGET_ARCH_PPC64
+  // branches only takes 26 bits
+  static constexpr size_t kMaxCodeSpaceSize = 32 * MB;
 #else
   // Use 1024 MB limit for code spaces on other platforms. This is smaller than
   // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
@@ -558,6 +569,8 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
+  Counters* counters() const { return async_counters_.get(); }
+
  private:
   // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
   // restriction on the region to allocate in.
@@ -601,7 +614,8 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_PPC64
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = true;
 #else
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = false;
@@ -773,8 +787,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   void UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier);
   void AddLiftoffBailout() {
-    liftoff_bailout_count_.fetch_add(1,
-                                     std::memory_order::memory_order_relaxed);
+    liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
   }
 
   WasmCode* Lookup(Address) const;
@@ -833,9 +846,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 
-  uint32_t* num_liftoff_function_calls_array() {
-    return num_liftoff_function_calls_.get();
-  }
+  uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
+
+  Counters* counters() const { return code_allocator_.counters(); }
 
  private:
   friend class WasmCode;
@@ -938,7 +951,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
 
   // Array to handle number of function calls.
-  std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
+  std::unique_ptr<uint32_t[]> tiering_budgets_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.
@@ -1019,13 +1032,15 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   static size_t EstimateLiftoffCodeSize(int body_size);
   // Estimate the needed code space from a completely decoded module.
   static size_t EstimateNativeModuleCodeSize(const WasmModule* module,
-                                             bool include_liftoff);
+                                             bool include_liftoff,
+                                             DynamicTiering dynamic_tiering);
   // Estimate the needed code space from the number of functions and total code
   // section length.
   static size_t EstimateNativeModuleCodeSize(int num_functions,
                                              int num_imported_functions,
                                              int code_section_length,
-                                             bool include_liftoff);
+                                             bool include_liftoff,
+                                             DynamicTiering dynamic_tiering);
   // Estimate the size of meta data needed for the NativeModule, excluding
   // generated code. This data still be stored on the C++ heap.
   static size_t EstimateNativeModuleMetaDataSize(const WasmModule* module);
@@ -1037,17 +1052,22 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // lock when calling this method.
   void SetThreadWritable(bool writable);
 
-  // Returns true if there is PKU support, false otherwise.
+  // Returns true if there is hardware support for PKU. Use
+  // {MemoryProtectionKeysEnabled} to also check if PKU usage is enabled via
+  // flags.
   bool HasMemoryProtectionKeySupport() const;
+
+  // Returns true if PKU should be used.
+  bool MemoryProtectionKeysEnabled() const;
 
   // Returns {true} if the memory protection key is write-enabled for the
   // current thread.
   // Can only be called if {HasMemoryProtectionKeySupport()} is {true}.
   bool MemoryProtectionKeyWritable() const;
 
-  // This allocates a memory protection key (if none was allocated before),
-  // independent of the --wasm-memory-protection-keys flag.
-  void InitializeMemoryProtectionKeyForTesting();
+  // Initialize the current thread's permissions for the memory protection key,
+  // if we have support.
+  void InitializeMemoryProtectionKeyPermissionsIfSupported() const;
 
  private:
   friend class WasmCodeAllocator;

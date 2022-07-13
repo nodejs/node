@@ -61,7 +61,7 @@ class MaybeUtf8 {
  private:
   void AllocateSufficientSpace(int len) {
     if (len + 1 > MAX_STACK_LENGTH) {
-      allocated_.reset(new uint8_t[len + 1]);
+      allocated_ = std::make_unique<uint8_t[]>(len + 1);
       buf_ = allocated_.get();
     }
   }
@@ -72,7 +72,7 @@ class MaybeUtf8 {
   // the MAX_STACK_LENGTH should be more than enough.
   uint8_t* buf_;
   uint8_t data_[MAX_STACK_LENGTH];
-  std::unique_ptr<uint8_t> allocated_;
+  std::unique_ptr<uint8_t[]> allocated_;
 };
 
 #if !defined(V8_USE_PERFETTO)

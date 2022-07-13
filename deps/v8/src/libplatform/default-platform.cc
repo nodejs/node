@@ -87,13 +87,6 @@ void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
                                                         idle_time_in_seconds);
 }
 
-void SetTracingController(
-    v8::Platform* platform,
-    v8::platform::tracing::TracingController* tracing_controller) {
-  static_cast<DefaultPlatform*>(platform)->SetTracingController(
-      std::unique_ptr<v8::TracingController>(tracing_controller));
-}
-
 void NotifyIsolateShutdown(v8::Platform* platform, Isolate* isolate) {
   static_cast<DefaultPlatform*>(platform)->NotifyIsolateShutdown(isolate);
 }
@@ -128,7 +121,7 @@ DefaultPlatform::~DefaultPlatform() {
 namespace {
 
 double DefaultTimeFunction() {
-  return base::TimeTicks::HighResolutionNow().ToInternalValue() /
+  return base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 

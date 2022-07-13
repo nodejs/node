@@ -515,11 +515,11 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   }
 }
 
-// LdaNamedProperty <object> <name_index> <slot>
+// GetNamedProperty <object> <name_index> <slot>
 //
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
-IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
+IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
 
   // Load receiver.
@@ -550,12 +550,12 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
-// LdaNamedPropertyFromSuper <receiver> <name_index> <slot>
+// GetNamedPropertyFromSuper <receiver> <name_index> <slot>
 //
 // Calls the LoadSuperIC at FeedBackVector slot <slot> for <receiver>, home
 // object's prototype (home object in the accumulator) and the name at constant
 // pool entry <name_index>.
-IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
+IGNITION_HANDLER(GetNamedPropertyFromSuper, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<HeapObject> home_object = CAST(GetAccumulator());
   TNode<Object> home_object_prototype = LoadMapPrototype(LoadMap(home_object));
@@ -571,11 +571,11 @@ IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
   Dispatch();
 }
 
-// LdaKeyedProperty <object> <slot>
+// GetKeyedProperty <object> <slot>
 //
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
-IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
+IGNITION_HANDLER(GetKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = GetAccumulator();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
@@ -589,14 +589,14 @@ IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
-class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
+class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
  public:
-  InterpreterStoreNamedPropertyAssembler(CodeAssemblerState* state,
-                                         Bytecode bytecode,
-                                         OperandScale operand_scale)
+  InterpreterSetNamedPropertyAssembler(CodeAssemblerState* state,
+                                       Bytecode bytecode,
+                                       OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void StaNamedProperty(Callable ic, NamedPropertyType property_type) {
+  void SetNamedProperty(Callable ic, NamedPropertyType property_type) {
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -616,31 +616,37 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
   }
 };
 
-// StaNamedProperty <object> <name_index> <slot>
+// SetNamedProperty <object> <name_index> <slot>
 //
 // Calls the StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
+IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
+  // StoreIC is currently a base class for multiple property store operations
+  // and contains mixed logic for named and keyed, set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can be
+  // called here.
   Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
-  StaNamedProperty(ic, NamedPropertyType::kNotOwn);
+  SetNamedProperty(ic, NamedPropertyType::kNotOwn);
 }
 
-// StaNamedOwnProperty <object> <name_index> <slot>
+// DefineNamedOwnProperty <object> <name_index> <slot>
 //
-// Calls the StoreOwnIC at FeedBackVector slot <slot> for <object> and
+// Calls the DefineNamedOwnIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate());
-  StaNamedProperty(ic, NamedPropertyType::kOwn);
+IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
+  Callable ic = Builtins::CallableFor(isolate(), Builtin::kDefineNamedOwnIC);
+  SetNamedProperty(ic, NamedPropertyType::kOwn);
 }
 
-// StaKeyedProperty <object> <key> <slot>
+// SetKeyedProperty <object> <key> <slot>
 //
 // Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and
-// the key <key> with the value in the accumulator.
-IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
+// the key <key> with the value in the accumulator. This could trigger
+// the setter and the set traps if necessary.
+IGNITION_HANDLER(SetKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -648,6 +654,11 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
+  // KeyedStoreIC is currently a base class for multiple keyed property store
+  // operations and contains mixed logic for set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
+  // can be called here.
   TNode<Object> result = CallBuiltin(Builtin::kKeyedStoreIC, context, object,
                                      name, value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
@@ -656,6 +667,34 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
   SetAccumulator(result);
+  Dispatch();
+}
+
+// DefineKeyedOwnProperty <object> <key> <slot>
+//
+// Calls the DefineKeyedOwnIC at FeedbackVector slot <slot> for <object> and
+// the key <key> with the value in the accumulator.
+//
+// This is similar to SetKeyedProperty, but avoids checking the prototype
+// chain, and in the case of private names, throws if the private name already
+// exists.
+IGNITION_HANDLER(DefineKeyedOwnProperty, InterpreterAssembler) {
+  TNode<Object> object = LoadRegisterAtOperandIndex(0);
+  TNode<Object> name = LoadRegisterAtOperandIndex(1);
+  TNode<Object> value = GetAccumulator();
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
+  TNode<HeapObject> maybe_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name,
+                           value, slot, maybe_vector);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(var_result.value());
   Dispatch();
 }
 
@@ -683,15 +722,15 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaDataPropertyInLiteral <object> <name> <flags> <slot>
+// DefineKeyedOwnPropertyInLiteral <object> <name> <flags> <slot>
 //
 // Define a property <name> with value from the accumulator in <object>.
 // Property attributes and whether set_function_name are stored in
-// DataPropertyInLiteralFlags <flags>.
+// DefineKeyedOwnPropertyInLiteralFlags <flags>.
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
-IGNITION_HANDLER(StaDataPropertyInLiteral, InterpreterAssembler) {
+IGNITION_HANDLER(DefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -702,7 +741,7 @@ IGNITION_HANDLER(StaDataPropertyInLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
+  CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context, object, name,
               value, flags, feedback_vector, slot);
   Dispatch();
 }
@@ -968,13 +1007,12 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-    TVARIABLE(Smi, feedback);
-
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [=] { return context; }, &feedback);
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
+        UpdateFeedbackMode::kOptionalFeedback, false);
 
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -986,29 +1024,14 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TVARIABLE(Smi, var_left_feedback);
-    TVARIABLE(Word32T, var_left_word32);
-    TVARIABLE(BigInt, var_left_bigint);
-    Label do_smi_op(this), if_bigint_mix(this);
+    BinaryOpAssembler binop_asm(state());
+    TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
+        UpdateFeedbackMode::kOptionalFeedback, true);
 
-    TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
-                                       &var_left_word32, &if_bigint_mix,
-                                       &var_left_bigint, &var_left_feedback);
-    BIND(&do_smi_op);
-    TNode<Number> result =
-        BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
-    TNode<Smi> result_type = SelectSmiConstant(
-        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber);
-    MaybeUpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
-                        maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
-
-    BIND(&if_bigint_mix);
-    MaybeUpdateFeedback(var_left_feedback.value(), maybe_feedback_vector,
-                        slot_index);
-    ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
   }
 };
 
@@ -1892,9 +1915,8 @@ IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, TrueConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, TrueConstant(), 0);
 }
 
 // JumpIfTrueConstant <idx>
@@ -1904,9 +1926,8 @@ IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, TrueConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, TrueConstant(), 0);
 }
 
 // JumpIfFalse <imm>
@@ -1916,9 +1937,8 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, FalseConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, FalseConstant(), 0);
 }
 
 // JumpIfFalseConstant <idx>
@@ -1928,9 +1948,8 @@ IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, FalseConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, FalseConstant(), 0);
 }
 
 // JumpIfToBooleanTrue <imm>
@@ -1939,10 +1958,10 @@ IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
 // referenced by the accumulator is true when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
   BIND(&if_false);
   Dispatch();
@@ -1955,10 +1974,10 @@ IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
 // cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
   BIND(&if_false);
   Dispatch();
@@ -1970,12 +1989,12 @@ IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
 // referenced by the accumulator is false when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   Dispatch();
   BIND(&if_false);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
 }
 
@@ -1986,12 +2005,12 @@ IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
 // cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   Dispatch();
   BIND(&if_false);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
 }
 
@@ -2001,8 +2020,7 @@ IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
 // referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNullConstant <idx>
@@ -2011,8 +2029,7 @@ IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNotNull <imm>
@@ -2021,8 +2038,7 @@ IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedNotEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedNotEqual(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNotNullConstant <idx>
@@ -2031,8 +2047,7 @@ IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedNotEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedNotEqualConstant(accumulator, NullConstant(), 0);
 }
 
 // JumpIfUndefined <imm>
@@ -2041,8 +2056,7 @@ IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfUndefinedConstant <idx>
@@ -2051,8 +2065,7 @@ IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfNotUndefined <imm>
@@ -2061,8 +2074,7 @@ IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the undefined constant.
 IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfNotUndefinedConstant <idx>
@@ -2072,8 +2084,7 @@ IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
 // constant.
 IGNITION_HANDLER(JumpIfNotUndefinedConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedNotEqualConstant(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfUndefinedOrNull <imm>
@@ -2117,7 +2128,6 @@ IGNITION_HANDLER(JumpIfUndefinedOrNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
   Label if_object(this), if_notobject(this, Label::kDeferred), if_notsmi(this);
   Branch(TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
@@ -2125,6 +2135,7 @@ IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
   BIND(&if_notsmi);
   Branch(IsJSReceiver(CAST(accumulator)), &if_object, &if_notobject);
   BIND(&if_object);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
 
   BIND(&if_notobject);
@@ -2137,7 +2148,6 @@ IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
 
   Label if_object(this), if_notobject(this), if_notsmi(this);
   Branch(TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
@@ -2146,6 +2156,7 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   Branch(IsJSReceiver(CAST(accumulator)), &if_object, &if_notobject);
 
   BIND(&if_object);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
 
   BIND(&if_notobject);
@@ -2155,26 +2166,50 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 // JumpLoop <imm> <loop_depth>
 //
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
-// performs a loop nesting check, a stack check, and potentially triggers OSR in
-// case the current OSR level matches (or exceeds) the specified |loop_depth|.
+// performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   TNode<Int32T> loop_depth = BytecodeOperandImm(1);
-  TNode<Int8T> osr_level = LoadOsrNestingLevel();
+  TNode<Int16T> osr_urgency_and_install_target =
+      LoadOsrUrgencyAndInstallTarget();
   TNode<Context> context = GetContext();
 
-  // Check if OSR points at the given {loop_depth} are armed by comparing it to
-  // the current {osr_level} loaded from the header of the BytecodeArray.
-  Label ok(this), osr_armed(this, Label::kDeferred);
-  TNode<BoolT> condition = Int32GreaterThanOrEqual(loop_depth, osr_level);
-  Branch(condition, &ok, &osr_armed);
+  // OSR requests can be triggered either through urgency (when > the current
+  // loop depth), or an explicit install target (= the lower bits of the
+  // targeted bytecode offset).
+  Label ok(this), maybe_osr(this, Label::kDeferred);
+  Branch(Int32GreaterThanOrEqual(loop_depth, osr_urgency_and_install_target),
+         &ok, &maybe_osr);
 
   BIND(&ok);
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
   JumpBackward(relative_jump);
 
-  BIND(&osr_armed);
+  BIND(&maybe_osr);
+  Label osr(this);
+  // OSR based on urgency, i.e. is the OSR urgency greater than the current
+  // loop depth?
+  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
+  TNode<Word32T> osr_urgency = Word32And(osr_urgency_and_install_target,
+                                         BytecodeArray::OsrUrgencyBits::kMask);
+  GotoIf(Int32GreaterThan(osr_urgency, loop_depth), &osr);
+
+  // OSR based on the install target offset, i.e. does the current bytecode
+  // offset match the install target offset?
+  //
+  //  if (((offset << kShift) & kMask) == (target & kMask)) { ... }
+  static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
+  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
+  // Note: We OR in 1 to avoid 0 offsets, see Code::OsrInstallTargetFor.
+  TNode<Word32T> actual = Word32Or(
+      Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
+      Int32Constant(1));
+  actual = Word32And(Word32Shl(UncheckedCast<Int32T>(actual), kShift), kMask);
+  TNode<Word32T> expected = Word32And(osr_urgency_and_install_target, kMask);
+  Branch(Word32Equal(actual, expected), &osr, &ok);
+
+  BIND(&osr);
   OnStackReplacement(context, relative_jump);
 }
 
@@ -2612,12 +2647,8 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 // Sets the pending message to the value in the accumulator, and returns the
 // previous pending message in the accumulator.
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
-  TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message(isolate()));
-  TNode<HeapObject> previous_message =
-      UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
-  TNode<Object> new_message = GetAccumulator();
-  StoreFullTaggedNoWriteBarrier(pending_message, new_message);
+  TNode<HeapObject> previous_message = GetPendingMessage();
+  SetPendingMessage(CAST(GetAccumulator()));
   SetAccumulator(previous_message);
   Dispatch();
 }
@@ -3083,8 +3114,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{},
-      CodeKind::BYTECODE_HANDLER, debug_name,
-      builtin);
+      CodeKind::BYTECODE_HANDLER, debug_name, builtin);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \

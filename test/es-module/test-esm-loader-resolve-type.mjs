@@ -30,12 +30,13 @@ fs.cpSync(
 const { importedESM: importedESMBefore,
         importedCJS: importedCJSBefore } = global.getModuleTypeStats();
 
-import(`${moduleName}`).finally(() => {
+await import(`${moduleName}`).finally(() => {
   fs.rmSync(basePath, { recursive: true, force: true });
 });
 
 const { importedESM: importedESMAfter,
         importedCJS: importedCJSAfter } = global.getModuleTypeStats();
 
+// Dynamic import above should increment ESM counter but not CJS counter
 assert.strictEqual(importedESMBefore + 1, importedESMAfter);
 assert.strictEqual(importedCJSBefore, importedCJSAfter);

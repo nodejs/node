@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow padding within blocks",
+            description: "Require or disallow padding within blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/padded-blocks"
         },

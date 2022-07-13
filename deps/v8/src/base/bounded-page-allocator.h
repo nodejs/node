@@ -15,8 +15,7 @@ namespace base {
 // Defines the page initialization mode of a BoundedPageAllocator.
 enum class PageInitializationMode {
   // The contents of allocated pages must be zero initialized. This causes any
-  // committed pages to be decommitted during FreePages and ReleasePages. This
-  // requires the embedder to provide the PageAllocator::DecommitPages API.
+  // committed pages to be decommitted during FreePages and ReleasePages.
   kAllocatedPagesMustBeZeroInitialized,
   // Allocated pages do not have to be be zero initialized and can contain old
   // data. This is slightly faster as comitted pages are not decommitted
@@ -28,7 +27,6 @@ enum class PageInitializationMode {
 // pre-reserved region of virtual space. This class requires the virtual space
 // to be kept reserved during the lifetime of this object.
 // The main application of bounded page allocator are
-//  - the V8 virtual memory cage
 //  - V8 heap pointer compression which requires the whole V8 heap to be
 //    allocated within a contiguous range of virtual address space,
 //  - executable page allocation, which allows to use PC-relative 32-bit code

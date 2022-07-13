@@ -6,10 +6,10 @@ module.exports = function(it) {
     return `
 ESLint couldn't find a configuration file. To set up a configuration file for this project, please run:
 
-    eslint --init
+    npm init @eslint/config
 
 ESLint looked for configuration files in ${directoryPath} and its ancestors. If it found none, it then looked in your home directory.
 
 If you think you already have a configuration file or if you need more help, please stop by the ESLint chat room: https://eslint.org/chat/help
-`.trimLeft();
+`.trimStart();
 };

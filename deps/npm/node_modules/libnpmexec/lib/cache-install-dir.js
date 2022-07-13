@@ -3,8 +3,9 @@ const crypto = require('crypto')
 const { resolve } = require('path')
 
 const cacheInstallDir = ({ npxCache, packages }) => {
-  if (!npxCache)
+  if (!npxCache) {
     throw new Error('Must provide a valid npxCache path')
+  }
 
   // only packages not found in ${prefix}/node_modules
   return resolve(npxCache, getHash(packages))

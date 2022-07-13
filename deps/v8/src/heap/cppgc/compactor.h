@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE Compactor final {
   std::unique_ptr<CompactionWorklists> compaction_worklists_;
 
   bool is_enabled_ = false;
+  bool is_cancelled_ = false;
   bool enable_for_next_gc_for_testing_ = false;
 };
 

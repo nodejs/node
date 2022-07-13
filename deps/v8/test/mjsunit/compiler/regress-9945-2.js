@@ -33,7 +33,7 @@ foo(a);
 foo(a);
 
 // Trigger optimization of bar, based on PACKED_SMI_ELEMENTS feedback.
-%OptimizeFunctionForTopTier(bar);
+%OptimizeFunctionOnNextCall(bar);
 bar(a);
 assertOptimized(bar);
 %PrepareFunctionForOptimization(bar);
@@ -49,7 +49,7 @@ assertOptimized(bar);
 // Instead we trigger optimization of foo, which will inline bar (this time
 // based on the new PACKED_ELEMENTS map.
 assertOptimized(bar);
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 assertOptimized(bar);
 foo(a);
 assertOptimized(bar);
@@ -66,6 +66,6 @@ assertOptimized(bar);
 // Now ensure there is no deopt-loop. There used to be a deopt-loop because, as
 // a result of over-eager checkpoint elimination, we used to deopt into foo
 // (right before the call to bar) rather than into bar (right before the load).
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(b);
 assertOptimized(foo);

@@ -128,11 +128,8 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   TNode<JSTypedArray> typed_array = CAST(receiver_);
   o_ = typed_array;
 
-  // TODO(v8:11111): Support RAB / GSAB.
-  TNode<JSArrayBuffer> array_buffer = LoadJSArrayBufferViewBuffer(typed_array);
-  ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
-
-  len_ = LoadJSTypedArrayLength(typed_array);
+  Label throw_detached(this, Label::kDeferred);
+  len_ = LoadJSTypedArrayLengthAndCheckDetached(typed_array, &throw_detached);
 
   Label throw_not_callable(this, Label::kDeferred);
   Label distinguish_types(this);
@@ -146,13 +143,16 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   BIND(&throw_not_callable);
   ThrowTypeError(context_, MessageTemplate::kCalledNonCallable, callbackfn_);
 
+  BIND(&throw_detached);
+  ThrowTypeError(context_, MessageTemplate::kDetachedOperation, name_);
+
   Label unexpected_instance_type(this);
   BIND(&unexpected_instance_type);
   Unreachable();
 
   std::vector<int32_t> elements_kinds = {
 #define ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
-      TYPED_ARRAYS(ELEMENTS_KIND)
+      TYPED_ARRAYS(ELEMENTS_KIND) RAB_GSAB_TYPED_ARRAYS(ELEMENTS_KIND)
 #undef ELEMENTS_KIND
   };
   std::list<Label> labels;
@@ -168,6 +168,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
 
   generator(this);
 
+  TNode<JSArrayBuffer> array_buffer = LoadJSArrayBufferViewBuffer(typed_array);
   TNode<Int32T> elements_kind = LoadMapElementsKind(typed_array_map);
   Switch(elements_kind, &unexpected_instance_type, elements_kinds.data(),
          label_ptrs.data(), labels.size());
@@ -176,15 +177,25 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
     BIND(&*it);
     source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
-    VisitAllTypedArrayElements(array_buffer, processor, direction, typed_array);
+    // TODO(v8:11111): Only RAB-backed TAs need special handling here since the
+    // backing store can shrink mid-iteration. This implementation has an
+    // overzealous check for GSAB-backed length-tracking TAs. Then again, the
+    // non-RAB/GSAB code also has an overzealous detached check for SABs.
+    bool is_rab_gsab = IsRabGsabTypedArrayElementsKind(source_elements_kind_);
+    if (is_rab_gsab) {
+      source_elements_kind_ =
+          GetCorrespondingNonRabGsabElementsKind(source_elements_kind_);
+    }
+    VisitAllTypedArrayElements(array_buffer, processor, direction, typed_array,
+                               is_rab_gsab);
     ReturnFromBuiltin(a_.value());
   }
 }
 
 void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     TNode<JSArrayBuffer> array_buffer, const CallResultProcessor& processor,
-    ForEachDirection direction, TNode<JSTypedArray> typed_array) {
-  // TODO(v8:11111): Support RAB / GSAB.
+    ForEachDirection direction, TNode<JSTypedArray> typed_array,
+    bool can_shrink) {
   VariableList list({&a_, &k_}, zone());
 
   TNode<UintPtrT> start = UintPtrConstant(0);
@@ -203,7 +214,12 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
         TVARIABLE(Object, value);
         Label detached(this, Label::kDeferred);
         Label process(this);
-        GotoIf(IsDetachedBuffer(array_buffer), &detached);
+        if (can_shrink) {
+          // If `index` is out of bounds, Get returns undefined.
+          CheckJSTypedArrayIndex(index, typed_array, &detached);
+        } else {
+          GotoIf(IsDetachedBuffer(array_buffer), &detached);
+        }
         {
           TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
           value = LoadFixedTypedArrayElementAsTagged(data_ptr, index,
@@ -1648,7 +1664,7 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
 void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
     const Callable& callable, TNode<Context> context, TNode<JSFunction> target,
     TNode<HeapObject> allocation_site_or_undefined, TNode<Int32T> argc) {
-  TNode<Code> code = HeapConstant(callable.code());
+  TNode<CodeT> code = HeapConstant(callable.code());
 
   // We are going to call here ArrayNoArgumentsConstructor or
   // ArraySingleArgumentsConstructor which in addition to the register arguments

@@ -253,6 +253,14 @@ void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y);
 void BitwiseXor_PosPos(RWDigits Z, Digits X, Digits Y);
 void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y);
 void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y);
+void LeftShift(RWDigits Z, Digits X, digit_t shift);
+// RightShiftState is provided by RightShift_ResultLength and used by the actual
+// RightShift to avoid some recomputation.
+struct RightShiftState {
+  bool must_round_down = false;
+};
+void RightShift(RWDigits Z, Digits X, digit_t shift,
+                const RightShiftState& state);
 
 // Z := (least significant n bits of X, interpreted as a signed n-bit integer).
 // Returns true if the result is negative; Z will hold the absolute value.
@@ -293,6 +301,10 @@ class Processor {
   // Z := the contents of {accumulator}.
   // Assume that this leaves {accumulator} in unusable state.
   Status FromString(RWDigits Z, FromStringAccumulator* accumulator);
+
+ protected:
+  // Use {Destroy} or {Destroyer} instead of the destructor directly.
+  ~Processor() = default;
 };
 
 inline int AddResultLength(int x_length, int y_length) {
@@ -352,6 +364,17 @@ inline int BitwiseXor_PosNeg_ResultLength(int x_length, int y_length) {
   // Result length growth example: 3 ^ -1 == -4 (2-bit inputs, 3-bit result).
   return std::max(x_length, y_length) + 1;
 }
+inline int LeftShift_ResultLength(int x_length,
+                                  digit_t x_most_significant_digit,
+                                  digit_t shift) {
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+  bool grow = bits_shift != 0 &&
+              (x_most_significant_digit >> (kDigitBits - bits_shift)) != 0;
+  return x_length + digit_shift + grow;
+}
+int RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
+                            RightShiftState* state);
 
 // Returns -1 if this "asIntN" operation would be a no-op.
 int AsIntNResultLength(Digits X, bool x_negative, int n);
@@ -399,13 +422,13 @@ class FromStringAccumulator {
       : max_digits_(std::max(max_digits, kStackParts)) {}
 
   // Step 2: Call this method to read all characters.
-  // {Char} should be a character type, such as uint8_t or uint16_t.
-  // {end} should be one past the last character (i.e. {start == end} would
-  // indicate an empty string).
-  // Returns the current position when an invalid character is encountered.
-  template <class Char>
-  ALWAYS_INLINE const Char* Parse(const Char* start, const Char* end,
-                                  digit_t radix);
+  // {CharIt} should be a forward iterator and
+  // std::iterator_traits<CharIt>::value_type shall be a character type, such as
+  // uint8_t or uint16_t. {end} should be one past the last character (i.e.
+  // {start == end} would indicate an empty string). Returns the current
+  // position when an invalid character is encountered.
+  template <class CharIt>
+  ALWAYS_INLINE CharIt Parse(CharIt start, CharIt end, digit_t radix);
 
   // Step 3: Check if a result is available, and determine its required
   // allocation size (guaranteed to be <= max_digits passed to the constructor).
@@ -415,14 +438,13 @@ class FromStringAccumulator {
   }
 
   // Step 4: Use BigIntProcessor::FromString() to retrieve the result into an
-  // {RWDigits} struct allocated for the size returned by step 2.
+  // {RWDigits} struct allocated for the size returned by step 3.
 
  private:
   friend class ProcessorImpl;
 
-  template <class Char>
-  ALWAYS_INLINE const Char* ParsePowerTwo(const Char* start, const Char* end,
-                                          digit_t radix);
+  template <class CharIt>
+  ALWAYS_INLINE CharIt ParsePowerTwo(CharIt start, CharIt end, digit_t radix);
 
   ALWAYS_INLINE bool AddPart(digit_t multiplier, digit_t part, bool is_last);
   ALWAYS_INLINE bool AddPart(digit_t part);
@@ -472,10 +494,9 @@ static constexpr uint8_t kCharValue[] = {
 // A space- and time-efficient way to map {2,4,8,16,32} to {1,2,3,4,5}.
 static constexpr uint8_t kCharBits[] = {1, 2, 3, 0, 4, 0, 0, 0, 5};
 
-template <class Char>
-const Char* FromStringAccumulator::ParsePowerTwo(const Char* current,
-                                                 const Char* end,
-                                                 digit_t radix) {
+template <class CharIt>
+CharIt FromStringAccumulator::ParsePowerTwo(CharIt current, CharIt end,
+                                            digit_t radix) {
   radix_ = static_cast<uint8_t>(radix);
   const int char_bits = kCharBits[radix >> 2];
   int bits_left;
@@ -509,11 +530,10 @@ const Char* FromStringAccumulator::ParsePowerTwo(const Char* current,
   return current;
 }
 
-template <class Char>
-const Char* FromStringAccumulator::Parse(const Char* start, const Char* end,
-                                         digit_t radix) {
+template <class CharIt>
+CharIt FromStringAccumulator::Parse(CharIt start, CharIt end, digit_t radix) {
   BIGINT_H_DCHECK(2 <= radix && radix <= 36);
-  const Char* current = start;
+  CharIt current = start;
 #if !HAVE_BUILTIN_MUL_OVERFLOW
   const digit_t kMaxMultiplier = (~digit_t{0}) / radix;
 #endif

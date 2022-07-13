@@ -490,10 +490,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
 class BytecodeOffset {
  public:
-  explicit BytecodeOffset(int id) : id_(id) {}
-  int ToInt() const { return id_; }
+  explicit constexpr BytecodeOffset(int id) : id_(id) {}
+  constexpr int ToInt() const { return id_; }
 
-  static BytecodeOffset None() { return BytecodeOffset(kNoneId); }
+  static constexpr BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
@@ -506,7 +506,7 @@ class BytecodeOffset {
            id_ == ConstructStubInvoke().ToInt();
   }
 
-  bool IsNone() const { return id_ == kNoneId; }
+  constexpr bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BytecodeOffset& other) const {
     return id_ == other.id_;
   }
@@ -657,6 +657,16 @@ V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,
 V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
   static constexpr int kZapByte = 0xCC;
   std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
+}
+
+inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
+                              size_t max_allowed_byte_length, size_t* pages) {
+  size_t bytes_wanted = RoundUp(byte_length, page_size);
+  if (bytes_wanted > max_allowed_byte_length) {
+    return false;
+  }
+  *pages = bytes_wanted / page_size;
+  return true;
 }
 
 }  // namespace internal

@@ -17,8 +17,7 @@
 // and resetting these counters.
 
 // Make sure to sync the following with src/compiler/globals.h.
-#if defined(V8_TARGET_ARCH_X64) || \
-    (defined(V8_TARGET_ARCH_ARM64) && !defined(USE_SIMULATOR))
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 
@@ -40,6 +39,24 @@ namespace {
 
 class FastCApiObject {
  public:
+  static FastCApiObject& instance();
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AddAllFastCallbackPatch(AnyCType receiver,
+                                          AnyCType should_fallback,
+                                          AnyCType arg_i32, AnyCType arg_u32,
+                                          AnyCType arg_i64, AnyCType arg_u64,
+                                          AnyCType arg_f32, AnyCType arg_f64,
+                                          AnyCType options) {
+    AnyCType ret;
+    ret.double_value = AddAllFastCallback(
+        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
+        arg_u32.uint32_value, arg_i64.int64_value, arg_u64.uint64_value,
+        arg_f32.float_value, arg_f64.double_value, *options.options_value);
+    return ret;
+  }
+
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static double AddAllFastCallback(Local<Object> receiver, bool should_fallback,
                                    int32_t arg_i32, uint32_t arg_u32,
                                    int64_t arg_i64, uint64_t arg_u64,
@@ -50,14 +67,58 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
+    } else {
+      options.fallback = false;
     }
 
     return static_cast<double>(arg_i32) + static_cast<double>(arg_u32) +
            static_cast<double>(arg_i64) + static_cast<double>(arg_u64) +
            static_cast<double>(arg_f32) + arg_f64;
   }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AddAllFastCallbackNoOptionsPatch(
+      AnyCType receiver, AnyCType should_fallback, AnyCType arg_i32,
+      AnyCType arg_u32, AnyCType arg_i64, AnyCType arg_u64, AnyCType arg_f32,
+      AnyCType arg_f64) {
+    AnyCType ret;
+    ret.double_value = AddAllFastCallbackNoOptions(
+        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
+        arg_u32.uint32_value, arg_i64.int64_value, arg_u64.uint64_value,
+        arg_f32.float_value, arg_f64.double_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static double AddAllFastCallbackNoOptions(Local<Object> receiver,
+                                            bool should_fallback,
+                                            int32_t arg_i32, uint32_t arg_u32,
+                                            int64_t arg_i64, uint64_t arg_u64,
+                                            float arg_f32, double arg_f64) {
+    FastCApiObject* self;
+
+    // For Wasm call, we don't pass FastCApiObject as the receiver, so we need
+    // to retrieve the FastCApiObject instance from a static variable.
+    if (Utils::OpenHandle(*receiver)->IsJSGlobalProxy() ||
+        Utils::OpenHandle(*receiver)->IsUndefined()) {
+      // Note: FastCApiObject::instance() returns the reference of an object
+      // allocated in thread-local storage, its value cannot be stored in a
+      // static variable here.
+      self = &FastCApiObject::instance();
+    } else {
+      // Fuzzing code can call this function from JS; in this case the receiver
+      // should be a FastCApiObject.
+      self = UnwrapObject(receiver);
+      CHECK_NOT_NULL(self);
+    }
+    self->fast_call_count_++;
+
+    return static_cast<double>(arg_i32) + static_cast<double>(arg_u32) +
+           static_cast<double>(arg_i64) + static_cast<double>(arg_u64) +
+           static_cast<double>(arg_f32) + arg_f64;
+  }
+
   static void AddAllSlowCallback(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
@@ -99,6 +160,24 @@ class FastCApiObject {
 #else
   typedef int32_t Type;
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AddAllSequenceFastCallbackPatch(AnyCType receiver,
+                                                  AnyCType should_fallback,
+                                                  AnyCType seq_arg,
+                                                  AnyCType options) {
+    AnyCType ret;
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+    ret.double_value = AddAllSequenceFastCallback(
+        receiver.object_value, should_fallback.bool_value,
+        seq_arg.sequence_value, *options.options_value);
+#else
+    ret.int32_value = AddAllSequenceFastCallback(
+        receiver.object_value, should_fallback.bool_value,
+        seq_arg.sequence_value, *options.options_value);
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
                                          bool should_fallback,
                                          Local<Array> seq_arg,
@@ -108,22 +187,21 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
 
     uint32_t length = seq_arg->Length();
     if (length > 1024) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
 
     Type buffer[1024];
     bool result = TryToCopyAndConvertArrayToCppBuffer<
-        i::CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer,
-                                                          1024);
+        CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer, 1024);
     if (!result) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
     DCHECK_EQ(seq_arg->Length(), length);
@@ -193,6 +271,57 @@ class FastCApiObject {
     }
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  template <typename T>
+  static const FastApiTypedArray<T>* AnyCTypeToTypedArray(AnyCType arg);
+
+  template <>
+  const FastApiTypedArray<int32_t>* AnyCTypeToTypedArray<int32_t>(
+      AnyCType arg) {
+    return arg.int32_ta_value;
+  }
+  template <>
+  const FastApiTypedArray<uint32_t>* AnyCTypeToTypedArray<uint32_t>(
+      AnyCType arg) {
+    return arg.uint32_ta_value;
+  }
+  template <>
+  const FastApiTypedArray<int64_t>* AnyCTypeToTypedArray<int64_t>(
+      AnyCType arg) {
+    return arg.int64_ta_value;
+  }
+  template <>
+  const FastApiTypedArray<uint64_t>* AnyCTypeToTypedArray<uint64_t>(
+      AnyCType arg) {
+    return arg.uint64_ta_value;
+  }
+  template <>
+  const FastApiTypedArray<float>* AnyCTypeToTypedArray<float>(AnyCType arg) {
+    return arg.float_ta_value;
+  }
+  template <>
+  const FastApiTypedArray<double>* AnyCTypeToTypedArray<double>(AnyCType arg) {
+    return arg.double_ta_value;
+  }
+
+  template <typename T>
+  static AnyCType AddAllTypedArrayFastCallbackPatch(AnyCType receiver,
+                                                    AnyCType should_fallback,
+                                                    AnyCType typed_array_arg,
+                                                    AnyCType options) {
+    AnyCType ret;
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+    ret.double_value = AddAllTypedArrayFastCallback(
+        receiver.object_value, should_fallback.bool_value,
+        *AnyCTypeToTypedArray<T>(typed_array_arg), *options.options_value);
+#else
+    ret.int32_value = AddAllTypedArrayFastCallback(
+        receiver.object_value, should_fallback.bool_value,
+        *AnyCTypeToTypedArray<T>(typed_array_arg), *options.options_value);
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   template <typename T>
   static Type AddAllTypedArrayFastCallback(
       Local<Object> receiver, bool should_fallback,
@@ -203,7 +332,7 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
 
@@ -277,6 +406,20 @@ class FastCApiObject {
     UNREACHABLE();
   }
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType Add32BitIntFastCallbackPatch(AnyCType receiver,
+                                               AnyCType should_fallback,
+                                               AnyCType arg_i32,
+                                               AnyCType arg_u32,
+                                               AnyCType options) {
+    AnyCType ret;
+    ret.int32_value = Add32BitIntFastCallback(
+        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
+        arg_u32.uint32_value, *options.options_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
   static int Add32BitIntFastCallback(v8::Local<v8::Object> receiver,
                                      bool should_fallback, int32_t arg_i32,
                                      uint32_t arg_u32,
@@ -286,7 +429,7 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
 
@@ -312,6 +455,30 @@ class FastCApiObject {
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AddAll32BitIntFastCallback_6ArgsPatch(
+      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
+      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
+      AnyCType arg5_u32, AnyCType arg6_u32, AnyCType options) {
+    AnyCType ret;
+    ret.int32_value = AddAll32BitIntFastCallback_6Args(
+        receiver.object_value, should_fallback.bool_value, arg1_i32.int32_value,
+        arg2_i32.int32_value, arg3_i32.int32_value, arg4_u32.uint32_value,
+        arg5_u32.uint32_value, arg6_u32.uint32_value, *options.options_value);
+    return ret;
+  }
+  static AnyCType AddAll32BitIntFastCallback_5ArgsPatch(
+      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
+      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
+      AnyCType arg5_u32, AnyCType options) {
+    AnyCType arg6;
+    arg6.uint32_value = 0;
+    return AddAll32BitIntFastCallback_6ArgsPatch(
+        receiver, should_fallback, arg1_i32, arg2_i32, arg3_i32, arg4_u32,
+        arg5_u32, arg6, options);
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
   static int AddAll32BitIntFastCallback_6Args(
       Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
       int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
@@ -321,7 +488,7 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return 0;
     }
 
@@ -381,7 +548,7 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     if (should_fallback) {
-      options.fallback = 1;
+      options.fallback = true;
       return false;
     }
 
@@ -497,6 +664,9 @@ class FastCApiObject {
 thread_local FastCApiObject kFastCApiObject;
 }  // namespace
 
+// static
+FastCApiObject& FastCApiObject::instance() { return kFastCApiObject; }
+
 void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   if (!info.IsConstructCall()) {
     info.GetIsolate()->ThrowError(
@@ -521,7 +691,8 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
     CFunction add_all_c_func =
-        CFunction::Make(FastCApiObject::AddAllFastCallback);
+        CFunction::Make(FastCApiObject::AddAllFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAllFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all",
         FunctionTemplate::New(isolate, FastCApiObject::AddAllSlowCallback,
@@ -529,8 +700,9 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
 
-    CFunction add_all_seq_c_func =
-        CFunction::Make(FastCApiObject::AddAllSequenceFastCallback);
+    CFunction add_all_seq_c_func = CFunction::Make(
+        FastCApiObject::AddAllSequenceFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAllSequenceFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_sequence",
         FunctionTemplate::New(
@@ -538,8 +710,11 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_seq_c_func));
 
-    CFunction add_all_int32_typed_array_c_func =
-        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<int32_t>);
+    CFunction add_all_int32_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<int32_t>
+            V8_IF_USE_SIMULATOR(
+                FastCApiObject::AddAllTypedArrayFastCallbackPatch<int32_t>));
+
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_int32_typed_array",
         FunctionTemplate::New(
@@ -547,8 +722,10 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_int32_typed_array_c_func));
 
-    CFunction add_all_int64_typed_array_c_func =
-        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<int64_t>);
+    CFunction add_all_int64_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<int64_t>
+            V8_IF_USE_SIMULATOR(
+                FastCApiObject::AddAllTypedArrayFastCallbackPatch<int64_t>));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_int64_typed_array",
         FunctionTemplate::New(
@@ -556,8 +733,10 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_int64_typed_array_c_func));
 
-    CFunction add_all_uint64_typed_array_c_func =
-        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<uint64_t>);
+    CFunction add_all_uint64_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<uint64_t>
+            V8_IF_USE_SIMULATOR(
+                FastCApiObject::AddAllTypedArrayFastCallbackPatch<uint64_t>));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_uint64_typed_array",
         FunctionTemplate::New(
@@ -566,8 +745,10 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_uint64_typed_array_c_func));
 
-    CFunction add_all_uint32_typed_array_c_func =
-        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<uint32_t>);
+    CFunction add_all_uint32_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<uint32_t>
+            V8_IF_USE_SIMULATOR(
+                FastCApiObject::AddAllTypedArrayFastCallbackPatch<uint32_t>));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_uint32_typed_array",
         FunctionTemplate::New(
@@ -575,6 +756,29 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect,
             &add_all_uint32_typed_array_c_func));
+
+    CFunction add_all_float32_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<float> V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAllTypedArrayFastCallbackPatch<float>));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_float32_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_float32_typed_array_c_func));
+
+    CFunction add_all_float64_typed_array_c_func = CFunction::Make(
+        FastCApiObject::AddAllTypedArrayFastCallback<double>
+            V8_IF_USE_SIMULATOR(
+                FastCApiObject::AddAllTypedArrayFastCallbackPatch<double>));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_float64_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_float64_typed_array_c_func));
 
     const CFunction add_all_overloads[] = {
         add_all_uint32_typed_array_c_func,
@@ -600,12 +804,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {add_all_invalid_overloads, 2}));
 
-    CFunction add_all_32bit_int_6args_c_func =
-        CFunction::Make(FastCApiObject::AddAll32BitIntFastCallback_6Args);
-    CFunction add_all_32bit_int_5args_c_func =
-        CFunction::Make(FastCApiObject::AddAll32BitIntFastCallback_5Args);
+    CFunction add_all_32bit_int_6args_c_func = CFunction::Make(
+        FastCApiObject::AddAll32BitIntFastCallback_6Args V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAll32BitIntFastCallback_6ArgsPatch));
+    CFunction add_all_32bit_int_5args_c_func = CFunction::Make(
+        FastCApiObject::AddAll32BitIntFastCallback_5Args V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch));
     const CFunction c_function_overloads[] = {add_all_32bit_int_6args_c_func,
                                               add_all_32bit_int_5args_c_func};
+
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "overloaded_add_all_32bit_int",
         FunctionTemplate::NewWithCFunctionOverloads(
@@ -613,14 +820,26 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
 
-    CFunction add_32bit_int_c_func =
-        CFunction::Make(FastCApiObject::Add32BitIntFastCallback);
+    CFunction add_all_no_options_c_func = CFunction::Make(
+        FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAllFastCallbackNoOptionsPatch));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_no_options",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
+            Local<Signature>(), 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &add_all_no_options_c_func));
+
+    CFunction add_32bit_int_c_func = CFunction::Make(
+        FastCApiObject::Add32BitIntFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::Add32BitIntFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_32bit_int",
         FunctionTemplate::New(
             isolate, FastCApiObject::Add32BitIntSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
+
     CFunction is_valid_api_object_c_func =
         CFunction::Make(FastCApiObject::IsFastCApiObjectFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -629,6 +848,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::IsFastCApiObjectSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
+
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",
         FunctionTemplate::New(

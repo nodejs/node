@@ -106,7 +106,7 @@ void TracingController::Initialize(TraceBuffer* trace_buffer) {
 }
 
 int64_t TracingController::CurrentTimestampMicroseconds() {
-  return base::TimeTicks::HighResolutionNow().ToInternalValue();
+  return base::TimeTicks::Now().ToInternalValue();
 }
 
 int64_t TracingController::CurrentCpuTimestampMicroseconds() {

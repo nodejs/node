@@ -51,7 +51,7 @@ for (const version of versions) {
   assert.strictEqual(parts[parts.length - 1], 'x',
                      `'num' from ${tested} doesn't end in '.x'.`);
   const isEvenRelease = Number.parseInt(parts[expectedLength - 2]) % 2 === 0;
-  const hasLtsProperty = version.hasOwnProperty('lts');
+  const hasLtsProperty = Object.hasOwn(version, 'lts');
   if (hasLtsProperty) {
     // Odd-numbered versions of Node.js are never LTS.
     assert.ok(isEvenRelease, `${tested} should not be an 'lts' release.`);
@@ -62,8 +62,8 @@ for (const version of versions) {
 // Check that the minimum number of versions were returned.
 // Later versions are allowed, but not checked for here (they were checked
 // above).
-// Also check for the previous semver major -- From master this will be the
-// most recent major release.
+// Also check for the previous semver major -- From the main branch this will be
+// the most recent major release.
 const thisMajor = Number.parseInt(process.versions.node.split('.')[0]);
 const prevMajorString = `${thisMajor - 1}.x`;
 if (!expected.includes(prevMajorString)) {

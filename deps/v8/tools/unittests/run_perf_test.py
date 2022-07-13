@@ -1,10 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# for py2/py3 compatibility
-from __future__ import print_function
 
 from collections import namedtuple
 import json
@@ -27,6 +24,8 @@ RUN_PERF = os.path.join(BASE_DIR, 'run_perf.py')
 TEST_DATA = os.path.join(BASE_DIR, 'unittests', 'testdata')
 
 TEST_WORKSPACE = os.path.join(tempfile.gettempdir(), 'test-v8-run-perf')
+
+SORT_KEY = lambda x: x['graphs']
 
 V8_JSON = {
   'path': ['.'],
@@ -101,8 +100,8 @@ class UnitTest(unittest.TestCase):
   def testBuildDirectory(self):
     base_path = os.path.join(TEST_DATA, 'builddirs', 'dir1', 'out')
     expected_path = os.path.join(base_path, 'build')
-    self.assertEquals(
-        expected_path, run_perf.find_build_directory(base_path, 'x64'))
+    self.assertEqual(expected_path,
+                     run_perf.find_build_directory(base_path, 'x64'))
 
 
 class PerfTest(unittest.TestCase):
@@ -196,8 +195,8 @@ class PerfTest(unittest.TestCase):
       {'units': units,
        'graphs': [suite, trace['name']],
        'results': trace['results'],
-       'stddev': trace['stddev']} for trace in traces]),
-      sorted(self._LoadResults(file_name)['traces']))
+       'stddev': trace['stddev']} for trace in traces], key=SORT_KEY),
+      sorted(self._LoadResults(file_name)['traces'], key=SORT_KEY))
 
   def _VerifyRunnableDurations(self, runs, timeout, file_name=None):
     self.assertListEqual([
@@ -368,7 +367,7 @@ class PerfTest(unittest.TestCase):
        'graphs': ['test', 'DeltaBlue'],
        'results': [200.0],
        'stddev': ''},
-      ]), sorted(self._LoadResults()['traces']))
+      ], key=SORT_KEY), sorted(self._LoadResults()['traces'], key=SORT_KEY))
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
@@ -381,7 +380,7 @@ class PerfTest(unittest.TestCase):
 
   def testOneRunStdDevRegExp(self):
     test_input = dict(V8_JSON)
-    test_input['stddev_regexp'] = '^%s\-stddev: (.+)$'
+    test_input['stddev_regexp'] = r'^%s-stddev: (.+)$'
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], ['Richards: 1.234\nRichards-stddev: 0.23\n'
                               'DeltaBlue: 10657567\nDeltaBlue-stddev: 106\n'])
@@ -396,7 +395,7 @@ class PerfTest(unittest.TestCase):
 
   def testTwoRunsStdDevRegExp(self):
     test_input = dict(V8_JSON)
-    test_input['stddev_regexp'] = '^%s\-stddev: (.+)$'
+    test_input['stddev_regexp'] = r'^%s-stddev: (.+)$'
     test_input['run_count'] = 2
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], ['Richards: 3\nRichards-stddev: 0.7\n'
@@ -408,13 +407,14 @@ class PerfTest(unittest.TestCase):
       {'name': 'Richards', 'results': [2.0, 3.0], 'stddev': '0.7'},
       {'name': 'DeltaBlue', 'results': [5.0, 6.0], 'stddev': '0.8'},
     ])
-    self._VerifyErrors(
-        ['Test test/Richards should only run once since a stddev is provided '
-         'by the test.',
-         'Test test/DeltaBlue should only run once since a stddev is provided '
-         'by the test.',
-         'Regexp "^DeltaBlue\-stddev: (.+)$" did not match for test '
-         'test/DeltaBlue.'])
+    self._VerifyErrors([
+        'Test test/Richards should only run once since a stddev is provided '
+        'by the test.',
+        'Test test/DeltaBlue should only run once since a stddev is provided '
+        'by the test.',
+        r'Regexp "^DeltaBlue-stddev: (.+)$" did not match for test '
+        r'test/DeltaBlue.'
+    ])
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
 
@@ -605,7 +605,7 @@ class PerfTest(unittest.TestCase):
         'results': [2.1, 2.1],
         'stddev': '',
       },
-    ]), sorted(results['traces']))
+    ], key=SORT_KEY), sorted(results['traces'], key=SORT_KEY))
 
   def testResultsProcessor(self):
     results = self._RunPerf('d8_mocked2.py', 'test2.json')

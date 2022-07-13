@@ -110,13 +110,13 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
       return out;
     }
     for (int n = 0; n < value_input_count; ++n) {
-      HeapObjectMatcher m(callee->InputAt(n));
-      if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSFunction()) {
+      HeapObjectMatcher m2(callee->InputAt(n));
+      if (!m2.HasResolvedValue() || !m2.Ref(broker()).IsJSFunction()) {
         out.num_functions = 0;
         return out;
       }
 
-      out.functions[n] = m.Ref(broker()).AsJSFunction();
+      out.functions[n] = m2.Ref(broker()).AsJSFunction();
       JSFunctionRef function = out.functions[n].value();
       if (CanConsiderForInlining(broker(), function)) {
         out.bytecode[n] = function.shared().GetBytecodeArray();
@@ -197,16 +197,23 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
                                        ? candidate.functions[i].value().shared()
                                        : candidate.shared_info.value();
     candidate.can_inline_function[i] = candidate.bytecode[i].has_value();
-    CHECK_IMPLIES(candidate.can_inline_function[i], shared.IsInlineable());
+    // Because of concurrent optimization, optimization of the inlining
+    // candidate could have been disabled meanwhile.
+    // JSInliner will check this again and not actually inline the function in
+    // this case.
+    CHECK_IMPLIES(candidate.can_inline_function[i],
+                  shared.IsInlineable() ||
+                      shared.GetInlineability() ==
+                          SharedFunctionInfo::kHasOptimizationDisabled);
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
-    // recurion like f() -> g() -> f(). The indirect recursion is helpful in
+    // recursion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
     // function. In the case of direct recursion, we only have some static
     // information for the first level of inlining and it may not be that useful
     // to just inline one level in recursive calls. In some cases like tail
     // recursion we may benefit from recursive inlining, if we have additional
     // analysis that converts them to iterative implementations. Though it is
-    // not obvious if such an anlysis is needed.
+    // not obvious if such an analysis is needed.
     if (frame_info.shared_info().ToHandle(&frame_shared_info) &&
         frame_shared_info.equals(shared.object())) {
       TRACE("Not considering call site #" << node->id() << ":"
@@ -602,7 +609,7 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
     // frame state, and change all the uses of the callee to the constant
     // callee.
     Node* target = callee->InputAt(i);
-    Node* effect = effect_phi->InputAt(i);
+    Node* effect_phi_effect = effect_phi->InputAt(i);
     Node* control = merge->InputAt(i);
 
     if (checkpoint) {
@@ -610,8 +617,8 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
       FrameState new_checkpoint_state = DuplicateFrameStateAndRename(
           FrameState{checkpoint_state}, callee, target,
           (i == num_calls - 1) ? kChangeInPlace : kCloneState);
-      effect = graph()->NewNode(checkpoint->op(), new_checkpoint_state, effect,
-                                control);
+      effect_phi_effect = graph()->NewNode(
+          checkpoint->op(), new_checkpoint_state, effect_phi_effect, control);
     }
 
     // Duplicate the call.
@@ -620,7 +627,7 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
         (i == num_calls - 1) ? kChangeInPlace : kCloneState);
     inputs[0] = target;
     inputs[input_count - 3] = new_lazy_frame_state;
-    inputs[input_count - 2] = effect;
+    inputs[input_count - 2] = effect_phi_effect;
     inputs[input_count - 1] = control;
     calls[i] = if_successes[i] =
         graph()->NewNode(node->op(), input_count, inputs);
@@ -765,13 +772,13 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
     if (candidate.can_inline_function[i] &&
         (small_function || total_inlined_bytecode_size_ <
                                max_inlined_bytecode_size_cumulative_)) {
-      Node* node = calls[i];
-      Reduction const reduction = inliner_.ReduceJSCall(node);
+      Node* call = calls[i];
+      Reduction const reduction = inliner_.ReduceJSCall(call);
       if (reduction.Changed()) {
         total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
         // Killing the call node is not strictly necessary, but it is safer to
         // make sure we do not resurrect the node.
-        node->Kill();
+        call->Kill();
       }
     }
   }
@@ -843,13 +850,6 @@ CommonOperatorBuilder* JSInliningHeuristic::common() const {
 
 SimplifiedOperatorBuilder* JSInliningHeuristic::simplified() const {
   return jsgraph()->simplified();
-}
-
-int JSInliningHeuristic::ScaleInliningSize(int value, JSHeapBroker* broker) {
-  if (broker->is_turboprop()) {
-    value = value / FLAG_turboprop_inline_scaling_factor;
-  }
-  return value;
 }
 
 #undef TRACE

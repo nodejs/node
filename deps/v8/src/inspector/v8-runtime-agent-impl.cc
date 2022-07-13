@@ -57,6 +57,7 @@ namespace v8_inspector {
 namespace V8RuntimeAgentImplState {
 static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
+static const char maxCallStackSizeToCapture[] = "maxCallStackSizeToCapture";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
 static const char globalBindingsKey[] = "";
@@ -216,7 +217,7 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     }
     *contextId = executionContextId.fromJust();
   } else if (uniqueContextId.isJust()) {
-    V8DebuggerId uniqueId(uniqueContextId.fromJust());
+    internal::V8DebuggerId uniqueId(uniqueContextId.fromJust());
     if (!uniqueId.isValid())
       return Response::InvalidParams("invalid uniqueContextId");
     int id = inspector->resolveUniqueContextId(uniqueId);
@@ -255,6 +256,7 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<bool> maybeAwaitPromise, Maybe<bool> throwOnSideEffect,
     Maybe<double> timeout, Maybe<bool> disableBreaks, Maybe<bool> maybeReplMode,
     Maybe<bool> allowUnsafeEvalBlockedByCSP, Maybe<String16> uniqueContextId,
+    Maybe<bool> generateWebDriverValue,
     std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
@@ -318,20 +320,23 @@ void V8RuntimeAgentImpl::evaluate(
     return;
   }
 
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
+                                                        : WrapMode::kNoPreview;
+  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
+  if (generateWebDriverValue.fromMaybe(false))
+    wrap_mode = WrapMode::kGenerateWebDriverValue;
 
   // REPL mode always returns a promise that must be awaited.
   const bool await = replMode || maybeAwaitPromise.fromMaybe(false);
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-                            callback.get());
+                            scope.tryCatch(), objectGroup.fromMaybe(""),
+                            wrap_mode, callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
-      m_session, maybeResultValue, objectGroup.fromMaybe(""), mode, replMode,
+      m_session, maybeResultValue, objectGroup.fromMaybe(""), wrap_mode,
+      replMode,
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -365,7 +370,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     Maybe<bool> silent, Maybe<bool> returnByValue, Maybe<bool> generatePreview,
     Maybe<bool> userGesture, Maybe<bool> awaitPromise,
     Maybe<int> executionContextId, Maybe<String16> objectGroup,
-    Maybe<bool> throwOnSideEffect,
+    Maybe<bool> throwOnSideEffect, Maybe<bool> generateWebDriverValue,
     std::unique_ptr<CallFunctionOnCallback> callback) {
   if (objectId.isJust() && executionContextId.isJust()) {
     callback->sendFailure(Response::ServerError(
@@ -377,9 +382,11 @@ void V8RuntimeAgentImpl::callFunctionOn(
         "Either ObjectId or executionContextId must be specified"));
     return;
   }
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
+                                                        : WrapMode::kNoPreview;
+  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
+  if (generateWebDriverValue.fromMaybe(false))
+    wrap_mode = WrapMode::kGenerateWebDriverValue;
   if (objectId.isJust()) {
     InjectedScript::ObjectScope scope(m_session, objectId.fromJust());
     Response response = scope.initialize();
@@ -389,7 +396,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.object(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.isJust() ? objectGroup.fromMaybe(String16())
                              : scope.objectGroupName(),
@@ -411,7 +418,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.context()->Global(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.fromMaybe(""), throwOnSideEffect.fromMaybe(false),
         std::move(callback));
@@ -451,15 +458,14 @@ Response V8RuntimeAgentImpl::getProperties(
                                        : WrapMode::kNoPreview,
       result, exceptionDetails);
   if (!response.IsSuccess()) return response;
-  if (exceptionDetails->isJust() || accessorPropertiesOnly.fromMaybe(false))
-    return Response::Success();
+  if (exceptionDetails->isJust()) return Response::Success();
   std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>
       internalPropertiesProtocolArray;
   std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>
       privatePropertiesProtocolArray;
   response = scope.injectedScript()->getInternalAndPrivateProperties(
-      object, scope.objectGroupName(), &internalPropertiesProtocolArray,
-      &privatePropertiesProtocolArray);
+      object, scope.objectGroupName(), accessorPropertiesOnly.fromMaybe(false),
+      &internalPropertiesProtocolArray, &privatePropertiesProtocolArray);
   if (!response.IsSuccess()) return response;
   if (!internalPropertiesProtocolArray->empty())
     *internalProperties = std::move(internalPropertiesProtocolArray);
@@ -499,7 +505,13 @@ Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
     return Response::ServerError(
         "maxCallStackSizeToCapture should be non-negative");
   }
-  V8StackTraceImpl::maxCallStackSizeToCapture = size;
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+      "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture", this,
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size", size);
+  if (!m_enabled) return Response::ServerError("Runtime agent is not enabled");
+  m_state->setInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture, size);
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
   return Response::Success();
 }
 
@@ -802,6 +814,41 @@ Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
   return Response::Success();
 }
 
+Response V8RuntimeAgentImpl::getExceptionDetails(
+    const String16& errorObjectId,
+    Maybe<protocol::Runtime::ExceptionDetails>* out_exceptionDetails) {
+  InjectedScript::ObjectScope scope(m_session, errorObjectId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  const v8::Local<v8::Value> error = scope.object();
+  if (!error->IsNativeError())
+    return Response::ServerError("errorObjectId is not a JS error object");
+
+  const v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(m_inspector->isolate(), error);
+
+  response = scope.injectedScript()->createExceptionDetails(
+      message, error, scope.objectGroupName(), out_exceptionDetails);
+  if (!response.IsSuccess()) return response;
+
+  CHECK(out_exceptionDetails->isJust());
+
+  // When an exception object is present, `createExceptionDetails` assumes
+  // the exception is uncaught and will overwrite the text field to "Uncaught".
+  // Lets use the normal message text instead.
+  out_exceptionDetails->fromJust()->setText(
+      toProtocolString(m_inspector->isolate(), message->Get()));
+
+  // Check if the exception has any metadata on the inspector and also attach
+  // it.
+  std::unique_ptr<protocol::DictionaryValue> data =
+      m_inspector->getAssociatedExceptionDataForProtocol(error);
+  if (data)
+    out_exceptionDetails->fromJust()->setExceptionMetaData(std::move(data));
+  return Response::Success();
+}
+
 void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        const String16& payload,
                                        int executionContextId) {
@@ -839,6 +886,11 @@ void V8RuntimeAgentImpl::restore() {
           V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
     m_session->setCustomObjectFormatterEnabled(true);
 
+  int size;
+  if (m_state->getInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture,
+                          &size))
+    m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
+
   m_inspector->forEachContext(
       m_session->contextGroupId(),
       [this](InspectedContext* context) { addBindings(context); });
@@ -846,11 +898,15 @@ void V8RuntimeAgentImpl::restore() {
 
 Response V8RuntimeAgentImpl::enable() {
   if (m_enabled) return Response::Success();
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                         "V8RuntimeAgentImpl::enable", this,
+                         TRACE_EVENT_FLAG_FLOW_OUT);
   m_inspector->client()->beginEnsureAllContextsInGroup(
       m_session->contextGroupId());
   m_enabled = true;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, true);
-  m_inspector->enableStackCapturingIfNeeded();
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(
+      this, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
   m_session->reportAllContexts(this);
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
@@ -862,10 +918,13 @@ Response V8RuntimeAgentImpl::enable() {
 
 Response V8RuntimeAgentImpl::disable() {
   if (!m_enabled) return Response::Success();
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                         "V8RuntimeAgentImpl::disable", this,
+                         TRACE_EVENT_FLAG_FLOW_IN);
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_state->remove(V8RuntimeAgentImplState::bindings);
-  m_inspector->disableStackCapturingIfNeeded();
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(this, -1);
   m_session->setCustomObjectFormatterEnabled(false);
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(

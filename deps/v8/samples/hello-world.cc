@@ -20,6 +20,12 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    fprintf(stderr, "Error initializing the V8 sandbox\n");
+    return 1;
+  }
+#endif
   v8::V8::Initialize();
 
   // Create a new Isolate and make it the current one.
@@ -98,7 +104,7 @@ int main(int argc, char* argv[]) {
   // Dispose the isolate and tear down V8.
   isolate->Dispose();
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   delete create_params.array_buffer_allocator;
   return 0;
 }

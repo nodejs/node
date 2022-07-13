@@ -147,8 +147,15 @@ npm command-line interface
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <p>An npm command that lets you create a task in the <code>scripts</code> section of the <code>package.json</code>.</p>
+<p>Deprecated.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm set-script [&lt;script&gt;] [&lt;command&gt;]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <p><strong>Example:</strong></p>
 <ul>
 <li><code>npm set-script start "http-server ."</code></li>
@@ -213,6 +220,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

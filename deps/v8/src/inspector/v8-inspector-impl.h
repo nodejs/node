@@ -67,7 +67,7 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
   uint64_t isolateId() const { return m_isolateId; }
-  int resolveUniqueContextId(V8DebuggerId uniqueId) const;
+  int resolveUniqueContextId(internal::V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
@@ -84,6 +84,7 @@ class V8InspectorImpl : public V8Inspector {
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
+  V8DebuggerId uniqueDebuggerId(int contextId) override;
   void contextCollected(int contextGroupId, int contextId);
   void resetContextGroup(int contextGroupId) override;
   void idleStarted() override;
@@ -115,8 +116,6 @@ class V8InspectorImpl : public V8Inspector {
       v8::Local<v8::Name> key, v8::Local<v8::Value> value) override;
 
   unsigned nextExceptionId() { return ++m_lastExceptionId; }
-  void enableStackCapturingIfNeeded();
-  void disableStackCapturingIfNeeded();
   void muteExceptions(int contextGroupId);
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
@@ -135,6 +134,8 @@ class V8InspectorImpl : public V8Inspector {
   int64_t generateUniqueId();
   V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Object> getAssociatedExceptionData(
       v8::Local<v8::Value> exception);
+  std::unique_ptr<protocol::DictionaryValue>
+  getAssociatedExceptionDataForProtocol(v8::Local<v8::Value> exception);
 
   class EvaluateScope {
    public:
@@ -160,7 +161,6 @@ class V8InspectorImpl : public V8Inspector {
   v8::Global<v8::Context> m_regexContext;
   v8::Global<v8::Context> m_exceptionMetaDataContext;
   v8::Global<v8::debug::EphemeronTable> m_exceptionMetaData;
-  int m_capturingStackTracesCount;
   unsigned m_lastExceptionId;
   int m_lastContextId;
   int m_lastSessionId = 0;

@@ -2,17 +2,8 @@
 # Disagreement among owners should be escalated to eng reviewers.
 file:ENG_REVIEW_OWNERS
 
-per-file .clang-format=file:INFRA_OWNERS
-per-file .clang-tidy=file:INFRA_OWNERS
-per-file .editorconfig=file:INFRA_OWNERS
-per-file .flake8=file:INFRA_OWNERS
-per-file .git-blame-ignore-revs=file:INFRA_OWNERS
-per-file .gitattributes=file:INFRA_OWNERS
-per-file .gitignore=file:INFRA_OWNERS
-per-file .gn=file:INFRA_OWNERS
+per-file .*=file:INFRA_OWNERS
 per-file .mailmap=file:COMMON_OWNERS
-per-file .vpython=file:INFRA_OWNERS
-per-file .ycm_extra_conf.py=file:INFRA_OWNERS
 per-file .bazelrc=file:COMMON_OWNERS
 per-file BUILD.bazel=file:COMMON_OWNERS
 per-file BUILD.gn=file:COMMON_OWNERS

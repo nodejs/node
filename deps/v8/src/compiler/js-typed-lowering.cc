@@ -1197,7 +1197,7 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   // If {value} cannot be a receiver, then it cannot have {prototype} in
   // it's prototype chain (all Primitive values have a null prototype).
   if (value_type.Is(Type::Primitive())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -1626,7 +1626,7 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = function.shared().construct_as_builtin();
-    CodeRef code = MakeRef(
+    CodeTRef code = MakeRef(
         broker(), use_builtin_construct_stub
                       ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                       : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
@@ -1657,8 +1657,8 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
 
-  // Check if {target} is a JSFunction.
-  if (target_type.Is(Type::Function())) {
+  // Check if {target} is a directly callable JSFunction.
+  if (target_type.Is(Type::CallableFunction())) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via CallFunctionForwardVarargs.
@@ -1722,6 +1722,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+    // We need to check here in addition to JSCallReducer for Realms.
+    // TODO(pthier): Consolidate all the class constructor checks.
     if (IsClassConstructor(shared->kind())) return NoChange();
 
     // Check if we need to convert the {receiver}, but bailout if it would
@@ -1755,9 +1757,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
     int formal_count =
         shared->internal_formal_parameter_count_without_receiver();
-    // TODO(v8:11112): Once the sentinel is always 0, the check against
-    // IsDontAdaptArguments() can be removed.
-    if (!shared->IsDontAdaptArguments() && formal_count > arity) {
+    if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
       // arguments.
@@ -1783,7 +1783,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct code object call.
       Callable callable =
           Builtins::CallableFor(isolate(), shared->builtin_id());
-      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1809,8 +1808,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     return Changed(node);
   }
 
-  // Check if {target} is a JSFunction.
-  if (target_type.Is(Type::Function())) {
+  // Check if {target} is a directly callable JSFunction.
+  if (target_type.Is(Type::CallableFunction())) {
     // The node will change operators, remove the feedback vector.
     node->RemoveInput(n.FeedbackVectorIndex());
     // Compute flags for the call.
@@ -2224,11 +2223,11 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
 
   // Constant-fold based on {value} type.
   if (value_type.Is(Type::Array())) {
-    Node* value = jsgraph()->TrueConstant();
+    value = jsgraph()->TrueConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   } else if (!value_type.Maybe(Type::ArrayOrProxy())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   }

@@ -10,7 +10,7 @@ async function f(assert) {
   try {
     module_namespace_obj = await import('modules-skip-1.mjs');
   } catch(e) {
-    %AbortJS(e);
+    %AbortJS(e.ToString());
   }
 
   class A {

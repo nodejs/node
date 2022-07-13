@@ -6,7 +6,6 @@
 #define V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -20,6 +19,7 @@
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
+#include "src/utils/locked-queue.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -34,11 +34,14 @@ class AstValueFactory;
 class BackgroundCompileTask;
 class CancelableTaskManager;
 class UnoptimizedCompileJob;
+class UnoptimizedCompileState;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
+class ProducedPreparseData;
 class SharedFunctionInfo;
 class TimedHistogram;
+class Utf16CharacterStream;
 class WorkerThreadRuntimeCallStats;
 class Zone;
 
@@ -81,18 +84,8 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
   ~LazyCompileDispatcher();
 
-  // Returns true if the compiler dispatcher is enabled.
-  bool IsEnabled() const;
-
-  base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
-                                const AstRawString* function_name,
-                                const FunctionLiteral* function_literal);
-
-  // Registers the given |function| with the compilation job |job_id|.
-  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo function);
-
-  // Returns true if there is a pending job with the given id.
-  bool IsEnqueued(JobId job_id) const;
+  void Enqueue(LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+               std::unique_ptr<Utf16CharacterStream> character_stream);
 
   // Returns true if there is a pending job registered for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
@@ -101,54 +94,93 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
-  // Aborts compilation job |job_id|.
-  void AbortJob(JobId job_id);
+  // Aborts compilation job for the given function.
+  void AbortJob(Handle<SharedFunctionInfo> function);
 
   // Aborts all jobs, blocking until all jobs are aborted.
   void AbortAll();
 
  private:
-  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskNoIdleTime);
-  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(LazyCompilerDispatcherTest, FinishNowWithWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobNotStarted);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobAlreadyStarted);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread);
+  FRIEND_TEST(LazyCompileDispatcherTest, IdleTaskNoIdleTime);
+  FRIEND_TEST(LazyCompileDispatcherTest, IdleTaskSmallIdleTime);
+  FRIEND_TEST(LazyCompileDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, AbortJobNotStarted);
+  FRIEND_TEST(LazyCompileDispatcherTest, AbortJobAlreadyStarted);
+  FRIEND_TEST(LazyCompileDispatcherTest, AsyncAbortAllPendingWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, AsyncAbortAllRunningWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread);
+
+  // JobTask for PostJob API.
+  class JobTask;
 
   struct Job {
-    explicit Job(BackgroundCompileTask* task_arg);
+    enum class State {
+      // Background thread states (Enqueue + DoBackgroundWork)
+      // ---
+
+      // In the pending task queue.
+      kPending,
+      // Currently running on a background thread.
+      kRunning,
+      kAbortRequested,  // ... but we want to drop the result.
+      // In the finalizable task queue.
+      kReadyToFinalize,
+      kAborted,
+
+      // Main thread states (FinishNow and FinalizeSingleJob)
+      // ---
+
+      // Popped off the pending task queue.
+      kPendingToRunOnForeground,
+      // Popped off the finalizable task queue.
+      kFinalizingNow,
+      kAbortingNow,  // ... and we want to abort
+
+      // Finished finalizing, ready for deletion.
+      kFinalized,
+    };
+
+    explicit Job(std::unique_ptr<BackgroundCompileTask> task);
     ~Job();
 
-    bool IsReadyToFinalize(const base::MutexGuard&) {
-      return has_run && (!function.is_null() || aborted);
-    }
-
-    bool IsReadyToFinalize(base::Mutex* mutex) {
-      base::MutexGuard lock(mutex);
-      return IsReadyToFinalize(lock);
+    bool is_running_on_background() const {
+      return state == State::kRunning || state == State::kAbortRequested;
     }
 
     std::unique_ptr<BackgroundCompileTask> task;
-    MaybeHandle<SharedFunctionInfo> function;
-    bool has_run;
-    bool aborted;
+    State state = State::kPending;
   };
 
-  using JobMap = std::map<JobId, std::unique_ptr<Job>>;
-  using SharedToJobIdMap = IdentityMap<JobId, FreeStoreAllocationPolicy>;
+  using SharedToJobMap = IdentityMap<Job*, FreeStoreAllocationPolicy>;
 
-  void WaitForJobIfRunningOnBackground(Job* job);
-  JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
-  void ScheduleMoreWorkerTasksIfNeeded();
+  void WaitForJobIfRunningOnBackground(Job* job, const base::MutexGuard&);
+  Job* GetJobFor(Handle<SharedFunctionInfo> shared,
+                 const base::MutexGuard&) const;
+  Job* PopSingleFinalizeJob();
   void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
-  void DoBackgroundWork();
+  bool FinalizeSingleJob();
+  void DoBackgroundWork(JobDelegate* delegate);
   void DoIdleWork(double deadline_in_seconds);
-  // Returns iterator to the inserted job.
-  JobMap::const_iterator InsertJob(std::unique_ptr<Job> job);
-  // Returns iterator following the removed job.
-  JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
+
+  // DeleteJob without the mutex held.
+  void DeleteJob(Job* job);
+  // DeleteJob with the mutex already held.
+  void DeleteJob(Job* job, const base::MutexGuard&);
+
+  void NotifyAddedBackgroundJob(const base::MutexGuard& lock) {
+    ++num_jobs_for_background_;
+    VerifyBackgroundTaskCount(lock);
+  }
+  void NotifyRemovedBackgroundJob(const base::MutexGuard& lock) {
+    --num_jobs_for_background_;
+    VerifyBackgroundTaskCount(lock);
+  }
+
+#ifdef DEBUG
+  void VerifyBackgroundTaskCount(const base::MutexGuard&);
+#else
+  void VerifyBackgroundTaskCount(const base::MutexGuard&) {}
+#endif
 
   Isolate* isolate_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
@@ -157,36 +189,41 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   Platform* platform_;
   size_t max_stack_size_;
 
+  std::unique_ptr<JobHandle> job_handle_;
+
   // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
   bool trace_compiler_dispatcher_;
 
-  std::unique_ptr<CancelableTaskManager> task_manager_;
-
-  // Id for next job to be added
-  JobId next_job_id_;
-
-  // Mapping from job_id to job.
-  JobMap jobs_;
-
-  // Mapping from SharedFunctionInfo to the corresponding unoptimized
-  // compilation's JobId;
-  SharedToJobIdMap shared_to_unoptimized_job_id_;
+  std::unique_ptr<CancelableTaskManager> idle_task_manager_;
 
   // The following members can be accessed from any thread. Methods need to hold
   // the mutex |mutex_| while accessing them.
-  base::Mutex mutex_;
+  mutable base::Mutex mutex_;
 
   // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
 
-  // Number of scheduled or running WorkerTask objects.
-  int num_worker_tasks_;
-
   // The set of jobs that can be run on a background thread.
-  std::unordered_set<Job*> pending_background_jobs_;
+  std::vector<Job*> pending_background_jobs_;
 
-  // The set of jobs currently being run on background threads.
-  std::unordered_set<Job*> running_background_jobs_;
+  // The set of jobs that can be finalized on the main thread.
+  std::vector<Job*> finalizable_jobs_;
+
+  // The total number of jobs ready to execute on background, both those pending
+  // and those currently running.
+  std::atomic<size_t> num_jobs_for_background_;
+
+#ifdef DEBUG
+  // The set of all allocated jobs, used for verification of the various queues
+  // and counts.
+  std::unordered_set<Job*> all_jobs_;
+#endif
+
+  // A queue of jobs to delete on the background thread(s). Jobs in this queue
+  // are considered dead as far as the rest of the system is concerned, so they
+  // won't be pointed to by any SharedFunctionInfo and won't be in the all_jobs
+  // set above.
+  std::vector<Job*> jobs_to_dispose_;
 
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.

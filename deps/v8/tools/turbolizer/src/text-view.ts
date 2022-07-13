@@ -20,7 +20,7 @@ export abstract class TextView extends PhaseView {
   instructionIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   nodeIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   blockIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
-  blockIdtoNodeIds: Map<string, Array<string>>;
+  blockIdToNodeIds: Map<string, Array<string>>;
   nodeIdToBlockId: Array<string>;
   patterns: any;
   sourceResolver: SourceResolver;
@@ -34,7 +34,7 @@ export abstract class TextView extends PhaseView {
     view.instructionIdToHtmlElementsMap = new Map();
     view.nodeIdToHtmlElementsMap = new Map();
     view.blockIdToHtmlElementsMap = new Map();
-    view.blockIdtoNodeIds = new Map();
+    view.blockIdToNodeIds = new Map();
     view.nodeIdToBlockId = [];
     view.selection = new MySelection(anyToString);
     view.blockSelection = new MySelection(anyToString);
@@ -147,10 +147,10 @@ export abstract class TextView extends PhaseView {
 
   addNodeIdToBlockId(anyNodeId, anyBlockId) {
     const blockId = anyToString(anyBlockId);
-    if (!this.blockIdtoNodeIds.has(blockId)) {
-      this.blockIdtoNodeIds.set(blockId, []);
+    if (!this.blockIdToNodeIds.has(blockId)) {
+      this.blockIdToNodeIds.set(blockId, []);
     }
-    this.blockIdtoNodeIds.get(blockId).push(anyToString(anyNodeId));
+    this.blockIdToNodeIds.get(blockId).push(anyToString(anyNodeId));
     this.nodeIdToBlockId[anyNodeId] = blockId;
   }
 

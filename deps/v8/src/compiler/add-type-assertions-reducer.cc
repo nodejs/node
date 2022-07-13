@@ -20,6 +20,9 @@ AddTypeAssertionsReducer::~AddTypeAssertionsReducer() = default;
 
 Reduction AddTypeAssertionsReducer::Reduce(Node* node) {
   if (node->opcode() == IrOpcode::kAssertType ||
+      node->opcode() == IrOpcode::kAllocate ||
+      node->opcode() == IrOpcode::kObjectState ||
+      node->opcode() == IrOpcode::kObjectId ||
       node->opcode() == IrOpcode::kPhi || !NodeProperties::IsTyped(node) ||
       visited_.Get(node)) {
     return NoChange();

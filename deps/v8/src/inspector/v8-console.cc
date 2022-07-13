@@ -21,6 +21,7 @@
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8_inspector {
 
@@ -188,54 +189,63 @@ V8Console::V8Console(V8InspectorImpl* inspector) : m_inspector(inspector) {}
 
 void V8Console::Debug(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Debug");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDebug);
 }
 
 void V8Console::Error(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Error");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kError);
 }
 
 void V8Console::Info(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Info");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kInfo);
 }
 
 void V8Console::Log(const v8::debug::ConsoleCallArguments& info,
                     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Log");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kLog);
 }
 
 void V8Console::Warn(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Warn");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kWarning);
 }
 
 void V8Console::Dir(const v8::debug::ConsoleCallArguments& info,
                     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Dir");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDir);
 }
 
 void V8Console::DirXml(const v8::debug::ConsoleCallArguments& info,
                        const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::DirXml");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kDirXML);
 }
 
 void V8Console::Table(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Table");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCall(ConsoleAPIType::kTable);
 }
 
 void V8Console::Trace(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Trace");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kTrace,
                                      String16("console.trace"));
@@ -243,6 +253,7 @@ void V8Console::Trace(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Group(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Group");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kStartGroup,
                                      String16("console.group"));
@@ -251,6 +262,8 @@ void V8Console::Group(const v8::debug::ConsoleCallArguments& info,
 void V8Console::GroupCollapsed(
     const v8::debug::ConsoleCallArguments& info,
     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::GroupCollapsed");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kStartGroupCollapsed,
                                      String16("console.groupCollapsed"));
@@ -258,6 +271,8 @@ void V8Console::GroupCollapsed(
 
 void V8Console::GroupEnd(const v8::debug::ConsoleCallArguments& info,
                          const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::GroupEnd");
   ConsoleHelper(info, consoleContext, m_inspector)
       .reportCallWithDefaultArgument(ConsoleAPIType::kEndGroup,
                                      String16("console.groupEnd"));
@@ -265,6 +280,7 @@ void V8Console::GroupEnd(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Clear(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Clear");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   if (!helper.groupId()) return;
   m_inspector->client()->consoleClear(helper.groupId());
@@ -295,6 +311,8 @@ static String16 identifierFromTitleOrStackTrace(
 
 void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::Count");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16("default"), false);
   String16 identifier = identifierFromTitleOrStackTrace(
@@ -306,10 +324,15 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   helper.reportCallWithArgument(
       ConsoleAPIType::kCount,
       title.isEmpty() ? countString : (title + ": " + countString));
+  TRACE_EVENT_END2(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::Count", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()), "count", count);
 }
 
 void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
                            const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::CountReset");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16("default"), false);
   String16 identifier = identifierFromTitleOrStackTrace(
@@ -320,10 +343,14 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
     helper.reportCallWithArgument(ConsoleAPIType::kWarning,
                                   "Count for '" + title + "' does not exist");
   }
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::CountReset", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
                        const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Assert");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   DCHECK(!helper.firstArgToBoolean(false));
 
@@ -338,20 +365,30 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::Profile");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfile(
-        helper.firstArgToString(String16()));
+  String16 title = helper.firstArgToString(String16());
+  helper.forEachSession([&title](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfile(title);
   });
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::Profile", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
                            const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                     "V8Console::ProfileEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfileEnd(
-        helper.firstArgToString(String16()));
+  String16 title = helper.firstArgToString(String16());
+  helper.forEachSession([&title](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfileEnd(title);
   });
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                   "V8Console::ProfileEnd", "title",
+                   TRACE_STR_COPY(title.utf8().c_str()));
 }
 
 static void timeFunction(const v8::debug::ConsoleCallArguments& info,
@@ -408,21 +445,26 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
   timeFunction(info, consoleContext, false, m_inspector);
 }
 
 void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeLog");
   timeEndFunction(info, consoleContext, true, m_inspector);
 }
 
 void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeEnd");
   timeEndFunction(info, consoleContext, false, m_inspector);
 }
 
 void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
                           const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 title = helper.firstArgToString(String16());
   m_inspector->client()->consoleTimeStamp(toStringView(title));
@@ -444,6 +486,104 @@ void V8Console::memorySetterCallback(
   // We can't make the attribute readonly as it breaks existing code that relies
   // on being able to assign to console.memory in strict mode. Instead, the
   // setter just ignores the passed value.  http://crbug.com/468611
+}
+
+v8::Maybe<int64_t> V8Console::ValidateAndGetTaskId(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() != 1) {
+    info.GetIsolate()->ThrowError("Unexpected arguments");
+    return v8::Nothing<int64_t>();
+  }
+
+  int64_t argId;
+  if (!info[0]->IsNumber() ||
+      !v8::Just(info[0].As<v8::Integer>()->Value()).To(&argId)) {
+    info.GetIsolate()->ThrowError("Task ID should be an integer");
+    return v8::Nothing<int64_t>();
+  }
+
+  auto it = m_asyncTaskIds.find(argId);
+  if (it == m_asyncTaskIds.end()) {
+    info.GetIsolate()->ThrowError("Task with ID doesn't exist");
+    return v8::Nothing<int64_t>();
+  }
+
+  return v8::Just(argId);
+}
+
+void V8Console::scheduleAsyncTask(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() != 1 && info.Length() != 2) {
+    info.GetIsolate()->ThrowError("Unexpected arguments");
+    return;
+  }
+  if (info.Length() == 2 && !info[1]->IsBoolean()) {
+    info.GetIsolate()->ThrowError("Unexpected arguments");
+    return;
+  }
+
+  v8::debug::ConsoleCallArguments args(info);
+  ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
+  String16 argName = helper.firstArgToString(String16());
+  bool recurring =
+      info.Length() == 2 ? info[1].As<v8::Boolean>()->Value() : false;
+
+  int64_t id = m_taskIdCounter++;
+  auto it = m_asyncTaskIds.find(id);
+  if (it != m_asyncTaskIds.end()) {
+    info.GetIsolate()->ThrowError("Task with ID already exists");
+    return;
+  }
+
+  AsyncTaskInfo taskInfo;
+  taskInfo.ptr = new int();
+  taskInfo.recurring = recurring;
+  m_asyncTaskIds.emplace(id, taskInfo);
+
+  StringView taskName = StringView(argName.characters16(), argName.length());
+  m_inspector->asyncTaskScheduled(taskName, taskInfo.ptr, recurring);
+
+  info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), id));
+}
+
+void V8Console::startAsyncTask(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
+  if (maybeArgId.IsNothing()) return;
+
+  int64_t taskId = maybeArgId.FromJust();
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskStarted(taskInfo.ptr);
+}
+
+void V8Console::finishAsyncTask(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
+  if (maybeArgId.IsNothing()) return;
+
+  int64_t taskId = maybeArgId.FromJust();
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskFinished(taskInfo.ptr);
+
+  if (taskInfo.recurring) {
+    return;
+  }
+
+  delete taskInfo.ptr;
+  m_asyncTaskIds.erase(taskId);
+}
+
+void V8Console::cancelAsyncTask(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
+  if (maybeArgId.IsNothing()) return;
+
+  int64_t taskId = maybeArgId.FromJust();
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskCanceled(taskInfo.ptr);
+
+  delete taskInfo.ptr;
+  m_asyncTaskIds.erase(taskId);
 }
 
 void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -664,6 +804,48 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
                         data, 0, v8::ConstructorBehavior::kThrow)
           .ToLocalChecked(),
       static_cast<v8::PropertyAttribute>(v8::None), v8::DEFAULT);
+}
+
+void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
+                                            v8::Local<v8::Object> console) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+
+  v8::MicrotasksScope microtasksScope(isolate,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+
+  console
+      ->Set(context, toV8StringInternalized(isolate, "scheduleAsyncTask"),
+            v8::Function::New(context,
+                              &V8Console::call<&V8Console::scheduleAsyncTask>,
+                              data, 0, v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect)
+                .ToLocalChecked())
+      .Check();
+  console
+      ->Set(context, toV8StringInternalized(isolate, "startAsyncTask"),
+            v8::Function::New(context,
+                              &V8Console::call<&V8Console::startAsyncTask>,
+                              data, 0, v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect)
+                .ToLocalChecked())
+      .Check();
+  console
+      ->Set(context, toV8StringInternalized(isolate, "finishAsyncTask"),
+            v8::Function::New(context,
+                              &V8Console::call<&V8Console::finishAsyncTask>,
+                              data, 0, v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect)
+                .ToLocalChecked())
+      .Check();
+  console
+      ->Set(context, toV8StringInternalized(isolate, "cancelAsyncTask"),
+            v8::Function::New(context,
+                              &V8Console::call<&V8Console::cancelAsyncTask>,
+                              data, 0, v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect)
+                .ToLocalChecked())
+      .Check();
 }
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(

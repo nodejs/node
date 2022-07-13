@@ -1,6 +1,6 @@
 const inspect = require('util').inspect
 const { URL } = require('url')
-const ansistyles = require('ansistyles')
+const chalk = require('chalk')
 const log = require('../utils/log-shim.js')
 const npmProfile = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
@@ -53,6 +53,8 @@ class Profile extends BaseCommand {
     'parseable',
     'otp',
   ]
+
+  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     var argv = opts.conf.argv.remain
@@ -108,7 +110,7 @@ class Profile extends BaseCommand {
   async get (args) {
     const tfa = 'two-factor auth'
     const info = await pulseTillDone.withPromise(
-      npmProfile.get(this.npm.flatOptions)
+      npmProfile.get({ ...this.npm.flatOptions })
     )
 
     if (!info.cidr_whitelist) {
@@ -161,7 +163,7 @@ class Profile extends BaseCommand {
       } else {
         const table = new Table()
         for (const key of Object.keys(cleaned)) {
-          table.push({ [ansistyles.bright(key)]: cleaned[key] })
+          table.push({ [chalk.bold(key)]: cleaned[key] })
         }
 
         this.npm.output(table.toString())
@@ -170,7 +172,7 @@ class Profile extends BaseCommand {
   }
 
   async set (args) {
-    const conf = this.npm.flatOptions
+    const conf = { ...this.npm.flatOptions }
     const prop = (args[0] || '').toLowerCase().trim()
 
     let value = args.length > 1 ? args.slice(1).join(' ') : null
@@ -285,7 +287,7 @@ class Profile extends BaseCommand {
     if (auth.basic) {
       log.info('profile', 'Updating authentication to bearer token')
       const result = await npmProfile.createToken(
-        auth.basic.password, false, [], this.npm.flatOptions
+        auth.basic.password, false, [], { ...this.npm.flatOptions }
       )
 
       if (!result.token) {
@@ -309,7 +311,7 @@ class Profile extends BaseCommand {
 
     log.info('profile', 'Determine if tfa is pending')
     const userInfo = await pulseTillDone.withPromise(
-      npmProfile.get(this.npm.flatOptions)
+      npmProfile.get({ ...this.npm.flatOptions })
     )
 
     const conf = { ...this.npm.flatOptions }

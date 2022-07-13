@@ -2,10 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-from __future__ import absolute_import
-
 import datetime
 import json
 import os
@@ -24,7 +20,9 @@ def print_failure_header(test, is_flaky=False):
     text.append('[negative]')
   if is_flaky:
     text.append('(flaky)')
-  print('=== %s ===' % ' '.join(text))
+  output = '=== %s ===' % ' '.join(text)
+  encoding = sys.stdout.encoding or 'utf-8'
+  print(output.encode(encoding, errors='replace').decode(encoding))
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -119,17 +117,17 @@ class StreamProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_OUTPUT
 
   def _on_result_for(self, test, result):
-      if not result.has_unexpected_output:
-        self.print('PASS', test)
-      elif result.output.HasCrashed():
-        self.print("CRASH", test)
-      elif result.output.HasTimedOut():
-        self.print("TIMEOUT", test)
+    if not result.has_unexpected_output:
+      self.print('PASS', test)
+    elif result.output.HasCrashed():
+      self.print("CRASH", test)
+    elif result.output.HasTimedOut():
+      self.print("TIMEOUT", test)
+    else:
+      if test.is_fail:
+        self.print("UNEXPECTED PASS", test)
       else:
-        if test.is_fail:
-          self.print("UNEXPECTED PASS", test)
-        else:
-          self.print("FAIL", test)
+        self.print("FAIL", test)
 
   def print(self, prefix, test):
     print('%s: %ss' % (prefix, test))
@@ -152,7 +150,8 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     self._last_printed_time = time.time()
 
   def _print(self, text):
-    print(text)
+    encoding = sys.stdout.encoding or 'utf-8'
+    print(text.encode(encoding, errors='replace').decode(encoding))
     sys.stdout.flush()
     self._last_printed_time = time.time()
 
@@ -349,11 +348,11 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
   def __init__(self):
-   templates = {
-     'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
-                     "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
-   }
-   super(MonochromeProgressIndicator, self).__init__(templates)
+    templates = {
+        'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
+                        "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
+    }
+    super(MonochromeProgressIndicator, self).__init__(templates)
 
   def printFormatted(self, format, string):
     print(string)
@@ -369,7 +368,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
-      self.outfile = open(junitout, "w")
+      self.outfile = open(junitout, "wb")
     else:
       self.outfile = sys.stdout
 

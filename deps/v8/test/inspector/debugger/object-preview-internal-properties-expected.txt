@@ -28,6 +28,11 @@ expression: Object(Symbol(42))
     type : symbol
     value : Symbol(42)
 }
+{
+    name : description
+    type : string
+    value : 42
+}
 
 expression: Object(BigInt(2))
 {
@@ -252,6 +257,51 @@ expression: /123/
     type : number
     value : 0
 }
+{
+    name : dotAll
+    type : boolean
+    value : false
+}
+{
+    name : flags
+    type : string
+    value :
+}
+{
+    name : global
+    type : boolean
+    value : false
+}
+{
+    name : hasIndices
+    type : boolean
+    value : false
+}
+{
+    name : ignoreCase
+    type : boolean
+    value : false
+}
+{
+    name : multiline
+    type : boolean
+    value : false
+}
+{
+    name : source
+    type : string
+    value : 123
+}
+{
+    name : sticky
+    type : boolean
+    value : false
+}
+{
+    name : unicode
+    type : boolean
+    value : false
+}
 
 expression: ({})
 
@@ -318,6 +368,5 @@ expression: new Proxy(() => {}, { get: () => x++ })
 {
     name : name
     type : string
-    value : 
+    value :
 }
-

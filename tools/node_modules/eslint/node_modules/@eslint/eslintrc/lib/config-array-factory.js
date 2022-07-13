@@ -38,22 +38,23 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+import debugOrig from "debug";
 import fs from "fs";
-import path from "path";
 import importFresh from "import-fresh";
+import { createRequire } from "module";
+import path from "path";
 import stripComments from "strip-json-comments";
-import ConfigValidator from "./shared/config-validator.js";
-import * as naming from "./shared/naming.js";
-import * as ModuleResolver from "./shared/relative-module-resolver.js";
+
 import {
     ConfigArray,
     ConfigDependency,
     IgnorePattern,
     OverrideTester
 } from "./config-array/index.js";
-import debugOrig from "debug";
+import ConfigValidator from "./shared/config-validator.js";
+import * as naming from "./shared/naming.js";
+import * as ModuleResolver from "./shared/relative-module-resolver.js";
 
-import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const debug = debugOrig("eslintrc:config-array-factory");
@@ -90,7 +91,9 @@ const configFilenames = [
  * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
  * @property {Object} [resolver=ModuleResolver] The module resolver object.
  * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {Function} getEslintAllConfig Returns the config data for eslint:all.
  * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
+ * @property {Function} getEslintRecommendedConfig Returns the config data for eslint:recommended.
  */
 
 /**
@@ -101,7 +104,9 @@ const configFilenames = [
  * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
  * @property {Object} [resolver=ModuleResolver] The module resolver object.
  * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {Function} getEslintAllConfig Returns the config data for eslint:all.
  * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
+ * @property {Function} getEslintRecommendedConfig Returns the config data for eslint:recommended.
  */
 
 /**
@@ -428,7 +433,9 @@ class ConfigArrayFactory {
         builtInRules,
         resolver = ModuleResolver,
         eslintAllPath,
-        eslintRecommendedPath
+        getEslintAllConfig,
+        eslintRecommendedPath,
+        getEslintRecommendedConfig
     } = {}) {
         internalSlotsMap.set(this, {
             additionalPluginPool,
@@ -439,7 +446,9 @@ class ConfigArrayFactory {
             builtInRules,
             resolver,
             eslintAllPath,
-            eslintRecommendedPath
+            getEslintAllConfig,
+            eslintRecommendedPath,
+            getEslintRecommendedConfig
         });
     }
 
@@ -797,20 +806,41 @@ class ConfigArrayFactory {
      * @private
      */
     _loadExtendedBuiltInConfig(extendName, ctx) {
-        const { eslintAllPath, eslintRecommendedPath } = internalSlotsMap.get(this);
+        const {
+            eslintAllPath,
+            getEslintAllConfig,
+            eslintRecommendedPath,
+            getEslintRecommendedConfig
+        } = internalSlotsMap.get(this);
 
         if (extendName === "eslint:recommended") {
+            const name = `${ctx.name} » ${extendName}`;
+
+            if (getEslintRecommendedConfig) {
+                if (typeof getEslintRecommendedConfig !== "function") {
+                    throw new Error(`getEslintRecommendedConfig must be a function instead of '${getEslintRecommendedConfig}'`);
+                }
+                return this._normalizeConfigData(getEslintRecommendedConfig(), { ...ctx, name, filePath: "" });
+            }
             return this._loadConfigData({
                 ...ctx,
-                filePath: eslintRecommendedPath,
-                name: `${ctx.name} » ${extendName}`
+                name,
+                filePath: eslintRecommendedPath
             });
         }
         if (extendName === "eslint:all") {
+            const name = `${ctx.name} » ${extendName}`;
+
+            if (getEslintAllConfig) {
+                if (typeof getEslintAllConfig !== "function") {
+                    throw new Error(`getEslintAllConfig must be a function instead of '${getEslintAllConfig}'`);
+                }
+                return this._normalizeConfigData(getEslintAllConfig(), { ...ctx, name, filePath: "" });
+            }
             return this._loadConfigData({
                 ...ctx,
-                filePath: eslintAllPath,
-                name: `${ctx.name} » ${extendName}`
+                name,
+                filePath: eslintAllPath
             });
         }
 

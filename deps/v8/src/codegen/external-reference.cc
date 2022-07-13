@@ -4,17 +4,19 @@
 
 #include "src/codegen/external-reference.h"
 
-#include "src/api/api.h"
+#include "include/v8-fast-api-calls.h"
+#include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/encoded-c-signature.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/simulator-base.h"
+#include "src/execution/simulator.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
@@ -173,8 +175,18 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
 }
 
 // static
+ExternalReference ExternalReference::Create(ApiFunction* fun, Type type) {
+  return ExternalReference(Redirect(fun->address(), type));
+}
+
+// static
 ExternalReference ExternalReference::Create(
-    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL) {
+    Isolate* isolate, ApiFunction* fun, Type type, Address* c_functions,
+    const CFunctionInfo* const* c_signatures, unsigned num_functions) {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  isolate->simulator_data()->RegisterFunctionsAndSignatures(
+      c_functions, c_signatures, num_functions);
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   return ExternalReference(Redirect(fun->address(), type));
 }
 
@@ -198,9 +210,8 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
-ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->builtin_address(Builtins::FromInt(0)));
+ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
+  return ExternalReference(isolate->builtin_table());
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
@@ -208,12 +219,28 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_POINTERS
+ExternalReference ExternalReference::sandbox_base_address() {
+  return ExternalReference(GetProcessWideSandbox()->base_address());
+}
+
+ExternalReference ExternalReference::sandbox_end_address() {
+  return ExternalReference(GetProcessWideSandbox()->end_address());
+}
+
+ExternalReference ExternalReference::empty_backing_store_buffer() {
+  return ExternalReference(GetProcessWideSandbox()
+                               ->constants()
+                               .empty_backing_store_buffer_address());
+}
+#endif  // V8_SANDBOXED_POINTERS
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->external_pointer_table_address());
 }
-#endif
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -292,12 +319,6 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 
 #define FUNCTION_REFERENCE(Name, Target)                                   \
   ExternalReference ExternalReference::Name() {                            \
-    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
-    return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
-  }
-
-#define FUNCTION_REFERENCE_WITH_ISOLATE(Name, Target)                      \
-  ExternalReference ExternalReference::Name(Isolate* isolate) {            \
     STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
     return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
   }
@@ -537,6 +558,10 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_shared_string_table_flag() {
+  return ExternalReference(&FLAG_shared_string_table);
+}
+
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {
   return ExternalReference(
@@ -639,6 +664,11 @@ ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
       reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
 }
 
+ExternalReference ExternalReference::supports_cetss_address() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&CpuFeatures::supports_cetss_));
+}
+
 ExternalReference
 ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);
@@ -719,11 +749,10 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 UNREACHABLE();
 #endif
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
+FUNCTION_REFERENCE(re_check_stack_guard_state, re_stack_check_func)
 #undef re_stack_check_func
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
-                                NativeRegExpMacroAssembler::GrowStack)
+FUNCTION_REFERENCE(re_grow_stack, NativeRegExpMacroAssembler::GrowStack)
 
 FUNCTION_REFERENCE(re_match_for_call_from_js,
                    IrregexpInterpreter::MatchForCallFromJs)
@@ -731,15 +760,16 @@ FUNCTION_REFERENCE(re_match_for_call_from_js,
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    ExperimentalRegExp::MatchForCallFromJs)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_non_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_non_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
-ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
+FUNCTION_REFERENCE(re_is_character_in_range_array,
+                   RegExpMacroAssembler::IsCharacterInRangeArray)
+
+ExternalReference ExternalReference::re_word_character_map() {
   return ExternalReference(
       NativeRegExpMacroAssembler::word_character_map_address());
 }
@@ -868,8 +898,7 @@ ExternalReference ExternalReference::search_string_raw() {
 FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
                    JSArray::ArrayJoinConcatToSequentialString)
 
-FUNCTION_REFERENCE(length_tracking_gsab_backed_typed_array_length,
-                   JSTypedArray::LengthTrackingGsabBackedTypedArrayLength)
+FUNCTION_REFERENCE(gsab_byte_length, JSArrayBuffer::GsabByteLength)
 
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
@@ -998,6 +1027,17 @@ ExternalReference ExternalReference::intl_to_latin1_lower_table() {
   uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
   return ExternalReference(reinterpret_cast<Address>(ptr));
 }
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l1() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL1());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l3() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL3());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 #endif  // V8_INTL_SUPPORT
 
 // Explicit instantiations for all combinations of 1- and 2-byte strings.
@@ -1339,9 +1379,9 @@ FUNCTION_REFERENCE(
     js_finalization_registry_remove_cell_from_unregister_token_map,
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
-#ifdef V8_HEAP_SANDBOX
-FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
-                   ExternalPointerTable::GrowTable)
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+FUNCTION_REFERENCE(external_pointer_table_allocate_entry,
+                   ExternalPointerTable::AllocateEntry)
 #endif
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
@@ -1380,7 +1420,6 @@ void abort_with_reason(int reason) {
 }
 
 #undef FUNCTION_REFERENCE
-#undef FUNCTION_REFERENCE_WITH_ISOLATE
 #undef FUNCTION_REFERENCE_WITH_TYPE
 
 }  // namespace internal

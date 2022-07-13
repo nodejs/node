@@ -2,9 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmdiff.svg)](https://npm.im/libnpmdiff)
 [![license](https://img.shields.io/npm/l/libnpmdiff.svg)](https://npm.im/libnpmdiff)
-[![GitHub Actions](https://github.com/npm/libnpmdiff/workflows/node-ci/badge.svg)](https://github.com/npm/libnpmdiff/actions?query=workflow%3Anode-ci)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmdiff/badge.svg?branch=main)](https://coveralls.io/github/npm/libnpmdiff?branch=main)
-
+[![CI - libnpmdiff](https://github.com/npm/cli/actions/workflows/ci-libnpmdiff.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmdiff.yml)
 The registry diff lib.
 
 ## Table of Contents

@@ -152,12 +152,14 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindAccessor(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kAccessor));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kAccessor)));
 }
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kData));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kData)));
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
@@ -573,7 +575,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
 
   BIND(&not_undefined_nor_null);
   Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
-                     new_target, Int32Constant(2), object, key));
+                     new_target, JSParameterCount(1), object, key));
 }
 
 // ES #sec-object.getOwnPropertyNames

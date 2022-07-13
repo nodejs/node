@@ -127,7 +127,6 @@ template <typename OUTPUT_T, typename INPUT_T>
 OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
                        Func test_generator) {
   DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
-  DCHECK(sizeof(OUTPUT_T) == sizeof(INPUT_T));
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -326,6 +325,11 @@ Handle<Code> AssembleCodeImpl(Func assemble);
 template <typename Signature>
 GeneratedCode<Signature> AssembleCode(Func assemble) {
   return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
+}
+
+template <typename T>
+T UseCanonicalNan(T x) {
+  return isnan(x) ? std::numeric_limits<T>::quiet_NaN() : x;
 }
 
 }  // namespace internal

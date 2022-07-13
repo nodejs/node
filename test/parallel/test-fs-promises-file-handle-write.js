@@ -53,7 +53,12 @@ async function validateNonUint8ArrayWrite() {
 async function validateNonStringValuesWrite() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-non-string-write.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
-  const nonStringValues = [123, {}, new Map()];
+  const nonStringValues = [
+    123, {}, new Map(), null, undefined, 0n, () => {}, Symbol(), true,
+    new String('notPrimitive'),
+    { toString() { return 'amObject'; } },
+    { [Symbol.toPrimitive]: (hint) => 'amObject' },
+  ];
   for (const nonStringValue of nonStringValues) {
     await assert.rejects(
       fileHandle.write(nonStringValue),

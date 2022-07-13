@@ -17,7 +17,6 @@ const mocks = {
     reify () {}
   },
   '../../../lib/utils/reify-finish.js': noop,
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 t.afterEach(() => {
@@ -39,14 +38,15 @@ t.test('no args', async t => {
         {
           ...npm.flatOptions,
           path: npm.prefix,
+          save: false,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
       )
-      t.match(log, {}, 'log is passed in')
     }
 
-    reify ({ update }) {
+    reify ({ save, update }) {
+      t.equal(save, false, 'should default to save=false')
       t.equal(update, true, 'should update all deps')
     }
   }
@@ -67,6 +67,7 @@ t.test('with args', async t => {
   t.plan(4)
 
   npm.prefix = '/project/a'
+  config.save = true
 
   class Arborist {
     constructor (args) {
@@ -76,14 +77,15 @@ t.test('with args', async t => {
         {
           ...npm.flatOptions,
           path: npm.prefix,
+          save: true,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
       )
-      t.match(log, {}, 'log is passed in')
     }
 
-    reify ({ update }) {
+    reify ({ save, update }) {
+      t.equal(save, true, 'should pass save if manually set')
       t.same(update, ['ipt'], 'should update listed deps')
     }
   }
@@ -125,7 +127,7 @@ t.test('update --depth=<number>', async t => {
 })
 
 t.test('update --global', async t => {
-  t.plan(3)
+  t.plan(2)
 
   const normalizePath = p => p.replace(/\\+/g, '/')
   const redactCwd = (path) => normalizePath(path)
@@ -140,11 +142,9 @@ t.test('update --global', async t => {
       const { path, log, ...rest } = args
       t.same(
         rest,
-        { ...npm.flatOptions, workspaces: undefined },
+        { ...npm.flatOptions, save: true, workspaces: undefined },
         'should call arborist contructor with expected options'
       )
-
-      t.match(log, {}, 'log is passed in')
 
       t.equal(
         redactCwd(path),

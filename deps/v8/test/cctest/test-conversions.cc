@@ -160,28 +160,28 @@ TEST(TrailingJunk) {
 
 
 TEST(NonStrDecimalLiteral) {
-  CHECK(std::isnan(
-      StringToDouble(" ", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(
-      StringToDouble("", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(
-      StringToDouble(" ", NO_FLAGS, std::numeric_limits<double>::quiet_NaN())));
-  CHECK_EQ(0.0, StringToDouble("", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(" ", NO_FLAGS));
+  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble("", NO_CONVERSION_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK_EQ(0.0, StringToDouble("", NO_CONVERSION_FLAGS));
+  CHECK_EQ(0.0, StringToDouble(" ", NO_CONVERSION_FLAGS));
 }
 
 
 TEST(IntegerStrLiteral) {
-  CHECK_EQ(0.0, StringToDouble("0.0", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("0", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("00", NO_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("000", NO_FLAGS));
-  CHECK_EQ(1.0, StringToDouble("1", NO_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble("-1", NO_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_FLAGS));
-  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_FLAGS));
-  CHECK(std::isnan(StringToDouble("  -  1  ", NO_FLAGS)));
-  CHECK(std::isnan(StringToDouble("  +  1  ", NO_FLAGS)));
+  CHECK_EQ(0.0, StringToDouble("0.0", NO_CONVERSION_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("0", NO_CONVERSION_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("00", NO_CONVERSION_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("000", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1.0, StringToDouble("1", NO_CONVERSION_FLAGS));
+  CHECK_EQ(-1.0, StringToDouble("-1", NO_CONVERSION_FLAGS));
+  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_CONVERSION_FLAGS));
+  CHECK(std::isnan(StringToDouble("  -  1  ", NO_CONVERSION_FLAGS)));
+  CHECK(std::isnan(StringToDouble("  +  1  ", NO_CONVERSION_FLAGS)));
 
   CHECK_EQ(0.0, StringToDouble("0e0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(0.0, StringToDouble("0e1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
@@ -195,11 +195,11 @@ TEST(IntegerStrLiteral) {
 TEST(LongNumberStr) {
   CHECK_EQ(1e10, StringToDouble("1"
                                 "0000000000",
-                                NO_FLAGS));
+                                NO_CONVERSION_FLAGS));
   CHECK_EQ(1e20, StringToDouble("1"
                                 "0000000000"
                                 "0000000000",
-                                NO_FLAGS));
+                                NO_CONVERSION_FLAGS));
 
   CHECK_EQ(1e60, StringToDouble("1"
                                 "0000000000"
@@ -208,21 +208,21 @@ TEST(LongNumberStr) {
                                 "0000000000"
                                 "0000000000"
                                 "0000000000",
-                                NO_FLAGS));
+                                NO_CONVERSION_FLAGS));
 
   CHECK_EQ(1e-2, StringToDouble("."
                                 "0"
                                 "1",
-                                NO_FLAGS));
+                                NO_CONVERSION_FLAGS));
   CHECK_EQ(1e-11, StringToDouble("."
                                  "0000000000"
                                  "1",
-                                 NO_FLAGS));
+                                 NO_CONVERSION_FLAGS));
   CHECK_EQ(1e-21, StringToDouble("."
                                  "0000000000"
                                  "0000000000"
                                  "1",
-                                 NO_FLAGS));
+                                 NO_CONVERSION_FLAGS));
 
   CHECK_EQ(1e-61, StringToDouble("."
                                  "0000000000"
@@ -232,16 +232,16 @@ TEST(LongNumberStr) {
                                  "0000000000"
                                  "0000000000"
                                  "1",
-                                 NO_FLAGS));
+                                 NO_CONVERSION_FLAGS));
 
   // x = 24414062505131248.0 and y = 24414062505131252.0 are representable in
   // double. Check chat z = (x + y) / 2 is rounded to x...
   CHECK_EQ(24414062505131248.0,
-           StringToDouble("24414062505131250.0", NO_FLAGS));
+           StringToDouble("24414062505131250.0", NO_CONVERSION_FLAGS));
 
   // ... and z = (x + y) / 2 + delta is rounded to y.
   CHECK_EQ(24414062505131252.0,
-           StringToDouble("24414062505131250.000000001", NO_FLAGS));
+           StringToDouble("24414062505131250.000000001", NO_CONVERSION_FLAGS));
 }
 
 
@@ -261,12 +261,14 @@ TEST(MaximumSignificantDigits) {
       "847003580761626016356864581135848683152156368691976240370422601"
       "6998291015625000000000000000000000000000000000e-308";
 
-  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144017780491e-308,
+           StringToDouble(num, NO_CONVERSION_FLAGS));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
-  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144022721148e-308,
+           StringToDouble(num, NO_CONVERSION_FLAGS));
 }
 
 
@@ -287,29 +289,32 @@ TEST(MinimumExponent) {
   "470035807616260163568645811358486831521563686919762403704226016"
   "998291015625000000000000000000000000000000000e-1108";
 
-  CHECK_EQ(4.4501477170144017780491e-308, StringToDouble(num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144017780491e-308,
+           StringToDouble(num, NO_CONVERSION_FLAGS));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
-  CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(num, NO_FLAGS));
+  CHECK_EQ(4.4501477170144022721148e-308,
+           StringToDouble(num, NO_CONVERSION_FLAGS));
 }
 
 
 TEST(MaximumExponent) {
   char num[] = "0.16e309";
 
-  CHECK_EQ(1.59999999999999997765e+308, StringToDouble(num, NO_FLAGS));
+  CHECK_EQ(1.59999999999999997765e+308,
+           StringToDouble(num, NO_CONVERSION_FLAGS));
 }
 
 
 TEST(ExponentNumberStr) {
-  CHECK_EQ(1e1, StringToDouble("1e1", NO_FLAGS));
-  CHECK_EQ(1e1, StringToDouble("1e+1", NO_FLAGS));
-  CHECK_EQ(1e-1, StringToDouble("1e-1", NO_FLAGS));
-  CHECK_EQ(1e100, StringToDouble("1e+100", NO_FLAGS));
-  CHECK_EQ(1e-100, StringToDouble("1e-100", NO_FLAGS));
-  CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_FLAGS));
+  CHECK_EQ(1e1, StringToDouble("1e1", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e1, StringToDouble("1e+1", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e-1, StringToDouble("1e-1", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e100, StringToDouble("1e+100", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e-100, StringToDouble("1e-100", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_CONVERSION_FLAGS));
 }
 
 using OneBit1 = base::BitField<uint32_t, 0, 1>;

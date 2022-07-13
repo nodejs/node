@@ -86,26 +86,26 @@ struct CodeDescOps {
   ret CodeReference::method() const {            \
     DCHECK(!is_null());                          \
     switch (kind_) {                             \
-      case JS:                                   \
+      case Kind::JS:                             \
         return JSOps{js_code_}.method();         \
-      case WASM:                                 \
+      case Kind::WASM:                           \
         return WasmOps{wasm_code_}.method();     \
-      case CODE_DESC:                            \
+      case Kind::CODE_DESC:                      \
         return CodeDescOps{code_desc_}.method(); \
       default:                                   \
         UNREACHABLE();                           \
     }                                            \
   }
 #else
-#define DISPATCH(ret, method)                  \
-  ret CodeReference::method() const {          \
-    DCHECK(!is_null());                        \
-    DCHECK(kind_ == JS || kind_ == CODE_DESC); \
-    if (kind_ == JS) {                         \
-      return JSOps{js_code_}.method();         \
-    } else {                                   \
-      return CodeDescOps{code_desc_}.method(); \
-    }                                          \
+#define DISPATCH(ret, method)                              \
+  ret CodeReference::method() const {                      \
+    DCHECK(!is_null());                                    \
+    DCHECK(kind_ == Kind::JS || kind_ == Kind::CODE_DESC); \
+    if (kind_ == Kind::JS) {                               \
+      return JSOps{js_code_}.method();                     \
+    } else {                                               \
+      return CodeDescOps{code_desc_}.method();             \
+    }                                                      \
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -9,11 +9,20 @@
 
 #include "include/cppgc/heap-statistics.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
 namespace internal {
+
+class Filler : public HeapObjectHeader {
+ public:
+  inline static Filler& CreateAt(void* memory, size_t size);
+
+ protected:
+  explicit Filler(size_t size) : HeapObjectHeader(size, kFreeListGCInfoIndex) {}
+};
 
 class V8_EXPORT_PRIVATE FreeList {
  public:
@@ -33,10 +42,12 @@ class V8_EXPORT_PRIVATE FreeList {
   // Allocates entries which are at least of the provided size.
   Block Allocate(size_t);
 
-  // Adds block to the freelist. The minimal block size is two words.
-  // Returns the start of the free list payload that will not be accessed by
-  // the free list itself.
-  Address Add(Block);
+  // Adds block to the freelist. The minimal block size is a words. Regular
+  // entries have two words and unusable filler entries have a single word.
+  void Add(Block);
+  // Same as `Add()` but also returns the bounds of memory that is not required
+  // for free list management.
+  std::pair<Address, Address> AddReturningUnusedBounds(Block);
 
   // Append other freelist into this.
   void Append(FreeList&&);
@@ -60,6 +71,14 @@ class V8_EXPORT_PRIVATE FreeList {
   std::array<Entry*, kPageSizeLog2> free_list_tails_;
   size_t biggest_free_list_index_ = 0;
 };
+
+// static
+Filler& Filler::CreateAt(void* memory, size_t size) {
+  // The memory area only needs to unpoisoned when running with ASAN. Zapped
+  // values (DEBUG) or uninitialized values (MSAN) are overwritten below.
+  ASAN_UNPOISON_MEMORY_REGION(memory, sizeof(Filler));
+  return *new (memory) Filler(size);
+}
 
 }  // namespace internal
 }  // namespace cppgc

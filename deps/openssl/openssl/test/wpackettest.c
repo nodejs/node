@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -386,7 +386,7 @@ static int test_WPACKET_init_der(void)
         return cleanup(&pkt);
 
     /* Generate random packet data for test */
-    if (!TEST_true(RAND_bytes(&testdata2[3], sizeof(testdata2) - 3)))
+    if (!TEST_int_gt(RAND_bytes(&testdata2[3], sizeof(testdata2) - 3), 0))
         return 0;
 
     /*

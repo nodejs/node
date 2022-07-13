@@ -292,6 +292,7 @@ class CompactionState final {
                 page->PayloadSize() - used_bytes_in_current_page_);
     }
 #endif
+    page->object_start_bitmap().MarkAsFullyPopulated();
   }
 
  private:
@@ -474,6 +475,7 @@ void Compactor::InitializeIfShouldCompact(
   compaction_worklists_ = std::make_unique<CompactionWorklists>();
 
   is_enabled_ = true;
+  is_cancelled_ = false;
 }
 
 bool Compactor::CancelIfShouldNotCompact(
@@ -481,15 +483,16 @@ bool Compactor::CancelIfShouldNotCompact(
     GarbageCollector::Config::StackState stack_state) {
   if (!is_enabled_ || ShouldCompact(marking_type, stack_state)) return false;
 
-  DCHECK_NOT_NULL(compaction_worklists_);
-  compaction_worklists_->movable_slots_worklist()->Clear();
-  compaction_worklists_.reset();
-
+  is_cancelled_ = true;
   is_enabled_ = false;
   return true;
 }
 
 Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
+  if (is_cancelled_ && compaction_worklists_) {
+    compaction_worklists_->movable_slots_worklist()->Clear();
+    compaction_worklists_.reset();
+  }
   if (!is_enabled_) return CompactableSpaceHandling::kSweep;
 
   StatsCollector::EnabledScope stats_scope(heap_.heap()->stats_collector(),

@@ -14,7 +14,8 @@ namespace internal {
 // static
 size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollected(
     const void* object) {
-  return ObjectView(HeapObjectHeader::FromObject(object)).Size();
+  return ObjectView<AccessMode::kAtomic>(HeapObjectHeader::FromObject(object))
+      .Size();
 }
 
 // static
@@ -25,8 +26,8 @@ size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollectedMixin(
   const auto& header =
       BasePage::FromPayload(address)
           ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
-  DCHECK(!header.IsLargeObject());
-  return header.ObjectSize();
+  DCHECK(!header.IsLargeObject<AccessMode::kAtomic>());
+  return header.ObjectSize<AccessMode::kAtomic>();
 }
 
 }  // namespace internal

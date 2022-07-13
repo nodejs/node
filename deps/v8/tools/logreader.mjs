@@ -32,62 +32,63 @@
 
 
 // Parses dummy variable for readability;
-export const parseString = 'parse-string';
+export function parseString(field) { return field };
 export const parseVarArgs = 'parse-var-args';
 
 /**
  * Base class for processing log files.
  *
- * @param {Array.<Object>} dispatchTable A table used for parsing and processing
- *     log records.
  * @param {boolean} timedRange Ignore ticks outside timed range.
  * @param {boolean} pairwiseTimedRange Ignore ticks outside pairs of timer
  *     markers.
  * @constructor
  */
 export class LogReader {
-  constructor (dispatchTable, timedRange, pairwiseTimedRange) {
-    /**
-     * @type {Array.<Object>}
-     */
-    this.dispatchTable_ = dispatchTable;
-
-    /**
-     * @type {boolean}
-     */
+  constructor(timedRange=false, pairwiseTimedRange=false) {
+    this.dispatchTable_ = new Map();
     this.timedRange_ = timedRange;
-
-    /**
-     * @type {boolean}
-     */
     this.pairwiseTimedRange_ = pairwiseTimedRange;
-    if (pairwiseTimedRange) {
-      this.timedRange_ = true;
-    }
-
-    /**
-     * Current line.
-     * @type {number}
-     */
+    if (pairwiseTimedRange) this.timedRange_ = true;
     this.lineNum_ = 0;
-
-    /**
-     * CSV lines parser.
-     * @type {CsvParser}
-     */
     this.csvParser_ = new CsvParser();
-
-    /**
-     * Keeps track of whether we've seen a "current-time" tick yet.
-     * @type {boolean}
-     */
+    // Variables for tracking of 'current-time' log entries:
     this.hasSeenTimerMarker_ = false;
-
-    /**
-     * List of log lines seen since last "current-time" tick.
-     * @type {Array.<String>}
-     */
     this.logLinesSinceLastTimerMarker_ = [];
+  }
+
+/**
+ * @param {Object} table A table used for parsing and processing
+ *     log records.
+ *     exampleDispatchTable = {
+ *       "log-entry-XXX": {
+ *          parser: [parseString, parseInt, ..., parseVarArgs],
+ *          processor: this.processXXX.bind(this)
+ *        },
+ *        ...
+ *      }
+ */
+  setDispatchTable(table) {
+    if (Object.getPrototypeOf(table) !== null) {
+      throw new Error("Dispatch expected table.__proto__=null for speedup");
+    }
+    for (let name in table) {
+      const parser = table[name];
+      if (parser === undefined) continue;
+      if (!parser.isAsync) parser.isAsync = false;
+      if (!Array.isArray(parser.parsers)) {
+        throw new Error(`Invalid parsers: dispatchTable['${
+            name}'].parsers should be an Array.`);
+      }
+      let type = typeof parser.processor;
+      if (type !== 'function') {
+       throw new Error(`Invalid processor: typeof dispatchTable['${
+          name}'].processor is '${type}' instead of 'function'`);
+      }
+      if (!parser.processor.name.startsWith('bound ')) {
+        parser.processor = parser.processor.bind(this);
+      }
+      this.dispatchTable_.set(name, parser);
+    }
   }
 
 
@@ -118,7 +119,18 @@ export class LogReader {
    * @param {string} chunk A portion of log.
    */
   async processLogChunk(chunk) {
-    await this.processLog_(chunk.split('\n'));
+    let end = chunk.length;
+    let current = 0;
+    // Kept for debugging in case of parsing errors.
+    let lineNumber = 0;
+    while (current < end) {
+      const next = chunk.indexOf("\n", current);
+      if (next === -1) break;
+      lineNumber++;
+      const line = chunk.substring(current, next);
+      current = next + 1;
+      await this.processLogLine(line);
+    }
   }
 
   /**
@@ -162,31 +174,22 @@ export class LogReader {
   processStack(pc, func, stack) {
     const fullStack = func ? [pc, func] : [pc];
     let prevFrame = pc;
-    for (let i = 0, n = stack.length; i < n; ++i) {
+    const length = stack.length;
+    for (let i = 0, n = length; i < n; ++i) {
       const frame = stack[i];
-      const firstChar = frame.charAt(0);
-      if (firstChar == '+' || firstChar == '-') {
+      const firstChar = frame[0];
+      if (firstChar === '+' || firstChar === '-') {
         // An offset from the previous frame.
         prevFrame += parseInt(frame, 16);
         fullStack.push(prevFrame);
       // Filter out possible 'overflow' string.
-      } else if (firstChar != 'o') {
+      } else if (firstChar !== 'o') {
         fullStack.push(parseInt(frame, 16));
       } else {
-        console.error(`dropping: ${frame}`);
+        console.error(`Dropping unknown tick frame: ${frame}`);
       }
     }
     return fullStack;
-  }
-
-  /**
-   * Returns whether a particular dispatch must be skipped.
-   *
-   * @param {!Object} dispatch Dispatch record.
-   * @return {boolean} True if dispatch must be skipped.
-   */
-  skipDispatch(dispatch) {
-    return false;
   }
 
   /**
@@ -198,31 +201,23 @@ export class LogReader {
   async dispatchLogRow_(fields) {
     // Obtain the dispatch.
     const command = fields[0];
-    const dispatch = this.dispatchTable_[command];
+    const dispatch = this.dispatchTable_.get(command);
     if (dispatch === undefined) return;
-    if (dispatch === null || this.skipDispatch(dispatch)) {
-      return;
-    }
-
+    const parsers = dispatch.parsers;
+    const length = parsers.length;
     // Parse fields.
-    const parsedFields = [];
-    for (let i = 0; i < dispatch.parsers.length; ++i) {
-      const parser = dispatch.parsers[i];
-      if (parser === parseString) {
-        parsedFields.push(fields[1 + i]);
-      } else if (typeof parser == 'function') {
-        parsedFields.push(parser(fields[1 + i]));
-      } else if (parser === parseVarArgs) {
-        // var-args
-        parsedFields.push(fields.slice(1 + i));
+    const parsedFields = new Array(length);
+    for (let i = 0; i < length; ++i) {
+      const parser = parsers[i];
+      if (parser === parseVarArgs) {
+        parsedFields[i] = fields.slice(1 + i);
         break;
       } else {
-        throw new Error(`Invalid log field parser: ${parser}`);
+        parsedFields[i] = parser(fields[1 + i]);
       }
     }
-
     // Run the processor.
-    await dispatch.processor.apply(this, parsedFields);
+    await dispatch.processor(...parsedFields);
   }
 
   /**

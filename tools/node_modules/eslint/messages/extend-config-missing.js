@@ -9,5 +9,5 @@ ESLint couldn't find the config "${configName}" to extend from. Please check tha
 The config "${configName}" was referenced from the config file in "${importerName}".
 
 If you still have problems, please stop by https://eslint.org/chat/help to chat with the team.
-`.trimLeft();
+`.trimStart();
 };

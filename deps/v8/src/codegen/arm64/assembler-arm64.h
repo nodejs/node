@@ -6,10 +6,8 @@
 #define V8_CODEGEN_ARM64_ASSEMBLER_ARM64_H_
 
 #include <deque>
-#include <list>
 #include <map>
 #include <memory>
-#include <vector>
 
 #include "src/base/optional.h"
 #include "src/codegen/arm64/constants-arm64.h"
@@ -204,15 +202,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
-  // This function is called when on-heap-compilation invariants are
-  // invalidated. For instance, when the assembler buffer grows or a GC happens
-  // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences(bool update_embedded_objects = true);
-
-  // This function is called when we fallback from on-heap to off-heap
-  // compilation and patch on-heap references to handles.
-  void FixOnHeapReferencesToHandles();
-
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
@@ -273,7 +262,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Returns the handle for the code object called at 'pc'.
   // This might need to be temporarily encoded as an offset into code_targets_.
-  inline Handle<Code> code_target_object_handle_at(Address pc);
+  inline Handle<CodeT> code_target_object_handle_at(Address pc);
   inline EmbeddedObjectIndex embedded_object_index_referenced_from(Address pc);
   inline void set_embedded_object_index_referenced_from(
       Address p, EmbeddedObjectIndex index);
@@ -283,8 +272,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Returns the target address for a runtime function for the call encoded
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the
-  // runtime function entrypoint and the code range start (stored in the
-  // code_range_start field), in order to be encodable as we generate the code,
+  // runtime function entrypoint and the code range base (stored in the
+  // code_range_base field), in order to be encodable as we generate the code,
   // before it is moved into the code space.
   inline Address runtime_entry_at(Address pc);
 
@@ -2074,27 +2063,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Required by V8.
   void db(uint8_t data) { dc8(data); }
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
   }
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
   }
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
@@ -2688,12 +2677,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static size_t GetApproxMaxDistToConstPoolForTesting() {
     return ConstantPool::kApproxDistToPool64;
-  }
-
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object,
-                             EmbeddedObjectIndex index) {
-    return *reinterpret_cast<uint64_t*>(buffer_->start() + pc_offset) ==
-           (IsOnHeap() ? object->ptr() : index);
   }
 #endif
 

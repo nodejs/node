@@ -576,15 +576,15 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     // the name to undefined instead of a Cell.
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
-    for (InternalIndex i : requested_exports->IterateEntries()) {
+    for (InternalIndex index : requested_exports->IterateEntries()) {
       Object key;
-      if (!requested_exports->ToKey(roots, i, &key)) continue;
+      if (!requested_exports->ToKey(roots, index, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
       if (name->Equals(roots.default_string())) continue;
       if (!exports->Lookup(name).IsTheHole(roots)) continue;
 
-      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(i)), isolate);
+      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(index)), isolate);
       auto insert_result = more_exports.insert(std::make_pair(name, cell));
       if (!insert_result.second) {
         auto it = insert_result.first;
@@ -683,8 +683,15 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
   return Handle<JSObject>::cast(import_meta);
 }
 
-MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
+MaybeHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
+  CHECK(module->status() == kLinked || module->status() == kEvaluated);
+
+  // 5. Let stack be a new empty List.
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ZoneForwardList<Handle<SourceTextModule>> stack(&zone);
+  unsigned dfs_index = 0;
+
   // 6. Let capability be ! NewPromiseCapability(%Promise%).
   Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
 
@@ -692,18 +699,30 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
   module->set_top_level_capability(*capability);
   DCHECK(module->top_level_capability().IsJSPromise());
 
+  // 8. Let result be InnerModuleEvaluation(module, stack, 0).
   // 9. If result is an abrupt completion, then
   Handle<Object> unused_result;
-  if (!Evaluate(isolate, module).ToHandle(&unused_result)) {
+  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)
+           .ToHandle(&unused_result)) {
+    //  a. For each Cyclic Module Record m in stack, do
+    for (auto& descendant : stack) {
+      //   i. Assert: m.[[Status]] is "evaluating".
+      CHECK_EQ(descendant->status(), kEvaluating);
+      //  ii. Set m.[[Status]] to "evaluated".
+      // iii. Set m.[[EvaluationError]] to result.
+      Module::RecordErrorUsingPendingException(isolate, descendant);
+    }
+
     // If the exception was a termination exception, rejecting the promise
     // would resume execution, and our API contract is to return an empty
     // handle. The module's status should be set to kErrored and the
     // exception field should be set to `null`.
     if (!isolate->is_catchable_by_javascript(isolate->pending_exception())) {
-      DCHECK_EQ(module->status(), kErrored);
-      DCHECK_EQ(module->exception(), *isolate->factory()->null_value());
+      CHECK_EQ(module->status(), kErrored);
+      CHECK_EQ(module->exception(), *isolate->factory()->null_value());
       return {};
     }
+    CHECK_EQ(module->exception(), isolate->pending_exception());
 
     //  d. Perform ! Call(capability.[[Reject]], undefined,
     //                    «result.[[Value]]»).
@@ -721,49 +740,13 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
       JSPromise::Resolve(capability, isolate->factory()->undefined_value())
           .ToHandleChecked();
     }
+
+    //  c. Assert: stack is empty.
+    DCHECK(stack.empty());
   }
 
   // 11. Return capability.[[Promise]].
   return capability;
-}
-
-MaybeHandle<Object> SourceTextModule::Evaluate(
-    Isolate* isolate, Handle<SourceTextModule> module) {
-  // Evaluate () Concrete Method continued from EvaluateMaybeAsync.
-  CHECK(module->status() == kLinked || module->status() == kEvaluated);
-
-  // 5. Let stack be a new empty List.
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ZoneForwardList<Handle<SourceTextModule>> stack(&zone);
-  unsigned dfs_index = 0;
-
-  // 8. Let result be InnerModuleEvaluation(module, stack, 0).
-  // 9. If result is an abrupt completion, then
-  Handle<Object> result;
-  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)
-           .ToHandle(&result)) {
-    //  a. For each Cyclic Module Record m in stack, do
-    for (auto& descendant : stack) {
-      //   i. Assert: m.[[Status]] is "evaluating".
-      CHECK_EQ(descendant->status(), kEvaluating);
-      //  ii. Set m.[[Status]] to "evaluated".
-      // iii. Set m.[[EvaluationError]] to result.
-      Module::RecordErrorUsingPendingException(isolate, descendant);
-    }
-
-#ifdef DEBUG
-    if (isolate->is_catchable_by_javascript(isolate->pending_exception())) {
-      CHECK_EQ(module->exception(), isolate->pending_exception());
-    } else {
-      CHECK_EQ(module->exception(), *isolate->factory()->null_value());
-    }
-#endif  // DEBUG
-  } else {
-    // 10. Otherwise,
-    //  c. Assert: stack is empty.
-    DCHECK(stack.empty());
-  }
-  return result;
 }
 
 void SourceTextModule::AsyncModuleExecutionFulfilled(
@@ -1008,20 +991,12 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
       isolate->native_context()->generator_next_internal(), isolate);
   Handle<Object> result;
 
-  // With top_level_await, we need to catch any exceptions and reject
-  // the top level capability.
-  if (FLAG_harmony_top_level_await) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        Execution::TryCall(isolate, resume, generator, 0, nullptr,
-                           Execution::MessageHandling::kKeepPending, nullptr,
-                           false),
-        Object);
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        Execution::Call(isolate, resume, generator, 0, nullptr), Object);
-  }
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::TryCall(isolate, resume, generator, 0, nullptr,
+                         Execution::MessageHandling::kKeepPending, nullptr,
+                         false),
+      Object);
   DCHECK(JSIteratorResult::cast(*result).done().BooleanValue(isolate));
   return handle(JSIteratorResult::cast(*result).value(), isolate);
 }
@@ -1063,8 +1038,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   DCHECK(!module->HasPendingAsyncDependencies());
 
   // 9. Set module.[[AsyncParentModules]] to a new empty List.
-  Handle<ArrayList> async_parent_modules = ArrayList::New(isolate, 0);
-  module->set_async_parent_modules(*async_parent_modules);
+  module->set_async_parent_modules(ReadOnlyRoots(isolate).empty_array_list());
 
   // 10. Set index to index + 1.
   (*dfs_index)++;

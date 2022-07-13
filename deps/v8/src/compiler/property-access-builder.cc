@@ -276,26 +276,6 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
   return value;
 }
 
-Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
-    NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
-    Node* lookup_start_object, Node** effect, Node** control) {
-  DCHECK_NULL(dependencies());
-  MachineRepresentation const field_representation =
-      ConvertRepresentation(access_info.field_representation());
-
-  FieldAccess field_access = {
-      kTaggedBase,
-      access_info.offset(),
-      name.object(),
-      MaybeHandle<Map>(),
-      access_info.field_type(),
-      MachineType::TypeForRepresentation(field_representation),
-      kFullWriteBarrier,
-      ConstFieldInfo::None()};
-  return BuildLoadDataField(name, lookup_start_object, field_access,
-                            access_info.is_inobject(), effect, control);
-}
-
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {

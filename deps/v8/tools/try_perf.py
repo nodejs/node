@@ -12,19 +12,14 @@ import subprocess
 import sys
 
 BOTS = {
-  '--chromebook': 'v8_chromebook_perf_try',
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
-  '--linux64_atom': 'v8_linux64_atom_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
-  '--nokia1': 'v8_nokia1_perf_try',
-  '--odroid32': 'v8_odroid32_perf_try',
   '--pixel2': 'v8_pixel2_perf_try',
 }
 
 DEFAULT_BOTS = [
-  'v8_chromebook_perf_try',
   'v8_linux32_perf_try',
   'v8_linux64_perf_try',
 ]

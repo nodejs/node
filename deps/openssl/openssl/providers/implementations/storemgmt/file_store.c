@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,8 +8,6 @@
  */
 
 /* This file has quite some overlap with engines/e_loader_attic.c */
-
-#include "e_os.h"                /* To get strncasecmp() on Windows */
 
 #include <string.h>
 #include <sys/stat.h>
@@ -175,7 +173,7 @@ static void *file_open_dir(const char *path, const char *uri, void *provctx)
 
     if ((ctx = new_file_ctx(IS_DIR, uri, provctx)) == NULL) {
         ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
-        goto err;
+        return NULL;
     }
 
     ctx->_.dir.last_entry = OPENSSL_DIR_read(&ctx->_.dir.ctx, path);
@@ -220,12 +218,12 @@ static void *file_open(void *provctx, const char *uri)
      * There's a special case if the URI also contains an authority, then
      * the full URI shouldn't be used as a path anywhere.
      */
-    if (strncasecmp(uri, "file:", 5) == 0) {
+    if (OPENSSL_strncasecmp(uri, "file:", 5) == 0) {
         const char *p = &uri[5];
 
         if (strncmp(&uri[5], "//", 2) == 0) {
             path_data_n--;           /* Invalidate using the full URI */
-            if (strncasecmp(&uri[7], "localhost/", 10) == 0) {
+            if (OPENSSL_strncasecmp(&uri[7], "localhost/", 10) == 0) {
                 p = &uri[16];
             } else if (uri[7] == '/') {
                 p = &uri[7];
@@ -592,7 +590,8 @@ static int file_name_check(struct file_ctx_st *ctx, const char *name)
     /*
      * First, check the basename
      */
-    if (strncasecmp(name, ctx->_.dir.search_name, len) != 0 || name[len] != '.')
+    if (OPENSSL_strncasecmp(name, ctx->_.dir.search_name, len) != 0
+        || name[len] != '.')
         return 0;
     p = &name[len + 1];
 

@@ -380,6 +380,7 @@ class Simulator : public SimulatorBase {
   void set_fflags(uint32_t flags) { set_csr_bits(csr_fflags, flags); }
   void clear_fflags(int32_t flags) { clear_csr_bits(csr_fflags, flags); }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV CSR
   __int128_t get_vregister(int vreg) const;
   inline uint64_t rvv_vlen() const { return kRvvVLEN; }
@@ -392,6 +393,13 @@ class Simulator : public SimulatorBase {
   inline uint64_t rvv_vlenb() const { return vlenb_; }
   inline uint32_t rvv_zimm() const { return instr_.Rvvzimm(); }
   inline uint32_t rvv_vlmul() const { return (rvv_vtype() & 0x7); }
+  inline float rvv_vflmul() const {
+    if ((rvv_vtype() & 0b100) == 0) {
+      return static_cast<float>(0x1 << (rvv_vtype() & 0x7));
+    } else {
+      return 1.0 / static_cast<float>(0x1 << (4 - rvv_vtype() & 0x3));
+    }
+  }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
 
   inline const char* rvv_sew_s() const {
@@ -416,7 +424,7 @@ class Simulator : public SimulatorBase {
       RVV_LMUL(CAST_VLMUL)
       default:
         return "unknown";
-#undef CAST_VSEW
+#undef CAST_VLMUL
     }
   }
 
@@ -427,11 +435,12 @@ class Simulator : public SimulatorBase {
   }
   inline uint64_t rvv_vlmax() const {
     if ((rvv_vlmul() & 0b100) != 0) {
-      return (rvv_vlen() / rvv_sew()) >> (rvv_vlmul() & 0b11);
+      return (rvv_vlen() / rvv_sew()) >> (4 - (rvv_vlmul() & 0b11));
     } else {
       return ((rvv_vlen() << rvv_vlmul()) / rvv_sew());
     }
   }
+#endif
 
   inline uint32_t get_dynamic_rounding_mode();
   inline bool test_fflags_bits(uint32_t mask);
@@ -645,143 +654,11 @@ class Simulator : public SimulatorBase {
     }
   }
 
-  // RVV
-  // The following code about RVV was based from:
-  //   https://github.com/riscv/riscv-isa-sim
-  // Copyright (c) 2010-2017, The Regents of the University of California
-  // (Regents).  All Rights Reserved.
-
-  // Redistribution and use in source and binary forms, with or without
-  // modification, are permitted provided that the following conditions are met:
-  // 1. Redistributions of source code must retain the above copyright
-  //    notice, this list of conditions and the following disclaimer.
-  // 2. Redistributions in binary form must reproduce the above copyright
-  //    notice, this list of conditions and the following disclaimer in the
-  //    documentation and/or other materials provided with the distribution.
-  // 3. Neither the name of the Regents nor the
-  //    names of its contributors may be used to endorse or promote products
-  //    derived from this software without specific prior written permission.
-
-  // IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
-  // SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS,
-  // ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF
-  // REGENTS HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  // REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
-  // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-  // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-  // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-  // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-  template <uint64_t N>
-  struct type_usew_t;
-  template <>
-  struct type_usew_t<8> {
-    using type = uint8_t;
-  };
-
-  template <>
-  struct type_usew_t<16> {
-    using type = uint16_t;
-  };
-
-  template <>
-  struct type_usew_t<32> {
-    using type = uint32_t;
-  };
-
-  template <>
-  struct type_usew_t<64> {
-    using type = uint64_t;
-  };
-
-  template <>
-  struct type_usew_t<128> {
-    using type = __uint128_t;
-  };
-  template <uint64_t N>
-  struct type_sew_t;
-
-  template <>
-  struct type_sew_t<8> {
-    using type = int8_t;
-  };
-
-  template <>
-  struct type_sew_t<16> {
-    using type = int16_t;
-  };
-
-  template <>
-  struct type_sew_t<32> {
-    using type = int32_t;
-  };
-
-  template <>
-  struct type_sew_t<64> {
-    using type = int64_t;
-  };
-
-  template <>
-  struct type_sew_t<128> {
-    using type = __int128_t;
-  };
-
-#define VV_PARAMS(x)                                                       \
-  type_sew_t<x>::type& vd =                                                \
-      Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);                  \
-  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
-  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VV_UPARAMS(x)                                                        \
-  type_usew_t<x>::type& vd =                                                 \
-      Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), i, true);                   \
-  type_usew_t<x>::type vs1 = Rvvelt<type_usew_t<x>::type>(rvv_vs1_reg(), i); \
-  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VX_PARAMS(x)                                                        \
-  type_sew_t<x>::type& vd =                                                 \
-      Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);                   \
-  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
-  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VX_UPARAMS(x)                                                         \
-  type_usew_t<x>::type& vd =                                                  \
-      Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), i, true);                    \
-  type_usew_t<x>::type rs1 = (type_usew_t<x>::type)(get_register(rs1_reg())); \
-  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VI_PARAMS(x)                                                    \
-  type_sew_t<x>::type& vd =                                             \
-      Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);               \
-  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)(instr_.RvvSimm5()); \
-  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VI_UPARAMS(x)                                                     \
-  type_usew_t<x>::type& vd =                                              \
-      Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), i, true);                \
-  type_usew_t<x>::type uimm5 = (type_usew_t<x>::type)(instr_.RvvUimm5()); \
-  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
-
-#define VXI_PARAMS(x)                                                       \
-  type_sew_t<x>::type& vd =                                                 \
-      Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);                   \
-  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i);  \
-  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);  \
-  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
-  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)(instr_.RvvSimm5());
-
-#define VI_XI_SLIDEDOWN_PARAMS(x, off)                           \
-  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
-  auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i + off);
-
-#define VI_XI_SLIDEUP_PARAMS(x, offset)                          \
-  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
-  auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);
-
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
-      SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
+      SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
                *(reinterpret_cast<int64_t*>(&value) + 1),
                *reinterpret_cast<int64_t*>(&value), icount_);
     }
@@ -872,10 +749,26 @@ class Simulator : public SimulatorBase {
   inline void set_rvv_vlenb(uint64_t value, bool trace = true) {
     vlenb_ = value;
   }
+#endif
+
+  template <typename T, typename Func>
+  inline T CanonicalizeFPUOpFMA(Func fn, T dst, T src1, T src2) {
+    STATIC_ASSERT(std::is_floating_point<T>::value);
+    auto alu_out = fn(dst, src1, src2);
+    // if any input or result is NaN, the result is quiet_NaN
+    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
+        std::isnan(dst)) {
+      // signaling_nan sets kInvalidOperation bit
+      if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) || isSnan(dst))
+        set_fflags(kInvalidOperation);
+      alu_out = std::numeric_limits<T>::quiet_NaN();
+    }
+    return alu_out;
+  }
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp3(Func fn) {
-    DCHECK(std::is_floating_point<T>::value);
+    STATIC_ASSERT(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     T src3 = std::is_same<float, T>::value ? frs3() : drs3();
@@ -893,7 +786,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp2(Func fn) {
-    DCHECK(std::is_floating_point<T>::value);
+    STATIC_ASSERT(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     auto alu_out = fn(src1, src2);
@@ -909,7 +802,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp1(Func fn) {
-    DCHECK(std::is_floating_point<T>::value);
+    STATIC_ASSERT(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     auto alu_out = fn(src1);
     // if any input or result is NaN, the result is quiet_NaN
@@ -973,6 +866,7 @@ class Simulator : public SimulatorBase {
   void DecodeCSType();
   void DecodeCJType();
   void DecodeCBType();
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   void DecodeVType();
   void DecodeRvvIVV();
   void DecodeRvvIVI();
@@ -983,6 +877,7 @@ class Simulator : public SimulatorBase {
   void DecodeRvvFVF();
   bool DecodeRvvVL();
   bool DecodeRvvVS();
+#endif
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
@@ -1049,10 +944,12 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV registers
   __int128_t Vregister_[kNumVRegisters];
   static_assert(sizeof(__int128_t) == kRvvVLEN / 8, "unmatch vlen");
   uint64_t vstart_, vxsat_, vxrm_, vcsr_, vtype_, vl_, vlenb_;
+#endif
   // Simulator support.
   // Allocate 1MB for stack.
   size_t stack_size_;

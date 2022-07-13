@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -285,7 +285,7 @@ int dtls1_process_buffered_records(SSL *s)
             if (!replayok || !dtls1_process_record(s, bitmap)) {
                 if (ossl_statem_in_error(s)) {
                     /* dtls1_process_record called SSLfatal() */
-                    return -1;
+                    return 0;
                 }
                 /* dump this record */
                 rr->length = 0;
@@ -535,7 +535,7 @@ int dtls1_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
          */
         if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
             s->d1->shutdown_received
-            && !BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s))) {
+            && BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)) <= 0) {
             s->shutdown |= SSL_RECEIVED_SHUTDOWN;
             return 0;
         }
@@ -596,7 +596,7 @@ int dtls1_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
                  * that nothing gets discarded.
                  */
                 if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
-                    BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s))) {
+                    BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)) > 0) {
                     s->d1->shutdown_received = 1;
                     s->rwstate = SSL_READING;
                     BIO_clear_retry_flags(SSL_get_rbio(s));

@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require the use of `===` and `!==`",
+            description: "Require the use of `===` and `!==`",
             recommended: false,
             url: "https://eslint.org/docs/rules/eqeqeq"
         },

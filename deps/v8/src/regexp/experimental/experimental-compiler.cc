@@ -221,7 +221,7 @@ class BytecodeAssembler {
 
   void Accept() { code_.Add(RegExpInstruction::Accept(), zone_); }
 
-  void Assertion(RegExpAssertion::AssertionType t) {
+  void Assertion(RegExpAssertion::Type t) {
     code_.Add(RegExpInstruction::Assertion(t), zone_);
   }
 

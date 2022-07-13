@@ -218,7 +218,7 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
+TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {
   Label done(this);
   GrowableFixedArray list(state());
@@ -268,18 +268,28 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
       // 2. Return ? IteratorClose(iteratorRecord, error).
       BIND(&if_exception);
+      TNode<HeapObject> message = GetPendingMessage();
+      SetPendingMessage(TheHoleConstant());
       IteratorCloseOnException(context, iterator_record);
-      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                  message);
       Unreachable();
     }
   }
 
   BIND(&done);
   // 6. Return list.
-  return list.ToJSArray(context);
+  return list.ToFixedArray();
 }
 
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+
+  Return(StringListFromIterable(context, iterable));
+}
+
+TF_BUILTIN(StringFixedArrayFromIterable, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<Object>(Descriptor::kIterable);
 
@@ -315,6 +325,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TNode<Context> context, TNode<Object> iterable,
     TVariable<JSArray>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
+
+  // Always call the `next()` builtins when the debugger is
+  // active, to ensure we capture side-effects correctly.
+  GotoIf(IsDebugActive(), slow);
 
   GotoIfNot(
       Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),

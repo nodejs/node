@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce consistent naming when capturing the current execution context",
+            description: "Enforce consistent naming when capturing the current execution context",
             recommended: false,
             url: "https://eslint.org/docs/rules/consistent-this"
         },
@@ -65,7 +65,7 @@ module.exports = {
         function checkAssignment(node, name, value) {
             const isThis = value.type === "ThisExpression";
 
-            if (aliases.indexOf(name) !== -1) {
+            if (aliases.includes(name)) {
                 if (!isThis || node.operator && node.operator !== "=") {
                     reportBadAssignment(node, name);
                 }

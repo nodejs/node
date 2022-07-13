@@ -17,14 +17,7 @@ const path = require("path");
 // Definitions for deprecation warnings.
 const deprecationWarningMessages = {
     ESLINT_LEGACY_ECMAFEATURES:
-        "The 'ecmaFeatures' config file property is deprecated and has no effect.",
-    ESLINT_PERSONAL_CONFIG_LOAD:
-        "'~/.eslintrc.*' config files have been deprecated. " +
-        "Please use a config file per project or the '--config' option.",
-    ESLINT_PERSONAL_CONFIG_SUPPRESS:
-        "'~/.eslintrc.*' config files have been deprecated. " +
-        "Please remove it or add 'root:true' to the config files in your " +
-        "projects in order to avoid loading '~/.eslintrc.*' accidentally."
+        "The 'ecmaFeatures' config file property is deprecated and has no effect."
 };
 
 const sourceFileErrorCache = new Set();

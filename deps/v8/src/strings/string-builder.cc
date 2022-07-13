@@ -246,6 +246,10 @@ int IncrementalStringBuilder::Length() const {
   return accumulator_->length() + current_index_;
 }
 
+bool IncrementalStringBuilder::HasValidCurrentIndex() const {
+  return current_index_ < part_length_;
+}
+
 void IncrementalStringBuilder::Accumulate(Handle<String> new_part) {
   Handle<String> new_accumulator;
   if (accumulator()->length() + new_part->length() > String::kMaxLength) {

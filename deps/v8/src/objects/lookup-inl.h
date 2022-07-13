@@ -101,11 +101,11 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // is not a typed array, then this means "array index", otherwise we need to
     // ensure the full generality so that typed arrays are handled correctly.
     if (!check_prototype_chain() && !lookup_start_object->IsJSTypedArray()) {
-      uint32_t index;
-      DCHECK(!name_->AsArrayIndex(&index));
+      uint32_t array_index;
+      DCHECK(!name_->AsArrayIndex(&array_index));
     } else {
-      size_t index;
-      DCHECK(!name_->AsIntegerIndex(&index));
+      size_t integer_index;
+      DCHECK(!name_->AsIntegerIndex(&integer_index));
     }
 #endif  // DEBUG
     Start<false>();

@@ -50,25 +50,21 @@ bool LsanPageAllocator::CanAllocateSharedPages() {
 }
 
 bool LsanPageAllocator::FreePages(void* address, size_t size) {
-  bool result = page_allocator_->FreePages(address, size);
+  CHECK(page_allocator_->FreePages(address, size));
 #if defined(LEAK_SANITIZER)
-  if (result) {
-    __lsan_unregister_root_region(address, size);
-  }
+  __lsan_unregister_root_region(address, size);
 #endif
-  return result;
+  return true;
 }
 
 bool LsanPageAllocator::ReleasePages(void* address, size_t size,
                                      size_t new_size) {
-  bool result = page_allocator_->ReleasePages(address, size, new_size);
+  CHECK(page_allocator_->ReleasePages(address, size, new_size));
 #if defined(LEAK_SANITIZER)
-  if (result) {
-    __lsan_unregister_root_region(address, size);
-    __lsan_register_root_region(address, new_size);
-  }
+  __lsan_unregister_root_region(address, size);
+  __lsan_register_root_region(address, new_size);
 #endif
-  return result;
+  return true;
 }
 
 }  // namespace base

@@ -32,12 +32,14 @@ const { version } = require("../../package.json");
 /** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
 /** @typedef {import("../shared/types").ConfigData} ConfigData */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
+/** @typedef {import("../shared/types").SuppressedLintMessage} SuppressedLintMessage */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").Rule} Rule */
+/** @typedef {import("../shared/types").LintResult} LintResult */
 
 /**
  * The main formatter object.
- * @typedef Formatter
+ * @typedef LoadedFormatter
  * @property {function(LintResult[]): string | Promise<string>} format format function.
  */
 
@@ -74,20 +76,6 @@ const { version } = require("../../package.json");
  */
 
 /**
- * A linting result.
- * @typedef {Object} LintResult
- * @property {string} filePath The path to the file that was linted.
- * @property {LintMessage[]} messages All of the messages for the result.
- * @property {number} errorCount Number of errors for the result.
- * @property {number} warningCount Number of warnings for the result.
- * @property {number} fixableErrorCount Number of fixable errors for the result.
- * @property {number} fixableWarningCount Number of fixable warnings for the result.
- * @property {string} [source] The source code of the file that was linted.
- * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
- * @property {DeprecatedRuleInfo[]} usedDeprecatedRules The list of used deprecated rules.
- */
-
-/**
  * Private members for the `ESLint` instance.
  * @typedef {Object} ESLintPrivateMembers
  * @property {CLIEngine} cliEngine The wrapped CLIEngine instance.
@@ -116,9 +104,9 @@ function isNonEmptyString(x) {
 }
 
 /**
- * Check if a given value is an array of non-empty stringss or not.
+ * Check if a given value is an array of non-empty strings or not.
  * @param {any} x The value to check.
- * @returns {boolean} `true` if `x` is an array of non-empty stringss.
+ * @returns {boolean} `true` if `x` is an array of non-empty strings.
  */
 function isArrayOfNonEmptyString(x) {
     return Array.isArray(x) && x.every(isNonEmptyString);
@@ -525,6 +513,9 @@ class ESLint {
             for (const { ruleId } of result.messages) {
                 resultRuleIds.add(ruleId);
             }
+            for (const { ruleId } of result.suppressedMessages) {
+                resultRuleIds.add(ruleId);
+            }
         }
 
         // create a map of all rules in the results
@@ -608,12 +599,12 @@ class ESLint {
      * The following values are allowed:
      * - `undefined` ... Load `stylish` builtin formatter.
      * - A builtin formatter name ... Load the builtin formatter.
-     * - A thirdparty formatter name:
+     * - A third-party formatter name:
      *   - `foo` → `eslint-formatter-foo`
      *   - `@foo` → `@foo/eslint-formatter`
      *   - `@foo/bar` → `@foo/eslint-formatter-bar`
      * - A file path ... Load the file.
-     * @returns {Promise<Formatter>} A promise resolving to the formatter object.
+     * @returns {Promise<LoadedFormatter>} A promise resolving to the formatter object.
      * This promise will be rejected if the given formatter was not found or not
      * a function.
      */
@@ -633,7 +624,7 @@ class ESLint {
 
             /**
              * The main formatter method.
-             * @param {LintResults[]} results The lint results to format.
+             * @param {LintResult[]} results The lint results to format.
              * @returns {string | Promise<string>} The formatted lint results.
              */
             format(results) {

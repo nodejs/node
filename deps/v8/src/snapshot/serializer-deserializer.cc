@@ -10,23 +10,36 @@
 namespace v8 {
 namespace internal {
 
-// The startup object cache is terminated by undefined. We visit the context
-// snapshot...
-//  - during deserialization to populate it.
-//  - during normal GC to keep its content alive.
-//  - not during serialization. The context serializer adds to it explicitly.
+namespace {
 DISABLE_CFI_PERF
-void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
-  std::vector<Object>* cache = isolate->startup_object_cache();
+void IterateObjectCache(Isolate* isolate, std::vector<Object>* cache,
+                        Root root_id, RootVisitor* visitor) {
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::zero());
-    // During deserialization, the visitor populates the startup object cache
-    // and eventually terminates the cache with undefined.
-    visitor->VisitRootPointer(Root::kStartupObjectCache, nullptr,
-                              FullObjectSlot(&cache->at(i)));
+    // During deserialization, the visitor populates the object cache and
+    // eventually terminates the cache with undefined.
+    visitor->VisitRootPointer(root_id, nullptr, FullObjectSlot(&cache->at(i)));
     if (cache->at(i).IsUndefined(isolate)) break;
   }
+}
+}  // namespace
+
+// The startup and shared heap object caches are terminated by undefined. We
+// visit these caches...
+//  - during deserialization to populate it.
+//  - during normal GC to keep its content alive.
+//  - not during serialization. The context serializer adds to it explicitly.
+void SerializerDeserializer::IterateStartupObjectCache(Isolate* isolate,
+                                                       RootVisitor* visitor) {
+  IterateObjectCache(isolate, isolate->startup_object_cache(),
+                     Root::kStartupObjectCache, visitor);
+}
+
+void SerializerDeserializer::IterateSharedHeapObjectCache(
+    Isolate* isolate, RootVisitor* visitor) {
+  IterateObjectCache(isolate, isolate->shared_heap_object_cache(),
+                     Root::kSharedHeapObjectCache, visitor);
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
@@ -45,16 +58,18 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Handle<AccessorInfo> accessor_info) {
+    Isolate* isolate, AccessorInfo accessor_info) {
+  DisallowGarbageCollection no_gc;
   // Restore wiped accessor infos.
-  Foreign::cast(accessor_info->js_getter())
-      .set_foreign_address(isolate, accessor_info->redirected_getter());
+  Foreign::cast(accessor_info.js_getter())
+      .set_foreign_address(isolate, accessor_info.redirected_getter());
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Handle<CallHandlerInfo> call_handler_info) {
-  Foreign::cast(call_handler_info->js_callback())
-      .set_foreign_address(isolate, call_handler_info->redirected_callback());
+    Isolate* isolate, CallHandlerInfo call_handler_info) {
+  DisallowGarbageCollection no_gc;
+  Foreign::cast(call_handler_info.js_callback())
+      .set_foreign_address(isolate, call_handler_info.redirected_callback());
 }
 
 }  // namespace internal

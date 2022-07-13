@@ -247,15 +247,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
   STACK_CHECK(isolate, MaybeHandle<Object>());
-  if (FLAG_harmony_top_level_await) {
-    return Module::EvaluateMaybeAsync(isolate, module);
-  } else {
-    return Module::InnerEvaluate(isolate, module);
-  }
-}
 
-MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
-                                               Handle<Module> module) {
   // In the event of errored evaluation, return a rejected promise.
   if (module->status() == kErrored) {
     // If we have a top level capability we assume it has already been
@@ -290,32 +282,6 @@ MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
     return handle(JSPromise::cast(module->top_level_capability()), isolate);
   }
   DCHECK(module->top_level_capability().IsUndefined());
-
-  if (module->IsSourceTextModule()) {
-    return SourceTextModule::EvaluateMaybeAsync(
-        isolate, Handle<SourceTextModule>::cast(module));
-  } else {
-    return SyntheticModule::Evaluate(isolate,
-                                     Handle<SyntheticModule>::cast(module));
-  }
-}
-
-MaybeHandle<Object> Module::InnerEvaluate(Isolate* isolate,
-                                          Handle<Module> module) {
-  if (module->status() == kErrored) {
-    isolate->Throw(module->GetException());
-    return MaybeHandle<Object>();
-  } else if (module->status() == kEvaluated) {
-    return isolate->factory()->undefined_value();
-  }
-
-  // InnerEvaluate can be called both to evaluate top level modules without
-  // the harmony_top_level_await flag and recursively to evaluate
-  // SyntheticModules in the dependency graphs of SourceTextModules.
-  //
-  // However, SyntheticModules transition directly to 'Evaluated,' so we should
-  // never see an 'Evaluating' module at this point.
-  CHECK_EQ(module->status(), kLinked);
 
   if (module->IsSourceTextModule()) {
     return SourceTextModule::Evaluate(isolate,
@@ -372,10 +338,20 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   JSObject::NormalizeProperties(isolate, ns, CLEAR_INOBJECT_PROPERTIES,
                                 static_cast<int>(names.size()),
                                 "JSModuleNamespace");
+  JSObject::NormalizeElements(ns);
   for (const auto& name : names) {
-    JSObject::SetNormalizedProperty(
-        ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
-        PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+    uint32_t index = 0;
+    if (name->AsArrayIndex(&index)) {
+      JSObject::SetNormalizedElement(
+          ns, index, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          PropertyDetails(PropertyKind::kAccessor, attr,
+                          PropertyCellType::kMutable));
+    } else {
+      JSObject::SetNormalizedProperty(
+          ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          PropertyDetails(PropertyKind::kAccessor, attr,
+                          PropertyCellType::kMutable));
+    }
   }
   JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
 
@@ -400,8 +376,16 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
 
   Handle<Object> value(Cell::cast(*object).value(), isolate);
   if (value->IsTheHole(isolate)) {
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
+    // step 10 and
+    // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
+    // step 8-25, variables must be declared in Link. And according to
+    // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-get-p-receiver,
+    // here accessing uninitialized variable error should be throwed.
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(
+                        MessageTemplate::kAccessedUninitializedVariable, name),
+                    Object);
   }
 
   return value;

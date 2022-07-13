@@ -173,7 +173,7 @@ class H2LoadBenchmarker {
   }
 
   processResults(output) {
-    const rex = /(\d+(?:\.\d+)) req\/s/;
+    const rex = /(\d+\.\d+) req\/s/;
     return rex.exec(output)[1];
   }
 }

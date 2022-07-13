@@ -516,6 +516,7 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
 void Accessors::FunctionArgumentsGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
@@ -690,6 +691,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
 void Accessors::FunctionCallerGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
@@ -762,80 +764,84 @@ Handle<AccessorInfo> Accessors::MakeBoundFunctionNameInfo(Isolate* isolate) {
 }
 
 //
+// Accessors::WrappedFunctionLength
+//
+
+void Accessors::WrappedFunctionLengthGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
+  HandleScope scope(isolate);
+  Handle<JSWrappedFunction> function =
+      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+
+  int length = 0;
+  if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
+    Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &WrappedFunctionLengthGetter, &ReconfigureToDataProperty);
+}
+
+//
+// Accessors::WrappedFunctionName
+//
+
+void Accessors::WrappedFunctionNameGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kWrappedFunctionNameGetter);
+  HandleScope scope(isolate);
+  Handle<JSWrappedFunction> function =
+      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->name_string(),
+                      &WrappedFunctionNameGetter, &ReconfigureToDataProperty);
+}
+
+//
 // Accessors::ErrorStack
 //
 
 void Accessors::ErrorStackGetter(
     v8::Local<v8::Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> holder =
+  Handle<Object> formatted_stack;
+  Handle<JSObject> error_object =
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
-
-  // Retrieve the stack trace. It can either be structured data in the form of
-  // a FixedArray of StackFrameInfo objects, an already formatted stack trace
-  // (string) or whatever the "prepareStackTrace" callback produced.
-
-  Handle<Object> stack_trace;
-  Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
-  MaybeHandle<Object> maybe_stack_trace =
-      JSObject::GetProperty(isolate, holder, stack_trace_symbol);
-  if (!maybe_stack_trace.ToHandle(&stack_trace) ||
-      stack_trace->IsUndefined(isolate)) {
-    Handle<Object> result = isolate->factory()->undefined_value();
-    info.GetReturnValue().Set(Utils::ToLocal(result));
-    return;
-  }
-
-  // Only format the stack-trace the first time around. The check for a
-  // FixedArray is sufficient as the user callback can not create plain
-  // FixedArrays and the result is a String in case we format the stack
-  // trace ourselves.
-
-  if (!stack_trace->IsFixedArray()) {
-    info.GetReturnValue().Set(Utils::ToLocal(stack_trace));
-    return;
-  }
-
-  Handle<Object> formatted_stack_trace;
-  if (!ErrorUtils::FormatStackTrace(isolate, holder, stack_trace)
-           .ToHandle(&formatted_stack_trace)) {
+  if (!ErrorUtils::GetFormattedStack(isolate, error_object)
+           .ToHandle(&formatted_stack)) {
     isolate->OptionalRescheduleException(false);
     return;
   }
-
-  // Replace the structured stack-trace with the formatting result.
-  MaybeHandle<Object> result = Object::SetProperty(
-      isolate, holder, isolate->factory()->stack_trace_symbol(),
-      formatted_stack_trace, StoreOrigin::kMaybeKeyed,
-      Just(ShouldThrow::kThrowOnError));
-  if (result.is_null()) {
-    isolate->OptionalRescheduleException(false);
-    return;
-  }
-
-  v8::Local<v8::Value> value = Utils::ToLocal(formatted_stack_trace);
-  info.GetReturnValue().Set(value);
+  info.GetReturnValue().Set(Utils::ToLocal(formatted_stack));
 }
 
 void Accessors::ErrorStackSetter(
-    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    v8::Local<v8::Name> name, v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> obj = Handle<JSObject>::cast(
-      Utils::OpenHandle(*v8::Local<v8::Value>(info.This())));
-  Handle<Object> value = Handle<Object>::cast(Utils::OpenHandle(*val));
-
-  // Store the value in the internal symbol to avoid reconfiguration to
-  // a data property.
-  MaybeHandle<Object> result = Object::SetProperty(
-      isolate, obj, isolate->factory()->stack_trace_symbol(), value,
-      StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError));
-  if (result.is_null()) {
-    isolate->OptionalRescheduleException(false);
-    return;
-  }
+  Handle<JSObject> error_object =
+      Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
+  ErrorUtils::SetFormattedStack(isolate, error_object,
+                                Utils::OpenHandle(*value));
 }
 
 Handle<AccessorInfo> Accessors::MakeErrorStackInfo(Isolate* isolate) {

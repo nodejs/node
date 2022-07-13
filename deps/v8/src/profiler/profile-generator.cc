@@ -195,7 +195,6 @@ const std::vector<CodeEntryAndLineNumber>* CodeEntry::GetInlineStack(
 void CodeEntry::set_deopt_info(
     const char* deopt_reason, int deopt_id,
     std::vector<CpuProfileDeoptFrame> inlined_frames) {
-  DCHECK(!has_deopt_info());
   RareData* rare_data = EnsureRareData();
   rare_data->deopt_reason_ = deopt_reason;
   rare_data->deopt_id_ = deopt_id;
@@ -208,7 +207,7 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
   set_script_id(script.id());
   set_position(shared.StartPosition());
   if (shared.optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared.disable_optimization_reason()));
+    set_bailout_reason(GetBailoutReason(shared.disabled_optimization_reason()));
   }
 }
 
@@ -571,19 +570,19 @@ void ContextFilter::OnMoveEvent(Address from_address, Address to_address) {
 
 using v8::tracing::TracedValue;
 
-std::atomic<uint32_t> CpuProfile::last_id_;
+std::atomic<ProfilerId> CpuProfilesCollection::last_id_{0};
 
-CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
+CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
                        CpuProfilingOptions options,
                        std::unique_ptr<DiscardedSamplesDelegate> delegate)
     : title_(title),
       options_(options),
       delegate_(std::move(delegate)),
-      start_time_(base::TimeTicks::HighResolutionNow()),
+      start_time_(base::TimeTicks::Now()),
       top_down_(profiler->isolate(), profiler->code_entries()),
       profiler_(profiler),
       streaming_next_sample_(0),
-      id_(++last_id_) {
+      id_(id) {
   // The startTime timestamp is not converted to Perfetto's clock domain and
   // will get out of sync with other timestamps Perfetto knows about, including
   // the automatic trace event "ts" timestamp. startTime is included for
@@ -595,6 +594,9 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
                               "Profile", id_, "data", std::move(value));
 
   DisallowHeapAllocation no_gc;
+  if (delegate_) {
+    delegate_->SetId(id_);
+  }
   if (options_.has_filter_context()) {
     i::Address raw_filter_context =
         reinterpret_cast<i::Address>(options_.raw_filter_context());
@@ -621,7 +623,9 @@ bool CpuProfile::CheckSubsample(base::TimeDelta source_sampling_interval) {
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const ProfileStackTrace& path, int src_line,
-                         bool update_stats, base::TimeDelta sampling_interval) {
+                         bool update_stats, base::TimeDelta sampling_interval,
+                         StateTag state_tag,
+                         EmbedderStateTag embedder_state_tag) {
   if (!CheckSubsample(sampling_interval)) return;
 
   ProfileNode* top_frame_node =
@@ -633,7 +637,8 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
        samples_.size() < options_.max_samples());
 
   if (should_record_sample) {
-    samples_.push_back({top_frame_node, timestamp, src_line});
+    samples_.push_back(
+        {top_frame_node, timestamp, src_line, state_tag, embedder_state_tag});
   }
 
   if (!should_record_sample && delegate_ != nullptr) {
@@ -748,7 +753,7 @@ void CpuProfile::StreamPendingTraceEvents() {
 }
 
 void CpuProfile::FinishProfile() {
-  end_time_ = base::TimeTicks::HighResolutionNow();
+  end_time_ = base::TimeTicks::Now();
   // Stop tracking context movements after profiling stops.
   context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();
@@ -889,42 +894,66 @@ size_t CodeMap::GetEstimatedMemoryUsage() const {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : profiler_(nullptr), current_profiles_semaphore_(1) {}
+    : profiler_(nullptr), current_profiles_semaphore_(1), isolate_(isolate) {
+  USE(isolate_);
+}
 
-CpuProfilingStatus CpuProfilesCollection::StartProfiling(
+CpuProfilingResult CpuProfilesCollection::StartProfilingForTesting(
+    ProfilerId id) {
+  return StartProfiling(id);
+}
+
+CpuProfilingResult CpuProfilesCollection::StartProfiling(
     const char* title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return StartProfiling(++last_id_, title, options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfilesCollection::StartProfiling(
+    ProfilerId id, const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   current_profiles_semaphore_.Wait();
 
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
-
-    return CpuProfilingStatus::kErrorTooManyProfilers;
+    return {
+        0,
+        CpuProfilingStatus::kErrorTooManyProfilers,
+    };
   }
+
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
-    if (strcmp(profile->title(), title) == 0) {
-      // Ignore attempts to start profile with the same title...
+    if ((profile->title() != nullptr && title != nullptr &&
+         strcmp(profile->title(), title) == 0) ||
+        profile->id() == id) {
+      // Ignore attempts to start profile with the same title or id
       current_profiles_semaphore_.Signal();
       // ... though return kAlreadyStarted to force it collect a sample.
-      return CpuProfilingStatus::kAlreadyStarted;
+      return {
+          profile->id(),
+          CpuProfilingStatus::kAlreadyStarted,
+      };
     }
   }
 
-  current_profiles_.emplace_back(
-      new CpuProfile(profiler_, title, options, std::move(delegate)));
+  CpuProfile* profile =
+      new CpuProfile(profiler_, id, title, options, std::move(delegate));
+  current_profiles_.emplace_back(profile);
   current_profiles_semaphore_.Signal();
-  return CpuProfilingStatus::kStarted;
+
+  return {
+      profile->id(),
+      CpuProfilingStatus::kStarted,
+  };
 }
 
-CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
-  const bool empty_title = (title[0] == '\0');
-  CpuProfile* profile = nullptr;
+CpuProfile* CpuProfilesCollection::StopProfiling(ProfilerId id) {
   current_profiles_semaphore_.Wait();
+  CpuProfile* profile = nullptr;
 
-  auto it = std::find_if(current_profiles_.rbegin(), current_profiles_.rend(),
-                         [&](const std::unique_ptr<CpuProfile>& p) {
-                           return empty_title || strcmp(p->title(), title) == 0;
-                         });
+  auto it = std::find_if(
+      current_profiles_.rbegin(), current_profiles_.rend(),
+      [=](const std::unique_ptr<CpuProfile>& p) { return id == p->id(); });
 
   if (it != current_profiles_.rend()) {
     (*it)->FinishProfile();
@@ -933,21 +962,44 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
     // Convert reverse iterator to matching forward iterator.
     current_profiles_.erase(--(it.base()));
   }
-
   current_profiles_semaphore_.Signal();
   return profile;
 }
 
-bool CpuProfilesCollection::IsLastProfile(const char* title) {
+CpuProfile* CpuProfilesCollection::Lookup(const char* title) {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
-  if (current_profiles_.size() != 1) return false;
-  return title[0] == '\0' || strcmp(current_profiles_[0]->title(), title) == 0;
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  if (title == nullptr) {
+    return nullptr;
+  }
+  // http://crbug/51594, edge case console.profile may provide an empty title
+  // and must not crash
+  const bool empty_title = title[0] == '\0';
+  auto it = std::find_if(
+      current_profiles_.rbegin(), current_profiles_.rend(),
+      [&](const std::unique_ptr<CpuProfile>& p) {
+        return (empty_title ||
+                (p->title() != nullptr && strcmp(p->title(), title) == 0));
+      });
+  if (it != current_profiles_.rend()) {
+    return it->get();
+  }
+
+  return nullptr;
 }
 
+bool CpuProfilesCollection::IsLastProfileLeft(ProfilerId id) {
+  // Called from VM thread, and only it can mutate the list,
+  // so no locking is needed here.
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  if (current_profiles_.size() != 1) return false;
+  return id == current_profiles_[0]->id();
+}
 
 void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   // Called from VM thread for a completed profile.
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
   auto pos =
       std::find_if(finished_profiles_.begin(), finished_profiles_.end(),
                    [&](const std::unique_ptr<CpuProfile>& finished_profile) {
@@ -989,19 +1041,31 @@ base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
-    bool update_stats, base::TimeDelta sampling_interval,
-    Address native_context_address) {
+    bool update_stats, base::TimeDelta sampling_interval, StateTag state,
+    EmbedderStateTag embedder_state_tag, Address native_context_address,
+    Address embedder_native_context_address) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   const ProfileStackTrace empty_path;
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
+    ContextFilter& context_filter = profile->context_filter();
     // If the context filter check failed, omit the contents of the stack.
-    bool accepts_context =
-        profile->context_filter().Accept(native_context_address);
+    bool accepts_context = context_filter.Accept(native_context_address);
+    bool accepts_embedder_context =
+        context_filter.Accept(embedder_native_context_address);
+
+    // if FilterContext is set, do not propagate StateTag if not accepted.
+    // GC is exception because native context address is guaranteed to be empty.
+    DCHECK(state != StateTag::GC || native_context_address == kNullAddress);
+    if (!accepts_context && state != StateTag::GC) {
+      state = StateTag::IDLE;
+    }
     profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
-                     update_stats, sampling_interval);
+                     update_stats, sampling_interval, state,
+                     accepts_embedder_context ? embedder_state_tag
+                                              : EmbedderStateTag::EMPTY);
   }
   current_profiles_semaphore_.Signal();
 }

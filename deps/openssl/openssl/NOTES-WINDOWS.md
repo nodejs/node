@@ -28,12 +28,12 @@ For this option you can use Cygwin.
 Native builds using Visual C++
 ==============================
 
-The native builds using Visual C++ have a VC-* prefix.
+The native builds using Visual C++ have a `VC-*` prefix.
 
 Requirement details
 -------------------
 
-In addition to the requirements and instructions listed in INSTALL.md,
+In addition to the requirements and instructions listed in `INSTALL.md`,
 these are required as well:
 
 ### Perl
@@ -64,22 +64,26 @@ Quick start
 
  4. Use Visual Studio Developer Command Prompt with administrative privileges,
     choosing one of its variants depending on the intended architecture.
-    Or run "cmd" and execute "vcvarsall.bat" with one of the options x86,
-    x86_amd64, x86_arm, x86_arm64, amd64, amd64_x86, amd64_arm, or amd64_arm64.
-    This sets up the environment variables needed for nmake.exe, cl.exe, etc.
+    Or run `cmd` and execute `vcvarsall.bat` with one of the options `x86`,
+    `x86_amd64`, `x86_arm`, `x86_arm64`, `amd64`, `amd64_x86`, `amd64_arm`,
+    or `amd64_arm64`.
+    This sets up the environment variables needed for `nmake.exe`, `cl.exe`,
+    etc.
     See also
     <https://docs.microsoft.com/cpp/build/building-on-the-command-line>
 
  5. From the root of the OpenSSL source directory enter
-    perl Configure VC-WIN32    if you want 32-bit OpenSSL or
-    perl Configure VC-WIN64A   if you want 64-bit OpenSSL or
-    perl Configure             to let Configure figure out the platform
+    - `perl Configure VC-WIN32`     if you want 32-bit OpenSSL or
+    - `perl Configure VC-WIN64A`    if you want 64-bit OpenSSL or
+    - `perl Configure VC-WIN64-ARM` if you want Windows on Arm (win-arm64)
+       OpenSSL or
+    - `perl Configure`              to let Configure figure out the platform
 
- 6. nmake
+ 6. `nmake`
 
- 7. nmake test
+ 7. `nmake test`
 
- 8. nmake install
+ 8. `nmake install`
 
 For the full installation instructions, or if anything goes wrong at any stage,
 check the INSTALL.md file.
@@ -109,25 +113,25 @@ installation for examples), these fallbacks are used:
 ALSO NOTE that those directories are usually write protected, even if
 your account is in the Administrators group.  To work around that,
 start the command prompt by right-clicking on it and choosing "Run as
-Administrator" before running 'nmake install'.  The other solution
+Administrator" before running `nmake install`.  The other solution
 is, of course, to choose a different set of directories by using
---prefix and --openssldir when configuring.
+`--prefix` and `--openssldir` when configuring.
 
-Special notes for Universal Windows Platform builds, aka VC-*-UWP
---------------------------------------------------------------------
+Special notes for Universal Windows Platform builds, aka `VC-*-UWP`
+-------------------------------------------------------------------
 
  - UWP targets only support building the static and dynamic libraries.
 
- - You should define the platform type to "uwp" and the target arch via
-   "vcvarsall.bat" before you compile. For example, if you want to build
-   "arm64" builds, you should run "vcvarsall.bat x86_arm64 uwp".
+ - You should define the platform type to `uwp` and the target arch via
+   `vcvarsall.bat` before you compile. For example, if you want to build
+   `arm64` builds, you should run `vcvarsall.bat x86_arm64 uwp`.
 
 Native builds using Embarcadero C++Builder
 =========================================
 
 This toolchain (a descendant of Turbo/Borland C++) is an alternative to MSVC.
 OpenSSL currently includes an experimental 32-bit configuration targeting the
-Clang-based compiler (bcc32c.exe) in v10.3.3 Community Edition.
+Clang-based compiler (`bcc32c.exe`) in v10.3.3 Community Edition.
 <https://www.embarcadero.com/products/cbuilder/starter>
 
  1. Install Perl.
@@ -135,11 +139,11 @@ Clang-based compiler (bcc32c.exe) in v10.3.3 Community Edition.
  2. Open the RAD Studio Command Prompt.
 
  3. Go to the root of the OpenSSL source directory and run:
-    perl Configure BC-32 --prefix=%CD%
+    `perl Configure BC-32 --prefix=%CD%`
 
- 4. make -N
+ 4. `make -N`
 
- 5. make -N test
+ 5. `make -N test`
 
  6. Build your program against this OpenSSL:
     * Set your include search path to the "include" subdirectory of OpenSSL.
@@ -166,9 +170,9 @@ MinGW offers an alternative way to build native OpenSSL, by cross compilation.
 
    - Perl, at least version 5.10.0, which usually comes pre-installed with MSYS2
 
-   - make, installed using "pacman -S make" into the MSYS2 environment
+   - make, installed using `pacman -S make` into the MSYS2 environment
 
-   - MinGW[64] compiler: mingw-w64-i686-gcc and/or mingw-w64-x86_64-gcc.
+   - MinGW[64] compiler: `mingw-w64-i686-gcc` and/or `mingw-w64-x86_64-gcc`.
      These compilers must be on your MSYS2 $PATH.
      A common error is to not have these on your $PATH.
      The MSYS2 version of gcc will not work correctly here.
@@ -176,22 +180,28 @@ MinGW offers an alternative way to build native OpenSSL, by cross compilation.
    In the MSYS2 shell do the configuration depending on the target architecture:
 
        ./Configure mingw ...
+
    or
+
        ./Configure mingw64 ...
+
    or
+
        ./Configure ...
 
    for the default architecture.
 
-   Apart from that, follow the Unix / Linux instructions in INSTALL.md.
+   Apart from that, follow the Unix / Linux instructions in `INSTALL.md`.
 
  * It is also possible to build mingw[64] on Linux or Cygwin.
 
-   In this case configure with the corresponding --cross-compile-prefix= option.
-   For example
+   In this case configure with the corresponding `--cross-compile-prefix=`
+   option. For example
 
        ./Configure mingw --cross-compile-prefix=i686-w64-mingw32- ...
+
    or
+
        ./Configure mingw64 --cross-compile-prefix=x86_64-w64-mingw32- ...
 
    This requires that you've installed the necessary add-on packages for
@@ -203,18 +213,18 @@ Linking native applications
 This section applies to all native builds.
 
 If you link with static OpenSSL libraries then you're expected to
-additionally link your application with WS2_32.LIB, GDI32.LIB,
-ADVAPI32.LIB, CRYPT32.LIB and USER32.LIB. Those developing
+additionally link your application with `WS2_32.LIB`, `GDI32.LIB`,
+`ADVAPI32.LIB`, `CRYPT32.LIB` and `USER32.LIB`. Those developing
 non-interactive service applications might feel concerned about
-linking with GDI32.LIB and USER32.LIB, as they are justly associated
+linking with `GDI32.LIB` and `USER32.LIB`, as they are justly associated
 with interactive desktop, which is not available to service
 processes. The toolkit is designed to detect in which context it's
 currently executed, GUI, console app or service, and act accordingly,
 namely whether or not to actually make GUI calls. Additionally those
-who wish to /DELAYLOAD:GDI32.DLL and /DELAYLOAD:USER32.DLL and
+who wish to `/DELAYLOAD:GDI32.DLL` and `/DELAYLOAD:USER32.DLL` and
 actually keep them off service process should consider implementing
-and exporting from .exe image in question own _OPENSSL_isservice not
-relying on USER32.DLL. E.g., on Windows Vista and later you could:
+and exporting from .exe image in question own `_OPENSSL_isservice` not
+relying on `USER32.DLL`. E.g., on Windows Vista and later you could:
 
        __declspec(dllexport) __cdecl BOOL _OPENSSL_isservice(void)
        {
@@ -233,7 +243,7 @@ See also the OPENSSL_Applink manual page.
 Hosted builds using Cygwin
 ==========================
 
-Cygwin implements a POSIX/Unix runtime system (cygwin1.dll) on top of the
+Cygwin implements a POSIX/Unix runtime system (`cygwin1.dll`) on top of the
 Windows subsystem and provides a Bash shell and GNU tools environment.
 Consequently, a build of OpenSSL with Cygwin is virtually identical to the
 Unix procedure.
@@ -249,7 +259,7 @@ To build OpenSSL using Cygwin, you need to:
 
 Apart from that, follow the Unix / Linux instructions in INSTALL.md.
 
-NOTE: "make test" and normal file operations may fail in directories
-mounted as text (i.e. mount -t c:\somewhere /home) due to Cygwin
+NOTE: `make test` and normal file operations may fail in directories
+mounted as text (i.e. `mount -t c:\somewhere /home`) due to Cygwin
 stripping of carriage returns. To avoid this ensure that a binary
-mount is used, e.g. mount -b c:\somewhere /home.
+mount is used, e.g. `mount -b c:\somewhere /home`.

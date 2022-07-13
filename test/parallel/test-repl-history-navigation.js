@@ -74,6 +74,7 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     test: [ 'let ab = 45', ENTER,
             '555 + 909', ENTER,
+            'let autocompleteMe = 123', ENTER,
             '{key : {key2 :[] }}', ENTER,
             'Array(100).fill(1).map((e, i) => i ** i)', LEFT, LEFT, DELETE,
             '2', ENTER],
@@ -82,7 +83,7 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    test: [UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN, DOWN],
+    test: [UP, UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN],
     expected: [prompt,
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
                prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
@@ -92,6 +93,7 @@ const tests = [
                  ' 2025, 2116, 2209,...',
                `${prompt}{key : {key2 :[] }}`,
                prev && '\n// { key: { key2: [] } }',
+               `${prompt}let autocompleteMe = 123`,
                `${prompt}555 + 909`,
                prev && '\n// 1464',
                `${prompt}let ab = 45`,
@@ -99,6 +101,7 @@ const tests = [
                `${prompt}let ab = 45`,
                `${prompt}555 + 909`,
                prev && '\n// 1464',
+               `${prompt}let autocompleteMe = 123`,
                `${prompt}{key : {key2 :[] }}`,
                prev && '\n// { key: { key2: [] } }',
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
@@ -128,7 +131,7 @@ const tests = [
     preview: false,
     showEscapeCodes: true,
     test: [
-      '55', UP, UP, UP, UP, UP, UP, ENTER,
+      '55', UP, UP, UP, UP, UP, UP, UP, ENTER,
     ],
     expected: [
       '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G',
@@ -185,10 +188,10 @@ const tests = [
       ENTER,
       'veryLongName'.repeat(30),
       ENTER,
-      `${'\x1B[90m \x1B[39m'.repeat(235)} fun`,
+      `${'\x1B[90m \x1B[39m'.repeat(229)} aut`,
       ESCAPE,
       ENTER,
-      `${' '.repeat(236)} fun`,
+      `${' '.repeat(230)} aut`,
       ESCAPE,
       ENTER,
     ],
@@ -236,19 +239,20 @@ const tests = [
       prompt, '\x1B[3G',
       // 1. UP
       // This exceeds the maximum columns (250):
-      // Whitespace + prompt + ' // '.length + 'function'.length
-      // 236 + 2 + 4 + 8
+      // Whitespace + prompt + ' // '.length + 'autocompleteMe'.length
+      // 230 + 2 + 4 + 14
       '\x1B[1G', '\x1B[0J',
-      `${prompt}${' '.repeat(236)} fun`, '\x1B[243G',
-      ' // ction', '\x1B[243G',
-      ' // ction', '\x1B[243G',
+      `${prompt}${' '.repeat(230)} aut`, '\x1B[237G',
+      ' // ocompleteMe', '\x1B[237G',
+      '\n// 123', '\x1B[237G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       '\x1B[0K',
       // 2. UP
       '\x1B[1G', '\x1B[0J',
-      `${prompt}${' '.repeat(235)} fun`, '\x1B[242G',
-      // TODO(BridgeAR): Investigate why the preview is generated twice.
-      ' // ction', '\x1B[242G',
-      ' // ction', '\x1B[242G',
+      `${prompt}${' '.repeat(229)} aut`, '\x1B[236G',
+      ' // ocompleteMe', '\x1B[236G',
+      '\n// 123', '\x1B[236G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // Preview cleanup
       '\x1B[0K',
       // 3. UP
@@ -326,8 +330,8 @@ const tests = [
     skip: !process.features.inspector,
     checkTotal: true,
     test: [
-      'fu',
-      'n',
+      'au',
+      't',
       RIGHT,
       BACKSPACE,
       LEFT,
@@ -353,74 +357,93 @@ const tests = [
     // K = Erase in line; 0 = right; 1 = left; 2 = total
     expected: [
       // 0.
-      // 'f'
-      '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G', 'f',
+      // 'a'
+      '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G', 'a',
       // 'u'
-      'u', ' // nction', '\x1B[5G',
-      // 'n' - Cleanup
+      'u', ' // tocompleteMe', '\x1B[5G',
+      '\n// 123', '\x1B[5G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      // 't' - Cleanup
       '\x1B[0K',
-      'n', ' // ction', '\x1B[6G',
+      't', ' // ocompleteMe', '\x1B[6G',
+      '\n// 123', '\x1B[6G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 1. Right. Cleanup
       '\x1B[0K',
-      'ction',
+      'ocompleteMe',
+      '\n// 123', '\x1B[17G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 2. Backspace. Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}functio`, '\x1B[10G',
+      '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`, '\x1B[16G',
       // Autocomplete and refresh?
-      ' // n', '\x1B[10G', ' // n', '\x1B[10G',
+      ' // e', '\x1B[16G',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 3. Left. Cleanup
       '\x1B[0K',
-      '\x1B[1D', '\x1B[10G', ' // n', '\x1B[9G',
+      '\x1B[1D', '\x1B[16G', ' // e', '\x1B[15G',
       // 4. Left. Cleanup
-      '\x1B[10G', '\x1B[0K', '\x1B[9G',
-      '\x1B[1D', '\x1B[10G', ' // n', '\x1B[8G',
+      '\x1B[16G', '\x1B[0K', '\x1B[15G',
+      '\x1B[1D', '\x1B[16G', ' // e', '\x1B[14G',
       // 5. 'A' - Cleanup
-      '\x1B[10G', '\x1B[0K', '\x1B[8G',
+      '\x1B[16G', '\x1B[0K', '\x1B[14G',
       // Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}functAio`, '\x1B[9G',
+      '\x1B[1G', '\x1B[0J', `${prompt}autocompletAeM`, '\x1B[15G',
       // 6. Backspace. Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}functio`, '\x1B[8G', '\x1B[10G', ' // n',
-      '\x1B[8G', '\x1B[10G', ' // n',
-      '\x1B[8G', '\x1B[10G',
+      '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`,
+      '\x1B[14G', '\x1B[16G', ' // e',
+      '\x1B[14G', '\x1B[16G', ' // e',
+      '\x1B[14G', '\x1B[16G',
       // 7. Go to end. Cleanup
-      '\x1B[0K', '\x1B[8G', '\x1B[2C',
-      'n',
+      '\x1B[0K', '\x1B[14G', '\x1B[2C',
+      'e',
+      '\n// 123', '\x1B[17G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 8. Backspace. Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}functio`, '\x1B[10G',
+      '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`, '\x1B[16G',
       // Autocomplete
-      ' // n', '\x1B[10G', ' // n', '\x1B[10G',
+      ' // e', '\x1B[16G',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 9. Word left. Cleanup
-      '\x1B[0K', '\x1B[7D', '\x1B[10G', ' // n', '\x1B[3G', '\x1B[10G',
+      '\x1B[0K', '\x1B[13D', '\x1B[16G', ' // e', '\x1B[3G', '\x1B[16G',
       // 10. Word right. Cleanup
-      '\x1B[0K', '\x1B[3G', '\x1B[7C', ' // n', '\x1B[10G',
+      '\x1B[0K', '\x1B[3G', '\x1B[13C', ' // e', '\x1B[16G',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 11. ESCAPE
-      '\x1B[0K', ' // n', '\x1B[10G', '\x1B[0K',
+      '\x1B[0K',
       // 12. ENTER
       '\r\n',
-      'Uncaught ReferenceError: functio is not defined\n',
+      'Uncaught ReferenceError: autocompleteM is not defined\n',
       '\x1B[1G', '\x1B[0J',
       // 13. UP
       prompt, '\x1B[3G', '\x1B[1G', '\x1B[0J',
-      `${prompt}functio`, '\x1B[10G',
-      ' // n', '\x1B[10G',
-      ' // n', '\x1B[10G',
+      `${prompt}autocompleteM`, '\x1B[16G',
+      ' // e', '\x1B[16G',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 14. LEFT
-      '\x1B[0K', '\x1B[1D',
-      '\x1B[10G', ' // n', '\x1B[9G', '\x1B[10G',
+      '\x1B[0K', '\x1B[1D', '\x1B[16G',
+      ' // e', '\x1B[15G', '\x1B[16G',
       // 15. ENTER
-      '\x1B[0K', '\x1B[9G', '\x1B[1C',
+      '\x1B[0K', '\x1B[15G', '\x1B[1C',
       '\r\n',
-      'Uncaught ReferenceError: functio is not defined\n',
+      'Uncaught ReferenceError: autocompleteM is not defined\n',
       '\x1B[1G', '\x1B[0J',
-      '> ', '\x1B[3G',
+      prompt, '\x1B[3G',
       // 16. UP
       '\x1B[1G', '\x1B[0J',
-      '> functio', '\x1B[10G',
-      ' // n', '\x1B[10G',
-      ' // n', '\x1B[10G', '\x1B[0K',
+      `${prompt}autocompleteM`, '\x1B[16G',
+      ' // e', '\x1B[16G',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[0K',
       // 17. ENTER
-      'n', '\r\n',
+      'e', '\r\n',
+      '123\n',
       '\x1B[1G', '\x1B[0J',
-      '... ', '\x1B[5G',
+      prompt, '\x1B[3G',
       '\r\n',
     ],
     clean: true

@@ -25,8 +25,8 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "memory_tracker-inl.h"
 #include "histogram-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -38,11 +38,11 @@
 #include "node_process-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
 
 #if HAVE_OPENSSL
-#include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
 #endif
 
@@ -161,6 +161,9 @@ PVOID old_vectored_exception_handler;
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
 }  // namespace per_process
+
+// The section in the OpenSSL configuration file to be loaded.
+const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
@@ -339,11 +342,6 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
-  Local<Object> global = context()->Global();
-  // TODO(joyeecheung): this can be done in JS land now.
-  global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
-      .Check();
-
   // process, require, internalBinding, primordials
   std::vector<Local<String>> node_params = {
       process_string(),
@@ -360,7 +358,16 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       this, "internal/bootstrap/node", &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
+  }
+
+  if (!no_browser_globals()) {
+    result = ExecuteBootstrapper(
+        this, "internal/bootstrap/browser", &node_params, &node_args);
+
+    if (result.IsEmpty()) {
+      return MaybeLocal<Value>();
+    }
   }
 
   // TODO(joyeecheung): skip these in the snapshot building for workers.
@@ -371,7 +378,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       ExecuteBootstrapper(this, thread_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
   }
 
   auto process_state_switch_id =
@@ -382,7 +389,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       this, process_state_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
   }
 
   Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
@@ -473,6 +480,14 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(cb(info));
   }
 
+  // TODO(joyeecheung): move these conditions into JS land and let the
+  // deserialize main function take precedence. For workers, we need to
+  // move the pre-execution part into a different file that can be
+  // reused when dealing with user-defined main functions.
+  if (!env->snapshot_deserialize_main().IsEmpty()) {
+    return env->RunSnapshotDeserializeMain();
+  }
+
   if (env->worker_context() != nullptr) {
     return StartExecution(env, "internal/main/worker_thread");
   }
@@ -484,6 +499,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
+  }
+
+  if (per_process::cli_options->build_snapshot) {
+    return StartExecution(env, "internal/main/mksnapshot");
   }
 
   if (per_process::cli_options->print_help) {
@@ -502,6 +521,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (env->options()->syntax_check_only) {
     return StartExecution(env, "internal/main/check_syntax");
+  }
+
+  if (env->options()->test_runner) {
+    return StartExecution(env, "internal/main/test_runner");
   }
 
   if (!first_argv.empty() && first_argv != "-") {
@@ -807,7 +830,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
   // is removed in V8.
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--no-harmony-import-assertions") == v8_args.end()) {
-    v8_args.push_back("--harmony-import-assertions");
+    v8_args.emplace_back("--harmony-import-assertions");
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
@@ -962,8 +985,6 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
-  NativeModuleEnv::InitializeCodeCache();
-
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
@@ -1069,27 +1090,44 @@ InitializationResult InitializeOncePerProcess(
     // CheckEntropy. CheckEntropy will call RAND_status which will now always
     // return 0, leading to an endless loop and the node process will appear to
     // hang/freeze.
+
+    // Passing NULL as the config file will allow the default openssl.cnf file
+    // to be loaded, but the default section in that file will not be used,
+    // instead only the section that matches the value of conf_section_name
+    // will be read from the default configuration file.
+    const char* conf_file = nullptr;
+    // To allow for using the previous default where the 'openssl_conf' appname
+    // was used, the command line option 'openssl-shared-config' can be used to
+    // force the old behavior.
+    if (per_process::cli_options->openssl_shared_config) {
+      conf_section_name = "openssl_conf";
+    }
+    // Use OPENSSL_CONF environment variable is set.
     std::string env_openssl_conf;
     credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
+    if (!env_openssl_conf.empty()) {
+      conf_file = env_openssl_conf.c_str();
+    }
+    // Use --openssl-conf command line option if specified.
+    if (!per_process::cli_options->openssl_config.empty()) {
+      conf_file = per_process::cli_options->openssl_config.c_str();
+    }
 
-    bool has_cli_conf = !per_process::cli_options->openssl_config.empty();
-    if (has_cli_conf || !env_openssl_conf.empty()) {
-      OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
-      OPENSSL_INIT_set_config_file_flags(settings, CONF_MFLAGS_DEFAULT_SECTION);
-      if (has_cli_conf) {
-        const char* conf = per_process::cli_options->openssl_config.c_str();
-        OPENSSL_INIT_set_config_filename(settings, conf);
-      }
-      OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
-      OPENSSL_INIT_free(settings);
+    OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    OPENSSL_INIT_set_config_filename(settings, conf_file);
+    OPENSSL_INIT_set_config_appname(settings, conf_section_name);
+    OPENSSL_INIT_set_config_file_flags(settings,
+                                       CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-      if (ERR_peek_error() != 0) {
-        result.exit_code = ERR_GET_REASON(ERR_peek_error());
-        result.early_return = true;
-        fprintf(stderr, "OpenSSL configuration error:\n");
-        ERR_print_errors_fp(stderr);
-        return result;
-      }
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    OPENSSL_INIT_free(settings);
+
+    if (ERR_peek_error() != 0) {
+      result.exit_code = ERR_GET_REASON(ERR_peek_error());
+      result.early_return = true;
+      fprintf(stderr, "OpenSSL configuration error:\n");
+      ERR_print_errors_fp(stderr);
+      return result;
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
@@ -1144,29 +1182,29 @@ int Start(int argc, char** argv) {
     return result.exit_code;
   }
 
+  if (per_process::cli_options->build_snapshot) {
+    fprintf(stderr,
+            "--build-snapshot is not yet supported in the node binary\n");
+    return 1;
+  }
+
   {
-    Isolate::CreateParams params;
-    const std::vector<size_t>* indices = nullptr;
-    const EnvSerializeInfo* env_info = nullptr;
-    bool use_node_snapshot =
-        per_process::cli_options->per_isolate->node_snapshot;
-    if (use_node_snapshot) {
-      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-      if (blob != nullptr) {
-        params.snapshot_blob = blob;
-        indices = NodeMainInstance::GetIsolateDataIndices();
-        env_info = NodeMainInstance::GetEnvSerializeInfo();
-      }
-    }
+    bool use_node_snapshot = per_process::cli_options->node_snapshot;
+    const SnapshotData* snapshot_data =
+        use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
+                          : nullptr;
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
-    NodeMainInstance main_instance(&params,
+    if (snapshot_data != nullptr) {
+      native_module::NativeModuleEnv::RefreshCodeCache(
+          snapshot_data->code_cache);
+    }
+    NodeMainInstance main_instance(snapshot_data,
                                    uv_default_loop(),
                                    per_process::v8_platform.Platform(),
                                    result.args,
-                                   result.exec_args,
-                                   indices);
-    result.exit_code = main_instance.Run(env_info);
+                                   result.exec_args);
+    result.exit_code = main_instance.Run();
   }
 
   TearDownOncePerProcess();

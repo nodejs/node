@@ -3,26 +3,33 @@ const Pipeline = require('minipass-pipeline')
 const libSearch = require('libnpmsearch')
 const log = require('../utils/log-shim.js')
 
-const formatPackageStream = require('../search/format-package-stream.js')
-const packageFilter = require('../search/package-filter.js')
+const formatSearchStream = require('../utils/format-search-stream.js')
 
-function prepareIncludes (args) {
-  return args
-    .map(s => s.toLowerCase())
-    .filter(s => s)
-}
+function filter (data, include, exclude) {
+  const words = [data.name]
+    .concat(data.maintainers.map(m => `=${m.username}`))
+    .concat(data.keywords || [])
+    .map(f => f && f.trim && f.trim())
+    .filter(f => f)
+    .join(' ')
+    .toLowerCase()
 
-function prepareExcludes (searchexclude) {
-  var exclude
-  if (typeof searchexclude === 'string') {
-    exclude = searchexclude.split(/\s+/)
-  } else {
-    exclude = []
+  if (exclude.find(e => match(words, e))) {
+    return false
   }
 
-  return exclude
-    .map(s => s.toLowerCase())
-    .filter(s => s)
+  return true
+}
+
+function match (words, pattern) {
+  if (pattern.startsWith('/')) {
+    if (pattern.endsWith('/')) {
+      pattern = pattern.slice(0, -1)
+    }
+    pattern = new RegExp(pattern.slice(1))
+    return words.match(pattern)
+  }
+  return words.indexOf(pattern) !== -1
 }
 
 const BaseCommand = require('../base-command.js')
@@ -44,13 +51,14 @@ class Search extends BaseCommand {
   ]
 
   static usage = ['[search terms ...]']
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     const opts = {
       ...this.npm.flatOptions,
       ...this.npm.flatOptions.search,
-      include: prepareIncludes(args),
-      exclude: prepareExcludes(this.npm.flatOptions.search.exclude),
+      include: args.map(s => s.toLowerCase()).filter(s => s),
+      exclude: this.npm.flatOptions.search.exclude.split(/\s+/),
     }
 
     if (opts.include.length === 0) {
@@ -62,7 +70,7 @@ class Search extends BaseCommand {
 
     class FilterStream extends Minipass {
       write (pkg) {
-        if (packageFilter(pkg, opts.include, opts.exclude)) {
+        if (filter(pkg, opts.include, opts.exclude)) {
           super.write(pkg)
         }
       }
@@ -72,7 +80,7 @@ class Search extends BaseCommand {
 
     // Grab a configured output stream that will spit out packages in the
     // desired format.
-    const outputStream = formatPackageStream({
+    const outputStream = formatSearchStream({
       args, // --searchinclude options are not highlighted
       ...opts,
     })

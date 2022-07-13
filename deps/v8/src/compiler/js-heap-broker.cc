@@ -30,35 +30,38 @@ namespace compiler {
 
 #define TRACE(broker, x) TRACE_BROKER(broker, x)
 
+#ifdef V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
 // These definitions are here in order to please the linker, which in debug mode
 // sometimes requires static constants to be defined in .cc files.
+// This is, however, deprecated (and unnecessary) in C++17.
 const uint32_t JSHeapBroker::kMinimalRefsBucketCount;
 const uint32_t JSHeapBroker::kInitialRefsBucketCount;
+#endif
 
 void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
 void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-                           bool tracing_enabled, bool is_concurrent_inlining,
-                           CodeKind code_kind)
+                           bool tracing_enabled, CodeKind code_kind)
     : isolate_(isolate),
+#if V8_COMPRESS_POINTERS
+      cage_base_(isolate),
+#endif  // V8_COMPRESS_POINTERS
       zone_(broker_zone),
+      // Note that this initialization of {refs_} with the minimal initial
+      // capacity is redundant in the normal use case (concurrent compilation
+      // enabled, standard objects to be serialized), as the map is going to be
+      // replaced immediately with a larger-capacity one.  It doesn't seem to
+      // affect the performance in a noticeable way though.
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
                                  zone())),
       root_index_map_(isolate),
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
-      is_concurrent_inlining_(is_concurrent_inlining),
       code_kind_(code_kind),
       feedback_(zone()),
-      property_access_infos_(zone()),
-      minimorphic_property_access_infos_(zone()) {
-  // Note that this initialization of {refs_} with the minimal initial capacity
-  // is redundant in the normal use case (concurrent compilation enabled,
-  // standard objects to be serialized), as the map is going to be replaced
-  // immediately with a larger-capacity one.  It doesn't seem to affect the
-  // performance in a noticeable way though.
+      property_access_infos_(zone()) {
   TRACE(this, "Constructing heap broker");
 }
 
@@ -343,11 +346,15 @@ KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
   if (IsKeyedHasICKind(kind)) {
     return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
   }
+  if (IsDefineKeyedOwnICKind(kind)) {
+    return KeyedAccessMode(AccessMode::kDefine,
+                           nexus.GetKeyedAccessStoreMode());
+  }
   if (IsKeyedStoreICKind(kind)) {
     return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
   }
   if (IsStoreInArrayLiteralICKind(kind) ||
-      IsStoreDataPropertyInLiteralKind(kind)) {
+      IsDefineKeyedOwnPropertyInLiteralKind(kind)) {
     return KeyedAccessMode(AccessMode::kStoreInLiteral,
                            nexus.GetKeyedAccessStoreMode());
   }
@@ -361,6 +368,7 @@ bool KeyedAccessMode::IsLoad() const {
 }
 bool KeyedAccessMode::IsStore() const {
   return access_mode_ == AccessMode::kStore ||
+         access_mode_ == AccessMode::kDefine ||
          access_mode_ == AccessMode::kStoreInLiteral;
 }
 
@@ -399,9 +407,10 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
       keyed_mode_(keyed_mode),
       transition_groups_(zone) {
   DCHECK(IsKeyedLoadICKind(slot_kind) || IsKeyedHasICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind) ||
+         IsDefineKeyedOwnPropertyInLiteralKind(slot_kind) ||
          IsKeyedStoreICKind(slot_kind) ||
-         IsStoreInArrayLiteralICKind(slot_kind));
+         IsStoreInArrayLiteralICKind(slot_kind) ||
+         IsDefineKeyedOwnICKind(slot_kind));
 }
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
@@ -416,26 +425,16 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
-MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
-    NameRef const& name, FeedbackSlotKind slot_kind, Handle<Object> handler,
-    ZoneVector<MapRef> const& maps, bool has_migration_target_maps)
-    : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
-      name_(name),
-      handler_(handler),
-      maps_(maps),
-      has_migration_target_maps_(has_migration_target_maps) {
-  DCHECK(IsLoadICKind(slot_kind));
-}
-
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
                                          ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
-  DCHECK(IsLoadICKind(slot_kind) || IsStoreICKind(slot_kind) ||
-         IsStoreOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
+  DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
+         IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
          IsStoreInArrayLiteralICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind));
+         IsDefineKeyedOwnPropertyInLiteralKind(slot_kind) ||
+         IsDefineKeyedOwnICKind(slot_kind));
 }
 
 void JSHeapBroker::SetFeedback(FeedbackSource const& source,
@@ -471,59 +470,6 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
       .IsUninitialized();
 }
 
-namespace {
-
-using MapRefAndHandler = std::pair<MapRef, MaybeObjectHandle>;
-MaybeObjectHandle TryGetMinimorphicHandler(
-    ZoneVector<MapRefAndHandler> const& maps_and_handlers,
-    FeedbackSlotKind kind, NativeContextRef const& native_context,
-    bool is_turboprop) {
-  if (!is_turboprop || !FLAG_turbo_dynamic_map_checks || !IsLoadICKind(kind)) {
-    return MaybeObjectHandle();
-  }
-
-  // Don't use dynamic map checks when loading properties from Array.prototype.
-  // Using dynamic map checks prevents constant folding and hence does not
-  // inline the array builtins. We only care about monomorphic cases here. For
-  // polymorphic loads currently we don't inline the builtins even without
-  // dynamic map checks.
-  if (maps_and_handlers.size() == 1 &&
-      maps_and_handlers[0].first.equals(
-          native_context.initial_array_prototype().map())) {
-    return MaybeObjectHandle();
-  }
-
-  MaybeObjectHandle initial_handler;
-  for (const MapRefAndHandler& map_and_handler : maps_and_handlers) {
-    MapRef map = map_and_handler.first;
-    MaybeObjectHandle handler = map_and_handler.second;
-    if (handler.is_null()) return MaybeObjectHandle();
-    DCHECK(!handler->IsCleared());
-    // TODO(mythria): extend this to DataHandlers too
-    if (!handler.object()->IsSmi()) return MaybeObjectHandle();
-    if (LoadHandler::GetHandlerKind(handler.object()->ToSmi()) !=
-        LoadHandler::Kind::kField) {
-      return MaybeObjectHandle();
-    }
-    CHECK(!map.object()->IsJSGlobalProxyMap());
-    if (initial_handler.is_null()) {
-      initial_handler = handler;
-    } else if (!handler.is_identical_to(initial_handler)) {
-      return MaybeObjectHandle();
-    }
-  }
-  return initial_handler;
-}
-
-bool HasMigrationTargets(const ZoneVector<MapRef>& maps) {
-  for (const MapRef& map : maps) {
-    if (map.is_migration_target()) return true;
-  }
-  return false;
-}
-
-}  // namespace
-
 const ProcessedFeedback& JSHeapBroker::NewInsufficientFeedback(
     FeedbackSlotKind kind) const {
   return *zone()->New<InsufficientFeedback>(kind);
@@ -536,7 +482,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   FeedbackSlotKind kind = nexus.kind();
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
-  ZoneVector<MapRefAndHandler> maps_and_handlers(zone());
   ZoneVector<MapRef> maps(zone());
   {
     std::vector<MapAndHandler> maps_and_handlers_unfiltered;
@@ -558,38 +503,31 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
         }
       }
       if (map.is_abandoned_prototype_map()) continue;
-      maps_and_handlers.push_back({map, map_and_handler.second});
       maps.push_back(map);
     }
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
-  MaybeObjectHandle handler = TryGetMinimorphicHandler(
-      maps_and_handlers, kind, target_native_context(), is_turboprop());
-  if (!handler.is_null()) {
-    return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
-        *name, kind, CanonicalPersistentHandle(handler.object()), maps,
-        HasMigrationTargets(maps));
-  }
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
-  if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
+  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
-    DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
+    DCHECK_IMPLIES(maps.empty(),
+                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
     return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
-  } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
+  } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
-    DCHECK_EQ(nexus.ic_state(), MEGAMORPHIC);
+    DCHECK_EQ(nexus.ic_state(), InlineCacheState::MEGAMORPHIC);
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *zone()->New<ElementAccessFeedback>(
         zone(), KeyedAccessMode::FromNexus(nexus), kind);
@@ -604,7 +542,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
-  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+  if (nexus.ic_state() != InlineCacheState::MONOMORPHIC ||
+      nexus.GetFeedback()->IsCleared()) {
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 
@@ -695,9 +634,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
 
   AllocationSiteRef site =
       MakeRefAssumeMemoryFence(this, AllocationSite::cast(object));
-  if (!is_concurrent_inlining() && site.PointsToLiteral()) {
-    site.SerializeRecursive(NotConcurrentInliningTag{this});
-  }
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
@@ -713,9 +649,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
 
   RegExpBoilerplateDescriptionRef boilerplate = MakeRefAssumeMemoryFence(
       this, RegExpBoilerplateDescription::cast(object));
-  if (!is_concurrent_inlining()) {
-    boilerplate.Serialize(NotConcurrentInliningTag{this});
-  }
   return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
 
@@ -956,34 +889,10 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   AccessInfoFactory factory(this, dependencies, zone());
   PropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(map, name, access_mode);
-  if (is_concurrent_inlining_) {
-    TRACE(this, "Storing PropertyAccessInfo for "
-                    << access_mode << " of property " << name << " on map "
-                    << map);
-    property_access_infos_.insert({target, access_info});
-  }
-  return access_info;
-}
-
-MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
-    MinimorphicLoadPropertyAccessFeedback const& feedback,
-    FeedbackSource const& source) {
-  auto it = minimorphic_property_access_infos_.find(source);
-  if (it != minimorphic_property_access_infos_.end()) return it->second;
-
-  AccessInfoFactory factory(this, nullptr, zone());
-  MinimorphicLoadPropertyAccessInfo access_info =
-      factory.ComputePropertyAccessInfo(feedback);
-  if (is_concurrent_inlining_) {
-    // We can assume a memory fence on {source.vector} because in production,
-    // the vector has already passed the gc predicate. Unit tests create
-    // FeedbackSource objects directly from handles, but they run on
-    // the main thread.
-    TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
-                    << source.index() << "  "
-                    << MakeRefAssumeMemoryFence<Object>(this, source.vector));
-    minimorphic_property_access_infos_.insert({source, access_info});
-  }
+  TRACE(this, "Storing PropertyAccessInfo for "
+                  << access_mode << " of property " << name << " on map "
+                  << map);
+  property_access_infos_.insert({target, access_info});
   return access_info;
 }
 
@@ -1025,12 +934,6 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
-}
-
-MinimorphicLoadPropertyAccessFeedback const&
-ProcessedFeedback::AsMinimorphicPropertyAccess() const {
-  CHECK_EQ(kMinimorphicPropertyAccess, kind());
-  return *static_cast<MinimorphicLoadPropertyAccessFeedback const*>(this);
 }
 
 LiteralFeedback const& ProcessedFeedback::AsLiteral() const {

@@ -6,8 +6,8 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 common.requireNoPackageJSONAbove();
@@ -214,7 +214,9 @@ function drainQueue() {
   const enoentFilepath = path.join(tmpdir.path, 'enoent');
   try {
     fs.unlinkSync(enoentFilepath);
-  } catch { }
+  } catch {
+    // Continue regardless of error.
+  }
   const { status } = spawnSync(
     process.execPath,
     ['--experimental-policy', enoentFilepath, '-e', ''],
@@ -290,8 +292,7 @@ for (const permutation of permutations({
   } else if (permutation.depIntegrity === 'missing') {
     resources[depPath].integrities = null;
     shouldSucceed = false;
-  } else if (permutation.depIntegrity === 'match') {
-  } else {
+  } else if (permutation.depIntegrity !== 'match') {
     throw new Error('unreachable');
   }
   if (parentFormat !== 'commonjs') {
@@ -308,8 +309,7 @@ for (const permutation of permutations({
   } else if (permutation.parentIntegrity === 'missing') {
     resources[parentPath].integrities = null;
     shouldSucceed = false;
-  } else if (permutation.parentIntegrity === 'match') {
-  } else {
+  } else if (permutation.parentIntegrity !== 'match') {
     throw new Error('unreachable');
   }
 
@@ -334,8 +334,7 @@ for (const permutation of permutations({
   } else if (permutation.packageIntegrity === 'missing') {
     packageIntegrities = [];
     shouldSucceed = false;
-  } else if (permutation.packageIntegrity === 'match') {
-  } else {
+  } else if (permutation.packageIntegrity !== 'match') {
     throw new Error('unreachable');
   }
   resources['./package.json'] = {

@@ -29,76 +29,95 @@ namespace compiler {
 
 class NodeOriginTable;
 class SourcePositionTable;
-
-// Parent class for classes that provide heuristics on how to inline in wasm.
-class WasmInliningHeuristics {
- public:
-  virtual bool DoInline(SourcePosition position,
-                        uint32_t function_index) const = 0;
-};
-
-// A simple inlining heuristic that inlines all function calls to a set of given
-// function indices.
-class InlineByIndex : public WasmInliningHeuristics {
- public:
-  explicit InlineByIndex(uint32_t function_index)
-      : WasmInliningHeuristics(), function_indices_(function_index) {}
-  InlineByIndex(std::initializer_list<uint32_t> function_indices)
-      : WasmInliningHeuristics(), function_indices_(function_indices) {}
-
-  bool DoInline(SourcePosition position,
-                uint32_t function_index) const override {
-    return function_indices_.count(function_index) > 0;
-  }
-
- private:
-  std::unordered_set<uint32_t> function_indices_;
-};
+struct WasmLoopInfo;
 
 // The WasmInliner provides the core graph inlining machinery for Webassembly
-// graphs. Note that this class only deals with the mechanics of how to inline
-// one graph into another; heuristics that decide what and how much to inline
-// are provided by {WasmInliningHeuristics}.
+// graphs.
 class WasmInliner final : public AdvancedReducer {
  public:
   WasmInliner(Editor* editor, wasm::CompilationEnv* env,
-              SourcePositionTable* source_positions,
+              uint32_t function_index, SourcePositionTable* source_positions,
               NodeOriginTable* node_origins, MachineGraph* mcgraph,
               const wasm::WireBytesStorage* wire_bytes,
-              const WasmInliningHeuristics* heuristics)
+              std::vector<WasmLoopInfo>* loop_infos, const char* debug_name)
       : AdvancedReducer(editor),
         env_(env),
+        function_index_(function_index),
         source_positions_(source_positions),
         node_origins_(node_origins),
         mcgraph_(mcgraph),
         wire_bytes_(wire_bytes),
-        heuristics_(heuristics) {}
+        loop_infos_(loop_infos),
+        debug_name_(debug_name),
+        initial_graph_size_(mcgraph->graph()->NodeCount()),
+        current_graph_size_(initial_graph_size_),
+        inlining_candidates_() {}
 
   const char* reducer_name() const override { return "WasmInliner"; }
 
   Reduction Reduce(Node* node) final;
+  void Finalize() final;
+
+  static bool graph_size_allows_inlining(size_t initial_graph_size) {
+    return initial_graph_size < 5000;
+  }
 
  private:
+  struct CandidateInfo {
+    Node* node;
+    uint32_t inlinee_index;
+    int call_count;
+    int wire_byte_size;
+  };
+
+  struct LexicographicOrdering {
+    // Returns if c1 should be prioritized less than c2.
+    bool operator()(CandidateInfo& c1, CandidateInfo& c2) {
+      if (c1.call_count > c2.call_count) return false;
+      if (c2.call_count > c1.call_count) return true;
+      return c1.wire_byte_size > c2.wire_byte_size;
+    }
+  };
+
+  uint32_t FindOriginatingFunction(Node* call);
+
   Zone* zone() const { return mcgraph_->zone(); }
   CommonOperatorBuilder* common() const { return mcgraph_->common(); }
   Graph* graph() const { return mcgraph_->graph(); }
   MachineGraph* mcgraph() const { return mcgraph_; }
   const wasm::WasmModule* module() const;
-  const wasm::WasmFunction* inlinee() const;
 
   Reduction ReduceCall(Node* call);
-  Reduction InlineCall(Node* call, Node* callee_start, Node* callee_end,
-                       const wasm::FunctionSig* inlinee_sig,
-                       size_t subgraph_min_node_id);
-  Reduction InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
+  void InlineCall(Node* call, Node* callee_start, Node* callee_end,
+                  const wasm::FunctionSig* inlinee_sig,
+                  size_t subgraph_min_node_id);
+  void InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
   void RewireFunctionEntry(Node* call, Node* callee_start);
 
+  int GetCallCount(Node* call);
+
+  void Trace(Node* call, int inlinee, const char* decision);
+  void Trace(const CandidateInfo& candidate, const char* decision);
+
   wasm::CompilationEnv* const env_;
+  uint32_t function_index_;
   SourcePositionTable* const source_positions_;
   NodeOriginTable* const node_origins_;
   MachineGraph* const mcgraph_;
   const wasm::WireBytesStorage* const wire_bytes_;
-  const WasmInliningHeuristics* const heuristics_;
+  std::vector<WasmLoopInfo>* const loop_infos_;
+  const char* debug_name_;
+  const size_t initial_graph_size_;
+  size_t current_graph_size_;
+  std::priority_queue<CandidateInfo, std::vector<CandidateInfo>,
+                      LexicographicOrdering>
+      inlining_candidates_;
+  std::unordered_set<Node*> seen_;
+  std::vector<uint32_t> inlined_functions_;
+  // Stores the graph size before an inlining was performed, to make it
+  // possible to map back from nodes to the function they came from.
+  // Guaranteed to have the same length as {inlined_functions_}.
+  std::vector<uint32_t> first_node_id_;
 };
 
 }  // namespace compiler

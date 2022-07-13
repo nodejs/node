@@ -9,6 +9,10 @@
 // and assertions would fail. We prevent re-runs.
 // Flags: --nostress-opt --no-always-opt
 
+// These tests do not work well if we flush the feedback vector, which causes
+// deoptimization.
+// Flags: --no-stress-flush-code --no-flush-bytecode
+
 // Some of the tests rely on optimizing/deoptimizing at predictable moments, so
 // this is not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
@@ -45,8 +49,8 @@
   assertTrue(log_got_interpreted);
 
   // Compile foo.
-  %OptimizeFunctionForTopTier(log);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(log);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(42, foo());
   // The call with spread should not have been inlined, because of the
   // generator/iterator.

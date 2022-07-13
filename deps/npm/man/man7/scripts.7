@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "December 2021" "" ""
+.TH "SCRIPTS" "7" "June 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -290,6 +290,16 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBposttest\fP
 
 .RE
+.SS npm help \fBversion\fP
+.RS 0
+.IP \(bu 2
+\fBpreversion\fP
+.IP \(bu 2
+\fBversion\fP
+.IP \(bu 2
+\fBpostversion\fP
+
+.RE
 .SS A Note on a lack of npm help \fBuninstall\fP scripts
 .P
 While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
@@ -438,11 +448,17 @@ Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
 .IP \(bu 2
-Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepublish\fP
+Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepare\fP
 for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
 there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP
 scripts is for compilation which must be done on the target architecture\.
+.IP \(bu 2
+Scripts are run from the root of the package folder, regardless of what the
+current working directory is when \fBnpm\fP is invoked\. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the \fBINIT_CWD\fP environment variable, which holds the full path you
+were in when you ran \fBnpm run\fP\|\.
 
 .RE
 .SS See Also

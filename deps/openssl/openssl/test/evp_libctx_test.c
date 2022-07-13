@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,7 +33,6 @@
 #include "testutil.h"
 #include "internal/nelem.h"
 #include "crypto/bn_dh.h"   /* _bignum_ffdhe2048_p */
-#include "../e_os.h"        /* strcasecmp */
 
 static OSSL_LIB_CTX *libctx = NULL;
 static OSSL_PROVIDER *nullprov = NULL;
@@ -478,7 +477,7 @@ err:
 
 static int name_cmp(const char * const *a, const char * const *b)
 {
-    return strcasecmp(*a, *b);
+    return OPENSSL_strcasecmp(*a, *b);
 }
 
 static void collect_cipher_names(EVP_CIPHER *cipher, void *cipher_names_list)
@@ -577,7 +576,7 @@ static int test_cipher_tdes_randkey(void)
           && TEST_int_ne(EVP_CIPHER_get_flags(tdes_cipher) & EVP_CIPH_RAND_KEY, 0)
           && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
           && TEST_true(EVP_CipherInit_ex(ctx, tdes_cipher, NULL, NULL, NULL, 1))
-          && TEST_true(EVP_CIPHER_CTX_rand_key(ctx, key));
+          && TEST_int_gt(EVP_CIPHER_CTX_rand_key(ctx, key), 0);
 
     EVP_CIPHER_CTX_free(ctx);
     EVP_CIPHER_free(tdes_cipher);

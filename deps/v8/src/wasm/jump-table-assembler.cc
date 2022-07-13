@@ -25,7 +25,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   intptr_t displacement = static_cast<intptr_t>(
       reinterpret_cast<byte*>(target) - pc_ - kNearJmpInstrSize);
   if (!is_int32(displacement)) return false;
-  near_jmp(displacement, RelocInfo::NONE);  // 5 bytes
+  near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
   return true;
 }
 
@@ -63,16 +63,16 @@ void JumpTableAssembler::NopBytes(int bytes) {
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   mov(kWasmCompileLazyFuncIndexRegister, func_index);  // 5 bytes
-  jmp(lazy_compile_target, RelocInfo::NONE);           // 5 bytes
+  jmp(lazy_compile_target, RelocInfo::NO_INFO);        // 5 bytes
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  jmp(target, RelocInfo::NONE);
+  jmp(target, RelocInfo::NO_INFO);
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  jmp(target, RelocInfo::NONE);
+  jmp(target, RelocInfo::NO_INFO);
 }
 
 // static
@@ -136,7 +136,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   int start = pc_offset();
   CodeEntry();                                             // 0-1 instr
   Mov(kWasmCompileLazyFuncIndexRegister.W(), func_index);  // 1-2 instr
-  Jump(lazy_compile_target, RelocInfo::NONE);              // 1 instr
+  Jump(lazy_compile_target, RelocInfo::NO_INFO);           // 1 instr
   int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
   DCHECK(nop_bytes == 0 || nop_bytes == kInstrSize);
   if (nop_bytes) nop();
@@ -150,7 +150,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 
   CodeEntry();
 
-  Jump(target, RelocInfo::NONE);
+  Jump(target, RelocInfo::NO_INFO);
   return true;
 }
 
@@ -211,18 +211,32 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  mov(r1, Operand(target, RelocInfo::CODE_TARGET));
-  b(r1);
+  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+
+  if (!is_int32(relative_target / 2)) {
+    return false;
+  }
+
+  brcl(al, Operand(relative_target / 2));
+  nop(0);  // make the slot align to 8 bytes
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  Label target_addr;
+  lgrl(ip, &target_addr);  // 6 bytes
+  b(ip);                   // 8 bytes
+
+  CHECK_EQ(reinterpret_cast<Address>(pc_) & 0x7, 0);  // Alignment
+  bind(&target_addr);
+  dp(target);
 }
 
 // static
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
-  UNREACHABLE();
+  Address target_addr = slot + 8;
+  reinterpret_cast<std::atomic<Address>*>(target_addr)
+      ->store(target, std::memory_order_relaxed);
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
@@ -240,7 +254,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 4 instructions for 32-bit platform
   // and max. 6 instructions for 64-bit platform.
-  Jump(lazy_compile_target, RelocInfo::NONE);
+  Jump(lazy_compile_target, RelocInfo::NO_INFO);
   int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
   DCHECK_EQ(nop_bytes % kInstrSize, 0);
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
@@ -252,7 +266,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  JumpToOffHeapInstructionStream(target);
 }
 
 // static
@@ -275,7 +289,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   int start = pc_offset();
   li(kWasmCompileLazyFuncIndexRegister, (int32_t)func_index);  // max. 2 instr
   // Jump produces max 4 instructions.
-  Jump(lazy_compile_target, RelocInfo::NONE);
+  Jump(lazy_compile_target, RelocInfo::NO_INFO);
   int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
   DCHECK_EQ(nop_bytes % kInstrSize, 0);
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
@@ -285,7 +299,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   return true;
 }
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  JumpToOffHeapInstructionStream(target);
 }
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   UNREACHABLE();
@@ -314,19 +328,36 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  mov(r0, Operand(target));
-  mtctr(r0);
-  bctr();
+  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+
+  if (!is_int26(relative_target)) {
+    return false;
+  }
+
+  b(relative_target, LeaveLK);
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  byte* start = pc_;
+  mov(ip, Operand(reinterpret_cast<Address>(start + kFarJumpTableSlotSize -
+                                            8)));  // 5 instr
+  LoadU64(ip, MemOperand(ip));
+  mtctr(ip);
+  bctr();
+  byte* end = pc_;
+  int used = end - start;
+  CHECK(used < kFarJumpTableSlotSize - 8);
+  NopBytes(kFarJumpTableSlotSize - 8 - used);
+  CHECK_EQ(reinterpret_cast<Address>(pc_) & 0x7, 0);  // Alignment
+  dp(target);
 }
 
 // static
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
-  UNREACHABLE();
+  Address target_addr = slot + kFarJumpTableSlotSize - 8;
+  reinterpret_cast<std::atomic<Address>*>(target_addr)
+      ->store(target, std::memory_order_relaxed);
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
@@ -343,7 +374,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   int start = pc_offset();
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 8 instructions (include constant pool and j)
-  Jump(lazy_compile_target, RelocInfo::NONE);
+  Jump(lazy_compile_target, RelocInfo::NO_INFO);
   int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
   DCHECK_EQ(nop_bytes % kInstrSize, 0);
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();

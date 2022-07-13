@@ -124,8 +124,6 @@ const assert = require('assert');
 
   write.destroy();
 
-  write.removeListener('finish', fail);
-  write.on('finish', common.mustCall());
   assert.strictEqual(write.destroyed, true);
 }
 

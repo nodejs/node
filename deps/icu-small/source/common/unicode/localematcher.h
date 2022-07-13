@@ -461,13 +461,13 @@ public:
          * Option for whether to include or ignore one-way (fallback) match data.
          * By default, they are included.
          *
-         * @param direction the match direction to set.
+         * @param matchDirection the match direction to set.
          * @return this Builder object
          * @stable ICU 67
          */
-        Builder &setDirection(ULocMatchDirection direction) {
+        Builder &setDirection(ULocMatchDirection matchDirection) {
             if (U_SUCCESS(errorCode_)) {
-                direction_ = direction;
+                direction_ = matchDirection;
             }
             return *this;
         }

@@ -100,9 +100,16 @@ Examples of these being used are pervasive through the `src/crypto` code.
 
 The `ByteSource` class is a helper utility representing a _read-only_ byte
 array. Instances can either wrap external ("foreign") data sources, such as
-an `ArrayBuffer` (`v8::BackingStore`) or allocated data. If allocated data
-is used, then the allocation is freed automatically when the `ByteSource` is
-destroyed.
+an `ArrayBuffer` (`v8::BackingStore`), or allocated data.
+
+* If a pointer to external data is used to create a `ByteSource`, that pointer
+  must remain valid until the `ByteSource` is destroyed.
+* If allocated data is used, then it must have been allocated using OpenSSL's
+  allocator. It will be freed automatically when the `ByteSource` is destroyed.
+
+The `ByteSource::Builder` class can be used to allocate writable memory that can
+then be released as a `ByteSource`, making it read-only, or freed by destroying
+the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
@@ -111,17 +118,6 @@ The `ArrayBufferOfViewContents` class is a helper utility that abstracts
 their underlying data pointers. It is used extensively through `src/crypto`
 to make it easier to deal with inputs that allow any `ArrayBuffer`-backed
 object.
-
-### `AllocatedBuffer`
-
-The `AllocatedBuffer` utility is defined in `allocated_buffer.h` and is not
-specific to `src/crypto`. It is used extensively within `src/crypto` to hold
-allocated data that is intended to be output in response to various
-crypto functions (generated hash values, or ciphertext, for instance).
-
-_Currently, we are working to transition away from using `AllocatedBuffer`
-to directly using the `v8::BackingStore` API. This will take some time.
-New uses of `AllocatedBuffer` should be avoided if possible._
 
 ### Key objects
 
@@ -312,12 +308,12 @@ crypto.randomFill(buf, (err, buf) => {
 For the legacy Node.js crypto API, asynchronous single-call
 operations use the traditional Node.js callback pattern, as
 illustrated in the previous `randomFill()` example. In the
-Web Crypto API (accessible via `require('crypto').webcrypto`),
+Web Crypto API (accessible via `require('node:crypto').webcrypto`),
 all asynchronous single-call operations are Promise-based.
 
 ```js
 // Example Web Crypto API asynchronous single-call operation
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = require('node:crypto').webcrypto;
 
 subtle.generateKeys({ name: 'HMAC', length: 256 }, true, ['sign'])
   .then((key) => {

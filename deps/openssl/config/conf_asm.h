@@ -33,14 +33,8 @@
 # include "./archs/solaris64-x86_64-gcc/asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__PPC64__)  && defined(L_ENDIAN)
 # include "./archs/linux-ppc64le/asm/include/openssl/conf.h"
-#elif defined(OPENSSL_LINUX) && defined(__PPC64__)
-# include "./archs/linux-ppc64/asm/include/openssl/conf.h"
-#elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
-# include "./archs/linux-ppc/asm/include/openssl/conf.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
 # include "./archs/aix64-gcc-as/asm/include/openssl/conf.h"
-#elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
-# include "./archs/aix-gcc/asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
 # include "./archs/linux64-s390x/asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390__)

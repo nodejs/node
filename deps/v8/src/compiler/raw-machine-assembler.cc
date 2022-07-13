@@ -95,6 +95,7 @@ Schedule* RawMachineAssembler::ExportForTest() {
   }
   schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
+  Scheduler::GenerateDominatorTree(schedule_);
   schedule_->PropagateDeferredMark();
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");

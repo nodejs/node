@@ -168,9 +168,9 @@ TypeAlias* Declarations::DeclareType(const Identifier* name, const Type* type) {
                                   new TypeAlias(type, true, name->pos)));
 }
 
-const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
-                                                   TypeDeclaration* type,
-                                                   bool redeclaration) {
+TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
+                                             TypeDeclaration* type,
+                                             bool redeclaration) {
   CheckAlreadyDeclared<TypeAlias>(name->value, "type");
   std::unique_ptr<TypeAlias> alias_ptr(
       new TypeAlias(type, redeclaration, name->pos));
@@ -202,9 +202,12 @@ Macro* Declarations::DeclareMacro(
     base::Optional<std::string> external_assembler_name,
     const Signature& signature, base::Optional<Statement*> body,
     base::Optional<std::string> op, bool is_user_defined) {
-  if (TryLookupMacro(name, signature.GetExplicitTypes())) {
-    ReportError("cannot redeclare macro ", name,
-                " with identical explicit parameters");
+  if (Macro* existing_macro =
+          TryLookupMacro(name, signature.GetExplicitTypes())) {
+    if (existing_macro->ParentScope() == CurrentScope::Get()) {
+      ReportError("cannot redeclare macro ", name,
+                  " with identical explicit parameters");
+    }
   }
   Macro* macro;
   if (external_assembler_name) {

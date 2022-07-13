@@ -1034,7 +1034,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (obj->IsJSReceiver()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(obj),
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(obj),
                                 ToPrimitiveHint::kNumber),
         BigInt);
   }
@@ -1247,12 +1247,8 @@ MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
     return ThrowBigIntTooBig<BigInt>(isolate);
   }
   digit_t shift = maybe_shift.FromJust();
-  int digit_shift = static_cast<int>(shift / kDigitBits);
-  int bits_shift = static_cast<int>(shift % kDigitBits);
-  int length = x->length();
-  bool grow = bits_shift != 0 &&
-              (x->digit(length - 1) >> (kDigitBits - bits_shift)) != 0;
-  int result_length = length + digit_shift + grow;
+  const int result_length = bigint::LeftShift_ResultLength(
+      x->length(), x->digit(x->length() - 1), shift);
   if (result_length > kMaxLength) {
     return ThrowBigIntTooBig<BigInt>(isolate);
   }
@@ -1260,26 +1256,7 @@ MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
   if (!New(isolate, result_length).ToHandle(&result)) {
     return MaybeHandle<BigInt>();
   }
-  if (bits_shift == 0) {
-    int i = 0;
-    for (; i < digit_shift; i++) result->set_digit(i, 0ul);
-    for (; i < result_length; i++) {
-      result->set_digit(i, x->digit(i - digit_shift));
-    }
-  } else {
-    digit_t carry = 0;
-    for (int i = 0; i < digit_shift; i++) result->set_digit(i, 0ul);
-    for (int i = 0; i < length; i++) {
-      digit_t d = x->digit(i);
-      result->set_digit(i + digit_shift, (d << bits_shift) | carry);
-      carry = d >> (kDigitBits - bits_shift);
-    }
-    if (grow) {
-      result->set_digit(length + digit_shift, carry);
-    } else {
-      DCHECK_EQ(carry, 0);
-    }
-  }
+  bigint::LeftShift(GetRWDigits(result), GetDigits(x), shift);
   result->set_sign(x->sign());
   return MakeImmutable(result);
 }
@@ -1287,72 +1264,22 @@ MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
 Handle<BigInt> MutableBigInt::RightShiftByAbsolute(Isolate* isolate,
                                                    Handle<BigIntBase> x,
                                                    Handle<BigIntBase> y) {
-  int length = x->length();
-  bool sign = x->sign();
+  const bool sign = x->sign();
   Maybe<digit_t> maybe_shift = ToShiftAmount(y);
   if (maybe_shift.IsNothing()) {
     return RightShiftByMaximum(isolate, sign);
   }
-  digit_t shift = maybe_shift.FromJust();
-  int digit_shift = static_cast<int>(shift / kDigitBits);
-  int bits_shift = static_cast<int>(shift % kDigitBits);
-  int result_length = length - digit_shift;
+  const digit_t shift = maybe_shift.FromJust();
+  bigint::RightShiftState state;
+  const int result_length =
+      bigint::RightShift_ResultLength(GetDigits(x), sign, shift, &state);
+  DCHECK_LE(result_length, x->length());
   if (result_length <= 0) {
     return RightShiftByMaximum(isolate, sign);
   }
-  // For negative numbers, round down if any bit was shifted out (so that e.g.
-  // -5n >> 1n == -3n and not -2n). Check now whether this will happen and
-  // whether it can cause overflow into a new digit. If we allocate the result
-  // large enough up front, it avoids having to do a second allocation later.
-  bool must_round_down = false;
-  if (sign) {
-    const digit_t mask = (static_cast<digit_t>(1) << bits_shift) - 1;
-    if ((x->digit(digit_shift) & mask) != 0) {
-      must_round_down = true;
-    } else {
-      for (int i = 0; i < digit_shift; i++) {
-        if (x->digit(i) != 0) {
-          must_round_down = true;
-          break;
-        }
-      }
-    }
-  }
-  // If bits_shift is non-zero, it frees up bits, preventing overflow.
-  if (must_round_down && bits_shift == 0) {
-    // Overflow cannot happen if the most significant digit has unset bits.
-    digit_t msd = x->digit(length - 1);
-    bool rounding_can_overflow = digit_ismax(msd);
-    if (rounding_can_overflow) result_length++;
-  }
-
-  DCHECK_LE(result_length, length);
   Handle<MutableBigInt> result = New(isolate, result_length).ToHandleChecked();
-  if (bits_shift == 0) {
-    // Zero out any overflow digit (see "rounding_can_overflow" above).
-    result->set_digit(result_length - 1, 0);
-    for (int i = digit_shift; i < length; i++) {
-      result->set_digit(i - digit_shift, x->digit(i));
-    }
-  } else {
-    digit_t carry = x->digit(digit_shift) >> bits_shift;
-    int last = length - digit_shift - 1;
-    for (int i = 0; i < last; i++) {
-      digit_t d = x->digit(i + digit_shift + 1);
-      result->set_digit(i, (d << (kDigitBits - bits_shift)) | carry);
-      carry = d >> bits_shift;
-    }
-    result->set_digit(last, carry);
-  }
-
-  if (sign) {
-    result->set_sign(true);
-    if (must_round_down) {
-      // Since the result is negative, rounding down means adding one to
-      // its absolute value. This cannot overflow.
-      result = AbsoluteAddOne(isolate, result, true, *result).ToHandleChecked();
-    }
-  }
+  bigint::RightShift(GetRWDigits(result), GetDigits(x), shift, state);
+  if (sign) result->set_sign(true);
   return MakeImmutable(result);
 }
 

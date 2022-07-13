@@ -48,27 +48,17 @@
                   '|include/js_protocol.pdl' \
                   '|include/v8-inspector*\.h',
     },
-    'interpreter': {
-      'filepath': 'src/interpreter/' \
-                  '|src/compiler/bytecode' \
-                  '|test/cctest/interpreter/' \
-                  '|test/unittests/interpreter/',
-    },
     'baseline': {
       'filepath': 'src/baseline/',
     },
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
     },
-    'gc_changes': {
+    'heap_changes': {
       'filepath': 'src/heap/',
     },
     'arm': {
       'filepath': '/arm/',
-    },
-    'csa': {
-      'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
-                  '|src/builtins/.*-gen.(cc|h)$',
     },
     'merges': {
       'filepath': '.',
@@ -80,12 +70,12 @@
     'value_serializer': {
       'filepath': 'src/value-serializer',
     },
+    'maglev': {
+      'filepath': 'src/maglev/',
+    },
     'parser': {
       'filepath': 'src/ast/' \
                   '|src/parsing/',
-    },
-    'torque': {
-      'filepath': '.*\.tq$',
     },
     'tracing': {
       'filepath': 'src/tracing/',
@@ -108,16 +98,16 @@
       'filepath': 'src/heap/cppgc/' \
                   '|src/heap/cppgc-js/' \
                   '|include/cppgc/' \
-                  '|test/unittests/heap/',
+                  '|test/unittests/heap/cppgc/' \
+                  '|test/unittests/heap/cppgc-js/',
     },
   },
 
   'WATCHLISTS': {
-    'csa': [
+    'maglev': [
       'jgruber+watch@chromium.org',
-    ],
-    'torque': [
-      'jgruber+watch@chromium.org',
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
@@ -132,8 +122,9 @@
     'feature_shipping_status': [
       'hablich@chromium.org',
     ],
-    'gc_changes': [
+    'heap_changes': [
       'hpayer@chromium.org',
+      'mlippautz+watch@chromium.org',
     ],
     'arm': [
       'v8-mips-ports@googlegroups.com',

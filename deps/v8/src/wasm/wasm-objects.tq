@@ -11,15 +11,41 @@ type ManagedWasmNativeModule extends Foreign
 
 extern class WasmInstanceObject extends JSObject;
 
-extern class WasmFunctionData extends Foreign {
+// Represents the context of a function that is defined through the JS or C
+// APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
+// reference.
+// TODO(manoskouk): If V8_SANDBOXED_EXTERNAL_POINTERS, we cannot encode the
+// isolate_root as a sandboxed pointer, because that would require having access
+// to the isolate root in the first place.
+extern class WasmApiFunctionRef extends HeapObject {
+  isolate_root: RawPtr;
+  native_context: NativeContext;
+  callable: JSReceiver|Undefined;
+  suspender: WasmSuspenderObject|Undefined;
+}
+
+// This is the representation that is used internally by wasm to represent
+// function references.
+// The {foreign_address} field inherited from {Foreign} points to the call
+// target.
+extern class WasmInternalFunction extends Foreign {
   // This is the "reference" value that must be passed along in the "instance"
-  // register when calling the given function. It is either the target instance,
-  // or a pair holding the target instance and the callable; currently the
-  // latter is the case when the function being called is defined in JavaScript
-  // or via the C-API.
+  // register when calling the given function. It is either the target instance
+  // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
+  // through the JS or C APIs).
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
-  ref: WasmInstanceObject|Tuple2;
+  ref: WasmInstanceObject|WasmApiFunctionRef;
+  // The external (JS) representation of this function reference.
+  external: JSFunction|Undefined;
+  // This field is used when the call target is null.
+  @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
+}
+
+extern class WasmFunctionData extends HeapObject {
+  // The wasm-internal representation of this function object.
+  internal: WasmInternalFunction;
   // Used for calling this function from JavaScript.
   @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
@@ -38,11 +64,12 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
+  // Functions returned by suspender.returnPromiseOnSuspend() have this field
+  // set to the host suspender object.
+  suspender: WasmSuspenderObject|Undefined;
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
-  @if(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
@@ -53,6 +80,10 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
+extern class WasmOnFulfilledData extends HeapObject {
+  suspender: WasmSuspenderObject;
+}
+
 extern class WasmIndirectFunctionTable extends Struct {
   size: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
@@ -61,6 +92,19 @@ extern class WasmIndirectFunctionTable extends Struct {
   targets: RawPtr;
   managed_native_allocations: Foreign|Undefined;
   refs: FixedArray;
+}
+
+extern class WasmContinuationObject extends Struct {
+  stack: Foreign;
+  jmpbuf: Foreign;  // Direct access to the stack's jump buffer.
+  parent: WasmContinuationObject|Undefined;
+}
+
+extern class WasmSuspenderObject extends JSObject {
+  continuation: WasmContinuationObject|Undefined;
+  parent: WasmSuspenderObject|Undefined;
+  resume: JSObject;
+  state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 
 extern class WasmExceptionTag extends Struct {

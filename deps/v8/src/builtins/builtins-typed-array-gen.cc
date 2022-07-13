@@ -33,7 +33,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 // elements.
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    TNode<Context> context, TNode<UintPtrT> byte_length) {
+    TNode<Context> context) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
@@ -49,7 +49,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   // Setup the ArrayBuffer.
   //  - Set BitField to 0.
   //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
-  //  - Set the byte_length field to byte_length.
+  //  - Set the byte_length field to zero.
   //  - Set backing_store to null/Smi(0).
   //  - Set extension to null.
   //  - Set all embedder fields to Smi(0).
@@ -64,9 +64,9 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
                                  Int32Constant(bitfield_value));
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
-                                 byte_length);
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                 PointerConstant(nullptr));
+                                 UintPtrConstant(0));
+  StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
+                                EmptyBackingStoreBufferConstant());
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
   for (int offset = JSArrayBuffer::kHeaderSize;
@@ -127,7 +127,8 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
       LoadJSArrayBufferViewBuffer(receiver_array);
 
   Label variable_length(this), normal(this);
-  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
+  Branch(IsVariableLengthJSArrayBufferView(receiver_array), &variable_length,
+         &normal);
   BIND(&variable_length);
   {
     Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayByteLength(
@@ -155,8 +156,8 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
   Label detached_or_oob(this), not_detached_nor_oob(this);
-  IsJSTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
-                                      &not_detached_nor_oob);
+  IsJSArrayBufferViewDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
+                                           &not_detached_nor_oob);
   BIND(&detached_or_oob);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 
@@ -185,8 +186,12 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
     TNode<Int32T> kind) {
-  return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
-                  Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
+  return Word32Or(
+      Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
+               Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS))),
+      Word32Or(
+          Word32Equal(kind, Int32Constant(RAB_GSAB_UINT8_ELEMENTS)),
+          Word32Equal(kind, Int32Constant(RAB_GSAB_UINT8_CLAMPED_ELEMENTS))));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
@@ -436,10 +441,10 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<IntPtrT> ptr_compr_cage_base =
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
+    // See JSTypedArray::AddExternalPointerCompensationForDeserialization().
     DCHECK_EQ(
         isolate()->cage_base(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
-    // See JSTypedArray::SetOnHeapDataPtr() for details.
     offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));
   }
 

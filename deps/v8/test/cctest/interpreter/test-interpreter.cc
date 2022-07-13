@@ -1238,7 +1238,7 @@ TEST(InterpreterLoadKeyedProperty) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
 
-TEST(InterpreterStoreNamedProperty) {
+TEST(InterpreterSetNamedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1256,8 +1256,8 @@ TEST(InterpreterStoreNamedProperty) {
   BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Receiver(), name, GetIndex(slot),
-                          LanguageMode::kStrict)
+      .SetNamedProperty(builder.Receiver(), name, GetIndex(slot),
+                        LanguageMode::kStrict)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1301,7 +1301,7 @@ TEST(InterpreterStoreNamedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 }
 
-TEST(InterpreterStoreKeyedProperty) {
+TEST(InterpreterSetKeyedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1321,8 +1321,8 @@ TEST(InterpreterStoreKeyedProperty) {
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
-      .StoreKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
-                          i::LanguageMode::kSloppy)
+      .SetKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
+                        i::LanguageMode::kSloppy)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1550,7 +1550,6 @@ TEST(InterpreterJumps) {
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
 
   Handle<i::FeedbackMetadata> metadata =
       NewFeedbackMetadata(isolate, &feedback_spec);
@@ -1562,13 +1561,11 @@ TEST(InterpreterJumps) {
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[0]);
-  SetRegister(&builder, reg, 1024, scratch).Bind(&loop_header);
+  SetRegister(&builder, reg, 1024, scratch).Bind(&label[0]).Bind(&loop_header);
   IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
-  SetRegister(&builder, reg, 2048, scratch).Bind(&label[0]);
-  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
-      .JumpLoop(&loop_header, 0, 0);
+  SetRegister(&builder, reg, 2048, scratch).JumpLoop(&loop_header, 0, 0);
   SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
-  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot2))
+  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -1576,7 +1573,7 @@ TEST(InterpreterJumps) {
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK_EQ(Smi::ToInt(*return_value), 7);
+  CHECK_EQ(Smi::ToInt(*return_value), 3);
 }
 
 TEST(InterpreterConditionalJumps) {
@@ -2057,8 +2054,8 @@ TEST(InterpreterMixedComparisons) {
                {kInternalizedStringConstant, kComputedString}) {
             const char* lhs_cstr = inputs[i];
             const char* rhs_cstr = inputs[j];
-            double lhs = StringToDouble(lhs_cstr, ConversionFlags::NO_FLAGS);
-            double rhs = StringToDouble(rhs_cstr, ConversionFlags::NO_FLAGS);
+            double lhs = StringToDouble(lhs_cstr, NO_CONVERSION_FLAGS);
+            double rhs = StringToDouble(rhs_cstr, NO_CONVERSION_FLAGS);
             HandleAndZoneScope handles;
             Isolate* isolate = handles.main_isolate();
             Zone* zone = handles.main_zone();
@@ -2159,8 +2156,8 @@ TEST(InterpreterStrictNotEqual) {
   const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
   for (size_t i = 0; i < arraysize(inputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
-      double lhs = StringToDouble(inputs[i], ConversionFlags::NO_FLAGS);
-      double rhs = StringToDouble(inputs[j], ConversionFlags::NO_FLAGS);
+      double lhs = StringToDouble(inputs[i], NO_CONVERSION_FLAGS);
+      double rhs = StringToDouble(inputs[j], NO_CONVERSION_FLAGS);
       Handle<Object> lhs_obj = factory->NewNumber(lhs);
       Handle<Object> rhs_obj = factory->NewStringFromAsciiChecked(inputs[j]);
 
@@ -5047,11 +5044,11 @@ TEST(InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared().HasBytecodeArray());
-  i::Code code = f->shared().GetCode();
-  i::Handle<i::Code> interpreter_entry_trampoline =
+  i::CodeT code = f->shared().GetCode();
+  i::Handle<i::CodeT> interpreter_entry_trampoline =
       BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 
-  CHECK(code.IsCode());
+  CHECK(code.IsCodeT());
   CHECK(code.is_interpreter_trampoline_builtin());
   CHECK_NE(code.address(), interpreter_entry_trampoline->address());
 }
@@ -5063,24 +5060,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Interpreter* interpreter = isolate->interpreter();
 
   // Test that single-width bytecode handlers deserializer correctly.
-  Code wide_handler =
+  CodeT wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
   CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
-  Code add_handler =
+  CodeT add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
   CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
-  Code wide_wide_handler =
+  CodeT wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
   CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
-  Code add_wide_handler =
+  CodeT add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
@@ -5283,16 +5280,16 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
 TEST(InterpreterLookupNameOfBytecodeHandler) {
   Interpreter* interpreter = CcTest::i_isolate()->interpreter();
-  Code ldaLookupSlot = interpreter->GetBytecodeHandler(Bytecode::kLdaLookupSlot,
-                                                       OperandScale::kSingle);
+  Code ldaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kSingle));
   CheckStringEqual("LdaLookupSlotHandler",
                    interpreter->LookupNameOfBytecodeHandler(ldaLookupSlot));
-  Code wideLdaLookupSlot = interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kDouble);
+  Code wideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kDouble));
   CheckStringEqual("LdaLookupSlotWideHandler",
                    interpreter->LookupNameOfBytecodeHandler(wideLdaLookupSlot));
-  Code extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
+  Code extraWideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple));
   CheckStringEqual(
       "LdaLookupSlotExtraWideHandler",
       interpreter->LookupNameOfBytecodeHandler(extraWideLdaLookupSlot));

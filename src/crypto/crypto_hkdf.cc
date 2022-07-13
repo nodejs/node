@@ -1,8 +1,7 @@
 #include "crypto/crypto_hkdf.h"
-#include "crypto/crypto_keys.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_keys.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -103,34 +102,27 @@ bool HKDFTraits::DeriveBits(
     ByteSource* out) {
   EVPKeyCtxPointer ctx =
       EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
-  if (!ctx ||
-      !EVP_PKEY_derive_init(ctx.get()) ||
-      !EVP_PKEY_CTX_hkdf_mode(
-        ctx.get(), EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
+  if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
+      !EVP_PKEY_CTX_hkdf_mode(ctx.get(),
+                              EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
       !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), params.digest) ||
       !EVP_PKEY_CTX_set1_hkdf_salt(
-        ctx.get(),
-        reinterpret_cast<const unsigned char*>(params.salt.get()),
-        params.salt.size()) ||
+          ctx.get(), params.salt.data<unsigned char>(), params.salt.size()) ||
       !EVP_PKEY_CTX_set1_hkdf_key(
-        ctx.get(),
-        reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
-        params.key->GetSymmetricKeySize()) ||
+          ctx.get(),
+          reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
+          params.key->GetSymmetricKeySize()) ||
       !EVP_PKEY_CTX_add1_hkdf_info(
-        ctx.get(),
-        reinterpret_cast<const unsigned char*>(params.info.get()),
-        params.info.size())) {
+          ctx.get(), params.info.data<unsigned char>(), params.info.size())) {
     return false;
   }
 
   size_t length = params.length;
-  char* data = MallocOpenSSL<char>(length);
-  ByteSource buf = ByteSource::Allocated(data, length);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
-  if (EVP_PKEY_derive(ctx.get(), ptr, &length) <= 0)
+  ByteSource::Builder buf(length);
+  if (EVP_PKEY_derive(ctx.get(), buf.data<unsigned char>(), &length) <= 0)
     return false;
 
-  *out = std::move(buf);
+  *out = std::move(buf).release();
   return true;
 }
 

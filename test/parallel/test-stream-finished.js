@@ -260,7 +260,12 @@ const http = require('http');
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  finished(streamLike, common.mustCall());
+  assert.throws(
+    () => {
+      finished(streamLike, () => {});
+    },
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
   streamLike.emit('close');
 }
 
@@ -655,7 +660,9 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       { method: 'GET', port: this.address().port },
       common.mustCall(function(res) {
         res.resume();
-        server.close();
+        finished(res, common.mustCall(() => {
+          server.close();
+        }));
       })
     ).end();
   });

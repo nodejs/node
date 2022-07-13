@@ -8,6 +8,7 @@ class Stars extends BaseCommand {
   static name = 'stars'
   static usage = ['[<user>]']
   static params = ['registry']
+  static ignoreImplicitWorkspace = false
 
   async exec ([user]) {
     try {

@@ -6,7 +6,6 @@
 #define V8_COMMON_PTR_COMPR_INL_H_
 
 #include "include/v8-internal.h"
-#include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate-inl.h"
 
@@ -68,11 +67,6 @@ V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
   return DecompressTaggedPointer(on_heap_addr, raw_value);
 }
 
-STATIC_ASSERT(kPtrComprCageReservationSize ==
-              Internals::kPtrComprCageReservationSize);
-STATIC_ASSERT(kPtrComprCageBaseAlignment ==
-              Internals::kPtrComprCageBaseAlignment);
-
 #else
 
 V8_INLINE Tagged_t CompressTagged(Address tagged) { UNREACHABLE(); }
@@ -96,9 +90,13 @@ V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
   UNREACHABLE();
 }
 
+V8_INLINE Address GetPtrComprCageBaseAddress(Address on_heap_addr) {
+  UNREACHABLE();
+}
+
 #endif  // V8_COMPRESS_POINTERS
 
-inline PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
+V8_INLINE PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
 

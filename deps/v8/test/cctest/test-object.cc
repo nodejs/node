@@ -283,12 +283,13 @@ TEST(ObjectMethodsThatTruncateMinusZero) {
   CHECK(result->IsZero());
 }
 
-#define TEST_FUNCTION_KIND(Name)                                \
-  TEST(Name) {                                                  \
-    for (int i = 0; i < FunctionKind::kLastFunctionKind; i++) { \
-      FunctionKind kind = static_cast<FunctionKind>(i);         \
-      CHECK_EQ(FunctionKind##Name(kind), Name(kind));           \
-    }                                                           \
+#define TEST_FUNCTION_KIND(Name)                                            \
+  TEST(Name) {                                                              \
+    for (uint32_t i = 0;                                                    \
+         i < static_cast<uint32_t>(FunctionKind::kLastFunctionKind); i++) { \
+      FunctionKind kind = static_cast<FunctionKind>(i);                     \
+      CHECK_EQ(FunctionKind##Name(kind), Name(kind));                       \
+    }                                                                       \
   }
 
 bool FunctionKindIsArrowFunction(FunctionKind kind) {
@@ -456,6 +457,46 @@ bool FunctionKindIsStrictFunctionWithoutPrototype(FunctionKind kind) {
 TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
 
 #undef TEST_FUNCTION_KIND
+
+TEST(ConstructorInstanceTypes) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  Handle<NativeContext> context = i_isolate->native_context();
+
+  DisallowGarbageCollection no_gc;
+  for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
+    Object value = context->get(i);
+    if (!value.IsJSFunction()) continue;
+    InstanceType instance_type = JSFunction::cast(value).map().instance_type();
+
+    switch (i) {
+      case Context::ARRAY_FUNCTION_INDEX:
+        CHECK_EQ(instance_type, JS_ARRAY_CONSTRUCTOR_TYPE);
+        break;
+      case Context::REGEXP_FUNCTION_INDEX:
+        CHECK_EQ(instance_type, JS_REG_EXP_CONSTRUCTOR_TYPE);
+        break;
+      case Context::PROMISE_FUNCTION_INDEX:
+        CHECK_EQ(instance_type, JS_PROMISE_CONSTRUCTOR_TYPE);
+        break;
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                 \
+  case Context::TYPE##_ARRAY_FUN_INDEX:                           \
+    CHECK_EQ(instance_type, TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE); \
+    break;
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+      default:
+        // All the other functions must have the default instance type.
+        CHECK_EQ(instance_type, JS_FUNCTION_TYPE);
+        break;
+    }
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

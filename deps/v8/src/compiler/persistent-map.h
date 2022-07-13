@@ -78,7 +78,7 @@ class PersistentMap {
   bool operator==(const PersistentMap& other) const {
     if (tree_ == other.tree_) return true;
     if (def_value_ != other.def_value_) return false;
-    for (const std::tuple<Key, Value, Value>& triple : Zip(other)) {
+    for (std::tuple<Key, Value, Value> triple : Zip(other)) {
       if (std::get<1>(triple) != std::get<2>(triple)) return false;
     }
     return true;
@@ -490,13 +490,14 @@ PersistentMap<Key, Value, Hasher>::FindLeftmost(
     std::array<const FocusedTree*, kHashBits>* path) {
   const FocusedTree* current = start;
   while (*level < current->length) {
-    if (const FocusedTree* child = GetChild(current, *level, kLeft)) {
+    if (const FocusedTree* left_child = GetChild(current, *level, kLeft)) {
       (*path)[*level] = GetChild(current, *level, kRight);
-      current = child;
+      current = left_child;
       ++*level;
-    } else if (const FocusedTree* child = GetChild(current, *level, kRight)) {
+    } else if (const FocusedTree* right_child =
+                   GetChild(current, *level, kRight)) {
       (*path)[*level] = GetChild(current, *level, kLeft);
-      current = child;
+      current = right_child;
       ++*level;
     } else {
       UNREACHABLE();

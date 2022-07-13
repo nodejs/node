@@ -6,20 +6,19 @@ const completionScript = fs
   .readFileSync(path.resolve(__dirname, '../../../lib/utils/completion.sh'), { encoding: 'utf8' })
   .replace(/^#!.*?\n/, '')
 
-const { load: _loadMockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const mockGlobals = require('../../fixtures/mock-globals')
 
 const loadMockCompletion = async (t, o = {}) => {
-  const { globals, windows, ...options } = o
+  const { globals = {}, windows, ...options } = o
   let resetGlobals = {}
-  if (globals) {
-    resetGlobals = mockGlobals(t, globals).reset
-  }
-  const res = await _loadMockNpm(t, {
-    mocks: {
-      '../../lib/utils/is-windows-shell.js': !!windows,
-      ...options.mocks,
-    },
+  resetGlobals = mockGlobals(t, {
+    'process.platform': windows ? 'win32' : 'posix',
+    'process.env.term': 'notcygwin',
+    'process.env.msystem': 'nogmingw',
+    ...globals,
+  }).reset
+  const res = await loadMockNpm(t, {
     ...options,
   })
   const completion = await res.npm.cmd('completion')
@@ -42,7 +41,7 @@ const loadMockCompletionComp = async (t, word, line) =>
 t.test('completion', async t => {
   t.test('completion completion', async t => {
     const { outputs, completion, prefix } = await loadMockCompletion(t, {
-      testdir: {
+      prefixDir: {
         '.bashrc': 'aaa',
         '.zshrc': 'aaa',
       },

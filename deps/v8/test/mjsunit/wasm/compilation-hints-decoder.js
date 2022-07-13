@@ -96,7 +96,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyEager,
                              kCompilationHintTierDefault,
-                             kCompilationHintTierOptimized)
+                             kCompilationHintTierOptimized);
   builder.instantiate();
 })();
 
@@ -127,4 +127,36 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                              kCompilationHintTierDefault)
          .exportFunc();
   builder.instantiate();
+})();
+
+(function testDecodeIllegalCompilationHintBaselineTier() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let kIllegalHintTier = 0x03;
+  builder.addFunction('func', kSig_i_i)
+      .addBody([kExprUnreachable])
+      .setCompilationHint(
+          kCompilationHintStrategyDefault, kIllegalHintTier,
+          kCompilationHintTierDefault);
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      new RegExp(
+          'WebAssembly.Module\\(\\): Invalid compilation hint 0x0c ' +
+          '\\(invalid tier 0x03\\)'));
+})();
+
+(function testDecodeIllegalCompilationHintTopTier() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let kIllegalHintTier = 0x03;
+  builder.addFunction('func', kSig_i_i)
+      .addBody([kExprUnreachable])
+      .setCompilationHint(
+          kCompilationHintStrategyDefault, kCompilationHintTierDefault,
+          kIllegalHintTier);
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      new RegExp(
+          'WebAssembly.Module\\(\\): Invalid compilation hint 0x30 ' +
+          '\\(invalid tier 0x03\\)'));
 })();

@@ -4,6 +4,14 @@
 
 type DependentCode extends WeakFixedArray;
 
+bitfield struct OSRUrgencyAndInstallTarget extends uint16 {
+  // The layout is chosen s.t. urgency and the install target offset can be
+  // loaded with a single 16-bit load (i.e. no masking required).
+  osr_urgency: uint32: 3 bit;
+  // The 13 LSB of the install target bytecode offset.
+  osr_install_target: uint32: 13 bit;
+}
+
 extern class BytecodeArray extends FixedArrayBase {
   // TODO(v8:8983): bytecode array object sizes vary based on their contents.
   constant_pool: FixedArray;
@@ -22,8 +30,8 @@ extern class BytecodeArray extends FixedArrayBase {
   frame_size: int32;
   parameter_size: int32;
   incoming_new_target_or_generator_register: int32;
-  osr_loop_nesting_level: int8;
-  bytecode_age: int8;
+  osr_urgency_and_install_target: OSRUrgencyAndInstallTarget;
+  bytecode_age: uint16;  // Only 3 bits used.
 }
 
 extern class CodeDataContainer extends HeapObject;

@@ -1,4 +1,4 @@
-const getAuth = require('npm-registry-fetch/auth.js')
+const getAuth = require('npm-registry-fetch/lib/auth.js')
 const npmFetch = require('npm-registry-fetch')
 const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
@@ -10,6 +10,8 @@ class Logout extends BaseCommand {
     'registry',
     'scope',
   ]
+
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     const registry = this.npm.config.get('registry')

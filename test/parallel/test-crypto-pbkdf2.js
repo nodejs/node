@@ -58,7 +58,7 @@ testPBKDF2('password', 'salt', 32, 32,
 assert.throws(
   () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   }
 );
@@ -69,8 +69,6 @@ for (const iterations of [-1, 0]) {
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "iterations" is out of range. ' +
-               `It must be >= 1 && < 4294967296. Received ${iterations}`
     }
   );
 }
@@ -108,8 +106,6 @@ for (const iterations of [-1, 0]) {
     }, {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "keylen" is out of range. It must be >= 0 && < ' +
-               `4294967296. Received ${input === -1 ? '-1' : '4_294_967_297'}`
     });
 });
 

@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary calls to `.bind()`",
+            description: "Disallow unnecessary calls to `.bind()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extra-bind"
         },

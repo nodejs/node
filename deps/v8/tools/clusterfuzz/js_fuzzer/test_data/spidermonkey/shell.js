@@ -4,4 +4,4 @@
 
 console.log('/shell.js');
 if (!ok)
-  throw new Error(`Assertion failed: ${f} did not throw as expected`);
+  throw new Error(`assertion failed: ${f} did not throw as expected`);

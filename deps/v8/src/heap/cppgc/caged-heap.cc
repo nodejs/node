@@ -46,29 +46,6 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
   UNREACHABLE();
 }
 
-class CppgcBoundedPageAllocator final : public v8::base::BoundedPageAllocator {
- public:
-  CppgcBoundedPageAllocator(v8::PageAllocator* page_allocator, Address start,
-                            size_t size, size_t allocate_page_size)
-      : BoundedPageAllocator(page_allocator, start, size, allocate_page_size,
-                             v8::base::PageInitializationMode::
-                                 kAllocatedPagesCanBeUninitialized) {}
-
-  bool FreePages(void* address, size_t size) final {
-    // BoundedPageAllocator is not guaranteed to allocate zeroed page.
-    // Specifically it is possible that BPA frees a page and then tries to
-    // reallocate the same page before the OS has had a chance to asyncroniously
-    // reclaim that page. In such cases, the contents of the page would not have
-    // been cleared by the OS and the reallocated page will keep its previous
-    // contents. To mitigate this problem, CppgcBoundedPageAllocator clears all
-    // pages before they are freed. This also includes protected guard pages, so
-    // CppgcBoundedPageAllocator needs to update permissions before clearing.
-    CHECK(SetPermissions(address, size, Permission::kReadWrite));
-    memset(address, 0, size);
-    return v8::base::BoundedPageAllocator::FreePages(address, size);
-  }
-};
-
 }  // namespace
 
 CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
@@ -93,9 +70,10 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
       caged_heap_start -
       reinterpret_cast<CagedAddress>(reserved_area_.address());
 
-  bounded_allocator_ = std::make_unique<CppgcBoundedPageAllocator>(
+  bounded_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
       &platform_allocator, caged_heap_start,
-      reserved_area_.size() - local_data_size_with_padding, kPageSize);
+      reserved_area_.size() - local_data_size_with_padding, kPageSize,
+      v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized);
 }
 
 }  // namespace internal

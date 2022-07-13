@@ -73,7 +73,7 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   features |= 1u << JSCVT;
 #endif
   return features;
@@ -228,18 +228,18 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   int number_of_valid_regs = 0;
   int number_of_valid_fpregs = 0;
 
-  RegList unique_regs = 0;
-  RegList unique_fpregs = 0;
+  uint64_t unique_regs = 0;
+  uint64_t unique_fpregs = 0;
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].bit();
+      unique_regs |= (uint64_t{1} << regs[i].code());
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].bit();
+      unique_fpregs |= (uint64_t{1} << regs[i].code());
     } else {
       DCHECK(!regs[i].is_valid());
     }
@@ -314,7 +314,7 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
     return assembler->options().record_reloc_info_for_serialization;
   }
 
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 // Assembler
@@ -420,7 +420,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -2627,7 +2627,7 @@ void Assembler::fmov(const VRegister& vd, float imm) {
     DCHECK(vd.Is1S());
     Emit(FMOV_s_imm | Rd(vd) | ImmFP(imm));
   } else {
-    DCHECK(vd.Is2S() | vd.Is4S());
+    DCHECK(vd.Is2S() || vd.Is4S());
     Instr op = NEONModifiedImmediate_MOVI;
     Instr q = vd.Is4S() ? NEON_Q : 0;
     Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
@@ -3696,9 +3696,12 @@ void Assembler::EmitStringData(const char* string) {
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
   if (options().enable_simulator_code) {
+    size_t size_of_debug_sequence =
+        4 * kInstrSize + RoundUp<kInstrSize>(strlen(message) + 1);
+
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
-    BlockPoolsScope scope(this);
+    BlockPoolsScope scope(this, size_of_debug_sequence);
 
     Label start;
     bind(&start);
@@ -3713,6 +3716,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), size_of_debug_sequence);
 
     return;
   }
@@ -4275,42 +4279,7 @@ bool Assembler::IsImmFP64(double imm) {
   return true;
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  if (update_embedded_objects) {
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      Handle<HeapObject> object = GetEmbeddedObject(p.second);
-      WriteUnalignedValue(base + p.first, object->ptr());
-    }
-  }
-  for (auto p : saved_offsets_for_runtime_entries_) {
-    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
-    Address target = p.second * kInstrSize + options().code_range_start;
-    DCHECK(is_int26(p.second));
-    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    WriteUnalignedValue(base + p.first, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-  for (auto p : saved_offsets_for_runtime_entries_) {
-    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
-    DCHECK(is_int26(p.second));
-    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    instr->SetInstructionBits(instr->Mask(UnconditionalBranchMask) | p.second);
-  }
-  saved_offsets_for_runtime_entries_.clear();
-}
-
 void Assembler::GrowBuffer() {
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
-
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -4351,15 +4320,6 @@ void Assembler::GrowBuffer() {
     intptr_t internal_ref = ReadUnalignedValue<intptr_t>(address);
     internal_ref += pc_delta;
     WriteUnalignedValue<intptr_t>(address, internal_ref);
-  }
-
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
-    }
   }
 
   // Pending relocation entries are also relative, no need to relocate.
@@ -4419,20 +4379,22 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_b_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
 }
 
 void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_bl_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   bl(offset);
 }
 
 void Assembler::near_call(HeapObjectRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapObject(request);
-  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<Code>());
+  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));
   bl(static_cast<int>(index));

@@ -22,7 +22,7 @@ class BaselineAssembler::ScratchRegisterScope {
     if (!assembler_->scratch_register_scope_) {
       // If we haven't opened a scratch scope yet, for the first one add a
       // couple of extra registers.
-      wrapped_scope_.Include(t4.bit() | t5.bit() | t6.bit() | t7.bit());
+      wrapped_scope_.Include({t4, t5, t6, t7});
     }
     assembler_->scratch_register_scope_ = this;
   }
@@ -80,6 +80,11 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  return __ Addu(rscratch, fp,
+                 interpreter_register.ToOperand() * kSystemPointerSize);
+}
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
@@ -109,6 +114,11 @@ void BaselineAssembler::JumpIfSmi(Register value, Label* target,
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
   __ JumpIfNotSmi(value, target);
+}
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  JumpIf(cc, left, Operand(right), target, distance);
 }
 
 void BaselineAssembler::CallBuiltin(Builtin builtin) {
@@ -351,8 +361,12 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ Lw(output, FieldMemOperand(source, offset));
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ lhu(output, FieldMemOperand(source, offset));
+}
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
   __ lb(output, FieldMemOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
@@ -422,33 +436,25 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
   __ Addu(lhs, lhs, Operand(rhs));
 }
 
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  __ And(output, lhs, Operand(rhs));
+}
+
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   ASM_CODE_COMMENT(masm_);
   Label fallthrough;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ Subu(reg, reg, Operand(case_value_base));
   }
 
-  ScratchRegisterScope scope(this);
-  Register temp = scope.AcquireScratch();
   __ Branch(&fallthrough, AsMasmCondition(Condition::kUnsignedGreaterThanEqual),
             reg, Operand(num_labels));
-  __ push(ra);
-  int entry_size_log2 = 3;
-  __ nal();
-  __ addiu(reg, reg, 3);
-  __ Lsa(temp, ra, reg, entry_size_log2);
-  __ pop(ra);
-  __ Jump(temp);
-  {
-    TurboAssembler::BlockTrampolinePoolScope(masm());
-    __ BlockTrampolinePoolFor(num_labels * kInstrSize * 2);
-    for (int i = 0; i < num_labels; ++i) {
-      __ Branch(labels[i]);
-    }
-    __ bind(&fallthrough);
-  }
+
+  __ GenerateSwitchTable(reg, num_labels,
+                         [labels](size_t i) { return labels[i]; });
+
+  __ bind(&fallthrough);
 }
 
 #undef __
@@ -473,7 +479,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
     __ LoadContext(kContextRegister);
     __ LoadFunction(kJSFunctionRegister);
     __ masm()->Push(kJSFunctionRegister);
-    __ CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, 1);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
 
     __ masm()->Pop(params_size, kInterpreterAccumulatorRegister);
     __ masm()->SmiUntag(params_size);
@@ -499,8 +505,9 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Addu(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->Lsa(sp, sp, params_size, kPointerSizeLog2);
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountIsInteger,
+                           TurboAssembler::kCountIncludesReceiver);
+
   __ masm()->Ret();
 }
 

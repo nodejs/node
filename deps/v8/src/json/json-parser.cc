@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
@@ -153,8 +154,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       for (double i = 0; i < length; i++) {
         HandleScope inner_scope(isolate_);
         Handle<Object> index = isolate_->factory()->NewNumber(i);
-        Handle<String> name = isolate_->factory()->NumberToString(index);
-        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+        Handle<String> index_name = isolate_->factory()->NumberToString(index);
+        if (!RecurseAndApply(object, index_name)) return MaybeHandle<Object>();
       }
     } else {
       Handle<FixedArray> contents;
@@ -166,8 +167,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           Object);
       for (int i = 0; i < contents->length(); i++) {
         HandleScope inner_scope(isolate_);
-        Handle<String> name(String::cast(contents->get(i)), isolate_);
-        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+        Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+        if (!RecurseAndApply(object, key_name)) return MaybeHandle<Object>();
       }
     }
   }
@@ -229,8 +230,8 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
-    isolate->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
-                                           v8::kGCTypeAll, this);
+    isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+        UpdatePointersCallback, this);
     chars_ = SeqString::cast(*source_).GetChars(no_gc);
     chars_may_relocate_ = true;
   }
@@ -274,6 +275,17 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   if (isolate()->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate(), script);
   }
+
+  StackTraceFrameIterator it(isolate_);
+  if (!it.done() && it.is_javascript()) {
+    FrameSummary summary = it.GetTopValidFrame();
+    script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
+    if (summary.script()->IsScript()) {
+      script->set_origin_options(
+          Script::cast(*summary.script()).origin_options());
+    }
+  }
+
   // We should sent compile error event because we compile JSON object in
   // separated source file.
   isolate()->debug()->OnCompileError(script);
@@ -305,7 +317,8 @@ JsonParser<Char>::~JsonParser() {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
     SeqString::cast(*source_);
-    isolate()->heap()->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+    isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        UpdatePointersCallback, this);
   }
 }
 
@@ -473,14 +486,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                      descriptor_index)),
                  isolate_);
     } else {
-      DisallowGarbageCollection no_gc;
-      TransitionsAccessor transitions(isolate(), *map, &no_gc);
+      TransitionsAccessor transitions(isolate(), *map);
       expected = transitions.ExpectedTransitionKey();
       if (!expected.is_null()) {
         // Directly read out the target while reading out the key, otherwise it
         // might die while building the string below.
-        target = TransitionsAccessor(isolate(), *map, &no_gc)
-                     .ExpectedTransitionTarget();
+        target =
+            TransitionsAccessor(isolate(), *map).ExpectedTransitionTarget();
       }
     }
 
@@ -492,7 +504,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         map = ParentOfDescriptorOwner(isolate_, map, feedback, descriptor);
         feedback_descriptors = 0;
       }
-      if (!TransitionsAccessor(isolate(), map)
+      if (!TransitionsAccessor(isolate(), *map)
                .FindTransitionToField(key)
                .ToHandle(&target)) {
         break;
@@ -924,7 +936,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedCharacter(CurrentCharacter());
         return handle(Smi::FromInt(0), isolate_);
       }
-      base::uc32 c = CurrentCharacter();
+      c = CurrentCharacter();
       STATIC_ASSERT(Smi::IsValid(-999999999));
       STATIC_ASSERT(Smi::IsValid(999999999));
       const int kMaxSmiLength = 9;
@@ -944,7 +956,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (CurrentCharacter() == '.') {
-      base::uc32 c = NextCharacter();
+      c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
         ReportUnexpectedCharacter(c);
@@ -954,7 +966,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      base::uc32 c = NextCharacter();
+      c = NextCharacter();
       if (c == '-' || c == '+') c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
@@ -965,9 +977,10 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     base::Vector<const Char> chars(start, cursor_ - start);
-    number = StringToDouble(chars,
-                            NO_FLAGS,  // Hex, octal or trailing junk.
-                            std::numeric_limits<double>::quiet_NaN());
+    number =
+        StringToDouble(chars,
+                       NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
+                       std::numeric_limits<double>::quiet_NaN());
 
     DCHECK(!std::isnan(number));
   }

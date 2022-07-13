@@ -401,9 +401,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // This will need to be filtered out when creating the
   // resolvedOptions object.
   if (usage == Usage::SEARCH) {
-    UErrorCode status = U_ZERO_ERROR;
-    icu_locale.setUnicodeKeywordValue("co", "search", status);
-    DCHECK(U_SUCCESS(status));
+    UErrorCode set_status = U_ZERO_ERROR;
+    icu_locale.setUnicodeKeywordValue("co", "search", set_status);
+    DCHECK(U_SUCCESS(set_status));
   } else {
     if (collation_str != nullptr &&
         Intl::IsValidCollation(icu_locale, collation_str.get())) {

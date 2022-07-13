@@ -253,3 +253,28 @@ builtin StringCharAt(implicit context: Context)(
   return StringFromSingleCharCode(code);
 }
 }
+
+// Check two slices for equal content.
+// Checking from both ends simultaniously allows us to detect differences
+// quickly even when the slices share a prefix or a suffix.
+macro EqualContent<T1: type, T2: type>(
+    a: ConstSlice<T1>, b: ConstSlice<T2>): bool {
+  const length = a.length;
+  if (length != b.length) return false;
+  if (a.GCUnsafeStartPointer() == b.GCUnsafeStartPointer()) return true;
+  // This creates references to the first and last characters of the slices,
+  // which can be out-of-bounds if the slices are empty. But in this case,
+  // the references will never be accessed.
+  let aFirst = a.UncheckedAtIndex(0);
+  let bFirst = b.UncheckedAtIndex(0);
+  let aLast = a.UncheckedAtIndex(length - 1);
+  let bLast = b.UncheckedAtIndex(length - 1);
+  while (aFirst.offset <= aLast.offset) {
+    if (*aFirst != *bFirst || *aLast != *bLast) return false;
+    aFirst = unsafe::AddOffset(aFirst, 1);
+    aLast = unsafe::AddOffset(aLast, -1);
+    bFirst = unsafe::AddOffset(bFirst, 1);
+    bLast = unsafe::AddOffset(bLast, -1);
+  }
+  return true;
+}

@@ -83,11 +83,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
-  v8::internal::UnoptimizedCompileState state(i_isolate);
+  v8::internal::UnoptimizedCompileState state;
+  v8::internal::ReusableUnoptimizedCompileState reusable_state(i_isolate);
   v8::internal::UnoptimizedCompileFlags flags =
       v8::internal::UnoptimizedCompileFlags::ForScriptCompile(i_isolate,
                                                               *script);
-  v8::internal::ParseInfo info(i_isolate, flags, &state);
+  v8::internal::ParseInfo info(i_isolate, flags, &state, &reusable_state);
   if (!v8::internal::parsing::ParseProgram(
           &info, script, i_isolate, i::parsing::ReportStatisticsMode::kYes)) {
     info.pending_error_handler()->PrepareErrors(i_isolate,

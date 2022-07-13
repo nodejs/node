@@ -86,6 +86,7 @@ class Node {
       name,
       children,
       fsChildren,
+      installLinks = false,
       legacyPeerDeps = false,
       linksIn,
       hasShrinkwrap,
@@ -152,6 +153,7 @@ class Node {
     }
     this.integrity = integrity || pkg._integrity || null
     this.hasShrinkwrap = hasShrinkwrap || pkg._hasShrinkwrap || false
+    this.installLinks = installLinks
     this.legacyPeerDeps = legacyPeerDeps
 
     this.children = new CaseInsensitiveMap()
@@ -522,6 +524,18 @@ class Node {
     return this === this.root || this === this.root.target
   }
 
+  get isRegistryDependency () {
+    if (this.edgesIn.size === 0) {
+      return false
+    }
+    for (const edge of this.edgesIn) {
+      if (!npa(edge.spec).registry) {
+        return false
+      }
+    }
+    return true
+  }
+
   * ancestry () {
     for (let anc = this; anc; anc = anc.resolveParent) {
       yield anc
@@ -792,6 +806,9 @@ class Node {
       target.root = root
     }
 
+    if (!this.overrides && this.parent && this.parent.overrides) {
+      this.overrides = this.parent.overrides.getNodeRule(this)
+    }
     // tree should always be valid upon root setter completion.
     treeCheck(this)
     treeCheck(root)
@@ -1145,6 +1162,9 @@ class Node {
     if (!this.isLink) {
       for (const kid of node.children.values()) {
         kid.parent = this
+      }
+      if (node.isLink && node.target) {
+        node.target.root = null
       }
     }
 

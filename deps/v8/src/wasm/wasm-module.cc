@@ -119,11 +119,8 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
 int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
   uint32_t starting_point = type_index;
   int depth = 0;
-  while ((type_index = module->supertype(type_index)) != kGenericSuperType) {
+  while ((type_index = module->supertype(type_index)) != kNoSuperType) {
     if (type_index == starting_point) return -1;  // Cycle detected.
-    // This is disallowed and will be rejected by validation, but might occur
-    // when this function is called.
-    if (type_index == kNoSuperType) break;
     depth++;
     if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) break;
   }
@@ -224,8 +221,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
     : signature_zone(std::move(signature_zone)) {}
 
-WasmModule::~WasmModule() { DeleteCachedTypeJudgementsForModule(this); }
-
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
@@ -248,9 +243,7 @@ namespace {
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
-  return isolate->factory()->InternalizeUtf8String(
-      type == kWasmFuncRef ? base::CStrVector("anyfunc")
-                           : base::VectorOf(type.name()));
+  return isolate->factory()->InternalizeUtf8String(base::VectorOf(type.name()));
 }
 }  // namespace
 
@@ -336,14 +329,8 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  base::Optional<uint32_t> max_size) {
   Factory* factory = isolate->factory();
 
-  Handle<String> element;
-  if (type.is_reference_to(HeapType::kFunc)) {
-    // TODO(wasm): We should define the "anyfunc" string in one central
-    // place and then use that constant everywhere.
-    element = factory->InternalizeUtf8String("anyfunc");
-  } else {
-    element = factory->InternalizeUtf8String(base::VectorOf(type.name()));
-  }
+  Handle<String> element =
+      factory->InternalizeUtf8String(base::VectorOf(type.name()));
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
@@ -637,7 +624,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
   return sizeof(WasmModule) + VectorSize(module->globals) +
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
-         VectorSize(module->types) + VectorSize(module->type_kinds) +
+         VectorSize(module->types) +
          VectorSize(module->canonicalized_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +

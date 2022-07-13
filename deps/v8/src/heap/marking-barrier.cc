@@ -27,14 +27,18 @@ MarkingBarrier::MarkingBarrier(Heap* heap)
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(heap_->incremental_marking()),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(true) {}
+      marking_state_(heap_->isolate()),
+      is_main_thread_barrier_(true),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
     : heap_(local_heap->heap()),
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(nullptr),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(false) {}
+      marking_state_(heap_->isolate()),
+      is_main_thread_barrier_(false),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
 
@@ -44,6 +48,17 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   if (MarkValue(host, value)) {
     if (is_compacting_ && slot.address()) {
       collector_->RecordSlot(host, slot, value);
+    }
+  }
+}
+
+void MarkingBarrier::WriteWithoutHost(HeapObject value) {
+  DCHECK(is_main_thread_barrier_);
+  if (WhiteToGreyAndPush(value)) {
+    incremental_marking_->RestartIfNotMarking();
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
     }
   }
 }
@@ -106,15 +121,16 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
 void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                      HeapObject target) {
   DCHECK(IsCurrentMarkingBarrier());
+  if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
+
   MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
-  if (info.should_record) {
-    auto& typed_slots = typed_slots_map_[info.memory_chunk];
-    if (!typed_slots) {
-      typed_slots.reset(new TypedSlots());
-    }
-    typed_slots->Insert(info.slot_type, info.offset);
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+
+  auto& typed_slots = typed_slots_map_[info.memory_chunk];
+  if (!typed_slots) {
+    typed_slots.reset(new TypedSlots());
   }
+  typed_slots->Insert(info.slot_type, info.offset);
 }
 
 // static
@@ -145,6 +161,12 @@ void MarkingBarrier::Publish() {
     worklist_.Publish();
     for (auto& it : typed_slots_map_) {
       MemoryChunk* memory_chunk = it.first;
+      // Access to TypeSlots need to be protected, since LocalHeaps might
+      // publish code in the background thread.
+      base::Optional<base::MutexGuard> opt_guard;
+      if (FLAG_concurrent_sparkplug) {
+        opt_guard.emplace(memory_chunk->mutex());
+      }
       std::unique_ptr<TypedSlots>& typed_slots = it.second;
       RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
                                             std::move(typed_slots));
@@ -172,7 +194,7 @@ void MarkingBarrier::Deactivate() {
   is_compacting_ = false;
   if (is_main_thread_barrier_) {
     DeactivateSpace(heap_->old_space());
-    DeactivateSpace(heap_->map_space());
+    if (heap_->map_space()) DeactivateSpace(heap_->map_space());
     DeactivateSpace(heap_->code_space());
     DeactivateSpace(heap_->new_space());
     for (LargePage* p : *heap_->new_lo_space()) {
@@ -211,7 +233,7 @@ void MarkingBarrier::Activate(bool is_compacting) {
   is_activated_ = true;
   if (is_main_thread_barrier_) {
     ActivateSpace(heap_->old_space());
-    ActivateSpace(heap_->map_space());
+    if (heap_->map_space()) ActivateSpace(heap_->map_space());
     ActivateSpace(heap_->code_space());
     ActivateSpace(heap_->new_space());
 

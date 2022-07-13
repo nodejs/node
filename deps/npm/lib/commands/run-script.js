@@ -5,7 +5,7 @@ const { isServerPackage } = runScript
 const rpj = require('read-package-json-fast')
 const log = require('../utils/log-shim.js')
 const didYouMean = require('../utils/did-you-mean.js')
-const isWindowsShell = require('../utils/is-windows-shell.js')
+const { isWindowsShell } = require('../utils/is-windows.js')
 
 const cmdList = [
   'publish',
@@ -35,11 +35,14 @@ class RunScript extends BaseCommand {
     'include-workspace-root',
     'if-present',
     'ignore-scripts',
+    'foreground-scripts',
     'script-shell',
   ]
 
   static name = 'run-script'
   static usage = ['<command> [-- <args>]']
+  static ignoreImplicitWorkspace = false
+  static isShellout = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -116,7 +119,7 @@ class RunScript extends BaseCommand {
       stdio: 'inherit',
       stdioString: true,
       pkg,
-      banner: log.level !== 'silent',
+      banner: !this.npm.silent,
     }
 
     for (const [event, args] of events) {
@@ -139,7 +142,7 @@ class RunScript extends BaseCommand {
     }
 
     const allScripts = Object.keys(scripts)
-    if (log.level === 'silent') {
+    if (this.npm.silent) {
       return allScripts
     }
 
@@ -233,7 +236,7 @@ class RunScript extends BaseCommand {
   async listWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
 
-    if (log.level === 'silent') {
+    if (this.npm.silent) {
       return
     }
 

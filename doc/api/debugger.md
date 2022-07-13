@@ -197,7 +197,8 @@ debug>
 * `watchers`: List all watchers and their values (automatically listed on each
   breakpoint)
 * `repl`: Open debugger's repl for evaluation in debugging script's context
-* `exec expr`: Execute an expression in debugging script's context
+* `exec expr`, `p expr`: Execute an expression in debugging script's context and
+  print its value
 
 ### Execution control
 

@@ -48,12 +48,17 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
                              Label* on_in_range) override;
   void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match) override;
+  bool CheckSpecialCharacterClass(StandardCharacterSet type,
+                                  Label* on_no_match) override;
   void Fail() override;
   Handle<HeapObject> GetCode(Handle<String> source) override;
   void GoTo(Label* label) override;
@@ -162,14 +167,17 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
 
+  void PushCallerSavedRegisters();
+  void PopCallerSavedRegisters();
+
   // Check whether preemption has been requested.
   void CheckPreemption();
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState();
+  void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The rbp-relative location of a regexp register.
   Operand register_location(int register_index);

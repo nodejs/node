@@ -16,7 +16,6 @@ const mocks = {
   'proc-log': log,
   'npm-registry-fetch': npmFetch,
   '../../../lib/utils/get-identity.js': async () => 'foo',
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 const Stars = t.mock('../../../lib/commands/stars.js', mocks)

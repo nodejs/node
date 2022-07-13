@@ -8,6 +8,7 @@
 
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -210,16 +211,20 @@ LargePage::~LargePage() = default;
 
 // static
 size_t LargePage::AllocationSize(size_t payload_size) {
-  const size_t page_header_size =
-      RoundUp(sizeof(LargePage), kAllocationGranularity);
-  return page_header_size + payload_size;
+  return PageHeaderSize() + payload_size;
 }
 
 // static
 LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
                              size_t size) {
-  DCHECK_LE(kLargeObjectSizeThreshold, size);
+  // Ensure that the API-provided alignment guarantees does not violate the
+  // internally guaranteed alignment of large page allocations.
+  STATIC_ASSERT(kGuaranteedObjectAlignment <=
+                api_constants::kMaxSupportedAlignment);
+  STATIC_ASSERT(
+      api_constants::kMaxSupportedAlignment % kGuaranteedObjectAlignment == 0);
 
+  DCHECK_LE(kLargeObjectSizeThreshold, size);
   const size_t allocation_size = AllocationSize(size);
 
   auto* heap = space.raw_heap()->heap();
@@ -235,8 +240,14 @@ void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
 #if DEBUG
   const BaseSpace& space = page->space();
-  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
-#endif
+  {
+    // Destroy() happens on the mutator but another concurrent sweeper task may
+    // add add a live object using `BaseSpace::AddPage()` while iterating the
+    // pages.
+    v8::base::LockGuard<v8::base::Mutex> guard(&space.pages_mutex());
+    DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
+  }
+#endif  // DEBUG
   page->~LargePage();
   PageBackend* backend = page->heap().page_backend();
   page->heap().stats_collector()->NotifyFreedMemory(
@@ -253,8 +264,7 @@ const HeapObjectHeader* LargePage::ObjectHeader() const {
 }
 
 Address LargePage::PayloadStart() {
-  return AlignAddress((reinterpret_cast<Address>(this + 1)),
-                      kAllocationGranularity);
+  return reinterpret_cast<Address>(this) + PageHeaderSize();
 }
 
 ConstAddress LargePage::PayloadStart() const {

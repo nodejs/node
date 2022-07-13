@@ -32,6 +32,14 @@
     false)                                                                     \
   V(unsafe_nn_locals,                                                          \
     "allow non-defaultable/non-nullable locals, no validation", false)         \
+  V(assume_ref_cast_succeeds,                                                  \
+    "assume ref.cast always succeeds and skip the related type check "         \
+    "(unsafe)",                                                                \
+    false)                                                                     \
+  V(skip_null_checks,                                                          \
+    "skip null checks for call.ref and array and struct operations (unsafe)",  \
+    false)                                                                     \
+  V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
@@ -56,7 +64,12 @@
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(stack_switching, "stack switching", false)
+  V(stack_switching, "stack switching", false)                                 \
+                                                                               \
+  /* Extended Constant Expressions Proposal. */                                \
+  /* https://github.com/WebAssembly/extended-const */                          \
+  /* V8 side owner: manoskouk */                                               \
+  V(extended_const, "extended constant expressions", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -89,13 +102,6 @@
   /* Staged in v8.7 * */                                                       \
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
-                                                                               \
-  /* Reference Types, a.k.a. reftypes proposal. */                             \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  /* Shipped in v9.6 * */                                                      \
-  V(reftypes, "reference type opcodes", true)                                  \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \

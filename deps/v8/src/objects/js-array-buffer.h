@@ -21,7 +21,8 @@ class ArrayBufferExtension;
 #include "torque-generated/src/objects/js-array-buffer-tq.inc"
 
 class JSArrayBuffer
-    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer, JSObject> {
+    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer,
+                                          JSObjectWithEmbedderSlots> {
  public:
 // The maximum length for JSArrayBuffer's supported by V8.
 // On 32-bit architectures we limit this to 2GiB, so that
@@ -37,16 +38,12 @@ class JSArrayBuffer
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
+  // It should not be assumed that this will be nullptr for empty ArrayBuffers.
   DECL_GETTER(backing_store, void*)
-  inline void set_backing_store(void* value);
+  inline void set_backing_store(Isolate* isolate, void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
-
-  // For non-wasm, allocation_length and allocation_base are byte_length and
-  // backing_store, respectively.
-  inline size_t allocation_length() const;
-  inline void* allocation_base() const;
 
   // [bit_field]: boolean flags
   DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
@@ -80,6 +77,13 @@ class JSArrayBuffer
   // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_resizable)
 
+  // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
+  // An empty ArrayBuffer will have a byte_length of zero but not necessarily a
+  // nullptr backing_store. An ArrayBuffer with a byte_length of zero may not
+  // necessarily be empty though, as it may be a GrowableSharedArrayBuffer.
+  // An ArrayBuffer with a size greater than zero is never empty.
+  DECL_GETTER(IsEmpty, bool)
+
   // Initializes the fields of the ArrayBuffer. The provided backing_store can
   // be nullptr. If it is not nullptr, then the function registers it with
   // src/heap/array-buffer-tracker.h.
@@ -104,9 +108,16 @@ class JSArrayBuffer
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached
   // or a zero-length array buffer).
-  std::shared_ptr<BackingStore> GetBackingStore() const;
+  inline std::shared_ptr<BackingStore> GetBackingStore() const;
 
-  size_t GetByteLength() const;
+  inline size_t GetByteLength() const;
+
+  static size_t GsabByteLength(Isolate* isolate, Address raw_array_buffer);
+
+  static Maybe<bool> GetResizableBackingStorePageConfiguration(
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+      size_t* max_pages);
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
@@ -226,7 +237,8 @@ class ArrayBufferExtension final : public Malloced {
 };
 
 class JSArrayBufferView
-    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView, JSObject> {
+    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView,
+                                              JSObjectWithEmbedderSlots> {
  public:
   // [byte_offset]: offset of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
@@ -236,7 +248,14 @@ class JSArrayBufferView
 
   DECL_VERIFIER(JSArrayBufferView)
 
+  // Bit positions for [bit_field].
+  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_VIEW_FLAGS()
+
   inline bool WasDetached() const;
+
+  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
+  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
+  inline bool IsVariableLength() const;
 
   static constexpr int kEndOfTaggedFieldsOffset = kByteOffsetOffset;
 
@@ -252,9 +271,6 @@ class JSTypedArray
   // TODO(v8:4153): This should be equal to JSArrayBuffer::kMaxByteLength
   // eventually.
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
-
-  // Bit positions for [bit_field].
-  DEFINE_TORQUE_GENERATED_JS_TYPED_ARRAY_FLAGS()
 
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_GETTER(length, size_t)
@@ -280,18 +296,19 @@ class JSTypedArray
   inline void* DataPtr();
 
   inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
-  inline void SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
-                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
   inline bool is_on_heap(AcquireLoadTag tag) const;
 
-  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
-  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
-  inline bool IsVariableLength() const;
+  // Only valid to call when IsVariableLength() is true.
+  size_t GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const;
+
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
+  inline bool IsDetachedOrOutOfBounds() const;
 
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);
@@ -323,6 +340,9 @@ class JSTypedArray
   // Subtracts external pointer compensation from the external pointer value.
   inline void RemoveExternalPointerCompensationForSerialization(
       Isolate* isolate);
+  // Adds external pointer compensation to the external pointer value.
+  inline void AddExternalPointerCompensationForDeserialization(
+      Isolate* isolate);
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -332,8 +352,9 @@ class JSTypedArray
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  STATIC_ASSERT(IsAligned(kLengthOffset, kUIntptrSize));
-  STATIC_ASSERT(IsAligned(kExternalPointerOffset, kSystemPointerSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // STATIC_ASSERT(IsAligned(kLengthOffset, kTaggedSize));
+  // STATIC_ASSERT(IsAligned(kExternalPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -358,7 +379,6 @@ class JSTypedArray
   inline size_t LengthUnchecked() const;
 
   DECL_GETTER(external_pointer, Address)
-  DECL_GETTER(external_pointer_raw, ExternalPointer_t)
 
   DECL_SETTER(base_pointer, Object)
   DECL_RELEASE_SETTER(base_pointer, Object)
@@ -379,7 +399,8 @@ class JSDataView
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
-  STATIC_ASSERT(IsAligned(kDataPointerOffset, kUIntptrSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // STATIC_ASSERT(IsAligned(kDataPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +

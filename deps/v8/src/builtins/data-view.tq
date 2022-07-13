@@ -89,10 +89,22 @@ javascript builtin DataViewPrototypeGetByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
-  if (WasDetached(dataView)) {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
+  if (IsVariableLengthJSArrayBufferView(dataView)) {
+    try {
+      const byteLength = LoadVariableLengthJSArrayBufferViewByteLength(
+          dataView, dataView.buffer) otherwise DetachedOrOutOfBounds;
+      return Convert<Number>(byteLength);
+    } label DetachedOrOutOfBounds {
+      ThrowTypeError(
+          MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
+    }
+  } else {
+    if (WasDetached(dataView)) {
+      ThrowTypeError(
+          MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
+    }
+    return Convert<Number>(dataView.byte_length);
   }
-  return Convert<Number>(dataView.byte_length);
 }
 
 // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
@@ -100,10 +112,14 @@ javascript builtin DataViewPrototypeGetByteOffset(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
-  if (WasDetached(dataView)) {
+  try {
+    typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+        otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
+  } label DetachedOrOutOfBounds {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteOffset);
+  } label NotDetachedNorOutOfBounds {
+    return Convert<Number>(dataView.byte_offset);
   }
-  return Convert<Number>(dataView.byte_offset);
 }
 
 extern macro BitcastInt32ToFloat32(uint32): float32;
@@ -373,28 +389,40 @@ transitioning macro DataViewGet(
     // 5. Let buffer be view.[[ViewedArrayBuffer]].
     const buffer: JSArrayBuffer = dataView.buffer;
 
-    // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (IsDetachedBuffer(buffer)) {
+    // 6. Let getBufferByteLength be
+    // MakeIdempotentArrayBufferByteLengthGetter(Unordered).
+    // 7. If IsViewOutOfBounds(view, getBufferByteLength) is true, throw a
+    // TypeError exception.
+    try {
+      typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+          otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
+    } label DetachedOrOutOfBounds {
       ThrowTypeError(
           MessageTemplate::kDetachedOperation,
           MakeDataViewGetterNameString(kind));
-    }
+    } label NotDetachedNorOutOfBounds {}
 
-    // 7. Let viewOffset be view.[[ByteOffset]].
+    // 8. Let viewOffset be view.[[ByteOffset]].
     const viewOffset: uintptr = dataView.byte_offset;
 
-    // 8. Let viewSize be view.[[ByteLength]].
-    const viewSize: uintptr = dataView.byte_length;
+    // 9. Let viewSize be GetViewByteLength(view, getBufferByteLength).
+    let viewSize: uintptr;
+    if (dataView.bit_field.is_length_tracking) {
+      viewSize = LoadVariableLengthJSArrayBufferViewByteLength(
+          dataView, dataView.buffer) otherwise unreachable;
+    } else {
+      viewSize = dataView.byte_length;
+    }
 
-    // 9. Let elementSize be the Element Size value specified in Table 62
+    // 10. Let elementSize be the Element Size value specified in Table 62
     // for Element Type type.
     const elementSize: uintptr = DataViewElementSize(kind);
 
-    // 10. If getIndex + elementSize > viewSize, throw a RangeError exception.
+    // 11. If getIndex + elementSize > viewSize, throw a RangeError exception.
     CheckIntegerIndexAdditionOverflow(getIndex, elementSize, viewSize)
         otherwise RangeError;
 
-    // 11. Let bufferIndex be getIndex + viewOffset.
+    // 12. Let bufferIndex be getIndex + viewOffset.
     const bufferIndex: uintptr = getIndex + viewOffset;
 
     if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
@@ -654,9 +682,6 @@ transitioning macro DataViewSet(
     // 3. Let getIndex be ? ToIndex(requestIndex).
     const getIndex: uintptr = ToIndex(requestIndex) otherwise RangeError;
 
-    const littleEndian: bool = ToBoolean(requestedLittleEndian);
-    const buffer: JSArrayBuffer = dataView.buffer;
-
     let numberValue: Numeric;
     if constexpr (
         kind == ElementsKind::BIGUINT64_ELEMENTS ||
@@ -669,28 +694,54 @@ transitioning macro DataViewSet(
       numberValue = ToNumber(context, value);
     }
 
+    // 6. Set isLittleEndian to !ToBoolean(isLittleEndian).
+    const littleEndian: bool = ToBoolean(requestedLittleEndian);
+
+    // 7. Let buffer be view.[[ViewedArrayBuffer]].
+    const buffer: JSArrayBuffer = dataView.buffer;
+
     // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(buffer)) {
       ThrowTypeError(
           MessageTemplate::kDetachedOperation,
           MakeDataViewSetterNameString(kind));
     }
+    // 8. Let getBufferByteLength be
+    // MakeIdempotentArrayBufferByteLengthGetter(Unordered).
+    // 9. NOTE: Bounds checking is not a synchronizing operation when view's
+    // backing buffer is a growable SharedArrayBuffer.
+    // 10. If IsViewOutOfBounds(view, getBufferByteLength) is true, throw a
+    // TypeError exception.
+    try {
+      typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+          otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
+    } label DetachedOrOutOfBounds {
+      ThrowTypeError(
+          MessageTemplate::kDetachedOperation,
+          MakeDataViewGetterNameString(kind));
+    } label NotDetachedNorOutOfBounds {}
 
-    // 9. Let viewOffset be view.[[ByteOffset]].
+    // 11. Let viewOffset be view.[[ByteOffset]].
     const viewOffset: uintptr = dataView.byte_offset;
 
-    // 10. Let viewSize be view.[[ByteLength]].
-    const viewSize: uintptr = dataView.byte_length;
+    // 12. Let viewSize be GetViewByteLength(view, getBufferByteLength).
+    let viewSize: uintptr;
+    if (dataView.bit_field.is_length_tracking) {
+      viewSize = LoadVariableLengthJSArrayBufferViewByteLength(
+          dataView, dataView.buffer) otherwise unreachable;
+    } else {
+      viewSize = dataView.byte_length;
+    }
 
-    // 11. Let elementSize be the Element Size value specified in Table 62
+    // 13. Let elementSize be the Element Size value specified in Table 62
     // for Element Type type.
     const elementSize: uintptr = DataViewElementSize(kind);
 
-    // 12. If getIndex + elementSize > viewSize, throw a RangeError exception.
+    // 14. If getIndex + elementSize > viewSize, throw a RangeError exception.
     CheckIntegerIndexAdditionOverflow(getIndex, elementSize, viewSize)
         otherwise RangeError;
 
-    // 13. Let bufferIndex be getIndex + viewOffset.
+    // 15. Let bufferIndex be getIndex + viewOffset.
     const bufferIndex: uintptr = getIndex + viewOffset;
 
     if constexpr (

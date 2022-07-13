@@ -15,14 +15,14 @@ or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
 The `AsyncLocalStorage` and `AsyncResource` classes are part of the
-`async_hooks` module:
+`node:async_hooks` module:
 
 ```mjs
-import { AsyncLocalStorage, AsyncResource } from 'async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 ```
 
 ```cjs
-const { AsyncLocalStorage, AsyncResource } = require('async_hooks');
+const { AsyncLocalStorage, AsyncResource } = require('node:async_hooks');
 ```
 
 ## Class: `AsyncLocalStorage`
@@ -39,18 +39,18 @@ changes:
 
 This class creates stores that stay coherent through asynchronous operations.
 
-While you can create your own implementation on top of the `async_hooks` module,
-`AsyncLocalStorage` should be preferred as it is a performant and memory safe
-implementation that involves significant optimizations that are non-obvious to
-implement.
+While you can create your own implementation on top of the `node:async_hooks`
+module, `AsyncLocalStorage` should be preferred as it is a performant and memory
+safe implementation that involves significant optimizations that are non-obvious
+to implement.
 
 The following example uses `AsyncLocalStorage` to build a simple logger
 that assigns IDs to incoming HTTP requests and includes them in messages
 logged within each request.
 
 ```mjs
-import http from 'http';
-import { AsyncLocalStorage } from 'async_hooks';
+import http from 'node:http';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -81,8 +81,8 @@ http.get('http://localhost:8080');
 ```
 
 ```cjs
-const http = require('http');
-const { AsyncLocalStorage } = require('async_hooks');
+const http = require('node:http');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -114,7 +114,7 @@ http.get('http://localhost:8080');
 
 Each instance of `AsyncLocalStorage` maintains an independent storage context.
 Multiple instances can safely exist simultaneously without risk of interfering
-with each other data.
+with each other's data.
 
 ### `new AsyncLocalStorage()`
 
@@ -316,22 +316,19 @@ functions called by `foo`. Outside of `run`, calling `getStore` will return
 
 ### Troubleshooting: Context loss
 
-In most cases your application or library code should have no issues with
-`AsyncLocalStorage`. But in rare cases you may face situations when the
-current store is lost in one of the asynchronous operations. In those cases,
-consider the following options.
+In most cases, `AsyncLocalStorage` works without issues. In rare situations, the
+current store is lost in one of the asynchronous operations.
 
 If your code is callback-based, it is enough to promisify it with
-[`util.promisify()`][], so it starts working with native promises.
+[`util.promisify()`][] so it starts working with native promises.
 
-If you need to keep using callback-based API, or your code assumes
+If you need to use a callback-based API or your code assumes
 a custom thenable implementation, use the [`AsyncResource`][] class
-to associate the asynchronous operation with the correct execution context. To
-do so, you will need to identify the function call responsible for the
-context loss. You can do that by logging the content of
-`asyncLocalStorage.getStore()` after the calls you suspect are responsible for
-the loss. When the code logs `undefined`, the last callback called is probably
-responsible for the context loss.
+to associate the asynchronous operation with the correct execution context.
+Find the function call responsible for the context loss by logging the content
+of `asyncLocalStorage.getStore()` after the calls you suspect are responsible
+for the loss. When the code logs `undefined`, the last callback called is
+probably responsible for the context loss.
 
 ## Class: `AsyncResource`
 
@@ -351,7 +348,7 @@ The `init` hook will trigger when an `AsyncResource` is instantiated.
 The following is an overview of the `AsyncResource` API.
 
 ```mjs
-import { AsyncResource, executionAsyncId } from 'async_hooks';
+import { AsyncResource, executionAsyncId } from 'node:async_hooks';
 
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
@@ -379,7 +376,7 @@ asyncResource.triggerAsyncId();
 ```
 
 ```cjs
-const { AsyncResource, executionAsyncId } = require('async_hooks');
+const { AsyncResource, executionAsyncId } = require('node:async_hooks');
 
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
@@ -442,13 +439,19 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-### Static method: `AsyncResource.bind(fn[, type, [thisArg]])`
+### Static method: `AsyncResource.bind(fn[, type[, thisArg]])`
 
 <!-- YAML
 added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version:
+    - v17.8.0
+    - v16.15.0
+    pr-url: https://github.com/nodejs/node/pull/42177
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
@@ -471,6 +474,12 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version:
+    - v17.8.0
+    - v16.15.0
+    pr-url: https://github.com/nodejs/node/pull/42177
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
@@ -530,14 +539,14 @@ Assuming that the task is adding two numbers, using a file named
 `task_processor.js` with the following content:
 
 ```mjs
-import { parentPort } from 'worker_threads';
+import { parentPort } from 'node:worker_threads';
 parentPort.on('message', (task) => {
   parentPort.postMessage(task.a + task.b);
 });
 ```
 
 ```cjs
-const { parentPort } = require('worker_threads');
+const { parentPort } = require('node:worker_threads');
 parentPort.on('message', (task) => {
   parentPort.postMessage(task.a + task.b);
 });
@@ -546,10 +555,10 @@ parentPort.on('message', (task) => {
 a Worker pool around it could use the following structure:
 
 ```mjs
-import { AsyncResource } from 'async_hooks';
-import { EventEmitter } from 'events';
-import path from 'path';
-import { Worker } from 'worker_threads';
+import { AsyncResource } from 'node:async_hooks';
+import { EventEmitter } from 'node:events';
+import path from 'node:path';
+import { Worker } from 'node:worker_threads';
 
 const kTaskInfo = Symbol('kTaskInfo');
 const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
@@ -634,10 +643,10 @@ export default class WorkerPool extends EventEmitter {
 ```
 
 ```cjs
-const { AsyncResource } = require('async_hooks');
-const { EventEmitter } = require('events');
-const path = require('path');
-const { Worker } = require('worker_threads');
+const { AsyncResource } = require('node:async_hooks');
+const { EventEmitter } = require('node:events');
+const path = require('node:path');
+const { Worker } = require('node:worker_threads');
 
 const kTaskInfo = Symbol('kTaskInfo');
 const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
@@ -733,7 +742,7 @@ This pool could be used as follows:
 
 ```mjs
 import WorkerPool from './worker_pool.js';
-import os from 'os';
+import os from 'node:os';
 
 const pool = new WorkerPool(os.cpus().length);
 
@@ -749,7 +758,7 @@ for (let i = 0; i < 10; i++) {
 
 ```cjs
 const WorkerPool = require('./worker_pool.js');
-const os = require('os');
+const os = require('node:os');
 
 const pool = new WorkerPool(os.cpus().length);
 
@@ -774,8 +783,8 @@ associate an event listener with the correct execution context. The same
 approach can be applied to a [`Stream`][] or a similar event-driven class.
 
 ```mjs
-import { createServer } from 'http';
-import { AsyncResource, executionAsyncId } from 'async_hooks';
+import { createServer } from 'node:http';
+import { AsyncResource, executionAsyncId } from 'node:async_hooks';
 
 const server = createServer((req, res) => {
   req.on('close', AsyncResource.bind(() => {
@@ -789,8 +798,8 @@ const server = createServer((req, res) => {
 ```
 
 ```cjs
-const { createServer } = require('http');
-const { AsyncResource, executionAsyncId } = require('async_hooks');
+const { createServer } = require('node:http');
+const { AsyncResource, executionAsyncId } = require('node:async_hooks');
 
 const server = createServer((req, res) => {
   req.on('close', AsyncResource.bind(() => {

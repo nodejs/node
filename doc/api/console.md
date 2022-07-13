@@ -6,16 +6,16 @@
 
 <!-- source_link=lib/console.js -->
 
-The `console` module provides a simple debugging console that is similar to the
-JavaScript console mechanism provided by web browsers.
+The `node:console` module provides a simple debugging console that is similar to
+the JavaScript console mechanism provided by web browsers.
 
 The module exports two specific components:
 
-* A `Console` class with methods such as `console.log()`, `console.error()` and
+* A `Console` class with methods such as `console.log()`, `console.error()`, and
   `console.warn()` that can be used to write to any Node.js stream.
 * A global `console` instance configured to write to [`process.stdout`][] and
   [`process.stderr`][]. The global `console` can be used without calling
-  `require('console')`.
+  `require('node:console')`.
 
 _**Warning**_: The global console object's methods are neither consistently
 synchronous like the browser APIs they resemble, nor are they consistently
@@ -77,11 +77,11 @@ changes:
 <!--type=class-->
 
 The `Console` class can be used to create a simple logger with configurable
-output streams and can be accessed using either `require('console').Console`
+output streams and can be accessed using either `require('node:console').Console`
 or `console.Console` (or their destructured counterparts):
 
 ```js
-const { Console } = require('console');
+const { Console } = require('node:console');
 ```
 
 ```js
@@ -408,7 +408,7 @@ added: v10.0.0
 
 Try to construct a table with the columns of the properties of `tabularData`
 (or use `properties`) and rows of `tabularData` and log it. Falls back to just
-logging the argument if it can’t be parsed as tabular.
+logging the argument if it can't be parsed as tabular.
 
 ```js
 // These can't be parsed as tabular data
@@ -459,7 +459,7 @@ changes:
     description: The elapsed time is displayed with a suitable time unit.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5901
-    description: This method no longer supports multiple calls that don’t map
+    description: This method no longer supports multiple calls that don't map
                  to individual `console.time()` calls; see below for details.
 -->
 
@@ -469,10 +469,10 @@ Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:
 
 ```js
-console.time('100-elements');
-for (let i = 0; i < 100; i++) {}
-console.timeEnd('100-elements');
-// prints 100-elements: 225.438ms
+console.time('bunch-of-stuff');
+// Do a bunch of stuff.
+console.timeEnd('bunch-of-stuff');
+// Prints: bunch-of-stuff: 225.438ms
 ```
 
 ### `console.timeLog([label][, ...data])`

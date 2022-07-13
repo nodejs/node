@@ -110,9 +110,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
         try {
           mappedValue =
               Call(context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
-        } catch (e) {
+        } catch (e, message) {
           iterator::IteratorCloseOnException(iteratorRecord);
-          ReThrow(context, e);
+          ReThrowWithMessage(context, e, message);
         }
       } else {
         mappedValue = nextValue;
@@ -123,9 +123,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       //     return ? IteratorClose(iteratorRecord, defineStatus).
       try {
         FastCreateDataProperty(a, k, mappedValue);
-      } catch (e) deferred {
+      } catch (e, message) deferred {
         iterator::IteratorCloseOnException(iteratorRecord);
-        ReThrow(context, e);
+        ReThrowWithMessage(context, e, message);
       }
       // x. Set k to k + 1.
       k += 1;

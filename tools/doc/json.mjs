@@ -128,7 +128,7 @@ export function jsonAPI({ filename }) {
       switch (current.type) {
         case 'ctor':
         case 'classMethod':
-        case 'method':
+        case 'method': {
           // Each item is an argument, unless the name is 'return',
           // in which case it's the return value.
           const sig = {};
@@ -142,7 +142,7 @@ export function jsonAPI({ filename }) {
           parseSignature(current.textRaw, sig);
           current.signatures = [sig];
           break;
-
+        }
         case 'property':
           // There should be only one item, which is the value.
           // Copy the data up to the section.

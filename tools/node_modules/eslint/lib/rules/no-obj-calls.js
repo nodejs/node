@@ -43,7 +43,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow calling global object properties as functions",
+            description: "Disallow calling global object properties as functions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-obj-calls"
         },

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-top-level-await --allow-natives-syntax
-// Flags: --harmony-dynamic-import
 
 var ran = false;
 

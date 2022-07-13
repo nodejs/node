@@ -88,6 +88,7 @@ class CompactorTest : public testing::TestWithPlatform {
   void EndGC() {
     heap()->marker()->FinishMarking(
         GarbageCollector::Config::StackState::kNoHeapPointers);
+    heap()->GetMarkerRefForTesting().reset();
     FinishCompaction();
     // Sweeping also verifies the object start bitmap.
     const Sweeper::SweepingConfig sweeping_config{

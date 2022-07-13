@@ -801,7 +801,6 @@ WASM_EXEC_TEST(Select_s128_parameters) {
 }
 
 WASM_EXEC_TEST(SelectWithType_float_parameters) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<float, float, float, int32_t> r(execution_tier);
   BUILD(r,
         WASM_SELECT_F(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)));
@@ -819,7 +818,6 @@ WASM_EXEC_TEST(Select) {
 }
 
 WASM_EXEC_TEST(SelectWithType) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // return select(11, 22, a);
   BUILD(r, WASM_SELECT_I(WASM_I32V_1(11), WASM_I32V_1(22), WASM_LOCAL_GET(0)));
@@ -841,7 +839,6 @@ WASM_EXEC_TEST(Select_strict1) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict1) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // select(a=0, a=1, a=2); return a
   BUILD(r,
@@ -866,7 +863,6 @@ WASM_EXEC_TEST(Select_strict2) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict2) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -894,7 +890,6 @@ WASM_EXEC_TEST(Select_strict3) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict3) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -3247,7 +3242,13 @@ WASM_EXEC_TEST(F32NearestInt) {
   WasmRunner<float, float> r(execution_tier);
   BUILD(r, WASM_F32_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(nearbyintf(i), r.Call(i)); }
+  FOR_FLOAT32_INPUTS(i) {
+    float value = nearbyintf(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<float>(i, value);
+#endif
+    CHECK_FLOAT_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F64Floor) {
@@ -3275,7 +3276,13 @@ WASM_EXEC_TEST(F64NearestInt) {
   WasmRunner<double, double> r(execution_tier);
   BUILD(r, WASM_F64_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(nearbyint(i), r.Call(i)); }
+  FOR_FLOAT64_INPUTS(i) {
+    double value = nearbyint(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<double>(i, value);
+#endif
+    CHECK_DOUBLE_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F32Min) {

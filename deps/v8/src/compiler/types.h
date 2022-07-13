@@ -96,39 +96,49 @@ namespace compiler {
 // clang-format off
 
 #define INTERNAL_BITSET_TYPE_LIST(V)                                      \
-  V(OtherUnsigned31, 1u << 1)  \
-  V(OtherUnsigned32, 1u << 2)  \
-  V(OtherSigned32,   1u << 3)  \
-  V(OtherNumber,     1u << 4)  \
-  V(OtherString,     1u << 5)  \
+  V(OtherUnsigned31, uint64_t{1} << 1)  \
+  V(OtherUnsigned32, uint64_t{1} << 2)  \
+  V(OtherSigned32,   uint64_t{1} << 3)  \
+  V(OtherNumber,     uint64_t{1} << 4)  \
+  V(OtherString,     uint64_t{1} << 5)  \
+
+#define PROPER_ATOMIC_BITSET_TYPE_LOW_LIST(V) \
+  V(Negative31,               uint64_t{1} << 6)   \
+  V(Null,                     uint64_t{1} << 7)   \
+  V(Undefined,                uint64_t{1} << 8)   \
+  V(Boolean,                  uint64_t{1} << 9)   \
+  V(Unsigned30,               uint64_t{1} << 10)  \
+  V(MinusZero,                uint64_t{1} << 11)  \
+  V(NaN,                      uint64_t{1} << 12)  \
+  V(Symbol,                   uint64_t{1} << 13)  \
+  V(InternalizedString,       uint64_t{1} << 14)  \
+  V(OtherCallable,            uint64_t{1} << 15)  \
+  V(OtherObject,              uint64_t{1} << 16)  \
+  V(OtherUndetectable,        uint64_t{1} << 17)  \
+  V(CallableProxy,            uint64_t{1} << 18)  \
+  V(OtherProxy,               uint64_t{1} << 19)  \
+  V(CallableFunction,         uint64_t{1} << 20)  \
+  V(ClassConstructor,         uint64_t{1} << 21)  \
+  V(BoundFunction,            uint64_t{1} << 22)  \
+  V(Hole,                     uint64_t{1} << 23)  \
+  V(OtherInternal,            uint64_t{1} << 24)  \
+  V(ExternalPointer,          uint64_t{1} << 25)  \
+  V(Array,                    uint64_t{1} << 26)  \
+  V(UnsignedBigInt63,         uint64_t{1} << 27)  \
+  V(OtherUnsignedBigInt64,    uint64_t{1} << 28)  \
+  V(NegativeBigInt63,         uint64_t{1} << 29)  \
+  V(OtherBigInt,              uint64_t{1} << 30)  \
+  V(WasmObject,               uint64_t{1} << 31)
+
+// We split the macro list into two parts because the Torque equivalent in
+// turbofan-types.tq uses two 32bit bitfield structs.
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
+  V(SandboxedPointer,         uint64_t{1} << 32)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
-  V(None,                     0u)        \
-  V(Negative31,               1u << 6)   \
-  V(Null,                     1u << 7)   \
-  V(Undefined,                1u << 8)   \
-  V(Boolean,                  1u << 9)   \
-  V(Unsigned30,               1u << 10)  \
-  V(MinusZero,                1u << 11)  \
-  V(NaN,                      1u << 12)  \
-  V(Symbol,                   1u << 13)  \
-  V(InternalizedString,       1u << 14)  \
-  V(OtherCallable,            1u << 16)  \
-  V(OtherObject,              1u << 17)  \
-  V(OtherUndetectable,        1u << 18)  \
-  V(CallableProxy,            1u << 19)  \
-  V(OtherProxy,               1u << 20)  \
-  V(Function,                 1u << 21)  \
-  V(BoundFunction,            1u << 22)  \
-  V(Hole,                     1u << 23)  \
-  V(OtherInternal,            1u << 24)  \
-  V(ExternalPointer,          1u << 25)  \
-  V(Array,                    1u << 26)  \
-  V(BigInt,                   1u << 27)  \
-  /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
-  /* sandbox-ready. */                   \
-  V(SandboxedExternalPointer, 1u << 28)  \
-  \
+  V(None,                     uint64_t{0}) \
+  PROPER_ATOMIC_BITSET_TYPE_LOW_LIST(V) \
+  PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
                                   kOtherSigned32) \
@@ -147,6 +157,10 @@ namespace compiler {
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
+  V(SignedBigInt64,               kUnsignedBigInt63 | kNegativeBigInt63) \
+  V(UnsignedBigInt64,             kUnsignedBigInt63 | kOtherUnsignedBigInt64) \
+  V(BigInt,                       kSignedBigInt64 | kOtherUnsignedBigInt64 | \
+                                  kOtherBigInt) \
   V(Numeric,                      kNumber | kBigInt) \
   V(String,                       kInternalizedString | kOtherString) \
   V(UniqueName,                   kSymbol | kInternalizedString) \
@@ -174,6 +188,7 @@ namespace compiler {
   V(Proxy,                        kCallableProxy | kOtherProxy) \
   V(ArrayOrOtherObject,           kArray | kOtherObject) \
   V(ArrayOrProxy,                 kArray | kProxy) \
+  V(Function,                     kCallableFunction | kClassConstructor) \
   V(DetectableCallable,           kFunction | kBoundFunction | \
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
@@ -184,7 +199,7 @@ namespace compiler {
   V(DetectableReceiver,           kDetectableObject | kProxy) \
   V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \
   V(Object,                       kDetectableObject | kOtherUndetectable) \
-  V(Receiver,                     kObject | kProxy) \
+  V(Receiver,                     kObject | kProxy | kWasmObject) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
@@ -192,11 +207,11 @@ namespace compiler {
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | kOtherInternal) \
+                                  kSandboxedPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \
-  V(Any,                          0xfffffffeu)
+  V(Any,                          uint64_t{0xfffffffffffffffe})
 
 // clang-format on
 
@@ -232,9 +247,9 @@ class UnionType;
 
 class V8_EXPORT_PRIVATE BitsetType {
  public:
-  using bitset = uint32_t;  // Internal
+  using bitset = uint64_t;  // Internal
 
-  enum : uint32_t {
+  enum : bitset {
 #define DECLARE_TYPE(type, value) k##type = (value),
     BITSET_TYPE_LIST(DECLARE_TYPE)
 #undef DECLARE_TYPE
@@ -365,7 +380,7 @@ class V8_EXPORT_PRIVATE Type {
   PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
 #undef DEFINE_TYPE_CONSTRUCTOR
 
-  Type() : payload_(0) {}
+  Type() : payload_(uint64_t{0}) {}
 
   static Type SignedSmall() { return NewBitset(BitsetType::SignedSmall()); }
   static Type UnsignedSmall() { return NewBitset(BitsetType::UnsignedSmall()); }
@@ -385,7 +400,7 @@ class V8_EXPORT_PRIVATE Type {
 
   // Predicates.
   bool IsNone() const { return payload_ == None().payload_; }
-  bool IsInvalid() const { return payload_ == 0u; }
+  bool IsInvalid() const { return payload_ == uint64_t{0}; }
 
   bool Is(Type that) const {
     return payload_ == that.payload_ || this->SlowIs(that);
@@ -394,7 +409,7 @@ class V8_EXPORT_PRIVATE Type {
   bool Equals(Type that) const { return this->Is(that) && that.Is(*this); }
 
   // Inspection.
-  bool IsBitset() const { return payload_ & 1; }
+  bool IsBitset() const { return payload_ & uint64_t{1}; }
   bool IsRange() const { return IsKind(TypeBase::kRange); }
   bool IsHeapConstant() const { return IsKind(TypeBase::kHeapConstant); }
   bool IsOtherNumberConstant() const {
@@ -409,9 +424,8 @@ class V8_EXPORT_PRIVATE Type {
            (Is(Type::PlainNumber()) && Min() == Max());
   }
 
-  bool CanBeAsserted() const {
-    return IsRange() || (Is(Type::Integral32()) && !IsNone());
-  }
+  bool CanBeAsserted() const { return Is(Type::NonInternal()); }
+  Handle<TurbofanType> AllocateOnHeap(Factory* factory);
 
   const HeapConstantType* AsHeapConstant() const;
   const OtherNumberConstantType* AsOtherNumberConstant() const;
@@ -459,10 +473,10 @@ class V8_EXPORT_PRIVATE Type {
   friend UnionType;
   friend size_t hash_value(Type type);
 
-  explicit Type(bitset bits) : payload_(bits | 1u) {}
+  explicit Type(bitset bits) : payload_(bits | uint64_t{1}) {}
 
   Type(TypeBase* type_base)  // NOLINT(runtime/explicit)
-      : payload_(reinterpret_cast<uintptr_t>(type_base)) {}
+      : payload_(reinterpret_cast<uint64_t>(type_base)) {}
 
   // Internal inspection.
   bool IsKind(TypeBase::Kind kind) const {
@@ -481,7 +495,7 @@ class V8_EXPORT_PRIVATE Type {
 
   bitset AsBitset() const {
     DCHECK(IsBitset());
-    return static_cast<bitset>(payload_) ^ 1u;
+    return static_cast<bitset>(payload_) ^ uint64_t { 1 };
   }
 
   const UnionType* AsUnion() const;
@@ -516,7 +530,7 @@ class V8_EXPORT_PRIVATE Type {
 
   // If LSB is set, the payload is a bitset; if LSB is clear, the payload is
   // a pointer to a subtype of the TypeBase class.
-  uintptr_t payload_;
+  uint64_t payload_;
 };
 
 inline size_t hash_value(Type type) { return type.payload_; }

@@ -5,7 +5,14 @@
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests side-effect-free evaluation');
 
 contextGroup.addScript(`
+var someGlobalArray = [1, 2];
+var someGlobalArrayIterator = someGlobalArray[Symbol.iterator]();
 var someGlobalDate = new Date();
+var someGlobalMap = new Map([[1, 2], [3, 4]]);
+var someGlobalMapKeysIterator = someGlobalMap.keys();
+var someGlobalMapValuesIterator = someGlobalMap.values();
+var someGlobalSet = new Set([1, 2])
+var someGlobalSetIterator = someGlobalSet.values();
 function testFunction()
 {
   var o = 0;
@@ -20,7 +27,7 @@ async function testAsyncFunction(action) {
     case "reject": throw new Error();
   }
 }
-//# sourceURL=foo.js`);
+`, 0, 0, 'foo.js');
 
 const check = async (expression) => {
   const {result:{exceptionDetails}} = await Protocol.Runtime.evaluate({expression, throwOnSideEffect: true});
@@ -67,5 +74,19 @@ InspectorTest.runAsyncTestSuite([
 
   async function testPromiseReject() {
     await check('Promise.reject()');
+  },
+
+  async function testSpread() {
+    await check('[...someGlobalArray]');
+    await check('[...someGlobalArray.values()]');
+    await check('[...someGlobalArrayIterator]');
+    await check('[...someGlobalMap]');
+    await check('[...someGlobalMap.keys()]');
+    await check('[...someGlobalMap.values()]');
+    await check('[...someGlobalMapKeysIterator]');
+    await check('[...someGlobalMapValuesIterator]');
+    await check('[...someGlobalSet]');
+    await check('[...someGlobalSet.values()]');
+    await check('[...someGlobalSetIterator]');
   }
 ]);

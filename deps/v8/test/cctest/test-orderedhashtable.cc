@@ -1576,8 +1576,8 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   PropertyDetails found = dict->DetailsAt(entry);
   CHECK_EQ(PropertyDetails::Empty().AsSmi(), found.AsSmi());
 
-  PropertyDetails other =
-      PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
+  PropertyDetails other = PropertyDetails(PropertyKind::kAccessor, READ_ONLY,
+                                          PropertyCellType::kNoCell);
   dict->DetailsAtPut(entry, other);
 
   found = dict->DetailsAt(entry);
@@ -1797,8 +1797,8 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   PropertyDetails found = dict->DetailsAt(entry);
   CHECK_EQ(PropertyDetails::Empty().AsSmi(), found.AsSmi());
 
-  PropertyDetails other =
-      PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
+  PropertyDetails other = PropertyDetails(PropertyKind::kAccessor, READ_ONLY,
+                                          PropertyCellType::kNoCell);
   dict->DetailsAtPut(entry, other);
 
   found = dict->DetailsAt(entry);
@@ -2000,8 +2000,8 @@ TEST(OrderedNameDictionarySetEntry) {
 
   // Change the value
   Handle<String> other_value = isolate->factory()->InternalizeUtf8String("baz");
-  PropertyDetails other_details =
-      PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
+  PropertyDetails other_details = PropertyDetails(
+      PropertyKind::kAccessor, READ_ONLY, PropertyCellType::kNoCell);
   dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);
@@ -2044,8 +2044,8 @@ TEST(SmallOrderedNameDictionarySetEntry) {
 
   // Change the value
   Handle<String> other_value = factory->InternalizeUtf8String("baz");
-  PropertyDetails other_details =
-      PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
+  PropertyDetails other_details = PropertyDetails(
+      PropertyKind::kAccessor, READ_ONLY, PropertyCellType::kNoCell);
   dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);

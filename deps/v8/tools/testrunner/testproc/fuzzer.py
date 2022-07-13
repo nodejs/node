@@ -11,44 +11,45 @@ from . import base
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
 # (probability, flag).
 EXTRA_FLAGS = [
-  (0.1, '--always-opt'),
-  (0.1, '--assert-types'),
-  # TODO(mythria): https://crbug.com/v8/10243
-  # (0.1, '--budget-for-feedback-vector-allocation=0'),
-  (0.1, '--cache=code'),
-  (0.1, '--force-slow-path'),
-  (0.2, '--future'),
-  (0.1, '--interrupt-budget=100'),
-  (0.1, '--liftoff'),
-  (0.2, '--no-analyze-environment-liveness'),
-  # TODO(machenbach): Enable when it doesn't collide with crashing on missing
-  # simd features.
-  #(0.1, '--no-enable-sse3'),
-  #(0.1, '--no-enable-ssse3'),
-  #(0.1, '--no-enable-sse4_1'),
-  (0.1, '--no-enable-sse4_2'),
-  (0.1, '--no-enable-sahf'),
-  (0.1, '--no-enable-avx'),
-  (0.1, '--no-enable-fma3'),
-  (0.1, '--no-enable-bmi1'),
-  (0.1, '--no-enable-bmi2'),
-  (0.1, '--no-enable-lzcnt'),
-  (0.1, '--no-enable-popcnt'),
-  (0.3, '--no-lazy-feedback-allocation'),
-  (0.1, '--no-liftoff'),
-  (0.1, '--no-opt'),
-  (0.2, '--no-regexp-tier-up'),
-  (0.1, '--no-wasm-tier-up'),
-  (0.1, '--regexp-interpret-all'),
-  (0.1, '--regexp-tier-up-ticks=10'),
-  (0.1, '--regexp-tier-up-ticks=100'),
-  (0.1, '--stress-background-compile'),
-  (0.1, '--stress-concurrent-inlining'),
-  (0.1, '--stress-flush-code'),
-  (0.1, '--stress-lazy-source-positions'),
-  (0.1, '--stress-wasm-code-gc'),
-  (0.1, '--turbo-instruction-scheduling'),
-  (0.1, '--turbo-stress-instruction-scheduling'),
+    (0.1, '--always-opt'),
+    (0.1, '--assert-types'),
+    (0.1, '--interrupt-budget-for-feedback-allocation=0'),
+    (0.1, '--cache=code'),
+    (0.25, '--compact-maps'),
+    (0.1, '--force-slow-path'),
+    (0.2, '--future'),
+    (0.1, '--interrupt-budget=100'),
+    (0.1, '--liftoff'),
+    (0.2, '--no-analyze-environment-liveness'),
+    # TODO(machenbach): Enable when it doesn't collide with crashing on missing
+    # simd features.
+    #(0.1, '--no-enable-sse3'),
+    #(0.1, '--no-enable-ssse3'),
+    #(0.1, '--no-enable-sse4_1'),
+    (0.1, '--no-enable-sse4_2'),
+    (0.1, '--no-enable-sahf'),
+    (0.1, '--no-enable-avx'),
+    (0.1, '--no-enable-fma3'),
+    (0.1, '--no-enable-bmi1'),
+    (0.1, '--no-enable-bmi2'),
+    (0.1, '--no-enable-lzcnt'),
+    (0.1, '--no-enable-popcnt'),
+    (0.3, '--no-lazy-feedback-allocation'),
+    (0.1, '--no-liftoff'),
+    (0.1, '--no-opt'),
+    (0.2, '--no-regexp-tier-up'),
+    (0.1, '--no-wasm-tier-up'),
+    (0.1, '--regexp-interpret-all'),
+    (0.1, '--regexp-tier-up-ticks=10'),
+    (0.1, '--regexp-tier-up-ticks=100'),
+    (0.1, '--stress-background-compile'),
+    (0.1, '--stress-concurrent-inlining'),
+    (0.1, '--stress-flush-code'),
+    (0.1, '--stress-lazy-source-positions'),
+    (0.1, '--stress-wasm-code-gc'),
+    (0.1, '--turbo-instruction-scheduling'),
+    (0.1, '--turbo-stress-instruction-scheduling'),
+    (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
 
 def random_extra_flags(rng):
@@ -266,10 +267,28 @@ class CompactionFuzzer(Fuzzer):
     while True:
       yield ['--stress-compaction-random']
 
+
+class InterruptBudgetFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      # Half with half without lazy feedback allocation. The first flag
+      # overwrites potential flag negations from the extra flags list.
+      flag1 = rng.choice(
+          '--lazy-feedback-allocation', '--no-lazy-feedback-allocation')
+      # For most code paths, only one of the flags below has a meaning
+      # based on the flag above.
+      flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
+      flag3 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
+          0, 940)
+
+      yield [flag1, flag2, flag3]
+
+
 class StackSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stack-size=%d' % rng.randint(54, 983)]
+
 
 class TaskDelayFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
@@ -325,6 +344,7 @@ FUZZERS = {
   'delay': (None, TaskDelayFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+  'interrupt': InterruptBudgetFuzzer,
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
   'stack': (None, StackSizeFuzzer),

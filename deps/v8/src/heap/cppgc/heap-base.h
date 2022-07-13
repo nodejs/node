@@ -15,6 +15,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -27,6 +28,10 @@
 
 #if defined(CPPGC_CAGED_HEAP)
 #include "src/heap/cppgc/caged-heap.h"
+#endif
+
+#if defined(CPPGC_YOUNG_GENERATION)
+#include "src/heap/cppgc/remembered-set.h"
 #endif
 
 namespace v8 {
@@ -62,10 +67,6 @@ class V8_EXPORT HeapHandle {
 
 namespace internal {
 
-namespace testing {
-class TestWithHeap;
-}  // namespace testing
-
 class FatalOutOfMemoryHandler;
 class PageBackend;
 class PreFinalizerHandler;
@@ -75,6 +76,8 @@ class StatsCollector;
 class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
  public:
   using StackSupport = cppgc::Heap::StackSupport;
+  using MarkingType = cppgc::Heap::MarkingType;
+  using SweepingType = cppgc::Heap::SweepingType;
 
   static HeapBase& From(cppgc::HeapHandle& heap_handle) {
     return static_cast<HeapBase&>(heap_handle);
@@ -85,7 +88,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-           StackSupport stack_support);
+           StackSupport stack_support, MarkingType marking_support,
+           SweepingType sweeping_support);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -125,6 +129,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
   MarkerBase* marker() const { return marker_.get(); }
+  std::unique_ptr<MarkerBase>& GetMarkerRefForTesting() { return marker_; }
 
   Compactor& compactor() { return compactor_; }
 
@@ -162,8 +167,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  std::set<void*>& remembered_slots() { return remembered_slots_; }
-#endif
+  OldToNewRememberedSet& remembered_set() { return remembered_set_; }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t ObjectPayloadSize() const;
 
@@ -171,8 +176,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const EmbedderStackState* override_stack_state() const {
     return override_stack_state_.get();
   }
-
-  void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in
@@ -208,6 +211,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int GetCreationThreadId() const { return creation_thread_id_; }
 
+  MarkingType marking_support() const { return marking_support_; }
+  SweepingType sweeping_support() const { return sweeping_support_; }
+
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -219,6 +225,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   // Returns amount of bytes allocated while executing prefinalizers.
   size_t ExecutePreFinalizers();
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  void ResetRememberedSet();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   PageAllocator* page_allocator() const;
 
@@ -255,8 +265,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   ProcessHeapStatisticsUpdater::AllocationObserverImpl
       allocation_observer_for_PROCESS_HEAP_STATISTICS_;
 #if defined(CPPGC_YOUNG_GENERATION)
-  std::set<void*> remembered_slots_;
-#endif
+  OldToNewRememberedSet remembered_set_;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t no_gc_scope_ = 0;
   size_t disallow_gc_scope_ = 0;
@@ -274,8 +284,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
+  const MarkingType marking_support_;
+  const SweepingType sweeping_support_;
+
   friend class MarkerBase::IncrementalMarkingTask;
-  friend class testing::TestWithHeap;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
   friend class cppgc::testing::Heap;

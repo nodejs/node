@@ -9,6 +9,11 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.19.3">14.19.3</a><br/>
+<a href="#14.19.2">14.19.2</a><br/>
+<a href="#14.19.1">14.19.1</a><br/>
+<a href="#14.19.0">14.19.0</a><br/>
+<a href="#14.18.3">14.18.3</a><br/>
 <a href="#14.18.2">14.18.2</a><br/>
 <a href="#14.18.1">14.18.1</a><br/>
 <a href="#14.18.0">14.18.0</a><br/>
@@ -51,6 +56,7 @@
 </table>
 
 * Other Versions
+  * [18.x](CHANGELOG_V18.md)
   * [17.x](CHANGELOG_V17.md)
   * [16.x](CHANGELOG_V16.md)
   * [15.x](CHANGELOG_V15.md)
@@ -68,6 +74,225 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.20.0"></a>
+
+## 2022-07-07, Version 14.20.0 'Fermium' (LTS), @danielleadams prepared by @juanarbol
+
+### Notable Changes
+
+* \[[`8e8aef836c`](https://github.com/nodejs/node/commit/8e8aef836c)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+* \[[`98965b137d`](https://github.com/nodejs/node/commit/98965b137d)] - **deps**: upgrade openssl sources to 1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+
+### Commits
+
+* \[[`b93e048bf6`](https://github.com/nodejs/node/commit/b93e048bf6)] - **deps**: update archs files for OpenSSL-1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+* \[[`98965b137d`](https://github.com/nodejs/node/commit/98965b137d)] - **deps**: upgrade openssl sources to 1.1.1q (RafaelGSS) [#43686](https://github.com/nodejs/node/pull/43686)
+* \[[`837a1d803e`](https://github.com/nodejs/node/commit/837a1d803e)] - **deps**: update archs files for OpenSSL-1.1.1p (RafaelGSS) [#43527](https://github.com/nodejs/node/pull/43527)
+* \[[`c5d9c9a49e`](https://github.com/nodejs/node/commit/c5d9c9a49e)] - **deps**: upgrade openssl sources to 1.1.1p (RafaelGSS) [#43527](https://github.com/nodejs/node/pull/43527)
+* \[[`da0fda0fe8`](https://github.com/nodejs/node/commit/da0fda0fe8)] - **http**: stricter Transfer-Encoding and header separator parsing (Paolo Insogna) [#315](https://github.com/nodejs/node/pull/315)
+* \[[`48c5aa5cab`](https://github.com/nodejs/node/commit/48c5aa5cab)] - **src**: fix IPv4 validation in inspector\_socket (Tobias Nießen) [nodejs-private/node-private#320](https://github.com/nodejs-private/node-private/pull/320)
+* \[[`8e8aef836c`](https://github.com/nodejs/node/commit/8e8aef836c)] - **(SEMVER-MAJOR)** **src,deps,build,test**: add OpenSSL config appname (Daniel Bevenius) [#43124](https://github.com/nodejs/node/pull/43124)
+
+<a id="14.19.3"></a>
+
+## 2022-05-17, Version 14.19.3 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+* This release updates OpenSSL to 1.1.1o. This update is not being treated as a security release as the issues addressed in OpenSSL 1.1.1o were assessed to not affect Node.js 14. See <https://nodejs.org/en/blog/vulnerability/openssl-fixes-in-regular-releases-may2022/> for more information on how the May 2022 OpenSSL releases affects other Node.js release lines.
+* The list of GPG keys used to sign releases has been synchronized with the main branch.
+
+### Commits
+
+* \[[`68397e49d9`](https://github.com/nodejs/node/commit/68397e49d9)] - **deps**: update archs files for OpenSSL-1.1.1o (RafaelGSS) [#42956](https://github.com/nodejs/node/pull/42956)
+* \[[`7f9a5ed4a8`](https://github.com/nodejs/node/commit/7f9a5ed4a8)] - **deps**: upgrade openssl sources to 1.1.1o (RafaelGSS) [#42956](https://github.com/nodejs/node/pull/42956)
+* \[[`61eba58cb6`](https://github.com/nodejs/node/commit/61eba58cb6)] - **doc**: add release key for Juan Arboleda (Juan José) [#42961](https://github.com/nodejs/node/pull/42961)
+
+<a id="14.19.2"></a>
+
+## 2022-05-04, Version 14.19.2 'Fermium' (LTS), @BethGriggs prepared by @juanarbol
+
+### Notable Changes
+
+**doc:**
+
+* New release key for Bryan English
+
+Learn more at: <https://github.com/nodejs/node/pull/42102>
+Contributed by Bryan English (@bengl)
+
+**npm:**
+
+* Upgrade `npm` to `v6.14.17`.
+
+Learn more at: <https://github.com/nodejs/node/pull/42900>
+Contributed by Ruy Adorno (@ruyadorno)
+
+**V8:**
+
+* V8 had a stack overflow issue affecting the `vm` module, cherry-picking [`cc9a8a37445e`](https://github.com/v8/v8/commit/cc9a8a37445eeffff17474020bb6038c2f9af9fc)
+  from V8 solves this issue.
+
+Learn more at: <https://github.com/nodejs/node/pull/41826>
+Contributed by Gus Caplan (@devsnek)
+
+* Using `getHeapSnapshot()` was causing a Node.js crash due a V8 issue, this is fixed by backporting [`367b0c1e7a32`](https://github.com/v8/v8/commit/367b0c1e7a323deafeab56736b01bc7e14fc1998)
+  from V8.
+
+Learn more at: <https://github.com/nodejs/node/pull/42637>
+Contributed by Chengzhong Wu (@legendecas)
+
+### Commits
+
+* \[[`c73ac527d6`](https://github.com/nodejs/node/commit/c73ac527d6)] - **build**: set DESTCPU correctly for 'make binary' on Apple Silicon (Chris Heisterkamp) [#40147](https://github.com/nodejs/node/pull/40147)
+* \[[`dcaed6db24`](https://github.com/nodejs/node/commit/dcaed6db24)] - **build**: use ccache in make-v8.sh on ppc64le and s390x (Richard Lau) [#42204](https://github.com/nodejs/node/pull/42204)
+* \[[`4203d132b1`](https://github.com/nodejs/node/commit/4203d132b1)] - **child\_process**: queue pending messages (Erick Wendel) [#41221](https://github.com/nodejs/node/pull/41221)
+* \[[`a3ebdbfe8f`](https://github.com/nodejs/node/commit/a3ebdbfe8f)] - **deps**: upgrade npm to 6.14.17 (Ruy Adorno) [#42900](https://github.com/nodejs/node/pull/42900)
+* \[[`39e44f8382`](https://github.com/nodejs/node/commit/39e44f8382)] - **deps**: V8: cherry-pick cc9a8a37445e (Gus Caplan) [#41826](https://github.com/nodejs/node/pull/41826)
+* \[[`b52a268b6f`](https://github.com/nodejs/node/commit/b52a268b6f)] - **deps**: V8: cherry-pick 367b0c1e7a32 (legendecas) [#42637](https://github.com/nodejs/node/pull/42637)
+* \[[`77ba012065`](https://github.com/nodejs/node/commit/77ba012065)] - **doc**: fix documentation of `FileHandle.prototype.appendFile` (Antoine du Hamel) [#42588](https://github.com/nodejs/node/pull/42588)
+* \[[`3d3d7ed1b7`](https://github.com/nodejs/node/commit/3d3d7ed1b7)] - **doc**: specify flag needed for JSON and Wasm modules (Rich Trott) [#42736](https://github.com/nodejs/node/pull/42736)
+* \[[`542d812c93`](https://github.com/nodejs/node/commit/542d812c93)] - **doc**: use openpgp.org for keyserver examples (Nick Schonning) [#39227](https://github.com/nodejs/node/pull/39227)
+* \[[`7f2825b1a9`](https://github.com/nodejs/node/commit/7f2825b1a9)] - **doc**: add release key for Bryan English (Bryan English) [#42102](https://github.com/nodejs/node/pull/42102)
+* \[[`75302d3dce`](https://github.com/nodejs/node/commit/75302d3dce)] - **fs**: fix write methods param validation and docs (Livia Medeiros) [#41677](https://github.com/nodejs/node/pull/41677)
+* \[[`d4171e0eac`](https://github.com/nodejs/node/commit/d4171e0eac)] - **stream**: resume stream on drain (Robert Nagy) [#41848](https://github.com/nodejs/node/pull/41848)
+* \[[`de474c8b6f`](https://github.com/nodejs/node/commit/de474c8b6f)] - **worker**: do not send message if port is closing (Rich Trott) [#42357](https://github.com/nodejs/node/pull/42357)
+
+<a id="14.19.1"></a>
+
+## 2022-03-17, Version 14.19.1 'Fermium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+Update to OpenSSL 1.1.1n, which addresses the following vulnerability:
+
+* Infinite loop in `BN_mod_sqrt()` reachable when parsing certificates (High)(CVE-2022-0778)
+  More details are available at <https://www.openssl.org/news/secadv/20220315.txt>
+
+### Commits
+
+* \[[`b5c52e337e`](https://github.com/nodejs/node/commit/b5c52e337e)] - **build**: pin Windows GitHub runner to windows-2019 (Richard Lau) [#42350](https://github.com/nodejs/node/pull/42350)
+* \[[`3b1a0b24f0`](https://github.com/nodejs/node/commit/3b1a0b24f0)] - **deps**: update archs files for OpenSSL-1.1.1n (Richard Lau) [#42347](https://github.com/nodejs/node/pull/42347)
+* \[[`c83dd99e0b`](https://github.com/nodejs/node/commit/c83dd99e0b)] - **deps**: upgrade openssl sources to 1.1.1n (Richard Lau) [#42347](https://github.com/nodejs/node/pull/42347)
+
+<a id="14.19.0"></a>
+
+## 2022-02-01, Version 14.19.0 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+#### Corepack
+
+Node.js now includes Corepack, a script that acts as a bridge between Node.js projects and the package managers they are intended to be used with during development.
+In practical terms, **Corepack will let you use Yarn and pnpm without having to install them** - just like what currently happens with npm, which is shipped in Node.js by default.
+Please head over to the [Corepack documentation page](https://nodejs.org/dist/latest-v14.x/docs/api/corepack.html) for more information on how to use it.
+
+Contributed by Maël Nison - [#39608](https://github.com/nodejs/node/pull/39608)
+
+#### ICU updated
+
+ICU has been updated to 70.1. This updates timezone database to 2021a3, including bringing forward the start for DST for Jordan from March to February.
+
+Contributed by Michaël Zasso - [#40658](https://github.com/nodejs/node/pull/40658)
+
+#### New option to disable loading of native addons
+
+A new command line option `--no-addons` has been added to disallow loading of native addons.
+
+Contributed by Dominic Elm - [#39977](https://github.com/nodejs/node/pull/39977)
+
+#### Updated Root Certificates
+
+Root certificates have been updated to those from Mozilla's Network Security Services 3.71.
+
+Contributed by Richard Lau - [#40280](https://github.com/nodejs/node/pull/40280)
+
+#### Other Notable Changes
+
+* \[[`0d448eaab5`](https://github.com/nodejs/node/commit/0d448eaab5)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* \[[`004eafbebf`](https://github.com/nodejs/node/commit/004eafbebf)] - **(SEMVER-MINOR)** **lib**: add unsubscribe method to non-active DC channels (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`625be7585d`](https://github.com/nodejs/node/commit/625be7585d)] - **(SEMVER-MINOR)** **lib**: add return value for DC channel.unsubscribe (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`607bc74eae`](https://github.com/nodejs/node/commit/607bc74eae)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* \[[`f74fe2a59c`](https://github.com/nodejs/node/commit/f74fe2a59c)] - **(SEMVER-MINOR)** **src**: make napi\_create\_reference accept symbol (JckXia) [#39926](https://github.com/nodejs/node/pull/39926)
+
+### Commits
+
+* \[[`0231ffa501`](https://github.com/nodejs/node/commit/0231ffa501)] - **build**: add `--without-corepack` (Jonah Snider) [#41060](https://github.com/nodejs/node/pull/41060)
+* \[[`5389b8ab05`](https://github.com/nodejs/node/commit/5389b8ab05)] - **crypto**: update root certificates (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
+* \[[`0d448eaab5`](https://github.com/nodejs/node/commit/0d448eaab5)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* \[[`cd20ecc7cb`](https://github.com/nodejs/node/commit/cd20ecc7cb)] - **deps**: upgrade Corepack to 0.10 (Maël Nison) [#40374](https://github.com/nodejs/node/pull/40374)
+* \[[`737df75e17`](https://github.com/nodejs/node/commit/737df75e17)] - **(SEMVER-MINOR)** **deps**: add corepack (Maël Nison) [#39608](https://github.com/nodejs/node/pull/39608)
+* \[[`b85aa5a143`](https://github.com/nodejs/node/commit/b85aa5a143)] - **deps**: upgrade npm to 6.14.16 (Ruy Adorno) [#41603](https://github.com/nodejs/node/pull/41603)
+* \[[`2755d391a5`](https://github.com/nodejs/node/commit/2755d391a5)] - **deps**: update ICU to 70.1 (Michaël Zasso) [#40658](https://github.com/nodejs/node/pull/40658)
+* \[[`3089326d89`](https://github.com/nodejs/node/commit/3089326d89)] - **deps**: update archs files for OpenSSL-1.1.1m (Richard Lau) [#41173](https://github.com/nodejs/node/pull/41173)
+* \[[`59da7c12aa`](https://github.com/nodejs/node/commit/59da7c12aa)] - **deps**: upgrade openssl sources to 1.1.1m (Richard Lau) [#41173](https://github.com/nodejs/node/pull/41173)
+* \[[`cede1f26f6`](https://github.com/nodejs/node/commit/cede1f26f6)] - **deps**: add -fno-strict-aliasing flag to libuv (Daniel Bevenius) [#40631](https://github.com/nodejs/node/pull/40631)
+* \[[`4477da858f`](https://github.com/nodejs/node/commit/4477da858f)] - **doc**: fix corepack grammar for `--force` flag (Steven) [#40762](https://github.com/nodejs/node/pull/40762)
+* \[[`5971d58600`](https://github.com/nodejs/node/commit/5971d58600)] - **doc**: add missing YAML tag in `esm.md` (Antoine du Hamel) [#41516](https://github.com/nodejs/node/pull/41516)
+* \[[`e903798ae1`](https://github.com/nodejs/node/commit/e903798ae1)] - **doc**: add note regarding unfinished TLA (Antoine du Hamel) [#41434](https://github.com/nodejs/node/pull/41434)
+* \[[`a90defebcf`](https://github.com/nodejs/node/commit/a90defebcf)] - **esm**: make `process.exit()` default to exit code 0 (Gang Chen) [#41388](https://github.com/nodejs/node/pull/41388)
+* \[[`fc328f1ab0`](https://github.com/nodejs/node/commit/fc328f1ab0)] - **fs**: nullish coalescing to respect zero positional reads (Omar El-Mihilmy) [#40716](https://github.com/nodejs/node/pull/40716)
+* \[[`004eafbebf`](https://github.com/nodejs/node/commit/004eafbebf)] - **(SEMVER-MINOR)** **lib**: add unsubscribe method to non-active DC channels (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`625be7585d`](https://github.com/nodejs/node/commit/625be7585d)] - **(SEMVER-MINOR)** **lib**: add return value for DC channel.unsubscribe (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`2c365961d0`](https://github.com/nodejs/node/commit/2c365961d0)] - **module**: support pattern trailers for imports field (Guy Bedford) [#40041](https://github.com/nodejs/node/pull/40041)
+* \[[`607bc74eae`](https://github.com/nodejs/node/commit/607bc74eae)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* \[[`f74fe2a59c`](https://github.com/nodejs/node/commit/f74fe2a59c)] - **(SEMVER-MINOR)** **src**: make napi\_create\_reference accept symbol (JckXia) [#39926](https://github.com/nodejs/node/pull/39926)
+* \[[`b050c65885`](https://github.com/nodejs/node/commit/b050c65885)] - **src**: add option to disable loading native addons (Dominic Elm) [#39977](https://github.com/nodejs/node/pull/39977)
+* \[[`c1695ac68a`](https://github.com/nodejs/node/commit/c1695ac68a)] - **tools**: update certdata.txt (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
+
+<a id="14.18.3"></a>
+
+## 2022-01-10, Version 14.18.3 'Fermium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable changes
+
+#### Improper handling of URI Subject Alternative Names (Medium)(CVE-2021-44531)
+
+Accepting arbitrary Subject Alternative Name (SAN) types, unless a PKI is specifically defined to use a particular SAN type, can result in bypassing name-constrained intermediates. Node.js was accepting URI SAN types, which PKIs are often not defined to use. Additionally, when a protocol allows URI SANs, Node.js did not match the URI correctly.
+
+Versions of Node.js with the fix for this disable the URI SAN type when checking a certificate against a hostname. This behavior can be reverted through the `--security-revert` command-line option.
+
+More details will be available at [CVE-2021-44531](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531) after publication.
+
+#### Certificate Verification Bypass via String Injection (Medium)(CVE-2021-44532)
+
+Node.js converts SANs (Subject Alternative Names) to a string format. It uses this string to check peer certificates against hostnames when validating connections. The string format was subject to an injection vulnerability when name constraints were used within a certificate chain, allowing the bypass of these name constraints.
+
+Versions of Node.js with the fix for this escape SANs containing the problematic characters in order to prevent the injection. This behavior can be reverted through the `--security-revert` command-line option.
+
+More details will be available at [CVE-2021-44532](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532) after publication.
+
+#### Incorrect handling of certificate subject and issuer fields (Medium)(CVE-2021-44533)
+
+Node.js did not handle multi-value Relative Distinguished Names correctly. Attackers could craft certificate subjects containing a single-value Relative Distinguished Name that would be interpreted as a multi-value Relative Distinguished Name, for example, in order to inject a Common Name that would allow bypassing the certificate subject verification.
+
+Affected versions of Node.js do not accept multi-value Relative Distinguished Names and are thus not vulnerable to such attacks themselves. However, third-party code that uses node's ambiguous presentation of certificate subjects may be vulnerable.
+
+More details will be available at [CVE-2021-44533](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44533) after publication.
+
+#### Prototype pollution via `console.table` properties (Low)(CVE-2022-21824)
+
+Due to the formatting logic of the `console.table()` function it was not safe to allow user controlled input to be passed to the `properties` parameter while simultaneously passing a plain object with at least one property as the first parameter, which could be `__proto__`. The prototype pollution has very limited control, in that it only allows an empty string to be assigned numerical keys of the object prototype.
+
+Versions of Node.js with the fix for this use a null protoype for the object these properties are being assigned to.
+
+More details will be available at [CVE-2022-21824](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21824) after publication.
+
+Thanks to Patrik Oldsberg (rugvip) for reporting this vulnerability.
+
+### Commits
+
+* \[[`e2a74f3c99`](https://github.com/nodejs/node/commit/e2a74f3c99)] - **console**: fix prototype pollution via console.table (Tobias Nießen) [nodejs-private/node-private#307](https://github.com/nodejs-private/node-private/pull/307)
+* \[[`df1b2c33f6`](https://github.com/nodejs/node/commit/df1b2c33f6)] - **crypto,tls**: implement safe x509 GeneralName format (Tobias Nießen and Akshay Kumar) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`9f2c52617f`](https://github.com/nodejs/node/commit/9f2c52617f)] - **src**: add cve reverts and associated tests (Michael Dawson and Akshay Kumar) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`b14be42518`](https://github.com/nodejs/node/commit/b14be42518)] - **src**: remove unused x509 functions (Tobias Nießen and Akshay Kumar) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`83d8f880bb`](https://github.com/nodejs/node/commit/83d8f880bb)] - **tls**: fix handling of x509 subject and issuer (Tobias Nießen and Akshay Kumar) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`461a0c674b`](https://github.com/nodejs/node/commit/461a0c674b)] - **tls**: drop support for URI alternative names (Tobias Nießen and Akshay Kumar) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
 
 <a id="14.18.2"></a>
 

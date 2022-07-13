@@ -55,6 +55,17 @@ constexpr uint32_t kAvailableBufferSlots = 0;
 constexpr uint32_t kBufferSlotStartOffset = 0;
 #endif
 
+void EnsureThreadHasWritePermissions() {
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
+// Ignoring this warning is considered better than relying on
+// __builtin_available.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+  pthread_jit_write_protect_np(0);
+#pragma clang diagnostic pop
+#endif
+}
+
 Address AllocateJumpTableThunk(
     Address jump_target, byte* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
@@ -97,64 +108,64 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   Register scratch = kReturnRegister0;
   Address stop_bit_address = reinterpret_cast<Address>(&global_stop_bit);
 #if V8_TARGET_ARCH_X64
-  __ Move(scratch, stop_bit_address, RelocInfo::NONE);
+  __ Move(scratch, stop_bit_address, RelocInfo::NO_INFO);
   __ testl(MemOperand(scratch, 0), Immediate(1));
   __ j(not_zero, &exit);
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_IA32
-  __ Move(scratch, Immediate(stop_bit_address, RelocInfo::NONE));
+  __ Move(scratch, Immediate(stop_bit_address, RelocInfo::NO_INFO));
   __ test(MemOperand(scratch, 0), Immediate(1));
   __ j(not_zero, &exit);
-  __ jmp(jump_target, RelocInfo::NONE);
+  __ jmp(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_ARM
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ ldr(scratch, MemOperand(scratch, 0));
   __ tst(scratch, Operand(1));
   __ b(ne, &exit);
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_ARM64
   UseScratchRegisterScope temps(&masm);
   temps.Exclude(x16);
   scratch = x16;
-  __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Ldr(scratch, MemOperand(scratch, 0));
   __ Tbnz(scratch, 0, &exit);
-  __ Mov(scratch, Immediate(jump_target, RelocInfo::NONE));
+  __ Mov(scratch, Immediate(jump_target, RelocInfo::NO_INFO));
   __ Br(scratch);
 #elif V8_TARGET_ARCH_PPC64
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ LoadU64(scratch, MemOperand(scratch));
   __ cmpi(scratch, Operand::Zero());
   __ bne(&exit);
-  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ mov(scratch, Operand(jump_target, RelocInfo::NO_INFO));
   __ Jump(scratch);
 #elif V8_TARGET_ARCH_S390X
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ LoadU64(scratch, MemOperand(scratch));
   __ CmpP(scratch, Operand(0));
   __ bne(&exit);
-  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ mov(scratch, Operand(jump_target, RelocInfo::NO_INFO));
   __ Jump(scratch);
 #elif V8_TARGET_ARCH_MIPS64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_LOONG64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Ld_w(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_MIPS
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_RISCV64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #else
 #error Unsupported architecture
 #endif
@@ -162,7 +173,7 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Ret();
 
   FlushInstructionCache(thunk, kThunkBufferSize);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
   // MacOS on arm64 refuses {mprotect} calls to toggle permissions of RWX
   // memory. Simply do nothing here, as the space will by default be executable
   // and non-writable for the JumpTableRunner.
@@ -203,10 +214,7 @@ class JumpTablePatcher : public v8::base::Thread {
 
   void Run() override {
     TRACE("Patcher %p is starting ...\n", this);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-    // Make sure to switch memory to writable on M1 hardware.
-    CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
+    EnsureThreadHasWritePermissions();
     Address slot_address =
         slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
     // First, emit code to the two thunks.
@@ -261,16 +269,13 @@ TEST(JumpTablePatchingStress) {
   // Iterate through jump-table slots to hammer at different alignments within
   // the jump-table, thereby increasing stress for variable-length ISAs.
   Address slot_start = reinterpret_cast<Address>(buffer->start());
+  EnsureThreadHasWritePermissions();
   for (int slot = 0; slot < kJumpTableSlotCount; ++slot) {
     TRACE("Hammering on jump table slot #%d ...\n", slot);
     uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot);
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     std::vector<Address> patcher_thunks;
     {
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-      // Make sure to switch memory to writable on M1 hardware.
-      CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
       // Patch the jump table slot to jump to itself. This will later be patched
       // by the patchers.
       Address slot_addr =

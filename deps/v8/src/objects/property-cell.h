@@ -41,14 +41,12 @@ class PropertyCell
   // For protectors:
   void InvalidateProtector();
 
-  static PropertyCellType InitialType(Isolate* isolate, Handle<Object> value);
+  static PropertyCellType InitialType(Isolate* isolate, Object value);
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the details.
-  static PropertyCellType UpdatedType(Isolate* isolate,
-                                      Handle<PropertyCell> cell,
-                                      Handle<Object> value,
-                                      PropertyDetails details);
+  static PropertyCellType UpdatedType(Isolate* isolate, PropertyCell cell,
+                                      Object value, PropertyDetails details);
 
   // Prepares property cell at given entry for receiving given value and sets
   // that value.  As a result the old cell could be invalidated and/or dependent

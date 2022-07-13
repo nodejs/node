@@ -222,7 +222,7 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ### funding
 
-You can specify an object containing an URL that provides up-to-date
+You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:
 
@@ -323,7 +323,7 @@ This should be a module relative to the root of your package folder.
 For most modules, it makes the most sense to have a main script and often
 not much else.
 
-If `main` is not set it defaults to `index.js` in the packages root folder.
+If `main` is not set it defaults to `index.js` in the package's root folder.
 
 ### browser
 
@@ -643,6 +643,26 @@ git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 ```
 
+When installing from a `git` repository, the presence of certain fields in the
+`package.json` will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.
+
+This flow will occur if your git dependency uses `workspaces`, or if any of the
+following scripts are present:
+
+* `build`
+* `prepare`
+* `prepack`
+* `preinstall`
+* `install`
+* `postinstall`
+
+If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.
+
 #### GitHub URLs
 
 As of version 1.1.65, you can refer to GitHub urls as just "foo":
@@ -689,6 +709,10 @@ in which case they will be normalized to a relative path and added to your
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry.
+
+*note*: Packages linked by local path will not have their own
+dependencies installed when `npm install` is ran in this case.  You must
+run `npm install` from inside the local path itself.
 
 ### devDependencies
 
@@ -837,6 +861,10 @@ awesome-web-framework-1.0.0.tgz`.  Note that the package names do not
 include any versions, as that information is specified in `dependencies`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
+
+Alternatively, `"bundledDependencies"` can be defined as a boolean value. A
+value of `true` will bundle all dependencies, a value of `false` will bundle
+none.
 
 ### optionalDependencies
 

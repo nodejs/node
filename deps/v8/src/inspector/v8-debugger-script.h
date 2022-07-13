@@ -59,6 +59,7 @@ class V8DebuggerScript {
   V8DebuggerScript(const V8DebuggerScript&) = delete;
   V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
 
+  v8::Local<v8::debug::ScriptSource> scriptSource();
   const String16& scriptId() const { return m_id; }
   bool hasSourceURLComment() const { return m_hasSourceURLComment; }
   const String16& sourceURL() const { return m_url; }
@@ -76,7 +77,6 @@ class V8DebuggerScript {
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
   virtual bool isModule() const = 0;
-  virtual bool isSourceLoadedLazily() const = 0;
   virtual int length() const = 0;
 
   void setSourceURL(const String16&);
@@ -97,7 +97,7 @@ class V8DebuggerScript {
   virtual bool setBreakpoint(const String16& condition,
                              v8::debug::Location* location, int* id) const = 0;
   virtual void MakeWeak() = 0;
-  virtual bool setBreakpointOnRun(int* id) const = 0;
+  virtual bool setInstrumentationBreakpoint(int* id) const = 0;
 
 #if V8_ENABLE_WEBASSEMBLY
   virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;

@@ -84,10 +84,6 @@ const globalDir = t.testdir({
   },
 })
 
-const flatOptions = {
-  workspacesEnabled: true,
-}
-
 const outdated = (dir, opts) => {
   logs = ''
   const Outdated = t.mock('../../../lib/commands/outdated.js', {
@@ -95,11 +91,22 @@ const outdated = (dir, opts) => {
       packument,
     },
   })
+  if (opts.config && opts.config.omit) {
+    opts.flatOptions = {
+      omit: opts.config.omit,
+      ...opts.flatOptions,
+    }
+    delete opts.config.omit
+  }
   const npm = mockNpm({
     ...opts,
     localPrefix: dir,
     prefix: dir,
-    flatOptions,
+    flatOptions: {
+      workspacesEnabled: true,
+      omit: [],
+      ...opts.flatOptions,
+    },
     globalDir: `${globalDir}/node_modules`,
     output,
   })
@@ -336,7 +343,9 @@ t.test('should return if no outdated deps', async t => {
   })
 
   await outdated(testDir, {
-    global: false,
+    config: {
+      global: false,
+    },
   }).exec([])
   t.equal(logs.length, 0, 'no logs')
 })
@@ -362,7 +371,9 @@ t.test('throws if error with a dep', async t => {
 
   await t.rejects(
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+      },
     }).exec([]),
     'There is an error with this package.'
   )
@@ -381,7 +392,9 @@ t.test('should skip missing non-prod deps', async t => {
   })
 
   await outdated(testDir, {
-    global: false,
+    config: {
+      global: false,
+    },
   }).exec([])
   t.equal(logs.length, 0, 'no logs')
 })
@@ -529,14 +542,16 @@ t.test('workspaces', async t => {
   t.matchSnapshot(logs, 'should display ws outdated deps human output')
   t.equal(process.exitCode, 1)
 
-  flatOptions.workspacesEnabled = false
-  await outdated(testDir, {}).exec([])
+  await outdated(testDir, {
+    flatOptions: {
+      workspacesEnabled: false,
+    },
+  }).exec([])
 
   // TODO: This should display dog, but doesn't because arborist filters
   // workspace deps even if they're also root deps
   // This will be fixed in a future arborist version
   t.matchSnapshot(logs, 'should display only root outdated when ws disabled')
-  flatOptions.workspacesEnabled = true
 
   await outdated(testDir, {
     config: {
@@ -608,4 +623,29 @@ t.test('workspaces', async t => {
   await outdated(testDir, {}).execWorkspaces([], ['c'])
   t.matchSnapshot(logs,
     'should display missing deps when filtering by ws')
+})
+
+t.test('aliases', async t => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'display-aliases',
+      version: '1.0.0',
+      dependencies: {
+        cat: 'npm:dog@latest',
+      },
+    }),
+    node_modules: {
+      cat: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.0',
+        }),
+      },
+    },
+  })
+
+  await outdated(testDir, {}).exec([])
+
+  t.matchSnapshot(logs, 'should display aliased outdated dep output')
+  t.equal(process.exitCode, 1)
 })

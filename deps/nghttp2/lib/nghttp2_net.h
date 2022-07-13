@@ -42,7 +42,7 @@
 #if defined(WIN32)
 /* Windows requires ws2_32 library for ntonl family functions.  We
    define inline functions for those function so that we don't have
-   dependeny on that lib. */
+   dependency on that lib. */
 
 #  ifdef _MSC_VER
 #    define STIN static __inline

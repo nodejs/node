@@ -47,7 +47,9 @@ class V8_EXPORT ScriptOrModule {
    * The options that were passed by the embedder as HostDefinedOptions to
    * the ScriptOrigin.
    */
+  V8_DEPRECATED("Use HostDefinedOptions")
   Local<PrimitiveArray> GetHostDefinedOptions();
+  Local<Data> HostDefinedOptions();
 };
 
 /**
@@ -171,29 +173,6 @@ class V8_EXPORT Module : public Data {
   Local<Value> GetException() const;
 
   /**
-   * Returns the number of modules requested by this module.
-   */
-  V8_DEPRECATE_SOON("Use Module::GetModuleRequests() and FixedArray::Length().")
-  int GetModuleRequestsLength() const;
-
-  /**
-   * Returns the ith module specifier in this module.
-   * i must be < GetModuleRequestsLength() and >= 0.
-   */
-  V8_DEPRECATE_SOON(
-      "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
-  Local<String> GetModuleRequest(int i) const;
-
-  /**
-   * Returns the source location (line number and column number) of the ith
-   * module specifier's first occurrence in this module.
-   */
-  V8_DEPRECATE_SOON(
-      "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
-      "Module::SourceOffsetToLocation().")
-  Location GetModuleRequestLocation(int i) const;
-
-  /**
    * Returns the ModuleRequests for this module.
    */
   Local<FixedArray> GetModuleRequests() const;
@@ -209,9 +188,6 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback =
-      MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
-                             Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
       Local<Context> context, Local<String> specifier,
       Local<FixedArray> import_assertions, Local<Module> referrer);
@@ -223,11 +199,6 @@ class V8_EXPORT Module : public Data {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATE_SOON(
-      "Use the version of InstantiateModule that takes a ResolveModuleCallback "
-      "parameter")
-  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
-                                                      ResolveCallback callback);
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
       Local<Context> context, ResolveModuleCallback callback);
 
@@ -340,11 +311,19 @@ class V8_EXPORT Script {
    * UnboundScript::BindToCurrentContext()).
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context,
+                                              Local<Data> host_defined_options);
 
   /**
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
+
+  /**
+   * The name that was passed by the embedder as ResourceName to the
+   * ScriptOrigin. This can be either a v8::String or v8::Undefined.
+   */
+  Local<Value> GetResourceName();
 };
 
 enum class ScriptType { kClassic, kModule };
@@ -397,6 +376,7 @@ class V8_EXPORT ScriptCompiler {
   class Source {
    public:
     // Source takes ownership of both CachedData and CodeCacheConsumeTask.
+    // The caller *must* ensure that the cached data is from a trusted source.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
                      CachedData* cached_data = nullptr,
                      ConsumeCodeCacheTask* consume_cache_task = nullptr);
@@ -424,7 +404,7 @@ class V8_EXPORT ScriptCompiler {
     int resource_column_offset;
     ScriptOriginOptions resource_options;
     Local<Value> source_map_url;
-    Local<PrimitiveArray> host_defined_options;
+    Local<Data> host_defined_options;
 
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
@@ -463,23 +443,6 @@ class V8_EXPORT ScriptCompiler {
      * V8 has parsed the data it received so far.
      */
     virtual size_t GetMoreData(const uint8_t** src) = 0;
-
-    /**
-     * V8 calls this method to set a 'bookmark' at the current position in
-     * the source stream, for the purpose of (maybe) later calling
-     * ResetToBookmark. If ResetToBookmark is called later, then subsequent
-     * calls to GetMoreData should return the same data as they did when
-     * SetBookmark was called earlier.
-     *
-     * The embedder may return 'false' to indicate it cannot provide this
-     * functionality.
-     */
-    virtual bool SetBookmark();
-
-    /**
-     * V8 calls this to return to a previously set bookmark.
-     */
-    virtual void ResetToBookmark();
   };
 
   /**
@@ -694,6 +657,12 @@ class V8_EXPORT ScriptCompiler {
       CompileOptions options = kNoCompileOptions,
       NoCacheReason no_cache_reason = kNoCacheNoReason,
       Local<ScriptOrModule>* script_or_module_out = nullptr);
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunction(
+      Local<Context> context, Source* source, size_t arguments_count = 0,
+      Local<String> arguments[] = nullptr, size_t context_extension_count = 0,
+      Local<Object> context_extensions[] = nullptr,
+      CompileOptions options = kNoCompileOptions,
+      NoCacheReason no_cache_reason = kNoCacheNoReason);
 
   /**
    * Creates and returns code cache for the specified unbound_script.
@@ -712,7 +681,7 @@ class V8_EXPORT ScriptCompiler {
 
   /**
    * Creates and returns code cache for the specified function that was
-   * previously produced by CompileFunctionInContext.
+   * previously produced by CompileFunction.
    * This will return nullptr if the script cannot be serialized. The
    * CachedData returned by this function should be owned by the caller.
    */
@@ -722,6 +691,13 @@ class V8_EXPORT ScriptCompiler {
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
       Isolate* isolate, Source* source, CompileOptions options,
       NoCacheReason no_cache_reason);
+
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInternal(
+      Local<Context> context, Source* source, size_t arguments_count,
+      Local<String> arguments[], size_t context_extension_count,
+      Local<Object> context_extensions[], CompileOptions options,
+      NoCacheReason no_cache_reason,
+      Local<ScriptOrModule>* script_or_module_out);
 };
 
 ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
@@ -733,7 +709,7 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_column_offset(origin.ColumnOffset()),
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
-      host_defined_options(origin.HostDefinedOptions()),
+      host_defined_options(origin.GetHostDefinedOptions()),
       cached_data(data),
       consume_cache_task(consume_cache_task) {}
 

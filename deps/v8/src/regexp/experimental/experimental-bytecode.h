@@ -158,7 +158,7 @@ struct RegExpInstruction {
     return result;
   }
 
-  static RegExpInstruction Assertion(RegExpAssertion::AssertionType t) {
+  static RegExpInstruction Assertion(RegExpAssertion::Type t) {
     RegExpInstruction result;
     result.opcode = ASSERTION;
     result.payload.assertion_type = t;
@@ -174,7 +174,7 @@ struct RegExpInstruction {
     // Payload of SET_REGISTER_TO_CP and CLEAR_REGISTER:
     int32_t register_index;
     // Payload of ASSERTION:
-    RegExpAssertion::AssertionType assertion_type;
+    RegExpAssertion::Type assertion_type;
   } payload;
   STATIC_ASSERT(sizeof(payload) == 4);
 };

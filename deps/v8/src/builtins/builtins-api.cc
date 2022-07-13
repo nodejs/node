@@ -267,7 +267,6 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
   Object result;
   {
     HandleScope scope(isolate);
-    LOG(isolate, ApiObjectAccess("call non-function", obj));
     FunctionCallbackArguments custom(
         isolate, call_data.data(), constructor, obj, new_target,
         args.address_of_first_argument(), args.length() - 1);

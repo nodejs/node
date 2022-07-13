@@ -5,11 +5,11 @@
 #include "include/v8config.h"
 #include "src/trap-handler/trap-handler-simulator.h"
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #define SYMBOL(name) "_" #name
-#else  // !V8_OS_MACOSX
+#else  // !V8_OS_DARWIN
 #define SYMBOL(name) #name
-#endif  // !V8_OS_MACOSX
+#endif  // !V8_OS_DARWIN
 
 // Define the ProbeMemory function declared in trap-handler-simulators.h.
 asm(

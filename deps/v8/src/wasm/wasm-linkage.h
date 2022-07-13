@@ -122,7 +122,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 // ===========================================================================
 // Note that kGpParamRegisters and kFpParamRegisters are used in
 // Builtins::Generate_WasmCompileLazy (builtins-riscv64.cc)
-constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6};
+constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
                                                 fa4, fa5, fa6};
@@ -143,6 +143,8 @@ constexpr DoubleRegister kFpReturnRegisters[] = {};
 // The parameter index where the instance parameter should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
 constexpr int kWasmInstanceParameterIndex = 0;
+static_assert(kWasmInstanceRegister ==
+              kGpParamRegisters[kWasmInstanceParameterIndex]);
 
 class LinkageAllocator {
  public:

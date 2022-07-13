@@ -53,11 +53,11 @@ t.test('editor', t => {
   t.test('has neither EDITOR nor VISUAL, system specific', t => {
     mockGlobals(t, { 'process.env': { EDITOR: undefined, VISUAL: undefined } })
     const defsWin = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsWin.editor.default, 'notepad.exe')
     const defsNix = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsNix.editor.default, 'vi')
     t.end()
@@ -69,12 +69,12 @@ t.test('shell', t => {
   t.test('windows, env.ComSpec then cmd.exe', t => {
     mockGlobals(t, { 'process.env.ComSpec': 'command.com' })
     const defsComSpec = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsComSpec.shell.default, 'command.com')
     mockGlobals(t, { 'process.env.ComSpec': undefined })
     const defsNoComSpec = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsNoComSpec.shell.default, 'cmd')
     t.end()
@@ -83,12 +83,12 @@ t.test('shell', t => {
   t.test('nix, SHELL then sh', t => {
     mockGlobals(t, { 'process.env.SHELL': '/usr/local/bin/bash' })
     const defsShell = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsShell.shell.default, '/usr/local/bin/bash')
     mockGlobals(t, { 'process.env.SHELL': undefined })
     const defsNoShell = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsNoShell.shell.default, 'sh')
     t.end()
@@ -158,18 +158,18 @@ t.test('unicode allowed?', t => {
 t.test('cache', t => {
   mockGlobals(t, { 'process.env.LOCALAPPDATA': 'app/data/local' })
   const defsWinLocalAppData = t.mock(defpath, {
-    [isWin]: true,
+    [isWin]: { isWindows: true },
   })
   t.equal(defsWinLocalAppData.cache.default, 'app/data/local/npm-cache')
 
   mockGlobals(t, { 'process.env.LOCALAPPDATA': undefined })
   const defsWinNoLocalAppData = t.mock(defpath, {
-    [isWin]: true,
+    [isWin]: { isWindows: true },
   })
   t.equal(defsWinNoLocalAppData.cache.default, '~/npm-cache')
 
   const defsNix = t.mock(defpath, {
-    [isWin]: false,
+    [isWin]: { isWindows: false },
   })
   t.equal(defsNix.cache.default, '~/.npm')
 
@@ -375,6 +375,8 @@ t.test('color', t => {
   t.strictSame(flat, { color: false, logColor: false }, 'true when --no-color')
 
   setTTY('stdout', false)
+  setTTY('stderr', false)
+
   obj.color = true
   definitions.color.flatten('color', obj, flat)
   t.strictSame(flat, { color: false, logColor: false }, 'no color when stdout not tty')
@@ -383,7 +385,6 @@ t.test('color', t => {
   t.strictSame(flat, { color: true, logColor: false }, '--color turns on color when stdout is tty')
   setTTY('stdout', false)
 
-  setTTY('stderr', false)
   obj.color = true
   definitions.color.flatten('color', obj, flat)
   t.strictSame(flat, { color: false, logColor: false }, 'no color when stderr not tty')
@@ -456,6 +457,13 @@ t.test('retry options', t => {
 })
 
 t.test('search options', t => {
+  const vals = {
+    description: 'test description',
+    exclude: 'test search exclude',
+    limit: 99,
+    staleneess: 99,
+
+  }
   const obj = {}
   // <config>: flat.search[<option>]
   const mapping = {
@@ -468,9 +476,9 @@ t.test('search options', t => {
   for (const [config, option] of Object.entries(mapping)) {
     const msg = `${config} -> search.${option}`
     const flat = {}
-    obj[config] = 99
+    obj[config] = vals[option]
     definitions[config].flatten(config, obj, flat)
-    t.strictSame(flat, { search: { limit: 20, [option]: 99 } }, msg)
+    t.strictSame(flat, { search: { limit: 20, [option]: vals[option] } }, msg)
     delete obj[config]
   }
 
@@ -927,5 +935,14 @@ t.test('lockfile version', t => {
     'lockfile-version': '3',
   }, flat)
   t.match(flat.lockfileVersion, 3, 'flattens to a number')
+  t.end()
+})
+
+t.test('loglevel silent', t => {
+  const flat = {}
+  definitions.loglevel.flatten('loglevel', {
+    loglevel: 'silent',
+  }, flat)
+  t.match(flat.silent, true, 'flattens to assign silent')
   t.end()
 })

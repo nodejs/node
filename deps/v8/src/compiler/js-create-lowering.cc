@@ -939,6 +939,9 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
     return NoChange();
   }
 
+  // Don't inline anything for class constructors.
+  if (IsClassConstructor(shared.kind())) return NoChange();
+
   MapRef function_map =
       native_context().GetFunctionMapFromIndex(shared.function_map_index());
   DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
@@ -958,7 +961,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // Emit code to allocate the JSFunction instance.
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(function_map.instance_size(), allocation, Type::Function());
+  a.Allocate(function_map.instance_size(), allocation,
+             Type::CallableFunction());
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
           jsgraph()->EmptyFixedArrayConstant());
@@ -1324,7 +1328,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   MapRef standard_map =
       broker->target_native_context().object_function().initial_map(
           broker->dependencies());
-  if (prototype.equals(standard_map.prototype().value())) {
+  if (prototype.equals(standard_map.prototype())) {
     return standard_map;
   }
   if (prototype.map().oddball_type() == OddballType::kNull) {
@@ -1540,7 +1544,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
-    int idx = shared.context_header_size() + parameter_count - 1 - i;
+    int idx = shared.context_parameters_start() + parameter_count - 1 - i;
     a.Store(AccessBuilder::ForSloppyArgumentsElementsMappedEntry(),
             jsgraph()->Constant(i), jsgraph()->Constant(idx));
   }
@@ -1597,7 +1601,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
-    int idx = shared.context_header_size() + parameter_count - 1 - i;
+    int idx = shared.context_parameters_start() + parameter_count - 1 - i;
     Node* value = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged),
         graph()->NewNode(simplified()->NumberLessThan(), jsgraph()->Constant(i),
@@ -1712,7 +1716,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     PropertyDetails const property_details =
         boilerplate_map.GetPropertyDetails(i);
     if (property_details.location() != PropertyLocation::kField) continue;
-    DCHECK_EQ(kData, property_details.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details.kind());
     if ((*max_properties)-- == 0) return {};
 
     NameRef property_name = boilerplate_map.GetPropertyKey(i);

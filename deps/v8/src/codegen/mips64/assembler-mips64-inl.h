@@ -135,7 +135,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
   }
 }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
          IsDataEmbeddedObject(rmode_));
   if (IsDataEmbeddedObject(rmode_)) {
@@ -143,10 +143,6 @@ HeapObject RelocInfo::target_object() {
   }
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
-  return target_object();
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

@@ -26,22 +26,38 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [
+################################################################################
 [ALWAYS, {
-# TODO(jochen): The following test is flaky.
+# TODO(ftang,jshin): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+  'number-format/rounding-increment-resolved-match-v3': [FAIL],
 }],  # ALWAYS
 
+################################################################################
+['mode == debug', {
+  # Skip slow tests in debug mode.
+  'general/empty-handle': [SKIP],
+}],  # mode == debug
+
+##############################################################################
+['no_i18n', {
+  'string-localecompare': [SKIP],
+}],  # no_i18n
+
+################################################################################
 ['gc_stress', {
   # Push limit of stack, too flaky with machine with more memory.
   'regress-1130489': [SKIP],
 }],  # gc_stress
 
+################################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
 
+################################################################################
 ['system == windows', {
-  # noi18n cannot turn on ICU backend for Date
+  # noi18n cannot turn on ICU backend for Date.
   'relative-time-format/default-locale-fr-CA': [SKIP],
   'relative-time-format/default-locale-pt-BR': [SKIP],
 
@@ -52,6 +68,7 @@
   'regress-7770': [SKIP],
 }],  # system == windows'
 
+################################################################################
 ['system == android', {
   # Android's ICU data file does not have the Chinese/Japanese dictionary
   # required for the test to pass.
@@ -71,5 +88,13 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+##############################################################################
+['variant == maglev', {
+  # TODO(v8:7700): This test is in an infinite loop. The loop condition checks
+  # if the function is optimized, but maglev fails with unsupported bytecode.
+  # Re-enable this when maglev support all bytecodes.
+  'string-localecompare': [SKIP],
+}],  # variant == maglev
 
 ]

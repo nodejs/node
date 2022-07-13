@@ -10,6 +10,7 @@
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -23,7 +24,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
-#include "src/heap/worklist.h"
+#include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -41,8 +42,9 @@ namespace internal {
 class ConcurrentMarkingState final
     : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
  public:
-  explicit ConcurrentMarkingState(MemoryChunkDataMap* memory_chunk_data)
-      : memory_chunk_data_(memory_chunk_data) {}
+  ConcurrentMarkingState(PtrComprCageBase cage_base,
+                         MemoryChunkDataMap* memory_chunk_data)
+      : MarkingStateBase(cage_base), memory_chunk_data_(memory_chunk_data) {}
 
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const BasicMemoryChunk* chunk) {
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
@@ -85,17 +87,17 @@ class ConcurrentMarkingVisitor final
  public:
   ConcurrentMarkingVisitor(int task_id,
                            MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects* weak_objects, Heap* heap,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            base::EnumSet<CodeFlushMode> code_flush_mode,
                            bool embedder_tracing_enabled,
                            bool should_keep_ages_unchanged,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
+      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
                            mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled,
                            should_keep_ages_unchanged),
-        marking_state_(memory_chunk_data),
+        marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
   template <typename T>
@@ -115,13 +117,24 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclassFast(map, object);
   }
 
+  int VisitJSExternalObject(Map map, JSExternalObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
     return VisitJSObjectSubclass(map, object);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
     return VisitJSObjectSubclass(map, object);
   }
 
@@ -159,7 +172,7 @@ class ConcurrentMarkingVisitor final
       }
 
     } else if (marking_state_.IsWhite(value)) {
-      weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
+      local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;
   }
@@ -167,6 +180,10 @@ class ConcurrentMarkingVisitor final
   // HeapVisitor override.
   bool ShouldVisit(HeapObject object) {
     return marking_state_.GreyToBlack(object);
+  }
+
+  bool ShouldVisitUnaccounted(HeapObject object) {
+    return marking_state_.GreyToBlackUnaccounted(object);
   }
 
  private:
@@ -204,19 +221,21 @@ class ConcurrentMarkingVisitor final
 
     void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
-      // JSObjects (and derived classes).
+      // some String subclasses.
       UNREACHABLE();
     }
 
     void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
-      // JSObjects (and derived classes).
+      // some String subclasses.
       UNREACHABLE();
     }
 
     void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                  ObjectSlot end) override {
-      DCHECK(host.IsWeakCell() || host.IsJSWeakRef());
+      // This should never happen, because snapshotting is performed only on
+      // some String subclasses.
+      UNREACHABLE();
     }
 
    private:
@@ -248,11 +267,15 @@ class ConcurrentMarkingVisitor final
     // The length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
     Object length = object.unchecked_length(kAcquireLoad);
-    if (!ShouldVisit(object)) return 0;
+    // No accounting here to avoid re-reading the length which could already
+    // contain a non-SMI value when left-trimming happens concurrently.
+    if (!ShouldVisitUnaccounted(object)) return 0;
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.
     DCHECK(length.IsSmi());
     int size = T::SizeFor(Smi::ToInt(length));
+    marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
+                                      size);
     VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
@@ -265,6 +288,10 @@ class ConcurrentMarkingVisitor final
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
+      concrete_visitor()->SynchronizePageAccess(heap_object);
+      BasicMemoryChunk* target_page =
+          BasicMemoryChunk::FromHeapObject(heap_object);
+      if (!is_shared_heap_ && target_page->InSharedHeap()) continue;
       MarkObject(host, heap_object);
       RecordSlot(host, slot, heap_object);
     }
@@ -296,15 +323,17 @@ class ConcurrentMarkingVisitor final
   }
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
+      return;
+
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
-    if (info.should_record) {
-      MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
-      if (!data.typed_slots) {
-        data.typed_slots.reset(new TypedSlots());
-      }
-      data.typed_slots->Insert(info.slot_type, info.offset);
+        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+
+    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+    if (!data.typed_slots) {
+      data.typed_slots.reset(new TypedSlots());
     }
+    data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
   void SynchronizePageAccess(HeapObject heap_object) {
@@ -415,10 +444,6 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
     : heap_(heap),
       marking_worklists_(marking_worklists),
       weak_objects_(weak_objects) {
-#ifndef V8_ATOMIC_MARKING_STATE
-  // Concurrent and parallel marking require atomic marking state.
-  CHECK(!FLAG_concurrent_marking && !FLAG_parallel_marking);
-#endif
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
   // Concurrent marking requires atomic object field writes.
   CHECK(!FLAG_concurrent_marking);
@@ -433,9 +458,14 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = &task_state_[task_id];
-  MarkingWorklists::Local local_marking_worklists(marking_worklists_);
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  MarkingWorklists::Local local_marking_worklists(
+      marking_worklists_, cpp_heap
+                              ? cpp_heap->CreateCppMarkingState()
+                              : MarkingWorklists::Local::kNoCppMarkingState);
+  WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, weak_objects_, heap_,
+      task_id, &local_marking_worklists, &local_weak_objects, heap_,
       mark_compact_epoch, code_flush_mode,
       heap_->local_embedder_heap_tracer()->InUse(), should_keep_ages_unchanged,
       &task_state->memory_chunk_data);
@@ -456,8 +486,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
     {
       Ephemeron ephemeron;
-
-      while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.current_ephemerons_local.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           another_ephemeron_iteration = true;
         }
@@ -525,8 +554,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
     if (done) {
       Ephemeron ephemeron;
-
-      while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.discovered_ephemerons_local.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           another_ephemeron_iteration = true;
         }
@@ -534,18 +562,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     }
 
     local_marking_worklists.Publish();
-    weak_objects_->transition_arrays.FlushToGlobal(task_id);
-    weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
-    weak_objects_->current_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->next_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->weak_references.FlushToGlobal(task_id);
-    weak_objects_->js_weak_refs.FlushToGlobal(task_id);
-    weak_objects_->weak_cells.FlushToGlobal(task_id);
-    weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
-    weak_objects_->code_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->baseline_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->flushed_js_functions.FlushToGlobal(task_id);
+    local_weak_objects.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 
@@ -566,10 +583,10 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
     marking_items += worklist.worklist->Size();
   return std::min<size_t>(
       kMaxTasks,
-      worker_count + std::max<size_t>(
-                         {marking_items,
-                          weak_objects_->discovered_ephemerons.GlobalPoolSize(),
-                          weak_objects_->current_ephemerons.GlobalPoolSize()}));
+      worker_count +
+          std::max<size_t>({marking_items,
+                            weak_objects_->discovered_ephemerons.Size(),
+                            weak_objects_->current_ephemerons.Size()}));
 }
 
 void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
@@ -590,8 +607,8 @@ void ConcurrentMarking::RescheduleJobIfNeeded(TaskPriority priority) {
   if (heap_->IsTearingDown()) return;
 
   if (marking_worklists_->shared()->IsEmpty() &&
-      weak_objects_->current_ephemerons.IsGlobalPoolEmpty() &&
-      weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
+      weak_objects_->current_ephemerons.IsEmpty() &&
+      weak_objects_->discovered_ephemerons.IsEmpty()) {
     return;
   }
   if (!job_handle_ || !job_handle_->IsValid()) {

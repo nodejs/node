@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `continue` statements",
+            description: "Disallow `continue` statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-continue"
         },

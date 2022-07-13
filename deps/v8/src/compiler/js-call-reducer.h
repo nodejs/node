@@ -55,6 +55,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
         temp_zone_(temp_zone),
         flags_(flags) {}
 
+  // Max string length for inlining entire match sequence for
+  // String.prototype.startsWith in JSCallReducer.
+  static constexpr int kMaxInlineMatchSequence = 3;
+
   const char* reducer_name() const override { return "JSCallReducer"; }
 
   Reduction Reduce(Node* node) final;
@@ -141,7 +145,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
-  Reduction ReduceStringPrototypeIndexOf(Node* node);
+
+  enum class StringIndexOfIncludesVariant { kIncludes, kIndexOf };
+  Reduction ReduceStringPrototypeIndexOfIncludes(
+      Node* node, StringIndexOfIncludesVariant variant);
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
   Reduction ReduceStringPrototypeSubstr(Node* node);
@@ -158,6 +165,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringFromCharCode(Node* node);
   Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
+  Reduction ReduceStringPrototypeLocaleCompare(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
   Reduction ReduceStringPrototypeConcat(Node* node);
 
@@ -216,7 +224,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
-  Reduction ReduceBigIntAsUintN(Node* node);
+  Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);

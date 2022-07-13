@@ -22,23 +22,23 @@ namespace {
 constexpr int kUndefinedRegisterValue = -1;
 
 template <class Character>
-bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
+bool SatisfiesAssertion(RegExpAssertion::Type type,
                         base::Vector<const Character> context, int position) {
   DCHECK_LE(position, context.length());
   DCHECK_GE(position, 0);
 
   switch (type) {
-    case RegExpAssertion::START_OF_INPUT:
+    case RegExpAssertion::Type::START_OF_INPUT:
       return position == 0;
-    case RegExpAssertion::END_OF_INPUT:
+    case RegExpAssertion::Type::END_OF_INPUT:
       return position == context.length();
-    case RegExpAssertion::START_OF_LINE:
+    case RegExpAssertion::Type::START_OF_LINE:
       if (position == 0) return true;
       return unibrow::IsLineTerminator(context[position - 1]);
-    case RegExpAssertion::END_OF_LINE:
+    case RegExpAssertion::Type::END_OF_LINE:
       if (position == context.length()) return true;
       return unibrow::IsLineTerminator(context[position]);
-    case RegExpAssertion::BOUNDARY:
+    case RegExpAssertion::Type::BOUNDARY:
       if (context.length() == 0) {
         return false;
       } else if (position == 0) {
@@ -49,8 +49,9 @@ bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
         return IsRegExpWord(context[position - 1]) !=
                IsRegExpWord(context[position]);
       }
-    case RegExpAssertion::NON_BOUNDARY:
-      return !SatisfiesAssertion(RegExpAssertion::BOUNDARY, context, position);
+    case RegExpAssertion::Type::NON_BOUNDARY:
+      return !SatisfiesAssertion(RegExpAssertion::Type::BOUNDARY, context,
+                                 position);
   }
 }
 

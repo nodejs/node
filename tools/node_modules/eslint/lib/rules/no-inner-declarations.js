@@ -48,7 +48,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow variable or `function` declarations in nested blocks",
+            description: "Disallow variable or `function` declarations in nested blocks",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-inner-declarations"
         },

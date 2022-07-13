@@ -18,73 +18,75 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
  public:
   RegExpMacroAssemblerARM64(Isolate* isolate, Zone* zone, Mode mode,
                             int registers_to_save);
-  virtual ~RegExpMacroAssemblerARM64();
-  virtual void AbortedCodeGeneration() { masm_->AbortedCodeGeneration(); }
-  virtual int stack_limit_slack();
-  virtual void AdvanceCurrentPosition(int by);
-  virtual void AdvanceRegister(int reg, int by);
-  virtual void Backtrack();
-  virtual void Bind(Label* label);
-  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
-  virtual void CheckCharacter(unsigned c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(unsigned c,
-                                      unsigned mask,
-                                      Label* on_equal);
-  virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater);
-  virtual void CheckCharacterLT(base::uc16 limit, Label* on_less);
-  virtual void CheckCharacters(base::Vector<const base::uc16> str,
-                               int cp_offset, Label* on_failure,
-                               bool check_end_of_string);
+  ~RegExpMacroAssemblerARM64() override;
+  void AbortedCodeGeneration() override;
+  int stack_limit_slack() override;
+  void AdvanceCurrentPosition(int by) override;
+  void AdvanceRegister(int reg, int by) override;
+  void Backtrack() override;
+  void Bind(Label* label) override;
+  void CheckAtStart(int cp_offset, Label* on_at_start) override;
+  void CheckCharacter(unsigned c, Label* on_equal) override;
+  void CheckCharacterAfterAnd(unsigned c, unsigned mask,
+                              Label* on_equal) override;
+  void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
+  void CheckCharacters(base::Vector<const base::uc16> str, int cp_offset,
+                       Label* on_failure, bool check_end_of_string);
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, bool read_backward,
-                                     Label* on_no_match);
-  virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward, bool unicode,
-                                               Label* on_no_match);
-  virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(unsigned c,
-                                         unsigned mask,
-                                         Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
-                                              base::uc16 mask,
-                                              Label* on_not_equal);
-  virtual void CheckCharacterInRange(base::uc16 from, base::uc16 to,
-                                     Label* on_in_range);
-  virtual void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
-                                        Label* on_not_in_range);
-  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
+  void CheckNotBackReference(int start_reg, bool read_backward,
+                             Label* on_no_match) override;
+  void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
+                                       bool unicode,
+                                       Label* on_no_match) override;
+  void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
+  void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
+                                 Label* on_not_equal) override;
+  void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                      base::uc16 mask,
+                                      Label* on_not_equal) override;
+  void CheckCharacterInRange(base::uc16 from, base::uc16 to,
+                             Label* on_in_range) override;
+  void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
+                                Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
+  void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
-  virtual bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match);
-  virtual void BindJumpTarget(Label* label = nullptr);
-  virtual void Fail();
-  virtual Handle<HeapObject> GetCode(Handle<String> source);
-  virtual void GoTo(Label* label);
-  virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
-  virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
-  virtual void IfRegisterEqPos(int reg, Label* if_eq);
-  virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
-                                             int character_count);
-  virtual void PopCurrentPosition();
-  virtual void PopRegister(int register_index);
-  virtual void PushBacktrack(Label* label);
-  virtual void PushCurrentPosition();
-  virtual void PushRegister(int register_index,
-                            StackCheckFlag check_stack_limit);
-  virtual void ReadCurrentPositionFromRegister(int reg);
-  virtual void ReadStackPointerFromRegister(int reg);
-  virtual void SetCurrentPositionFromEnd(int by);
-  virtual void SetRegister(int register_index, int to);
-  virtual bool Succeed();
-  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegisters(int reg_from, int reg_to);
-  virtual void WriteStackPointerToRegister(int reg);
+  void CheckPosition(int cp_offset, Label* on_outside_input) override;
+  bool CheckSpecialCharacterClass(StandardCharacterSet type,
+                                  Label* on_no_match) override;
+  void BindJumpTarget(Label* label = nullptr) override;
+  void Fail() override;
+  Handle<HeapObject> GetCode(Handle<String> source) override;
+  void GoTo(Label* label) override;
+  void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
+  void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
+  void IfRegisterEqPos(int reg, Label* if_eq) override;
+  IrregexpImplementation Implementation() override;
+  void LoadCurrentCharacterUnchecked(int cp_offset,
+                                     int character_count) override;
+  void PopCurrentPosition() override;
+  void PopRegister(int register_index) override;
+  void PushBacktrack(Label* label) override;
+  void PushCurrentPosition() override;
+  void PushRegister(int register_index,
+                    StackCheckFlag check_stack_limit) override;
+  void ReadCurrentPositionFromRegister(int reg) override;
+  void ReadStackPointerFromRegister(int reg) override;
+  void SetCurrentPositionFromEnd(int by) override;
+  void SetRegister(int register_index, int to) override;
+  bool Succeed() override;
+  void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
+  void ClearRegisters(int reg_from, int reg_to) override;
+  void WriteStackPointerToRegister(int reg) override;
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -132,6 +134,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
 
+  // Registers x0 to x7 are used to store the first captures, they need to be
+  // retained over calls to C++ code.
+  void PushCachedRegisters();
+  void PopCachedRegisters();
+
   // When initializing registers to a non-position value we can unroll
   // the loop. Set the limit of registers to unroll.
   static const int kNumRegistersToUnroll = 16;
@@ -147,8 +154,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
+  void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // Location of a 32 bit position register.
   MemOperand register_location(int register_index);

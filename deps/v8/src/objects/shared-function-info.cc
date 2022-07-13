@@ -10,6 +10,7 @@
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/isolate-utils.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -67,7 +68,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   clear_padding();
 }
 
-Code SharedFunctionInfo::GetCode() const {
+CodeT SharedFunctionInfo::GetCode() const {
   // ======
   // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
@@ -88,7 +89,7 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsCodeT()) {
     // Having baseline Code means we are a compiled, baseline function.
     DCHECK(HasBaselineCode());
-    return FromCodeT(CodeT::cast(data));
+    return CodeT::cast(data);
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (data.IsAsmWasmData()) {
@@ -107,6 +108,9 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsWasmCapiFunctionData()) {
     return wasm_capi_function_data().wrapper_code();
   }
+  if (data.IsWasmOnFulfilledData()) {
+    return isolate->builtins()->code(Builtin::kWasmResume);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.
@@ -119,8 +123,8 @@ Code SharedFunctionInfo::GetCode() const {
     return isolate->builtins()->code(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
-    Code code = InterpreterTrampoline();
-    DCHECK(code.IsCode());
+    CodeT code = InterpreterTrampoline();
+    DCHECK(code.IsCodeT());
     DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
   }
@@ -223,6 +227,35 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
   // Finally set new script.
   set_script(script_object);
+}
+
+void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  set_function_data(other.function_data(cage_base, kAcquireLoad),
+                    kReleaseStore);
+  set_name_or_scope_info(other.name_or_scope_info(cage_base, kAcquireLoad),
+                         kReleaseStore);
+  set_outer_scope_info_or_feedback_metadata(
+      other.outer_scope_info_or_feedback_metadata(cage_base));
+  set_script_or_debug_info(other.script_or_debug_info(cage_base, kAcquireLoad),
+                           kReleaseStore);
+
+  set_length(other.length());
+  set_formal_parameter_count(other.formal_parameter_count());
+  set_function_token_offset(other.function_token_offset());
+  set_expected_nof_properties(other.expected_nof_properties());
+  set_flags2(other.flags2());
+  set_flags(other.flags(kRelaxedLoad), kRelaxedStore);
+  set_function_literal_id(other.function_literal_id());
+#if V8_SFI_HAS_UNIQUE_ID
+  set_unique_id(other.unique_id());
+#endif
+
+  // This should now be byte-for-byte identical to the input.
+  DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
+                   reinterpret_cast<void*>(other.address()),
+                   SharedFunctionInfo::kSize),
+            0);
 }
 
 bool SharedFunctionInfo::HasBreakInfo() const {
@@ -382,19 +415,19 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
 
   DCHECK(!shared->name_should_print_as_anonymous());
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("function ");
+  builder.AppendCStringLiteral("function ");
   builder.AppendString(Handle<String>(shared->Name(), isolate));
-  builder.AppendCString("(");
+  builder.AppendCharacter('(');
   Handle<FixedArray> args(Script::cast(shared->script()).wrapped_arguments(),
                           isolate);
   int argc = args->length();
   for (int i = 0; i < argc; i++) {
-    if (i > 0) builder.AppendCString(", ");
+    if (i > 0) builder.AppendCStringLiteral(", ");
     builder.AppendString(Handle<String>(String::cast(args->get(i)), isolate));
   }
-  builder.AppendCString(") {\n");
+  builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);
-  builder.AppendCString("\n}");
+  builder.AppendCStringLiteral("\n}");
   return builder.Finish().ToHandleChecked();
 }
 
@@ -499,8 +532,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   // For lazy parsed functions, the following flags will be inaccurate since we
   // don't have the information yet. They're set later in
-  // SetSharedFunctionFlagsFromLiteral (compiler.cc), when the function is
-  // really parsed and compiled.
+  // UpdateSharedFunctionFlagsAfterCompilation (compiler.cc), when the function
+  // is really parsed and compiled.
   if (lit->ShouldEagerCompile()) {
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);
@@ -519,13 +552,25 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (scope_data != nullptr) {
     Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
 
-    data = isolate->factory()->NewUncompiledDataWithPreparseData(
-        lit->GetInferredName(isolate), lit->start_position(),
-        lit->end_position(), preparse_data);
+    if (lit->should_parallel_compile()) {
+      data = isolate->factory()->NewUncompiledDataWithPreparseDataAndJob(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position(), preparse_data);
+    } else {
+      data = isolate->factory()->NewUncompiledDataWithPreparseData(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position(), preparse_data);
+    }
   } else {
-    data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
-        lit->GetInferredName(isolate), lit->start_position(),
-        lit->end_position());
+    if (lit->should_parallel_compile()) {
+      data = isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position());
+    } else {
+      data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position());
+    }
   }
 
   shared_info->set_uncompiled_data(*data);
@@ -667,6 +712,19 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
     uncompiled_data().set_end_position(end_position);
   } else {
     UNREACHABLE();
+  }
+}
+
+// static
+void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    IsCompiledScope* is_compiled_scope, CreateSourcePositions flag) {
+  if (!shared_info->HasBytecodeArray()) {
+    if (!Compiler::Compile(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
+                           is_compiled_scope, flag)) {
+      FATAL("Failed to compile shared info that was already compiled before");
+    }
+    DCHECK(shared_info->GetBytecodeArray(isolate).HasSourcePositionTable());
   }
 }
 

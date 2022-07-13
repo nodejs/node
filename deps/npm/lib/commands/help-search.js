@@ -1,16 +1,19 @@
 const fs = require('fs')
 const path = require('path')
-const color = require('ansicolors')
+const chalk = require('chalk')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
 const BaseCommand = require('../base-command.js')
+
+const globify = pattern => pattern.split('\\').join('/')
 
 class HelpSearch extends BaseCommand {
   static description = 'Search npm help documentation'
   static name = 'help-search'
   static usage = ['<text>']
   static params = ['long']
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     if (!args.length) {
@@ -18,7 +21,7 @@ class HelpSearch extends BaseCommand {
     }
 
     const docPath = path.resolve(__dirname, '..', '..', 'docs/content')
-    const files = await glob(`${docPath}/*/*.md`)
+    const files = await glob(`${globify(docPath)}/*/*.md`)
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
     const formatted = this.formatResults(args, results)
@@ -170,9 +173,9 @@ class HelpSearch extends BaseCommand {
           const finder = line.toLowerCase().split(arg.toLowerCase())
           let p = 0
           for (const f of finder) {
-            hilitLine.push(line.substr(p, f.length))
-            const word = line.substr(p + f.length, arg.length)
-            const hilit = color.bgBlack(color.red(word))
+            hilitLine.push(line.slice(p, p + f.length))
+            const word = line.slice(p + f.length, p + f.length + arg.length)
+            const hilit = chalk.bgBlack.red(word)
             hilitLine.push(hilit)
             p += f.length + arg.length
           }

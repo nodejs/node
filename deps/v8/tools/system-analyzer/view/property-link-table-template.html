@@ -6,31 +6,55 @@ found in the LICENSE file. -->
 </head>
 
 <style>
-.properties td {
-  vertical-align: top;
-}
-.properties > tbody > tr > td:nth-child(2n+1):after {
-  content: ':';
- }
-.properties > tbody > tr > td:nth-child(2n+1) {
-  padding-right: 3px;
-}
-
-.properties > tbody > tr > td:nth-child(2n+2) {
-  width: 100%;
-}
-
-.properties > tfoot {
-  text-align: right;
+h3 {
+  margin-block-start: 0em;
 }
 
 .properties {
+  overflow: auto;
+  max-height: 300px;
+}
+
+.properties table {
+  overflow: visible;
   min-width: 350px;
   border-collapse: collapse;
 }
 
-h3 {
-  margin-block-start: 0em;
+.properties table td {
+  vertical-align: top;
+}
+
+.properties table > tbody > tr > td:nth-child(2n+1):after {
+  content: ':';
+ }
+
+.properties table > tbody > tr > td:nth-child(2n+1) {
+  padding-right: 3px;
+}
+
+.properties table > tbody > tr > td:nth-child(2n+2) {
+  width: 100%;
+}
+
+.properties table select {
+  width: 100%;
+}
+
+.code {
+  font-family: var(--code-font);
+}
+
+.footer {
+  margin-top: 10px;
+  text-align: right;
+  width: 100%;
+  display: flex;
+  align-content: space-between;
+}
+
+.footer button {
+  flex: 1 1 0;
 }
 </style>
 

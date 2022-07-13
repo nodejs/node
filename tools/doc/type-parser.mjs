@@ -84,10 +84,10 @@ const customTypesMap = {
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
+  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
-  'AesKwParams': 'webcrypto.html#class-aeskwparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
@@ -100,26 +100,9 @@ const customTypesMap = {
     'webcrypto.html#class-rsahashedimportparams',
   'EcKeyImportParams': 'webcrypto.html#class-eckeyimportparams',
   'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
-  'AesImportParams': 'webcrypto.html#class-aesimportparams',
-  'Pbkdf2ImportParams': 'webcrypto.html#class-pbkdf2importparams',
-  'HmacParams': 'webcrypto.html#class-hmacparams',
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
-  'RsaSignParams': 'webcrypto.html#class-rsasignparams',
-  'NodeDhImportParams': 'webcrypto.html#class-nodedhimportparams',
-  'NodeDhKeyGenParams': 'webcrypto.html#class-nodedhkeygenparams',
-  'NodeDhDeriveBitsParams':
-    'webcrypto.html#class-nodedhderivebitsparams',
-  'NodeDsaImportParams': 'webcrypto.html#class-nodedsaimportparams',
-  'NodeDsaKeyGenParams': 'webcrypto.html#class-nodedsakeygenparams',
-  'NodeDsaSignParams': 'webcrypto.html#class-nodedsasignparams',
-  'NodeScryptImportParams':
-    'webcrypto.html#class-nodescryptimportparams',
-  'NodeScryptParams': 'webcrypto.html#class-nodescryptparams',
-  'NodeEdKeyImportParams':
-    'webcrypto.html#class-nodeedkeyimportparams',
-  'NodeEdKeyGenParams':
-    'webcrypto.html#class-nodeedkeygenparams',
+  'Ed448Params': 'webcrypto.html#class-ed448params',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
@@ -148,6 +131,7 @@ const customTypesMap = {
   'http.Agent': 'http.html#class-httpagent',
   'http.ClientRequest': 'http.html#class-httpclientrequest',
   'http.IncomingMessage': 'http.html#class-httpincomingmessage',
+  'http.OutgoingMessage': 'http.html#class-httpoutgoingmessage',
   'http.Server': 'http.html#class-httpserver',
   'http.ServerResponse': 'http.html#class-httpserverresponse',
 
@@ -163,6 +147,7 @@ const customTypesMap = {
   'Http2Session': 'http2.html#class-http2session',
   'Http2Stream': 'http2.html#class-http2stream',
   'ServerHttp2Stream': 'http2.html#class-serverhttp2stream',
+  'ServerHttp2Session': 'http2.html#class-serverhttp2session',
 
   'https.Server': 'https.html#class-httpsserver',
 
@@ -208,12 +193,12 @@ const customTypesMap = {
 
   'Stream': 'stream.html#stream',
   'stream.Duplex': 'stream.html#class-streamduplex',
-  'stream.Readable': 'stream.html#class-streamreadable',
-  'stream.Transform': 'stream.html#class-streamtransform',
-  'stream.Writable': 'stream.html#class-streamwritable',
   'Duplex': 'stream.html#class-streamduplex',
+  'stream.Readable': 'stream.html#class-streamreadable',
   'Readable': 'stream.html#class-streamreadable',
+  'stream.Transform': 'stream.html#class-streamtransform',
   'Transform': 'stream.html#class-streamtransform',
+  'stream.Writable': 'stream.html#class-streamwritable',
   'Writable': 'stream.html#class-streamwritable',
 
   'Immediate': 'timers.html#class-immediate',
@@ -241,35 +226,40 @@ const customTypesMap = {
   'zlib options': 'zlib.html#class-options',
 
   'ReadableStream':
-    'webstreams.md#class-readablestream',
+    'webstreams.html#class-readablestream',
   'ReadableStreamDefaultReader':
-    'webstreams.md#class-readablestreamdefaultreader',
+    'webstreams.html#class-readablestreamdefaultreader',
   'ReadableStreamBYOBReader':
-    'webstreams.md#class-readablestreambyobreader',
+    'webstreams.html#class-readablestreambyobreader',
   'ReadableStreamDefaultController':
-    'webstreams.md#class-readablestreamdefaultcontroller',
+    'webstreams.html#class-readablestreamdefaultcontroller',
   'ReadableByteStreamController':
-    'webstreams.md#class-readablebytestreamcontroller',
+    'webstreams.html#class-readablebytestreamcontroller',
   'ReadableStreamBYOBRequest':
-    'webstreams.md#class-readablestreambyobrequest',
+    'webstreams.html#class-readablestreambyobrequest',
   'WritableStream':
-    'webstreams.md#class-writablestream',
+    'webstreams.html#class-writablestream',
   'WritableStreamDefaultWriter':
-    'webstreams.md#class-writablestreamdefaultwriter',
+    'webstreams.html#class-writablestreamdefaultwriter',
   'WritableStreamDefaultController':
-    'webstreams.md#class-writablestreamdefaultcontroller',
+    'webstreams.html#class-writablestreamdefaultcontroller',
   'TransformStream':
-    'webstreams.md#class-transformstream',
+    'webstreams.html#class-transformstream',
   'TransformStreamDefaultController':
-    'webstreams.md#class-transformstreamdefaultcontroller',
+    'webstreams.html#class-transformstreamdefaultcontroller',
   'ByteLengthQueuingStrategy':
-    'webstreams.md#class-bytelengthqueuingstrategy',
+    'webstreams.html#class-bytelengthqueuingstrategy',
   'CountQueuingStrategy':
-    'webstreams.md#class-countqueuingstrategy',
+    'webstreams.html#class-countqueuingstrategy',
   'TextEncoderStream':
-    'webstreams.md#class-textencoderstream',
+    'webstreams.html#class-textencoderstream',
   'TextDecoderStream':
-    'webstreams.md#class-textdecoderstream',
+    'webstreams.html#class-textdecoderstream',
+
+  'FormData': 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
+  'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
+  'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
+  'Request': 'https://developer.mozilla.org/en-US/docs/Web/API/Request',
 };
 
 const arrayPart = /(?:\[])+$/;

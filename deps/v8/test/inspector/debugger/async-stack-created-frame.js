@@ -5,7 +5,7 @@
 // TODO(kozyatinskiy): fix this test.
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks created frame for async call chain');
 
-contextGroup.addScript(
+contextGroup.addInlineScript(
     `
 function foo1() {
   debugger;
@@ -72,10 +72,8 @@ function setTimeouts() {
     setTimeout(() =>
       setTimeout(() => { foo1(); resolve(); }, 0), 0), 0);
   return p;
-}
-
-//# sourceURL=test.js`,
-    8, 4);
+}`,
+    'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

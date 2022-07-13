@@ -34,9 +34,10 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
@@ -60,12 +61,43 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
+#include "src/web-snapshot/web-snapshot.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
+
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#include "src/maglev/maglev.h"
+#endif  // V8_ENABLE_MAGLEV
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
+
+void SetTieringState(JSFunction function, BytecodeOffset osr_offset,
+                     TieringState value) {
+  if (IsOSR(osr_offset)) {
+    function.set_osr_tiering_state(value);
+  } else {
+    function.set_tiering_state(value);
+  }
+}
+
+void ResetTieringState(JSFunction function, BytecodeOffset osr_offset) {
+  if (function.has_feedback_vector()) {
+    SetTieringState(function, osr_offset, TieringState::kNone);
+  }
+}
+
+void ResetProfilerTicks(JSFunction function, BytecodeOffset osr_offset) {
+  if (!IsOSR(osr_offset)) {
+    // Reset profiler ticks, the function is no longer considered hot.
+    // TODO(v8:7700): Update for Maglev tiering.
+    function.feedback_vector().set_profiler_ticks(0);
+  }
+}
 
 class CompilerTracer : public AllStatic {
  public:
@@ -86,6 +118,28 @@ class CompilerTracer : public AllStatic {
     PrintTracePrefix(scope, "compiling method", shared, CodeKind::BASELINE);
     PrintF(scope.file(), " using Sparkplug");
     PrintTraceSuffix(scope);
+  }
+
+  static void TraceOptimizeOSR(Isolate* isolate, Handle<JSFunction> function,
+                               BytecodeOffset osr_offset,
+                               ConcurrencyMode mode) {
+    if (!FLAG_trace_osr) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(),
+           "[OSR - started. function: %s, osr offset: %d, mode: %s]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
+  }
+
+  static void TraceOptimizeOSRUnavailable(Isolate* isolate,
+                                          Handle<JSFunction> function,
+                                          BytecodeOffset osr_offset,
+                                          ConcurrencyMode mode) {
+    if (!FLAG_trace_osr) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(),
+           "[OSR - unavailable (failed or in progress). function: %s, osr "
+           "offset: %d, mode: %s]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
   }
 
   static void TraceCompilationStats(Isolate* isolate,
@@ -135,7 +189,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "found optimized code for", function, code_kind);
-    if (!osr_offset.IsNone()) {
+    if (IsOSR(osr_offset)) {
       PrintF(scope.file(), " at OSR bytecode offset %d", osr_offset.ToInt());
     }
     PrintTraceSuffix(scope);
@@ -190,30 +244,19 @@ class CompilerTracer : public AllStatic {
   }
 };
 
-}  // namespace
-
-// Helper that times a scoped region and records the elapsed time.
-struct ScopedTimer {
-  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
-    DCHECK_NOT_NULL(location_);
-    timer_.Start();
-  }
-
-  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
-
-  base::ElapsedTimer timer_;
-  base::TimeDelta* location_;
-};
-
-// static
-void Compiler::LogFunctionCompilation(Isolate* isolate,
-                                      CodeEventListener::LogEventsAndTags tag,
-                                      Handle<SharedFunctionInfo> shared,
-                                      Handle<Script> script,
-                                      Handle<AbstractCode> abstract_code,
-                                      CodeKind kind, double time_taken_ms) {
+void LogFunctionCompilation(Isolate* isolate,
+                            CodeEventListener::LogEventsAndTags tag,
+                            Handle<Script> script,
+                            Handle<SharedFunctionInfo> shared,
+                            Handle<FeedbackVector> vector,
+                            Handle<AbstractCode> abstract_code, CodeKind kind,
+                            double time_taken_ms) {
   DCHECK(!abstract_code.is_null());
-  DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODE(isolate, CompileLazy)));
+  } else {
+    DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
+  }
 
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -234,6 +277,9 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
       Logger::ToNativeByScript(tag, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared, script_name,
                                    line_num, column_num));
+  if (!vector.is_null()) {
+    LOG(isolate, FeedbackVectorEvent(*vector, *abstract_code));
+  }
   if (!FLAG_log_function_events) return;
 
   std::string name;
@@ -243,9 +289,6 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
       break;
     case CodeKind::BASELINE:
       name = "baseline";
-      break;
-    case CodeKind::TURBOPROP:
-      name = "turboprop";
       break;
     case CodeKind::TURBOFAN:
       name = "optimize";
@@ -275,14 +318,38 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                              *debug_name));
 }
 
+}  // namespace
+
+// Helper that times a scoped region and records the elapsed time.
+struct ScopedTimer {
+  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
+    DCHECK_NOT_NULL(location_);
+    timer_.Start();
+  }
+
+  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
+
+  base::ElapsedTimer timer_;
+  base::TimeDelta* location_;
+};
+
 namespace {
 
-ScriptOriginOptions OriginOptionsForEval(Object script) {
-  if (!script.IsScript()) return ScriptOriginOptions();
-
-  const auto outer_origin_options = Script::cast(script).origin_options();
-  return ScriptOriginOptions(outer_origin_options.IsSharedCrossOrigin(),
-                             outer_origin_options.IsOpaque());
+ScriptOriginOptions OriginOptionsForEval(
+    Object script, ParsingWhileDebugging parsing_while_debugging) {
+  bool is_shared_cross_origin =
+      parsing_while_debugging == ParsingWhileDebugging::kYes;
+  bool is_opaque = false;
+  if (script.IsScript()) {
+    auto script_origin_options = Script::cast(script).origin_options();
+    if (script_origin_options.IsSharedCrossOrigin()) {
+      is_shared_cross_origin = true;
+    }
+    if (script_origin_options.IsOpaque()) {
+      is_opaque = true;
+    }
+  }
+  return ScriptOriginOptions(is_shared_cross_origin, is_opaque);
 }
 
 }  // namespace
@@ -352,7 +419,7 @@ void RecordUnoptimizedFunctionCompilation(
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
-        Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+        ToAbstractCode(BUILTIN_CODE(isolate, InstantiateAsmJs), isolate);
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -362,9 +429,9 @@ void RecordUnoptimizedFunctionCompilation(
                          time_taken_to_finalize.InMillisecondsF();
 
   Handle<Script> script(Script::cast(shared->script()), isolate);
-  Compiler::LogFunctionCompilation(isolate, tag, shared, script, abstract_code,
-                                   CodeKind::INTERPRETED_FUNCTION,
-                                   time_taken_ms);
+  LogFunctionCompilation(isolate, tag, script, shared, Handle<FeedbackVector>(),
+                         abstract_code, CodeKind::INTERPRETED_FUNCTION,
+                         time_taken_ms);
 }
 
 }  // namespace
@@ -375,7 +442,6 @@ void RecordUnoptimizedFunctionCompilation(
 CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
-  CompilerTracer::TracePrepareJob(isolate, compilation_info(), compiler_name_);
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToPrepare);
@@ -403,22 +469,22 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
-CompilationJob::Status OptimizedCompilationJob::RetryOptimization(
+CompilationJob::Status TurbofanCompilationJob::RetryOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());
   compilation_info_->RetryOptimization(reason);
   return UpdateState(FAILED, State::kFailed);
 }
 
-CompilationJob::Status OptimizedCompilationJob::AbortOptimization(
+CompilationJob::Status TurbofanCompilationJob::AbortOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());
   compilation_info_->AbortOptimization(reason);
   return UpdateState(FAILED, State::kFailed);
 }
 
-void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
-                                                     Isolate* isolate) const {
+void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
+                                                    Isolate* isolate) const {
   DCHECK(compilation_info()->IsOptimizing());
   Handle<JSFunction> function = compilation_info()->closure();
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
@@ -466,12 +532,12 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
       base::TimeDelta time_foreground =
           time_taken_to_prepare_ + time_taken_to_finalize_;
       switch (mode) {
-        case OptimizedCompilationJob::kConcurrent:
+        case ConcurrencyMode::kConcurrent:
           time_background += time_taken_to_execute_;
           counters->turbofan_optimize_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           break;
-        case OptimizedCompilationJob::kSynchronous:
+        case ConcurrencyMode::kSynchronous:
           counters->turbofan_optimize_non_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           time_foreground += time_taken_to_execute_;
@@ -487,7 +553,7 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
   }
 }
 
-void OptimizedCompilationJob::RecordFunctionCompilation(
+void TurbofanCompilationJob::RecordFunctionCompilation(
     CodeEventListener::LogEventsAndTags tag, Isolate* isolate) const {
   Handle<AbstractCode> abstract_code =
       Handle<AbstractCode>::cast(compilation_info()->code());
@@ -498,9 +564,11 @@ void OptimizedCompilationJob::RecordFunctionCompilation(
 
   Handle<Script> script(
       Script::cast(compilation_info()->shared_info()->script()), isolate);
-  Compiler::LogFunctionCompilation(
-      isolate, tag, compilation_info()->shared_info(), script, abstract_code,
-      compilation_info()->code_kind(), time_taken_ms);
+  Handle<FeedbackVector> feedback_vector(
+      compilation_info()->closure()->feedback_vector(), isolate);
+  LogFunctionCompilation(
+      isolate, tag, script, compilation_info()->shared_info(), feedback_vector,
+      abstract_code, compilation_info()->code_kind(), time_taken_ms);
 }
 
 // ----------------------------------------------------------------------------
@@ -544,7 +612,7 @@ void InstallInterpreterTrampolineCopy(
           INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
   interpreter_data->set_bytecode_array(*bytecode_array);
-  interpreter_data->set_interpreter_trampoline(*code);
+  interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
 
   shared_info->set_interpreter_data(*interpreter_data);
 
@@ -630,16 +698,18 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
                                                SharedFunctionInfo shared_info) {
   DCHECK_EQ(shared_info.language_mode(), literal->language_mode());
 
+  // These fields are all initialised in ParseInfo from the SharedFunctionInfo,
+  // and then set back on the literal after parse. Hence, they should already
+  // match.
+  DCHECK_EQ(shared_info.requires_instance_members_initializer(),
+            literal->requires_instance_members_initializer());
+  DCHECK_EQ(shared_info.class_scope_has_private_brand(),
+            literal->class_scope_has_private_brand());
+  DCHECK_EQ(shared_info.has_static_private_methods_or_accessors(),
+            literal->has_static_private_methods_or_accessors());
+
   shared_info.set_has_duplicate_parameters(literal->has_duplicate_parameters());
   shared_info.UpdateAndFinalizeExpectedNofPropertiesFromEstimate(literal);
-  if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
-    shared_info.DisableOptimization(literal->dont_optimize_reason());
-  }
-
-  shared_info.set_class_scope_has_private_brand(
-      literal->class_scope_has_private_brand());
-  shared_info.set_has_static_private_methods_or_accessors(
-      literal->has_static_private_methods_or_accessors());
 
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }
@@ -676,7 +746,7 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
 
 std::unique_ptr<UnoptimizedCompilationJob>
 ExecuteSingleUnoptimizedCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
@@ -696,7 +766,8 @@ ExecuteSingleUnoptimizedCompilationJob(
 #endif
   std::unique_ptr<UnoptimizedCompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(
-          parse_info, literal, allocator, eager_inner_literals, local_isolate));
+          parse_info, literal, script, allocator, eager_inner_literals,
+          local_isolate));
 
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) {
     // Compilation failed, return null.
@@ -704,33 +775,6 @@ ExecuteSingleUnoptimizedCompilationJob(
   }
 
   return job;
-}
-
-bool RecursivelyExecuteUnoptimizedCompilationJobs(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    AccountingAllocator* allocator,
-    UnoptimizedCompilationJobList* function_jobs) {
-  std::vector<FunctionLiteral*> eager_inner_literals;
-
-  // We need to pass nullptr here because we are on the background
-  // thread but don't have a LocalIsolate.
-  DCHECK_NULL(LocalHeap::Current());
-  std::unique_ptr<UnoptimizedCompilationJob> job =
-      ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                             &eager_inner_literals, nullptr);
-
-  if (!job) return false;
-
-  // Recursively compile eager inner literals.
-  for (FunctionLiteral* inner_literal : eager_inner_literals) {
-    if (!RecursivelyExecuteUnoptimizedCompilationJobs(
-            parse_info, inner_literal, allocator, function_jobs)) {
-      return false;
-    }
-  }
-
-  function_jobs->emplace_front(std::move(job));
-  return true;
 }
 
 template <typename IsolateT>
@@ -747,16 +791,28 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
   std::vector<FunctionLiteral*> functions_to_compile;
   functions_to_compile.push_back(parse_info->literal());
 
+  bool is_first = true;
   while (!functions_to_compile.empty()) {
     FunctionLiteral* literal = functions_to_compile.back();
     functions_to_compile.pop_back();
-    Handle<SharedFunctionInfo> shared_info =
-        Compiler::GetSharedFunctionInfo(literal, script, isolate);
+    Handle<SharedFunctionInfo> shared_info;
+    if (is_first) {
+      // We get the first SharedFunctionInfo directly as outer_shared_info
+      // rather than with Compiler::GetSharedFunctionInfo, to support
+      // placeholder SharedFunctionInfos that aren't on the script's SFI list.
+      DCHECK_EQ(literal->function_literal_id(),
+                outer_shared_info->function_literal_id());
+      shared_info = outer_shared_info;
+      is_first = false;
+    } else {
+      shared_info = Compiler::GetSharedFunctionInfo(literal, script, isolate);
+    }
+
     if (shared_info->is_compiled()) continue;
 
     std::unique_ptr<UnoptimizedCompilationJob> job =
-        ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                               &functions_to_compile,
+        ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, script,
+                                               allocator, &functions_to_compile,
                                                isolate->AsLocalIsolate());
 
     if (!job) return false;
@@ -802,44 +858,6 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
   return true;
 }
 
-bool FinalizeAllUnoptimizedCompilationJobs(
-    ParseInfo* parse_info, Isolate* isolate, Handle<Script> script,
-    UnoptimizedCompilationJobList* compilation_jobs,
-    FinalizeUnoptimizedCompilationDataList*
-        finalize_unoptimized_compilation_data_list) {
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-  DCHECK(!compilation_jobs->empty());
-
-  // TODO(rmcilroy): Clear native context in debug once AsmJS generates doesn't
-  // rely on accessing native context during finalization.
-
-  // Allocate scope infos for the literal.
-  DeclarationScope::AllocateScopeInfos(parse_info, isolate);
-
-  // Finalize the functions' compilation jobs.
-  for (auto&& job : *compilation_jobs) {
-    FunctionLiteral* literal = job->compilation_info()->literal();
-    Handle<SharedFunctionInfo> shared_info =
-        Compiler::GetSharedFunctionInfo(literal, script, isolate);
-    // The inner function might be compiled already if compiling for debug.
-    if (shared_info->is_compiled()) continue;
-    UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
-    if (FinalizeSingleUnoptimizedCompilationJob(
-            job.get(), shared_info, isolate,
-            finalize_unoptimized_compilation_data_list) !=
-        CompilationJob::SUCCEEDED) {
-      return false;
-    }
-  }
-
-  // Report any warnings generated during compilation.
-  if (parse_info->pending_error_handler()->has_pending_warnings()) {
-    parse_info->pending_error_handler()->PrepareWarnings(isolate);
-  }
-
-  return true;
-}
-
 bool FinalizeDeferredUnoptimizedCompilationJobs(
     Isolate* isolate, Handle<Script> script,
     DeferredFinalizationJobDataList* deferred_jobs,
@@ -872,76 +890,81 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
   return true;
 }
 
-V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
-    Handle<JSFunction> function, BytecodeOffset osr_offset,
-    CodeKind code_kind) {
-  Isolate* isolate = function->GetIsolate();
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  DisallowGarbageCollection no_gc;
-  Code code;
-  if (osr_offset.IsNone() && function->has_feedback_vector()) {
-    FeedbackVector feedback_vector = function->feedback_vector();
-    feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-        function->raw_feedback_cell(), function->shared(),
-        "GetCodeFromOptimizedCodeCache");
-    code = feedback_vector.optimized_code();
-  } else if (!osr_offset.IsNone()) {
-    code = function->context()
-               .native_context()
-               .GetOSROptimizedCodeCache()
-               .GetOptimizedCode(shared, osr_offset, isolate);
-  }
-  DCHECK_IMPLIES(!code.is_null(), code.kind() <= code_kind);
-  if (!code.is_null() && code.kind() == code_kind) {
-    // Caching of optimized code enabled and optimized code found.
+// A wrapper to access either the OSR optimized code cache (one per native
+// context), or the optimized code cache slot on the feedback vector.
+class OptimizedCodeCache : public AllStatic {
+ public:
+  static V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> Get(
+      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
+      CodeKind code_kind) {
+    if (!CodeKindIsStoredInOptimizedCodeCache(code_kind)) return {};
+
+    DisallowGarbageCollection no_gc;
+    SharedFunctionInfo shared = function->shared();
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
+
+    CodeT code;
+    if (IsOSR(osr_offset)) {
+      // For OSR, check the OSR optimized code cache.
+      code = function->native_context().osr_code_cache().TryGet(
+          shared, osr_offset, isolate);
+    } else {
+      // Non-OSR code may be cached on the feedback vector.
+      if (function->has_feedback_vector()) {
+        FeedbackVector feedback_vector = function->feedback_vector();
+        feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
+            shared, "OptimizedCodeCache::Get");
+        code = feedback_vector.optimized_code();
+      }
+    }
+
+    DCHECK_IMPLIES(!code.is_null(), code.kind() <= code_kind);
+    if (code.is_null() || code.kind() != code_kind) return {};
+
     DCHECK(!code.marked_for_deoptimization());
-    DCHECK(function->shared().is_compiled());
+    DCHECK(shared.is_compiled());
     DCHECK(CodeKindIsStoredInOptimizedCodeCache(code.kind()));
-    DCHECK_IMPLIES(!osr_offset.IsNone(), CodeKindCanOSR(code.kind()));
-    return Handle<Code>(code, isolate);
-  }
-  return MaybeHandle<Code>();
-}
+    DCHECK_IMPLIES(IsOSR(osr_offset), CodeKindCanOSR(code.kind()));
 
-void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
-  Handle<JSFunction> function = compilation_info->closure();
-  if (compilation_info->osr_offset().IsNone()) {
-    Handle<FeedbackVector> vector =
-        handle(function->feedback_vector(), function->GetIsolate());
-    vector->ClearOptimizationMarker();
-  }
-}
-
-void InsertCodeIntoOptimizedCodeCache(
-    OptimizedCompilationInfo* compilation_info) {
-  const CodeKind kind = compilation_info->code_kind();
-  if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
-
-  if (compilation_info->function_context_specializing()) {
-    // Function context specialization folds-in the function context, so no
-    // sharing can occur. Make sure the optimized code cache is cleared.
-    ClearOptimizedCodeCache(compilation_info);
-    return;
+    CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
+                                               code_kind);
+    return handle(code, isolate);
   }
 
-  // Cache optimized code.
-  Handle<Code> code = compilation_info->code();
-  Handle<JSFunction> function = compilation_info->closure();
-  Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  Handle<NativeContext> native_context(function->context().native_context(),
-                                       function->GetIsolate());
-  if (compilation_info->osr_offset().IsNone()) {
-    Handle<FeedbackVector> vector =
-        handle(function->feedback_vector(), function->GetIsolate());
-    FeedbackVector::SetOptimizedCode(vector, code,
-                                     function->raw_feedback_cell());
-  } else {
-    DCHECK(CodeKindCanOSR(kind));
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            compilation_info->osr_offset());
+  static void Insert(OptimizedCompilationInfo* compilation_info) {
+    const CodeKind kind = compilation_info->code_kind();
+    if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
+
+    // Cache optimized code.
+    Handle<JSFunction> function = compilation_info->closure();
+    Isolate* isolate = function->GetIsolate();
+    Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
+    const BytecodeOffset osr_offset = compilation_info->osr_offset();
+
+    if (IsOSR(osr_offset)) {
+      DCHECK(CodeKindCanOSR(kind));
+      DCHECK(!compilation_info->function_context_specializing());
+      Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+      Handle<NativeContext> native_context(function->native_context(), isolate);
+      OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                    osr_offset);
+      return;
+    }
+
+    DCHECK(!IsOSR(osr_offset));
+
+    if (compilation_info->function_context_specializing()) {
+      // Function context specialization folds-in the function context, so no
+      // sharing can occur. Make sure the optimized code cache is cleared.
+      if (function->feedback_vector().has_optimized_code()) {
+        function->feedback_vector().ClearOptimizedCode();
+      }
+      return;
+    }
+
+    function->feedback_vector().SetOptimizedCode(code);
   }
-}
+};
 
 // Runs PrepareJob in the proper compilation & canonical scopes. Handles will be
 // allocated in a persistent handle scope that is detached and handed off to the
@@ -949,13 +972,18 @@ void InsertCodeIntoOptimizedCodeCache(
 bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
                                OptimizedCompilationInfo* compilation_info) {
   CompilationHandleScope compilation(isolate, compilation_info);
-  CanonicalHandleScope canonical(isolate, compilation_info);
+  CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
+  CompilerTracer::TracePrepareJob(isolate, compilation_info,
+                                  job->compiler_name());
   compilation_info->ReopenHandlesInNewHandleScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
 
-bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
-                         OptimizedCompilationInfo* compilation_info) {
+bool CompileTurbofan_NotConcurrent(Isolate* isolate,
+                                   TurbofanCompilationJob* job) {
+  OptimizedCompilationInfo* const compilation_info = job->compilation_info();
+  DCHECK_EQ(compilation_info->code_kind(), CodeKind::TURBOFAN);
+
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -983,21 +1011,23 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
   }
 
   // Success!
-  job->RecordCompilationStats(OptimizedCompilationJob::kSynchronous, isolate);
+  job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
-  InsertCodeIntoOptimizedCodeCache(compilation_info);
+  OptimizedCodeCache::Insert(compilation_info);
   job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
 
-bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
-                           Isolate* isolate,
-                           OptimizedCompilationInfo* compilation_info,
-                           CodeKind code_kind, Handle<JSFunction> function) {
+bool CompileTurbofan_Concurrent(Isolate* isolate,
+                                std::unique_ptr<TurbofanCompilationJob> job) {
+  OptimizedCompilationInfo* const compilation_info = job->compilation_info();
+  DCHECK_EQ(compilation_info->code_kind(), CodeKind::TURBOFAN);
+  Handle<JSFunction> function = compilation_info->closure();
+
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
-      compilation_info->closure()->ShortPrint();
+      function->ShortPrint();
       PrintF(" later.\n");
     }
     return false;
@@ -1006,7 +1036,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   if (isolate->heap()->HighMemoryPressure()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** High memory pressure, will retry optimizing ");
-      compilation_info->closure()->ShortPrint();
+      function->ShortPrint();
       PrintF(" later.\n");
     }
     return false;
@@ -1022,114 +1052,48 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   }
 
   // The background recompile will own this job.
-  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
-  job.release();
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.release());
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
-    compilation_info->closure()->ShortPrint();
+    function->ShortPrint();
     PrintF(" for concurrent optimization.\n");
   }
 
-  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
-    function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
-  }
+  SetTieringState(*function, compilation_info->osr_offset(),
+                  TieringState::kInProgress);
 
-  // Note: Usually the active tier is expected to be Ignition at this point (in
-  // other words we don't expect to optimize if the function is already
-  // TF-optimized). There is a special case for OSR though, for which we *can*
-  // reach this point even if we've already generated non-OSR'd TF code.
-  DCHECK(function->shared().HasBytecodeArray());
+  DCHECK(compilation_info->shared_info()->HasBytecodeArray());
   return true;
 }
 
-// Returns the code object at which execution continues after a concurrent
-// optimization job has been started (but not finished).
-Handle<Code> ContinuationForConcurrentOptimization(
-    Isolate* isolate, Handle<JSFunction> function) {
-  Handle<Code> cached_code;
-  if (FLAG_turboprop && function->HasAvailableOptimizedCode()) {
-    DCHECK(!FLAG_turboprop_as_toptier);
-    DCHECK(function->NextTier() == CodeKind::TURBOFAN);
-    // It is possible that we have marked a closure for TurboFan optimization
-    // but the marker is processed by another closure that doesn't have
-    // optimized code yet. So heal the closure here and return the optimized
-    // code.
-    if (!function->HasAttachedOptimizedCode()) {
-      DCHECK(function->feedback_vector().has_optimized_code());
-      // Release store isn't required here because it was done on store
-      // into the feedback vector.
-      STATIC_ASSERT(
-          FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
-      function->set_code(function->feedback_vector().optimized_code());
-    }
-    return handle(function->code(), isolate);
-  } else if (function->shared().HasBaselineCode()) {
-    Code baseline_code = function->shared().baseline_code(kAcquireLoad);
-    function->set_code(baseline_code);
-    return handle(baseline_code, isolate);
-  }
-  DCHECK(function->ActiveTierIsIgnition());
-  return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
-}
-
-enum class GetOptimizedCodeResultHandling {
+enum class CompileResultBehavior {
   // Default behavior, i.e. install the result, insert into caches, etc.
   kDefault,
   // Used only for stress testing. The compilation result should be discarded.
   kDiscardForTesting,
 };
 
-MaybeHandle<Code> GetOptimizedCode(
-    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
-    CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
-    JavaScriptFrame* osr_frame = nullptr,
-    GetOptimizedCodeResultHandling result_handling =
-        GetOptimizedCodeResultHandling::kDefault) {
+bool ShouldOptimize(CodeKind code_kind, Handle<SharedFunctionInfo> shared) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
-
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-
-  // Make sure we clear the optimization marker on the function so that we
-  // don't try to re-optimize.
-  if (function->HasOptimizationMarker()) function->ClearOptimizationMarker();
-
-  if (shared->optimization_disabled() &&
-      shared->disable_optimization_reason() == BailoutReason::kNeverOptimize) {
-    return {};
+  switch (code_kind) {
+    case CodeKind::TURBOFAN:
+      return FLAG_opt && shared->PassesFilter(FLAG_turbo_filter);
+    case CodeKind::MAGLEV:
+      // TODO(v8:7700): FLAG_maglev_filter.
+      return FLAG_maglev;
+    default:
+      UNREACHABLE();
   }
+}
 
-  // Do not optimize when debugger needs to hook into every call.
-  if (isolate->debug()->needs_check_on_function_call()) return {};
-
-  // Do not use TurboFan if we need to be able to set break points.
-  if (shared->HasBreakInfo()) return {};
-
-  // Do not use TurboFan if optimization is disabled or function doesn't pass
-  // turbo_filter.
-  if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) return {};
-
-  // If code was pending optimization for testing, remove the entry from the
-  // table that was preventing the bytecode from being flushed.
-  if (V8_UNLIKELY(FLAG_testing_d8_test_runner)) {
-    PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-  }
-
-  // Check the optimized code cache (stored on the SharedFunctionInfo).
-  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
-    Handle<Code> cached_code;
-    if (GetCodeFromOptimizedCodeCache(function, osr_offset, code_kind)
-            .ToHandle(&cached_code)) {
-      CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
-                                                 code_kind);
-      return cached_code;
-    }
-  }
-
-  // Reset profiler ticks, function is no longer considered hot.
-  DCHECK(shared->is_compiled());
-  function->feedback_vector().set_profiler_ticks(0);
-
+MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
+                                   Handle<JSFunction> function,
+                                   Handle<SharedFunctionInfo> shared,
+                                   ConcurrencyMode mode,
+                                   BytecodeOffset osr_offset,
+                                   JavaScriptFrame* osr_frame,
+                                   CompileResultBehavior result_behavior) {
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
@@ -1141,30 +1105,166 @@ MaybeHandle<Code> GetOptimizedCode(
   // BUG(5946): This DCHECK is necessary to make certain that we won't
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
-  std::unique_ptr<OptimizedCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(isolate, function, code_kind,
-                                            has_script, osr_offset, osr_frame));
-  OptimizedCompilationInfo* compilation_info = job->compilation_info();
+  std::unique_ptr<TurbofanCompilationJob> job(
+      compiler::Pipeline::NewCompilationJob(isolate, function,
+                                            CodeKind::TURBOFAN, has_script,
+                                            osr_offset, osr_frame));
 
-  if (result_handling == GetOptimizedCodeResultHandling::kDiscardForTesting) {
-    compilation_info->set_discard_result_for_testing();
+  if (result_behavior == CompileResultBehavior::kDiscardForTesting) {
+    job->compilation_info()->set_discard_result_for_testing();
   }
 
   // Prepare the job and launch concurrent compilation, or compile now.
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
-                              code_kind, function)) {
-      return ContinuationForConcurrentOptimization(isolate, function);
-    }
+  if (IsConcurrent(mode)) {
+    if (CompileTurbofan_Concurrent(isolate, std::move(job))) return {};
   } else {
-    DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
-    if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
-      return compilation_info->code();
+    DCHECK(IsSynchronous(mode));
+    if (CompileTurbofan_NotConcurrent(isolate, job.get())) {
+      return ToCodeT(job->compilation_info()->code(), isolate);
     }
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   return {};
+}
+
+#ifdef V8_ENABLE_MAGLEV
+// TODO(v8:7700): Record maglev compilations better.
+void RecordMaglevFunctionCompilation(Isolate* isolate,
+                                     Handle<JSFunction> function) {
+  Handle<AbstractCode> abstract_code(
+      AbstractCode::cast(FromCodeT(function->code())), isolate);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<FeedbackVector> feedback_vector(function->feedback_vector(), isolate);
+
+  // Optimistic estimate.
+  double time_taken_ms = 0;
+
+  LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG, script,
+                         shared, feedback_vector, abstract_code,
+                         abstract_code->kind(), time_taken_ms);
+}
+#endif  // V8_ENABLE_MAGLEV
+
+MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                                 ConcurrencyMode mode,
+                                 BytecodeOffset osr_offset,
+                                 JavaScriptFrame* osr_frame,
+                                 CompileResultBehavior result_behavior) {
+#ifdef V8_ENABLE_MAGLEV
+  DCHECK(FLAG_maglev);
+  // TODO(v8:7700): Add missing support.
+  CHECK(!IsOSR(osr_offset));
+  CHECK(osr_frame == nullptr);
+  CHECK(result_behavior == CompileResultBehavior::kDefault);
+
+  // TODO(v8:7700): Tracing, see CompileTurbofan.
+
+  DCHECK(!isolate->has_pending_exception());
+  PostponeInterruptsScope postpone(isolate);
+
+  // TODO(v8:7700): See everything in CompileTurbofan_Concurrent.
+  // - Tracing,
+  // - timers,
+  // - aborts on memory pressure,
+  // ...
+
+  // Prepare the job.
+  auto job = maglev::MaglevCompilationJob::New(isolate, function);
+  CompilationJob::Status status = job->PrepareJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+
+  if (IsSynchronous(mode)) {
+    function->reset_tiering_state();
+    {
+      // Park the main thread Isolate here, to be in the same state as
+      // background threads.
+      ParkedScope parked_scope(isolate->main_thread_local_isolate());
+      if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                          isolate->main_thread_local_isolate()) !=
+          CompilationJob::SUCCEEDED) {
+        return {};
+      }
+    }
+
+    if (job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
+      return {};
+    }
+
+    RecordMaglevFunctionCompilation(isolate, function);
+    return handle(function->code(), isolate);
+  }
+
+  DCHECK(IsConcurrent(mode));
+
+  // Enqueue it.
+  isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
+
+  // Remember that the function is currently being processed.
+  SetTieringState(*function, osr_offset, TieringState::kInProgress);
+
+  return {};
+#else   // V8_ENABLE_MAGLEV
+  UNREACHABLE();
+#endif  // V8_ENABLE_MAGLEV
+}
+
+MaybeHandle<CodeT> GetOrCompileOptimized(
+    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
+    CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
+    JavaScriptFrame* osr_frame = nullptr,
+    CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
+
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+
+  // Clear the optimization marker on the function so that we don't try to
+  // re-optimize.
+  if (!IsOSR(osr_offset)) {
+    ResetTieringState(*function, osr_offset);
+  }
+
+  // TODO(v8:7700): Distinguish between Maglev and Turbofan.
+  if (shared->optimization_disabled() &&
+      shared->disabled_optimization_reason() == BailoutReason::kNeverOptimize) {
+    return {};
+  }
+
+  // Do not optimize when debugger needs to hook into every call.
+  if (isolate->debug()->needs_check_on_function_call()) return {};
+
+  // Do not optimize if we need to be able to set break points.
+  if (shared->HasBreakInfo()) return {};
+
+  // Do not optimize if optimization is disabled or function doesn't pass
+  // turbo_filter.
+  if (!ShouldOptimize(code_kind, shared)) return {};
+
+  // If code was pending optimization for testing, remove the entry from the
+  // table that was preventing the bytecode from being flushed.
+  if (V8_UNLIKELY(FLAG_testing_d8_test_runner)) {
+    PendingOptimizationTable::FunctionWasOptimized(isolate, function);
+  }
+
+  Handle<CodeT> cached_code;
+  if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
+          .ToHandle(&cached_code)) {
+    return cached_code;
+  }
+
+  DCHECK(shared->is_compiled());
+
+  ResetProfilerTicks(*function, osr_offset);
+
+  if (code_kind == CodeKind::TURBOFAN) {
+    return CompileTurbofan(isolate, function, shared, mode, osr_offset,
+                           osr_frame, result_behavior);
+  } else {
+    DCHECK_EQ(code_kind, CodeKind::MAGLEV);
+    return CompileMaglev(isolate, function, mode, osr_offset, osr_frame,
+                         result_behavior);
+  }
 }
 
 // When --stress-concurrent-inlining is enabled, spawn concurrent jobs in
@@ -1175,17 +1275,19 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
                                                  Handle<JSFunction> function,
                                                  ConcurrencyMode mode,
                                                  CodeKind code_kind) {
+  // TODO(v8:7700): Support Maglev.
+  if (code_kind == CodeKind::MAGLEV) return;
+
   DCHECK(FLAG_stress_concurrent_inlining &&
-         isolate->concurrent_recompilation_enabled() &&
-         mode == ConcurrencyMode::kNotConcurrent &&
+         isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
          isolate->node_observer() == nullptr);
-  GetOptimizedCodeResultHandling result_handling =
+  CompileResultBehavior result_behavior =
       FLAG_stress_concurrent_inlining_attach_code
-          ? GetOptimizedCodeResultHandling::kDefault
-          : GetOptimizedCodeResultHandling::kDiscardForTesting;
-  USE(GetOptimizedCode(isolate, function, ConcurrencyMode::kConcurrent,
-                       code_kind, BytecodeOffset::None(), nullptr,
-                       result_handling));
+          ? CompileResultBehavior::kDefault
+          : CompileResultBehavior::kDiscardForTesting;
+  USE(GetOrCompileOptimized(isolate, function, ConcurrencyMode::kConcurrent,
+                            code_kind, BytecodeOffset::None(), nullptr,
+                            result_behavior));
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {
@@ -1204,7 +1306,12 @@ bool PreparePendingException(IsolateT* isolate, ParseInfo* parse_info) {
 
 bool FailWithPreparedPendingException(
     Isolate* isolate, Handle<Script> script,
-    const PendingCompilationErrorHandler* pending_error_handler) {
+    const PendingCompilationErrorHandler* pending_error_handler,
+    Compiler::ClearExceptionFlag flag = Compiler::KEEP_EXCEPTION) {
+  if (flag == Compiler::CLEAR_EXCEPTION) {
+    return FailAndClearPendingException(isolate);
+  }
+
   if (!isolate->has_pending_exception()) {
     if (pending_error_handler->has_pending_error()) {
       pending_error_handler->ReportErrors(isolate, script);
@@ -1218,13 +1325,9 @@ bool FailWithPreparedPendingException(
 bool FailWithPendingException(Isolate* isolate, Handle<Script> script,
                               ParseInfo* parse_info,
                               Compiler::ClearExceptionFlag flag) {
-  if (flag == Compiler::CLEAR_EXCEPTION) {
-    return FailAndClearPendingException(isolate);
-  }
-
   PreparePendingException(isolate, parse_info);
-  return FailWithPreparedPendingException(isolate, script,
-                                          parse_info->pending_error_handler());
+  return FailWithPreparedPendingException(
+      isolate, script, parse_info->pending_error_handler(), flag);
 }
 
 void FinalizeUnoptimizedCompilation(
@@ -1285,24 +1388,6 @@ void FinalizeUnoptimizedScriptCompilation(
                                  finalize_unoptimized_compilation_data_list);
 
   script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-
-  UnoptimizedCompileState::ParallelTasks* parallel_tasks =
-      compile_state->parallel_tasks();
-  if (parallel_tasks) {
-    LazyCompileDispatcher* dispatcher = parallel_tasks->dispatcher();
-    for (auto& it : *parallel_tasks) {
-      FunctionLiteral* literal = it.first;
-      LazyCompileDispatcher::JobId job_id = it.second;
-      MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
-          Script::FindSharedFunctionInfo(script, isolate, literal);
-      Handle<SharedFunctionInfo> shared_for_task;
-      if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
-        dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
-      } else {
-        dispatcher->AbortJob(job_id);
-      }
-    }
-  }
 
   if (isolate->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate, script);
@@ -1366,8 +1451,6 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                parse_info->flags().is_eval() ? "V8.CompileEval" : "V8.Compile");
 
-  // Prepare and execute compilation of the outer-most function.
-
   // Create the SharedFunctionInfo and add it to the script's list.
   Handle<SharedFunctionInfo> shared_info =
       CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
@@ -1375,6 +1458,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   FinalizeUnoptimizedCompilationDataList
       finalize_unoptimized_compilation_data_list;
 
+  // Prepare and execute compilation of the outer-most function.
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
           isolate, shared_info, script, parse_info, isolate->allocator(),
           is_compiled_scope, &finalize_unoptimized_compilation_data_list,
@@ -1399,68 +1483,16 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 }
 
 #ifdef V8_RUNTIME_CALL_STATS
-RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
-    ParseInfo* parse_info) {
+RuntimeCallCounterId RuntimeCallCounterIdForCompile(ParseInfo* parse_info) {
   if (parse_info->flags().is_toplevel()) {
     if (parse_info->flags().is_eval()) {
-      return RuntimeCallCounterId::kCompileBackgroundEval;
+      return RuntimeCallCounterId::kCompileEval;
     }
-    return RuntimeCallCounterId::kCompileBackgroundScript;
+    return RuntimeCallCounterId::kCompileScript;
   }
-  return RuntimeCallCounterId::kCompileBackgroundFunction;
+  return RuntimeCallCounterId::kCompileFunction;
 }
 #endif  // V8_RUNTIME_CALL_STATS
-
-MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
-    ParseInfo* parse_info, AccountingAllocator* allocator,
-    Handle<Script> script, LocalIsolate* isolate,
-    FinalizeUnoptimizedCompilationDataList*
-        finalize_unoptimized_compilation_data_list,
-    DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread,
-    IsCompiledScope* is_compiled_scope) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileCodeBackground");
-  RCS_SCOPE(parse_info->runtime_call_stats(),
-            RuntimeCallCounterIdForCompileBackground(parse_info));
-
-  Handle<SharedFunctionInfo> shared_info =
-      CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
-
-  if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-          isolate, shared_info, script, parse_info, allocator,
-          is_compiled_scope, finalize_unoptimized_compilation_data_list,
-          jobs_to_retry_finalization_on_main_thread)) {
-    return kNullMaybeHandle;
-  }
-
-  // Character stream shouldn't be used again.
-  parse_info->ResetCharacterStream();
-
-  return shared_info;
-}
-
-// TODO(leszeks): Remove this once off-thread finalization is always on.
-void CompileOnBackgroundThread(ParseInfo* parse_info,
-                               AccountingAllocator* allocator,
-                               UnoptimizedCompilationJobList* jobs) {
-  DisallowHeapAccess no_heap_access;
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileCodeBackground");
-  RCS_SCOPE(parse_info->runtime_call_stats(),
-            RuntimeCallCounterIdForCompileBackground(parse_info));
-
-  // Generate the unoptimized bytecode or asm-js data.
-  DCHECK(jobs->empty());
-
-  bool success = RecursivelyExecuteUnoptimizedCompilationJobs(
-      parse_info, parse_info->literal(), allocator, jobs);
-
-  USE(success);
-  DCHECK_EQ(success, !jobs->empty());
-
-  // Character stream shouldn't be used again.
-  parse_info->ResetCharacterStream();
-}
 
 }  // namespace
 
@@ -1487,203 +1519,323 @@ DeferredFinalizationJobData::DeferredFinalizationJobData(
 
 BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
                                              Isolate* isolate, ScriptType type)
-    : flags_(UnoptimizedCompileFlags::ForToplevelCompile(
+    : isolate_for_local_isolate_(isolate),
+      flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(FLAG_use_strict),
           REPLMode::kNo, type, FLAG_lazy_streaming)),
-      compile_state_(isolate),
-      info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
-      isolate_for_local_isolate_(isolate),
-      start_position_(0),
-      end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel),
+      character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
+                                           streamed_data->encoding)),
       stack_size_(i::FLAG_stack_size),
       worker_thread_runtime_call_stats_(
           isolate->counters()->worker_thread_runtime_call_stats()),
       timer_(isolate->counters()->compile_script_on_background()),
-      language_mode_(info_->language_mode()) {
+      start_position_(0),
+      end_position_(0),
+      function_literal_id_(kFunctionLiteralIdTopLevel) {
   VMState<PARSER> state(isolate);
 
-  // Prepare the data for the internalization phase and compilation phase, which
-  // will happen in the main thread after parsing.
-
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
-                           info_->flags().script_id()));
-
-  std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-      streamed_data->source_stream.get(), streamed_data->encoding));
-  info_->set_character_stream(std::move(stream));
+                           flags_.script_id()));
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
-    const ParseInfo* outer_parse_info, const AstRawString* function_name,
-    const FunctionLiteral* function_literal,
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    std::unique_ptr<Utf16CharacterStream> character_stream,
     WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
     TimedHistogram* timer, int max_stack_size)
-    : flags_(UnoptimizedCompileFlags::ForToplevelFunction(
-          outer_parse_info->flags(), function_literal)),
-      compile_state_(*outer_parse_info->state()),
-      info_(ParseInfo::ForToplevelFunction(flags_, &compile_state_,
-                                           function_literal, function_name)),
-      isolate_for_local_isolate_(nullptr),
-      start_position_(function_literal->start_position()),
-      end_position_(function_literal->end_position()),
-      function_literal_id_(function_literal->function_literal_id()),
+    : isolate_for_local_isolate_(isolate),
+      // TODO(leszeks): Create this from parent compile flags, to avoid
+      // accessing the Isolate.
+      flags_(
+          UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info)),
+      character_stream_(std::move(character_stream)),
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
-      language_mode_(info_->language_mode()) {
-  DCHECK_EQ(outer_parse_info->parameters_end_pos(), kNoSourcePosition);
-  DCHECK_NULL(outer_parse_info->extension());
+      input_shared_info_(shared_info),
+      start_position_(shared_info->StartPosition()),
+      end_position_(shared_info->EndPosition()),
+      function_literal_id_(shared_info->function_literal_id()) {
+  DCHECK(!shared_info->is_toplevel());
 
-  DCHECK(!function_literal->is_toplevel());
+  character_stream_->Seek(start_position_);
 
-  // Clone the character stream so both can be accessed independently.
-  std::unique_ptr<Utf16CharacterStream> character_stream =
-      outer_parse_info->character_stream()->Clone();
-  character_stream->Seek(start_position_);
-  info_->set_character_stream(std::move(character_stream));
-
-  // Get preparsed scope data from the function literal.
-  if (function_literal->produced_preparse_data()) {
-    ZonePreparseData* serialized_data =
-        function_literal->produced_preparse_data()->Serialize(info_->zone());
-    info_->set_consumed_preparse_data(
-        ConsumedPreparseData::For(info_->zone(), serialized_data));
-  }
+  // Get the script out of the outer ParseInfo and turn it into a persistent
+  // handle we can transfer to the background thread.
+  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
+  input_shared_info_ = persistent_handles_->NewHandle(shared_info);
 }
 
 BackgroundCompileTask::~BackgroundCompileTask() = default;
 
 namespace {
 
-// A scope object that ensures a parse info's runtime call stats and stack limit
-// are set correctly during worker-thread compile, and restores it after going
-// out of scope.
-class V8_NODISCARD OffThreadParseInfoScope {
- public:
-  OffThreadParseInfoScope(
-      ParseInfo* parse_info,
-      WorkerThreadRuntimeCallStats* worker_thread_runtime_stats, int stack_size)
-      : parse_info_(parse_info),
-        original_stack_limit_(parse_info_->stack_limit()),
-        original_runtime_call_stats_(parse_info_->runtime_call_stats()),
-        worker_thread_scope_(worker_thread_runtime_stats) {
-    parse_info_->SetPerThreadState(GetCurrentStackPosition() - stack_size * KB,
-                                   worker_thread_scope_.Get());
+void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
+                                ScriptDetails script_details,
+                                DisallowGarbageCollection* no_gc) {
+  Handle<Object> script_name;
+  if (script_details.name_obj.ToHandle(&script_name)) {
+    script.set_name(*script_name);
+    script.set_line_offset(script_details.line_offset);
+    script.set_column_offset(script_details.column_offset);
   }
-
-  OffThreadParseInfoScope(const OffThreadParseInfoScope&) = delete;
-  OffThreadParseInfoScope& operator=(const OffThreadParseInfoScope&) = delete;
-
-  ~OffThreadParseInfoScope() {
-    DCHECK_NOT_NULL(parse_info_);
-    parse_info_->SetPerThreadState(original_stack_limit_,
-                                   original_runtime_call_stats_);
+  // The API can provide a source map URL, but a source map URL could also have
+  // been inferred by the parser from a magic comment. The latter takes
+  // preference over the former, so we don't want to override the source mapping
+  // URL if it already exists.
+  Handle<Object> source_map_url;
+  if (script_details.source_map_url.ToHandle(&source_map_url) &&
+      script.source_mapping_url(isolate).IsUndefined(isolate)) {
+    script.set_source_mapping_url(*source_map_url);
   }
-
- private:
-  ParseInfo* parse_info_;
-  uintptr_t original_stack_limit_;
-  RuntimeCallStats* original_runtime_call_stats_;
-  WorkerThreadRuntimeCallStatsScope worker_thread_scope_;
-};
+  Handle<Object> host_defined_options;
+  if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
+    // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
+    if (host_defined_options->IsFixedArray()) {
+      script.set_host_defined_options(FixedArray::cast(*host_defined_options));
+    }
+  }
+}
 
 }  // namespace
 
 void BackgroundCompileTask::Run() {
+  DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
+  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
+  UnparkedScope unparked_scope(&isolate);
+  LocalHandleScope handle_scope(&isolate);
+
+  ReusableUnoptimizedCompileState reusable_state(&isolate);
+
+  Run(&isolate, &reusable_state);
+}
+
+void BackgroundCompileTask::RunOnMainThread(Isolate* isolate) {
+  LocalHandleScope handle_scope(isolate->main_thread_local_isolate());
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  Run(isolate->main_thread_local_isolate(), &reusable_state);
+}
+
+void BackgroundCompileTask::Run(
+    LocalIsolate* isolate, ReusableUnoptimizedCompileState* reusable_state) {
   TimedHistogramScope timer(timer_);
-  base::Optional<OffThreadParseInfoScope> off_thread_scope(
-      base::in_place, info_.get(), worker_thread_runtime_call_stats_,
-      stack_size_);
+
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
-  RCS_SCOPE(info_->runtime_call_stats(),
-            RuntimeCallCounterId::kCompileBackgroundCompileTask);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCompileTask,
+            RuntimeCallStats::CounterMode::kThreadSpecific);
+
+  bool toplevel_script_compilation = flags_.is_toplevel();
+
+  ParseInfo info(isolate, flags_, &compile_state_, reusable_state,
+                 GetCurrentStackPosition() - stack_size_ * KB);
+  info.set_character_stream(std::move(character_stream_));
+
+  if (toplevel_script_compilation) {
+    DCHECK_NULL(persistent_handles_);
+    DCHECK(input_shared_info_.is_null());
+
+    // We don't have the script source, origin, or details yet, so use default
+    // values for them. These will be fixed up during the main-thread merge.
+    Handle<Script> script = info.CreateScript(
+        isolate, isolate->factory()->empty_string(), kNullMaybeHandle,
+        ScriptOriginOptions(false, false, false, info.flags().is_module()));
+    script_ = isolate->heap()->NewPersistentHandle(script);
+  } else {
+    DCHECK_NOT_NULL(persistent_handles_);
+    isolate->heap()->AttachPersistentHandles(std::move(persistent_handles_));
+    Handle<SharedFunctionInfo> shared_info =
+        input_shared_info_.ToHandleChecked();
+    script_ = isolate->heap()->NewPersistentHandle(
+        Script::cast(shared_info->script()));
+    info.CheckFlagsForFunctionFromScript(*script_);
+
+    {
+      SharedStringAccessGuardIfNeeded access_guard(isolate);
+      info.set_function_name(info.ast_value_factory()->GetString(
+          shared_info->Name(), access_guard));
+    }
+
+    // Get preparsed scope data from the function literal.
+    if (shared_info->HasUncompiledDataWithPreparseData()) {
+      info.set_consumed_preparse_data(ConsumedPreparseData::For(
+          isolate, handle(shared_info->uncompiled_data_with_preparse_data()
+                              .preparse_data(isolate),
+                          isolate)));
+    }
+  }
 
   // Update the character stream's runtime call stats.
-  info_->character_stream()->set_runtime_call_stats(
-      info_->runtime_call_stats());
+  info.character_stream()->set_runtime_call_stats(info.runtime_call_stats());
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
-  parser_.reset(new Parser(info_.get()));
-  parser_->InitializeEmptyScopeChain(info_.get());
-
-  parser_->ParseOnBackground(info_.get(), start_position_, end_position_,
-                             function_literal_id_);
-
-  // Save the language mode.
-  language_mode_ = info_->language_mode();
-
-  if (!FLAG_finalize_streaming_on_background) {
-    if (info_->literal() != nullptr) {
-      CompileOnBackgroundThread(info_.get(), compile_state_.allocator(),
-                                &compilation_jobs_);
-    }
+  Parser parser(isolate, &info, script_);
+  if (flags().is_toplevel()) {
+    parser.InitializeEmptyScopeChain(&info);
   } else {
-    DCHECK(info_->flags().is_toplevel());
+    // TODO(leszeks): Consider keeping Scope zones alive between compile tasks
+    // and passing the Scope for the FunctionLiteral through here directly
+    // without copying/deserializing.
+    Handle<SharedFunctionInfo> shared_info =
+        input_shared_info_.ToHandleChecked();
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    if (shared_info->HasOuterScopeInfo()) {
+      maybe_outer_scope_info =
+          handle(shared_info->GetOuterScopeInfo(), isolate);
+    }
+    parser.DeserializeScopeChain(
+        isolate, &info, maybe_outer_scope_info,
+        Scope::DeserializationMode::kIncludingVariables);
+  }
 
-    {
-      LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-      UnparkedScope unparked_scope(&isolate);
-      LocalHandleScope handle_scope(&isolate);
+  parser.ParseOnBackground(isolate, &info, start_position_, end_position_,
+                           function_literal_id_);
+  parser.UpdateStatistics(script_, &use_counts_, &total_preparse_skipped_);
 
-      info_->ast_value_factory()->Internalize(&isolate);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileCodeBackground");
+  RCS_SCOPE(isolate, RuntimeCallCounterIdForCompile(&info),
+            RuntimeCallStats::CounterMode::kThreadSpecific);
 
-      // We don't have the script source, origin, or details yet, so use default
-      // values for them. These will be fixed up during the main-thread merge.
-      Handle<Script> script = info_->CreateScript(
-          &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
-          ScriptOriginOptions(false, false, false, info_->flags().is_module()));
-
-      parser_->HandleSourceURLComments(&isolate, script);
-
-      MaybeHandle<SharedFunctionInfo> maybe_result;
-      if (info_->literal() != nullptr) {
-        maybe_result = CompileAndFinalizeOnBackgroundThread(
-            info_.get(), compile_state_.allocator(), script, &isolate,
-            &finalize_unoptimized_compilation_data_,
-            &jobs_to_retry_finalization_on_main_thread_, &is_compiled_scope_);
-      } else {
-        DCHECK(compile_state_.pending_error_handler()->has_pending_error());
-        PreparePendingException(&isolate, info_.get());
-      }
-
-      outer_function_sfi_ =
-          isolate.heap()->NewPersistentMaybeHandle(maybe_result);
-      script_ = isolate.heap()->NewPersistentHandle(script);
-
-      persistent_handles_ = isolate.heap()->DetachPersistentHandles();
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  if (info.literal() != nullptr) {
+    Handle<SharedFunctionInfo> shared_info;
+    if (toplevel_script_compilation) {
+      shared_info = CreateTopLevelSharedFunctionInfo(&info, script_, isolate);
+    } else {
+      // Clone into a placeholder SFI for storing the results.
+      shared_info = isolate->factory()->CloneSharedFunctionInfo(
+          input_shared_info_.ToHandleChecked());
     }
 
-    {
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.FinalizeCodeBackground.ReleaseParser");
-      DCHECK_EQ(language_mode_, info_->language_mode());
-      off_thread_scope.reset();
-      parser_.reset();
-      info_.reset();
+    if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
+            isolate, shared_info, script_, &info, reusable_state->allocator(),
+            &is_compiled_scope_, &finalize_unoptimized_compilation_data_,
+            &jobs_to_retry_finalization_on_main_thread_)) {
+      maybe_result = shared_info;
     }
   }
+
+  if (maybe_result.is_null()) {
+    PreparePendingException(isolate, &info);
+  }
+
+  outer_function_sfi_ = isolate->heap()->NewPersistentMaybeHandle(maybe_result);
+  DCHECK(isolate->heap()->ContainsPersistentHandle(script_.location()));
+  persistent_handles_ = isolate->heap()->DetachPersistentHandles();
 }
 
-MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::GetOuterFunctionSfi(
-    Isolate* isolate) {
-  // outer_function_sfi_ is a persistent Handle, tied to the lifetime of the
-  // persistent_handles_ member, so create a new Handle to let it outlive
-  // the BackgroundCompileTask.
+MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details) {
+  ScriptOriginOptions origin_options = script_details.origin_options;
+
+  DCHECK(flags_.is_toplevel());
+  DCHECK_EQ(flags_.is_module(), origin_options.IsModule());
+
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+
+  // We might not have been able to finalize all jobs on the background
+  // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
+  if (FinalizeDeferredUnoptimizedCompilationJobs(
+          isolate, script_, &jobs_to_retry_finalization_on_main_thread_,
+          compile_state_.pending_error_handler(),
+          &finalize_unoptimized_compilation_data_)) {
+    maybe_result = outer_function_sfi_;
+  }
+
+  script_->set_source(*source);
+  script_->set_origin_options(origin_options);
+
+  // The one post-hoc fix-up: Add the script to the script list.
+  Handle<WeakArrayList> scripts = isolate->factory()->script_list();
+  scripts =
+      WeakArrayList::Append(isolate, scripts, MaybeObjectHandle::Weak(script_));
+  isolate->heap()->SetRootScriptList(*scripts);
+
+  // Set the script fields after finalization, to keep this path the same
+  // between main-thread and off-thread finalization.
+  {
+    DisallowGarbageCollection no_gc;
+    SetScriptFieldsFromDetails(isolate, *script_, script_details, &no_gc);
+    LOG(isolate, ScriptDetails(*script_));
+  }
+
+  ReportStatistics(isolate);
+
   Handle<SharedFunctionInfo> result;
-  if (outer_function_sfi_.ToHandle(&result)) {
-    return handle(*result, isolate);
+  if (!maybe_result.ToHandle(&result)) {
+    FailWithPreparedPendingException(isolate, script_,
+                                     compile_state_.pending_error_handler());
+    return kNullMaybeHandle;
   }
-  return kNullMaybeHandle;
+
+  FinalizeUnoptimizedScriptCompilation(isolate, script_, flags_,
+                                       &compile_state_,
+                                       finalize_unoptimized_compilation_data_);
+
+  return handle(*result, isolate);
 }
 
-Handle<Script> BackgroundCompileTask::GetScript(Isolate* isolate) {
-  // script_ is a persistent Handle, tied to the lifetime of the
-  // persistent_handles_ member, so create a new Handle to let it outlive
-  // the BackgroundCompileTask.
-  return handle(*script_, isolate);
+bool BackgroundCompileTask::FinalizeFunction(
+    Isolate* isolate, Compiler::ClearExceptionFlag flag) {
+  DCHECK(!flags_.is_toplevel());
+
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  Handle<SharedFunctionInfo> input_shared_info =
+      input_shared_info_.ToHandleChecked();
+
+  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
+  // the LazyCompileDispatcher Job that launched this task, which will now be
+  // considered complete, so clear that regardless of whether the finalize
+  // succeeds or not.
+  input_shared_info->ClearUncompiledDataJobPointer();
+
+  // We might not have been able to finalize all jobs on the background
+  // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
+  if (FinalizeDeferredUnoptimizedCompilationJobs(
+          isolate, script_, &jobs_to_retry_finalization_on_main_thread_,
+          compile_state_.pending_error_handler(),
+          &finalize_unoptimized_compilation_data_)) {
+    maybe_result = outer_function_sfi_;
+  }
+
+  ReportStatistics(isolate);
+
+  Handle<SharedFunctionInfo> result;
+  if (!maybe_result.ToHandle(&result)) {
+    FailWithPreparedPendingException(
+        isolate, script_, compile_state_.pending_error_handler(), flag);
+    return false;
+  }
+
+  FinalizeUnoptimizedCompilation(isolate, script_, flags_, &compile_state_,
+                                 finalize_unoptimized_compilation_data_);
+
+  // Move the compiled data from the placeholder SFI back to the real SFI.
+  input_shared_info->CopyFrom(*result);
+
+  return true;
+}
+
+void BackgroundCompileTask::AbortFunction() {
+  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
+  // the LazyCompileDispatcher Job that launched this task, which is about to be
+  // deleted, so clear that to avoid the SharedFunctionInfo from pointing to
+  // deallocated memory.
+  input_shared_info_.ToHandleChecked()->ClearUncompiledDataJobPointer();
+}
+
+void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
+  // Update use-counts.
+  for (auto feature : use_counts_) {
+    isolate->CountUsage(feature);
+  }
+  if (total_preparse_skipped_ > 0) {
+    isolate->counters()->total_preparse_skipped()->Increment(
+        total_preparse_skipped_);
+  }
 }
 
 BackgroundDeserializeTask::BackgroundDeserializeTask(
@@ -1769,9 +1921,13 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
   flags.set_collect_source_positions(true);
+  // Prevent parallel tasks from being spawned by this job.
+  flags.set_post_parallel_compile_tasks_for_eager_toplevel(false);
+  flags.set_post_parallel_compile_tasks_for_lazy(false);
 
-  UnoptimizedCompileState compile_state(isolate);
-  ParseInfo parse_info(isolate, flags, &compile_state);
+  UnoptimizedCompileState compile_state;
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
 
   // Parse and update ParseInfo with the results. Don't update parsing
   // statistics since we've already parsed the code before.
@@ -1822,7 +1978,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 // static
 bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
                        ClearExceptionFlag flag,
-                       IsCompiledScope* is_compiled_scope) {
+                       IsCompiledScope* is_compiled_scope,
+                       CreateSourcePositions create_source_positions_flag) {
   // We should never reach here if the function is already compiled.
   DCHECK(!shared_info->is_compiled());
   DCHECK(!is_compiled_scope->is_compiled());
@@ -1843,13 +2000,17 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
+  if (create_source_positions_flag == CreateSourcePositions::kYes) {
+    flags.set_collect_source_positions(true);
+  }
 
-  UnoptimizedCompileState compile_state(isolate);
-  ParseInfo parse_info(isolate, flags, &compile_state);
+  UnoptimizedCompileState compile_state;
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
   LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
-  if (dispatcher->IsEnqueued(shared_info)) {
+  if (dispatcher && dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
       return FailWithPendingException(isolate, script, &parse_info, flag);
     }
@@ -1902,7 +2063,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // We should never reach here if the function is already compiled or
   // optimized.
   DCHECK(!function->is_compiled());
-  DCHECK(!function->HasOptimizationMarker());
+  DCHECK(IsNone(function->tiering_state()));
   DCHECK(!function->HasAvailableOptimizedCode());
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
@@ -1919,7 +2080,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  Handle<Code> code = handle(shared_info->GetCode(), isolate);
+  Handle<CodeT> code = handle(shared_info->GetCode(), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -1939,18 +2100,17 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
                                               CodeKindForTopTier());
 
     const CodeKind code_kind = CodeKindForTopTier();
-    const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+    const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
 
     if (FLAG_stress_concurrent_inlining &&
         isolate->concurrent_recompilation_enabled() &&
-        concurrency_mode == ConcurrencyMode::kNotConcurrent &&
         isolate->node_observer() == nullptr) {
       SpawnDuplicateConcurrentJobForStressTesting(isolate, function,
                                                   concurrency_mode, code_kind);
     }
 
-    Handle<Code> maybe_code;
-    if (GetOptimizedCode(isolate, function, concurrency_mode, code_kind)
+    Handle<CodeT> maybe_code;
+    if (GetOrCompileOptimized(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
@@ -1961,7 +2121,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
-    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
   }
 
   // Check postconditions on success.
@@ -2003,12 +2163,10 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
-    shared->set_baseline_code(*code, kReleaseStore);
+    shared->set_baseline_code(ToCodeT(*code), kReleaseStore);
 
     if (V8_LIKELY(FLAG_use_osr)) {
-      // Arm back edges for OSR
-      shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
-          AbstractCode::kMaxLoopNestingMarker);
+      shared->GetBytecodeArray(isolate).RequestOsrAtNextOpportunity();
     }
   }
   double time_taken_ms = time_taken.InMillisecondsF();
@@ -2016,10 +2174,11 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
 
   if (shared->script().IsScript()) {
-    Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG, shared,
-        handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
+    LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG,
+                           handle(Script::cast(shared->script()), isolate),
+                           shared, Handle<FeedbackVector>(),
+                           Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+                           time_taken_ms);
   }
   return true;
 }
@@ -2034,13 +2193,39 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Baseline code needs a feedback vector.
-  JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
 
-  Code baseline_code = shared->baseline_code(kAcquireLoad);
+  CodeT baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
 
   return true;
+}
+
+// static
+bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                             ConcurrencyMode mode,
+                             IsCompiledScope* is_compiled_scope) {
+#ifdef V8_ENABLE_MAGLEV
+  // Bytecode must be available for maglev compilation.
+  DCHECK(is_compiled_scope->is_compiled());
+  // TODO(v8:7700): Support concurrent compilation.
+  DCHECK(IsSynchronous(mode));
+
+  // Maglev code needs a feedback vector.
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
+
+  MaybeHandle<CodeT> maybe_code = Maglev::Compile(isolate, function);
+  Handle<CodeT> code;
+  if (!maybe_code.ToHandle(&code)) return false;
+
+  DCHECK_EQ(code->kind(), CodeKind::MAGLEV);
+  function->set_code(*code);
+
+  return true;
+#else
+  return false;
+#endif  // V8_ENABLE_MAGLEV
 }
 
 // static
@@ -2052,86 +2237,50 @@ MaybeHandle<SharedFunctionInfo> Compiler::CompileToplevel(
 }
 
 // static
-bool Compiler::FinalizeBackgroundCompileTask(
-    BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
-    Isolate* isolate, ClearExceptionFlag flag) {
-  DCHECK(!FLAG_finalize_streaming_on_background);
-
+bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
+                                             Isolate* isolate,
+                                             ClearExceptionFlag flag) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.FinalizeBackgroundCompileTask");
   RCS_SCOPE(isolate,
             RuntimeCallCounterId::kCompileFinalizeBackgroundCompileTask);
+
   HandleScope scope(isolate);
-  ParseInfo* parse_info = task->info();
-  DCHECK(!parse_info->flags().is_toplevel());
-  DCHECK(!shared_info->is_compiled());
 
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  parse_info->CheckFlagsForFunctionFromScript(*script);
-
-  task->parser()->UpdateStatistics(isolate, script);
-  task->parser()->HandleSourceURLComments(isolate, script);
-
-  if (task->compilation_jobs()->empty()) {
-    // Parsing or compile failed on background thread - report error messages.
-    return FailWithPendingException(isolate, script, parse_info, flag);
-  }
-
-  // Parsing has succeeded - finalize compilation.
-  parse_info->ast_value_factory()->Internalize(isolate);
-  if (!FinalizeAllUnoptimizedCompilationJobs(
-          parse_info, isolate, script, task->compilation_jobs(),
-          task->finalize_unoptimized_compilation_data())) {
-    // Finalization failed - throw an exception.
-    return FailWithPendingException(isolate, script, parse_info, flag);
-  }
-  FinalizeUnoptimizedCompilation(
-      isolate, script, parse_info->flags(), parse_info->state(),
-      *task->finalize_unoptimized_compilation_data());
+  if (!task->FinalizeFunction(isolate, flag)) return false;
 
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(shared_info->is_compiled());
   return true;
 }
 
 // static
-bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   if (FLAG_stress_concurrent_inlining &&
-      isolate->concurrent_recompilation_enabled() &&
-      mode == ConcurrencyMode::kNotConcurrent &&
+      isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
       isolate->node_observer() == nullptr) {
     SpawnDuplicateConcurrentJobForStressTesting(isolate, function, mode,
                                                 code_kind);
   }
 
-  Handle<Code> code;
-  if (!GetOptimizedCode(isolate, function, mode, code_kind).ToHandle(&code)) {
-    // Optimization failed, get the existing code. We could have optimized code
-    // from a lower tier here. Unoptimized code must exist already if we are
-    // optimizing.
-    DCHECK(!isolate->has_pending_exception());
-    DCHECK(function->shared().is_compiled());
-    DCHECK(function->shared().IsInterpreted());
-    code = ContinuationForConcurrentOptimization(isolate, function);
+  Handle<CodeT> code;
+  if (GetOrCompileOptimized(isolate, function, mode, code_kind)
+          .ToHandle(&code)) {
+    function->set_code(*code, kReleaseStore);
   }
 
-  function->set_code(*code, kReleaseStore);
-
-  // Check postconditions on success.
+#ifdef DEBUG
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->IsInOptimizationQueue());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->ChecksOptimizationMarker());
-  DCHECK_IMPLIES(function->IsInOptimizationQueue(),
-                 mode == ConcurrencyMode::kConcurrent);
-  return true;
+  DCHECK(function->shared().HasBytecodeArray());
+  const TieringState tiering_state = function->tiering_state();
+  DCHECK(IsNone(tiering_state) || IsInProgress(tiering_state));
+  DCHECK_IMPLIES(IsInProgress(tiering_state), function->ChecksTieringState());
+  DCHECK_IMPLIES(IsInProgress(tiering_state), IsConcurrent(mode));
+#endif  // DEBUG
 }
 
 // static
@@ -2147,7 +2296,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos,
-    int eval_scope_position, int eval_position) {
+    int eval_scope_position, int eval_position,
+    ParsingWhileDebugging parsing_while_debugging) {
   Isolate* isolate = context->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -2190,20 +2340,22 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
         FLAG_lazy_eval);
     flags.set_is_eval(true);
+    flags.set_parsing_while_debugging(parsing_while_debugging);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
 
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo parse_info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
     parse_info.set_parameters_end_pos(parameters_end_pos);
 
     MaybeHandle<ScopeInfo> maybe_outer_scope_info;
     if (!context->IsNativeContext()) {
       maybe_outer_scope_info = handle(context->scope_info(), isolate);
     }
-    script =
-        parse_info.CreateScript(isolate, source, kNullMaybeHandle,
-                                OriginOptionsForEval(outer_info->script()));
+    script = parse_info.CreateScript(
+        isolate, source, kNullMaybeHandle,
+        OriginOptionsForEval(outer_info->script(), parsing_while_debugging));
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
       // If the position is missing, attempt to get the code offset by
@@ -2214,7 +2366,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         FrameSummary summary = it.GetTopValidFrame();
         script->set_eval_from_shared(
             summary.AsJavaScript().function()->shared());
-        script->set_origin_options(OriginOptionsForEval(*summary.script()));
+        script->set_origin_options(
+            OriginOptionsForEval(*summary.script(), parsing_while_debugging));
         eval_position = -summary.code_offset();
       } else {
         eval_position = 0;
@@ -2639,30 +2792,6 @@ struct ScriptCompileTimerScope {
   }
 };
 
-void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
-                                ScriptDetails script_details,
-                                DisallowGarbageCollection* no_gc) {
-  Handle<Object> script_name;
-  if (script_details.name_obj.ToHandle(&script_name)) {
-    script.set_name(*script_name);
-    script.set_line_offset(script_details.line_offset);
-    script.set_column_offset(script_details.column_offset);
-  }
-  // The API can provide a source map URL, but a source map URL could also have
-  // been inferred by the parser from a magic comment. The latter takes
-  // preference over the former, so we don't want to override the source mapping
-  // URL if it already exists.
-  Handle<Object> source_map_url;
-  if (script_details.source_map_url.ToHandle(&source_map_url) &&
-      script.source_mapping_url(isolate).IsUndefined(isolate)) {
-    script.set_source_mapping_url(*source_map_url);
-  }
-  Handle<FixedArray> host_defined_options;
-  if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
-    script.set_host_defined_options(*host_defined_options);
-  }
-}
-
 Handle<Script> NewScript(
     Isolate* isolate, ParseInfo* parse_info, Handle<String> source,
     ScriptDetails script_details, NativesFlag natives,
@@ -2682,8 +2811,9 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     const ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
-  UnoptimizedCompileState compile_state(isolate);
-  ParseInfo parse_info(isolate, flags, &compile_state);
+  UnoptimizedCompileState compile_state;
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   parse_info.set_extension(extension);
 
   Handle<Script> script =
@@ -2759,7 +2889,7 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
   if (!obj->IsJSError(isolate)) return false;
   Handle<JSReceiver> js_obj = Handle<JSReceiver>::cast(obj);
   Handle<JSReceiver> constructor;
-  if (!JSReceiver::GetConstructor(js_obj).ToHandle(&constructor)) {
+  if (!JSReceiver::GetConstructor(isolate, js_obj).ToHandle(&constructor)) {
     return false;
   }
   return *constructor == *isolate->range_error_function();
@@ -2853,6 +2983,29 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   int source_length = source->length();
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
+
+  if (V8_UNLIKELY(
+          i::FLAG_experimental_web_snapshots &&
+          (source->IsExternalOneByteString() || source->IsSeqOneByteString() ||
+           source->IsExternalTwoByteString() || source->IsSeqTwoByteString()) &&
+          source_length > 4)) {
+    // Experimental: Treat the script as a web snapshot if it starts with the
+    // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
+    // integration is done.
+    bool magic_matches = true;
+    for (size_t i = 0;
+         i < sizeof(WebSnapshotSerializerDeserializer::kMagicNumber); ++i) {
+      if (source->Get(static_cast<int>(i)) !=
+          WebSnapshotSerializerDeserializer::kMagicNumber[i]) {
+        magic_matches = false;
+        break;
+      }
+    }
+    if (magic_matches) {
+      return Compiler::GetSharedFunctionInfoForWebSnapshot(
+          isolate, source, script_details.name_obj);
+    }
+  }
 
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -3048,8 +3201,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     flags.set_collect_source_positions(true);
     // flags.set_eager(compile_options == ScriptCompiler::kEagerCompile);
 
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo parse_info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
 
     MaybeHandle<ScopeInfo> maybe_outer_scope_info;
     if (!context->IsNativeContext()) {
@@ -3091,8 +3245,7 @@ MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, ScriptStreamingData* streaming_data) {
-  ScriptOriginOptions origin_options = script_details.origin_options;
-  DCHECK(!origin_options.IsWasm());
+  DCHECK(!script_details.origin_options.IsWasm());
 
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
@@ -3111,8 +3264,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.StreamingFinalization.CheckCache");
-    maybe_result = compilation_cache->LookupScript(source, script_details,
-                                                   task->language_mode());
+    maybe_result = compilation_cache->LookupScript(
+        source, script_details, task->flags().outer_language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }
@@ -3121,89 +3274,20 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   if (maybe_result.is_null()) {
     // No cache entry found, finalize compilation of the script and add it to
     // the isolate cache.
-    DCHECK_EQ(task->flags().is_module(), origin_options.IsModule());
+    RCS_SCOPE(isolate,
+              RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.OffThreadFinalization.Publish");
 
-    Handle<Script> script;
-    if (FLAG_finalize_streaming_on_background) {
-      RCS_SCOPE(isolate,
-                RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.OffThreadFinalization.Publish");
-
-      script = task->GetScript(isolate);
-
-      // We might not have been able to finalize all jobs on the background
-      // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
-      if (FinalizeDeferredUnoptimizedCompilationJobs(
-              isolate, script,
-              task->jobs_to_retry_finalization_on_main_thread(),
-              task->compile_state()->pending_error_handler(),
-              task->finalize_unoptimized_compilation_data())) {
-        maybe_result = task->GetOuterFunctionSfi(isolate);
-      }
-
-      script->set_source(*source);
-      script->set_origin_options(origin_options);
-
-      // The one post-hoc fix-up: Add the script to the script list.
-      Handle<WeakArrayList> scripts = isolate->factory()->script_list();
-      scripts = WeakArrayList::Append(isolate, scripts,
-                                      MaybeObjectHandle::Weak(script));
-      isolate->heap()->SetRootScriptList(*scripts);
-    } else {
-      ParseInfo* parse_info = task->info();
-      DCHECK_EQ(parse_info->flags().is_module(), origin_options.IsModule());
-      DCHECK(parse_info->flags().is_toplevel());
-
-      script = parse_info->CreateScript(isolate, source, kNullMaybeHandle,
-                                        origin_options);
-
-      task->parser()->UpdateStatistics(isolate, script);
-      task->parser()->HandleSourceURLComments(isolate, script);
-
-      if (!task->compilation_jobs()->empty()) {
-        // Off-thread parse & compile has succeeded - finalize compilation.
-        DCHECK_NOT_NULL(parse_info->literal());
-
-        parse_info->ast_value_factory()->Internalize(isolate);
-
-        Handle<SharedFunctionInfo> shared_info =
-            CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
-        if (FinalizeAllUnoptimizedCompilationJobs(
-                parse_info, isolate, script, task->compilation_jobs(),
-                task->finalize_unoptimized_compilation_data())) {
-          maybe_result = shared_info;
-        }
-      }
-
-      if (maybe_result.is_null()) {
-        // Compilation failed - prepare to throw an exception after script
-        // fields have been set.
-        PreparePendingException(isolate, parse_info);
-      }
-    }
-
-    // Set the script fields after finalization, to keep this path the same
-    // between main-thread and off-thread finalization.
-    {
-      DisallowGarbageCollection no_gc;
-      SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
-      LOG(isolate, ScriptDetails(*script));
-    }
+    maybe_result = task->FinalizeScript(isolate, source, script_details);
 
     Handle<SharedFunctionInfo> result;
-    if (!maybe_result.ToHandle(&result)) {
-      FailWithPreparedPendingException(
-          isolate, script, task->compile_state()->pending_error_handler());
-    } else {
-      FinalizeUnoptimizedScriptCompilation(
-          isolate, script, task->flags(), task->compile_state(),
-          *task->finalize_unoptimized_compilation_data());
-
+    if (maybe_result.ToHandle(&result)) {
       // Add compiled code to the isolate cache.
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.StreamingFinalization.AddToCache");
-      compilation_cache->PutScript(source, task->language_mode(), result);
+      compilation_cache->PutScript(source, task->flags().outer_language_mode(),
+                                   result);
     }
   }
 
@@ -3211,6 +3295,30 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                "V8.StreamingFinalization.Release");
   streaming_data->Release();
   return maybe_result;
+}  // namespace internal
+
+// static
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
+    Isolate* isolate, Handle<String> source,
+    MaybeHandle<Object> maybe_script_name) {
+  // This script won't hold the functions created from the web snapshot;
+  // reserving space only for the top-level SharedFunctionInfo is enough.
+  Handle<WeakFixedArray> shared_function_infos =
+      isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
+  Handle<Script> script = isolate->factory()->NewScript(source);
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  script->set_shared_function_infos(*shared_function_infos);
+  Handle<Object> script_name;
+  if (maybe_script_name.ToHandle(&script_name) && script_name->IsString()) {
+    script->set_name(String::cast(*script_name));
+  } else {
+    script->set_name(*isolate->factory()->empty_string());
+  }
+
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWebSnapshot();
+  shared->SetScript(isolate->factory()->read_only_roots(), *script, 0, false);
+  return shared;
 }
 
 // static
@@ -3265,22 +3373,67 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Isolate* isolate,
-                                                   Handle<JSFunction> function,
-                                                   BytecodeOffset osr_offset,
-                                                   JavaScriptFrame* osr_frame) {
-  DCHECK(!osr_offset.IsNone());
-  DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(isolate, function, ConcurrencyMode::kNotConcurrent,
-                          CodeKindForOSR(), osr_offset, osr_frame);
+MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
+                                                 Handle<JSFunction> function,
+                                                 BytecodeOffset osr_offset,
+                                                 UnoptimizedFrame* frame,
+                                                 ConcurrencyMode mode) {
+  DCHECK(IsOSR(osr_offset));
+  DCHECK_NOT_NULL(frame);
+
+  if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
+  if (V8_UNLIKELY(function->shared().optimization_disabled())) return {};
+
+  // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
+  // bytecode array. So, it might be possible to mark closure in one native
+  // context and optimize a closure from a different native context. So check if
+  // there is a feedback vector before OSRing. We don't expect this to happen
+  // often.
+  if (V8_UNLIKELY(!function->has_feedback_vector())) return {};
+
+  // One OSR job per function at a time.
+  if (IsInProgress(function->osr_tiering_state())) {
+    return {};
+  }
+
+  // -- Alright, decided to proceed. --
+
+  // Disarm all back edges, i.e. reset the OSR urgency and install target.
+  //
+  // Note that the bytecode array active on the stack might be different from
+  // the one installed on the function (e.g. patched by debugger). This however
+  // is fine because we guarantee the layout to be in sync, hence any
+  // BytecodeOffset representing the entry point will be valid for any copy of
+  // the bytecode.
+  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), isolate);
+  bytecode->reset_osr_urgency_and_install_target();
+
+  CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset, mode);
+  MaybeHandle<CodeT> result = GetOrCompileOptimized(
+      isolate, function, mode, CodeKind::TURBOFAN, osr_offset, frame);
+
+  if (result.is_null()) {
+    CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset,
+                                                mode);
+  }
+
+  return result;
 }
 
 // static
-bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
-                                               Isolate* isolate) {
+void Compiler::DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                             bool restore_function_code) {
+  Handle<JSFunction> function = job->compilation_info()->closure();
+  ResetTieringState(*function, job->compilation_info()->osr_offset());
+  if (restore_function_code) {
+    function->set_code(function->shared().GetCode(), kReleaseStore);
+  }
+}
+
+// static
+bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                              Isolate* isolate) {
   VMState<COMPILER> state(isolate);
-  // Take ownership of the job. Deleting the job also tears down the zone.
-  std::unique_ptr<OptimizedCompilationJob> job_scope(job);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
@@ -3288,12 +3441,14 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentFinalize");
 
+  Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
   const bool use_result = !compilation_info->discard_result_for_testing();
+  const BytecodeOffset osr_offset = compilation_info->osr_offset();
+
   if (V8_LIKELY(use_result)) {
-    // Reset profiler ticks, function is no longer considered hot.
-    compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
+    ResetProfilerTicks(*function, osr_offset);
   }
 
   DCHECK(!shared->HasBreakInfo());
@@ -3307,15 +3462,23 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
     if (shared->optimization_disabled()) {
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
-      job->RecordCompilationStats(OptimizedCompilationJob::kConcurrent,
-                                  isolate);
+      job->RecordCompilationStats(ConcurrencyMode::kConcurrent, isolate);
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       if (V8_LIKELY(use_result)) {
-        InsertCodeIntoOptimizedCodeCache(compilation_info);
+        ResetTieringState(*function, osr_offset);
+        OptimizedCodeCache::Insert(compilation_info);
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
-        compilation_info->closure()->set_code(*compilation_info->code(),
-                                              kReleaseStore);
+        if (IsOSR(osr_offset)) {
+          if (FLAG_trace_osr) {
+            PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
+                   "[OSR - requesting install. function: %s, osr offset: %d]\n",
+                   function->DebugNameCStr().get(), osr_offset.ToInt());
+          }
+          shared->GetBytecodeArray(isolate).set_osr_install_target(osr_offset);
+        } else {
+          function->set_code(*compilation_info->code(), kReleaseStore);
+        }
       }
       return CompilationJob::SUCCEEDED;
     }
@@ -3324,13 +3487,22 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   if (V8_LIKELY(use_result)) {
-    compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
-    // Clear the InOptimizationQueue marker, if it exists.
-    if (compilation_info->closure()->IsInOptimizationQueue()) {
-      compilation_info->closure()->ClearOptimizationMarker();
+    ResetTieringState(*function, osr_offset);
+    if (!IsOSR(osr_offset)) {
+      function->set_code(shared->GetCode(), kReleaseStore);
     }
   }
   return CompilationJob::FAILED;
+}
+
+// static
+bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+                                            Isolate* isolate) {
+#ifdef V8_ENABLE_MAGLEV
+  VMState<COMPILER> state(isolate);
+  RecordMaglevFunctionCompilation(isolate, job->function());
+#endif
+  return CompilationJob::SUCCEEDED;
 }
 
 // static
@@ -3352,9 +3524,8 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       // deoptimized the code on the feedback vector. So check for any
       // deoptimized code just before installing it on the funciton.
       function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-          function->raw_feedback_cell(), *shared,
-          "new function from shared function info");
-      Code code = function->feedback_vector().optimized_code();
+          *shared, "new function from shared function info");
+      CodeT code = function->feedback_vector().optimized_code();
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code.marked_for_deoptimization());
@@ -3372,8 +3543,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
         !shared->optimization_disabled() &&
         !function->HasAvailableOptimizedCode()) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
-      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-      function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
+      JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+      function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+                                    ConcurrencyMode::kSynchronous);
     }
   }
 

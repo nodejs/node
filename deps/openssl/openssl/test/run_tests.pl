@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -309,10 +309,12 @@ my $harness = $package->new(\%tapargs);
 my $ret =
     $harness->runtests(map { [ abs2rel($_, rel2abs(curdir())), basename($_) ] }
                        @preps);
-die if $ret->has_errors;
-$ret =
-    $harness->runtests(map { [ abs2rel($_, rel2abs(curdir())), basename($_) ] }
-                       sort { reorder($a) cmp reorder($b) } keys %tests);
+
+if (ref($ret) ne "TAP::Parser::Aggregator" || !$ret->has_errors) {
+    $ret =
+        $harness->runtests(map { [ abs2rel($_, rel2abs(curdir())), basename($_) ] }
+                           sort { reorder($a) cmp reorder($b) } keys %tests);
+}
 
 # If this is a TAP::Parser::Aggregator, $ret->has_errors is the count of
 # tests that failed.  We don't bother with that exact number, just exit

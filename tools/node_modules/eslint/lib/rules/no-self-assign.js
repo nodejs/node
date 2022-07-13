@@ -130,7 +130,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow assignments where both sides are exactly the same",
+            description: "Disallow assignments where both sides are exactly the same",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-self-assign"
         },
@@ -174,7 +174,7 @@ module.exports = {
 
         return {
             AssignmentExpression(node) {
-                if (node.operator === "=") {
+                if (["=", "&&=", "||=", "??="].includes(node.operator)) {
                     eachSelfAssignment(node.left, node.right, props, report);
                 }
             }

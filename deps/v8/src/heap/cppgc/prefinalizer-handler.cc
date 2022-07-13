@@ -16,17 +16,14 @@
 namespace cppgc {
 namespace internal {
 
-// static
-void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-    PreFinalizer pre_finalizer) {
-  BasePage::FromPayload(pre_finalizer.object)
-      ->heap()
-      .prefinalizer_handler()
-      ->RegisterPrefinalizer(pre_finalizer);
+PrefinalizerRegistration::PrefinalizerRegistration(void* object,
+                                                   Callback callback) {
+  auto* page = BasePage::FromPayload(object);
+  DCHECK(!page->space().is_compactable());
+  page->heap().prefinalizer_handler()->RegisterPrefinalizer({object, callback});
 }
 
-bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
-    const PreFinalizer& other) const {
+bool PreFinalizer::operator==(const PreFinalizer& other) const {
   return (object == other.object) && (callback == other.callback);
 }
 
@@ -36,7 +33,7 @@ PreFinalizerHandler::PreFinalizerHandler(HeapBase& heap)
 #ifdef DEBUG
       ,
       creation_thread_id_(v8::base::OS::GetCurrentThreadId())
-#endif
+#endif  // DEBUG
 {
 }
 
@@ -52,7 +49,9 @@ void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer pre_finalizer) {
 }
 
 void PreFinalizerHandler::InvokePreFinalizers() {
-  StatsCollector::DisabledScope stats_scope(
+  StatsCollector::EnabledScope stats_scope(heap_.stats_collector(),
+                                           StatsCollector::kAtomicSweep);
+  StatsCollector::EnabledScope nested_stats_scope(
       heap_.stats_collector(), StatsCollector::kSweepInvokePreFinalizers);
 
   DCHECK(CurrentThreadIsCreationThread());

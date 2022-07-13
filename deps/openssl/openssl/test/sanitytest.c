@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -114,6 +114,13 @@ static int test_sanity_range(void)
         TEST_error("int must not be wider than size_t");
         return 0;
     }
+
+    /* SIZE_MAX is always greater than 2*INT_MAX */
+    if (SIZE_MAX - INT_MAX <= INT_MAX) {
+        TEST_error("SIZE_MAX must exceed 2*INT_MAX");
+        return 0;
+    }
+
     return 1;
 }
 

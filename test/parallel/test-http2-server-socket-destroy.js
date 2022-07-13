@@ -62,5 +62,7 @@ server.on('listening', common.mustCall(async () => {
 
   try {
     await once(req, 'end');
-  } catch {}
+  } catch {
+    // Continue regardless of error.
+  }
 }));

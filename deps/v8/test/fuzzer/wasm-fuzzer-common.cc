@@ -22,6 +22,7 @@
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
@@ -192,18 +193,47 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
 }
 
 namespace {
+
 struct PrintSig {
   const size_t num;
   const std::function<ValueType(size_t)> getter;
 };
+
 PrintSig PrintParameters(const FunctionSig* sig) {
   return {sig->parameter_count(), [=](size_t i) { return sig->GetParam(i); }};
 }
+
 PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
+
+std::string HeapTypeToConstantName(HeapType heap_type) {
+  switch (heap_type.representation()) {
+    case HeapType::kFunc:
+      return "kWasmFuncRef";
+    case HeapType::kEq:
+      return "kWasmEqRef";
+    case HeapType::kI31:
+      return "kWasmI31Ref";
+    case HeapType::kData:
+      return "kWasmDataRef";
+    case HeapType::kArray:
+      return "kWasmArrayRef";
+    case HeapType::kAny:
+      return "kWasmAnyRef";
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      return std::to_string(heap_type.ref_index());
+  }
+}
+
 std::string ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
+    case kI8:
+      return "kWasmI8";
+    case kI16:
+      return "kWasmI16";
     case kI32:
       return "kWasmI32";
     case kI64:
@@ -216,45 +246,27 @@ std::string ValueTypeToConstantName(ValueType type) {
       return "kWasmS128";
     case kOptRef:
       switch (type.heap_representation()) {
-        case HeapType::kExtern:
-          return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
         case HeapType::kEq:
           return "kWasmEqRef";
         case HeapType::kAny:
           return "kWasmAnyRef";
-        case HeapType::kData:
-          return "wasmOptRefType(kWasmDataRef)";
-        case HeapType::kI31:
-          return "wasmOptRefType(kWasmI31Ref)";
         case HeapType::kBottom:
+          UNREACHABLE();
+        case HeapType::kData:
+        case HeapType::kArray:
+        case HeapType::kI31:
         default:
-          return "wasmOptRefType(" + std::to_string(type.ref_index()) + ")";
+          return "wasmOptRefType(" + HeapTypeToConstantName(type.heap_type()) +
+                 ")";
       }
-    default:
+    case kRef:
+      return "wasmRefType(" + HeapTypeToConstantName(type.heap_type()) + ")";
+    case kRtt:
+    case kVoid:
+    case kBottom:
       UNREACHABLE();
-  }
-}
-
-std::string HeapTypeToConstantName(HeapType heap_type) {
-  switch (heap_type.representation()) {
-    case HeapType::kFunc:
-      return "kWasmFuncRef";
-    case HeapType::kExtern:
-      return "kWasmExternRef";
-    case HeapType::kEq:
-      return "kWasmEqRef";
-    case HeapType::kI31:
-      return "kWasmI31Ref";
-    case HeapType::kData:
-      return "kWasmDataRef";
-    case HeapType::kAny:
-      return "kWasmAnyRef";
-    case HeapType::kBottom:
-      UNREACHABLE();
-    default:
-      return std::to_string(heap_type.ref_index());
   }
 }
 
@@ -272,82 +284,255 @@ struct PrintName {
       : name(wire_bytes.GetNameOrNull(ref)) {}
 };
 std::ostream& operator<<(std::ostream& os, const PrintName& name) {
-  return os.write(name.name.begin(), name.name.size());
+  return os.put('\'').write(name.name.begin(), name.name.size()).put('\'');
 }
 
-std::ostream& operator<<(std::ostream& os, WasmElemSegment::Entry entry) {
-  os << "WasmInitExpr.";
-  switch (entry.kind) {
-    case WasmElemSegment::Entry::kGlobalGetEntry:
-      os << "GlobalGet(" << entry.index;
-      break;
-    case WasmElemSegment::Entry::kRefFuncEntry:
-      os << "RefFunc(" << entry.index;
-      break;
-    case WasmElemSegment::Entry::kRefNullEntry:
-      os << "RefNull(" << HeapType(entry.index).name().c_str();
-      break;
+// An interface for WasmFullDecoder used to decode initializer expressions. As
+// opposed to the one in src/wasm/, this emits {WasmInitExpr} as opposed to a
+// {WasmValue}.
+class InitExprInterface {
+ public:
+  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  static constexpr DecodingMode decoding_mode = kInitExpression;
+
+  struct Value : public ValueBase<validate> {
+    WasmInitExpr init_expr;
+
+    template <typename... Args>
+    explicit Value(Args&&... args) V8_NOEXCEPT
+        : ValueBase(std::forward<Args>(args)...) {}
+  };
+
+  using Control = ControlBase<Value, validate>;
+  using FullDecoder =
+      WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
+
+  explicit InitExprInterface(Zone* zone) : zone_(zone) {}
+
+#define EMPTY_INTERFACE_FUNCTION(name, ...) \
+  V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) {}
+  INTERFACE_META_FUNCTIONS(EMPTY_INTERFACE_FUNCTION)
+#undef EMPTY_INTERFACE_FUNCTION
+#define UNREACHABLE_INTERFACE_FUNCTION(name, ...) \
+  V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) { UNREACHABLE(); }
+  INTERFACE_NON_CONSTANT_FUNCTIONS(UNREACHABLE_INTERFACE_FUNCTION)
+#undef UNREACHABLE_INTERFACE_FUNCTION
+
+  void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
+    result->init_expr = WasmInitExpr(value);
   }
-  return os << ")";
-}
+
+  void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
+    result->init_expr = WasmInitExpr(value);
+  }
+
+  void F32Const(FullDecoder* decoder, Value* result, float value) {
+    result->init_expr = WasmInitExpr(value);
+  }
+
+  void F64Const(FullDecoder* decoder, Value* result, double value) {
+    result->init_expr = WasmInitExpr(value);
+  }
+
+  void S128Const(FullDecoder* decoder, Simd128Immediate<validate>& imm,
+                 Value* result) {
+    result->init_expr = WasmInitExpr(imm.value);
+  }
+
+  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
+             const Value& rhs, Value* result) {
+    // TODO(12089): Implement.
+    UNIMPLEMENTED();
+  }
+
+  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
+    result->init_expr = WasmInitExpr::RefNullConst(type.heap_representation());
+  }
+
+  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    result->init_expr = WasmInitExpr::RefFuncConst(function_index);
+  }
+
+  void GlobalGet(FullDecoder* decoder, Value* result,
+                 const GlobalIndexImmediate<validate>& imm) {
+    result->init_expr = WasmInitExpr::GlobalGet(imm.index);
+  }
+
+  void StructNewWithRtt(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, const Value args[], Value* result) {
+    ZoneVector<WasmInitExpr>* elements =
+        zone_->New<ZoneVector<WasmInitExpr>>(zone_);
+    for (size_t i = 0; i < imm.struct_type->field_count(); i++) {
+      elements->push_back(args[i].init_expr);
+    }
+    bool nominal = decoder->module_->has_supertype(imm.index);
+
+    if (!nominal) elements->push_back(rtt.init_expr);
+
+    result->init_expr =
+        nominal ? WasmInitExpr::StructNew(imm.index, elements)
+                : WasmInitExpr::StructNewWithRtt(imm.index, elements);
+  }
+
+  void StructNewDefault(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, Value* result) {
+    bool nominal = decoder->module_->has_supertype(imm.index);
+    result->init_expr = nominal ? WasmInitExpr::StructNewDefault(imm.index)
+                                : WasmInitExpr::StructNewDefaultWithRtt(
+                                      zone_, imm.index, rtt.init_expr);
+  }
+
+  void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                 const base::Vector<Value>& elements, const Value& rtt,
+                 Value* result) {
+    ZoneVector<WasmInitExpr>* args =
+        zone_->New<ZoneVector<WasmInitExpr>>(zone_);
+    for (Value expr : elements) args->push_back(expr.init_expr);
+    bool nominal = decoder->module_->has_supertype(imm.index);
+
+    if (!nominal) args->push_back(rtt.init_expr);
+    result->init_expr = nominal ? WasmInitExpr::ArrayInitStatic(imm.index, args)
+                                : WasmInitExpr::ArrayInit(imm.index, args);
+  }
+
+  void ArrayInitFromData(FullDecoder* decoder,
+                         const ArrayIndexImmediate<validate>& array_imm,
+                         const IndexImmediate<validate>& data_segment_imm,
+                         const Value& offset_value, const Value& length_value,
+                         const Value& rtt, Value* result) {
+    // TODO(7748): Implement.
+    UNIMPLEMENTED();
+  }
+
+  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
+    result->init_expr = WasmInitExpr::RttCanon(type_index);
+  }
+
+  void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) {
+    // End decoding on "end".
+    decoder->set_end(decoder->pc() + 1);
+    result_ = decoder->stack_value(1)->init_expr;
+  }
+
+  WasmInitExpr result() { return result_; }
+
+ private:
+  WasmInitExpr result_;
+  Zone* zone_;
+};
 
 // Appends an initializer expression encoded in {wire_bytes}, in the offset
 // contained in {expr}.
-void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
-                    WireBytesRef expr) {
-  Decoder decoder(wire_bytes.module_bytes());
-  const byte* pc = wire_bytes.module_bytes().begin() + expr.offset();
-  uint32_t length;
+void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
   os << "WasmInitExpr.";
-  switch (static_cast<WasmOpcode>(pc[0])) {
-    case kExprGlobalGet:
-      os << "GlobalGet("
-         << decoder.read_u32v<Decoder::kNoValidation>(pc + 1, &length);
+  bool append_operands = false;
+  switch (expr.kind()) {
+    case WasmInitExpr::kNone:
+      UNREACHABLE();
+    case WasmInitExpr::kGlobalGet:
+      os << "GlobalGet(" << expr.immediate().index;
       break;
-    case kExprI32Const:
-      os << "I32Const("
-         << decoder.read_i32v<Decoder::kNoValidation>(pc + 1, &length);
+    case WasmInitExpr::kI32Const:
+      os << "I32Const(" << expr.immediate().i32_const;
       break;
-    case kExprI64Const:
-      os << "I64Const("
-         << decoder.read_i64v<Decoder::kNoValidation>(pc + 1, &length);
+    case WasmInitExpr::kI64Const:
+      os << "I64Const(" << expr.immediate().i64_const;
       break;
-    case kExprF32Const: {
-      uint32_t result = decoder.read_u32<Decoder::kNoValidation>(pc + 1);
-      os << "F32Const(" << bit_cast<float>(result);
+    case WasmInitExpr::kF32Const:
+      os << "F32Const(" << expr.immediate().f32_const;
       break;
-    }
-    case kExprF64Const: {
-      uint64_t result = decoder.read_u64<Decoder::kNoValidation>(pc + 1);
-      os << "F64Const(" << bit_cast<double>(result);
+    case WasmInitExpr::kF64Const:
+      os << "F64Const(" << expr.immediate().f64_const;
       break;
-    }
-    case kSimdPrefix: {
-      DCHECK_LE(2 + kSimd128Size, expr.length());
-      DCHECK_EQ(static_cast<WasmOpcode>(pc[1]), kExprS128Const & 0xff);
+    case WasmInitExpr::kS128Const:
       os << "S128Const([";
       for (int i = 0; i < kSimd128Size; i++) {
-        os << int(decoder.read_u8<Decoder::kNoValidation>(pc + 2 + i));
-        if (i + 1 < kSimd128Size) os << ", ";
+        os << static_cast<int>(expr.immediate().s128_const[i]);
+        if (i < kSimd128Size - 1) os << ", ";
       }
       os << "]";
       break;
-    }
-    case kExprRefFunc:
-      os << "RefFunc("
-         << decoder.read_u32v<Decoder::kNoValidation>(pc + 1, &length);
+    case WasmInitExpr::kRefNullConst:
+      os << "RefNull("
+         << HeapTypeToConstantName(HeapType(expr.immediate().heap_type));
       break;
-    case kExprRefNull: {
-      HeapType heap_type =
-          value_type_reader::read_heap_type<Decoder::kNoValidation>(
-              &decoder, pc + 1, &length, nullptr, WasmFeatures::All());
-      os << "RefNull(" << HeapTypeToConstantName(heap_type);
+    case WasmInitExpr::kRefFuncConst:
+      os << "RefFunc(" << expr.immediate().index;
       break;
-    }
-    default:
-      UNREACHABLE();
+    case WasmInitExpr::kStructNewWithRtt:
+      os << "StructNewWithRtt(" << expr.immediate().index;
+      append_operands = true;
+      break;
+    case WasmInitExpr::kStructNew:
+      os << "StructNew(" << expr.immediate().index;
+      append_operands = true;
+      break;
+    case WasmInitExpr::kStructNewDefaultWithRtt:
+      os << "StructNewDefaultWithRtt(" << expr.immediate().index << ", ";
+      AppendInitExpr(os, (*expr.operands())[0]);
+      break;
+    case WasmInitExpr::kStructNewDefault:
+      os << "StructNewDefault(" << expr.immediate().index;
+      break;
+    case WasmInitExpr::kArrayInit:
+      os << "ArrayInit(" << expr.immediate().index;
+      append_operands = true;
+      break;
+    case WasmInitExpr::kArrayInitStatic:
+      os << "ArrayInitStatic(" << expr.immediate().index;
+      append_operands = true;
+      break;
+    case WasmInitExpr::kRttCanon:
+      os << "RttCanon(" << expr.immediate().index;
+      break;
   }
+
+  if (append_operands) {
+    os << ", [";
+    for (size_t i = 0; i < expr.operands()->size(); i++) {
+      AppendInitExpr(os, (*expr.operands())[i]);
+      if (i < expr.operands()->size() - 1) os << ", ";
+    }
+    os << "]";
+  }
+
   os << ")";
+}
+
+void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
+                             const WasmModule* module,
+                             ModuleWireBytes module_bytes,
+                             ConstantExpression init, ValueType expected) {
+  switch (init.kind()) {
+    case ConstantExpression::kEmpty:
+      UNREACHABLE();
+    case ConstantExpression::kI32Const:
+      AppendInitExpr(os, WasmInitExpr(init.i32_value()));
+      break;
+    case ConstantExpression::kRefNull:
+      AppendInitExpr(os, WasmInitExpr::RefNullConst(init.repr()));
+      break;
+    case ConstantExpression::kRefFunc:
+      AppendInitExpr(os, WasmInitExpr::RefFuncConst(init.index()));
+      break;
+    case ConstantExpression::kWireBytesRef: {
+      WireBytesRef ref = init.wire_bytes_ref();
+      auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+      FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
+                        module_bytes.start() + ref.end_offset());
+      WasmFeatures detected;
+      WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
+                      kInitExpression>
+          decoder(zone, module, WasmFeatures::All(), &detected, body, zone);
+
+      decoder.DecodeFunctionBody();
+
+      AppendInitExpr(os, decoder.interface().result());
+      break;
+    }
+  }
 }
 }  // namespace
 
@@ -363,6 +548,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
+
+  AccountingAllocator allocator;
+  Zone zone(&allocator, "init. expression zone");
 
   StdoutStream os;
 
@@ -388,6 +576,41 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
+  for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
+    if (module->has_struct(i)) {
+      const StructType* struct_type = module->types[i].struct_type;
+      os << "builder.addStruct([";
+      int field_count = struct_type->field_count();
+      for (int index = 0; index < field_count; index++) {
+        os << "makeField(" << ValueTypeToConstantName(struct_type->field(index))
+           << ", " << (struct_type->mutability(index) ? "true" : "false")
+           << ")";
+        if (index + 1 < field_count) os << ", ";
+      }
+      os << "]);\n";
+    } else if (module->has_array(i)) {
+      const ArrayType* array_type = module->types[i].array_type;
+      os << "builder.addArray("
+         << ValueTypeToConstantName(array_type->element_type()) << ", "
+         << (array_type->mutability() ? "true" : "false") << ");\n";
+    } else {
+      DCHECK(module->has_signature(i));
+      const FunctionSig* sig = module->types[i].function_sig;
+      os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
+         << PrintReturns(sig) << "));\n";
+    }
+  }
+
+  for (WasmImport imported : module->import_table) {
+    // TODO(wasm): Support other imports when needed.
+    CHECK_EQ(kExternalFunction, imported.kind);
+    auto module_name = PrintName(wire_bytes, imported.module_name);
+    auto field_name = PrintName(wire_bytes, imported.field_name);
+    int sig_index = module->functions[imported.index].sig_index;
+    os << "builder.addImport(" << module_name << ", " << field_name << ", "
+       << sig_index << " /* sig */);\n";
+  }
+
   if (module->has_memory) {
     os << "builder.addMemory(" << module->initial_pages;
     if (module->has_maximum_pages) {
@@ -402,45 +625,30 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << ");\n";
   }
 
-  for (WasmGlobal& glob : module->globals) {
-    os << "builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
-       << glob.mutability << ", ";
-    AppendInitExpr(os, wire_bytes, glob.init);
-    os << ");\n";
-  }
-
-#if DEBUG
-  for (uint8_t kind : module->type_kinds) {
-    DCHECK(kWasmArrayTypeCode == kind || kWasmStructTypeCode == kind ||
-           kWasmFunctionTypeCode == kind);
-  }
-#endif
-
-  for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
-    if (module->has_struct(i)) {
-      const StructType* struct_type = module->types[i].struct_type;
-      os << "builder.addStruct([";
-      int field_count = struct_type->field_count();
-      for (int index = 0; index < field_count; index++) {
-        os << "makeField(" << ValueTypeToConstantName(struct_type->field(index))
-           << ", " << (struct_type->mutability(index) ? "true" : "false")
-           << ")";
-        if (index + 1 < field_count)
-          os << ", ";
-        else
-          os << "]);\n";
-      }
-    } else if (module->has_array(i)) {
-      const ArrayType* array_type = module->types[i].array_type;
-      os << "builder.addArray("
-         << ValueTypeToConstantName(array_type->element_type()) << ","
-         << (array_type->mutability() ? "true" : "false") << ");\n";
+  for (WasmDataSegment segment : module->data_segments) {
+    base::Vector<const uint8_t> data = wire_bytes.module_bytes().SubVector(
+        segment.source.offset(), segment.source.end_offset());
+    if (segment.active) {
+      // TODO(wasm): Add other expressions when needed.
+      CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
+      os << "builder.addDataSegment(" << segment.dest_addr.i32_value() << ", ";
     } else {
-      DCHECK(module->has_signature(i));
-      const FunctionSig* sig = module->types[i].function_sig;
-      os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
-         << PrintReturns(sig) << "));\n";
+      os << "builder.addPassiveDataSegment(";
     }
+    os << "[";
+    if (!data.empty()) {
+      os << unsigned{data[0]};
+      for (unsigned byte : data + 1) os << ", " << byte;
+    }
+    os << "]);\n";
+  }
+
+  for (WasmGlobal& global : module->globals) {
+    os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
+       << global.mutability << ", ";
+    DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
+                            global.type);
+    os << ");\n";
   }
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
@@ -463,15 +671,25 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "builder.add" << status_str << "ElementSegment(";
     if (elem_segment.status == WasmElemSegment::kStatusActive) {
       os << elem_segment.table_index << ", ";
-      AppendInitExpr(os, wire_bytes, elem_segment.offset);
+      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
+                              elem_segment.offset, kWasmI32);
       os << ", ";
     }
     os << "[";
     for (uint32_t i = 0; i < elem_segment.entries.size(); i++) {
-      os << elem_segment.entries[i];
+      if (elem_segment.element_type == WasmElemSegment::kExpressionElements) {
+        DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
+                                elem_segment.entries[i], elem_segment.type);
+      } else {
+        os << elem_segment.entries[i].index();
+      }
       if (i < elem_segment.entries.size() - 1) os << ", ";
     }
-    os << "], " << ValueTypeToConstantName(elem_segment.type) << ");\n";
+    os << "], "
+       << (elem_segment.element_type == WasmElemSegment::kExpressionElements
+               ? ValueTypeToConstantName(elem_segment.type)
+               : "undefined")
+       << ");\n";
   }
 
   for (const WasmTag& tag : module->tags) {
@@ -480,6 +698,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (const WasmFunction& func : module->functions) {
+    if (func.imported) continue;
+
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "// Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
@@ -517,7 +737,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (WasmExport& exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    os << "builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
+    os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
        << exp.index << ");\n";
   }
 
@@ -575,23 +795,38 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
-  // The first byte builds the bitmask to control which function will be
-  // compiled with Turbofan and which one with Liftoff.
-  uint8_t tier_mask = data.empty() ? 0 : data[0];
+
+  // The first byte specifies some internal configuration, like which function
+  // is compiled with with compiler, and other flags.
+  uint8_t configuration_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
-  // Build the bitmask to control which functions should be compiled for
-  // debugging.
-  uint8_t debug_mask = data.empty() ? 0 : data[0];
-  if (!data.empty()) data += 1;
-    // Control whether Liftoff or the interpreter will be used as the reference
-    // tier.
-    // TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86)
-  bool liftoff_as_reference = data.empty() ? false : data[0] % 2;
+
+  // Derive the compiler configuration for the first four functions from the
+  // configuration byte, to choose for each function between:
+  // 0: TurboFan
+  // 1: Liftoff
+  // 2: Liftoff for debugging
+  uint8_t tier_mask = 0;
+  uint8_t debug_mask = 0;
+  for (int i = 0; i < 4; ++i, configuration_byte /= 3) {
+    int compiler_config = configuration_byte % 3;
+    tier_mask |= (compiler_config == 0) << i;
+    debug_mask |= (compiler_config == 2) << i;
+  }
+  // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
+
+// Control whether Liftoff or the interpreter will be used as the reference
+// tier.
+// TODO(thibaudm): Port nondeterminism detection to arm.
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86) || \
+    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
+  bool liftoff_as_reference = configuration_byte & 1;
 #else
   bool liftoff_as_reference = false;
 #endif
-  if (!data.empty()) data += 1;
+  FlagScope<bool> turbo_mid_tier_regalloc(&FLAG_turbo_force_mid_tier_regalloc,
+                                          configuration_byte == 0);
+
   if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
   }
@@ -623,11 +858,14 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  bool validates =
-      GetWasmEngine()->SyncValidate(i_isolate, enabled_features, wire_bytes);
+  std::string error_message;
+  bool result = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                              wire_bytes, &error_message);
 
-  CHECK_EQ(compiles, validates);
-  CHECK_IMPLIES(require_valid, validates);
+  CHECK_EQ(compiles, result);
+  CHECK_WITH_MSG(
+      !require_valid || result,
+      ("Generated module should validate, but got: " + error_message).c_str());
 
   if (!compiles) return;
 

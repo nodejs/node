@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -210,8 +210,11 @@ void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
         return NULL;
     }
     decoder->base.algodef = algodef;
-    decoder->base.parsed_propdef
-        = ossl_parse_property(libctx, algodef->property_definition);
+    if ((decoder->base.parsed_propdef
+         = ossl_parse_property(libctx, algodef->property_definition)) == NULL) {
+        OSSL_DECODER_free(decoder);
+        return NULL;
+    }
 
     for (; fns->function_id != 0; fns++) {
         switch (fns->function_id) {
@@ -339,6 +342,7 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
 {
     OSSL_METHOD_STORE *store = get_decoder_store(methdata->libctx);
     OSSL_NAMEMAP *namemap = ossl_namemap_stored(methdata->libctx);
+    const char *const propq = properties != NULL ? properties : "";
     void *method = NULL;
     int unsupported = 0;
 
@@ -367,7 +371,7 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
         unsupported = 1;
 
     if (id == 0
-        || !ossl_method_store_cache_get(store, NULL, id, properties, &method)) {
+        || !ossl_method_store_cache_get(store, NULL, id, propq, &method)) {
         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
             get_tmp_decoder_store,
             get_decoder_from_store,
@@ -375,13 +379,14 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
             construct_decoder,
             destruct_decoder
         };
+        OSSL_PROVIDER *prov = NULL;
 
         methdata->id = id;
         methdata->names = name;
-        methdata->propquery = properties;
+        methdata->propquery = propq;
         methdata->flag_construct_error_occurred = 0;
         if ((method = ossl_method_construct(methdata->libctx, OSSL_OP_DECODER,
-                                            NULL, 0 /* !force_cache */,
+                                            &prov, 0 /* !force_cache */,
                                             &mcm, methdata)) != NULL) {
             /*
              * If construction did create a method for us, we know that
@@ -392,7 +397,7 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
             if (id == 0 && name != NULL)
                 id = ossl_namemap_name2num(namemap, name);
             if (id != 0)
-                ossl_method_store_cache_set(store, NULL, id, properties, method,
+                ossl_method_store_cache_set(store, prov, id, propq, method,
                                             up_ref_decoder, free_decoder);
         }
 
@@ -411,7 +416,7 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
         ERR_raise_data(ERR_LIB_OSSL_DECODER, code,
                        "%s, Name (%s : %d), Properties (%s)",
                        ossl_lib_ctx_get_descriptor(methdata->libctx),
-                       name = NULL ? "<null>" : name, id,
+                       name == NULL ? "<null>" : name, id,
                        properties == NULL ? "<null>" : properties);
     }
 
@@ -442,6 +447,25 @@ OSSL_DECODER *ossl_decoder_fetch_by_number(OSSL_LIB_CTX *libctx, int id,
     method = inner_ossl_decoder_fetch(&methdata, id, NULL, properties);
     dealloc_tmp_decoder_store(methdata.tmp_store);
     return method;
+}
+
+int ossl_decoder_store_cache_flush(OSSL_LIB_CTX *libctx)
+{
+    OSSL_METHOD_STORE *store = get_decoder_store(libctx);
+
+    if (store != NULL)
+        return ossl_method_store_cache_flush_all(store);
+    return 1;
+}
+
+int ossl_decoder_store_remove_all_provided(const OSSL_PROVIDER *prov)
+{
+    OSSL_LIB_CTX *libctx = ossl_provider_libctx(prov);
+    OSSL_METHOD_STORE *store = get_decoder_store(libctx);
+
+    if (store != NULL)
+        return ossl_method_store_remove_all_provided(store, prov);
+    return 1;
 }
 
 /*

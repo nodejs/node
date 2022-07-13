@@ -54,7 +54,10 @@ base::Optional<ParseResult> Rule::RunAction(const Item* completed_item,
   MatchedInput matched_input = completed_item->GetMatchedInput(tokens);
   CurrentSourcePosition::Scope pos_scope(matched_input.pos);
   ParseResultIterator iterator(std::move(results), matched_input);
-  return action_(&iterator);
+  auto result = action_(&iterator);
+  // Make sure the parse action consumed all the child results.
+  CHECK(!iterator.HasNext());
+  return result;
 }
 
 Symbol& Symbol::operator=(std::initializer_list<Rule> rules) {
@@ -124,6 +127,7 @@ LexerResult Lexer::RunLexer(const std::string& input) {
   while (pos != end) {
     token_start = pos;
     Symbol* symbol = MatchToken(&pos, end);
+    DCHECK_IMPLIES(symbol != nullptr, pos != token_start);
     InputPosition token_end = pos;
     line_column_tracker.Advance(token_start, token_end);
     if (!symbol) {
@@ -279,6 +283,7 @@ const Item* RunEarleyAlgorithm(
 }
 
 // static
+DISABLE_CFI_ICALL
 bool Grammar::MatchChar(int (*char_class)(int), InputPosition* pos) {
   if (**pos && char_class(static_cast<unsigned char>(**pos))) {
     ++*pos;

@@ -10,7 +10,6 @@
 #define V8_WASM_STREAMING_DECODER_H_
 
 #include <memory>
-#include <vector>
 
 #include "src/base/macros.h"
 #include "src/base/vector.h"
@@ -78,7 +77,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   virtual void OnBytesReceived(base::Vector<const uint8_t> bytes) = 0;
 
-  virtual void Finish() = 0;
+  virtual void Finish(bool can_use_compiled_module = true) = 0;
 
   virtual void Abort() = 0;
 
@@ -96,6 +95,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   }
 
   // Passes previously compiled module bytes from the embedder's cache.
+  // The content shouldn't be used until Finish(true) is called.
   bool SetCompiledModuleBytes(
       base::Vector<const uint8_t> compiled_module_bytes) {
     compiled_module_bytes_ = compiled_module_bytes;
@@ -124,6 +124,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   std::string url_;
   ModuleCompiledCallback module_compiled_callback_;
+  // The content of `compiled_module_bytes_` shouldn't be used until
+  // Finish(true) is called.
   base::Vector<const uint8_t> compiled_module_bytes_;
 };
 

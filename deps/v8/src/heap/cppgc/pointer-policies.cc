@@ -34,6 +34,8 @@ void SameThreadEnabledCheckingPolicyBase::CheckPointerImpl(
     const void* ptr, bool points_to_payload, bool check_off_heap_assignments) {
   // `ptr` must not reside on stack.
   DCHECK(!IsOnStack(ptr));
+  // Check for the most commonly used wrong sentinel value (-1).
+  DCHECK_NE(reinterpret_cast<void*>(-1), ptr);
   auto* base_page = BasePage::FromPayload(ptr);
   // Large objects do not support mixins. This also means that `base_page` is
   // valid for large objects.
@@ -62,9 +64,10 @@ void SameThreadEnabledCheckingPolicyBase::CheckPointerImpl(
   const HeapObjectHeader* header = nullptr;
   if (points_to_payload) {
     header = &HeapObjectHeader::FromObject(ptr);
-  } else if (!heap_->sweeper().IsSweepingInProgress()) {
-    // Mixin case.
-    header = &base_page->ObjectHeaderFromInnerAddress(ptr);
+  } else {
+    // Mixin case. Access the ObjectStartBitmap atomically since sweeping can be
+    // in progress.
+    header = &base_page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(ptr);
     DCHECK_LE(header->ObjectStart(), ptr);
     DCHECK_GT(header->ObjectEnd(), ptr);
   }

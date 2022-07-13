@@ -27,6 +27,7 @@ const unsigned int MAX_FIRST_ARG = 0x7fffffu;
 const int BYTECODE_SHIFT = 8;
 STATIC_ASSERT(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 
+// The list of bytecodes, in format: V(Name, Code, ByteLength).
 // TODO(pthier): Argument offsets of bytecodes should be easily accessible by
 // name or at least by position.
 // TODO(jgruber): More precise types (e.g. int32/uint32 instead of value32).

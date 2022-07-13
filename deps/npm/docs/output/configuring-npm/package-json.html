@@ -304,7 +304,7 @@ you:</p>
 <p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level "maintainers" field with your npm user info.</p>
 <h3 id="funding">funding</h3>
-<p>You can specify an object containing an URL that provides up-to-date
+<p>You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:</p>
 <pre lang="json"><code>{
@@ -391,7 +391,7 @@ be returned.</p>
 <p>This should be a module relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often
 not much else.</p>
-<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the packages root folder.</p>
+<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the package's root folder.</p>
 <h3 id="browser">browser</h3>
 <p>If your module is meant to be used client-side the browser field should be
 used instead of the main field. This is helpful to hint users that it might
@@ -629,6 +629,24 @@ git+ssh://git@github.com:npm/cli#semver:^5.0
 git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 </code></pre>
+<p>When installing from a <code>git</code> repository, the presence of certain fields in the
+<code>package.json</code> will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.</p>
+<p>This flow will occur if your git dependency uses <code>workspaces</code>, or if any of the
+following scripts are present:</p>
+<ul>
+<li><code>build</code></li>
+<li><code>prepare</code></li>
+<li><code>prepack</code></li>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+</ul>
+<p>If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.</p>
 <h4 id="github-urls">GitHub URLs</h4>
 <p>As of version 1.1.65, you can refer to GitHub urls as just "foo":
 "user/foo-project".  Just as with git URLs, a <code>commit-ish</code> suffix can be
@@ -663,6 +681,9 @@ contains a package. Local paths can be saved using <code>npm install -S</code> o
 <p>This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry.</p>
+<p><em>note</em>: Packages linked by local path will not have their own
+dependencies installed when <code>npm install</code> is ran in this case.  You must
+run <code>npm install</code> from inside the local path itself.</p>
 <h3 id="devdependencies">devDependencies</h3>
 <p>If someone is planning on downloading and using your module in their
 program, then they probably don't want or need to download and build the
@@ -774,6 +795,9 @@ This file contains the dependencies <code>renderized</code> and <code>super-stre
 can be installed in a new project by executing <code>npm install awesome-web-framework-1.0.0.tgz</code>.  Note that the package names do not
 include any versions, as that information is specified in <code>dependencies</code>.</p>
 <p>If this is spelled <code>"bundleDependencies"</code>, then that is also honored.</p>
+<p>Alternatively, <code>"bundledDependencies"</code> can be defined as a boolean value. A
+value of <code>true</code> will bundle all dependencies, a value of <code>false</code> will bundle
+none.</p>
 <h3 id="optionaldependencies">optionalDependencies</h3>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot
 be found or fails to install, then you may put it in the

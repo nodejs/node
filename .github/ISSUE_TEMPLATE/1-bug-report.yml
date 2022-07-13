@@ -1,4 +1,4 @@
-name: "\U0001F41B Bug report"
+name: 🐛 Bug report
 description: Create a report to help us improve
 body:
   - type: markdown
@@ -9,7 +9,7 @@ body:
         This issue tracker is for bugs and issues found within Node.js core.
         If you require more general support please file an issue on our help repo. https://github.com/nodejs/help
 
-        Please fill in as much of the form below as you're able.
+        Please fill in as much of the following form as you're able.
   - type: input
     attributes:
       label: Version
@@ -39,6 +39,8 @@ body:
     attributes:
       label: What do you see instead?
       description: If possible please provide textual output instead of screenshots.
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Additional information

@@ -1,5 +1,4 @@
 const { resolve } = require('path')
-const log = require('../utils/log-shim.js')
 const Arborist = require('@npmcli/arborist')
 const rpj = require('read-package-json-fast')
 
@@ -12,6 +11,7 @@ class Uninstall extends ArboristWorkspaceCmd {
   static name = 'uninstall'
   static params = ['save', ...super.params]
   static usage = ['[<@scope>/]<pkg>...']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */
@@ -21,13 +21,12 @@ class Uninstall extends ArboristWorkspaceCmd {
 
   async exec (args) {
     // the /path/to/node_modules/..
-    const global = this.npm.config.get('global')
-    const path = global
+    const path = this.npm.global
       ? resolve(this.npm.globalDir, '..')
       : this.npm.localPrefix
 
     if (!args.length) {
-      if (!global) {
+      if (!this.npm.global) {
         throw new Error('Must provide a package name to remove')
       } else {
         let pkg
@@ -49,7 +48,6 @@ class Uninstall extends ArboristWorkspaceCmd {
     const opts = {
       ...this.npm.flatOptions,
       path,
-      log,
       rm: args,
       workspaces: this.workspaceNames,
     }

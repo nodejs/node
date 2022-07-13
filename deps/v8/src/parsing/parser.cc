@@ -18,6 +18,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -282,7 +283,8 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
   return factory()->NewThrow(call_constructor, pos);
 }
 
-Expression* Parser::NewSuperPropertyReference(int pos) {
+Expression* Parser::NewSuperPropertyReference(Scope* home_object_scope,
+                                              int pos) {
   const AstRawString* home_object_name;
   if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
     home_object_name = ast_value_factory_->dot_static_home_object_string();
@@ -290,7 +292,9 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
     home_object_name = ast_value_factory_->dot_home_object_string();
   }
   return factory()->NewSuperPropertyReference(
-      NewUnresolved(home_object_name, pos), pos);
+      home_object_scope->NewHomeObjectVariableProxy(factory(), home_object_name,
+                                                    pos),
+      pos);
 }
 
 Expression* Parser::NewSuperCallReference(int pos) {
@@ -419,12 +423,15 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
   return factory()->NewCallRuntime(function, permissive_args, pos);
 }
 
-Parser::Parser(ParseInfo* info)
+Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info,
+               Handle<Script> script)
     : ParserBase<Parser>(
           info->zone(), &scanner_, info->stack_limit(),
-          info->GetOrCreateAstValueFactory(), info->pending_error_handler(),
+          info->ast_value_factory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->logger(), info->flags(), true),
+      local_isolate_(local_isolate),
       info_(info),
+      script_(script),
       scanner_(info->character_stream(), flags()),
       preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
@@ -470,8 +477,9 @@ void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   original_scope_ = script_scope;
 }
 
+template <typename IsolateT>
 void Parser::DeserializeScopeChain(
-    Isolate* isolate, ParseInfo* info,
+    IsolateT* isolate, ParseInfo* info,
     MaybeHandle<ScopeInfo> maybe_outer_scope_info,
     Scope::DeserializationMode mode) {
   InitializeEmptyScopeChain(info);
@@ -488,19 +496,16 @@ void Parser::DeserializeScopeChain(
   }
 }
 
-namespace {
+template void Parser::DeserializeScopeChain(
+    Isolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Scope::DeserializationMode mode);
+template void Parser::DeserializeScopeChain(
+    LocalIsolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Scope::DeserializationMode mode);
 
-void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
-#if V8_ENABLE_WEBASSEMBLY
-  // Don't reset the character stream if there is an asm.js module since it will
-  // be used again by the asm-parser.
-  if (info->contains_asm_module()) {
-    if (FLAG_stress_validate_asm) return;
-    if (literal != nullptr && literal->scope()->ContainsAsmModule()) return;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  info->ResetCharacterStream();
-}
+namespace {
 
 void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
                               uintptr_t stack_limit_) {
@@ -539,7 +544,6 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
-  MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
 
@@ -592,35 +596,31 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       DCHECK(flags().is_module());
 
       PrepareGeneratorVariables();
-      Expression* initial_yield =
-          BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
+      Expression* initial_yield = BuildInitialYield(
+          kNoSourcePosition, FunctionKind::kGeneratorFunction);
       body.Add(
           factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-      if (flags().allow_harmony_top_level_await()) {
-        // First parse statements into a buffer. Then, if there was a
-        // top level await, create an inner block and rewrite the body of the
-        // module as an async function. Otherwise merge the statements back
-        // into the main body.
-        BlockT block = impl()->NullBlock();
-        {
-          StatementListT statements(pointer_buffer());
-          ParseModuleItemList(&statements);
-          // Modules will always have an initial yield. If there are any
-          // additional suspends, i.e. awaits, then we treat the module as an
-          // AsyncModule.
-          if (function_state.suspend_count() > 1) {
-            scope->set_is_async_module();
-            block = factory()->NewBlock(true, statements);
-          } else {
-            statements.MergeInto(&body);
-          }
+      // First parse statements into a buffer. Then, if there was a
+      // top level await, create an inner block and rewrite the body of the
+      // module as an async function. Otherwise merge the statements back
+      // into the main body.
+      BlockT block = impl()->NullBlock();
+      {
+        StatementListT statements(pointer_buffer());
+        ParseModuleItemList(&statements);
+        // Modules will always have an initial yield. If there are any
+        // additional suspends, i.e. awaits, then we treat the module as an
+        // AsyncModule.
+        if (function_state.suspend_count() > 1) {
+          scope->set_is_async_module();
+          block = factory()->NewBlock(true, statements);
+        } else {
+          statements.MergeInto(&body);
         }
-        if (IsAsyncModule(scope->function_kind())) {
-          impl()->RewriteAsyncFunctionBody(
-              &body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
-        }
-      } else {
-        ParseModuleItemList(&body);
+      }
+      if (IsAsyncModule(scope->function_kind())) {
+        impl()->RewriteAsyncFunctionBody(
+            &body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
       }
       if (!has_error() &&
           !module()->Validate(this->scope()->AsModuleScope(),
@@ -657,6 +657,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (flags().is_eval()) {
       DCHECK(parsing_on_main_thread_);
+      DCHECK(!overall_parse_is_parked_);
       info->ast_value_factory()->Internalize(isolate);
     }
     CheckConflictingVarDeclarations(scope);
@@ -686,7 +687,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
-void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+template <typename IsolateT>
+void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
                                     FunctionLiteral* literal) {
   if (literal == nullptr) return;
 
@@ -696,10 +698,7 @@ void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
     info->set_allow_eval_cache(allow_eval_cache());
   }
 
-  // We cannot internalize on a background thread; a foreground task will take
-  // care of calling AstValueFactory::Internalize just before compilation.
-  DCHECK_EQ(isolate != nullptr, parsing_on_main_thread_);
-  if (isolate) info->ast_value_factory()->Internalize(isolate);
+  info->ast_value_factory()->Internalize(isolate);
 
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
@@ -712,6 +711,12 @@ void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
   }
 }
 
+template void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+                                             FunctionLiteral* literal);
+template void Parser::PostProcessParseResult(LocalIsolate* isolate,
+                                             ParseInfo* info,
+                                             FunctionLiteral* literal);
+
 ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
@@ -722,7 +727,8 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (int i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
-        Handle<String>(String::cast(arguments->get(i)), isolate));
+        String::cast(arguments->get(i)),
+        SharedStringAccessGuardIfNeeded(isolate));
     arguments_for_wrapped_function->Add(argument_string, zone);
   }
   return arguments_for_wrapped_function;
@@ -745,10 +751,11 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       PrepareWrappedArguments(isolate, info, zone);
 
-  FunctionLiteral* function_literal = ParseFunctionLiteral(
-      function_name, location, kSkipFunctionNameCheck, kNormalFunction,
-      kNoSourcePosition, FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
-      arguments_for_wrapped_function);
+  FunctionLiteral* function_literal =
+      ParseFunctionLiteral(function_name, location, kSkipFunctionNameCheck,
+                           FunctionKind::kNormalFunction, kNoSourcePosition,
+                           FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
+                           arguments_for_wrapped_function);
 
   Statement* return_statement =
       factory()->NewReturnStatement(function_literal, kNoSourcePosition);
@@ -825,8 +832,40 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (shared_info->HasOuterScopeInfo()) {
     maybe_outer_scope_info = handle(shared_info->GetOuterScopeInfo(), isolate);
   }
-  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
+
+  MaybeHandle<ScopeInfo> deserialize_start_scope = maybe_outer_scope_info;
+  bool needs_script_scope_finalization = false;
+  // If the function is a class member initializer and there isn't a
+  // scope mismatch, we will only deserialize up to the outer scope of
+  // the class scope, and regenerate the class scope during reparsing.
+  if (flags().function_kind() ==
+          FunctionKind::kClassMembersInitializerFunction &&
+      shared_info->HasOuterScopeInfo() &&
+      maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
+      maybe_outer_scope_info.ToHandleChecked()->StartPosition() ==
+          start_position) {
+    Handle<ScopeInfo> outer_scope_info =
+        maybe_outer_scope_info.ToHandleChecked();
+    if (outer_scope_info->HasOuterScopeInfo()) {
+      deserialize_start_scope =
+          handle(outer_scope_info->OuterScopeInfo(), isolate);
+    } else {
+      // If the class scope doesn't have an outer scope to deserialize, we need
+      // to finalize the script scope without using
+      // Scope::DeserializeScopeChain().
+      deserialize_start_scope = MaybeHandle<ScopeInfo>();
+      needs_script_scope_finalization = true;
+    }
+  }
+
+  DeserializeScopeChain(isolate, info, deserialize_start_scope,
                         Scope::DeserializationMode::kIncludingVariables);
+  if (needs_script_scope_finalization) {
+    DCHECK_EQ(original_scope_, info->script_scope());
+    Scope::SetScriptScopeInfo(isolate, info->script_scope());
+  }
   DCHECK_EQ(factory()->zone(), info->zone());
 
   Handle<Script> script = handle(Script::cast(shared_info->script()), isolate);
@@ -834,8 +873,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
-  int start_position = shared_info->StartPosition();
-  int end_position = shared_info->EndPosition();
   int function_literal_id = shared_info->function_literal_id();
   if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT) {
     // Function literal IDs for inner functions haven't been allocated when
@@ -848,8 +885,8 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   // Initialize parser state.
-  Handle<String> name(shared_info->Name(), isolate);
-  info->set_function_name(ast_value_factory()->GetString(name));
+  info->set_function_name(ast_value_factory()->GetString(
+      shared_info->Name(), SharedStringAccessGuardIfNeeded(isolate)));
   scanner_.Initialize();
 
   FunctionLiteral* result;
@@ -859,13 +896,14 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     // function is in heritage position. Otherwise the function scope's skip bit
     // will be correctly inherited from the outer scope.
     ClassScope::HeritageParsingScope heritage(original_scope_->AsClassScope());
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, maybe_outer_scope_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   } else {
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, maybe_outer_scope_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   }
-  MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
     Handle<String> inferred_name(shared_info->inferred_name(), isolate);
@@ -950,14 +988,14 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
         // scope for formal parameter parsing.
-        BlockState block_state(&scope_, scope);
+        BlockState inner_block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
           Expect(Token::RPAREN);
         } else {
           // BindingIdentifier
-          ParameterParsingScope scope(impl(), &formals);
+          ParameterParsingScope parameter_parsing_scope(impl(), &formals);
           ParseFormalParameter(&formals);
           DeclareFormalParameters(&formals);
         }
@@ -1025,6 +1063,81 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
+}
+
+FunctionLiteral* Parser::DoParseDeserializedFunction(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    ParseInfo* info, int start_position, int end_position,
+    int function_literal_id, const AstRawString* raw_name) {
+  if (flags().function_kind() ==
+      FunctionKind::kClassMembersInitializerFunction) {
+    return ParseClassForInstanceMemberInitialization(
+        isolate, maybe_outer_scope_info, start_position, function_literal_id,
+        end_position);
+  }
+
+  return DoParseFunction(isolate, info, start_position, end_position,
+                         function_literal_id, raw_name);
+}
+
+FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
+    int initializer_pos, int initializer_id, int initializer_end_pos) {
+  // When the function is a kClassMembersInitializerFunction, we record the
+  // source range of the entire class as its positions in its SFI, so at this
+  // point the scanner should be rewound to the position of the class token.
+  int class_token_pos = initializer_pos;
+  DCHECK_EQ(peek_position(), class_token_pos);
+
+  // Insert a FunctionState with the closest outer Declaration scope
+  DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
+  DCHECK_NOT_NULL(nearest_decl_scope);
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
+  // We will reindex the function literals later.
+  ResetFunctionLiteralId();
+
+  // We preparse the class members that are not fields with initializers
+  // in order to collect the function literal ids.
+  ParsingModeScope mode(this, PARSE_LAZILY);
+
+  ExpressionParsingScope no_expression_scope(impl());
+
+  // Reparse the class as an expression to build the instance member
+  // initializer function.
+  Expression* expr = ParseClassExpression(original_scope_);
+
+  DCHECK(expr->IsClassLiteral());
+  ClassLiteral* literal = expr->AsClassLiteral();
+  FunctionLiteral* initializer =
+      literal->instance_members_initializer_function();
+
+  // Reindex so that the function literal ids match.
+  AstFunctionLiteralIdReindexer reindexer(
+      stack_limit_, initializer_id - initializer->function_literal_id());
+  reindexer.Reindex(expr);
+
+  no_expression_scope.ValidateExpression();
+
+  // If the class scope was not optimized away, we know that it allocated
+  // some variables and we need to fix up the allocation info for them.
+  bool needs_allocation_fixup =
+      !maybe_class_scope_info.is_null() &&
+      maybe_class_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
+      maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
+          class_token_pos;
+
+  ClassScope* reparsed_scope = literal->scope();
+  reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_class_scope_info,
+                                             ast_value_factory(),
+                                             needs_allocation_fixup);
+  original_scope_ = reparsed_scope;
+
+  DCHECK_EQ(initializer->kind(),
+            FunctionKind::kClassMembersInitializerFunction);
+  DCHECK_EQ(initializer->function_literal_id(), initializer_id);
+  DCHECK_EQ(initializer->end_position(), initializer_end_pos);
+
+  return initializer;
 }
 
 Statement* Parser::ParseModuleItem() {
@@ -2563,44 +2676,38 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_eager_top_level_function = !is_lazy && is_top_level;
-  const bool is_lazy_top_level_function = is_lazy && is_top_level;
-  const bool is_lazy_inner_function = is_lazy && !is_top_level;
 
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
             RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  // Determine whether we can still lazy parse the inner function.
-  // The preconditions are:
-  // - Lazy compilation has to be enabled.
-  // - Neither V8 natives nor native function declarations can be allowed,
-  //   since parsing one would retroactively force the function to be
-  //   eagerly compiled.
-  // - The invoker of this parser can't depend on the AST being eagerly
-  //   built (either because the function is about to be compiled, or
-  //   because the AST is going to be inspected for some reason).
-  // - Because of the above, we can't be attempting to parse a
-  //   FunctionExpression; even without enclosing parentheses it might be
-  //   immediately invoked.
-  // - The function literal shouldn't be hinted to eagerly compile.
+  // Determine whether we can lazy parse the inner function. Lazy compilation
+  // has to be enabled, which is either forced by overall parse flags or via a
+  // ParsingModeScope.
+  const bool can_preparse = parse_lazily();
 
-  // Inner functions will be parsed using a temporary Zone. After parsing, we
-  // will migrate unresolved variable into a Scope in the main Zone.
-
-  const bool should_preparse_inner = parse_lazily() && is_lazy_inner_function;
-
-  // If parallel compile tasks are enabled, and the function is an eager
-  // top level function, then we can pre-parse the function and parse / compile
-  // in a parallel task on a worker thread.
-  bool should_post_parallel_task =
-      parse_lazily() && is_eager_top_level_function &&
-      FLAG_parallel_compile_tasks && info()->parallel_tasks() &&
+  // Determine whether we can post any parallel compile tasks. Preparsing must
+  // be possible, there has to be a dispatcher, and the character stream must be
+  // cloneable.
+  const bool can_post_parallel_task =
+      can_preparse && info()->dispatcher() &&
       scanner()->stream()->can_be_cloned_for_parallel_access();
 
-  // This may be modified later to reflect preparsing decision taken
-  bool should_preparse = (parse_lazily() && is_lazy_top_level_function) ||
-                         should_preparse_inner || should_post_parallel_task;
+  // If parallel compile tasks are enabled, enable parallel compile for the
+  // subset of functions as defined by flags.
+  bool should_post_parallel_task =
+      can_post_parallel_task &&
+      ((is_eager_top_level_function &&
+        flags().post_parallel_compile_tasks_for_eager_toplevel()) ||
+       (is_lazy && flags().post_parallel_compile_tasks_for_lazy()));
+
+  // Determine whether we should lazy parse the inner function. This will be
+  // when either the function is lazy by inspection, or when we force it to be
+  // preparsed now so that we can then post a parallel full parse & compile task
+  // for it.
+  const bool should_preparse =
+      can_preparse && (is_lazy || should_post_parallel_task);
 
   ScopedPtrList<Statement> body(pointer_buffer());
   int expected_property_count = 0;
@@ -2611,8 +2718,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreparseData* produced_preparse_data = nullptr;
 
-  // This Scope lives in the main zone. We'll migrate data into that zone later.
+  // Inner functions will be parsed using a temporary Zone. After parsing, we
+  // will migrate unresolved variable into a Scope in the main Zone.
   Zone* parse_zone = should_preparse ? &preparser_zone_ : zone();
+  // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
@@ -2692,9 +2801,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   RecordFunctionLiteralSourceRange(function_literal);
 
-  if (should_post_parallel_task) {
-    // Start a parallel parse / compile task on the compiler dispatcher.
-    info()->parallel_tasks()->Enqueue(info(), function_name, function_literal);
+  if (should_post_parallel_task && !has_error()) {
+    function_literal->set_should_parallel_compile();
   }
 
   if (should_infer_name) {
@@ -2724,11 +2832,17 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     int num_inner_functions;
     bool uses_super_property;
     if (stack_overflow()) return true;
-    *produced_preparse_data =
-        consumed_preparse_data_->GetDataForSkippableFunction(
-            main_zone(), function_scope->start_position(), &end_position,
-            num_parameters, function_length, &num_inner_functions,
-            &uses_super_property, &language_mode);
+    {
+      base::Optional<UnparkedScope> unparked_scope;
+      if (overall_parse_is_parked_) {
+        unparked_scope.emplace(local_isolate_);
+      }
+      *produced_preparse_data =
+          consumed_preparse_data_->GetDataForSkippableFunction(
+              main_zone(), function_scope->start_position(), &end_position,
+              num_parameters, function_length, &num_inner_functions,
+              &uses_super_property, &language_mode);
+    }
 
     function_scope->outer_scope()->SetMustUsePreparseData();
     function_scope->set_is_skipped_function(true);
@@ -2869,8 +2983,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block,
     args.Add(factory()->NewVariableProxy(
         function_state_->scope()->generator_object_var()));
     args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
-    args.Add(factory()->NewBooleanLiteral(function_state_->CanSuspend(),
-                                          kNoSourcePosition));
     reject_promise = factory()->NewCallRuntime(
         Runtime::kInlineAsyncFunctionReject, args, kNoSourcePosition);
   }
@@ -3118,7 +3230,9 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
-
+#ifdef DEBUG
+  scope->SetScopeName(ast_value_factory()->GetOneByteString(name));
+#endif
   RecordFunctionLiteralSourceRange(result);
 
   return result;
@@ -3265,37 +3379,77 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       total_preparse_skipped_);
 }
 
-void Parser::ParseOnBackground(ParseInfo* info, int start_position,
-                               int end_position, int function_literal_id) {
-  RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
+void Parser::UpdateStatistics(
+    Handle<Script> script,
+    base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counts,
+    int* preparse_skipped) {
+  // Move statistics to Isolate.
+  for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
+       ++feature) {
+    if (use_counts_[feature] > 0) {
+      use_counts->emplace_back(v8::Isolate::UseCounterFeature(feature));
+    }
+  }
+  if (scanner_.FoundHtmlComment()) {
+    use_counts->emplace_back(v8::Isolate::kHtmlComment);
+    if (script->line_offset() == 0 && script->column_offset() == 0) {
+      use_counts->emplace_back(v8::Isolate::kHtmlCommentInExternalScript);
+    }
+  }
+  *preparse_skipped = total_preparse_skipped_;
+}
+
+void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
+                               int start_position, int end_position,
+                               int function_literal_id) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kParseProgram,
+            RuntimeCallStats::CounterMode::kThreadSpecific);
   parsing_on_main_thread_ = false;
 
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
+  {
+    // We can park the isolate while parsing, it doesn't need to allocate or
+    // access the main thread.
+    ParkedScope parked_scope(isolate);
+    overall_parse_is_parked_ = true;
 
-  scanner_.Initialize();
+    scanner_.Initialize();
 
-  DCHECK(original_scope_);
+    DCHECK(original_scope_);
 
-  // When streaming, we don't know the length of the source until we have parsed
-  // it. The raw data can be UTF-8, so we wouldn't know the source length until
-  // we have decoded it anyway even if we knew the raw data length (which we
-  // don't). We work around this by storing all the scopes which need their end
-  // position set at the end of the script (the top scope and possible eval
-  // scopes) and set their end position after we know the script length.
-  if (flags().is_toplevel()) {
-    DCHECK_EQ(start_position, 0);
-    DCHECK_EQ(end_position, 0);
-    DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
-    result = DoParseProgram(/* isolate = */ nullptr, info);
-  } else {
-    result = DoParseFunction(/* isolate = */ nullptr, info, start_position,
-                             end_position, function_literal_id,
-                             info->function_name());
+    // When streaming, we don't know the length of the source until we have
+    // parsed it. The raw data can be UTF-8, so we wouldn't know the source
+    // length until we have decoded it anyway even if we knew the raw data
+    // length (which we don't). We work around this by storing all the scopes
+    // which need their end position set at the end of the script (the top scope
+    // and possible eval scopes) and set their end position after we know the
+    // script length.
+    if (flags().is_toplevel()) {
+      DCHECK_EQ(start_position, 0);
+      DCHECK_EQ(end_position, 0);
+      DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
+      result = DoParseProgram(/* isolate = */ nullptr, info);
+    } else {
+      base::Optional<ClassScope::HeritageParsingScope> heritage;
+      if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&
+                      original_scope_->is_class_scope())) {
+        // If the function skips the outer class and the outer scope is a class,
+        // the function is in heritage position. Otherwise the function scope's
+        // skip bit will be correctly inherited from the outer scope.
+        heritage.emplace(original_scope_->AsClassScope());
+      }
+      result = DoParseFunction(/* isolate = */ nullptr, info, start_position,
+                               end_position, function_literal_id,
+                               info->function_name());
+    }
+    MaybeProcessSourceRanges(info, result, stack_limit_);
   }
-  MaybeResetCharacterStream(info, result);
-  MaybeProcessSourceRanges(info, result, stack_limit_);
-  PostProcessParseResult(/* isolate = */ nullptr, info, result);
+  // We need to unpark by now though, to be able to internalize.
+  PostProcessParseResult(isolate, info, result);
+  if (flags().is_toplevel()) {
+    HandleSourceURLComments(isolate, script_);
+  }
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {

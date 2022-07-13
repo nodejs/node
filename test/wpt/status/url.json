@@ -12,9 +12,6 @@
   "urlencoded-parser.any.js": {
     "fail": "missing Request and Response"
   },
-  "urlsearchparams-constructor.any.js": {
-    "fail": "FormData is not defined"
-  },
   "url-constructor.any.js": {
     "requires": ["small-icu"]
   },

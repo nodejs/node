@@ -8,7 +8,7 @@
 // valid asm.js and then break them with invalid instantiation arguments. If
 // this script is run more than once (e.g. --stress-opt) then modules remain
 // broken in the second run and assertions would fail. We prevent re-runs.
-// Flags: --nostress-opt
+// Flags: --no-stress-opt
 
 function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func));
@@ -496,4 +496,66 @@ function assertValidAsm(func) {
   assertValidAsm(Module);
   var props = Object.getOwnPropertyNames(m);
   assertEquals(["a","b","x","c","d"], props);
+})();
+
+(function TestDuplicateParameterName() {
+  function module1(x, x, heap) {
+    'use asm';
+    return {};
+  }
+  module1({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module1));
+
+  function module2(x, ffi, x) {
+    'use asm';
+    return {};
+  }
+  module2({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module2));
+
+  function module3(stdlib, x, x) {
+    'use asm';
+    return {};
+  }
+  module3({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module3));
+
+  // Regression test for https://crbug.com/1068355.
+  function regress1068355(ffi, ffi, heap) {
+    'use asm';
+    var result = new ffi.Uint8Array(heap);
+    function bar() {}
+    return {f: bar};
+  }
+  let heap = new ArrayBuffer(4096);
+  assertThrows(
+      () => regress1068355({Uint8Array: Uint8Array}, {}, heap), TypeError,
+      /Uint8Array is not a constructor/);
+  assertFalse(%IsAsmWasmCode(regress1068355));
+})();
+
+(function TestTooManyParametersToImport() {
+  function MakeModule(num_arguments) {
+    let template = `
+      'use asm';
+      var imported = foreign.imported;
+      function main() {
+        imported(ARGS);
+      }
+
+      return main;
+      `;
+    let args = new Array(num_arguments).fill('0').join(', ');
+    return new Function('stdlib', 'foreign', template.replace('ARGS', args));
+  }
+
+  // V8 has an internal limit of 1000 parameters (see wasm-limits.h).
+  let Module1000Params = MakeModule(1000);
+  let Module1001Params = MakeModule(1001);
+
+  Module1000Params({}, {imported: i => i});
+  Module1001Params({}, {imported: i => i});
+
+  assertTrue(%IsAsmWasmCode(Module1000Params));
+  assertFalse(%IsAsmWasmCode(Module1001Params));
 })();

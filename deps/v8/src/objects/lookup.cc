@@ -15,6 +15,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-details.h"
@@ -167,7 +168,8 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 }
 
 bool LookupIterator::HasAccess() const {
-  DCHECK_EQ(ACCESS_CHECK, state_);
+  // TRANSITION is true when being called from DefineNamedOwnIC.
+  DCHECK(state_ == ACCESS_CHECK || state_ == TRANSITION);
   return isolate_->MayAccess(handle(isolate_->context(), isolate_),
                              GetHolder<JSObject>());
 }
@@ -374,7 +376,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   PropertyConstness new_constness = PropertyConstness::kConst;
   if (constness() == PropertyConstness::kConst) {
-    DCHECK_EQ(kData, property_details_.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties(isolate_)) {
@@ -473,7 +475,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
   if (IsElement(*holder)) {
-    DCHECK(!holder_obj->HasTypedArrayElements(isolate_));
+    DCHECK(!holder_obj->HasTypedArrayOrRabGsabTypedArrayElements(isolate_));
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
@@ -484,8 +486,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
-        isolate_, old_map, descriptor_number(), i::kData, attributes,
-        PropertyConstness::kMutable);
+        isolate_, old_map, descriptor_number(), i::PropertyKind::kData,
+        attributes, PropertyConstness::kMutable);
     if (!new_map->is_dictionary_map()) {
       // Make sure that the data property has a compatible representation.
       // TODO(leszeks): Do this as part of ReconfigureExistingProperty.
@@ -511,7 +513,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       JSObject::InvalidatePrototypeChains(holder->map(isolate_));
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
-      PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
+      PropertyDetails details(PropertyKind::kData, attributes,
+                              PropertyCellType::kMutable);
       Handle<GlobalDictionary> dictionary(
           JSGlobalObject::cast(*holder_obj)
               .global_dictionary(isolate_, kAcquireLoad),
@@ -522,7 +525,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       property_details_ = cell->property_details();
       DCHECK_EQ(cell->value(), *value);
     } else {
-      PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
+      PropertyDetails details(PropertyKind::kData, attributes,
+                              PropertyConstness::kMutable);
       if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         Handle<SwissNameDictionary> dictionary(
             holder_obj->property_dictionary_swiss(isolate_), isolate());
@@ -555,13 +559,15 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 #endif
 }
 
-// Can only be called when the receiver is a JSObject. JSProxy has to be handled
-// via a trap. Adding properties to primitive values is not observable.
+// Can only be called when the receiver is a JSObject, or when the name is a
+// private field, otherwise JSProxy has to be handled via a trap.
+// Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSReceiver> receiver, Handle<Object> value,
     PropertyAttributes attributes, StoreOrigin store_origin) {
   DCHECK_IMPLIES(receiver->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate(isolate_)) {
@@ -582,15 +588,17 @@ void LookupIterator::PrepareTransitionToDataProperty(
     if (map->IsJSGlobalObjectMap()) {
       DCHECK(!value->IsTheHole(isolate_));
       // Don't set enumeration index (it will be set during value store).
-      property_details_ = PropertyDetails(
-          kData, attributes, PropertyCell::InitialType(isolate_, value));
+      property_details_ =
+          PropertyDetails(PropertyKind::kData, attributes,
+                          PropertyCell::InitialType(isolate_, *value));
       transition_ = isolate_->factory()->NewPropertyCell(
           name(), property_details_, value);
       has_property_ = true;
     } else {
       // Don't set enumeration index (it will be set during value store).
-      property_details_ = PropertyDetails(
-          kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
+      property_details_ =
+          PropertyDetails(PropertyKind::kData, attributes,
+                          PropertyDetails::kConstIfDictConstnessTracking);
       transition_ = map;
     }
     return;
@@ -605,8 +613,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (transition->is_dictionary_map()) {
     DCHECK(!transition->IsJSGlobalObjectMap());
     // Don't set enumeration index (it will be set during value store).
-    property_details_ = PropertyDetails(
-        kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
+    property_details_ =
+        PropertyDetails(PropertyKind::kData, attributes,
+                        PropertyDetails::kConstIfDictConstnessTracking);
   } else {
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     has_property_ = true;
@@ -617,7 +626,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
     Handle<JSReceiver> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   holder_ = receiver;
   if (receiver->IsJSGlobalObject(isolate_)) {
     JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
@@ -799,7 +809,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   Handle<JSObject> receiver = GetStoreTarget<JSObject>();
   holder_ = receiver;
 
-  PropertyDetails details(kAccessor, attributes, PropertyCellType::kMutable);
+  PropertyDetails details(PropertyKind::kAccessor, attributes,
+                          PropertyCellType::kMutable);
 
   if (IsElement(*receiver)) {
     // TODO(verwaest): Move code into the element accessor.
@@ -890,7 +901,7 @@ Handle<Object> LookupIterator::FetchValue(
           isolate_, dictionary_entry());
     }
   } else if (property_details_.location() == PropertyLocation::kField) {
-    DCHECK_EQ(kData, property_details_.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
 #if V8_ENABLE_WEBASSEMBLY
     if (V8_UNLIKELY(holder_->IsWasmObject(isolate_))) {
       if (allocation_policy == AllocationPolicy::kAllocationDisallowed) {
@@ -919,8 +930,8 @@ Handle<Object> LookupIterator::FetchValue(
         field_index.is_inobject() && field_index.is_double()) {
       return isolate_->factory()->undefined_value();
     }
-    return JSObject::FastPropertyAt(holder, property_details_.representation(),
-                                    field_index);
+    return JSObject::FastPropertyAt(
+        isolate_, holder, property_details_.representation(), field_index);
   } else {
     result =
         holder_->map(isolate_).instance_descriptors(isolate_).GetStrongValue(
@@ -1005,7 +1016,7 @@ int LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-  DCHECK_EQ(kData, property_details_.kind());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
   // TODO(jkummerow): Propagate InternalIndex further.
   return descriptor_number().as_int();
 }
@@ -1014,7 +1025,7 @@ int LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
-  DCHECK_EQ(kAccessor, property_details_.kind());
+  DCHECK_EQ(PropertyKind::kAccessor, property_details_.kind());
   return descriptor_number().as_int();
 }
 
@@ -1046,6 +1057,18 @@ Handle<Object> LookupIterator::GetDataValue(
   return value;
 }
 
+Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return JSObject::FastPropertyAt(
+      isolate_, holder, property_details_.representation(), field_index, tag);
+}
+
 void LookupIterator::WriteDataValue(Handle<Object> value,
                                     bool initializing_store) {
   DCHECK_EQ(DATA, state_);
@@ -1054,6 +1077,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   // WasmObjects.
   DCHECK(!holder_->IsWasmObject(isolate_));
 #endif  // V8_ENABLE_WEBASSEMBLY
+  DCHECK_IMPLIES(holder_->IsJSSharedStruct(), value->IsShared());
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   if (IsElement(*holder)) {
@@ -1104,6 +1128,32 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   }
 }
 
+void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  holder->FastPropertyAtPut(field_index, *value, tag);
+}
+
+Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
+                                             SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                isolate_);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 wasm::ValueType LookupIterator::wasm_value_type() const {
@@ -1132,8 +1182,8 @@ void LookupIterator::WriteDataValueToWasmObject(Handle<Object> value) {
   } else {
     // WasmArrays don't have writable properties.
     DCHECK(holder->IsWasmStruct());
-    Handle<WasmStruct> holder = GetHolder<WasmStruct>();
-    WasmStruct::SetField(isolate_, holder, property_details_.field_index(),
+    Handle<WasmStruct> wasm_holder = GetHolder<WasmStruct>();
+    WasmStruct::SetField(isolate_, wasm_holder, property_details_.field_index(),
                          value);
   }
 }
@@ -1188,7 +1238,7 @@ bool HasInterceptor(Map map, size_t index) {
     if (index > JSObject::kMaxElementIndex) {
       // There is currently no way to install interceptors on an object with
       // typed array elements.
-      DCHECK(!map.has_typed_array_elements());
+      DCHECK(!map.has_typed_array_or_rab_gsab_typed_array_elements());
       return map.has_named_interceptor();
     }
     return map.has_indexed_interceptor();
@@ -1214,7 +1264,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map.is_access_check_needed()) {
-        if (is_element || !name_->IsPrivate(isolate_)) return ACCESS_CHECK;
+        if (is_element || !name_->IsPrivate(isolate_) ||
+            name_->IsPrivateName(isolate_))
+          return ACCESS_CHECK;
       }
       V8_FALLTHROUGH;
     case ACCESS_CHECK:
@@ -1236,9 +1288,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         property_details_ = cell.property_details();
         has_property_ = true;
         switch (property_details_.kind()) {
-          case v8::internal::kData:
+          case v8::internal::PropertyKind::kData:
             return DATA;
-          case v8::internal::kAccessor:
+          case v8::internal::PropertyKind::kAccessor:
             return ACCESSOR;
         }
       }
@@ -1271,9 +1323,10 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
         number_ = index_ < wasm_array.length() ? InternalIndex(index_)
                                                : InternalIndex::NotFound();
         wasm::ArrayType* wasm_array_type = wasm_array.type();
-        property_details_ = PropertyDetails(
-            kData, wasm_array_type->mutability() ? SEALED : FROZEN,
-            PropertyCellType::kNoCell);
+        property_details_ =
+            PropertyDetails(PropertyKind::kData,
+                            wasm_array_type->mutability() ? SEALED : FROZEN,
+                            PropertyCellType::kNoCell);
 
       } else {
         DCHECK(holder.IsWasmStruct(isolate_));
@@ -1319,9 +1372,9 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   }
   has_property_ = true;
   switch (property_details_.kind()) {
-    case v8::internal::kData:
+    case v8::internal::PropertyKind::kData:
       return DATA;
-    case v8::internal::kAccessor:
+    case v8::internal::PropertyKind::kAccessor:
       return ACCESSOR;
   }
 
@@ -1337,7 +1390,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   if (!access_check_info.is_null()) {
     // There is currently no way to create objects with typed array elements
     // and access checks.
-    DCHECK(!holder_->map().has_typed_array_elements());
+    DCHECK(!holder_->map().has_typed_array_or_rab_gsab_typed_array_elements());
     Object interceptor = is_js_array_element(IsElement())
                              ? access_check_info.indexed_interceptor()
                              : access_check_info.named_interceptor();
@@ -1537,7 +1590,7 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
                                                           kRelaxedLoad);
   if (!cell.has_value()) return {};
 
-  if (cell->property_details(kAcquireLoad).kind() == kAccessor) {
+  if (cell->property_details(kAcquireLoad).kind() == PropertyKind::kAccessor) {
     Object maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!maybe_accessor_pair.IsAccessorPair()) return {};
 
@@ -1551,11 +1604,12 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
         isolate, handle(*maybe_cached_property_name, local_isolate),
         kRelaxedLoad);
     if (!cell.has_value()) return {};
-    if (cell->property_details(kAcquireLoad).kind() != kData) return {};
+    if (cell->property_details(kAcquireLoad).kind() != PropertyKind::kData)
+      return {};
   }
 
   DCHECK(cell.has_value());
-  DCHECK_EQ(cell->property_details(kAcquireLoad).kind(), kData);
+  DCHECK_EQ(cell->property_details(kAcquireLoad).kind(), PropertyKind::kData);
   return cell;
 }
 

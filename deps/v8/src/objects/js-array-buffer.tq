@@ -11,10 +11,11 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_resizable: bool: 1 bit;
 }
 
-extern class JSArrayBuffer extends JSObject {
+extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
   byte_length: uintptr;
   max_byte_length: uintptr;
-  backing_store: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  backing_store: RawPtr;
   extension: RawPtr;
   bit_field: JSArrayBufferFlags;
   // Pads header size to be a multiple of kTaggedSize.
@@ -40,45 +41,68 @@ macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
   return buffer.bit_field.is_resizable;
 }
 
-@abstract
-extern class JSArrayBufferView extends JSObject {
-  buffer: JSArrayBuffer;
-  byte_offset: uintptr;
-  byte_length: uintptr;
-}
-
-// We have 4 different TypedArrays:
+// We have 4 different DataViews & TypedArrays:
 // 1) Normal (backed by AB / SAB) or non-length tracking backed by GSAB (can't
-// go oob once constructed) 2) Non-length tracking backed by RAB (can go oob
-// once constructed) 3) Length-tracking backed by RAB (JSArrayBuffer stores the
-// length) 4) Length-tracking backed by GSAB (BackingStore stores the length)
-bitfield struct JSTypedArrayFlags extends uint32 {
+// go oob once constructed)
+// 2) Non-length tracking backed by RAB (can go oob once constructed)
+// 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
+// 4) Length-tracking backed by GSAB (BackingStore stores the length)
+bitfield struct JSArrayBufferViewFlags extends uint32 {
   is_length_tracking: bool: 1 bit;
   is_backed_by_rab: bool: 1 bit;
 }
 
-extern class JSTypedArray extends JSArrayBufferView {
-  length: uintptr;
-  external_pointer: ExternalPointer;
-  base_pointer: ByteArray|Smi;
-  bit_field: JSTypedArrayFlags;
+@abstract
+extern class JSArrayBufferView extends JSObjectWithEmbedderSlots {
+  buffer: JSArrayBuffer;
+  byte_offset: uintptr;
+  byte_length: uintptr;
+  bit_field: JSArrayBufferViewFlags;
   // Pads header size to be a multiple of kTaggedSize.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 @export
-macro IsVariableLengthTypedArray(array: JSTypedArray): bool {
+macro IsVariableLengthJSArrayBufferView(array: JSArrayBufferView): bool {
   return array.bit_field.is_length_tracking || array.bit_field.is_backed_by_rab;
 }
 
 @export
-macro IsLengthTrackingTypedArray(array: JSTypedArray): bool {
+macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
   return array.bit_field.is_length_tracking;
 }
 
+extern macro LoadVariableLengthJSArrayBufferViewByteLength(
+    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+
+macro LoadJSArrayBufferViewByteLength(
+    view: JSArrayBufferView,
+    buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
+  if (IsVariableLengthJSArrayBufferView(view)) {
+    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+        otherwise DetachedOrOutOfBounds;
+  }
+  if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;
+  return view.byte_length;
+}
+
+extern class JSTypedArray extends JSArrayBufferView {
+  length: uintptr;
+  // A SandboxedPtr if the sandbox is enabled
+  external_pointer: RawPtr;
+  base_pointer: ByteArray|Smi;
+}
+
+@export
+macro IsOnHeapTypedArray(array: JSTypedArray): bool {
+  // See JSTypedArray::is_on_heap()
+  return TaggedNotEqual(array.base_pointer, SmiConstant(0));
+}
+
 extern class JSDataView extends JSArrayBufferView {
-  data_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  data_pointer: RawPtr;
 }
 
 @abstract

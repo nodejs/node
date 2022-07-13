@@ -16,10 +16,12 @@ events.captureRejections = true;
 
     res.socket.on('error', common.mustCall((err) => {
       assert.strictEqual(err, _err);
+      server.close();
     }));
 
     // Write until there is space in the buffer
-    while (res.write('hello')) {}
+    res.writeHead(200, { 'Connection': 'close' });
+    while (res.write('hello'));
   }));
 
   server.listen(0, common.mustCall(() => {
@@ -37,7 +39,6 @@ events.captureRejections = true;
         code: 'ECONNRESET'
       }));
       res.resume();
-      server.close();
     }));
   }));
 }
@@ -87,6 +88,6 @@ events.captureRejections = true;
     }));
 
     // Write until there is space in the buffer
-    while (req.write('hello')) {}
+    while (req.write('hello'));
   }));
 }

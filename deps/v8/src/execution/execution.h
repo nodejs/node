@@ -21,15 +21,19 @@ class Execution final : public AllStatic {
   enum class MessageHandling { kReport, kKeepPending };
   enum class Target { kCallable, kRunMicrotasks };
 
-  // Call a function, the caller supplies a receiver and an array
-  // of arguments.
-  //
+  // Call a function (that is not a script), the caller supplies a receiver and
+  // an array of arguments.
   // When the function called is not in strict mode, receiver is
   // converted to an object.
-  //
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Call(
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[]);
+  // Run a script. For JSFunctions that are not scripts, use Execution::Call.
+  // Depending on the script, the host_defined_options might not be used but the
+  // caller has to provide it at all times.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallScript(
+      Isolate* isolate, Handle<JSFunction> callable, Handle<Object> receiver,
+      Handle<Object> host_defined_options);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallBuiltin(
       Isolate* isolate, Handle<JSFunction> builtin, Handle<Object> receiver,
@@ -55,6 +59,14 @@ class Execution final : public AllStatic {
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[], MessageHandling message_handling,
       MaybeHandle<Object>* exception_out, bool reschedule_terminate = true);
+  // Same as Execute::TryCall but for scripts which need an explicit
+  // host-defined options object. See Execution:CallScript
+  V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCallScript(
+      Isolate* isolate, Handle<JSFunction> script_function,
+      Handle<Object> receiver, Handle<FixedArray> host_defined_options,
+      MessageHandling message_handling, MaybeHandle<Object>* exception_out,
+      bool reschedule_terminate = true);
+
   // Convenience method for performing RunMicrotasks
   static MaybeHandle<Object> TryRunMicrotasks(
       Isolate* isolate, MicrotaskQueue* microtask_queue,

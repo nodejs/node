@@ -1,4 +1,93 @@
-2021.07.21, Version 1.42.0 (Stable)
+2022.01.05, Version 1.43.0 (Stable), 988f2bfc4defb9a85a536a3e645834c161143ee0
+
+Changes since version 1.42.0:
+
+* run test named ip6_sin6_len (Jameson Nash)
+
+* docs: fix wrong information about scheduling (Mohamed Edrah)
+
+* unix: protect fork in uv_spawn from signals (Jameson Nash)
+
+* drop only successfully sent packets post sendmmsg (Supragya Raj)
+
+* test: fix typo in test-tty-escape-sequence-processing.c (Ikko Ashimine)
+
+* cmake: use standard installation layout always (Sylvain Corlay)
+
+* win,spawn: allow UNC path with forward slash (earnal)
+
+* win,fsevent: fix uv_fs_event_stop() assert (Ben Noordhuis)
+
+* unix: remove redundant include in unix.h (
+
+* doc: mark SmartOS as Tier 3 support (
+
+* doc: fix broken links for netbsd's sysctl manpage (
+
+* misc: adjust stalebot deadline (
+
+* test: remove `dns-server.c` as it is not used anywhere (
+
+* build: fix non-cmake android builds (
+
+* doc: replace pyuv with uvloop (
+
+* asan: fix some tests (
+
+* build: add experimental TSAN configuration (
+
+* pipe: remove useless assertion (
+
+* bsd: destroy mutex in uv__process_title_cleanup() (
+
+* build: add windows build to CI (
+
+* win,fs: fix error code in uv_fs_read() and uv_fs_write() ( Sen)
+
+* build: add macos-latest to ci matrix (
+
+* udp: fix &/&& typo in macro condition (
+
+* build: install cmake package module (Petr Menšík)
+
+* win: fix build for mingw32 (
+
+* build: fix build failures with MinGW new headers (erw7)
+
+* build: fix win build with cmake versions before v3.14 (
+
+* unix: support aarch64 in uv_cpu_info() (
+
+* linux: work around CIFS EPERM bug (
+
+* sunos: Oracle Developer Studio support (
+
+* Revert "sunos: Oracle Developer Studio support (
+
+* sunos: Oracle Developer Studio support (
+
+* stream: permit read after seeing EOF (
+
+* thread: initialize uv_thread_self for all threads (
+
+* kqueue: ignore write-end closed notifications (
+
+* macos: fix the cfdata length in uv__get_cpu_speed ( Bache)
+
+* unix,win: add uv_ip_name to get name from sockaddr (
+
+* win,test: fix a few typos (AJ Heller)
+
+* zos: use destructor for uv__threadpool_cleanup() ( Zhang)
+
+* linux: use MemAvailable instead of MemFree (
+
+* freebsd: call dlerror() only if necessary (
+
+* bsd,windows,zos: fix udp disconnect EINVAL (
+
+
+2021.07.21, Version 1.42.0 (Stable), 6ce14710da7079eb248868171f6343bc409ea3a4
 
 Changes since version 1.41.0:
 

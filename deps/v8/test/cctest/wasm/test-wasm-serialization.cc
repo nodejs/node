@@ -31,7 +31,9 @@ namespace test_wasm_serialization {
 // Approximate gtest TEST_F style, in case we adopt gtest.
 class WasmSerializationTest {
  public:
-  WasmSerializationTest() : zone_(&allocator_, ZONE_NAME) {
+  WasmSerializationTest()
+      : zone_(&allocator_, ZONE_NAME),
+        no_wasm_dynamic_tiering_(&FLAG_wasm_dynamic_tiering, false) {
     // Don't call here if we move to gtest.
     SetUp();
   }
@@ -184,6 +186,7 @@ class WasmSerializationTest {
   v8::OwnedBuffer data_;
   v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
   v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
+  FlagScope<bool> no_wasm_dynamic_tiering_;
 };
 
 const char* WasmSerializationTest::kFunctionName = "increment";
@@ -328,6 +331,36 @@ TEST(TierDownAfterDeserialization) {
 
   auto* liftoff_code = native_module->GetCode(0);
   CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());
+}
+
+TEST(SerializeLiftoffModuleFails) {
+  // Make sure that no function is tiered up to TurboFan.
+  if (!FLAG_liftoff) return;
+  FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, "test_zone");
+
+  CcTest::InitIsolateOnce();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  ZoneBuffer wire_bytes_buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &wire_bytes_buffer);
+
+  ErrorThrower thrower(isolate, "Test");
+  MaybeHandle<WasmModuleObject> maybe_module_object =
+      GetWasmEngine()->SyncCompile(
+          isolate, WasmFeatures::All(), &thrower,
+          ModuleWireBytes(wire_bytes_buffer.begin(), wire_bytes_buffer.end()));
+  Handle<WasmModuleObject> module_object =
+      maybe_module_object.ToHandleChecked();
+
+  NativeModule* native_module = module_object->native_module();
+  WasmSerializer wasm_serializer(native_module);
+  size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
+  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
+  // Serialization is expected to fail if there is no TurboFan function to
+  // serialize.
+  CHECK(!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}));
 }
 
 }  // namespace test_wasm_serialization

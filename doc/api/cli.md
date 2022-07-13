@@ -1,4 +1,4 @@
-# Command-line options
+# Command-line API
 
 <!--introduced_in=v5.9.1-->
 
@@ -11,15 +11,42 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [<program-entry-point> | -e "script" | -] [--] [arguments]`
 
-`node inspect [script.js | -e "script" | <host>:<port>] …`
+`node inspect [<program-entry-point> | -e "script" | <host>:<port>] …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
 For more info about `node inspect`, see the [debugger][] documentation.
+
+## Program entry point
+
+The program entry point is a specifier-like string. If the string is not an
+absolute path, it's resolved as a relative path from the current working
+directory. That path is then resolved by [CommonJS][] module loader. If no
+corresponding file is found, an error is thrown.
+
+If a file is found, its path will be passed to the [ECMAScript module loader][]
+under any of the following conditions:
+
+* The program was started with a command-line flag that forces the entry
+  point to be loaded with ECMAScript module loader.
+* The file has an `.mjs` extension.
+* The file does not have a `.cjs` extension, and the nearest parent
+  `package.json` file contains a top-level [`"type"`][] field with a value of
+  `"module"`.
+
+Otherwise, the file is loaded using the CommonJS module loader. See
+[Modules loaders][] for more details.
+
+### ECMAScript modules loader entry point caveat
+
+When loading [ECMAScript module loader][] loads the program entry point, the `node`
+command will only accept as input only files with `.js`, `.mjs`, or `.cjs`
+extensions; and with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled.
 
 ## Options
 
@@ -71,7 +98,7 @@ analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
 If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
-`domain` module that uses it).
+`node:domain` module that uses it).
 
 ### `--completion-bash`
 
@@ -199,7 +226,7 @@ added: v9.8.0
 
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
-`vm` module.
+`node:vm` module.
 
 ### `--dns-result-order=order`
 
@@ -253,6 +280,16 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
+### `--experimental-global-webcrypto`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+Expose the [Web Crypto API][] on the global scope.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -263,22 +300,31 @@ added:
 
 Enable experimental `import.meta.resolve()` support.
 
-### `--experimental-json-modules`
-
-<!-- YAML
-added: v12.9.0
--->
-
-Enable experimental JSON support for the ES Module loader.
-
 ### `--experimental-loader=module`
 
 <!-- YAML
-added: v9.0.0
+added: v8.8.0
+changes:
+  - version: v12.11.1
+    pr-url: https://github.com/nodejs/node/pull/29752
+    description: This flag was renamed from `--loader` to
+                 `--experimental-loader`.
 -->
 
-Specify the `module` of a custom experimental [ECMAScript Module loader][].
-`module` may be either a path to a file, or an ECMAScript Module name.
+Specify the `module` of a custom experimental [ECMAScript module loader][].
+`module` may be any string accepted as an [`import` specifier][].
+
+### `--experimental-network-imports`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the `https:` protocol in `import` specifiers.
 
 ### `--experimental-policy`
 
@@ -288,13 +334,29 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
+### `--no-experimental-fetch`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+Disable experimental support for the [Fetch API][].
+
 ### `--no-experimental-repl-await`
 
 <!-- YAML
 added: v16.6.0
- -->
+-->
 
 Use this flag to disable top-level await in REPL.
+
+### `--experimental-shadow-realm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to enable [ShadowRealm][] support.
 
 ### `--experimental-specifier-resolution=mode`
 
@@ -319,7 +381,7 @@ See [customizing ESM specifier resolution][] for example usage.
 added: v9.6.0
 -->
 
-Enable experimental ES Module support in the `vm` module.
+Enable experimental ES Module support in the `node:vm` module.
 
 ### `--experimental-wasi-unstable-preview1`
 
@@ -371,12 +433,23 @@ added: v11.12.0
 
 Enable experimental frozen intrinsics like `Array` and `Object`.
 
-Support is currently only provided for the root context and no guarantees are
-currently provided that `global.Array` is indeed the default intrinsic
-reference. Code may break under this flag.
+Only the root context is supported. There is no guarantee that
+`globalThis.Array` is indeed the default intrinsic reference. Code may break
+under this flag.
 
-`--require` runs prior to freezing intrinsics in order to allow polyfills to
-be added.
+To allow polyfills to be added, `--require` runs before freezing intrinsics.
+
+### `--force-node-api-uncaught-exceptions-policy`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+Enforces `uncaughtException` event on Node-API asynchronous callbacks.
+
+To prevent from an existing add-on from crashing the process, this flag is not
+enabled by default. In the future, this flag will be enabled by default to
+enforce the correct behavior.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 
@@ -393,7 +466,7 @@ heap limit. `count` should be a non-negative integer (in which case
 Node.js will write no more than `max_count` snapshots to disk).
 
 When generating snapshots, garbage collection may be triggered and bring
-the heap usage down, therefore multiple snapshots may be written to disk
+the heap usage down. Therefore multiple snapshots may be written to disk
 before the Node.js instance finally runs out of memory. These heap snapshots
 can be compared to determine what objects are being allocated during the
 time consecutive snapshots are taken. It's not guaranteed that Node.js will
@@ -524,6 +597,8 @@ module. String input is input via `--eval`, `--print`, or `STDIN`.
 
 Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 
+The REPL does not support this option.
+
 ### `--inspect-brk[=[host:]port]`
 
 <!-- YAML
@@ -622,10 +697,10 @@ added:
 changes:
   - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32520
-    description: Change maximum default size of HTTP headers from 8 KB to 16 KB.
+    description: Change maximum default size of HTTP headers from 8 KiB to 16 KiB.
 -->
 
-Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KB.
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KiB.
 
 ### `--napi-modules`
 
@@ -638,7 +713,9 @@ This option is a no-op. It is kept for compatibility.
 ### `--no-addons`
 
 <!-- YAML
-added: v16.10.0
+added:
+  - v16.10.0
+  - v14.19.0
 -->
 
 Disable the `node-addons` exports condition as well as disable loading
@@ -707,6 +784,21 @@ added: v6.9.0
 Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
+
+### `--openssl-shared-config`
+
+<!-- YAML
+added: v18.5.0
+-->
+
+Enable OpenSSL default configuration section, `openssl_conf` to be read from
+the OpenSSL configuration file. The default configuration file is named
+`openssl.cnf` but this can be changed using the environment variable
+`OPENSSL_CONF`, or by using the command line option `--openssl-config`.
+The location of the default OpenSSL configuration file depends on how OpenSSL
+is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
+implications and it is recommended to use a configuration section specific to
+Node.js which is `nodejs_conf` and is default when this option is not used.
 
 ### `--openssl-legacy-provider`
 
@@ -1006,6 +1098,25 @@ minimum allocation from the secure heap. The minimum value is `2`.
 The maximum value is the lesser of `--secure-heap` or `2147483647`.
 The value given must be a power of two.
 
+### `--test`
+
+<!-- YAML
+added: v18.1.0
+-->
+
+Starts the Node.js command line test runner. This flag cannot be combined with
+`--check`, `--eval`, `--interactive`, or the inspector. See the documentation
+on [running tests from the command line][] for more details.
+
+### `--test-only`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+Configures the test runner to only execute top level tests that have the `only`
+option set.
+
 ### `--throw-deprecation`
 
 <!-- YAML
@@ -1261,6 +1372,9 @@ occurs. One of the following modes can be chosen:
 * `warn-with-error-code`: Emit [`unhandledRejection`][]. If this hook is not
   set, trigger a warning, and set the process exit code to 1.
 * `none`: Silence all warnings.
+
+If a rejection happens during the command line entry point's ES module static
+loading phase, it will always raise it as an uncaught exception.
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
 
@@ -1538,11 +1652,14 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-network-imports`
 * `--experimental-policy`
+* `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -1550,6 +1667,7 @@ Node.js options that are allowed are:
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
+* `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
@@ -1565,6 +1683,7 @@ Node.js options that are allowed are:
 * `--napi-modules`
 * `--no-addons`
 * `--no-deprecation`
+* `--no-experimental-fetch`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -1573,6 +1692,7 @@ Node.js options that are allowed are:
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
+* `--openssl-shared-config`
 * `--pending-deprecation`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
@@ -1589,6 +1709,7 @@ Node.js options that are allowed are:
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
+* `--test-only`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -1870,9 +1991,9 @@ changes:
 
 The `TZ` environment variable is used to specify the timezone configuration.
 
-While the Node.js support for `TZ` will not handle all of the various
-[ways that `TZ` is handled in other environments][], it will support basic
-[timezone IDs][] (such as `'Etc/UTC'`, `'Europe/Paris'` or `'America/New_York'`.
+While Node.js does not support all of the various [ways that `TZ` is handled in
+other environments][], it does support basic [timezone IDs][] (such as
+`'Etc/UTC'`, `'Europe/Paris'`, or `'America/New_York'`).
 It may support a few other abbreviations or aliases, but these are strongly
 discouraged and not guaranteed.
 
@@ -1921,23 +2042,56 @@ Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
-On a machine with 2 GB of memory, consider setting this to
-1536 (1.5 GB) to leave some memory for other uses and avoid swapping.
+On a machine with 2 GiB of memory, consider setting this to
+1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
 ```console
 $ node --max-old-space-size=1536 index.js
 ```
 
+### `--max-semi-space-size=SIZE` (in megabytes)
+
+Sets the maximum [semi-space][] size for V8's [scavenge garbage collector][] in
+MiB (megabytes).
+Increasing the max size of a semi-space may improve throughput for Node.js at
+the cost of more memory consumption.
+
+Since the young generation size of the V8 heap is three times (see
+[`YoungGenerationSizeFromSemiSpaceSize`][] in V8) the size of the semi-space,
+an increase of 1 MiB to semi-space applies to each of the three individual
+semi-spaces and causes the heap size to increase by 3 MiB. The throughput
+improvement depends on your workload (see [#42511][]).
+
+The default value is 16 MiB for 64-bit systems and 8 MiB for 32-bit systems. To
+get the best configuration for your application, you should try different
+max-semi-space-size values when running benchmarks for your application.
+
+For example, benchmark on a 64-bit systems:
+
+```bash
+for MiB in 16 32 64 128; do
+    node --max-semi-space-size=$MiB index.js
+done
+```
+
+[#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[ECMAScript Module loader]: esm.md#loaders
+[CommonJS]: modules.md
+[ECMAScript module loader]: esm.md#loaders
+[Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[Modules loaders]: packages.md#modules-loaders
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[Web Crypto API]: webcrypto.md
+[`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile
@@ -1947,9 +2101,11 @@ $ node --max-old-space-size=1536 index.js
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
+[`import` specifier]: esm.md#import-specifiers
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
@@ -1964,6 +2120,9 @@ $ node --max-old-space-size=1536 index.js
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[running tests from the command line]: test.md#running-tests-from-the-command-line
+[scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
+[semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

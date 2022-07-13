@@ -265,8 +265,10 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
       //      |                              |
       //   <subgraph1>                     <subgraph1>
       // (and symmetrically for TrapUnless.)
-      if ((control_input->opcode() == IrOpcode::kIfTrue ||
-           control_input->opcode() == IrOpcode::kIfFalse) &&
+      if (((trapping_condition &&
+            control_input->opcode() == IrOpcode::kIfTrue) ||
+           (!trapping_condition &&
+            control_input->opcode() == IrOpcode::kIfFalse)) &&
           control_input->UseCount() == 1) {
         Node* branch = NodeProperties::GetControlInput(control_input);
         DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
@@ -331,9 +333,8 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
       // with the {control} node that already contains the right information.
       ReplaceWithValue(node, dead(), effect, control);
     } else {
-      control = graph()->NewNode(
-          common()->Deoptimize(p.kind(), p.reason(), p.feedback()), frame_state,
-          effect, control);
+      control = graph()->NewNode(common()->Deoptimize(p.reason(), p.feedback()),
+                                 frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());
@@ -415,7 +416,9 @@ Reduction BranchElimination::UpdateConditions(
     Node* node, ControlPathConditions conditions) {
   // Only signal that the node has Changed if the condition information has
   // changed.
-  if (reduced_.Set(node, true) | node_conditions_.Set(node, conditions)) {
+  bool reduced_changed = reduced_.Set(node, true);
+  bool node_conditions_changed = node_conditions_.Set(node, conditions);
+  if (reduced_changed || node_conditions_changed) {
     return Changed(node);
   }
   return NoChange();

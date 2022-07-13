@@ -14,8 +14,7 @@
 namespace v8 {
 namespace internal {
 
-base::TimeTicks (*RuntimeCallTimer::Now)() =
-    &base::TimeTicks::HighResolutionNow;
+base::TimeTicks (*RuntimeCallTimer::Now)() = &base::TimeTicks::Now;
 
 base::TimeTicks RuntimeCallTimer::NowCPUTime() {
   base::ThreadTicks ticks = base::ThreadTicks::Now();
@@ -323,8 +322,7 @@ void WorkerThreadRuntimeCallStats::AddToMainTable(
 }
 
 WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
-    WorkerThreadRuntimeCallStats* worker_stats)
-    : table_(nullptr) {
+    WorkerThreadRuntimeCallStats* worker_stats) {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
   table_ = reinterpret_cast<RuntimeCallStats*>(

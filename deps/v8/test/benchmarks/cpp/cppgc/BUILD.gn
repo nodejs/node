@@ -26,13 +26,15 @@ if (v8_enable_google_benchmark) {
     sources = [
       "../../../../test/unittests/heap/cppgc/test-platform.cc",
       "../../../../test/unittests/heap/cppgc/test-platform.h",
-      "utils.h",
+      "benchmark_main.cc",
+      "benchmark_utils.cc",
+      "benchmark_utils.h",
     ]
-    deps = [ "//third_party/google_benchmark:benchmark_main" ]
+    public_deps = [ "//third_party/google_benchmark:google_benchmark" ]
     if (cppgc_is_standalone) {
-      deps += [ "../../../..:cppgc_for_testing" ]
+      deps = [ "../../../..:cppgc_for_testing" ]
     } else {
-      deps += [ "../../../..:v8_for_testing" ]
+      deps = [ "../../../..:v8_for_testing" ]
     }
   }
 
@@ -48,10 +50,24 @@ if (v8_enable_google_benchmark) {
       "allocation_perf.cc",
       "trace_perf.cc",
     ]
-    deps = [
-      ":cppgc_benchmark_support",
-      "//third_party/google_benchmark:benchmark_main",
+    deps = [ ":cppgc_benchmark_support" ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
+  }
+
+  v8_executable("cppgc_binary_trees_perf") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
     ]
+    sources = [ "binary-trees_perf.cc" ]
+    deps = [ ":cppgc_benchmark_support" ]
     if (cppgc_is_standalone) {
       deps += [ "../../../..:cppgc_for_testing" ]
     } else {

@@ -331,6 +331,9 @@ class V8_EXPORT_PRIVATE OrderedHashMap
                                             int new_capacity);
   static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<OrderedHashMap> table);
+
+  void SetEntry(InternalIndex entry, Object key, Object value);
+
   Object ValueAt(InternalIndex entry);
 
   // This takes and returns raw Address values containing tagged Object

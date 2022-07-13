@@ -142,8 +142,7 @@ struct PostConstructionCallbackTrait<
 
 template <typename T>
 struct PostConstructionCallbackTrait<
-    T,
-    internal::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
+    T, std::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
   // The parameter could just be T*.
   static void Call(
       internal::GCedWithMixinWithPostConstructionCallback* object) {
@@ -247,6 +246,18 @@ TEST_F(GarbageCollectedTestWithHeap,
   MakeGarbageCollected<CheckGCedWithMixinInConstructionBeforeInitializerList>(
       GetAllocationHandle());
 }
+
+namespace {
+
+struct MixinA : GarbageCollectedMixin {};
+struct MixinB : GarbageCollectedMixin {};
+struct GCed1 : GarbageCollected<GCed>, MixinA, MixinB {};
+struct GCed2 : MixinA, MixinB {};
+
+static_assert(
+    sizeof(GCed1) == sizeof(GCed2),
+    "Check that empty base optimization always works for GarbageCollected");
+}  // namespace
 
 }  // namespace internal
 }  // namespace cppgc

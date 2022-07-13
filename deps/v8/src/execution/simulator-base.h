@@ -7,6 +7,9 @@
 
 #include <type_traits>
 
+#ifdef V8_TARGET_ARCH_ARM64
+#include "include/v8-fast-api-calls.h"
+#endif  // V8_TARGET_ARCH_ARM64
 #include "src/base/hashmap.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -68,6 +71,16 @@ class SimulatorBase {
     return Object(ret);
   }
 
+#ifdef V8_TARGET_ARCH_ARM64
+  template <typename T>
+  static typename std::enable_if<std::is_same<T, v8::AnyCType>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    v8::AnyCType result;
+    result.int64_value = static_cast<int64_t>(ret);
+    return result;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+
   // Convert back void return type (i.e. no return).
   template <typename T>
   static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
@@ -105,6 +118,13 @@ class SimulatorBase {
   static typename std::enable_if<std::is_pointer<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     return reinterpret_cast<intptr_t>(arg);
+  }
+
+  template <typename T>
+  static
+      typename std::enable_if<std::is_floating_point<T>::value, intptr_t>::type
+      ConvertArg(T arg) {
+    UNREACHABLE();
   }
 };
 
@@ -174,6 +194,41 @@ class Redirection {
 #if ABI_USES_FUNCTION_DESCRIPTORS
   intptr_t function_descriptor_[3];
 #endif
+};
+
+class SimulatorData {
+ public:
+  // Calls AddSignatureForTarget for each function and signature, registering
+  // an encoded version of the signature within a mapping maintained by the
+  // simulator (from function address -> encoded signature). The function
+  // is supposed to be called whenever one compiles a fast API function with
+  // possibly multiple overloads.
+  // Note that this function is called from one or more compiler threads,
+  // while the main thread might be reading at the same time from the map, so
+  // both Register* and Get* are guarded with a single mutex.
+  void RegisterFunctionsAndSignatures(Address* c_functions,
+                                      const CFunctionInfo* const* c_signatures,
+                                      unsigned num_functions);
+  // The following method is used by the simulator itself to query
+  // whether a signature is registered for the call target and use this
+  // information to address arguments correctly (load them from either GP or
+  // FP registers, or from the stack).
+  const EncodedCSignature& GetSignatureForTarget(Address target);
+  // This method is exposed only for tests, which don't need synchronisation.
+  void AddSignatureForTargetForTesting(Address target,
+                                       const EncodedCSignature& signature) {
+    AddSignatureForTarget(target, signature);
+  }
+
+ private:
+  void AddSignatureForTarget(Address target,
+                             const EncodedCSignature& signature) {
+    target_to_signature_table_[target] = signature;
+  }
+
+  v8::base::Mutex signature_map_mutex_;
+  typedef std::unordered_map<Address, EncodedCSignature> TargetToSignatureTable;
+  TargetToSignatureTable target_to_signature_table_;
 };
 
 }  // namespace internal

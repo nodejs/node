@@ -67,7 +67,7 @@ subSystemLabels:
   /^tools\/make-v8/: tools, v8 engine, needs-ci
   /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
   /^tools\/(code_cache|snapshot)/: needs-ci
-  /^tools\/build-addons.js/: needs-ci
+  /^tools\/build-addons.mjs/: needs-ci
   # all other tool changes should be marked as such
   /^tools\//: tools
   /^\.eslint|\.remark|\.editorconfig/: tools
@@ -85,7 +85,7 @@ subSystemLabels:
   /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^deps\/([^/]+)/: $1
+  /^deps\/([^/]+)/: dependencies, $1
 
   ## JS subsystems
   # Oddities first

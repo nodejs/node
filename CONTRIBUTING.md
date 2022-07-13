@@ -5,28 +5,28 @@
 * [Pull Requests](#pull-requests)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
 
-## [Code of Conduct](./doc/guides/contributing/code-of-conduct.md)
+## [Code of Conduct](./doc/contributing/code-of-conduct.md)
 
 The Node.js project has a
 [Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
 to which all contributors must adhere.
 
-See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of-conduct.md).
+See [details on our policy on Code of Conduct](./doc/contributing/code-of-conduct.md).
 
-## [Issues](./doc/guides/contributing/issues.md)
+## [Issues](./doc/contributing/issues.md)
 
-* [Asking for General Help](./doc/guides/contributing/issues.md#asking-for-general-help)
-* [Discussing non-technical topics](./doc/guides/contributing/issues.md#discussing-non-technical-topics)
-* [Submitting a Bug Report](./doc/guides/contributing/issues.md#submitting-a-bug-report)
-* [Triaging a Bug Report](./doc/guides/contributing/issues.md#triaging-a-bug-report)
+* [Asking for General Help](./doc/contributing/issues.md#asking-for-general-help)
+* [Discussing non-technical topics](./doc/contributing/issues.md#discussing-non-technical-topics)
+* [Submitting a Bug Report](./doc/contributing/issues.md#submitting-a-bug-report)
+* [Triaging a Bug Report](./doc/contributing/issues.md#triaging-a-bug-report)
 
-## [Pull Requests](./doc/guides/contributing/pull-requests.md)
+## [Pull Requests](./doc/contributing/pull-requests.md)
 
-* [Dependencies](./doc/guides/contributing/pull-requests.md#dependencies)
-* [Setting up your local environment](./doc/guides/contributing/pull-requests.md#setting-up-your-local-environment)
-* [The Process of Making Changes](./doc/guides/contributing/pull-requests.md#the-process-of-making-changes)
-* [Reviewing Pull Requests](./doc/guides/contributing/pull-requests.md#reviewing-pull-requests)
-* [Notes](./doc/guides/contributing/pull-requests.md#notes)
+* [Dependencies](./doc/contributing/pull-requests.md#dependencies)
+* [Setting up your local environment](./doc/contributing/pull-requests.md#setting-up-your-local-environment)
+* [The Process of Making Changes](./doc/contributing/pull-requests.md#the-process-of-making-changes)
+* [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
+* [Notes](./doc/contributing/pull-requests.md#notes)
 
 <a id="developers-certificate-of-origin"></a>
 

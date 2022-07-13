@@ -79,10 +79,10 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
       case (weakCell: WeakCell): {
         try {
           Call(context, callback, Undefined, weakCell.holdings);
-        } catch (e) {
+        } catch (e, message) {
           runtime::ShrinkFinalizationRegistryUnregisterTokenMap(
               context, finalizationRegistry);
-          ReThrow(context, e);
+          ReThrowWithMessage(context, e, message);
         }
       }
     }

@@ -7,7 +7,7 @@ const assert = require('assert');
 // basic
 {
   // Find it on Writable.prototype
-  assert(Writable.prototype.hasOwnProperty('writableFinished'));
+  assert(Object.hasOwn(Writable.prototype, 'writableFinished'));
 }
 
 // event

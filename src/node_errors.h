@@ -64,6 +64,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
+  V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
@@ -269,6 +270,11 @@ void PerIsolateMessageListener(v8::Local<v8::Message> message,
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
 }  // namespace errors
+
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> source,
+    bool is_code_like);
 
 }  // namespace node
 

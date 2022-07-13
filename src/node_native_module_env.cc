@@ -1,6 +1,9 @@
-#include "node_native_module_env.h"
+#include <algorithm>
+
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_external_reference.h"
+#include "node_native_module_env.h"
 
 namespace node {
 namespace native_module {
@@ -22,16 +25,7 @@ using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
-// TODO(joyeecheung): make these more general and put them into util.h
-Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
-  Isolate* isolate = context->GetIsolate();
-  Local<Set> out = Set::New(isolate);
-  for (auto const& x : in) {
-    out->Add(context, OneByteString(isolate, x.c_str(), x.size()))
-        .ToLocalChecked();
-  }
-  return out;
-}
+bool NativeModuleEnv::has_code_cache_ = false;
 
 bool NativeModuleEnv::Add(const char* id, const UnionBytes& source) {
   return NativeModuleLoader::GetInstance()->Add(id, source);
@@ -47,6 +41,61 @@ Local<Object> NativeModuleEnv::GetSourceObject(Local<Context> context) {
 
 Local<String> NativeModuleEnv::GetConfigString(Isolate* isolate) {
   return NativeModuleLoader::GetInstance()->GetConfigString(isolate);
+}
+
+bool NativeModuleEnv::CompileAllModules(Local<Context> context) {
+  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  std::vector<std::string> ids = loader->GetModuleIds();
+  bool all_succeeded = true;
+  for (const auto& id : ids) {
+    // TODO(joyeecheung): compile non-module scripts here too.
+    if (!loader->CanBeRequired(id.c_str())) {
+      continue;
+    }
+    v8::TryCatch bootstrapCatch(context->GetIsolate());
+    native_module::NativeModuleLoader::Result result;
+    USE(loader->CompileAsModule(context, id.c_str(), &result));
+    if (bootstrapCatch.HasCaught()) {
+      per_process::Debug(DebugCategory::CODE_CACHE,
+                         "Failed to compile code cache for %s\n",
+                         id.c_str());
+      all_succeeded = false;
+      PrintCaughtException(context->GetIsolate(), context, bootstrapCatch);
+    }
+  }
+  return all_succeeded;
+}
+
+void NativeModuleEnv::CopyCodeCache(std::vector<CodeCacheInfo>* out) {
+  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  Mutex::ScopedLock lock(loader->code_cache_mutex());
+  auto in = loader->code_cache();
+  for (auto const& item : *in) {
+    out->push_back(
+        {item.first,
+         {item.second->data, item.second->data + item.second->length}});
+  }
+}
+
+void NativeModuleEnv::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
+  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  Mutex::ScopedLock lock(loader->code_cache_mutex());
+  auto out = loader->code_cache();
+  for (auto const& item : in) {
+    size_t length = item.data.size();
+    uint8_t* buffer = new uint8_t[length];
+    memcpy(buffer, item.data.data(), length);
+    auto new_cache = std::make_unique<v8::ScriptCompiler::CachedData>(
+        buffer, length, v8::ScriptCompiler::CachedData::BufferOwned);
+    auto cache_it = out->find(item.id);
+    if (cache_it != out->end()) {
+      // Release the old cache and replace it with the new copy.
+      cache_it->second.reset(new_cache.release());
+    } else {
+      out->emplace(item.id, new_cache.release());
+    }
+  }
+  NativeModuleEnv::has_code_cache_ = true;
 }
 
 void NativeModuleEnv::GetModuleCategories(
@@ -67,16 +116,26 @@ void NativeModuleEnv::GetModuleCategories(
     cannot_be_required.insert("trace_events");
   }
 
-  result
+  Local<Value> cannot_be_required_js;
+  Local<Value> can_be_required_js;
+
+  if (!ToV8Value(context, cannot_be_required).ToLocal(&cannot_be_required_js))
+    return;
+  if (result
       ->Set(context,
             OneByteString(isolate, "cannotBeRequired"),
-            ToJsSet(context, cannot_be_required))
-      .FromJust();
-  result
+            cannot_be_required_js)
+      .IsNothing())
+    return;
+  if (!ToV8Value(context, can_be_required).ToLocal(&can_be_required_js))
+    return;
+  if (result
       ->Set(context,
             OneByteString(isolate, "canBeRequired"),
-            ToJsSet(context, can_be_required))
-      .FromJust();
+            can_be_required_js)
+      .IsNothing()) {
+    return;
+  }
   info.GetReturnValue().Set(result);
 }
 
@@ -85,23 +144,45 @@ void NativeModuleEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Object> result = Object::New(isolate);
-  result
+
+  Local<Value> native_modules_with_cache_js;
+  Local<Value> native_modules_without_cache_js;
+  Local<Value> native_modules_in_snapshot_js;
+  if (!ToV8Value(context, env->native_modules_with_cache)
+      .ToLocal(&native_modules_with_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithCache"),
-            ToJsSet(context, env->native_modules_with_cache))
-      .FromJust();
-  result
+            native_modules_with_cache_js)
+      .IsNothing()) {
+    return;
+  }
+
+  if (!ToV8Value(context, env->native_modules_without_cache)
+      .ToLocal(&native_modules_without_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithoutCache"),
-            ToJsSet(context, env->native_modules_without_cache))
-      .FromJust();
+            native_modules_without_cache_js)
+      .IsNothing()) {
+    return;
+  }
 
-  result
+  if (!ToV8Value(context, env->native_modules_in_snapshot)
+      .ToLocal(&native_modules_without_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledInSnapshot"),
-            ToV8Value(env->context(), env->native_modules_in_snapshot)
-                .ToLocalChecked())
-      .FromJust();
+            native_modules_without_cache_js)
+      .IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(result);
 }
@@ -164,9 +245,10 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
   return maybe;
 }
 
-void HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
+void NativeModuleEnv::HasCachedBuiltins(
+    const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
-      v8::Boolean::New(args.GetIsolate(), has_code_cache));
+      v8::Boolean::New(args.GetIsolate(), NativeModuleEnv::has_code_cache_));
 }
 
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize

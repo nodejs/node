@@ -250,6 +250,7 @@ class StoreHandler final : public DataHandler {
     kConstField,
     kAccessor,
     kNativeDataProperty,
+    kSharedStructField,
     kApiSetter,
     kApiSetterHolderIsPrototype,
     kGlobalProxy,
@@ -301,6 +302,16 @@ class StoreHandler final : public DataHandler {
                                        PropertyConstness constness,
                                        Representation representation);
 
+  // Creates a Smi-handler for storing a field to a JSSharedStruct.
+  static inline Handle<Smi> StoreSharedStructField(
+      Isolate* isolate, int descriptor, FieldIndex field_index,
+      Representation representation);
+
+  // Create a store transition handler which doesn't check prototype chain.
+  static MaybeObjectHandle StoreOwnTransition(Isolate* isolate,
+                                              Handle<Map> transition_map);
+
+  // Create a store transition handler with prototype chain validity cell check.
   static MaybeObjectHandle StoreTransition(Isolate* isolate,
                                            Handle<Map> transition_map);
 

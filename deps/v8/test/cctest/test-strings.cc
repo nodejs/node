@@ -602,7 +602,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
       isolate->factory()->NewStringFromAsciiChecked("snd012345012345678");
   cons->set_first(*new_fst);
   cons->set_second(*new_snd);
-  CHECK(!cons->IsFlat());
+  CHECK(!cons->IsFlat(GetPtrComprCageBase(*cons)));
   CHECK_EQ(initial_length, new_fst->length() + new_snd->length());
   CHECK_EQ(initial_length, cons->length());
 
@@ -1368,11 +1368,6 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(InternalizeExternal) {
-#ifdef ENABLE_MINOR_MC
-  // TODO(mlippautz): Remove once we add support for forwarding ThinStrings in
-  // minor MC
-  if (FLAG_minor_mc) return;
-#endif  // ENABLE_MINOR_MC
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1840,13 +1835,13 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
     s->EnsureHash();
-    CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsIntegerIndex(s->raw_hash_field()));
     CHECK(s->HasHashCode());
   }
   if (!s->HasHashCode()) s->EnsureHash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
-    CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsHash(s->raw_hash_field()));
   }
 }
 
@@ -1858,12 +1853,12 @@ TEST(HashArrayIndexStrings) {
   v8::HandleScope scope(CcTest::isolate());
   i::Isolate* isolate = CcTest::i_isolate();
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */)),
            isolate->factory()->zero_string()->hash());
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */)),
            isolate->factory()->one_string()->hash());
 
   IndexData tests[] = {
@@ -1891,7 +1886,6 @@ TEST(HashArrayIndexStrings) {
 }
 
 TEST(StringEquals) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -1928,7 +1922,6 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
 TEST(Regress876759) {
   // Thin strings are used in conjunction with young gen
   if (FLAG_single_generation) return;
-  v8::V8::Initialize();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
@@ -2138,15 +2131,19 @@ TEST(CheckCachedDataInternalExternalUncachedString) {
   // that we indeed cached it.
   Handle<ExternalOneByteString> external_string =
       Handle<ExternalOneByteString>::cast(string);
-  CHECK(external_string->is_uncached());
+  // If sandboxed external pointers are enabled, string objects will always be
+  // cacheable because they are smaller.
+  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  CHECK_NOT_NULL(external_string->resource()->cached_data());
-  CHECK_EQ(external_string->resource()->cached_data(),
-           external_string->resource()->data());
+  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
 }
 
 // Show that we cache the data pointer for internal, external and uncached
-// strings with cacheable resources through MakeExternal. One byte version.
+// strings with cacheable resources through MakeExternal. Two byte version.
 TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
@@ -2177,11 +2174,15 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   // that we indeed cached it.
   Handle<ExternalTwoByteString> external_string =
       Handle<ExternalTwoByteString>::cast(string);
-  CHECK(external_string->is_uncached());
+  // If sandboxed external pointers are enabled, string objects will always be
+  // cacheable because they are smaller.
+  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  CHECK_NOT_NULL(external_string->resource()->cached_data());
-  CHECK_EQ(external_string->resource()->cached_data(),
-           external_string->resource()->data());
+  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
 }
 
 }  // namespace test_strings

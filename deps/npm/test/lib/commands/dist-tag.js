@@ -50,7 +50,9 @@ let npmRegistryFetchMock = (url, opts) => {
   return routeMap[url]
 }
 
-npmRegistryFetchMock.json = async (url, opts) => routeMap[url]
+npmRegistryFetchMock.json = async (url, opts) => {
+  return routeMap[url]
+}
 
 const logger = (...msgs) => {
   for (const msg of [...msgs]) {

@@ -239,7 +239,8 @@ TEST(TypedSlotSet, Iterate) {
   static const int kDelta = 10000001;
   int added = 0;
   for (uint32_t i = 0; i < TypedSlotSet::kMaxOffset; i += kDelta) {
-    SlotType type = static_cast<SlotType>(i % CLEARED_SLOT);
+    SlotType type =
+        static_cast<SlotType>(i % static_cast<uint8_t>(SlotType::kCleared));
     set.Insert(type, i);
     ++added;
   }
@@ -247,7 +248,8 @@ TEST(TypedSlotSet, Iterate) {
   set.Iterate(
       [&iterated](SlotType type, Address addr) {
         uint32_t i = static_cast<uint32_t>(addr);
-        EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
+        EXPECT_EQ(i % static_cast<uint8_t>(SlotType::kCleared),
+                  static_cast<uint32_t>(type));
         EXPECT_EQ(0u, i % kDelta);
         ++iterated;
         return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
@@ -271,18 +273,19 @@ TEST(TypedSlotSet, ClearInvalidSlots) {
   const int kHostDelta = 100;
   uint32_t entries = 10;
   for (uint32_t i = 0; i < entries; i++) {
-    SlotType type = static_cast<SlotType>(i % CLEARED_SLOT);
+    SlotType type =
+        static_cast<SlotType>(i % static_cast<uint8_t>(SlotType::kCleared));
     set.Insert(type, i * kHostDelta);
   }
 
-  std::map<uint32_t, uint32_t> invalid_ranges;
+  TypedSlotSet::FreeRangesMap invalid_ranges;
   for (uint32_t i = 1; i < entries; i += 2) {
     invalid_ranges.insert(
         std::pair<uint32_t, uint32_t>(i * kHostDelta, i * kHostDelta + 1));
   }
 
   set.ClearInvalidSlots(invalid_ranges);
-  for (std::map<uint32_t, uint32_t>::iterator it = invalid_ranges.begin();
+  for (TypedSlotSet::FreeRangesMap::iterator it = invalid_ranges.begin();
        it != invalid_ranges.end(); ++it) {
     uint32_t start = it->first;
     uint32_t end = it->second;
@@ -299,8 +302,8 @@ TEST(TypedSlotSet, Merge) {
   TypedSlotSet set0(0), set1(0);
   static const uint32_t kEntries = 10000;
   for (uint32_t i = 0; i < kEntries; i++) {
-    set0.Insert(FULL_EMBEDDED_OBJECT_SLOT, 2 * i);
-    set1.Insert(FULL_EMBEDDED_OBJECT_SLOT, 2 * i + 1);
+    set0.Insert(SlotType::kEmbeddedObjectFull, 2 * i);
+    set1.Insert(SlotType::kEmbeddedObjectFull, 2 * i + 1);
   }
   uint32_t count = 0;
   set0.Merge(&set1);

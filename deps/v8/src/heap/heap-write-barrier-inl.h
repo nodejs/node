@@ -44,10 +44,11 @@ namespace heap_internals {
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = kSizetSize;
   static constexpr uintptr_t kHeapOffset = kSizetSize + kUIntptrSize;
-  static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
+  static constexpr uintptr_t kIsExecutableBit = uintptr_t{1} << 0;
+  static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 17;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
-  static constexpr uintptr_t kReadOnlySpaceBit = uintptr_t{1} << 21;
+  static constexpr uintptr_t kReadOnlySpaceBit = uintptr_t{1} << 20;
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
       HeapObject object) {
@@ -78,6 +79,8 @@ struct MemoryChunk {
   V8_INLINE bool InReadOnlySpace() const {
     return GetFlags() & kReadOnlySpaceBit;
   }
+
+  V8_INLINE bool InCodeSpace() const { return GetFlags() & kIsExecutableBit; }
 };
 
 inline void GenerationalBarrierInternal(HeapObject object, Address slot,
@@ -204,6 +207,12 @@ inline bool IsReadOnlyHeapObject(HeapObject object) {
   return chunk->InReadOnlySpace();
 }
 
+inline bool IsCodeSpaceObject(HeapObject object) {
+  heap_internals::MemoryChunk* chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  return chunk->InCodeSpace();
+}
+
 base::Optional<Heap*> WriteBarrier::GetHeapIfMarking(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return {};
   heap_internals::MemoryChunk* chunk =
@@ -252,6 +261,40 @@ void WriteBarrier::Marking(DescriptorArray descriptor_array,
   if (!heap) return;
   MarkingSlow(*heap, descriptor_array, number_of_own_descriptors);
 }
+
+// static
+void WriteBarrier::MarkingFromGlobalHandle(Object value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  if (!value.IsHeapObject()) return;
+
+  HeapObject heap_value = HeapObject::cast(value);
+  // Value may be in read only space but the chunk should never be marked
+  // as marking which would result in a bail out.
+  auto heap = GetHeapIfMarking(heap_value);
+  if (!heap) return;
+  MarkingSlowFromGlobalHandle(*heap, heap_value);
+}
+
+// static
+void WriteBarrier::MarkingFromInternalFields(JSObject host) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  auto heap = GetHeapIfMarking(host);
+  if (!heap) return;
+  MarkingSlowFromInternalFields(*heap, host);
+}
+
+#ifdef ENABLE_SLOW_DCHECKS
+// static
+template <typename T>
+bool WriteBarrier::IsRequired(HeapObject host, T value) {
+  if (BasicMemoryChunk::FromHeapObject(host)->InYoungGeneration()) return false;
+  if (value.IsSmi()) return false;
+  if (value.IsCleared()) return false;
+  HeapObject target = value.GetHeapObject();
+  if (ReadOnlyHeap::Contains(target)) return false;
+  return !IsImmortalImmovableHeapObject(target);
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

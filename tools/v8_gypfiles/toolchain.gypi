@@ -280,6 +280,11 @@
           'CAN_USE_FPU_INSTRUCTIONS'
         ],
       }],
+      ['v8_target_arch=="loong64"', {
+        'defines': [
+          'V8_TARGET_ARCH_LOONG64',
+        ],
+      }],
       ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
@@ -954,25 +959,11 @@
         },
         'msvs_configuration_platform': 'x64',
       }],  # v8_target_arch=="x64"
-      ['v8_target_arch=="x32"', {
-        'defines': [
-          # x32 port shares the source code with x64 port.
-          'V8_TARGET_ARCH_X64',
-          'V8_TARGET_ARCH_32_BIT',
-        ],
-        'cflags': [
-          '-mx32',
-          # Inhibit warning if long long type is used.
-          '-Wno-long-long',
-        ],
-        'ldflags': [
-          '-mx32',
-        ],
-      }],  # v8_target_arch=="x32"
       ['OS=="win"', {
         'defines': [
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
+          '_WIN32_WINNT=0x0602',  # Windows 8
         ],
         # 4351: VS 2005 and later are warning us that they've fixed a bug
         #       present in VS 2003 and earlier.
@@ -1017,7 +1008,7 @@
       ['OS=="mac"', {
         'defines': [
           'V8_HAVE_TARGET_OS',
-          'V8_TARGET_OS_MACOSX',
+          'V8_TARGET_OS_MACOS',
         ]
       }],
       ['OS=="win"', {

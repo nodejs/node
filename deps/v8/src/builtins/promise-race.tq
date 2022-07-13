@@ -47,7 +47,7 @@ PromiseRace(
       // Let iterator be GetIterator(iterable).
       // IfAbruptRejectPromise(iterator, promiseCapability).
       i = iterator::GetIterator(iterable);
-    } catch (e) deferred {
+    } catch (e, _message) deferred {
       goto Reject(e);
     }
 
@@ -69,7 +69,7 @@ PromiseRace(
           // to true.
           // ReturnIfAbrupt(nextValue).
           nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
-        } catch (e) {
+        } catch (e, _message) {
           goto Reject(e);
         }
         // Let nextPromise be ? Call(constructor, _promiseResolve_, «
@@ -91,14 +91,12 @@ PromiseRace(
                 context, thenResult, kPromiseHandledBySymbol, promise);
           }
       }
-    } catch (e) deferred {
+    } catch (e, _message) deferred {
       iterator::IteratorCloseOnException(i);
       goto Reject(e);
     }
-  } label Reject(exception: Object) deferred {
-    Call(
-        context, UnsafeCast<JSAny>(reject), Undefined,
-        UnsafeCast<JSAny>(exception));
+  } label Reject(exception: JSAny) deferred {
+    Call(context, UnsafeCast<JSAny>(reject), Undefined, exception);
     return promise;
   }
   unreachable;

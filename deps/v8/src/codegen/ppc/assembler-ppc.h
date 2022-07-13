@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
@@ -67,7 +66,7 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -77,7 +76,7 @@ class V8_EXPORT_PRIVATE Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
   // rm
@@ -195,15 +194,6 @@ class Assembler : public AssemblerBase {
   void GetCode(Isolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
-
-  // This function is called when on-heap-compilation invariants are
-  // invalidated. For instance, when the assembler buffer grows or a GC happens
-  // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences(bool update_embedded_objects = true);
-
-  // This function is called when we fallback from on-heap to off-heap
-  // compilation and patch on-heap references to handles.
-  void FixOnHeapReferencesToHandles();
 
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
@@ -614,6 +604,22 @@ class Assembler : public AssemblerBase {
   PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
 #undef DECLARE_PPC_VC_INSTRUCTIONS
 
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_form(instr_name, imm, pr);                                          \
+  }
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_form(instr_name, imm, pr);                                          \
+  }
+  inline void prefix_form(Instr instr, const Operand& imm, int pr) {
+    emit_prefix(instr | pr * B20 | (imm.immediate() & kImm18Mask));
+  }
+  PPC_PREFIX_OPCODE_TYPE_00_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00)
+  PPC_PREFIX_OPCODE_TYPE_10_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10)
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10
+
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation
@@ -977,6 +983,10 @@ class Assembler : public AssemblerBase {
   void bitwise_mov32(Register dst, int32_t value);
   void bitwise_add32(Register dst, Register src, int32_t value);
 
+  // Patch the offset to the return address after CallCFunction.
+  void patch_wasm_cpi_return_address(Register dst, int pc_offset,
+                                     int return_address_offset);
+
   // Load the position of the label relative to the generated code object
   // pointer in a register.
   void mov_label_offset(Register dst, Label* label);
@@ -1125,6 +1135,19 @@ class Assembler : public AssemblerBase {
   void stxvx(const Simd128Register rt, const MemOperand& dst);
   void xxspltib(const Simd128Register rt, const Operand& imm);
 
+  // Prefixed instructioons.
+  void paddi(Register dst, Register src, const Operand& imm);
+  void pli(Register dst, const Operand& imm);
+  void psubi(Register dst, Register src, const Operand& imm);
+  void plbz(Register dst, const MemOperand& src);
+  void plhz(Register dst, const MemOperand& src);
+  void plha(Register dst, const MemOperand& src);
+  void plwz(Register dst, const MemOperand& src);
+  void plwa(Register dst, const MemOperand& src);
+  void pld(Register dst, const MemOperand& src);
+  void plfs(DoubleRegister dst, const MemOperand& src);
+  void plfd(DoubleRegister dst, const MemOperand& src);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1215,9 +1238,9 @@ class Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1312,7 +1335,7 @@ class Assembler : public AssemblerBase {
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
     bool sharing_ok =
-        RelocInfo::IsNone(rmode) ||
+        RelocInfo::IsNoInfo(rmode) ||
         (!options().record_reloc_info_for_serialization &&
          RelocInfo::IsShareableRelocMode(rmode) &&
          !is_constant_pool_entry_sharing_blocked() &&
@@ -1409,6 +1432,21 @@ class Assembler : public AssemblerBase {
     pc_ += kInstrSize;
     CheckTrampolinePoolQuick();
   }
+
+  void emit_prefix(Instr x) {
+    // Prefixed instructions cannot cross 64-byte boundaries. Add a nop if the
+    // boundary will be crossed mid way.
+    // Code is set to be 64-byte aligned on PPC64 after relocation (look for
+    // kCodeAlignment). We use pc_offset() instead of pc_ as current pc_
+    // alignment could be different after relocation.
+    if (((pc_offset() + sizeof(Instr)) & 63) == 0) {
+      nop();
+    }
+    // Do not emit trampoline pool in between prefix and suffix.
+    CHECK(is_trampoline_pool_blocked());
+    emit(x);
+  }
+
   void TrackBranch() {
     DCHECK(!trampoline_emitted_);
     int count = tracked_branch_count_++;
@@ -1519,7 +1557,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   Register Acquire();
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
 
  private:
   friend class Assembler;

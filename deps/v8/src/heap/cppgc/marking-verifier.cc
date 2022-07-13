@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/marking-verifier.h"
 
+#include "include/cppgc/internal/caged-heap-local-data.h"
 #include "src/base/logging.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -13,35 +14,6 @@
 
 namespace cppgc {
 namespace internal {
-
-MarkingVerifierBase::MarkingVerifierBase(
-    HeapBase& heap, VerificationState& verification_state,
-    std::unique_ptr<cppgc::Visitor> visitor)
-    : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
-      verification_state_(verification_state),
-      visitor_(std::move(visitor)) {}
-
-void MarkingVerifierBase::Run(
-    Heap::Config::StackState stack_state, uintptr_t stack_end,
-    v8::base::Optional<size_t> expected_marked_bytes) {
-  Traverse(heap_.raw_heap());
-  if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
-    in_construction_objects_ = &in_construction_objects_stack_;
-    heap_.stack()->IteratePointersUnsafe(this, stack_end);
-    // The objects found through the unsafe iteration are only a subset of the
-    // regular iteration as they miss objects held alive only from callee-saved
-    // registers that are never pushed on the stack and SafeStack.
-    CHECK_LE(in_construction_objects_stack_.size(),
-             in_construction_objects_heap_.size());
-    for (auto* header : in_construction_objects_stack_) {
-      CHECK_NE(in_construction_objects_heap_.end(),
-               in_construction_objects_heap_.find(header));
-    }
-  }
-  if (expected_marked_bytes) {
-    CHECK_EQ(expected_marked_bytes.value(), found_marked_bytes_);
-  }
-}
 
 void VerificationState::VerifyMarked(const void* base_object_payload) const {
   const HeapObjectHeader& child_header =
@@ -57,6 +29,45 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
         parent_ ? parent_->GetName().value : "Stack",
         parent_ ? parent_->ObjectStart() : nullptr,
         child_header.GetName().value, child_header.ObjectStart());
+  }
+}
+
+MarkingVerifierBase::MarkingVerifierBase(
+    HeapBase& heap, Heap::Config::CollectionType collection_type,
+    VerificationState& verification_state,
+    std::unique_ptr<cppgc::Visitor> visitor)
+    : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
+      verification_state_(verification_state),
+      visitor_(std::move(visitor)),
+      collection_type_(collection_type) {}
+
+void MarkingVerifierBase::Run(
+    Heap::Config::StackState stack_state, uintptr_t stack_end,
+    v8::base::Optional<size_t> expected_marked_bytes) {
+  Traverse(heap_.raw_heap());
+// Avoid verifying the stack when running with TSAN as the TSAN runtime changes
+// stack contents when e.g. working with locks. Specifically, the marker uses
+// locks in slow path operations which results in stack changes throughout
+// marking. This means that the conservative iteration below may find more
+// objects then the regular marker. The difference is benign as the delta of
+// objects is not reachable from user code but it prevents verification.
+#if !defined(THREAD_SANITIZER)
+  if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
+    in_construction_objects_ = &in_construction_objects_stack_;
+    heap_.stack()->IteratePointersUnsafe(this, stack_end);
+    // The objects found through the unsafe iteration are only a subset of the
+    // regular iteration as they miss objects held alive only from callee-saved
+    // registers that are never pushed on the stack and SafeStack.
+    CHECK_LE(in_construction_objects_stack_.size(),
+             in_construction_objects_heap_.size());
+    for (auto* header : in_construction_objects_stack_) {
+      CHECK_NE(in_construction_objects_heap_.end(),
+               in_construction_objects_heap_.find(header));
+    }
+  }
+#endif  // !defined(THREAD_SANITIZER)
+  if (expected_marked_bytes && verifier_found_marked_bytes_are_exact_) {
+    CHECK_EQ(expected_marked_bytes.value(), verifier_found_marked_bytes_);
   }
 }
 
@@ -93,6 +104,22 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
 
   DCHECK(!header.IsFree());
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (collection_type_ == Heap::Config::CollectionType::kMinor) {
+    const auto age = heap_.caged_heap().local_data().age_table.GetAge(
+        heap_.caged_heap().OffsetFromAddress(header.ObjectStart()));
+    if (age == AgeTable::Age::kOld) {
+      // Do not verify old objects.
+      return true;
+    } else if (age == AgeTable::Age::kMixed) {
+      // If the age is not known, the marked bytes may not be exact as possibly
+      // old objects are verified as well.
+      verifier_found_marked_bytes_are_exact_ = false;
+    }
+    // Verify young and unknown objects.
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
   verification_state_.SetCurrentParent(&header);
 
   if (!header.IsInConstruction()) {
@@ -102,7 +129,8 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
     TraceConservativelyIfNeeded(header);
   }
 
-  found_marked_bytes_ += ObjectView(header).Size() + sizeof(HeapObjectHeader);
+  verifier_found_marked_bytes_ +=
+      ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
 
   verification_state_.SetCurrentParent(nullptr);
 
@@ -146,8 +174,9 @@ class VerificationVisitor final : public cppgc::Visitor {
 
 }  // namespace
 
-MarkingVerifier::MarkingVerifier(HeapBase& heap_base)
-    : MarkingVerifierBase(heap_base, state_,
+MarkingVerifier::MarkingVerifier(HeapBase& heap_base,
+                                 Heap::Config::CollectionType collection_type)
+    : MarkingVerifierBase(heap_base, collection_type, state_,
                           std::make_unique<VerificationVisitor>(state_)) {}
 
 }  // namespace internal

@@ -46,6 +46,8 @@ enum InstanceType : uint16_t;
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
   V(JSDataView)                         \
+  V(JSExternalObject)                   \
+  V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
   V(JSObjectFast)                       \
@@ -54,7 +56,9 @@ enum InstanceType : uint16_t;
   V(JSWeakCollection)                   \
   V(Map)                                \
   V(NativeContext)                      \
+  V(Oddball)                            \
   V(PreparseData)                       \
+  V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
@@ -68,14 +72,18 @@ enum InstanceType : uint16_t;
   V(Symbol)                             \
   V(SyntheticModule)                    \
   V(TransitionArray)                    \
+  IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmArray)                 \
   IF_WASM(V, WasmCapiFunctionData)      \
   IF_WASM(V, WasmExportedFunctionData)  \
   IF_WASM(V, WasmFunctionData)          \
   IF_WASM(V, WasmIndirectFunctionTable) \
   IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmInternalFunction)      \
   IF_WASM(V, WasmJSFunctionData)        \
+  IF_WASM(V, WasmOnFulfilledData)       \
   IF_WASM(V, WasmStruct)                \
+  IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmTypeInfo)              \
   V(WeakCell)
 
@@ -352,10 +360,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   int ComputeMinObjectSlack(Isolate* isolate);
   inline int InstanceSizeFromSlack(int slack) const;
 
-  // Completes inobject slack tracking for the transition tree starting at this
-  // initial map.
-  V8_EXPORT_PRIVATE void CompleteInobjectSlackTracking(Isolate* isolate);
-
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -415,8 +419,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline bool has_sloppy_arguments_elements() const;
   inline bool has_fast_sloppy_arguments_elements() const;
   inline bool has_fast_string_wrapper_elements() const;
-  inline bool has_typed_array_elements() const;
-  inline bool has_rab_gsab_typed_array_elements() const;
   inline bool has_typed_array_or_rab_gsab_typed_array_elements() const;
   inline bool has_any_typed_array_or_wasm_array_elements() const;
   inline bool has_dictionary_elements() const;

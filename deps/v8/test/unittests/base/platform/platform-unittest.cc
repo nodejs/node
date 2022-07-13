@@ -4,6 +4,8 @@
 
 #include "src/base/platform/platform.h"
 
+#include <cstring>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if V8_OS_WIN
@@ -24,6 +26,29 @@ TEST(OS, GetCurrentProcessId) {
 #endif
 }
 
+TEST(OS, RemapPages) {
+  if constexpr (OS::IsRemapPageSupported()) {
+    size_t size = base::OS::AllocatePageSize();
+    // Data to be remapped, filled with data.
+    void* data = OS::Allocate(nullptr, size, base::OS::AllocatePageSize(),
+                              OS::MemoryPermission::kReadWrite);
+    ASSERT_TRUE(data);
+    memset(data, 0xab, size);
+
+    // Target mapping.
+    void* remapped_data =
+        OS::Allocate(nullptr, size, base::OS::AllocatePageSize(),
+                     OS::MemoryPermission::kReadWrite);
+    ASSERT_TRUE(remapped_data);
+
+    EXPECT_TRUE(OS::RemapPages(data, size, remapped_data,
+                               OS::MemoryPermission::kReadExecute));
+    EXPECT_EQ(0, memcmp(remapped_data, data, size));
+
+    OS::Free(data, size);
+    OS::Free(remapped_data, size);
+  }
+}
 
 namespace {
 

@@ -2,6 +2,7 @@
 // of the generated html files.
 
 import fs from 'fs';
+import buildCSSForFlavoredJS from './buildCSSForFlavoredJS.mjs';
 
 const source = new URL('../../out/doc/api/', import.meta.url);
 
@@ -18,14 +19,11 @@ let apicontent = '';
 
 // Identify files that should be skipped. As files are processed, they
 // are added to this list to prevent dupes.
-const seen = {
-  'all.html': true,
-  'index.html': true
-};
+const seen = new Set(['all.html', 'index.html']);
 
 for (const link of toc.match(/<a.*?>/g)) {
   const href = /href="(.*?)"/.exec(link)[1];
-  if (!htmlFiles.includes(href) || seen[href]) continue;
+  if (!htmlFiles.includes(href) || seen.has(href)) continue;
   const data = fs.readFileSync(new URL(`./${href}`, source), 'utf8');
 
   // Split the doc.
@@ -38,7 +36,7 @@ for (const link of toc.match(/<a.*?>/g)) {
     .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
     // Prefix TOC links with current module name
     .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
-      return `<a href="#${moduleName}_${anchor}"`;
+      return `<a href="#all_${moduleName}_${anchor}"`;
     });
 
   apicontent += '<section>' + data.slice(match.index + match[0].length)
@@ -46,29 +44,29 @@ for (const link of toc.match(/<a.*?>/g)) {
     // Prefix all in-page anchor marks with module name
     .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor, id) => {
       if (anchor !== id) throw new Error(`Mark does not match: ${anchor} should match ${id}`);
-      return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
+      return `<a class="mark" href="#all_${moduleName}_${anchor}" id="all_${moduleName}_${anchor}"`;
     })
     // Prefix all in-page links with current module name
     .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
-      return `<a href="#${moduleName}_${anchor}"`;
+      return `<a href="#all_${moduleName}_${anchor}"`;
     })
     // Update footnote id attributes on anchors
     .replace(/<a href="([^"]+)" id="(user-content-fn[^"]+)"/g, (match, href, id) => {
-      return `<a href="${href}" id="${moduleName}_${id}"`;
+      return `<a href="${href}" id="all_${moduleName}_${id}"`;
     })
     // Update footnote id attributes on list items
-    .replace(/<(\S+) id="(user-content-fn-\d+)"/g, (match, tagName, id) => {
-      return `<${tagName} id="${moduleName}_${id}"`;
+    .replace(/<(\S+) id="(user-content-fn[^"]+)"/g, (match, tagName, id) => {
+      return `<${tagName} id="all_${moduleName}_${id}"`;
     })
     // Prefix all links to other docs modules with those module names
     .replace(/<a href="((\w[^#"]*)\.html)#/g, (match, href, linkModule) => {
       if (!htmlFiles.includes(href)) return match;
-      return `<a href="#${linkModule}_`;
+      return `<a href="#all_${linkModule}_`;
     })
     .trim() + '\n';
 
   // Mark source as seen.
-  seen[href] = true;
+  seen.add(href);
 }
 
 // Replace various mentions of index with all.
@@ -93,7 +91,14 @@ all = all.slice(0, tocStart.index + tocStart[0].length) +
 // Replace apicontent with the concatenated set of apicontents from each source.
 const apiStart = /<\w+ id="apicontent">\s*/.exec(all);
 const apiEnd = all.lastIndexOf('<!-- API END -->');
-all = all.slice(0, apiStart.index + apiStart[0].length) +
+all = all.slice(0, apiStart.index + apiStart[0].length)
+    .replace(
+      '\n</head>',
+      buildCSSForFlavoredJS(new Set(Array.from(
+        apicontent.matchAll(/(?<=<pre class="with-)\d+(?=-chars">)/g),
+        (x) => Number(x[0])
+      ))) + '\n</head>'
+    ) +
   apicontent +
   all.slice(apiEnd);
 
@@ -101,14 +106,11 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 fs.writeFileSync(new URL('./all.html', source), all, 'utf8');
 
 // Validate all hrefs have a target.
-const ids = new Set();
 const idRe = / id="([^"]+)"/g;
-let match;
-while (match = idRe.exec(all)) {
-  ids.add(match[1]);
-}
+const ids = new Set([...all.matchAll(idRe)].map((match) => match[1]));
 
 const hrefRe = / href="#([^"]+)"/g;
-while (match = hrefRe.exec(all)) {
+const hrefMatches = all.matchAll(hrefRe);
+for (const match of hrefMatches) {
   if (!ids.has(match[1])) throw new Error(`link not found: ${match[1]}`);
 }

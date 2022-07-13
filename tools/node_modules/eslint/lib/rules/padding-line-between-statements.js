@@ -431,7 +431,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow padding lines between statements",
+            description: "Require or disallow padding lines between statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/padding-line-between-statements"
         },
@@ -450,8 +450,7 @@ module.exports = {
                             type: "array",
                             items: { enum: Object.keys(StatementTypes) },
                             minItems: 1,
-                            uniqueItems: true,
-                            additionalItems: false
+                            uniqueItems: true
                         }
                     ]
                 }
@@ -466,8 +465,7 @@ module.exports = {
                 },
                 additionalProperties: false,
                 required: ["blankLine", "prev", "next"]
-            },
-            additionalItems: false
+            }
         },
 
         messages: {

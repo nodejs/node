@@ -16,6 +16,15 @@ let count = 0;
 const nextDirPath = (name = 'rm') =>
   path.join(tmpdir.path, `${name}-${count++}`);
 
+const isGitPresent = (() => {
+  try { execSync('git --version'); return true; } catch { return false; }
+})();
+
+function gitInit(gitDirectory) {
+  fs.mkdirSync(gitDirectory);
+  execSync('git init', { cwd: gitDirectory });
+}
+
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
   fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
@@ -130,6 +139,16 @@ function removeAsync(dir) {
   }));
 }
 
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rm(gitDirectory, { recursive: true }, common.mustSucceed(() => {
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  }));
+}
+
 // Test the synchronous version.
 {
   const dir = nextDirPath();
@@ -179,14 +198,23 @@ function removeAsync(dir) {
   assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
 }
 
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rmSync(gitDirectory, { recursive: true });
+  assert.strictEqual(fs.existsSync(gitDirectory), false);
+}
+
 // Test the Promises based version.
 (async () => {
   const dir = nextDirPath();
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
-  assert.rejects(fs.promises.rm(dir, { recursive: false }), {
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
+  await assert.rejects(fs.promises.rm(dir, { recursive: false }), {
     syscall: 'rm'
   });
 
@@ -194,10 +222,10 @@ function removeAsync(dir) {
   await fs.promises.rm(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
 
   // Should fail if target does not exist
-  assert.rejects(fs.promises.rm(
+  await assert.rejects(fs.promises.rm(
     path.join(tmpdir.path, 'noexist.txt'),
     { recursive: true }
   ), {
@@ -207,7 +235,7 @@ function removeAsync(dir) {
   });
 
   // Should not fail if target does not exist and force option is true
-  fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
+  await fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
 
   // Should delete file
   const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');
@@ -229,6 +257,17 @@ function removeAsync(dir) {
     fs.rmSync(fileURL, { force: true });
   }
 })().then(common.mustCall());
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  (async () => {
+    const gitDirectory = nextDirPath();
+    gitInit(gitDirectory);
+    await fs.promises.rm(gitDirectory, { recursive: true });
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  })().then(common.mustCall());
+}
 
 // Test input validation.
 {

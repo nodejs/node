@@ -5,8 +5,6 @@
 #ifndef INCLUDE_V8_SNAPSHOT_H_
 #define INCLUDE_V8_SNAPSHOT_H_
 
-#include <vector>
-
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)

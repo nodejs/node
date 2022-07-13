@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow renaming import, export, and destructured assignments to the same name",
+            description: "Disallow renaming import, export, and destructured assignments to the same name",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-rename"
         },
@@ -132,8 +132,10 @@ module.exports = {
                 return;
             }
 
-            if (node.imported.name === node.local.name &&
-                    node.imported.range[0] !== node.local.range[0]) {
+            if (
+                node.imported.range[0] !== node.local.range[0] &&
+                astUtils.getModuleExportName(node.imported) === node.local.name
+            ) {
                 reportError(node, node.imported, "Import");
             }
         }
@@ -148,8 +150,10 @@ module.exports = {
                 return;
             }
 
-            if (node.local.name === node.exported.name &&
-                    node.local.range[0] !== node.exported.range[0]) {
+            if (
+                node.local.range[0] !== node.exported.range[0] &&
+                astUtils.getModuleExportName(node.local) === astUtils.getModuleExportName(node.exported)
+            ) {
                 reportError(node, node.local, "Export");
             }
 

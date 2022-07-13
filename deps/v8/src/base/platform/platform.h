@@ -26,15 +26,22 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
 #endif
+
+#if V8_OS_FUCHSIA
+#include <zircon/types.h>
+#endif  // V8_OS_FUCHSIA
 
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
@@ -79,7 +86,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
         __readfsdword(kTibInlineTlsOffset + kSystemPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK_NE(extra, 0);
+  if (!extra) return 0;
   return *reinterpret_cast<intptr_t*>(extra + kSystemPointerSize *
                                                   (index - kMaxInlineSlots));
 }
@@ -115,8 +122,11 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #endif  // V8_NO_FAST_TLS
 
+class AddressSpaceReservation;
 class PageAllocator;
 class TimezoneCache;
+class VirtualAddressSpace;
+class VirtualAddressSubspace;
 
 // ----------------------------------------------------------------------------
 // OS
@@ -131,6 +141,17 @@ class V8_BASE_EXPORT OS {
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
   static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
+
+#if V8_OS_WIN
+  // On Windows, ensure the newer memory API is loaded if available.  This
+  // includes function like VirtualAlloc2 and MapViewOfFile3.
+  // TODO(chromium:1218005) this should probably happen as part of Initialize,
+  // but that is currently invoked too late, after the sandbox is initialized.
+  // However, eventually the sandbox initialization will probably happen as
+  // part of V8::Initialize, at which point this function can probably be
+  // merged into OS::Initialize.
+  static void EnsureWin32MemoryAPILoaded();
+#endif
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -177,18 +198,22 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Memory permissions. These should be kept in sync with the ones in
-  // v8::PageAllocator.
+  // v8::PageAllocator and v8::PagePermissions.
   enum class MemoryPermission {
     kNoAccess,
     kRead,
     kReadWrite,
-    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
     kReadExecute,
     // TODO(jkummerow): Remove this when Wasm has a platform-independent
     // w^x implementation.
     kNoAccessWillJitLater
   };
+
+  // Helpers to create shared memory objects. Currently only used for testing.
+  static PlatformSharedMemoryHandle CreateSharedMemoryHandleForTesting(
+      size_t size);
+  static void DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle);
 
   static bool HasLazyCommits();
 
@@ -274,13 +299,52 @@ class V8_BASE_EXPORT OS {
 
   static void AdjustSchedulingParams();
 
+  using Address = uintptr_t;
+
+  struct MemoryRange {
+    uintptr_t start = 0;
+    uintptr_t end = 0;
+  };
+
+  // Find gaps between existing virtual memory ranges that have enough space
+  // to place a region with minimum_size within (boundary_start, boundary_end)
+  static std::vector<MemoryRange> GetFreeMemoryRangesWithin(
+      Address boundary_start, Address boundary_end, size_t minimum_size,
+      size_t alignment);
+
   [[noreturn]] static void ExitProcess(int exit_code);
+
+  // Whether the platform supports mapping a given address in another location
+  // in the address space.
+  V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
+#ifdef V8_OS_MACOS
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  // Remaps already-mapped memory at |new_address| with |access| permissions.
+  //
+  // Both the source and target addresses must be page-aligned, and |size| must
+  // be a multiple of the system page size.  If there is already memory mapped
+  // at the target address, it is replaced by the new mapping.
+  //
+  // Must not be called if |IsRemapPagesSupported()| return false.
+  // Returns true for success.
+  V8_WARN_UNUSED_RESULT static bool RemapPages(const void* address, size_t size,
+                                               void* new_address,
+                                               MemoryPermission access);
 
  private:
   // These classes use the private memory management API below.
+  friend class AddressSpaceReservation;
   friend class MemoryMappedFile;
   friend class PosixMemoryMappedFile;
   friend class v8::base::PageAllocator;
+  friend class v8::base::VirtualAddressSpace;
+  friend class v8::base::VirtualAddressSubspace;
+  FRIEND_TEST(OS, RemapPages);
 
   static size_t AllocatePageSize();
 
@@ -301,9 +365,15 @@ class V8_BASE_EXPORT OS {
                                                  void* new_address,
                                                  size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+  static void Free(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(
+      void* address, size_t size, OS::MemoryPermission access,
+      PlatformSharedMemoryHandle handle, uint64_t offset);
+
+  static void FreeShared(void* address, size_t size);
+
+  static void Release(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
@@ -312,6 +382,14 @@ class V8_BASE_EXPORT OS {
                                                        size_t size);
 
   V8_WARN_UNUSED_RESULT static bool DecommitPages(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT static bool CanReserveAddressSpace();
+
+  V8_WARN_UNUSED_RESULT static Optional<AddressSpaceReservation>
+  CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
+                                MemoryPermission max_permission);
+
+  static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 
   static const int msPerSecond = 1000;
 
@@ -333,6 +411,84 @@ inline void EnsureConsoleOutput() {
   EnsureConsoleOutputWin32();
 #endif  // (defined(_WIN32) || defined(_WIN64))
 }
+
+// ----------------------------------------------------------------------------
+// AddressSpaceReservation
+//
+// This class provides the same memory management functions as OS but operates
+// inside a previously reserved contiguous region of virtual address space.
+//
+// Reserved address space in which no pages have been allocated is guaranteed
+// to be inaccessible and cause a fault on access. As such, creating guard
+// regions requires no further action.
+class V8_BASE_EXPORT AddressSpaceReservation {
+ public:
+  using Address = uintptr_t;
+
+  void* base() const { return base_; }
+  size_t size() const { return size_; }
+
+  bool Contains(void* region_addr, size_t region_size) const {
+    Address base = reinterpret_cast<Address>(base_);
+    Address region_base = reinterpret_cast<Address>(region_addr);
+    return (region_base >= base) &&
+           ((region_base + region_size) <= (base + size_));
+  }
+
+  V8_WARN_UNUSED_RESULT bool Allocate(void* address, size_t size,
+                                      OS::MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT bool Free(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT bool AllocateShared(void* address, size_t size,
+                                            OS::MemoryPermission access,
+                                            PlatformSharedMemoryHandle handle,
+                                            uint64_t offset);
+
+  V8_WARN_UNUSED_RESULT bool FreeShared(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
+                                            OS::MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT bool DiscardSystemPages(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT bool DecommitPages(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT Optional<AddressSpaceReservation> CreateSubReservation(
+      void* address, size_t size, OS::MemoryPermission max_permission);
+
+  V8_WARN_UNUSED_RESULT static bool FreeSubReservation(
+      AddressSpaceReservation reservation);
+
+#if V8_OS_WIN
+  // On Windows, the placeholder mappings backing address space reservations
+  // need to be split and merged as page allocations can only replace an entire
+  // placeholder mapping, not parts of it. This must be done by the users of
+  // this API as it requires a RegionAllocator (or equivalent) to keep track of
+  // sub-regions and decide when to split and when to coalesce multiple free
+  // regions into a single one.
+  V8_WARN_UNUSED_RESULT bool SplitPlaceholder(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT bool MergePlaceholders(void* address, size_t size);
+#endif  // V8_OS_WIN
+
+ private:
+  friend class OS;
+
+#if V8_OS_FUCHSIA
+  AddressSpaceReservation(void* base, size_t size, zx_handle_t vmar)
+      : base_(base), size_(size), vmar_(vmar) {}
+#else
+  AddressSpaceReservation(void* base, size_t size) : base_(base), size_(size) {}
+#endif  // V8_OS_FUCHSIA
+
+  void* base_ = nullptr;
+  size_t size_ = 0;
+
+#if V8_OS_FUCHSIA
+  // On Fuchsia, address space reservations are backed by VMARs.
+  zx_handle_t vmar_ = ZX_HANDLE_INVALID;
+#endif  // V8_OS_FUCHSIA
+};
 
 // ----------------------------------------------------------------------------
 // Thread

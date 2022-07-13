@@ -596,7 +596,9 @@ TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
 
 TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
     Operation bitwise_op, TNode<Object> left, TNode<Object> right,
-    const LazyNode<Context>& context, TVariable<Smi>* feedback) {
+    const LazyNode<Context>& context, TNode<UintPtrT>* slot,
+    const LazyNode<HeapObject>* maybe_feedback_vector,
+    UpdateFeedbackMode update_feedback_mode) {
   TVARIABLE(Object, result);
   TVARIABLE(Smi, var_left_feedback);
   TVARIABLE(Smi, var_right_feedback);
@@ -615,14 +617,14 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
 
   TaggedToWord32OrBigIntWithFeedback(
       context(), left, &if_left_number, &var_left_word32, &if_left_bigint,
-      &var_left_bigint, feedback ? &var_left_feedback : nullptr);
+      &var_left_bigint, slot ? &var_left_feedback : nullptr);
 
   Label right_is_bigint(this);
   BIND(&if_left_number);
   {
     TaggedToWord32OrBigIntWithFeedback(
         context(), right, &do_number_op, &var_right_word32, &right_is_bigint,
-        &var_right_bigint, feedback ? &var_right_feedback : nullptr);
+        &var_right_bigint, slot ? &var_right_feedback : nullptr);
   }
 
   BIND(&right_is_bigint);
@@ -639,13 +641,15 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
     result = BitwiseOp(var_left_word32.value(), var_right_word32.value(),
                        bitwise_op);
 
-    if (feedback) {
+    if (slot) {
       TNode<Smi> result_type = SelectSmiConstant(
           TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
           BinaryOperationFeedback::kNumber);
       TNode<Smi> input_feedback =
           SmiOr(var_left_feedback.value(), var_right_feedback.value());
-      *feedback = SmiOr(result_type, input_feedback);
+      TNode<Smi> feedback = SmiOr(result_type, input_feedback);
+      UpdateFeedback(feedback, (*maybe_feedback_vector)(), *slot,
+                     update_feedback_mode);
     }
     Goto(&done);
   }
@@ -661,9 +665,15 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
 
   BIND(&do_bigint_op);
   {
-    if (feedback) {
-      *feedback = SmiOr(var_left_feedback.value(), var_right_feedback.value());
+    if (slot) {
+      // Ensure that the feedback is updated even if the runtime call below
+      // would throw.
+      TNode<Smi> feedback =
+          SmiOr(var_left_feedback.value(), var_right_feedback.value());
+      UpdateFeedback(feedback, (*maybe_feedback_vector)(), *slot,
+                     update_feedback_mode);
     }
+
     result = CallRuntime(
         Runtime::kBigIntBinaryOp, context(), var_left_maybe_bigint.value(),
         var_right_maybe_bigint.value(), SmiConstant(bitwise_op));
@@ -671,6 +681,77 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
   }
 
   BIND(&done);
+  return result.value();
+}
+
+TNode<Object>
+BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
+    Operation bitwise_op, TNode<Object> left, TNode<Object> right,
+    const LazyNode<Context>& context, TNode<UintPtrT>* slot,
+    const LazyNode<HeapObject>* maybe_feedback_vector,
+    UpdateFeedbackMode update_feedback_mode) {
+  TNode<Smi> right_smi = CAST(right);
+  TVARIABLE(Object, result);
+  TVARIABLE(Smi, var_left_feedback);
+  TVARIABLE(Word32T, var_left_word32);
+  TVARIABLE(BigInt, var_left_bigint);
+  TVARIABLE(Smi, feedback);
+  // Check if the {lhs} is a Smi or a HeapObject.
+  Label if_lhsissmi(this), if_lhsisnotsmi(this, Label::kDeferred);
+  Label do_number_op(this), if_bigint_mix(this), done(this);
+
+  Branch(TaggedIsSmi(left), &if_lhsissmi, &if_lhsisnotsmi);
+
+  BIND(&if_lhsissmi);
+  {
+    TNode<Smi> left_smi = CAST(left);
+    result = BitwiseSmiOp(left_smi, right_smi, bitwise_op);
+    if (slot) {
+      if (IsBitwiseOutputKnownSmi(bitwise_op)) {
+        feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
+      } else {
+        feedback = SelectSmiConstant(TaggedIsSmi(result.value()),
+                                     BinaryOperationFeedback::kSignedSmall,
+                                     BinaryOperationFeedback::kNumber);
+      }
+    }
+    Goto(&done);
+  }
+
+  BIND(&if_lhsisnotsmi);
+  {
+    TNode<HeapObject> left_pointer = CAST(left);
+    TaggedPointerToWord32OrBigIntWithFeedback(
+        context(), left_pointer, &do_number_op, &var_left_word32,
+        &if_bigint_mix, &var_left_bigint, &var_left_feedback);
+    BIND(&do_number_op);
+    {
+      result =
+          BitwiseOp(var_left_word32.value(), SmiToInt32(right_smi), bitwise_op);
+      if (slot) {
+        TNode<Smi> result_type = SelectSmiConstant(
+            TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
+            BinaryOperationFeedback::kNumber);
+        feedback = SmiOr(result_type, var_left_feedback.value());
+      }
+      Goto(&done);
+    }
+
+    BIND(&if_bigint_mix);
+    {
+      if (slot) {
+        // Ensure that the feedback is updated before we throw.
+        feedback = var_left_feedback.value();
+        UpdateFeedback(feedback.value(), (*maybe_feedback_vector)(), *slot,
+                       update_feedback_mode);
+      }
+      ThrowTypeError(context(), MessageTemplate::kBigIntMixedTypes);
+    }
+  }
+
+  BIND(&done);
+  UpdateFeedback(feedback.value(), (*maybe_feedback_vector)(), *slot,
+                 update_feedback_mode);
   return result.value();
 }
 

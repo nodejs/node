@@ -233,6 +233,30 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  const target = new EventTarget();
+  const listener = {};
+  // AddEventListener should not require handleEvent to be
+  // defined on an EventListener.
+  target.addEventListener('foo', listener);
+  listener.handleEvent = common.mustCall(function(event) {
+    strictEqual(event.type, 'foo');
+    strictEqual(this, listener);
+  });
+  target.dispatchEvent(new Event('foo'));
+}
+
+{
+  const target = new EventTarget();
+  const listener = {};
+  // do not throw
+  target.removeEventListener('foo', listener);
+  target.addEventListener('foo', listener);
+  target.removeEventListener('foo', listener);
+  listener.handleEvent = common.mustNotCall();
+  target.dispatchEvent(new Event('foo'));
+}
+
+{
   const uncaughtException = common.mustCall((err, origin) => {
     strictEqual(err.message, 'boom');
     strictEqual(origin, 'uncaughtException');
@@ -308,7 +332,6 @@ let asyncTest = Promise.resolve();
   [
     'foo',
     1,
-    {},  // No handleEvent function
     false,
   ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
 }
@@ -408,6 +431,13 @@ let asyncTest = Promise.resolve();
   target.onfoo = common.mustCall();
   target.dispatchEvent(new Event('foo'));
 }
+
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  strictEqual(target.onfoo, null);
+}
+
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
@@ -623,14 +653,14 @@ let asyncTest = Promise.resolve();
   strictEqual(et.constructor.name, 'EventTarget');
 }
 {
-  // Weak event handlers work
+  // Weak event listeners work
   const et = new EventTarget();
   const listener = common.mustCall();
   et.addEventListener('foo', listener, { [kWeakHandler]: et });
   et.dispatchEvent(new Event('foo'));
 }
 {
-  // Weak event handlers can be removed and weakness is not part of the key
+  // Weak event listeners can be removed and weakness is not part of the key
   const et = new EventTarget();
   const listener = common.mustNotCall();
   et.addEventListener('foo', listener, { [kWeakHandler]: et });

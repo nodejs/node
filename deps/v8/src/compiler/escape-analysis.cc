@@ -5,10 +5,12 @@
 #include "src/compiler/escape-analysis.h"
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/handles/handles-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/map-inl.h"
@@ -223,6 +225,11 @@ class EscapeAnalysisTracker : public ZoneObject {
     Node* ContextInput() {
       return tracker_->ResolveReplacement(
           NodeProperties::GetContextInput(current_node()));
+    }
+    // Accessing the current node is fine for `FrameState nodes.
+    Node* CurrentNode() {
+      DCHECK_EQ(current_node()->opcode(), IrOpcode::kFrameState);
+      return current_node();
     }
 
     void SetReplacement(Node* replacement) {
@@ -799,9 +806,25 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kStateValues:
-    case IrOpcode::kFrameState:
       // These uses are always safe.
       break;
+    case IrOpcode::kFrameState: {
+      // We mark the receiver as escaping due to the non-standard `.getThis`
+      // API.
+      FrameState frame_state{current->CurrentNode()};
+      if (frame_state.frame_state_info().type() !=
+          FrameStateType::kUnoptimizedFunction)
+        break;
+      StateValuesAccess::iterator it =
+          StateValuesAccess(frame_state.parameters()).begin();
+      if (!it.done()) {
+        if (Node* receiver = it.node()) {
+          current->SetEscaped(receiver);
+        }
+        current->SetEscaped(frame_state.function());
+      }
+      break;
+    }
     default: {
       // For unknown nodes, treat all value inputs as escaping.
       int value_input_count = op->ValueInputCount();

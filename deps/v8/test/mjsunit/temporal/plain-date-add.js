@@ -18,7 +18,7 @@ assertPlainDate(d.subtract("-P12D"), 2021, 8, 1);
 
 let goodDate = new Temporal.PlainDate(2021, 7, 20);
 let badDate = {add: goodDate.add};
-assertThrows(() => badDateTime.add("P1D"), TypeError);
+assertThrows(() => badDate.add("P1D"), TypeError);
 
 // Throw in ToLimitedTemporalDuration
 assertThrows(() => (new Temporal.PlainDate(2021, 7, 20)).add("bad duration"),

@@ -395,6 +395,23 @@ Running test: testBigInt
         unserializableValue : -5n
     }
 }
+'1n << 9_999_999n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 0x800000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
+'-1n << 9_999_999n', returnByValue: false, generatePreview: false
+100
+{
+    result : {
+        description : -0x80000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
 
 Running test: testRegExp
 '/w+/d', returnByValue: false, generatePreview: false
@@ -519,7 +536,7 @@ Running test: testRegExp
         objectId : <objectId>
         preview : {
             description : /w+/g
-            overflow : false
+            overflow : true
             properties : [
                 [0] : {
                     name : prop
@@ -530,6 +547,21 @@ Running test: testRegExp
                     name : lastIndex
                     type : number
                     value : 0
+                }
+                [2] : {
+                    name : dotAll
+                    type : boolean
+                    value : false
+                }
+                [3] : {
+                    name : flags
+                    type : string
+                    value : g
+                }
+                [4] : {
+                    name : global
+                    type : boolean
+                    value : true
                 }
             ]
             subtype : regexp
@@ -603,6 +635,47 @@ Running test: testDate
                     type : number
                     value : 2
                 }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a.toString = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+                [0] : {
+                    name : toString
+                    type : function
+                    value : 
+                }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
             ]
             subtype : date
             type : object
@@ -1751,7 +1824,7 @@ Running test: testTypedArray
         objectId : <objectId>
         preview : {
             description : Uint8Array(2)
-            overflow : false
+            overflow : true
             properties : [
                 [0] : {
                     name : 0

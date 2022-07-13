@@ -44,7 +44,12 @@ class JavaScriptFrame;
     kHasSideEffectToReceiver)                                                 \
   V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
     kHasSideEffectToReceiver)                                                 \
-  V(_, string_length, StringLength, kHasNoSideEffect, kHasSideEffectToReceiver)
+  V(_, string_length, StringLength, kHasNoSideEffect,                         \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, wrapped_function_length, WrappedFunctionLength, kHasNoSideEffect,      \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, wrapped_function_name, WrappedFunctionName, kHasNoSideEffect,          \
+    kHasSideEffectToReceiver)
 
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \

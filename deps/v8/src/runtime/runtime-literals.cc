@@ -111,7 +111,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(PropertyLocation::kField, details.location());
-        DCHECK_EQ(kData, details.kind());
+        DCHECK_EQ(PropertyKind::kData, details.kind());
         FieldIndex index = FieldIndex::ForPropertyIndex(
             copy->map(isolate), details.field_index(),
             details.representation());
@@ -410,16 +410,16 @@ Handle<JSObject> CreateObjectLiteral(
 
     if (value->IsHeapObject()) {
       if (HeapObject::cast(*value).IsArrayBoilerplateDescription(isolate)) {
-        Handle<ArrayBoilerplateDescription> boilerplate =
+        Handle<ArrayBoilerplateDescription> array_boilerplate =
             Handle<ArrayBoilerplateDescription>::cast(value);
-        value = CreateArrayLiteral(isolate, boilerplate, allocation);
+        value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
 
       } else if (HeapObject::cast(*value).IsObjectBoilerplateDescription(
                      isolate)) {
-        Handle<ObjectBoilerplateDescription> boilerplate =
+        Handle<ObjectBoilerplateDescription> object_boilerplate =
             Handle<ObjectBoilerplateDescription>::cast(value);
-        value = CreateObjectLiteral(isolate, boilerplate, boilerplate->flags(),
-                                    allocation);
+        value = CreateObjectLiteral(isolate, object_boilerplate,
+                                    object_boilerplate->flags(), allocation);
       }
     }
 
@@ -584,10 +584,11 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int literals_index = args.tagged_index_value_at(1);
+  Handle<ObjectBoilerplateDescription> description =
+      args.at<ObjectBoilerplateDescription>(2);
+  int flags = args.smi_value_at(3);
   Handle<FeedbackVector> vector;
   if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
@@ -602,8 +603,9 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteralWithoutAllocationSite) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  Handle<ObjectBoilerplateDescription> description =
+      args.at<ObjectBoilerplateDescription>(0);
+  int flags = args.smi_value_at(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteralWithoutAllocationSite<ObjectLiteralHelper>(
                    isolate, description, flags));
@@ -612,8 +614,9 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, description, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  Handle<ArrayBoilerplateDescription> description =
+      args.at<ArrayBoilerplateDescription>(0);
+  int flags = args.smi_value_at(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteralWithoutAllocationSite<ArrayLiteralHelper>(
                    isolate, description, flags));
@@ -622,10 +625,11 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int literals_index = args.tagged_index_value_at(1);
+  Handle<ArrayBoilerplateDescription> elements =
+      args.at<ArrayBoilerplateDescription>(2);
+  int flags = args.smi_value_at(3);
   Handle<FeedbackVector> vector;
   if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
@@ -640,10 +644,10 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int index = args.tagged_index_value_at(1);
+  Handle<String> pattern = args.at<String>(2);
+  int flags = args.smi_value_at(3);
 
   if (maybe_vector->IsUndefined()) {
     // We don't have a vector; don't create a boilerplate, simply construct a

@@ -615,7 +615,7 @@ private:
 
     // Set to true when we've seen a "-per-" or a "per-", after which all units
     // are in the denominator. Until we find an "-and-", at which point the
-    // identifier is invalid pending TODO(CLDR-13700).
+    // identifier is invalid pending TODO(CLDR-13701).
     bool fAfterPer = false;
 
     Parser() : fSource(""), fTrie(u"") {}
@@ -669,7 +669,7 @@ private:
      * dimensionality.
      *
      * Returns an error if we parse both compound units and "-and-", since mixed
-     * compound units are not yet supported - TODO(CLDR-13700).
+     * compound units are not yet supported - TODO(CLDR-13701).
      *
      * @param result Will be overwritten by the result, if status shows success.
      * @param sawAnd If an "-and-" was parsed prior to finding the "single

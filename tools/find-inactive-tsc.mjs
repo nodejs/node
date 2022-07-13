@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 
-const SINCE = +process.argv[2] || '3 months ago';
+const SINCE = process.argv[2] || '3 months ago';
 
 async function runGitCommand(cmd, options = {}) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -118,7 +118,9 @@ async function getVotingRecords(tscMembers, votes) {
       await fs.promises.readFile(path.join('.tmp', vote), 'utf8')
     );
     for (const member in voteData.votes) {
-      votingRecords[member]++;
+      if (tscMembers.includes(member)) {
+        votingRecords[member]++;
+      }
     }
   }
   return votingRecords;
@@ -211,7 +213,8 @@ async function moveTscToEmeritus(peopleToMove) {
 // only been on the TSC for a week and therefore hasn't attended any meetings.
 const tscMembersAtEnd = await getTscFromReadme();
 
-await runGitCommand(`git checkout 'HEAD@{${SINCE}}' -- README.md`);
+const startCommit = await runGitCommand(`git rev-list -1 --before '${SINCE}' HEAD`);
+await runGitCommand(`git checkout ${startCommit} -- README.md`);
 const tscMembersAtStart = await getTscFromReadme();
 await runGitCommand('git reset HEAD README.md');
 await runGitCommand('git checkout -- README.md');
@@ -260,10 +263,11 @@ if (inactive.length) {
   });
   console.log(`DETAILS_FOR_COMMIT_BODY=${commitDetails.join(' ')}`);
 
-  // Using console.warn() to avoid messing with find-inactive-tsc which consumes
-  // stdout.
-  console.warn('Generating new README.md file...');
-  const newReadmeText = await moveTscToEmeritus(inactive);
-  fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
-  console.warn('Updated README.md generated. Please commit these changes.');
+  if (process.env.GITHUB_ACTIONS) {
+    // Using console.warn() to avoid messing with find-inactive-tsc which
+    // consumes stdout.
+    console.warn('Generating new README.md file...');
+    const newReadmeText = await moveTscToEmeritus(inactive);
+    fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
+  }
 }

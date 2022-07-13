@@ -38,38 +38,22 @@ void Assembler::emitw(uint16_t x) {
 // TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  DCHECK_NE(options().code_range_start, 0);
+  DCHECK_NE(options().code_range_base, 0);
   RecordRelocInfo(rmode);
-  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_start);
-  if (IsOnHeap()) {
-    saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
-    emitl(relative_target_offset(entry, reinterpret_cast<Address>(pc_)));
-    // We must ensure that `emitl` is not growing the assembler buffer
-    // and falling back to off-heap compilation.
-    DCHECK(IsOnHeap());
-  } else {
-    emitl(offset);
-  }
+  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_base);
+  emitl(offset);
 }
 
 void Assembler::emit(Immediate x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
+  if (!RelocInfo::IsNoInfo(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
   }
   emitl(x.value_);
 }
 
 void Assembler::emit(Immediate64 x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
+  if (!RelocInfo::IsNoInfo(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
-    if (x.rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT && IsOnHeap()) {
-      int offset = pc_offset();
-      Handle<HeapObject> object(reinterpret_cast<Address*>(x.value_));
-      saved_handles_for_raw_object_ptr_.emplace_back(offset, x.value_);
-      emitq(static_cast<uint64_t>(object->ptr()));
-      DCHECK(EmbeddedObjectMatches(offset, object));
-      return;
-    }
   }
   emitq(static_cast<uint64_t>(x.value_));
 }
@@ -280,7 +264,7 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
+Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
@@ -289,7 +273,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
+  return ReadUnalignedValue<int32_t>(pc) + options().code_range_base;
 }
 
 // -----------------------------------------------------------------------------
@@ -330,24 +314,16 @@ int RelocInfo::target_address_size() {
   }
 }
 
-HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    CHECK(!host_.is_null());
-    Object o = static_cast<Object>(DecompressTaggedPointer(
-        host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
-    return HeapObject::cast(o);
-  }
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
     Object obj(DecompressTaggedPointer(cage_base, compressed));
+    // Embedding of compressed Code objects must not happen when external code
+    // space is enabled, because CodeDataContainers must be used instead.
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));

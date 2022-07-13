@@ -17,21 +17,22 @@ namespace internal {
 // Record code statisitcs.
 void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
                                                      Isolate* isolate) {
-  if (object.IsScript()) {
+  PtrComprCageBase cage_base(isolate);
+  if (object.IsScript(cage_base)) {
     Script script = Script::cast(object);
     // Log the size of external source code.
-    Object source = script.source();
-    if (source.IsExternalString()) {
+    Object source = script.source(cage_base);
+    if (source.IsExternalString(cage_base)) {
       ExternalString external_source_string = ExternalString::cast(source);
       int size = isolate->external_script_source_size();
       size += external_source_string.ExternalPayloadSize();
       isolate->set_external_script_source_size(size);
     }
-  } else if (object.IsAbstractCode()) {
+  } else if (object.IsAbstractCode(cage_base)) {
     // Record code+metadata statisitcs.
     AbstractCode abstract_code = AbstractCode::cast(object);
     int size = abstract_code.SizeIncludingMetadata();
-    if (abstract_code.IsCode()) {
+    if (abstract_code.IsCode(cage_base)) {
       size += isolate->code_and_metadata_size();
       isolate->set_code_and_metadata_size(size);
     } else {
@@ -42,7 +43,7 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
 #ifdef DEBUG
     // Record code kind and code comment statistics.
     isolate->code_kind_statistics()[static_cast<int>(abstract_code.kind())] +=
-        abstract_code.Size();
+        abstract_code.Size(cage_base);
     CodeStatistics::CollectCodeCommentStatistics(object, isolate);
 #endif
   }

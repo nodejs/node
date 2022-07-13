@@ -10,11 +10,11 @@
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
-#include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -25,8 +25,9 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-function-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunction)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunctionOrWrappedFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWrappedFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunction)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
@@ -43,88 +44,17 @@ ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
   return ClosureFeedbackCellArray::cast(raw_feedback_cell().value());
 }
 
-bool JSFunction::HasOptimizationMarker() {
-  return has_feedback_vector() && feedback_vector().has_optimization_marker();
-}
-
-void JSFunction::ClearOptimizationMarker() {
+void JSFunction::reset_tiering_state() {
   DCHECK(has_feedback_vector());
-  feedback_vector().ClearOptimizationMarker();
+  feedback_vector().reset_tiering_state();
 }
 
-bool JSFunction::ChecksOptimizationMarker() {
-  return code().checks_optimization_marker();
-}
-
-bool JSFunction::IsMarkedForOptimization() {
-  return has_feedback_vector() && feedback_vector().optimization_marker() ==
-                                      OptimizationMarker::kCompileOptimized;
-}
-
-bool JSFunction::IsMarkedForConcurrentOptimization() {
-  return has_feedback_vector() &&
-         feedback_vector().optimization_marker() ==
-             OptimizationMarker::kCompileOptimizedConcurrent;
-}
-
-void JSFunction::SetInterruptBudget() {
-  if (!has_feedback_vector()) {
-    DCHECK(shared().is_compiled());
-    int budget = FLAG_budget_for_feedback_vector_allocation;
-    if (FLAG_feedback_allocation_on_bytecode_size) {
-      budget = shared().GetBytecodeArray(GetIsolate()).length() *
-               FLAG_scale_factor_for_feedback_allocation;
-    }
-    raw_feedback_cell().set_interrupt_budget(budget);
-    return;
-  }
-  FeedbackVector::SetInterruptBudget(raw_feedback_cell());
-}
-
-void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
-  Isolate* isolate = GetIsolate();
-  if (!isolate->concurrent_recompilation_enabled() ||
-      isolate->bootstrapper()->IsActive()) {
-    mode = ConcurrencyMode::kNotConcurrent;
-  }
-
-  DCHECK(!is_compiled() || ActiveTierIsIgnition() ||
-         ActiveTierIsMidtierTurboprop() || ActiveTierIsBaseline());
-  DCHECK(!ActiveTierIsTurbofan());
-  DCHECK(shared().IsInterpreted());
-  DCHECK(shared().allows_lazy_compilation() ||
-         !shared().optimization_disabled());
-
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (IsInOptimizationQueue()) {
-      if (FLAG_trace_concurrent_recompilation) {
-        PrintF("  ** Not marking ");
-        ShortPrint();
-        PrintF(" -- already in optimization queue.\n");
-      }
-      return;
-    }
-    if (FLAG_trace_concurrent_recompilation) {
-      PrintF("  ** Marking ");
-      ShortPrint();
-      PrintF(" for concurrent recompilation.\n");
-    }
-  }
-
-  SetOptimizationMarker(mode == ConcurrencyMode::kConcurrent
-                            ? OptimizationMarker::kCompileOptimizedConcurrent
-                            : OptimizationMarker::kCompileOptimized);
-}
-
-bool JSFunction::IsInOptimizationQueue() {
-  if (!has_feedback_vector()) return false;
-  return IsInOptimizationQueueMarker(feedback_vector().optimization_marker());
-}
+bool JSFunction::ChecksTieringState() { return code().checks_tiering_state(); }
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map().IsInobjectSlackTrackingInProgress()) {
-    initial_map().CompleteInobjectSlackTracking(GetIsolate());
+    MapUpdater::CompleteInobjectSlackTracking(GetIsolate(), initial_map());
   }
 }
 
@@ -133,32 +63,24 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(code(kAcquireLoad));
+    return AbstractCode::cast(FromCodeT(code(kAcquireLoad)));
   }
 }
 
 int JSFunction::length() { return shared().length(); }
 
-ACCESSORS_RELAXED(JSFunction, raw_code, CodeT, kCodeOffset)
-RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_code, CodeT, kCodeOffset)
+ACCESSORS_RELAXED(JSFunction, code, CodeT, kCodeOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, CodeT, kCodeOffset)
 
-DEF_GETTER(JSFunction, code, Code) { return FromCodeT(raw_code(cage_base)); }
-
-void JSFunction::set_code(Code code, WriteBarrierMode mode) {
-  set_raw_code(ToCodeT(code), mode);
-}
-
-DEF_ACQUIRE_GETTER(JSFunction, code, Code) {
-  return FromCodeT(raw_code(cage_base, kAcquireLoad));
-}
-
+#ifdef V8_EXTERNAL_CODE_SPACE
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
-  set_raw_code(ToCodeT(code), kReleaseStore, mode);
+  set_code(ToCodeT(code), kReleaseStore, mode);
 }
+#endif
 
 Address JSFunction::code_entry_point() const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    return CodeDataContainer::cast(raw_code()).code_entry_point();
+    return CodeDataContainer::cast(code()).code_entry_point();
   } else {
     return code().InstructionStart();
   }
@@ -180,12 +102,25 @@ void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
 }
 
-void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
-  DCHECK(has_feedback_vector());
-  DCHECK(ChecksOptimizationMarker());
-  DCHECK(!ActiveTierIsTurbofan());
+TieringState JSFunction::tiering_state() const {
+  if (!has_feedback_vector()) return TieringState::kNone;
+  return feedback_vector().tiering_state();
+}
 
-  feedback_vector().SetOptimizationMarker(marker);
+void JSFunction::set_tiering_state(TieringState state) {
+  DCHECK(has_feedback_vector());
+  DCHECK(IsNone(state) || ChecksTieringState());
+  feedback_vector().set_tiering_state(state);
+}
+
+TieringState JSFunction::osr_tiering_state() {
+  DCHECK(has_feedback_vector());
+  return feedback_vector().osr_tiering_state();
+}
+
+void JSFunction::set_osr_tiering_state(TieringState marker) {
+  DCHECK(has_feedback_vector());
+  feedback_vector().set_osr_tiering_state(marker);
 }
 
 bool JSFunction::has_feedback_vector() const {
@@ -300,7 +235,7 @@ bool JSFunction::ShouldFlushBaselineCode(
   // SFI / FV to JSFunction but it is safe in practice.
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
   if (!maybe_code.IsCodeT()) return false;
-  Code code = FromCodeT(CodeT::cast(maybe_code));
+  CodeT code = CodeT::cast(maybe_code);
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
@@ -317,7 +252,7 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
 
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
   if (!maybe_code.IsCodeT()) return false;
-  Code code = FromCodeT(CodeT::cast(maybe_code), kRelaxedLoad);
+  CodeT code = CodeT::cast(maybe_code);
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   return !shared.is_compiled() && code.builtin_id() != Builtin::kCompileLazy;
@@ -331,10 +266,13 @@ void JSFunction::ResetIfCodeFlushed(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  if (!FLAG_flush_bytecode && !FLAG_flush_baseline_code) return;
+  const bool kBytecodeCanFlush = FLAG_flush_bytecode || FLAG_stress_snapshot;
+  const bool kBaselineCodeCanFlush =
+      FLAG_flush_baseline_code || FLAG_stress_snapshot;
+  if (!kBytecodeCanFlush && !kBaselineCodeCanFlush) return;
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), FLAG_flush_bytecode);
-  if (FLAG_flush_bytecode && NeedsResetDueToFlushedBytecode()) {
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), kBytecodeCanFlush);
+  if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode()) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(*BUILTIN_CODE(GetIsolate(), CompileLazy));
@@ -342,10 +280,8 @@ void JSFunction::ResetIfCodeFlushed(
     return;
   }
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(),
-                 FLAG_flush_baseline_code);
-  if (FLAG_flush_baseline_code && NeedsResetDueToFlushedBaselineCode()) {
-    DCHECK(FLAG_flush_baseline_code);
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(), kBaselineCodeCanFlush);
+  if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode()) {
     // Flush baseline code from the closure if required
     set_code(*BUILTIN_CODE(GetIsolate(), InterpreterEntryTrampoline));
   }

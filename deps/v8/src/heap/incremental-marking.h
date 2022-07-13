@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
-  enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
+  enum class GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
   using MarkingState = MarkCompactCollector::MarkingState;
   using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
@@ -81,11 +81,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
 
-#ifdef V8_ATOMIC_MARKING_STATE
   static const AccessMode kAtomicity = AccessMode::ATOMIC;
-#else
-  static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
-#endif
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
@@ -118,39 +114,34 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   inline bool IsMarking() const { return state() >= MARKING; }
 
-  inline bool IsMarkingIncomplete() const { return state() == MARKING; }
-
   inline bool IsComplete() const { return state() == COMPLETE; }
 
   inline bool IsReadyToOverApproximateWeakClosure() const {
-    return request_type_ == FINALIZATION && !finalize_marking_completed_;
+    return request_type_ == GCRequestType::FINALIZATION &&
+           !finalize_marking_completed_;
   }
 
   inline bool NeedsFinalization() {
-    return IsMarking() &&
-           (request_type_ == FINALIZATION || request_type_ == COMPLETE_MARKING);
+    return IsMarking() && (request_type_ == GCRequestType::FINALIZATION ||
+                           request_type_ == GCRequestType::COMPLETE_MARKING);
   }
 
   GCRequestType request_type() const { return request_type_; }
 
-  void reset_request_type() { request_type_ = NONE; }
+  void reset_request_type() { request_type_ = GCRequestType::NONE; }
 
   bool CanBeActivated();
 
   bool WasActivated();
 
   void Start(GarbageCollectionReason gc_reason);
+  // Returns true if incremental marking was running and false otherwise.
+  bool Stop();
 
   void FinalizeIncrementally();
 
-  void UpdateMarkingWorklistAfterScavenge();
+  void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
-
-  void Hurry();
-
-  void Finalize();
-
-  void Stop();
 
   void FinalizeMarking(CompletionAction action);
 
@@ -185,8 +176,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
   void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
-
-  void MarkBlackAndRevisitObject(Code code);
 
   void MarkBlackBackground(HeapObject obj, int object_size);
 
@@ -225,6 +214,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     background_live_bytes_[chunk] += by;
   }
 
+  void MarkRootsForTesting();
+
  private:
   class Observer : public AllocationObserver {
    public:
@@ -244,7 +235,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
-  void MarkRoots();
   bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
@@ -312,7 +302,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool finalize_marking_completed_ = false;
   IncrementalMarkingJob incremental_marking_job_;
 
-  std::atomic<GCRequestType> request_type_{NONE};
+  std::atomic<GCRequestType> request_type_{GCRequestType::NONE};
 
   Observer new_generation_observer_;
   Observer old_generation_observer_;

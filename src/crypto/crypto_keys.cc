@@ -305,7 +305,7 @@ MaybeLocal<Value> WritePrivateKey(
   char* pass = nullptr;
   size_t pass_len = 0;
   if (!config.passphrase_.IsEmpty()) {
-    pass = const_cast<char*>(config.passphrase_->get());
+    pass = const_cast<char*>(config.passphrase_->data<char>());
     pass_len = config.passphrase_->size();
     if (pass == nullptr) {
       // OpenSSL will not actually dereference this pointer, so it can be any
@@ -497,7 +497,8 @@ Maybe<bool> ExportJWKAsymmetricKey(
       break;
     }
     case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
-    case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
+    case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target).IsJust() ?
+                               Just(true) : Nothing<bool>();
     case EVP_PKEY_ED25519:
       // Fall through
     case EVP_PKEY_ED448:
@@ -743,7 +744,7 @@ ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
 
     EVPKeyPointer pkey;
     ParseKeyResult ret =
-        ParsePrivateKey(&pkey, config.Release(), key.get(), key.size());
+        ParsePrivateKey(&pkey, config.Release(), key.data<char>(), key.size());
     return GetParsedKey(env, std::move(pkey), ret,
                         "Failed to read private key");
   } else {
@@ -892,7 +893,7 @@ ManagedEVPPKey KeyObjectData::GetAsymmetricKey() const {
 
 const char* KeyObjectData::GetSymmetricKey() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
-  return symmetric_key_.get();
+  return symmetric_key_.data<char>();
 }
 
 size_t KeyObjectData::GetSymmetricKeySize() const {
@@ -921,6 +922,7 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   env->SetProtoMethod(t, "initEDRaw", InitEDRaw);
   env->SetProtoMethod(t, "initJwk", InitJWK);
   env->SetProtoMethod(t, "keyDetail", GetKeyDetail);
+  env->SetProtoMethod(t, "equals", Equals);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   env->set_crypto_key_object_handle_constructor(function);
@@ -939,6 +941,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(InitEDRaw);
   registry->Register(InitJWK);
   registry->Register(GetKeyDetail);
+  registry->Register(Equals);
 }
 
 MaybeLocal<Object> KeyObjectHandle::Create(
@@ -1132,6 +1135,54 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(true);
+}
+
+void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* self_handle;
+  KeyObjectHandle* arg_handle;
+  ASSIGN_OR_RETURN_UNWRAP(&self_handle, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&arg_handle, args[0].As<Object>());
+  std::shared_ptr<KeyObjectData> key = self_handle->Data();
+  std::shared_ptr<KeyObjectData> key2 = arg_handle->Data();
+
+  KeyType key_type = key->GetKeyType();
+  CHECK_EQ(key_type, key2->GetKeyType());
+
+  bool ret;
+  switch (key_type) {
+    case kKeyTypeSecret: {
+      size_t size = key->GetSymmetricKeySize();
+      if (size == key2->GetSymmetricKeySize()) {
+        ret = CRYPTO_memcmp(
+          key->GetSymmetricKey(),
+          key2->GetSymmetricKey(),
+          size) == 0;
+      } else {
+        ret = false;
+      }
+      break;
+    }
+    case kKeyTypePublic:
+    case kKeyTypePrivate: {
+      EVP_PKEY* pkey = key->GetAsymmetricKey().get();
+      EVP_PKEY* pkey2 = key2->GetAsymmetricKey().get();
+#if OPENSSL_VERSION_MAJOR >= 3
+      int ok = EVP_PKEY_eq(pkey, pkey2);
+#else
+      int ok = EVP_PKEY_cmp(pkey, pkey2);
+#endif
+      if (ok == -2) {
+        Environment* env = Environment::GetCurrent(args);
+        return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+      }
+      ret = ok == 1;
+      break;
+    }
+    default:
+      UNREACHABLE("unsupported key type");
+  }
+
+  args.GetReturnValue().Set(ret);
 }
 
 void KeyObjectHandle::GetKeyDetail(const FunctionCallbackInfo<Value>& args) {
@@ -1374,6 +1425,7 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(
   ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
   Mutex::ScopedLock lock(*m_pkey.mutex());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   if (!i2d_PUBKEY_bio(bio.get(), m_pkey.get()))
     return WebCryptoKeyExportStatus::FAILED;
 
@@ -1389,6 +1441,7 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
   Mutex::ScopedLock lock(*m_pkey.mutex());
 
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   PKCS8Pointer p8inf(EVP_PKEY2PKCS8(m_pkey.get()));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
     return WebCryptoKeyExportStatus::FAILED;

@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_CODE_OBJECT_REGISTRY_H_
 #define V8_HEAP_CODE_OBJECT_REGISTRY_H_
 
-#include <set>
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -32,6 +32,7 @@ class V8_EXPORT_PRIVATE CodeObjectRegistry {
   // that it can be lazily sorted during GetCodeObjectStartFromInnerAddress.
   mutable std::vector<Address> code_object_registry_;
   mutable bool is_sorted_ = true;
+  mutable base::Mutex code_object_registry_mutex_;
 };
 
 }  // namespace internal

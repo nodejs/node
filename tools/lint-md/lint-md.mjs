@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path$1 from 'path';
+import proc from 'process';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
-import process$1 from 'process';
-import process$2 from 'node:process';
+import process$1 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
 
@@ -13,10 +13,6 @@ function bail(error) {
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
-function commonjsRequire (path) {
-	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
-}
 
 /*!
  * Determine if an object is a Buffer
@@ -114,11 +110,11 @@ var extend$1 = function extend() {
 };
 
 function isPlainObject(value) {
-	if (Object.prototype.toString.call(value) !== '[object Object]') {
+	if (typeof value !== 'object' || value === null) {
 		return false;
 	}
 	const prototype = Object.getPrototypeOf(value);
-	return prototype === null || prototype === Object.prototype;
+	return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(Symbol.toStringTag in value) && !(Symbol.iterator in value);
 }
 
 function trough() {
@@ -172,9 +168,9 @@ function wrap(middleware, callback) {
       parameters.push(done);
     }
     try {
-      result = middleware(...parameters);
+      result = middleware.apply(this, parameters);
     } catch (error) {
-      const exception = error;
+      const exception =  (error);
       if (fnExpectsCallback && called) {
         throw exception
       }
@@ -201,18 +197,17 @@ function wrap(middleware, callback) {
   }
 }
 
-var own$8 = {}.hasOwnProperty;
 function stringifyPosition(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
-  if (own$8.call(value, 'position') || own$8.call(value, 'type')) {
+  if ('position' in value || 'type' in value) {
     return position(value.position)
   }
-  if (own$8.call(value, 'start') || own$8.call(value, 'end')) {
+  if ('start' in value || 'end' in value) {
     return position(value)
   }
-  if (own$8.call(value, 'line') || own$8.call(value, 'column')) {
+  if ('line' in value || 'column' in value) {
     return point$1(value)
   }
   return ''
@@ -229,19 +224,18 @@ function index(value) {
 
 class VFileMessage extends Error {
   constructor(reason, place, origin) {
-    var parts = [null, null];
-    var position = {
+    const parts = [null, null];
+    let position = {
       start: {line: null, column: null},
       end: {line: null, column: null}
     };
-    var index;
     super();
     if (typeof place === 'string') {
       origin = place;
-      place = null;
+      place = undefined;
     }
     if (typeof origin === 'string') {
-      index = origin.indexOf(':');
+      const index = origin.indexOf(':');
       if (index === -1) {
         parts[1] = origin;
       } else {
@@ -266,13 +260,15 @@ class VFileMessage extends Error {
     this.message = typeof reason === 'object' ? reason.message : reason;
     this.stack = typeof reason === 'object' ? reason.stack : '';
     this.reason = this.message;
+    this.fatal;
     this.line = position.start.line;
     this.column = position.start.column;
     this.source = parts[0];
     this.ruleId = parts[1];
     this.position = position;
+    this.actual;
+    this.expected;
     this.file;
-    this.fatal;
     this.url;
     this.note;
   }
@@ -288,8 +284,6 @@ VFileMessage.prototype.line = null;
 VFileMessage.prototype.source = null;
 VFileMessage.prototype.ruleId = null;
 VFileMessage.prototype.position = null;
-
-const proc = process$1;
 
 function isUrl(fileURLOrPath) {
   return (
@@ -484,7 +478,7 @@ function base() {
         continue
       }
       if (options[0] === true) {
-        options[1] = undefined;
+        options[0] = undefined;
       }
       const transformer = attacher.call(processor, ...options);
       if (typeof transformer === 'function') {
@@ -1509,18 +1503,13 @@ function tokenizeCharacterEscape(effects, ok, nok) {
 }
 
 const characterEntities = {
-  AEli: 'Æ',
   AElig: 'Æ',
-  AM: '&',
   AMP: '&',
-  Aacut: 'Á',
   Aacute: 'Á',
   Abreve: 'Ă',
-  Acir: 'Â',
   Acirc: 'Â',
   Acy: 'А',
   Afr: '𝔄',
-  Agrav: 'À',
   Agrave: 'À',
   Alpha: 'Α',
   Amacr: 'Ā',
@@ -1528,13 +1517,10 @@ const characterEntities = {
   Aogon: 'Ą',
   Aopf: '𝔸',
   ApplyFunction: '⁡',
-  Arin: 'Å',
   Aring: 'Å',
   Ascr: '𝒜',
   Assign: '≔',
-  Atild: 'Ã',
   Atilde: 'Ã',
-  Aum: 'Ä',
   Auml: 'Ä',
   Backslash: '∖',
   Barv: '⫧',
@@ -1549,14 +1535,12 @@ const characterEntities = {
   Bscr: 'ℬ',
   Bumpeq: '≎',
   CHcy: 'Ч',
-  COP: '©',
   COPY: '©',
   Cacute: 'Ć',
   Cap: '⋒',
   CapitalDifferentialD: 'ⅅ',
   Cayleys: 'ℭ',
   Ccaron: 'Č',
-  Ccedi: 'Ç',
   Ccedil: 'Ç',
   Ccirc: 'Ĉ',
   Cconint: '∰',
@@ -1639,17 +1623,13 @@ const characterEntities = {
   Dscr: '𝒟',
   Dstrok: 'Đ',
   ENG: 'Ŋ',
-  ET: 'Ð',
   ETH: 'Ð',
-  Eacut: 'É',
   Eacute: 'É',
   Ecaron: 'Ě',
-  Ecir: 'Ê',
   Ecirc: 'Ê',
   Ecy: 'Э',
   Edot: 'Ė',
   Efr: '𝔈',
-  Egrav: 'È',
   Egrave: 'È',
   Element: '∈',
   Emacr: 'Ē',
@@ -1664,7 +1644,6 @@ const characterEntities = {
   Escr: 'ℰ',
   Esim: '⩳',
   Eta: 'Η',
-  Eum: 'Ë',
   Euml: 'Ë',
   Exists: '∃',
   ExponentialE: 'ⅇ',
@@ -1677,7 +1656,6 @@ const characterEntities = {
   Fouriertrf: 'ℱ',
   Fscr: 'ℱ',
   GJcy: 'Ѓ',
-  G: '>',
   GT: '>',
   Gamma: 'Γ',
   Gammad: 'Ϝ',
@@ -1713,14 +1691,11 @@ const characterEntities = {
   IEcy: 'Е',
   IJlig: 'Ĳ',
   IOcy: 'Ё',
-  Iacut: 'Í',
   Iacute: 'Í',
-  Icir: 'Î',
   Icirc: 'Î',
   Icy: 'И',
   Idot: 'İ',
   Ifr: 'ℑ',
-  Igrav: 'Ì',
   Igrave: 'Ì',
   Im: 'ℑ',
   Imacr: 'Ī',
@@ -1737,7 +1712,6 @@ const characterEntities = {
   Iscr: 'ℐ',
   Itilde: 'Ĩ',
   Iukcy: 'І',
-  Ium: 'Ï',
   Iuml: 'Ï',
   Jcirc: 'Ĵ',
   Jcy: 'Й',
@@ -1755,7 +1729,6 @@ const characterEntities = {
   Kopf: '𝕂',
   Kscr: '𝒦',
   LJcy: 'Љ',
-  L: '<',
   LT: '<',
   Lacute: 'Ĺ',
   Lambda: 'Λ',
@@ -1892,18 +1865,14 @@ const characterEntities = {
   NotTildeTilde: '≉',
   NotVerticalBar: '∤',
   Nscr: '𝒩',
-  Ntild: 'Ñ',
   Ntilde: 'Ñ',
   Nu: 'Ν',
   OElig: 'Œ',
-  Oacut: 'Ó',
   Oacute: 'Ó',
-  Ocir: 'Ô',
   Ocirc: 'Ô',
   Ocy: 'О',
   Odblac: 'Ő',
   Ofr: '𝔒',
-  Ograv: 'Ò',
   Ograve: 'Ò',
   Omacr: 'Ō',
   Omega: 'Ω',
@@ -1913,12 +1882,9 @@ const characterEntities = {
   OpenCurlyQuote: '‘',
   Or: '⩔',
   Oscr: '𝒪',
-  Oslas: 'Ø',
   Oslash: 'Ø',
-  Otild: 'Õ',
   Otilde: 'Õ',
   Otimes: '⨷',
-  Oum: 'Ö',
   Ouml: 'Ö',
   OverBar: '‾',
   OverBrace: '⏞',
@@ -1943,13 +1909,11 @@ const characterEntities = {
   Proportional: '∝',
   Pscr: '𝒫',
   Psi: 'Ψ',
-  QUO: '"',
   QUOT: '"',
   Qfr: '𝔔',
   Qopf: 'ℚ',
   Qscr: '𝒬',
   RBarr: '⤐',
-  RE: '®',
   REG: '®',
   Racute: 'Ŕ',
   Rang: '⟫',
@@ -2033,7 +1997,6 @@ const characterEntities = {
   Superset: '⊃',
   SupersetEqual: '⊇',
   Supset: '⋑',
-  THOR: 'Þ',
   THORN: 'Þ',
   TRADE: '™',
   TSHcy: 'Ћ',
@@ -2056,18 +2019,15 @@ const characterEntities = {
   TripleDot: '⃛',
   Tscr: '𝒯',
   Tstrok: 'Ŧ',
-  Uacut: 'Ú',
   Uacute: 'Ú',
   Uarr: '↟',
   Uarrocir: '⥉',
   Ubrcy: 'Ў',
   Ubreve: 'Ŭ',
-  Ucir: 'Û',
   Ucirc: 'Û',
   Ucy: 'У',
   Udblac: 'Ű',
   Ufr: '𝔘',
-  Ugrav: 'Ù',
   Ugrave: 'Ù',
   Umacr: 'Ū',
   UnderBar: '_',
@@ -2094,7 +2054,6 @@ const characterEntities = {
   Uring: 'Ů',
   Uscr: '𝒰',
   Utilde: 'Ũ',
-  Uum: 'Ü',
   Uuml: 'Ü',
   VDash: '⊫',
   Vbar: '⫫',
@@ -2125,7 +2084,6 @@ const characterEntities = {
   YAcy: 'Я',
   YIcy: 'Ї',
   YUcy: 'Ю',
-  Yacut: 'Ý',
   Yacute: 'Ý',
   Ycirc: 'Ŷ',
   Ycy: 'Ы',
@@ -2143,29 +2101,23 @@ const characterEntities = {
   Zfr: 'ℨ',
   Zopf: 'ℤ',
   Zscr: '𝒵',
-  aacut: 'á',
   aacute: 'á',
   abreve: 'ă',
   ac: '∾',
   acE: '∾̳',
   acd: '∿',
-  acir: 'â',
   acirc: 'â',
-  acut: '´',
   acute: '´',
   acy: 'а',
-  aeli: 'æ',
   aelig: 'æ',
   af: '⁡',
   afr: '𝔞',
-  agrav: 'à',
   agrave: 'à',
   alefsym: 'ℵ',
   aleph: 'ℵ',
   alpha: 'α',
   amacr: 'ā',
   amalg: '⨿',
-  am: '&',
   amp: '&',
   and: '∧',
   andand: '⩕',
@@ -2200,15 +2152,12 @@ const characterEntities = {
   apos: "'",
   approx: '≈',
   approxeq: '≊',
-  arin: 'å',
   aring: 'å',
   ascr: '𝒶',
   ast: '*',
   asymp: '≈',
   asympeq: '≍',
-  atild: 'ã',
   atilde: 'ã',
-  aum: 'ä',
   auml: 'ä',
   awconint: '∳',
   awint: '⨑',
@@ -2313,7 +2262,6 @@ const characterEntities = {
   boxvr: '├',
   bprime: '‵',
   breve: '˘',
-  brvba: '¦',
   brvbar: '¦',
   bscr: '𝒷',
   bsemi: '⁏',
@@ -2340,16 +2288,13 @@ const characterEntities = {
   caron: 'ˇ',
   ccaps: '⩍',
   ccaron: 'č',
-  ccedi: 'ç',
   ccedil: 'ç',
   ccirc: 'ĉ',
   ccups: '⩌',
   ccupssm: '⩐',
   cdot: 'ċ',
-  cedi: '¸',
   cedil: '¸',
   cemptyv: '⦲',
-  cen: '¢',
   cent: '¢',
   centerdot: '·',
   cfr: '𝔠',
@@ -2388,7 +2333,6 @@ const characterEntities = {
   conint: '∮',
   copf: '𝕔',
   coprod: '∐',
-  cop: '©',
   copy: '©',
   copysr: '℗',
   crarr: '↵',
@@ -2418,7 +2362,6 @@ const characterEntities = {
   curlyeqsucc: '⋟',
   curlyvee: '⋎',
   curlywedge: '⋏',
-  curre: '¤',
   curren: '¤',
   curvearrowleft: '↶',
   curvearrowright: '↷',
@@ -2442,7 +2385,6 @@ const characterEntities = {
   ddagger: '‡',
   ddarr: '⇊',
   ddotseq: '⩷',
-  de: '°',
   deg: '°',
   delta: 'δ',
   demptyv: '⦱',
@@ -2458,7 +2400,6 @@ const characterEntities = {
   digamma: 'ϝ',
   disin: '⋲',
   div: '÷',
-  divid: '÷',
   divide: '÷',
   divideontimes: '⋇',
   divonx: '⋇',
@@ -2495,11 +2436,10 @@ const characterEntities = {
   dzigrarr: '⟿',
   eDDot: '⩷',
   eDot: '≑',
-  eacut: 'é',
   eacute: 'é',
   easter: '⩮',
   ecaron: 'ě',
-  ecir: 'ê',
+  ecir: '≖',
   ecirc: 'ê',
   ecolon: '≕',
   ecy: 'э',
@@ -2508,7 +2448,6 @@ const characterEntities = {
   efDot: '≒',
   efr: '𝔢',
   eg: '⪚',
-  egrav: 'è',
   egrave: 'è',
   egs: '⪖',
   egsdot: '⪘',
@@ -2550,9 +2489,7 @@ const characterEntities = {
   esdot: '≐',
   esim: '≂',
   eta: 'η',
-  et: 'ð',
   eth: 'ð',
-  eum: 'ë',
   euml: 'ë',
   euro: '€',
   excl: '!',
@@ -2577,7 +2514,6 @@ const characterEntities = {
   fork: '⋔',
   forkv: '⫙',
   fpartint: '⨍',
-  frac1: '¼',
   frac12: '½',
   frac13: '⅓',
   frac14: '¼',
@@ -2586,7 +2522,6 @@ const characterEntities = {
   frac18: '⅛',
   frac23: '⅔',
   frac25: '⅖',
-  frac3: '¾',
   frac34: '¾',
   frac35: '⅗',
   frac38: '⅜',
@@ -2641,7 +2576,6 @@ const characterEntities = {
   gsim: '≳',
   gsime: '⪎',
   gsiml: '⪐',
-  g: '>',
   gt: '>',
   gtcc: '⪧',
   gtcir: '⩺',
@@ -2685,18 +2619,14 @@ const characterEntities = {
   hstrok: 'ħ',
   hybull: '⁃',
   hyphen: '‐',
-  iacut: 'í',
   iacute: 'í',
   ic: '⁣',
-  icir: 'î',
   icirc: 'î',
   icy: 'и',
   iecy: 'е',
-  iexc: '¡',
   iexcl: '¡',
   iff: '⇔',
   ifr: '𝔦',
-  igrav: 'ì',
   igrave: 'ì',
   ii: 'ⅈ',
   iiiint: '⨌',
@@ -2727,7 +2657,6 @@ const characterEntities = {
   iopf: '𝕚',
   iota: 'ι',
   iprod: '⨼',
-  iques: '¿',
   iquest: '¿',
   iscr: '𝒾',
   isin: '∈',
@@ -2739,7 +2668,6 @@ const characterEntities = {
   it: '⁢',
   itilde: 'ĩ',
   iukcy: 'і',
-  ium: 'ï',
   iuml: 'ï',
   jcirc: 'ĵ',
   jcy: 'й',
@@ -2774,7 +2702,6 @@ const characterEntities = {
   langd: '⦑',
   langle: '⟨',
   lap: '⪅',
-  laqu: '«',
   laquo: '«',
   larr: '←',
   larrb: '⇤',
@@ -2896,7 +2823,6 @@ const characterEntities = {
   lsquo: '‘',
   lsquor: '‚',
   lstrok: 'ł',
-  l: '<',
   lt: '<',
   ltcc: '⪦',
   ltcir: '⩹',
@@ -2914,7 +2840,6 @@ const characterEntities = {
   lvertneqq: '≨︀',
   lvnE: '≨︀',
   mDDot: '∺',
-  mac: '¯',
   macr: '¯',
   male: '♂',
   malt: '✠',
@@ -2931,12 +2856,10 @@ const characterEntities = {
   measuredangle: '∡',
   mfr: '𝔪',
   mho: '℧',
-  micr: 'µ',
   micro: 'µ',
   mid: '∣',
   midast: '*',
   midcir: '⫰',
-  middo: '·',
   middot: '·',
   minus: '−',
   minusb: '⊟',
@@ -2975,7 +2898,6 @@ const characterEntities = {
   natur: '♮',
   natural: '♮',
   naturals: 'ℕ',
-  nbs: ' ',
   nbsp: ' ',
   nbump: '≎̸',
   nbumpe: '≏̸',
@@ -3034,7 +2956,6 @@ const characterEntities = {
   nltrie: '⋬',
   nmid: '∤',
   nopf: '𝕟',
-  no: '¬',
   not: '¬',
   notin: '∉',
   notinE: '⋹̸',
@@ -3091,7 +3012,6 @@ const characterEntities = {
   nsupseteq: '⊉',
   nsupseteqq: '⫆̸',
   ntgl: '≹',
-  ntild: 'ñ',
   ntilde: 'ñ',
   ntlg: '≸',
   ntriangleleft: '⋪',
@@ -3122,10 +3042,9 @@ const characterEntities = {
   nwarrow: '↖',
   nwnear: '⤧',
   oS: 'Ⓢ',
-  oacut: 'ó',
   oacute: 'ó',
   oast: '⊛',
-  ocir: 'ô',
+  ocir: '⊚',
   ocirc: 'ô',
   ocy: 'о',
   odash: '⊝',
@@ -3137,7 +3056,6 @@ const characterEntities = {
   ofcir: '⦿',
   ofr: '𝔬',
   ogon: '˛',
-  ograv: 'ò',
   ograve: 'ò',
   ogt: '⧁',
   ohbar: '⦵',
@@ -3159,7 +3077,7 @@ const characterEntities = {
   oplus: '⊕',
   or: '∨',
   orarr: '↻',
-  ord: 'º',
+  ord: '⩝',
   order: 'ℴ',
   orderof: 'ℴ',
   ordf: 'ª',
@@ -3169,17 +3087,14 @@ const characterEntities = {
   orslope: '⩗',
   orv: '⩛',
   oscr: 'ℴ',
-  oslas: 'ø',
   oslash: 'ø',
   osol: '⊘',
-  otild: 'õ',
   otilde: 'õ',
   otimes: '⊗',
   otimesas: '⨶',
-  oum: 'ö',
   ouml: 'ö',
   ovbar: '⌽',
-  par: '¶',
+  par: '∥',
   para: '¶',
   parallel: '∥',
   parsim: '⫳',
@@ -3209,14 +3124,12 @@ const characterEntities = {
   plusdo: '∔',
   plusdu: '⨥',
   pluse: '⩲',
-  plusm: '±',
   plusmn: '±',
   plussim: '⨦',
   plustwo: '⨧',
   pm: '±',
   pointint: '⨕',
   popf: '𝕡',
-  poun: '£',
   pound: '£',
   pr: '≺',
   prE: '⪳',
@@ -3256,7 +3169,6 @@ const characterEntities = {
   quatint: '⨖',
   quest: '?',
   questeq: '≟',
-  quo: '"',
   quot: '"',
   rAarr: '⇛',
   rArr: '⇒',
@@ -3271,7 +3183,6 @@ const characterEntities = {
   rangd: '⦒',
   range: '⦥',
   rangle: '⟩',
-  raqu: '»',
   raquo: '»',
   rarr: '→',
   rarrap: '⥵',
@@ -3310,7 +3221,6 @@ const characterEntities = {
   realpart: 'ℜ',
   reals: 'ℝ',
   rect: '▭',
-  re: '®',
   reg: '®',
   rfisht: '⥽',
   rfloor: '⌋',
@@ -3385,7 +3295,6 @@ const characterEntities = {
   searhk: '⤥',
   searr: '↘',
   searrow: '↘',
-  sec: '§',
   sect: '§',
   semi: ';',
   seswar: '⤩',
@@ -3399,7 +3308,6 @@ const characterEntities = {
   shcy: 'ш',
   shortmid: '∣',
   shortparallel: '∥',
-  sh: '­',
   shy: '­',
   sigma: 'σ',
   sigmaf: 'ς',
@@ -3486,10 +3394,10 @@ const characterEntities = {
   succsim: '≿',
   sum: '∑',
   sung: '♪',
-  sup: '⊃',
   sup1: '¹',
   sup2: '²',
   sup3: '³',
+  sup: '⊃',
   supE: '⫆',
   supdot: '⪾',
   supdsub: '⫘',
@@ -3515,7 +3423,6 @@ const characterEntities = {
   swarr: '↙',
   swarrow: '↙',
   swnwar: '⤪',
-  szli: 'ß',
   szlig: 'ß',
   target: '⌖',
   tau: 'τ',
@@ -3536,10 +3443,8 @@ const characterEntities = {
   thinsp: ' ',
   thkap: '≈',
   thksim: '∼',
-  thor: 'þ',
   thorn: 'þ',
   tilde: '˜',
-  time: '×',
   times: '×',
   timesb: '⊠',
   timesbar: '⨱',
@@ -3577,12 +3482,10 @@ const characterEntities = {
   twoheadrightarrow: '↠',
   uArr: '⇑',
   uHar: '⥣',
-  uacut: 'ú',
   uacute: 'ú',
   uarr: '↑',
   ubrcy: 'ў',
   ubreve: 'ŭ',
-  ucir: 'û',
   ucirc: 'û',
   ucy: 'у',
   udarr: '⇅',
@@ -3590,7 +3493,6 @@ const characterEntities = {
   udhar: '⥮',
   ufisht: '⥾',
   ufr: '𝔲',
-  ugrav: 'ù',
   ugrave: 'ù',
   uharl: '↿',
   uharr: '↾',
@@ -3600,7 +3502,6 @@ const characterEntities = {
   ulcrop: '⌏',
   ultri: '◸',
   umacr: 'ū',
-  um: '¨',
   uml: '¨',
   uogon: 'ų',
   uopf: '𝕦',
@@ -3624,7 +3525,6 @@ const characterEntities = {
   utri: '▵',
   utrif: '▴',
   uuarr: '⇈',
-  uum: 'ü',
   uuml: 'ü',
   uwangle: '⦧',
   vArr: '⇕',
@@ -3704,19 +3604,16 @@ const characterEntities = {
   xutri: '△',
   xvee: '⋁',
   xwedge: '⋀',
-  yacut: 'ý',
   yacute: 'ý',
   yacy: 'я',
   ycirc: 'ŷ',
   ycy: 'ы',
-  ye: '¥',
   yen: '¥',
   yfr: '𝔶',
   yicy: 'ї',
   yopf: '𝕪',
   yscr: '𝓎',
   yucy: 'ю',
-  yum: 'ÿ',
   yuml: 'ÿ',
   zacute: 'ź',
   zcaron: 'ž',
@@ -4941,7 +4838,6 @@ const htmlBlockNames = [
   'p',
   'param',
   'section',
-  'source',
   'summary',
   'table',
   'tbody',
@@ -7913,9 +7809,33 @@ function configure(base, extension) {
   return base
 }
 
-function containerFlow(parent, context) {
+function track(options_) {
+  const options = options_ || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line = now.line || 1;
+  let column = now.column || 1;
+  return {move, current, shift}
+  function current() {
+    return {now: {line, column}, lineShift}
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(value = '') {
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line += chunks.length - 1;
+    column =
+      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
+    return value
+  }
+}
+
+function containerFlow(parent, context, safeOptions) {
   const indexStack = context.indexStack;
   const children = parent.children || [];
+  const tracker = track(safeOptions);
   const results = [];
   let index = -1;
   indexStack.push(-1);
@@ -7923,13 +7843,19 @@ function containerFlow(parent, context) {
     const child = children[index];
     indexStack[indexStack.length - 1] = index;
     results.push(
-      context.handle(child, parent, context, {before: '\n', after: '\n'})
+      tracker.move(
+        context.handle(child, parent, context, {
+          before: '\n',
+          after: '\n',
+          ...tracker.current()
+        })
+      )
     );
     if (child.type !== 'list') {
       context.bulletLastUsed = undefined;
     }
     if (index < children.length - 1) {
-      results.push(between(child, children[index + 1]));
+      results.push(tracker.move(between(child, children[index + 1])));
     }
   }
   indexStack.pop();
@@ -7971,9 +7897,15 @@ function indentLines(value, map) {
   }
 }
 
-function blockquote(node, _, context) {
+function blockquote(node, _, context, safeOptions) {
   const exit = context.enter('blockquote');
-  const value = indentLines(containerFlow(node, context), map$2);
+  const tracker = track(safeOptions);
+  tracker.move('> ');
+  tracker.shift(2);
+  const value = indentLines(
+    containerFlow(node, context, tracker.current()),
+    map$2
+  );
   exit();
   return value
 }
@@ -8173,46 +8105,50 @@ function escapeBackslashes(value, after) {
   return results.join('')
 }
 
-function code$1(node, _, context) {
+function code$1(node, _, context, safeOptions) {
   const marker = checkFence(context);
   const raw = node.value || '';
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
-  let value;
-  let exit;
   if (formatCodeAsIndented(node, context)) {
-    exit = context.enter('codeIndented');
-    value = indentLines(raw, map$1);
-  } else {
-    const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
-    let subexit;
-    exit = context.enter('codeFenced');
-    value = sequence;
-    if (node.lang) {
-      subexit = context.enter('codeFencedLang' + suffix);
-      value += safe(context, node.lang, {
-        before: '`',
-        after: ' ',
-        encode: ['`']
-      });
-      subexit();
-    }
-    if (node.lang && node.meta) {
-      subexit = context.enter('codeFencedMeta' + suffix);
-      value +=
-        ' ' +
-        safe(context, node.meta, {
-          before: ' ',
-          after: '\n',
-          encode: ['`']
-        });
-      subexit();
-    }
-    value += '\n';
-    if (raw) {
-      value += raw + '\n';
-    }
-    value += sequence;
+    const exit = context.enter('codeIndented');
+    const value = indentLines(raw, map$1);
+    exit();
+    return value
   }
+  const tracker = track(safeOptions);
+  const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
+  const exit = context.enter('codeFenced');
+  let value = tracker.move(sequence);
+  if (node.lang) {
+    const subexit = context.enter('codeFencedLang' + suffix);
+    value += tracker.move(
+      safe(context, node.lang, {
+        before: value,
+        after: ' ',
+        encode: ['`'],
+        ...tracker.current()
+      })
+    );
+    subexit();
+  }
+  if (node.lang && node.meta) {
+    const subexit = context.enter('codeFencedMeta' + suffix);
+    value += tracker.move(' ');
+    value += tracker.move(
+      safe(context, node.meta, {
+        before: value,
+        after: '\n',
+        encode: ['`'],
+        ...tracker.current()
+      })
+    );
+    subexit();
+  }
+  value += tracker.move('\n');
+  if (raw) {
+    value += tracker.move(raw + '\n');
+  }
+  value += tracker.move(sequence);
   exit();
   return value
 }
@@ -8239,32 +8175,54 @@ function checkQuote(context) {
   return marker
 }
 
-function definition(node, _, context) {
-  const marker = checkQuote(context);
-  const suffix = marker === '"' ? 'Quote' : 'Apostrophe';
+function definition(node, _, context, safeOptions) {
+  const quote = checkQuote(context);
+  const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
   const exit = context.enter('definition');
   let subexit = context.enter('label');
-  let value =
-    '[' + safe(context, association(node), {before: '[', after: ']'}) + ']: ';
+  const tracker = track(safeOptions);
+  let value = tracker.move('[');
+  value += tracker.move(
+    safe(context, association(node), {
+      before: value,
+      after: ']',
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(']: ');
   subexit();
   if (
     !node.url ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {before: ' ', after: ' '});
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : '\n',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      marker +
-      safe(context, node.title, {before: marker, after: marker}) +
-      marker;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
   exit();
@@ -8290,6 +8248,7 @@ function containerPhrasing(parent, context, safeOptions) {
   let index = -1;
   let before = safeOptions.before;
   indexStack.push(-1);
+  let tracker = track(safeOptions);
   while (++index < children.length) {
     const child = children[index];
     let after;
@@ -8300,7 +8259,8 @@ function containerPhrasing(parent, context, safeOptions) {
       after = handle
         ? handle(children[index + 1], parent, context, {
             before: '',
-            after: ''
+            after: '',
+            ...tracker.current()
           }).charAt(0)
         : '';
     } else {
@@ -8316,8 +8276,18 @@ function containerPhrasing(parent, context, safeOptions) {
         ' '
       );
       before = ' ';
+      tracker = track(safeOptions);
+      tracker.move(results.join(''));
     }
-    results.push(context.handle(child, parent, context, {before, after}));
+    results.push(
+      tracker.move(
+        context.handle(child, parent, context, {
+          ...tracker.current(),
+          before,
+          after
+        })
+      )
+    );
     before = results[results.length - 1].slice(-1);
   }
   indexStack.pop();
@@ -8325,15 +8295,21 @@ function containerPhrasing(parent, context, safeOptions) {
 }
 
 emphasis.peek = emphasisPeek;
-function emphasis(node, _, context) {
+function emphasis(node, _, context, safeOptions) {
   const marker = checkEmphasis(context);
   const exit = context.enter('emphasis');
-  const value = containerPhrasing(node, context, {
-    before: marker,
-    after: marker
-  });
+  const tracker = track(safeOptions);
+  let value = tracker.move(marker);
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: marker,
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(marker);
   exit();
-  return marker + value + marker
+  return value
 }
 function emphasisPeek(_, _1, context) {
   return context.options.emphasis || '*'
@@ -8510,12 +8486,17 @@ function formatHeadingAsSetext(node, context) {
   )
 }
 
-function heading(node, _, context) {
+function heading(node, _, context, safeOptions) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
+  const tracker = track(safeOptions);
   if (formatHeadingAsSetext(node, context)) {
     const exit = context.enter('headingSetext');
     const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {before: '\n', after: '\n'});
+    const value = containerPhrasing(node, context, {
+      ...tracker.current(),
+      before: '\n',
+      after: '\n'
+    });
     subexit();
     exit();
     return (
@@ -8530,7 +8511,12 @@ function heading(node, _, context) {
   const sequence = '#'.repeat(rank);
   const exit = context.enter('headingAtx');
   const subexit = context.enter('phrasing');
-  let value = containerPhrasing(node, context, {before: '# ', after: '\n'});
+  tracker.move(sequence + ' ');
+  let value = containerPhrasing(node, context, {
+    before: '# ',
+    after: '\n',
+    ...tracker.current()
+  });
   if (/^[\t ]/.test(value)) {
     value =
       '&#x' +
@@ -8556,37 +8542,53 @@ function htmlPeek() {
 }
 
 image.peek = imagePeek;
-function image(node, _, context) {
+function image(node, _, context, safeOptions) {
   const quote = checkQuote(context);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
   const exit = context.enter('image');
   let subexit = context.enter('label');
-  let value = '![' + safe(context, node.alt, {before: '[', after: ']'}) + '](';
+  const tracker = track(safeOptions);
+  let value = tracker.move('![');
+  value += tracker.move(
+    safe(context, node.alt, {before: value, after: ']', ...tracker.current()})
+  );
+  value += tracker.move('](');
   subexit();
   if (
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {
-      before: '(',
-      after: node.title ? ' ' : ')'
-    });
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : ')',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      quote +
-      safe(context, node.title, {before: quote, after: quote}) +
-      quote;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
-  value += ')';
+  value += tracker.move(')');
   exit();
   return value
 }
@@ -8595,24 +8597,36 @@ function imagePeek() {
 }
 
 imageReference.peek = imageReferencePeek;
-function imageReference(node, _, context) {
+function imageReference(node, _, context, safeOptions) {
   const type = node.referenceType;
   const exit = context.enter('imageReference');
   let subexit = context.enter('label');
-  const alt = safe(context, node.alt, {before: '[', after: ']'});
-  let value = '![' + alt + ']';
+  const tracker = track(safeOptions);
+  let value = tracker.move('![');
+  const alt = safe(context, node.alt, {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
+  value += tracker.move(alt + '][');
   subexit();
   const stack = context.stack;
   context.stack = [];
   subexit = context.enter('reference');
-  const reference = safe(context, association(node), {before: '[', after: ']'});
+  const reference = safe(context, association(node), {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
   subexit();
   context.stack = stack;
   exit();
   if (type === 'full' || !alt || alt !== reference) {
-    value += '[' + reference + ']';
-  } else if (type !== 'shortcut') {
-    value += '[]';
+    value += tracker.move(reference + ']');
+  } else if (type === 'shortcut') {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move(']');
   }
   return value
 }
@@ -8672,51 +8686,76 @@ function formatLinkAsAutolink(node, context) {
 }
 
 link.peek = linkPeek;
-function link(node, _, context) {
+function link(node, _, context, safeOptions) {
   const quote = checkQuote(context);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
+  const tracker = track(safeOptions);
   let exit;
   let subexit;
-  let value;
   if (formatLinkAsAutolink(node, context)) {
     const stack = context.stack;
     context.stack = [];
     exit = context.enter('autolink');
-    value =
-      '<' + containerPhrasing(node, context, {before: '<', after: '>'}) + '>';
+    let value = tracker.move('<');
+    value += tracker.move(
+      containerPhrasing(node, context, {
+        before: value,
+        after: '>',
+        ...tracker.current()
+      })
+    );
+    value += tracker.move('>');
     exit();
     context.stack = stack;
     return value
   }
   exit = context.enter('link');
   subexit = context.enter('label');
-  value =
-    '[' + containerPhrasing(node, context, {before: '[', after: ']'}) + '](';
+  let value = tracker.move('[');
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: '](',
+      ...tracker.current()
+    })
+  );
+  value += tracker.move('](');
   subexit();
   if (
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {
-      before: '(',
-      after: node.title ? ' ' : ')'
-    });
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : ')',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      quote +
-      safe(context, node.title, {before: quote, after: quote}) +
-      quote;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
-  value += ')';
+  value += tracker.move(')');
   exit();
   return value
 }
@@ -8725,24 +8764,36 @@ function linkPeek(node, _, context) {
 }
 
 linkReference.peek = linkReferencePeek;
-function linkReference(node, _, context) {
+function linkReference(node, _, context, safeOptions) {
   const type = node.referenceType;
   const exit = context.enter('linkReference');
   let subexit = context.enter('label');
-  const text = containerPhrasing(node, context, {before: '[', after: ']'});
-  let value = '[' + text + ']';
+  const tracker = track(safeOptions);
+  let value = tracker.move('[');
+  const text = containerPhrasing(node, context, {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
+  value += tracker.move(text + '][');
   subexit();
   const stack = context.stack;
   context.stack = [];
   subexit = context.enter('reference');
-  const reference = safe(context, association(node), {before: '[', after: ']'});
+  const reference = safe(context, association(node), {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
   subexit();
   context.stack = stack;
   exit();
   if (type === 'full' || !text || text !== reference) {
-    value += '[' + reference + ']';
-  } else if (type !== 'shortcut') {
-    value += '[]';
+    value += tracker.move(reference + ']');
+  } else if (type === 'shortcut') {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move(']');
   }
   return value
 }
@@ -8836,7 +8887,7 @@ function checkRule(context) {
   return marker
 }
 
-function list(node, parent, context) {
+function list(node, parent, context, safeOptions) {
   const exit = context.enter('list');
   const bulletCurrent = context.bulletCurrent;
   let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
@@ -8892,7 +8943,7 @@ function list(node, parent, context) {
     bullet = bulletOther;
   }
   context.bulletCurrent = bullet;
-  const value = containerFlow(node, context);
+  const value = containerFlow(node, context, safeOptions);
   context.bulletLastUsed = bullet;
   context.bulletCurrent = bulletCurrent;
   exit();
@@ -8914,7 +8965,7 @@ function checkListItemIndent(context) {
   return style
 }
 
-function listItem(node, parent, context) {
+function listItem(node, parent, context, safeOptions) {
   const listItemIndent = checkListItemIndent(context);
   let bullet = context.bulletCurrent || checkBullet(context);
   if (parent && parent.type === 'list' && parent.ordered) {
@@ -8935,8 +8986,14 @@ function listItem(node, parent, context) {
   ) {
     size = Math.ceil(size / 4) * 4;
   }
+  const tracker = track(safeOptions);
+  tracker.move(bullet + ' '.repeat(size - bullet.length));
+  tracker.shift(size);
   const exit = context.enter('listItem');
-  const value = indentLines(containerFlow(node, context), map);
+  const value = indentLines(
+    containerFlow(node, context, tracker.current()),
+    map
+  );
   exit();
   return value
   function map(line, index, blank) {
@@ -8947,17 +9004,17 @@ function listItem(node, parent, context) {
   }
 }
 
-function paragraph(node, _, context) {
+function paragraph(node, _, context, safeOptions) {
   const exit = context.enter('paragraph');
   const subexit = context.enter('phrasing');
-  const value = containerPhrasing(node, context, {before: '\n', after: '\n'});
+  const value = containerPhrasing(node, context, safeOptions);
   subexit();
   exit();
   return value
 }
 
-function root(node, _, context) {
-  return containerFlow(node, context)
+function root(node, _, context, safeOptions) {
+  return containerFlow(node, context, safeOptions)
 }
 
 function checkStrong(context) {
@@ -8973,15 +9030,21 @@ function checkStrong(context) {
 }
 
 strong.peek = strongPeek;
-function strong(node, _, context) {
+function strong(node, _, context, safeOptions) {
   const marker = checkStrong(context);
   const exit = context.enter('strong');
-  const value = containerPhrasing(node, context, {
-    before: marker,
-    after: marker
-  });
+  const tracker = track(safeOptions);
+  let value = tracker.move(marker + marker);
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: marker,
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(marker + marker);
   exit();
-  return marker + marker + value + marker + marker
+  return value
 }
 function strongPeek(_, _1, context) {
   return context.options.strong || '*'
@@ -9181,7 +9244,12 @@ function toMarkdown(tree, options = {}) {
     unknown,
     handlers: context.handlers
   });
-  let result = context.handle(tree, null, context, {before: '\n', after: '\n'});
+  let result = context.handle(tree, null, context, {
+    before: '\n',
+    after: '\n',
+    now: {line: 1, column: 1},
+    lineShift: 0
+  });
   if (
     result &&
     result.charCodeAt(result.length - 1) !== 10 &&
@@ -10631,80 +10699,6 @@ function escapeStringRegexp(string) {
 		.replace(/-/g, '\\x2d');
 }
 
-function color$1(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-const CONTINUE = true;
-const SKIP = 'skip';
-const EXIT = false;
-const visitParents =
-  (
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-      var is = convert(test);
-      var step = reverse ? -1 : 1;
-      factory(tree, null, [])();
-      function factory(node, index, parents) {
-        var value = typeof node === 'object' && node !== null ? node : {};
-        var name;
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-        return visit
-        function visit() {
-          var result = [];
-          var subresult;
-          var offset;
-          var grandparents;
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult(visitor(node, parents));
-            if (result[0] === EXIT) {
-              return result
-            }
-          }
-          if (node.children && result[0] !== SKIP) {
-            offset = (reverse ? node.children.length : -1) + step;
-            grandparents = parents.concat(node);
-            while (offset > -1 && offset < node.children.length) {
-              subresult = factory(node.children[offset], offset, grandparents)();
-              if (subresult[0] === EXIT) {
-                return subresult
-              }
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-          return result
-        }
-      }
-    }
-  );
-function toResult(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-  if (typeof value === 'number') {
-    return [CONTINUE, value]
-  }
-  return [value]
-}
-
 const own$3 = {}.hasOwnProperty;
 const findAndReplace =
   (
@@ -10725,7 +10719,7 @@ const findAndReplace =
       const pairs = toPairs(schema);
       let pairIndex = -1;
       while (++pairIndex < pairs.length) {
-        visitParents(tree, 'text', visitor);
+        visitParents$1(tree, 'text', visitor);
       }
       return tree
       function visitor(node, parents) {
@@ -10745,28 +10739,33 @@ const findAndReplace =
           grandparent = parent;
         }
         if (grandparent) {
-          return handler(node, grandparent)
+          return handler(node, parents)
         }
       }
-      function handler(node, parent) {
+      function handler(node, parents) {
+        const parent = parents[parents.length - 1];
         const find = pairs[pairIndex][0];
         const replace = pairs[pairIndex][1];
         let start = 0;
-        let index = parent.children.indexOf(node);
+        const index = parent.children.indexOf(node);
         let nodes = [];
         let position;
         find.lastIndex = 0;
         let match = find.exec(node.value);
         while (match) {
           position = match.index;
-          let value = replace(...match, {
+          const matchObject = {
             index: match.index,
-            input: match.input
-          });
+            input: match.input,
+            stack: [...parents, node]
+          };
+          let value = replace(...match, matchObject);
           if (typeof value === 'string') {
             value = value.length > 0 ? {type: 'text', value} : undefined;
           }
-          if (value !== false) {
+          if (value === false) {
+            position = undefined;
+          } else {
             if (start !== position) {
               nodes.push({
                 type: 'text',
@@ -10787,14 +10786,13 @@ const findAndReplace =
         }
         if (position === undefined) {
           nodes = [node];
-          index--;
         } else {
           if (start < node.value.length) {
             nodes.push({type: 'text', value: node.value.slice(start)});
           }
           parent.children.splice(index, 1, ...nodes);
         }
-        return index + nodes.length + 1
+        return index + nodes.length
       }
     }
   );
@@ -10980,8 +10978,6 @@ function previous(match, email) {
   )
 }
 
-let warningColonInFootnote = false;
-let warningListInFootnote = false;
 function gfmFootnoteFromMarkdown() {
   return {
     enter: {
@@ -11045,51 +11041,53 @@ function gfmFootnoteToMarkdown() {
     unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
     handlers: {footnoteDefinition, footnoteReference}
   }
-  function footnoteReference(node, _, context) {
+  function footnoteReference(node, _, context, safeOptions) {
+    const tracker = track(safeOptions);
+    let value = tracker.move('[^');
     const exit = context.enter('footnoteReference');
     const subexit = context.enter('reference');
-    const reference = safe(context, association(node), {
-      before: '^',
-      after: ']'
-    });
+    value += tracker.move(
+      safe(context, association(node), {
+        ...tracker.current(),
+        before: value,
+        after: ']'
+      })
+    );
     subexit();
     exit();
-    return '[^' + reference + ']'
+    value += tracker.move(']');
+    return value
   }
   function footnoteReferencePeek() {
     return '['
   }
-  function footnoteDefinition(node, _, context) {
+  function footnoteDefinition(node, _, context, safeOptions) {
+    const tracker = track(safeOptions);
+    let value = tracker.move('[^');
     const exit = context.enter('footnoteDefinition');
     const subexit = context.enter('label');
-    const id = safe(context, association(node), {before: '^', after: ']'});
-    const label = '[^' + id + ']:';
+    value += tracker.move(
+      safe(context, association(node), {
+        ...tracker.current(),
+        before: value,
+        after: ']'
+      })
+    );
     subexit();
-    const value = indentLines(containerFlow(node, context), map);
+    value += tracker.move(
+      ']:' + (node.children && node.children.length > 0 ? ' ' : '')
+    );
+    tracker.shift(4);
+    value += tracker.move(
+      indentLines(containerFlow(node, context, tracker.current()), map)
+    );
     exit();
-    if (!warningColonInFootnote && id.includes(':')) {
-      console.warn(
-        '[mdast-util-gfm-footnote] Warning: Found a colon in footnote identifier `' +
-          id +
-          '`. GitHub currently crahes on colons in footnotes (see <https://github.com/github/cmark-gfm/issues/241> for more info)'
-      );
-      warningColonInFootnote = true;
-    }
-    if (!warningListInFootnote) {
-      visit$1(node, 'list', () => {
-        console.warn(
-          '[mdast-util-gfm-footnote] Warning: Found a list in a footnote definition. GitHub currently crahes on lists in footnotes (see <https://github.com/github/cmark-gfm/issues/241> for more info)'
-        );
-        warningListInFootnote = true;
-        return EXIT$1
-      });
-    }
     return value
     function map(line, index, blank) {
       if (index) {
         return (blank ? '' : '    ') + line
       }
-      return (blank ? label : label + ' ') + line
+      return line
     }
   }
 }
@@ -11110,11 +11108,18 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node, _, context) {
+function handleDelete(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
   const exit = context.enter('emphasis');
-  const value = containerPhrasing(node, context, {before: '~', after: '~'});
+  let value = tracker.move('~~');
+  value += containerPhrasing(node, context, {
+    ...tracker.current(),
+    before: value,
+    after: '~'
+  });
+  value += tracker.move('~~');
   exit();
-  return '~~' + value + '~~'
+  return value
 }
 function peekDelete() {
   return '~'
@@ -11296,7 +11301,14 @@ const gfmTableFromMarkdown = {
 };
 function enterTable(token) {
   const align = token._align;
-  this.enter({type: 'table', align, children: []}, token);
+  this.enter(
+    {
+      type: 'table',
+      align: align.map((d) => (d === 'none' ? null : d)),
+      children: []
+    },
+    token
+  );
   this.setData('inTable', true);
 }
 function exitTable(token) {
@@ -11346,18 +11358,22 @@ function gfmTableToMarkdown(options) {
       inlineCode: inlineCodeWithTable
     }
   }
-  function handleTable(node, _, context) {
-    return serializeData(handleTableAsData(node, context), node.align)
+  function handleTable(node, _, context, safeOptions) {
+    return serializeData(
+      handleTableAsData(node, context, safeOptions),
+      node.align
+    )
   }
-  function handleTableRow(node, _, context) {
-    const row = handleTableRowAsData(node, context);
+  function handleTableRow(node, _, context, safeOptions) {
+    const row = handleTableRowAsData(node, context, safeOptions);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf('\n'))
   }
-  function handleTableCell(node, _, context) {
+  function handleTableCell(node, _, context, safeOptions) {
     const exit = context.enter('tableCell');
     const subexit = context.enter('phrasing');
     const value = containerPhrasing(node, context, {
+      ...safeOptions,
       before: around,
       after: around
     });
@@ -11373,24 +11389,33 @@ function gfmTableToMarkdown(options) {
       stringLength
     })
   }
-  function handleTableAsData(node, context) {
+  function handleTableAsData(node, context, safeOptions) {
     const children = node.children;
     let index = -1;
     const result = [];
     const subexit = context.enter('table');
     while (++index < children.length) {
-      result[index] = handleTableRowAsData(children[index], context);
+      result[index] = handleTableRowAsData(
+        children[index],
+        context,
+        safeOptions
+      );
     }
     subexit();
     return result
   }
-  function handleTableRowAsData(node, context) {
+  function handleTableRowAsData(node, context, safeOptions) {
     const children = node.children;
     let index = -1;
     const result = [];
     const subexit = context.enter('tableRow');
     while (++index < children.length) {
-      result[index] = handleTableCell(children[index], node, context);
+      result[index] = handleTableCell(
+        children[index],
+        node,
+        context,
+        safeOptions
+      );
     }
     subexit();
     return result
@@ -11416,12 +11441,12 @@ const gfmTaskListItemToMarkdown = {
   handlers: {listItem: listItemWithTaskListItem}
 };
 function exitCheck(token) {
-  this.stack[this.stack.length - 2].checked =
-    token.type === 'taskListCheckValueChecked';
+  const node =  (this.stack[this.stack.length - 2]);
+  node.checked = token.type === 'taskListCheckValueChecked';
 }
 function exitParagraphWithTaskListItem(token) {
-  const parent = this.stack[this.stack.length - 2];
-  const node = this.stack[this.stack.length - 1];
+  const parent =  (this.stack[this.stack.length - 2]);
+  const node =  (this.stack[this.stack.length - 1]);
   const siblings = parent.children;
   const head = node.children[0];
   let index = -1;
@@ -11444,7 +11469,11 @@ function exitParagraphWithTaskListItem(token) {
       head.value = head.value.slice(1);
       if (head.value.length === 0) {
         node.children.shift();
-      } else {
+      } else if (
+        node.position &&
+        head.position &&
+        typeof head.position.start.offset === 'number'
+      ) {
         head.position.start.column++;
         head.position.start.offset++;
         node.position.start = Object.assign({}, head.position.start);
@@ -11453,15 +11482,25 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node, parent, context) {
+function listItemWithTaskListItem(node, parent, context, safeOptions) {
   const head = node.children[0];
-  let value = listItem(node, parent, context);
-  if (typeof node.checked === 'boolean' && head && head.type === 'paragraph') {
+  const checkable =
+    typeof node.checked === 'boolean' && head && head.type === 'paragraph';
+  const checkbox = '[' + (node.checked ? 'x' : ' ') + '] ';
+  const tracker = track(safeOptions);
+  if (checkable) {
+    tracker.move(checkbox);
+  }
+  let value = listItem(node, parent, context, {
+    ...safeOptions,
+    ...tracker.current()
+  });
+  if (checkable) {
     value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
   }
   return value
   function check($0) {
-    return $0 + '[' + (node.checked ? 'x' : ' ') + '] '
+    return $0 + checkbox
   }
 }
 
@@ -11538,6 +11577,80 @@ function location(file) {
     }
     return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
   }
+}
+
+function color$1(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE = true;
+const SKIP = 'skip';
+const EXIT = false;
+const visitParents =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      var is = convert(test);
+      var step = reverse ? -1 : 1;
+      factory(tree, null, [])();
+      function factory(node, index, parents) {
+        var value = typeof node === 'object' && node !== null ? node : {};
+        var name;
+        if (typeof value.type === 'string') {
+          name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              : typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' +
+              color$1(value.type + (name ? '<' + name + '>' : '')) +
+              ')'
+          });
+        }
+        return visit
+        function visit() {
+          var result = [];
+          var subresult;
+          var offset;
+          var grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult(visitor(node, parents));
+            if (result[0] === EXIT) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE, value]
+  }
+  return [value]
 }
 
 const visit =
@@ -11991,334 +12104,337 @@ const remarkLintFinalNewline = lintRule(
     }
   }
 );
-var remarkLintFinalNewline$1 = remarkLintFinalNewline;
+
+function commonjsRequire(path) {
+	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
+}
 
 var pluralize = {exports: {}};
 
 (function (module, exports) {
-(function (root, pluralize) {
-  if (typeof commonjsRequire === 'function' && 'object' === 'object' && 'object' === 'object') {
-    module.exports = pluralize();
-  } else {
-    root.pluralize = pluralize();
-  }
-})(commonjsGlobal, function () {
-  var pluralRules = [];
-  var singularRules = [];
-  var uncountables = {};
-  var irregularPlurals = {};
-  var irregularSingles = {};
-  function sanitizeRule (rule) {
-    if (typeof rule === 'string') {
-      return new RegExp('^' + rule + '$', 'i');
-    }
-    return rule;
-  }
-  function restoreCase (word, token) {
-    if (word === token) return token;
-    if (word === word.toLowerCase()) return token.toLowerCase();
-    if (word === word.toUpperCase()) return token.toUpperCase();
-    if (word[0] === word[0].toUpperCase()) {
-      return token.charAt(0).toUpperCase() + token.substr(1).toLowerCase();
-    }
-    return token.toLowerCase();
-  }
-  function interpolate (str, args) {
-    return str.replace(/\$(\d{1,2})/g, function (match, index) {
-      return args[index] || '';
-    });
-  }
-  function replace (word, rule) {
-    return word.replace(rule[0], function (match, index) {
-      var result = interpolate(rule[1], arguments);
-      if (match === '') {
-        return restoreCase(word[index - 1], result);
-      }
-      return restoreCase(match, result);
-    });
-  }
-  function sanitizeWord (token, word, rules) {
-    if (!token.length || uncountables.hasOwnProperty(token)) {
-      return word;
-    }
-    var len = rules.length;
-    while (len--) {
-      var rule = rules[len];
-      if (rule[0].test(word)) return replace(word, rule);
-    }
-    return word;
-  }
-  function replaceWord (replaceMap, keepMap, rules) {
-    return function (word) {
-      var token = word.toLowerCase();
-      if (keepMap.hasOwnProperty(token)) {
-        return restoreCase(word, token);
-      }
-      if (replaceMap.hasOwnProperty(token)) {
-        return restoreCase(word, replaceMap[token]);
-      }
-      return sanitizeWord(token, word, rules);
-    };
-  }
-  function checkWord (replaceMap, keepMap, rules, bool) {
-    return function (word) {
-      var token = word.toLowerCase();
-      if (keepMap.hasOwnProperty(token)) return true;
-      if (replaceMap.hasOwnProperty(token)) return false;
-      return sanitizeWord(token, token, rules) === token;
-    };
-  }
-  function pluralize (word, count, inclusive) {
-    var pluralized = count === 1
-      ? pluralize.singular(word) : pluralize.plural(word);
-    return (inclusive ? count + ' ' : '') + pluralized;
-  }
-  pluralize.plural = replaceWord(
-    irregularSingles, irregularPlurals, pluralRules
-  );
-  pluralize.isPlural = checkWord(
-    irregularSingles, irregularPlurals, pluralRules
-  );
-  pluralize.singular = replaceWord(
-    irregularPlurals, irregularSingles, singularRules
-  );
-  pluralize.isSingular = checkWord(
-    irregularPlurals, irregularSingles, singularRules
-  );
-  pluralize.addPluralRule = function (rule, replacement) {
-    pluralRules.push([sanitizeRule(rule), replacement]);
-  };
-  pluralize.addSingularRule = function (rule, replacement) {
-    singularRules.push([sanitizeRule(rule), replacement]);
-  };
-  pluralize.addUncountableRule = function (word) {
-    if (typeof word === 'string') {
-      uncountables[word.toLowerCase()] = true;
-      return;
-    }
-    pluralize.addPluralRule(word, '$0');
-    pluralize.addSingularRule(word, '$0');
-  };
-  pluralize.addIrregularRule = function (single, plural) {
-    plural = plural.toLowerCase();
-    single = single.toLowerCase();
-    irregularSingles[single] = plural;
-    irregularPlurals[plural] = single;
-  };
-  [
-    ['I', 'we'],
-    ['me', 'us'],
-    ['he', 'they'],
-    ['she', 'they'],
-    ['them', 'them'],
-    ['myself', 'ourselves'],
-    ['yourself', 'yourselves'],
-    ['itself', 'themselves'],
-    ['herself', 'themselves'],
-    ['himself', 'themselves'],
-    ['themself', 'themselves'],
-    ['is', 'are'],
-    ['was', 'were'],
-    ['has', 'have'],
-    ['this', 'these'],
-    ['that', 'those'],
-    ['echo', 'echoes'],
-    ['dingo', 'dingoes'],
-    ['volcano', 'volcanoes'],
-    ['tornado', 'tornadoes'],
-    ['torpedo', 'torpedoes'],
-    ['genus', 'genera'],
-    ['viscus', 'viscera'],
-    ['stigma', 'stigmata'],
-    ['stoma', 'stomata'],
-    ['dogma', 'dogmata'],
-    ['lemma', 'lemmata'],
-    ['schema', 'schemata'],
-    ['anathema', 'anathemata'],
-    ['ox', 'oxen'],
-    ['axe', 'axes'],
-    ['die', 'dice'],
-    ['yes', 'yeses'],
-    ['foot', 'feet'],
-    ['eave', 'eaves'],
-    ['goose', 'geese'],
-    ['tooth', 'teeth'],
-    ['quiz', 'quizzes'],
-    ['human', 'humans'],
-    ['proof', 'proofs'],
-    ['carve', 'carves'],
-    ['valve', 'valves'],
-    ['looey', 'looies'],
-    ['thief', 'thieves'],
-    ['groove', 'grooves'],
-    ['pickaxe', 'pickaxes'],
-    ['passerby', 'passersby']
-  ].forEach(function (rule) {
-    return pluralize.addIrregularRule(rule[0], rule[1]);
-  });
-  [
-    [/s?$/i, 's'],
-    [/[^\u0000-\u007F]$/i, '$0'],
-    [/([^aeiou]ese)$/i, '$1'],
-    [/(ax|test)is$/i, '$1es'],
-    [/(alias|[^aou]us|t[lm]as|gas|ris)$/i, '$1es'],
-    [/(e[mn]u)s?$/i, '$1s'],
-    [/([^l]ias|[aeiou]las|[ejzr]as|[iu]am)$/i, '$1'],
-    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1i'],
-    [/(alumn|alg|vertebr)(?:a|ae)$/i, '$1ae'],
-    [/(seraph|cherub)(?:im)?$/i, '$1im'],
-    [/(her|at|gr)o$/i, '$1oes'],
-    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|automat|quor)(?:a|um)$/i, '$1a'],
-    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)(?:a|on)$/i, '$1a'],
-    [/sis$/i, 'ses'],
-    [/(?:(kni|wi|li)fe|(ar|l|ea|eo|oa|hoo)f)$/i, '$1$2ves'],
-    [/([^aeiouy]|qu)y$/i, '$1ies'],
-    [/([^ch][ieo][ln])ey$/i, '$1ies'],
-    [/(x|ch|ss|sh|zz)$/i, '$1es'],
-    [/(matr|cod|mur|sil|vert|ind|append)(?:ix|ex)$/i, '$1ices'],
-    [/\b((?:tit)?m|l)(?:ice|ouse)$/i, '$1ice'],
-    [/(pe)(?:rson|ople)$/i, '$1ople'],
-    [/(child)(?:ren)?$/i, '$1ren'],
-    [/eaux$/i, '$0'],
-    [/m[ae]n$/i, 'men'],
-    ['thou', 'you']
-  ].forEach(function (rule) {
-    return pluralize.addPluralRule(rule[0], rule[1]);
-  });
-  [
-    [/s$/i, ''],
-    [/(ss)$/i, '$1'],
-    [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
-    [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
-    [/ies$/i, 'y'],
-    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
-    [/\b(mon|smil)ies$/i, '$1ey'],
-    [/\b((?:tit)?m|l)ice$/i, '$1ouse'],
-    [/(seraph|cherub)im$/i, '$1'],
-    [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|t[lm]as|gas|(?:her|at|gr)o|[aeiou]ris)(?:es)?$/i, '$1'],
-    [/(analy|diagno|parenthe|progno|synop|the|empha|cri|ne)(?:sis|ses)$/i, '$1sis'],
-    [/(movie|twelve|abuse|e[mn]u)s$/i, '$1'],
-    [/(test)(?:is|es)$/i, '$1is'],
-    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1us'],
-    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|quor)a$/i, '$1um'],
-    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)a$/i, '$1on'],
-    [/(alumn|alg|vertebr)ae$/i, '$1a'],
-    [/(cod|mur|sil|vert|ind)ices$/i, '$1ex'],
-    [/(matr|append)ices$/i, '$1ix'],
-    [/(pe)(rson|ople)$/i, '$1rson'],
-    [/(child)ren$/i, '$1'],
-    [/(eau)x?$/i, '$1'],
-    [/men$/i, 'man']
-  ].forEach(function (rule) {
-    return pluralize.addSingularRule(rule[0], rule[1]);
-  });
-  [
-    'adulthood',
-    'advice',
-    'agenda',
-    'aid',
-    'aircraft',
-    'alcohol',
-    'ammo',
-    'analytics',
-    'anime',
-    'athletics',
-    'audio',
-    'bison',
-    'blood',
-    'bream',
-    'buffalo',
-    'butter',
-    'carp',
-    'cash',
-    'chassis',
-    'chess',
-    'clothing',
-    'cod',
-    'commerce',
-    'cooperation',
-    'corps',
-    'debris',
-    'diabetes',
-    'digestion',
-    'elk',
-    'energy',
-    'equipment',
-    'excretion',
-    'expertise',
-    'firmware',
-    'flounder',
-    'fun',
-    'gallows',
-    'garbage',
-    'graffiti',
-    'hardware',
-    'headquarters',
-    'health',
-    'herpes',
-    'highjinks',
-    'homework',
-    'housework',
-    'information',
-    'jeans',
-    'justice',
-    'kudos',
-    'labour',
-    'literature',
-    'machinery',
-    'mackerel',
-    'mail',
-    'media',
-    'mews',
-    'moose',
-    'music',
-    'mud',
-    'manga',
-    'news',
-    'only',
-    'personnel',
-    'pike',
-    'plankton',
-    'pliers',
-    'police',
-    'pollution',
-    'premises',
-    'rain',
-    'research',
-    'rice',
-    'salmon',
-    'scissors',
-    'series',
-    'sewage',
-    'shambles',
-    'shrimp',
-    'software',
-    'species',
-    'staff',
-    'swine',
-    'tennis',
-    'traffic',
-    'transportation',
-    'trout',
-    'tuna',
-    'wealth',
-    'welfare',
-    'whiting',
-    'wildebeest',
-    'wildlife',
-    'you',
-    /pok[eé]mon$/i,
-    /[^aeiou]ese$/i,
-    /deer$/i,
-    /fish$/i,
-    /measles$/i,
-    /o[iu]s$/i,
-    /pox$/i,
-    /sheep$/i
-  ].forEach(pluralize.addUncountableRule);
-  return pluralize;
-});
-}(pluralize));
+	(function (root, pluralize) {
+	  if (typeof commonjsRequire === 'function' && 'object' === 'object' && 'object' === 'object') {
+	    module.exports = pluralize();
+	  } else {
+	    root.pluralize = pluralize();
+	  }
+	})(commonjsGlobal, function () {
+	  var pluralRules = [];
+	  var singularRules = [];
+	  var uncountables = {};
+	  var irregularPlurals = {};
+	  var irregularSingles = {};
+	  function sanitizeRule (rule) {
+	    if (typeof rule === 'string') {
+	      return new RegExp('^' + rule + '$', 'i');
+	    }
+	    return rule;
+	  }
+	  function restoreCase (word, token) {
+	    if (word === token) return token;
+	    if (word === word.toLowerCase()) return token.toLowerCase();
+	    if (word === word.toUpperCase()) return token.toUpperCase();
+	    if (word[0] === word[0].toUpperCase()) {
+	      return token.charAt(0).toUpperCase() + token.substr(1).toLowerCase();
+	    }
+	    return token.toLowerCase();
+	  }
+	  function interpolate (str, args) {
+	    return str.replace(/\$(\d{1,2})/g, function (match, index) {
+	      return args[index] || '';
+	    });
+	  }
+	  function replace (word, rule) {
+	    return word.replace(rule[0], function (match, index) {
+	      var result = interpolate(rule[1], arguments);
+	      if (match === '') {
+	        return restoreCase(word[index - 1], result);
+	      }
+	      return restoreCase(match, result);
+	    });
+	  }
+	  function sanitizeWord (token, word, rules) {
+	    if (!token.length || uncountables.hasOwnProperty(token)) {
+	      return word;
+	    }
+	    var len = rules.length;
+	    while (len--) {
+	      var rule = rules[len];
+	      if (rule[0].test(word)) return replace(word, rule);
+	    }
+	    return word;
+	  }
+	  function replaceWord (replaceMap, keepMap, rules) {
+	    return function (word) {
+	      var token = word.toLowerCase();
+	      if (keepMap.hasOwnProperty(token)) {
+	        return restoreCase(word, token);
+	      }
+	      if (replaceMap.hasOwnProperty(token)) {
+	        return restoreCase(word, replaceMap[token]);
+	      }
+	      return sanitizeWord(token, word, rules);
+	    };
+	  }
+	  function checkWord (replaceMap, keepMap, rules, bool) {
+	    return function (word) {
+	      var token = word.toLowerCase();
+	      if (keepMap.hasOwnProperty(token)) return true;
+	      if (replaceMap.hasOwnProperty(token)) return false;
+	      return sanitizeWord(token, token, rules) === token;
+	    };
+	  }
+	  function pluralize (word, count, inclusive) {
+	    var pluralized = count === 1
+	      ? pluralize.singular(word) : pluralize.plural(word);
+	    return (inclusive ? count + ' ' : '') + pluralized;
+	  }
+	  pluralize.plural = replaceWord(
+	    irregularSingles, irregularPlurals, pluralRules
+	  );
+	  pluralize.isPlural = checkWord(
+	    irregularSingles, irregularPlurals, pluralRules
+	  );
+	  pluralize.singular = replaceWord(
+	    irregularPlurals, irregularSingles, singularRules
+	  );
+	  pluralize.isSingular = checkWord(
+	    irregularPlurals, irregularSingles, singularRules
+	  );
+	  pluralize.addPluralRule = function (rule, replacement) {
+	    pluralRules.push([sanitizeRule(rule), replacement]);
+	  };
+	  pluralize.addSingularRule = function (rule, replacement) {
+	    singularRules.push([sanitizeRule(rule), replacement]);
+	  };
+	  pluralize.addUncountableRule = function (word) {
+	    if (typeof word === 'string') {
+	      uncountables[word.toLowerCase()] = true;
+	      return;
+	    }
+	    pluralize.addPluralRule(word, '$0');
+	    pluralize.addSingularRule(word, '$0');
+	  };
+	  pluralize.addIrregularRule = function (single, plural) {
+	    plural = plural.toLowerCase();
+	    single = single.toLowerCase();
+	    irregularSingles[single] = plural;
+	    irregularPlurals[plural] = single;
+	  };
+	  [
+	    ['I', 'we'],
+	    ['me', 'us'],
+	    ['he', 'they'],
+	    ['she', 'they'],
+	    ['them', 'them'],
+	    ['myself', 'ourselves'],
+	    ['yourself', 'yourselves'],
+	    ['itself', 'themselves'],
+	    ['herself', 'themselves'],
+	    ['himself', 'themselves'],
+	    ['themself', 'themselves'],
+	    ['is', 'are'],
+	    ['was', 'were'],
+	    ['has', 'have'],
+	    ['this', 'these'],
+	    ['that', 'those'],
+	    ['echo', 'echoes'],
+	    ['dingo', 'dingoes'],
+	    ['volcano', 'volcanoes'],
+	    ['tornado', 'tornadoes'],
+	    ['torpedo', 'torpedoes'],
+	    ['genus', 'genera'],
+	    ['viscus', 'viscera'],
+	    ['stigma', 'stigmata'],
+	    ['stoma', 'stomata'],
+	    ['dogma', 'dogmata'],
+	    ['lemma', 'lemmata'],
+	    ['schema', 'schemata'],
+	    ['anathema', 'anathemata'],
+	    ['ox', 'oxen'],
+	    ['axe', 'axes'],
+	    ['die', 'dice'],
+	    ['yes', 'yeses'],
+	    ['foot', 'feet'],
+	    ['eave', 'eaves'],
+	    ['goose', 'geese'],
+	    ['tooth', 'teeth'],
+	    ['quiz', 'quizzes'],
+	    ['human', 'humans'],
+	    ['proof', 'proofs'],
+	    ['carve', 'carves'],
+	    ['valve', 'valves'],
+	    ['looey', 'looies'],
+	    ['thief', 'thieves'],
+	    ['groove', 'grooves'],
+	    ['pickaxe', 'pickaxes'],
+	    ['passerby', 'passersby']
+	  ].forEach(function (rule) {
+	    return pluralize.addIrregularRule(rule[0], rule[1]);
+	  });
+	  [
+	    [/s?$/i, 's'],
+	    [/[^\u0000-\u007F]$/i, '$0'],
+	    [/([^aeiou]ese)$/i, '$1'],
+	    [/(ax|test)is$/i, '$1es'],
+	    [/(alias|[^aou]us|t[lm]as|gas|ris)$/i, '$1es'],
+	    [/(e[mn]u)s?$/i, '$1s'],
+	    [/([^l]ias|[aeiou]las|[ejzr]as|[iu]am)$/i, '$1'],
+	    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1i'],
+	    [/(alumn|alg|vertebr)(?:a|ae)$/i, '$1ae'],
+	    [/(seraph|cherub)(?:im)?$/i, '$1im'],
+	    [/(her|at|gr)o$/i, '$1oes'],
+	    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|automat|quor)(?:a|um)$/i, '$1a'],
+	    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)(?:a|on)$/i, '$1a'],
+	    [/sis$/i, 'ses'],
+	    [/(?:(kni|wi|li)fe|(ar|l|ea|eo|oa|hoo)f)$/i, '$1$2ves'],
+	    [/([^aeiouy]|qu)y$/i, '$1ies'],
+	    [/([^ch][ieo][ln])ey$/i, '$1ies'],
+	    [/(x|ch|ss|sh|zz)$/i, '$1es'],
+	    [/(matr|cod|mur|sil|vert|ind|append)(?:ix|ex)$/i, '$1ices'],
+	    [/\b((?:tit)?m|l)(?:ice|ouse)$/i, '$1ice'],
+	    [/(pe)(?:rson|ople)$/i, '$1ople'],
+	    [/(child)(?:ren)?$/i, '$1ren'],
+	    [/eaux$/i, '$0'],
+	    [/m[ae]n$/i, 'men'],
+	    ['thou', 'you']
+	  ].forEach(function (rule) {
+	    return pluralize.addPluralRule(rule[0], rule[1]);
+	  });
+	  [
+	    [/s$/i, ''],
+	    [/(ss)$/i, '$1'],
+	    [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
+	    [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
+	    [/ies$/i, 'y'],
+	    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
+	    [/\b(mon|smil)ies$/i, '$1ey'],
+	    [/\b((?:tit)?m|l)ice$/i, '$1ouse'],
+	    [/(seraph|cherub)im$/i, '$1'],
+	    [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|t[lm]as|gas|(?:her|at|gr)o|[aeiou]ris)(?:es)?$/i, '$1'],
+	    [/(analy|diagno|parenthe|progno|synop|the|empha|cri|ne)(?:sis|ses)$/i, '$1sis'],
+	    [/(movie|twelve|abuse|e[mn]u)s$/i, '$1'],
+	    [/(test)(?:is|es)$/i, '$1is'],
+	    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1us'],
+	    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|quor)a$/i, '$1um'],
+	    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)a$/i, '$1on'],
+	    [/(alumn|alg|vertebr)ae$/i, '$1a'],
+	    [/(cod|mur|sil|vert|ind)ices$/i, '$1ex'],
+	    [/(matr|append)ices$/i, '$1ix'],
+	    [/(pe)(rson|ople)$/i, '$1rson'],
+	    [/(child)ren$/i, '$1'],
+	    [/(eau)x?$/i, '$1'],
+	    [/men$/i, 'man']
+	  ].forEach(function (rule) {
+	    return pluralize.addSingularRule(rule[0], rule[1]);
+	  });
+	  [
+	    'adulthood',
+	    'advice',
+	    'agenda',
+	    'aid',
+	    'aircraft',
+	    'alcohol',
+	    'ammo',
+	    'analytics',
+	    'anime',
+	    'athletics',
+	    'audio',
+	    'bison',
+	    'blood',
+	    'bream',
+	    'buffalo',
+	    'butter',
+	    'carp',
+	    'cash',
+	    'chassis',
+	    'chess',
+	    'clothing',
+	    'cod',
+	    'commerce',
+	    'cooperation',
+	    'corps',
+	    'debris',
+	    'diabetes',
+	    'digestion',
+	    'elk',
+	    'energy',
+	    'equipment',
+	    'excretion',
+	    'expertise',
+	    'firmware',
+	    'flounder',
+	    'fun',
+	    'gallows',
+	    'garbage',
+	    'graffiti',
+	    'hardware',
+	    'headquarters',
+	    'health',
+	    'herpes',
+	    'highjinks',
+	    'homework',
+	    'housework',
+	    'information',
+	    'jeans',
+	    'justice',
+	    'kudos',
+	    'labour',
+	    'literature',
+	    'machinery',
+	    'mackerel',
+	    'mail',
+	    'media',
+	    'mews',
+	    'moose',
+	    'music',
+	    'mud',
+	    'manga',
+	    'news',
+	    'only',
+	    'personnel',
+	    'pike',
+	    'plankton',
+	    'pliers',
+	    'police',
+	    'pollution',
+	    'premises',
+	    'rain',
+	    'research',
+	    'rice',
+	    'salmon',
+	    'scissors',
+	    'series',
+	    'sewage',
+	    'shambles',
+	    'shrimp',
+	    'software',
+	    'species',
+	    'staff',
+	    'swine',
+	    'tennis',
+	    'traffic',
+	    'transportation',
+	    'trout',
+	    'tuna',
+	    'wealth',
+	    'welfare',
+	    'whiting',
+	    'wildebeest',
+	    'wildlife',
+	    'you',
+	    /pok[eé]mon$/i,
+	    /[^aeiou]ese$/i,
+	    /deer$/i,
+	    /fish$/i,
+	    /measles$/i,
+	    /o[iu]s$/i,
+	    /pox$/i,
+	    /sheep$/i
+	  ].forEach(pluralize.addUncountableRule);
+	  return pluralize;
+	});
+} (pluralize));
 var plural = pluralize.exports;
 
 /**
@@ -12414,14 +12530,13 @@ const remarkLintListItemBulletIndent = lintRule(
     });
   }
 );
-var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
 
-var pointStart = point('start');
-var pointEnd = point('end');
+const pointStart = point('start');
+const pointEnd = point('end');
 function point(type) {
   return point
   function point(node) {
-    var point = (node && node.position && node.position[type]) || {};
+    const point = (node && node.position && node.position[type]) || {};
     return {
       line: point.line || null,
       column: point.column || null,
@@ -12641,7 +12756,6 @@ const remarkLintListItemIndent = lintRule(
     });
   }
 );
-var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 
 /**
  * ## When should I use this?
@@ -12738,7 +12852,6 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule(
     });
   }
 );
-var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
 
 /**
  * ## When should I use this?
@@ -12802,7 +12915,6 @@ const remarkLintNoLiteralUrls = lintRule(
     });
   }
 );
-var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
 
 /**
  * ## When should I use this?
@@ -12923,7 +13035,6 @@ const remarkLintOrderedListMarkerStyle = lintRule(
     });
   }
 );
-var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
 
 /**
  * ## When should I use this?
@@ -12985,7 +13096,6 @@ const remarkLintHardBreakSpaces = lintRule(
     });
   }
 );
-var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
 
 /**
  * ## When should I use this?
@@ -13050,7 +13160,6 @@ const remarkLintNoDuplicateDefinitions = lintRule(
     });
   }
 );
-var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
 
 function headingStyle(node, relative) {
   var last = node.children[node.children.length - 1];
@@ -13189,7 +13298,6 @@ const remarkLintNoHeadingContentIndent = lintRule(
     });
   }
 );
-var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
 /**
  * ## When should I use this?
@@ -13243,7 +13351,6 @@ const remarkLintNoInlinePadding = lintRule(
     });
   }
 );
-var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
 
 /**
  * ## When should I use this?
@@ -13301,7 +13408,6 @@ const remarkLintNoShortcutReferenceImage = lintRule(
     });
   }
 );
-var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
 
 /**
  * ## When should I use this?
@@ -13359,7 +13465,6 @@ const remarkLintNoShortcutReferenceLink = lintRule(
     });
   }
 );
-var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
 
 /**
  * ## When should I use this?
@@ -13596,7 +13701,6 @@ const remarkLintNoUndefinedReferences = lintRule(
     }
   }
 );
-var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 
 /**
  * ## When should I use this?
@@ -13673,28 +13777,26 @@ const remarkLintNoUnusedDefinitions = lintRule(
     }
   }
 );
-var remarkLintNoUnusedDefinitions$1 = remarkLintNoUnusedDefinitions;
 
 const remarkPresetLintRecommended = {
   plugins: [
     remarkLint,
-    remarkLintFinalNewline$1,
-    remarkLintListItemBulletIndent$1,
-    [remarkLintListItemIndent$1, 'tab-size'],
-    remarkLintNoBlockquoteWithoutMarker$1,
-    remarkLintNoLiteralUrls$1,
-    [remarkLintOrderedListMarkerStyle$1, '.'],
-    remarkLintHardBreakSpaces$1,
-    remarkLintNoDuplicateDefinitions$1,
-    remarkLintNoHeadingContentIndent$1,
-    remarkLintNoInlinePadding$1,
-    remarkLintNoShortcutReferenceImage$1,
-    remarkLintNoShortcutReferenceLink$1,
-    remarkLintNoUndefinedReferences$1,
-    remarkLintNoUnusedDefinitions$1
+    remarkLintFinalNewline,
+    remarkLintListItemBulletIndent,
+    [remarkLintListItemIndent, 'tab-size'],
+    remarkLintNoBlockquoteWithoutMarker,
+    remarkLintNoLiteralUrls,
+    [remarkLintOrderedListMarkerStyle, '.'],
+    remarkLintHardBreakSpaces,
+    remarkLintNoDuplicateDefinitions,
+    remarkLintNoHeadingContentIndent,
+    remarkLintNoInlinePadding,
+    remarkLintNoShortcutReferenceImage,
+    remarkLintNoShortcutReferenceLink,
+    remarkLintNoUndefinedReferences,
+    remarkLintNoUnusedDefinitions
   ]
 };
-var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
 
 /**
  * ## When should I use this?
@@ -13805,7 +13907,6 @@ const remarkLintBlockquoteIndentation = lintRule(
     });
   }
 );
-var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
 function check$1(node) {
   return pointStart(node.children[0]).column - pointStart(node).column
 }
@@ -13960,7 +14061,6 @@ const remarkLintCheckboxCharacterStyle = lintRule(
     });
   }
 );
-var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
 
 /**
  * ## When should I use this?
@@ -14058,7 +14158,6 @@ const remarkLintCheckboxContentIndent = lintRule(
     });
   }
 );
-var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
 
 /**
  * @author Titus Wormer
@@ -14198,7 +14297,6 @@ const remarkLintCodeBlockStyle = lintRule(
     });
   }
 );
-var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
 
 /**
  * ## When should I use this?
@@ -14265,7 +14363,6 @@ const remarkLintDefinitionSpacing = lintRule(
     });
   }
 );
-var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
 
 /**
  * ## When should I use this?
@@ -14402,7 +14499,6 @@ const remarkLintFencedCodeFlag = lintRule(
     });
   }
 );
-var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
 
 /**
  * ## When should I use this?
@@ -14542,7 +14638,6 @@ const remarkLintFencedCodeMarker = lintRule(
     });
   }
 );
-var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
 
 /**
  * ## When should I use this?
@@ -14598,7 +14693,6 @@ const remarkLintFileExtension = lintRule(
     }
   }
 );
-var remarkLintFileExtension$1 = remarkLintFileExtension;
 
 /**
  * ## When should I use this?
@@ -14690,7 +14784,6 @@ const remarkLintFinalDefinition = lintRule(
     );
   }
 );
-var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
 
 /**
  * ## When should I use this?
@@ -14824,7 +14917,6 @@ const remarkLintFirstHeadingLevel = lintRule(
     });
   }
 );
-var remarkLintFirstHeadingLevel$1 = remarkLintFirstHeadingLevel;
 function infer(node) {
   const results = node.value.match(re$3);
   return results ? Number(results[1]) : undefined
@@ -14972,7 +15064,6 @@ const remarkLintHeadingStyle = lintRule(
     });
   }
 );
-var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
 
 /**
  * ## When should I use this?
@@ -15153,7 +15244,6 @@ const remarkLintMaximumLineLength = lintRule(
     }
   }
 );
-var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
 
 /**
  * ## When should I use this?
@@ -15258,7 +15348,6 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
     }
   }
 );
-var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
 
 /**
  * ## When should I use this?
@@ -15311,7 +15400,6 @@ const remarkLintNoFileNameArticles = lintRule(
     }
   }
 );
-var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
 
 /**
  * ## When should I use this?
@@ -15348,7 +15436,6 @@ const remarkLintNoFileNameConsecutiveDashes = lintRule(
     }
   }
 );
-var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDashes;
 
 /**
  * ## When should I use this?
@@ -15390,7 +15477,6 @@ const remarkLintNofileNameOuterDashes = lintRule(
     }
   }
 );
-var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
 
 /**
  * ## When should I use this?
@@ -15487,7 +15573,6 @@ const remarkLintNoHeadingIndent = lintRule(
     });
   }
 );
-var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
 
 /**
  * ## When should I use this?
@@ -15553,7 +15638,6 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
     });
   }
 );
-var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
 
 /**
  * ## When should I use this?
@@ -15664,7 +15748,6 @@ const remarkLintNoShellDollars = lintRule(
     });
   }
 );
-var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
 
 /**
  * ## When should I use this?
@@ -15789,7 +15872,6 @@ const remarkLintNoTableIndentation = lintRule(
     });
   }
 );
-var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
 
 /**
  * ## When should I use this?
@@ -15898,7 +15980,6 @@ const remarkLintNoTabs = lintRule(
     }
   }
 );
-var remarkLintNoTabs$1 = remarkLintNoTabs;
 
 var sliced$1 = function (args, slice, sliceEnd) {
   var ret = [];
@@ -19086,13 +19167,13 @@ var jsYaml = {
 const SEMVER_SPEC_VERSION = '2.0.0';
 const MAX_LENGTH$2 = 256;
 const MAX_SAFE_INTEGER$1 = Number.MAX_SAFE_INTEGER ||
-   9007199254740991;
+ 9007199254740991;
 const MAX_SAFE_COMPONENT_LENGTH = 16;
 var constants = {
   SEMVER_SPEC_VERSION,
   MAX_LENGTH: MAX_LENGTH$2,
   MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1,
-  MAX_SAFE_COMPONENT_LENGTH
+  MAX_SAFE_COMPONENT_LENGTH,
 };
 
 var re$2 = {exports: {}};
@@ -19107,106 +19188,106 @@ const debug$1 = (
 var debug_1 = debug$1;
 
 (function (module, exports) {
-const { MAX_SAFE_COMPONENT_LENGTH } = constants;
-const debug = debug_1;
-exports = module.exports = {};
-const re = exports.re = [];
-const src = exports.src = [];
-const t = exports.t = {};
-let R = 0;
-const createToken = (name, value, isGlobal) => {
-  const index = R++;
-  debug(index, value);
-  t[name] = index;
-  src[index] = value;
-  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
-};
-createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
-createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+');
-createToken('NONNUMERICIDENTIFIER', '\\d*[a-zA-Z-][a-zA-Z0-9-]*');
-createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
-                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
-                   `(${src[t.NUMERICIDENTIFIER]})`);
-createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
-                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
-                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`);
-createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
-}|${src[t.NONNUMERICIDENTIFIER]})`);
-createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
-}|${src[t.NONNUMERICIDENTIFIER]})`);
-createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
-}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
-createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
-}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
-createToken('BUILDIDENTIFIER', '[0-9A-Za-z-]+');
-createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
-}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
-createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
-}${src[t.PRERELEASE]}?${
-  src[t.BUILD]}?`);
-createToken('FULL', `^${src[t.FULLPLAIN]}$`);
-createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
-}${src[t.PRERELEASELOOSE]}?${
-  src[t.BUILD]}?`);
-createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`);
-createToken('GTLT', '((?:<|>)?=?)');
-createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
-createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
-createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
-                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
-                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
-                   `(?:${src[t.PRERELEASE]})?${
-                     src[t.BUILD]}?` +
-                   `)?)?`);
-createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
-                        `(?:${src[t.PRERELEASELOOSE]})?${
-                          src[t.BUILD]}?` +
-                        `)?)?`);
-createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
-createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-createToken('COERCE', `${'(^|[^\\d])' +
-              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
-              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
-              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
-              `(?:$|[^\\d])`);
-createToken('COERCERTL', src[t.COERCE], true);
-createToken('LONETILDE', '(?:~>?)');
-createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
-exports.tildeTrimReplace = '$1~';
-createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
-createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
-createToken('LONECARET', '(?:\\^)');
-createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true);
-exports.caretTrimReplace = '$1^';
-createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
-createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
-createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
-createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
-createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
-}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
-exports.comparatorTrimReplace = '$1$2$3';
-createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
-                   `\\s+-\\s+` +
-                   `(${src[t.XRANGEPLAIN]})` +
-                   `\\s*$`);
-createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
-                        `\\s+-\\s+` +
-                        `(${src[t.XRANGEPLAINLOOSE]})` +
-                        `\\s*$`);
-createToken('STAR', '(<|>)?=?\\s*\\*');
-createToken('GTE0', '^\\s*>=\\s*0\.0\.0\\s*$');
-createToken('GTE0PRE', '^\\s*>=\\s*0\.0\.0-0\\s*$');
-}(re$2, re$2.exports));
+	const { MAX_SAFE_COMPONENT_LENGTH } = constants;
+	const debug = debug_1;
+	exports = module.exports = {};
+	const re = exports.re = [];
+	const src = exports.src = [];
+	const t = exports.t = {};
+	let R = 0;
+	const createToken = (name, value, isGlobal) => {
+	  const index = R++;
+	  debug(name, index, value);
+	  t[name] = index;
+	  src[index] = value;
+	  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
+	};
+	createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
+	createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+');
+	createToken('NONNUMERICIDENTIFIER', '\\d*[a-zA-Z-][a-zA-Z0-9-]*');
+	createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
+	                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
+	                   `(${src[t.NUMERICIDENTIFIER]})`);
+	createToken('MAINVERSIONLOOSE', `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+	                        `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.` +
+	                        `(${src[t.NUMERICIDENTIFIERLOOSE]})`);
+	createToken('PRERELEASEIDENTIFIER', `(?:${src[t.NUMERICIDENTIFIER]
+	}|${src[t.NONNUMERICIDENTIFIER]})`);
+	createToken('PRERELEASEIDENTIFIERLOOSE', `(?:${src[t.NUMERICIDENTIFIERLOOSE]
+	}|${src[t.NONNUMERICIDENTIFIER]})`);
+	createToken('PRERELEASE', `(?:-(${src[t.PRERELEASEIDENTIFIER]
+	}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
+	createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
+	}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
+	createToken('BUILDIDENTIFIER', '[0-9A-Za-z-]+');
+	createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
+	}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
+	createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
+	}${src[t.PRERELEASE]}?${
+	  src[t.BUILD]}?`);
+	createToken('FULL', `^${src[t.FULLPLAIN]}$`);
+	createToken('LOOSEPLAIN', `[v=\\s]*${src[t.MAINVERSIONLOOSE]
+	}${src[t.PRERELEASELOOSE]}?${
+	  src[t.BUILD]}?`);
+	createToken('LOOSE', `^${src[t.LOOSEPLAIN]}$`);
+	createToken('GTLT', '((?:<|>)?=?)');
+	createToken('XRANGEIDENTIFIERLOOSE', `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
+	createToken('XRANGEIDENTIFIER', `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
+	createToken('XRANGEPLAIN', `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})` +
+	                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+	                   `(?:\\.(${src[t.XRANGEIDENTIFIER]})` +
+	                   `(?:${src[t.PRERELEASE]})?${
+	                     src[t.BUILD]}?` +
+	                   `)?)?`);
+	createToken('XRANGEPLAINLOOSE', `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+	                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+	                        `(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})` +
+	                        `(?:${src[t.PRERELEASELOOSE]})?${
+	                          src[t.BUILD]}?` +
+	                        `)?)?`);
+	createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
+	createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
+	createToken('COERCE', `${'(^|[^\\d])' +
+	              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
+	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+	              `(?:$|[^\\d])`);
+	createToken('COERCERTL', src[t.COERCE], true);
+	createToken('LONETILDE', '(?:~>?)');
+	createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
+	exports.tildeTrimReplace = '$1~';
+	createToken('TILDE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
+	createToken('TILDELOOSE', `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
+	createToken('LONECARET', '(?:\\^)');
+	createToken('CARETTRIM', `(\\s*)${src[t.LONECARET]}\\s+`, true);
+	exports.caretTrimReplace = '$1^';
+	createToken('CARET', `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
+	createToken('CARETLOOSE', `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
+	createToken('COMPARATORLOOSE', `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
+	createToken('COMPARATOR', `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
+	createToken('COMPARATORTRIM', `(\\s*)${src[t.GTLT]
+	}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
+	exports.comparatorTrimReplace = '$1$2$3';
+	createToken('HYPHENRANGE', `^\\s*(${src[t.XRANGEPLAIN]})` +
+	                   `\\s+-\\s+` +
+	                   `(${src[t.XRANGEPLAIN]})` +
+	                   `\\s*$`);
+	createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
+	                        `\\s+-\\s+` +
+	                        `(${src[t.XRANGEPLAINLOOSE]})` +
+	                        `\\s*$`);
+	createToken('STAR', '(<|>)?=?\\s*\\*');
+	createToken('GTE0', '^\\s*>=\\s*0\\.0\\.0\\s*$');
+	createToken('GTE0PRE', '^\\s*>=\\s*0\\.0\\.0-0\\s*$');
+} (re$2, re$2.exports));
 
 const opts = ['includePrerelease', 'loose', 'rtl'];
 const parseOptions$2 = options =>
   !options ? {}
   : typeof options !== 'object' ? { loose: true }
-  : opts.filter(k => options[k]).reduce((options, k) => {
-    options[k] = true;
-    return options
+  : opts.filter(k => options[k]).reduce((o, k) => {
+    o[k] = true;
+    return o
   }, {});
 var parseOptions_1 = parseOptions$2;
 
@@ -19227,7 +19308,7 @@ const compareIdentifiers$1 = (a, b) => {
 const rcompareIdentifiers = (a, b) => compareIdentifiers$1(b, a);
 var identifiers = {
   compareIdentifiers: compareIdentifiers$1,
-  rcompareIdentifiers
+  rcompareIdentifiers,
 };
 
 const debug = debug_1;
@@ -19441,7 +19522,7 @@ class SemVer$2 {
           }
         }
         if (identifier) {
-          if (this.prerelease[0] === identifier) {
+          if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
             if (isNaN(this.prerelease[1])) {
               this.prerelease = [identifier, 0];
             }
@@ -19460,7 +19541,7 @@ class SemVer$2 {
 }
 var semver = SemVer$2;
 
-const {MAX_LENGTH} = constants;
+const { MAX_LENGTH } = constants;
 const { re, t } = re$2.exports;
 const SemVer$1 = semver;
 const parseOptions = parseOptions_1;
@@ -19875,7 +19956,6 @@ const remarkLintRuleStyle = lintRule(
     });
   }
 );
-var remarkLintRuleStyle$1 = remarkLintRuleStyle;
 
 /**
  * ## When should I use this?
@@ -19980,7 +20060,6 @@ const remarkLintStrongMarker = lintRule(
     });
   }
 );
-var remarkLintStrongMarker$1 = remarkLintStrongMarker;
 
 /**
  * ## When should I use this?
@@ -20284,7 +20363,6 @@ const remarkLintTableCellPadding = lintRule(
     }
   }
 );
-var remarkLintTableCellPadding$1 = remarkLintTableCellPadding;
 function size$1(node) {
   const head = pointStart(node.children[0]).offset;
   const tail = pointEnd(node.children[node.children.length - 1]).offset;
@@ -20373,7 +20451,6 @@ const remarkLintTablePipes = lintRule(
     });
   }
 );
-var remarkLintTablePipes$1 = remarkLintTablePipes;
 
 /**
  * ## When should I use this?
@@ -20503,18 +20580,17 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
     });
   }
 );
-var remarkLintUnorderedListMarkerStyle$1 = remarkLintUnorderedListMarkerStyle;
 
 const plugins = [
   remarkGfm,
-  remarkPresetLintRecommended$1,
-  [remarkLintBlockquoteIndentation$1, 2],
-  [remarkLintCheckboxCharacterStyle$1, { checked: "x", unchecked: " " }],
-  remarkLintCheckboxContentIndent$1,
-  [remarkLintCodeBlockStyle$1, "fenced"],
-  remarkLintDefinitionSpacing$1,
+  remarkPresetLintRecommended,
+  [remarkLintBlockquoteIndentation, 2],
+  [remarkLintCheckboxCharacterStyle, { checked: "x", unchecked: " " }],
+  remarkLintCheckboxContentIndent,
+  [remarkLintCodeBlockStyle, "fenced"],
+  remarkLintDefinitionSpacing,
   [
-    remarkLintFencedCodeFlag$1,
+    remarkLintFencedCodeFlag,
     {
       flags: [
         "bash",
@@ -20532,25 +20608,26 @@ const plugins = [
         "powershell",
         "r",
         "text",
+        "ts",
       ],
     },
   ],
-  [remarkLintFencedCodeMarker$1, "`"],
-  [remarkLintFileExtension$1, "md"],
-  remarkLintFinalDefinition$1,
-  [remarkLintFirstHeadingLevel$1, 1],
-  [remarkLintHeadingStyle$1, "atx"],
-  [remarkLintListItemIndent$1, "space"],
-  remarkLintMaximumLineLength$1,
-  remarkLintNoConsecutiveBlankLines$1,
-  remarkLintNoFileNameArticles$1,
-  remarkLintNoFileNameConsecutiveDashes$1,
-  remarkLintNofileNameOuterDashes$1,
-  remarkLintNoHeadingIndent$1,
-  remarkLintNoMultipleToplevelHeadings$1,
-  remarkLintNoShellDollars$1,
-  remarkLintNoTableIndentation$1,
-  remarkLintNoTabs$1,
+  [remarkLintFencedCodeMarker, "`"],
+  [remarkLintFileExtension, "md"],
+  remarkLintFinalDefinition,
+  [remarkLintFirstHeadingLevel, 1],
+  [remarkLintHeadingStyle, "atx"],
+  [remarkLintListItemIndent, "space"],
+  remarkLintMaximumLineLength,
+  remarkLintNoConsecutiveBlankLines,
+  remarkLintNoFileNameArticles,
+  remarkLintNoFileNameConsecutiveDashes,
+  remarkLintNofileNameOuterDashes,
+  remarkLintNoHeadingIndent,
+  remarkLintNoMultipleToplevelHeadings,
+  remarkLintNoShellDollars,
+  remarkLintNoTableIndentation,
+  remarkLintNoTabs,
   remarkLintNoTrailingSpaces,
   remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
@@ -20570,14 +20647,15 @@ const plugins = [
       { yes: "RFC" },
       { no: "[Rr][Ff][Cc]\\d+", yes: "RFC <number>" },
       { yes: "Unix" },
+      { yes: "Valgrind" },
       { yes: "V8" },
     ],
   ],
-  remarkLintRuleStyle$1,
-  [remarkLintStrongMarker$1, "*"],
-  [remarkLintTableCellPadding$1, "padded"],
-  remarkLintTablePipes$1,
-  [remarkLintUnorderedListMarkerStyle$1, "*"],
+  remarkLintRuleStyle,
+  [remarkLintStrongMarker, "*"],
+  [remarkLintTableCellPadding, "padded"],
+  remarkLintTablePipes,
+  [remarkLintUnorderedListMarkerStyle, "*"],
 ];
 const settings = {
   emphasis: "_",
@@ -20699,56 +20777,351 @@ function stripAnsi(string) {
 	return string.replace(ansiRegex(), '');
 }
 
-function isFullwidthCodePoint(codePoint) {
-	if (!Number.isInteger(codePoint)) {
-		return false;
+var eastasianwidth = {exports: {}};
+
+(function (module) {
+	var eaw = {};
+	{
+	  module.exports = eaw;
 	}
-	return codePoint >= 0x1100 && (
-		codePoint <= 0x115F ||
-		codePoint === 0x2329 ||
-		codePoint === 0x232A ||
-		(0x2E80 <= codePoint && codePoint <= 0x3247 && codePoint !== 0x303F) ||
-		(0x3250 <= codePoint && codePoint <= 0x4DBF) ||
-		(0x4E00 <= codePoint && codePoint <= 0xA4C6) ||
-		(0xA960 <= codePoint && codePoint <= 0xA97C) ||
-		(0xAC00 <= codePoint && codePoint <= 0xD7A3) ||
-		(0xF900 <= codePoint && codePoint <= 0xFAFF) ||
-		(0xFE10 <= codePoint && codePoint <= 0xFE19) ||
-		(0xFE30 <= codePoint && codePoint <= 0xFE6B) ||
-		(0xFF01 <= codePoint && codePoint <= 0xFF60) ||
-		(0xFFE0 <= codePoint && codePoint <= 0xFFE6) ||
-		(0x1B000 <= codePoint && codePoint <= 0x1B001) ||
-		(0x1F200 <= codePoint && codePoint <= 0x1F251) ||
-		(0x20000 <= codePoint && codePoint <= 0x3FFFD)
-	);
-}
+	eaw.eastAsianWidth = function(character) {
+	  var x = character.charCodeAt(0);
+	  var y = (character.length == 2) ? character.charCodeAt(1) : 0;
+	  var codePoint = x;
+	  if ((0xD800 <= x && x <= 0xDBFF) && (0xDC00 <= y && y <= 0xDFFF)) {
+	    x &= 0x3FF;
+	    y &= 0x3FF;
+	    codePoint = (x << 10) | y;
+	    codePoint += 0x10000;
+	  }
+	  if ((0x3000 == codePoint) ||
+	      (0xFF01 <= codePoint && codePoint <= 0xFF60) ||
+	      (0xFFE0 <= codePoint && codePoint <= 0xFFE6)) {
+	    return 'F';
+	  }
+	  if ((0x20A9 == codePoint) ||
+	      (0xFF61 <= codePoint && codePoint <= 0xFFBE) ||
+	      (0xFFC2 <= codePoint && codePoint <= 0xFFC7) ||
+	      (0xFFCA <= codePoint && codePoint <= 0xFFCF) ||
+	      (0xFFD2 <= codePoint && codePoint <= 0xFFD7) ||
+	      (0xFFDA <= codePoint && codePoint <= 0xFFDC) ||
+	      (0xFFE8 <= codePoint && codePoint <= 0xFFEE)) {
+	    return 'H';
+	  }
+	  if ((0x1100 <= codePoint && codePoint <= 0x115F) ||
+	      (0x11A3 <= codePoint && codePoint <= 0x11A7) ||
+	      (0x11FA <= codePoint && codePoint <= 0x11FF) ||
+	      (0x2329 <= codePoint && codePoint <= 0x232A) ||
+	      (0x2E80 <= codePoint && codePoint <= 0x2E99) ||
+	      (0x2E9B <= codePoint && codePoint <= 0x2EF3) ||
+	      (0x2F00 <= codePoint && codePoint <= 0x2FD5) ||
+	      (0x2FF0 <= codePoint && codePoint <= 0x2FFB) ||
+	      (0x3001 <= codePoint && codePoint <= 0x303E) ||
+	      (0x3041 <= codePoint && codePoint <= 0x3096) ||
+	      (0x3099 <= codePoint && codePoint <= 0x30FF) ||
+	      (0x3105 <= codePoint && codePoint <= 0x312D) ||
+	      (0x3131 <= codePoint && codePoint <= 0x318E) ||
+	      (0x3190 <= codePoint && codePoint <= 0x31BA) ||
+	      (0x31C0 <= codePoint && codePoint <= 0x31E3) ||
+	      (0x31F0 <= codePoint && codePoint <= 0x321E) ||
+	      (0x3220 <= codePoint && codePoint <= 0x3247) ||
+	      (0x3250 <= codePoint && codePoint <= 0x32FE) ||
+	      (0x3300 <= codePoint && codePoint <= 0x4DBF) ||
+	      (0x4E00 <= codePoint && codePoint <= 0xA48C) ||
+	      (0xA490 <= codePoint && codePoint <= 0xA4C6) ||
+	      (0xA960 <= codePoint && codePoint <= 0xA97C) ||
+	      (0xAC00 <= codePoint && codePoint <= 0xD7A3) ||
+	      (0xD7B0 <= codePoint && codePoint <= 0xD7C6) ||
+	      (0xD7CB <= codePoint && codePoint <= 0xD7FB) ||
+	      (0xF900 <= codePoint && codePoint <= 0xFAFF) ||
+	      (0xFE10 <= codePoint && codePoint <= 0xFE19) ||
+	      (0xFE30 <= codePoint && codePoint <= 0xFE52) ||
+	      (0xFE54 <= codePoint && codePoint <= 0xFE66) ||
+	      (0xFE68 <= codePoint && codePoint <= 0xFE6B) ||
+	      (0x1B000 <= codePoint && codePoint <= 0x1B001) ||
+	      (0x1F200 <= codePoint && codePoint <= 0x1F202) ||
+	      (0x1F210 <= codePoint && codePoint <= 0x1F23A) ||
+	      (0x1F240 <= codePoint && codePoint <= 0x1F248) ||
+	      (0x1F250 <= codePoint && codePoint <= 0x1F251) ||
+	      (0x20000 <= codePoint && codePoint <= 0x2F73F) ||
+	      (0x2B740 <= codePoint && codePoint <= 0x2FFFD) ||
+	      (0x30000 <= codePoint && codePoint <= 0x3FFFD)) {
+	    return 'W';
+	  }
+	  if ((0x0020 <= codePoint && codePoint <= 0x007E) ||
+	      (0x00A2 <= codePoint && codePoint <= 0x00A3) ||
+	      (0x00A5 <= codePoint && codePoint <= 0x00A6) ||
+	      (0x00AC == codePoint) ||
+	      (0x00AF == codePoint) ||
+	      (0x27E6 <= codePoint && codePoint <= 0x27ED) ||
+	      (0x2985 <= codePoint && codePoint <= 0x2986)) {
+	    return 'Na';
+	  }
+	  if ((0x00A1 == codePoint) ||
+	      (0x00A4 == codePoint) ||
+	      (0x00A7 <= codePoint && codePoint <= 0x00A8) ||
+	      (0x00AA == codePoint) ||
+	      (0x00AD <= codePoint && codePoint <= 0x00AE) ||
+	      (0x00B0 <= codePoint && codePoint <= 0x00B4) ||
+	      (0x00B6 <= codePoint && codePoint <= 0x00BA) ||
+	      (0x00BC <= codePoint && codePoint <= 0x00BF) ||
+	      (0x00C6 == codePoint) ||
+	      (0x00D0 == codePoint) ||
+	      (0x00D7 <= codePoint && codePoint <= 0x00D8) ||
+	      (0x00DE <= codePoint && codePoint <= 0x00E1) ||
+	      (0x00E6 == codePoint) ||
+	      (0x00E8 <= codePoint && codePoint <= 0x00EA) ||
+	      (0x00EC <= codePoint && codePoint <= 0x00ED) ||
+	      (0x00F0 == codePoint) ||
+	      (0x00F2 <= codePoint && codePoint <= 0x00F3) ||
+	      (0x00F7 <= codePoint && codePoint <= 0x00FA) ||
+	      (0x00FC == codePoint) ||
+	      (0x00FE == codePoint) ||
+	      (0x0101 == codePoint) ||
+	      (0x0111 == codePoint) ||
+	      (0x0113 == codePoint) ||
+	      (0x011B == codePoint) ||
+	      (0x0126 <= codePoint && codePoint <= 0x0127) ||
+	      (0x012B == codePoint) ||
+	      (0x0131 <= codePoint && codePoint <= 0x0133) ||
+	      (0x0138 == codePoint) ||
+	      (0x013F <= codePoint && codePoint <= 0x0142) ||
+	      (0x0144 == codePoint) ||
+	      (0x0148 <= codePoint && codePoint <= 0x014B) ||
+	      (0x014D == codePoint) ||
+	      (0x0152 <= codePoint && codePoint <= 0x0153) ||
+	      (0x0166 <= codePoint && codePoint <= 0x0167) ||
+	      (0x016B == codePoint) ||
+	      (0x01CE == codePoint) ||
+	      (0x01D0 == codePoint) ||
+	      (0x01D2 == codePoint) ||
+	      (0x01D4 == codePoint) ||
+	      (0x01D6 == codePoint) ||
+	      (0x01D8 == codePoint) ||
+	      (0x01DA == codePoint) ||
+	      (0x01DC == codePoint) ||
+	      (0x0251 == codePoint) ||
+	      (0x0261 == codePoint) ||
+	      (0x02C4 == codePoint) ||
+	      (0x02C7 == codePoint) ||
+	      (0x02C9 <= codePoint && codePoint <= 0x02CB) ||
+	      (0x02CD == codePoint) ||
+	      (0x02D0 == codePoint) ||
+	      (0x02D8 <= codePoint && codePoint <= 0x02DB) ||
+	      (0x02DD == codePoint) ||
+	      (0x02DF == codePoint) ||
+	      (0x0300 <= codePoint && codePoint <= 0x036F) ||
+	      (0x0391 <= codePoint && codePoint <= 0x03A1) ||
+	      (0x03A3 <= codePoint && codePoint <= 0x03A9) ||
+	      (0x03B1 <= codePoint && codePoint <= 0x03C1) ||
+	      (0x03C3 <= codePoint && codePoint <= 0x03C9) ||
+	      (0x0401 == codePoint) ||
+	      (0x0410 <= codePoint && codePoint <= 0x044F) ||
+	      (0x0451 == codePoint) ||
+	      (0x2010 == codePoint) ||
+	      (0x2013 <= codePoint && codePoint <= 0x2016) ||
+	      (0x2018 <= codePoint && codePoint <= 0x2019) ||
+	      (0x201C <= codePoint && codePoint <= 0x201D) ||
+	      (0x2020 <= codePoint && codePoint <= 0x2022) ||
+	      (0x2024 <= codePoint && codePoint <= 0x2027) ||
+	      (0x2030 == codePoint) ||
+	      (0x2032 <= codePoint && codePoint <= 0x2033) ||
+	      (0x2035 == codePoint) ||
+	      (0x203B == codePoint) ||
+	      (0x203E == codePoint) ||
+	      (0x2074 == codePoint) ||
+	      (0x207F == codePoint) ||
+	      (0x2081 <= codePoint && codePoint <= 0x2084) ||
+	      (0x20AC == codePoint) ||
+	      (0x2103 == codePoint) ||
+	      (0x2105 == codePoint) ||
+	      (0x2109 == codePoint) ||
+	      (0x2113 == codePoint) ||
+	      (0x2116 == codePoint) ||
+	      (0x2121 <= codePoint && codePoint <= 0x2122) ||
+	      (0x2126 == codePoint) ||
+	      (0x212B == codePoint) ||
+	      (0x2153 <= codePoint && codePoint <= 0x2154) ||
+	      (0x215B <= codePoint && codePoint <= 0x215E) ||
+	      (0x2160 <= codePoint && codePoint <= 0x216B) ||
+	      (0x2170 <= codePoint && codePoint <= 0x2179) ||
+	      (0x2189 == codePoint) ||
+	      (0x2190 <= codePoint && codePoint <= 0x2199) ||
+	      (0x21B8 <= codePoint && codePoint <= 0x21B9) ||
+	      (0x21D2 == codePoint) ||
+	      (0x21D4 == codePoint) ||
+	      (0x21E7 == codePoint) ||
+	      (0x2200 == codePoint) ||
+	      (0x2202 <= codePoint && codePoint <= 0x2203) ||
+	      (0x2207 <= codePoint && codePoint <= 0x2208) ||
+	      (0x220B == codePoint) ||
+	      (0x220F == codePoint) ||
+	      (0x2211 == codePoint) ||
+	      (0x2215 == codePoint) ||
+	      (0x221A == codePoint) ||
+	      (0x221D <= codePoint && codePoint <= 0x2220) ||
+	      (0x2223 == codePoint) ||
+	      (0x2225 == codePoint) ||
+	      (0x2227 <= codePoint && codePoint <= 0x222C) ||
+	      (0x222E == codePoint) ||
+	      (0x2234 <= codePoint && codePoint <= 0x2237) ||
+	      (0x223C <= codePoint && codePoint <= 0x223D) ||
+	      (0x2248 == codePoint) ||
+	      (0x224C == codePoint) ||
+	      (0x2252 == codePoint) ||
+	      (0x2260 <= codePoint && codePoint <= 0x2261) ||
+	      (0x2264 <= codePoint && codePoint <= 0x2267) ||
+	      (0x226A <= codePoint && codePoint <= 0x226B) ||
+	      (0x226E <= codePoint && codePoint <= 0x226F) ||
+	      (0x2282 <= codePoint && codePoint <= 0x2283) ||
+	      (0x2286 <= codePoint && codePoint <= 0x2287) ||
+	      (0x2295 == codePoint) ||
+	      (0x2299 == codePoint) ||
+	      (0x22A5 == codePoint) ||
+	      (0x22BF == codePoint) ||
+	      (0x2312 == codePoint) ||
+	      (0x2460 <= codePoint && codePoint <= 0x24E9) ||
+	      (0x24EB <= codePoint && codePoint <= 0x254B) ||
+	      (0x2550 <= codePoint && codePoint <= 0x2573) ||
+	      (0x2580 <= codePoint && codePoint <= 0x258F) ||
+	      (0x2592 <= codePoint && codePoint <= 0x2595) ||
+	      (0x25A0 <= codePoint && codePoint <= 0x25A1) ||
+	      (0x25A3 <= codePoint && codePoint <= 0x25A9) ||
+	      (0x25B2 <= codePoint && codePoint <= 0x25B3) ||
+	      (0x25B6 <= codePoint && codePoint <= 0x25B7) ||
+	      (0x25BC <= codePoint && codePoint <= 0x25BD) ||
+	      (0x25C0 <= codePoint && codePoint <= 0x25C1) ||
+	      (0x25C6 <= codePoint && codePoint <= 0x25C8) ||
+	      (0x25CB == codePoint) ||
+	      (0x25CE <= codePoint && codePoint <= 0x25D1) ||
+	      (0x25E2 <= codePoint && codePoint <= 0x25E5) ||
+	      (0x25EF == codePoint) ||
+	      (0x2605 <= codePoint && codePoint <= 0x2606) ||
+	      (0x2609 == codePoint) ||
+	      (0x260E <= codePoint && codePoint <= 0x260F) ||
+	      (0x2614 <= codePoint && codePoint <= 0x2615) ||
+	      (0x261C == codePoint) ||
+	      (0x261E == codePoint) ||
+	      (0x2640 == codePoint) ||
+	      (0x2642 == codePoint) ||
+	      (0x2660 <= codePoint && codePoint <= 0x2661) ||
+	      (0x2663 <= codePoint && codePoint <= 0x2665) ||
+	      (0x2667 <= codePoint && codePoint <= 0x266A) ||
+	      (0x266C <= codePoint && codePoint <= 0x266D) ||
+	      (0x266F == codePoint) ||
+	      (0x269E <= codePoint && codePoint <= 0x269F) ||
+	      (0x26BE <= codePoint && codePoint <= 0x26BF) ||
+	      (0x26C4 <= codePoint && codePoint <= 0x26CD) ||
+	      (0x26CF <= codePoint && codePoint <= 0x26E1) ||
+	      (0x26E3 == codePoint) ||
+	      (0x26E8 <= codePoint && codePoint <= 0x26FF) ||
+	      (0x273D == codePoint) ||
+	      (0x2757 == codePoint) ||
+	      (0x2776 <= codePoint && codePoint <= 0x277F) ||
+	      (0x2B55 <= codePoint && codePoint <= 0x2B59) ||
+	      (0x3248 <= codePoint && codePoint <= 0x324F) ||
+	      (0xE000 <= codePoint && codePoint <= 0xF8FF) ||
+	      (0xFE00 <= codePoint && codePoint <= 0xFE0F) ||
+	      (0xFFFD == codePoint) ||
+	      (0x1F100 <= codePoint && codePoint <= 0x1F10A) ||
+	      (0x1F110 <= codePoint && codePoint <= 0x1F12D) ||
+	      (0x1F130 <= codePoint && codePoint <= 0x1F169) ||
+	      (0x1F170 <= codePoint && codePoint <= 0x1F19A) ||
+	      (0xE0100 <= codePoint && codePoint <= 0xE01EF) ||
+	      (0xF0000 <= codePoint && codePoint <= 0xFFFFD) ||
+	      (0x100000 <= codePoint && codePoint <= 0x10FFFD)) {
+	    return 'A';
+	  }
+	  return 'N';
+	};
+	eaw.characterLength = function(character) {
+	  var code = this.eastAsianWidth(character);
+	  if (code == 'F' || code == 'W' || code == 'A') {
+	    return 2;
+	  } else {
+	    return 1;
+	  }
+	};
+	function stringToArray(string) {
+	  return string.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[^\uD800-\uDFFF]/g) || [];
+	}
+	eaw.length = function(string) {
+	  var characters = stringToArray(string);
+	  var len = 0;
+	  for (var i = 0; i < characters.length; i++) {
+	    len = len + this.characterLength(characters[i]);
+	  }
+	  return len;
+	};
+	eaw.slice = function(text, start, end) {
+	  textLen = eaw.length(text);
+	  start = start ? start : 0;
+	  end = end ? end : 1;
+	  if (start < 0) {
+	      start = textLen + start;
+	  }
+	  if (end < 0) {
+	      end = textLen + end;
+	  }
+	  var result = '';
+	  var eawLen = 0;
+	  var chars = stringToArray(text);
+	  for (var i = 0; i < chars.length; i++) {
+	    var char = chars[i];
+	    var charLen = eaw.length(char);
+	    if (eawLen >= start - (charLen == 2 ? 1 : 0)) {
+	        if (eawLen + charLen <= end) {
+	            result += char;
+	        } else {
+	            break;
+	        }
+	    }
+	    eawLen += charLen;
+	  }
+	  return result;
+	};
+} (eastasianwidth));
+var eastAsianWidth = eastasianwidth.exports;
 
 var emojiRegex = function () {
   return /\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62(?:\uDB40\uDC77\uDB40\uDC6C\uDB40\uDC73|\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74|\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67)\uDB40\uDC7F|(?:\uD83E\uDDD1\uD83C\uDFFF\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFF\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFE])|(?:\uD83E\uDDD1\uD83C\uDFFE\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFE\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFD\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFD\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFC\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFC\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFB\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFC-\uDFFF])|\uD83D\uDC68(?:\uD83C\uDFFB(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFC-\uDFFF])|[\u2695\u2696\u2708]\uFE0F|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))?|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83D\uDC68|(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFE])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])\uFE0F|\u200D(?:(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D[\uDC66\uDC67])|\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC)?|(?:\uD83D\uDC69(?:\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69]))|\uD83E\uDDD1(?:\uD83C[\uDFFB-\uDFFF])\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1)(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC69(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83E\uDDD1(?:\u200D(?:\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83D\uDC69\u200D\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D\uDC69\u200D\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|(?:\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8|\uD83E\uDDD1(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDC69(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDE36\u200D\uD83C\uDF2B|\uD83C\uDFF3\uFE0F\u200D\u26A7|\uD83D\uDC3B\u200D\u2744|(?:(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF])\u200D[\u2640\u2642]|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])\u200D[\u2640\u2642]|\uD83C\uDFF4\u200D\u2620|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])\u200D[\u2640\u2642]|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u2600-\u2604\u260E\u2611\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26B0\u26B1\u26C8\u26CF\u26D1\u26D3\u26E9\u26F0\u26F1\u26F4\u26F7\u26F8\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u3030\u303D\u3297\u3299]|\uD83C[\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]|\uD83D[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3])\uFE0F|\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08|\uD83D\uDC69\u200D\uD83D\uDC67|\uD83D\uDC69\u200D\uD83D\uDC66|\uD83D\uDE35\u200D\uD83D\uDCAB|\uD83D\uDE2E\u200D\uD83D\uDCA8|\uD83D\uDC15\u200D\uD83E\uDDBA|\uD83E\uDDD1(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83D\uDC69(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83C\uDDFD\uD83C\uDDF0|\uD83C\uDDF6\uD83C\uDDE6|\uD83C\uDDF4\uD83C\uDDF2|\uD83D\uDC08\u200D\u2B1B|\u2764\uFE0F\u200D(?:\uD83D\uDD25|\uD83E\uDE79)|\uD83D\uDC41\uFE0F|\uD83C\uDFF3\uFE0F|\uD83C\uDDFF(?:\uD83C[\uDDE6\uDDF2\uDDFC])|\uD83C\uDDFE(?:\uD83C[\uDDEA\uDDF9])|\uD83C\uDDFC(?:\uD83C[\uDDEB\uDDF8])|\uD83C\uDDFB(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA])|\uD83C\uDDFA(?:\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF])|\uD83C\uDDF9(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF])|\uD83C\uDDF8(?:\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF])|\uD83C\uDDF7(?:\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC])|\uD83C\uDDF5(?:\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE])|\uD83C\uDDF3(?:\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF])|\uD83C\uDDF2(?:\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF])|\uD83C\uDDF1(?:\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE])|\uD83C\uDDF0(?:\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF])|\uD83C\uDDEF(?:\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5])|\uD83C\uDDEE(?:\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9])|\uD83C\uDDED(?:\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA])|\uD83C\uDDEC(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE])|\uD83C\uDDEB(?:\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7])|\uD83C\uDDEA(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA])|\uD83C\uDDE9(?:\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF])|\uD83C\uDDE8(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF])|\uD83C\uDDE7(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF])|\uD83C\uDDE6(?:\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF])|[#\*0-9]\uFE0F\u20E3|\u2764\uFE0F|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|\uD83C\uDFF4|(?:[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5])(?:\uD83C[\uDFFB-\uDFFF])|(?:[\u261D\u270C\u270D]|\uD83D[\uDD74\uDD90])(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC08\uDC15\uDC3B\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE2E\uDE35\uDE36\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5]|\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD]|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF]|[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0D\uDD0E\uDD10-\uDD17\uDD1D\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78\uDD7A-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCB\uDDD0\uDDE0-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6]|(?:[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u270A\u270B\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF93\uDFA0-\uDFCA\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF4\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC3E\uDC40\uDC42-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDD7A\uDD95\uDD96\uDDA4\uDDFB-\uDE4F\uDE80-\uDEC5\uDECC\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])|(?:[#\*0-9\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23E9-\u23F3\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB-\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u261D\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692-\u2697\u2699\u269B\u269C\u26A0\u26A1\u26A7\u26AA\u26AB\u26B0\u26B1\u26BD\u26BE\u26C4\u26C5\u26C8\u26CE\u26CF\u26D1\u26D3\u26D4\u26E9\u26EA\u26F0-\u26F5\u26F7-\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2714\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70\uDD71\uDD7E\uDD7F\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE02\uDE1A\uDE2F\uDE32-\uDE3A\uDE50\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96\uDF97\uDF99-\uDF9B\uDF9E-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDCFD\uDCFF-\uDD3D\uDD49-\uDD4E\uDD50-\uDD67\uDD6F\uDD70\uDD73-\uDD7A\uDD87\uDD8A-\uDD8D\uDD90\uDD95\uDD96\uDDA4\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA-\uDE4F\uDE80-\uDEC5\uDECB-\uDED2\uDED5-\uDED7\uDEE0-\uDEE5\uDEE9\uDEEB\uDEEC\uDEF0\uDEF3-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])\uFE0F|(?:[\u261D\u26F9\u270A-\u270D]|\uD83C[\uDF85\uDFC2-\uDFC4\uDFC7\uDFCA-\uDFCC]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66-\uDC78\uDC7C\uDC81-\uDC83\uDC85-\uDC87\uDC8F\uDC91\uDCAA\uDD74\uDD75\uDD7A\uDD90\uDD95\uDD96\uDE45-\uDE47\uDE4B-\uDE4F\uDEA3\uDEB4-\uDEB6\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1F\uDD26\uDD30-\uDD39\uDD3C-\uDD3E\uDD77\uDDB5\uDDB6\uDDB8\uDDB9\uDDBB\uDDCD-\uDDCF\uDDD1-\uDDDD])/g;
 };
 
-function stringWidth(string) {
+function stringWidth(string, options = {}) {
 	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
+	options = {
+		ambiguousIsNarrow: true,
+		...options
+	};
 	string = stripAnsi(string);
 	if (string.length === 0) {
 		return 0;
 	}
 	string = string.replace(emojiRegex(), '  ');
+	const ambiguousCharacterWidth = options.ambiguousIsNarrow ? 1 : 2;
 	let width = 0;
-	for (let index = 0; index < string.length; index++) {
-		const codePoint = string.codePointAt(index);
+	for (const character of string) {
+		const codePoint = character.codePointAt(0);
 		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
 			continue;
 		}
 		if (codePoint >= 0x300 && codePoint <= 0x36F) {
 			continue;
 		}
-		if (codePoint > 0xFFFF) {
-			index++;
+		const code = eastAsianWidth.eastAsianWidth(character);
+		switch (code) {
+			case 'F':
+			case 'W':
+				width += 2;
+				break;
+			case 'A':
+				width += ambiguousCharacterWidth;
+				break;
+			default:
+				width += 1;
 		}
-		width += isFullwidthCodePoint(codePoint) ? 2 : 1;
 	}
 	return width;
 }
@@ -20808,13 +21181,13 @@ function compare(a, b, property) {
   return String(a[property] || '').localeCompare(b[property] || '')
 }
 
-function hasFlag(flag, argv = process$2.argv) {
+function hasFlag(flag, argv = process$1.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
 	const terminatorPosition = argv.indexOf('--');
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 }
-const {env} = process$2;
+const {env} = process$1;
 let flagForceColor;
 if (
 	hasFlag('no-color')
@@ -20879,7 +21252,7 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	if (env.TERM === 'dumb') {
 		return min;
 	}
-	if (process$2.platform === 'win32') {
+	if (process$1.platform === 'win32') {
 		const osRelease = os.release().split('.');
 		if (
 			Number(osRelease[0]) >= 10
@@ -20938,11 +21311,11 @@ const supportsColor = {
 
 const color = supportsColor.stderr.hasBasic;
 
+const platform = process$1.platform;
+
 const own = {}.hasOwnProperty;
 const chars =
-  process.platform === 'win32'
-    ? {error: '×', warning: '‼'}
-    : {error: '✖', warning: '⚠'};
+  platform === 'win32' ? {error: '×', warning: '‼'} : {error: '✖', warning: '⚠'};
 const labels = {
   true: 'error',
   false: 'warning',

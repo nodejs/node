@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -92,21 +93,10 @@ void PreparseData::set_child(int index, PreparseData value,
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
-
-ACCESSORS(InterpreterData, raw_interpreter_trampoline, CodeT,
-          kInterpreterTrampolineOffset)
-
-DEF_GETTER(InterpreterData, interpreter_trampoline, Code) {
-  return FromCodeT(raw_interpreter_trampoline(cage_base));
-}
-
-void InterpreterData::set_interpreter_trampoline(Code code,
-                                                 WriteBarrierMode mode) {
-  set_raw_interpreter_trampoline(ToCodeT(code), mode);
-}
-
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -132,8 +122,7 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo,
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
     const {
   const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
-  if (param_count == kDontAdaptArgumentsSentinel) return param_count;
-  return param_count + (kJSArgcIncludesReceiver ? 0 : 1);
+  return param_count;
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
@@ -149,8 +138,8 @@ void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
   TorqueGeneratedClass::set_formal_parameter_count(value);
 }
 
-RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                               function_token_offset)
+RENAME_PRIMITIVE_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                                  function_token_offset, uint16_t)
 
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 int32_t SharedFunctionInfo::relaxed_flags() const {
@@ -211,7 +200,7 @@ AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(GetCode());
+    return AbstractCode::cast(FromCodeT(GetCode()));
   }
 }
 
@@ -235,7 +224,7 @@ bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
 
 template <typename IsolateT>
 SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
-    IsolateT* isolate, bool is_turboprop) const {
+    IsolateT* isolate) const {
   if (!script().IsScript()) return kHasNoScript;
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
@@ -254,11 +243,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   // inline.
   if (!HasBytecodeArray()) return kHasNoBytecode;
 
-  int max_inlined_size = FLAG_max_inlined_bytecode_size;
-  if (is_turboprop) {
-    max_inlined_size = max_inlined_size / FLAG_turboprop_inline_scaling_factor;
-  }
-  if (GetBytecodeArray(isolate).length() > max_inlined_size) {
+  if (GetBytecodeArray(isolate).length() > FLAG_max_inlined_bytecode_size) {
     return kExceedsBytecodeLimit;
   }
 
@@ -275,6 +260,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
+                    SharedFunctionInfo::MaglevCompilationFailedBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
@@ -310,11 +298,22 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
-  return disable_optimization_reason() != BailoutReason::kNoReason;
+  return disabled_optimization_reason() != BailoutReason::kNoReason;
 }
 
-BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
+BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
+}
+
+OSRCodeCacheStateOfSFI SharedFunctionInfo::osr_code_cache_state() const {
+  return OsrCodeCacheStateBits::decode(flags(kRelaxedLoad));
+}
+
+void SharedFunctionInfo::set_osr_code_cache_state(
+    OSRCodeCacheStateOfSFI state) {
+  int hints = flags(kRelaxedLoad);
+  hints = OsrCodeCacheStateBits::update(hints, state);
+  set_flags(hints, kRelaxedStore);
 }
 
 LanguageMode SharedFunctionInfo::language_mode() const {
@@ -412,18 +411,16 @@ bool SharedFunctionInfo::IsDontAdaptArguments() const {
          kDontAdaptArgumentsSentinel;
 }
 
-bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
-
-ScopeInfo SharedFunctionInfo::scope_info(AcquireLoadTag tag) const {
-  Object maybe_scope_info = name_or_scope_info(tag);
-  if (maybe_scope_info.IsScopeInfo()) {
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
+  Object maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
+  if (maybe_scope_info.IsScopeInfo(cage_base)) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
 
-ScopeInfo SharedFunctionInfo::scope_info() const {
-  return scope_info(kAcquireLoad);
+DEF_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
+  return scope_info(cage_base, kAcquireLoad);
 }
 
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
@@ -581,7 +578,7 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
 BytecodeArray SharedFunctionInfo::GetActiveBytecodeArray() const {
   Object data = function_data(kAcquireLoad);
   if (data.IsCodeT()) {
-    Code baseline_code = FromCodeT(CodeT::cast(data));
+    CodeT baseline_code = CodeT::cast(data);
     data = baseline_code.bytecode_or_interpreter_data();
   }
   if (data.IsBytecodeArray()) {
@@ -626,7 +623,7 @@ bool SharedFunctionInfo::ShouldFlushCode(
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
   if (data.IsCodeT()) {
-    Code baseline_code = FromCodeT(CodeT::cast(data));
+    CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
@@ -646,7 +643,7 @@ bool SharedFunctionInfo::ShouldFlushCode(
   return bytecode.IsOld();
 }
 
-Code SharedFunctionInfo::InterpreterTrampoline() const {
+CodeT SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
   return interpreter_data().interpreter_trampoline();
 }
@@ -654,7 +651,7 @@ Code SharedFunctionInfo::InterpreterTrampoline() const {
 bool SharedFunctionInfo::HasInterpreterData() const {
   Object data = function_data(kAcquireLoad);
   if (data.IsCodeT()) {
-    Code baseline_code = FromCodeT(CodeT::cast(data));
+    CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data();
   }
@@ -665,7 +662,7 @@ InterpreterData SharedFunctionInfo::interpreter_data() const {
   DCHECK(HasInterpreterData());
   Object data = function_data(kAcquireLoad);
   if (data.IsCodeT()) {
-    Code baseline_code = FromCodeT(CodeT::cast(data));
+    CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data();
   }
@@ -682,21 +679,21 @@ void SharedFunctionInfo::set_interpreter_data(
 bool SharedFunctionInfo::HasBaselineCode() const {
   Object data = function_data(kAcquireLoad);
   if (data.IsCodeT()) {
-    DCHECK_EQ(FromCodeT(CodeT::cast(data)).kind(), CodeKind::BASELINE);
+    DCHECK_EQ(CodeT::cast(data).kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
 }
 
-Code SharedFunctionInfo::baseline_code(AcquireLoadTag) const {
+CodeT SharedFunctionInfo::baseline_code(AcquireLoadTag) const {
   DCHECK(HasBaselineCode());
-  return FromCodeT(CodeT::cast(function_data(kAcquireLoad)));
+  return CodeT::cast(function_data(kAcquireLoad));
 }
 
-void SharedFunctionInfo::set_baseline_code(Code baseline_code,
+void SharedFunctionInfo::set_baseline_code(CodeT baseline_code,
                                            ReleaseStoreTag) {
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-  set_function_data(ToCodeT(baseline_code), kReleaseStore);
+  set_function_data(baseline_code, kReleaseStore);
 }
 
 void SharedFunctionInfo::FlushBaselineCode() {
@@ -720,6 +717,10 @@ bool SharedFunctionInfo::HasWasmJSFunctionData() const {
 
 bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
+}
+
+bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
+  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
@@ -804,6 +805,17 @@ bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
   return function_data(kAcquireLoad).IsUncompiledDataWithoutPreparseData();
 }
 
+void SharedFunctionInfo::ClearUncompiledDataJobPointer() {
+  UncompiledData uncompiled_data = this->uncompiled_data();
+  if (uncompiled_data.IsUncompiledDataWithPreparseDataAndJob()) {
+    UncompiledDataWithPreparseDataAndJob::cast(uncompiled_data)
+        .set_job(kNullAddress);
+  } else if (uncompiled_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
+    UncompiledDataWithoutPreparseDataWithJob::cast(uncompiled_data)
+        .set_job(kNullAddress);
+  }
+}
+
 void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithPreparseData());
   UncompiledDataWithPreparseData data = uncompiled_data_with_preparse_data();
@@ -844,9 +856,9 @@ void UncompiledData::InitAfterBytecodeFlush(
   set_end_position(end_position);
 }
 
-HeapObject SharedFunctionInfo::script() const {
-  HeapObject maybe_script = script_or_debug_info(kAcquireLoad);
-  if (maybe_script.IsDebugInfo()) {
+DEF_GETTER(SharedFunctionInfo, script, HeapObject) {
+  HeapObject maybe_script = script_or_debug_info(cage_base, kAcquireLoad);
+  if (maybe_script.IsDebugInfo(cage_base)) {
     return DebugInfo::cast(maybe_script).script();
   }
   return maybe_script;

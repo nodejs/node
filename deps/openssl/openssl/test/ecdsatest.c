@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -223,7 +223,7 @@ static int test_builtin(int n, int as)
 
     if (!TEST_ptr(mctx = EVP_MD_CTX_new())
         /* get some random message data */
-        || !TEST_true(RAND_bytes(tbs, sizeof(tbs)))
+        || !TEST_int_gt(RAND_bytes(tbs, sizeof(tbs)), 0)
         /* real key */
         || !TEST_ptr(eckey = EC_KEY_new_by_curve_name(nid))
         || !TEST_true(EC_KEY_generate_key(eckey))

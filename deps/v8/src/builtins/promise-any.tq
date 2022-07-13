@@ -69,7 +69,7 @@ macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
   return reject;
 }
 
-// https://tc39.es/proposal-promise-any/#sec-promise.any-reject-element-functions
+// https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
 transitioning javascript builtin
 PromiseAnyRejectElementClosure(
     js-implicit context: Context, receiver: JSAny,
@@ -159,7 +159,7 @@ transitioning macro PerformPromiseAny(implicit context: Context)(
     nativeContext: NativeContext, iteratorRecord: iterator::IteratorRecord,
     constructor: Constructor, resultCapability: PromiseCapability,
     promiseResolveFunction: JSAny): JSAny labels
-Reject(Object) {
+Reject(JSAny) {
   // 1. Assert: ! IsConstructor(constructor) is true.
   // 2. Assert: resultCapability is a PromiseCapability Record.
 
@@ -198,7 +198,7 @@ Reject(Object) {
 
         // g. ReturnIfAbrupt(nextValue).
         nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
-      } catch (e) {
+      } catch (e, _message) {
         goto Reject(e);
       }
 
@@ -280,7 +280,7 @@ Reject(Object) {
               context, rejectElement, kPromiseForwardingHandlerSymbol, True);
         }
     }
-  } catch (e) deferred {
+  } catch (e, _message) deferred {
     iterator::IteratorCloseOnException(iteratorRecord);
     goto Reject(e);
   } label Done {}
@@ -314,7 +314,7 @@ Reject(Object) {
   return resultCapability.promise;
 }
 
-// https://tc39.es/proposal-promise-any/#sec-promise.any
+// https://tc39.es/ecma262/#sec-promise.any
 transitioning javascript builtin
 PromiseAny(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
@@ -361,9 +361,9 @@ PromiseAny(
         nativeContext, iteratorRecord, constructor, capability,
         promiseResolveFunction)
         otherwise Reject;
-  } catch (e) deferred {
+  } catch (e, _message) deferred {
     goto Reject(e);
-  } label Reject(e: Object) deferred {
+  } label Reject(e: JSAny) deferred {
     // Exception must be bound to a JS value.
     dcheck(e != TheHole);
     Call(

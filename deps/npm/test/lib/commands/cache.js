@@ -1,442 +1,309 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm.js')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const MockRegistry = require('../../fixtures/mock-registry.js')
+const mockGlobals = require('../../fixtures/mock-globals')
+
+const cacache = require('cacache')
+const fs = require('@npmcli/fs')
 const path = require('path')
-const npa = require('npm-package-arg')
 
-let outputOutput = []
+const pkg = 'test-package'
 
-let rimrafPath = ''
-const rimraf = (path, cb) => {
-  rimrafPath = path
-  return cb()
+t.cleanSnapshot = str => {
+  return str
+    .replace(/Finished in [0-9.s]+/g, 'Finished in xxxs')
+    .replace(/Cache verified and compressed (.*)/, 'Cache verified and compressed ({PATH})')
 }
-
-let logOutput = []
-
-let tarballStreamSpec = ''
-let tarballStreamOpts = {}
-const pacote = {
-  tarball: {
-    stream: (spec, handler, opts) => {
-      tarballStreamSpec = spec
-      tarballStreamOpts = opts
-      return handler({
-        resume: () => {},
-        promise: () => Promise.resolve(),
-      })
-    },
-  },
-}
-
-let cacacheEntries = {}
-let cacacheContent = {}
-
-const setupCacacheFixture = () => {
-  cacacheEntries = {}
-  cacacheContent = {}
-  const pkgs = [
-    ['webpack@4.44.1', 'https://registry.npmjs.org', true],
-    ['npm@1.2.0', 'https://registry.npmjs.org', true],
-    ['webpack@4.47.0', 'https://registry.npmjs.org', true],
-    ['foo@1.2.3-beta', 'https://registry.npmjs.org', true],
-    ['ape-ecs@2.1.7', 'https://registry.npmjs.org', true],
-    ['@fritzy/staydown@3.1.1', 'https://registry.npmjs.org', true],
-    ['@gar/npm-expansion@2.1.0', 'https://registry.npmjs.org', true],
-    ['@gar/npm-expansion@3.0.0-beta', 'https://registry.npmjs.org', true],
-    ['extemporaneously@44.2.2', 'https://somerepo.github.org', false],
-    ['corrupted@3.1.0', 'https://registry.npmjs.org', true],
-    ['missing-dist@23.0.0', 'https://registry.npmjs.org', true],
-    ['missing-version@16.2.0', 'https://registry.npmjs.org', true],
-  ]
-  pkgs.forEach(pkg => addCacachePkg(...pkg))
-  // corrupt the packument
-  cacacheContent[
-    /* eslint-disable-next-line max-len */
-    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted'].integrity]
-  ].data = Buffer.from('<>>>}"')
-  // nuke the version dist
-  cacacheContent[
-    /* eslint-disable-next-line max-len */
-    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist'].integrity]
-  ].data = Buffer.from(JSON.stringify({ versions: { '23.0.0': {} } }))
-  // make the version a non-object
-  cacacheContent[
-    /* eslint-disable-next-line max-len */
-    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version'].integrity]
-  ].data = Buffer.from(JSON.stringify({ versions: 'hello' }))
-}
-
-const packuments = {}
-
-let contentId = 0
-const cacacheVerifyStats = {
-  keptSize: 100,
-  verifiedContent: 1,
-  totalEntries: 1,
-  runTime: { total: 2000 },
-}
-
-const addCacacheKey = (key, content) => {
-  contentId++
-  cacacheEntries[key] = { integrity: `${contentId}` }
-  cacacheContent[`${contentId}`] = {}
-}
-const addCacachePkg = (spec, registry, publicURL) => {
-  const parts = npa(spec)
-  const ver = parts.rawSpec || '1.0.0'
-  let url = `${registry}/${parts.name}/-/${parts.name}-${ver}.tgz`
-  if (!publicURL) {
-    url = `${registry}/aabbcc/${contentId}`
-  }
-  const key = `make-fetch-happen:request-cache:${url}`
-  const pkey = `make-fetch-happen:request-cache:${registry}/${parts.escapedName}`
-  if (!packuments[parts.escapedName]) {
-    packuments[parts.escapedName] = {
-      versions: {},
-    }
-    addCacacheKey(pkey)
-  }
-  packuments[parts.escapedName].versions[ver] = {
-    dist: {
-      tarball: url,
-    },
-  }
-  addCacacheKey(key)
-  cacacheContent[cacacheEntries[pkey].integrity] = {
-    data: Buffer.from(JSON.stringify(packuments[parts.escapedName])),
-  }
-}
-
-const cacache = {
-  verify: (path) => {
-    return cacacheVerifyStats
-  },
-  get: (path, key) => {
-    if (cacacheEntries[key] === undefined
-      || cacacheContent[cacacheEntries[key].integrity] === undefined) {
-      throw new Error()
-    }
-    return cacacheContent[cacacheEntries[key].integrity]
-  },
-  rm: {
-    entry: (path, key) => {
-      if (cacacheEntries[key] === undefined) {
-        throw new Error()
-      }
-      delete cacacheEntries[key]
-    },
-    content: (path, sha) => {
-      delete cacacheContent[sha]
-    },
-  },
-  ls: (path) => {
-    return cacacheEntries
-  },
-}
-
-const Cache = t.mock('../../../lib/commands/cache.js', {
-  cacache,
-  pacote,
-  rimraf,
-  'proc-log': {
-    silly: (...args) => {
-      logOutput.push(['silly', ...args])
-    },
-    warn: (...args) => {
-      logOutput.push(['warn', ...args])
-    },
-  },
-})
-
-const npm = mockNpm({
-  cache: '/fake/path',
-  flatOptions: { force: false },
-  config: { force: false },
-  output: (msg) => {
-    outputOutput.push(msg)
-  },
-})
-const cache = new Cache(npm)
 
 t.test('cache no args', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    cache.exec([]),
+    npm.exec('cache', []),
     { code: 'EUSAGE' },
     'should throw usage instructions'
   )
 })
 
 t.test('cache clean', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    cache.exec(['clean']),
-    'the npm cache self-heals',
+    npm.exec('cache', ['clean']),
+    /the npm cache self-heals/,
     'should throw warning'
   )
 })
 
 t.test('cache clean (force)', async t => {
-  npm.config.set('force', true)
-  npm.flatOptions.force = true
-  t.teardown(() => {
-    rimrafPath = ''
-    npm.config.force = false
-    npm.flatOptions.force = false
+  const { npm } = await loadMockNpm(t, {
+    cacheDir: { _cacache: {} },
+    config: { force: true },
   })
-
-  await cache.exec(['clear'])
-  t.equal(rimrafPath, path.join(npm.cache, '_cacache'))
+  const cache = path.join(npm.cache, '_cacache')
+  await npm.exec('cache', ['clean'])
+  t.notOk(fs.existsSync(cache), 'cache dir was removed')
 })
 
 t.test('cache add no arg', async t => {
-  t.teardown(() => {
-    logOutput = []
-  })
-
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    cache.exec(['add']),
+    npm.exec('cache', ['add']),
     {
       code: 'EUSAGE',
-      message: 'Usage: First argument to `add` is required',
+      message: 'First argument to `add` is required',
     },
     'throws usage error'
   )
-  t.strictSame(logOutput, [
-    ['silly', 'cache add', 'args', []],
-  ], 'logs correctly')
 })
 
-t.test('cache add pkg only', async t => {
-  t.teardown(() => {
-    logOutput = []
-    tarballStreamSpec = ''
-    tarballStreamOpts = {}
+t.test('cache add single pkg', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      package: {
+        'package.json': JSON.stringify({
+          name: pkg,
+          version: '1.0.0',
+        }),
+      },
+    },
   })
-
-  await cache.exec(['add', 'mypkg'])
-  t.strictSame(logOutput, [
-    ['silly', 'cache add', 'args', ['mypkg']],
-    ['silly', 'cache add', 'spec', 'mypkg'],
-  ], 'logs correctly')
-  t.equal(tarballStreamSpec, 'mypkg', 'passes the correct spec to pacote')
-  t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
+  const cache = path.join(npm.cache, '_cacache')
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, tarballs: { '1.0.0': path.join(npm.prefix, 'package') } })
+  await npm.exec('cache', ['add', pkg])
+  t.equal(joinedOutput(), '')
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
 })
 
 t.test('cache add multiple pkgs', async t => {
-  t.teardown(() => {
-    outputOutput = []
-    tarballStreamSpec = ''
-    tarballStreamOpts = {}
+  const pkg2 = 'test-package-two'
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      package: {
+        'package.json': JSON.stringify({
+          name: pkg,
+          version: '1.0.0',
+        }),
+      },
+    },
   })
-
-  await cache.exec(['add', 'mypkg', 'anotherpkg'])
-  t.strictSame(logOutput, [
-    ['silly', 'cache add', 'args', ['mypkg', 'anotherpkg']],
-    ['silly', 'cache add', 'spec', 'mypkg'],
-    ['silly', 'cache add', 'spec', 'anotherpkg'],
-  ], 'logs correctly')
-  t.equal(tarballStreamSpec, 'anotherpkg', 'passes the correct spec to pacote')
-  t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
+  const cache = path.join(npm.cache, '_cacache')
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({ name: pkg })
+  const manifest2 = registry.manifest({ name: pkg2 })
+  await registry.package({ manifest, tarballs: { '1.0.0': path.join(npm.prefix, 'package') } })
+  await registry.package({
+    manifest: manifest2, tarballs: { '1.0.0': path.join(npm.prefix, 'package') },
+  })
+  await npm.exec('cache', ['add', pkg, pkg2])
+  t.equal(joinedOutput(), '')
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package-two/-/test-package-two-1.0.0.tgz'))
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package-two'))
 })
 
 t.test('cache ls', async t => {
-  t.teardown(() => {
-    outputOutput = []
-    logOutput = []
-  })
-  setupCacacheFixture()
-  await cache.exec(['ls'])
-  t.strictSame(outputOutput, [
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy/staydown/-/@fritzy/staydown-3.1.1.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy%2fstaydown',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-2.1.0.tgz',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-3.0.0-beta.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar%2fnpm-expansion',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/ape-ecs',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/ape-ecs/-/ape-ecs-2.1.7.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted/-/corrupted-3.1.0.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/foo',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/foo/-/foo-1.2.3-beta.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist/-/missing-dist-23.0.0.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version/-/missing-version-16.2.0.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/npm',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/npm/-/npm-1.2.0.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.47.0.tgz',
-    'make-fetch-happen:request-cache:https://somerepo.github.org/aabbcc/14',
-    'make-fetch-happen:request-cache:https://somerepo.github.org/extemporaneously',
-  ])
+  const keys = [
+    'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package',
+    // eslint-disable-next-line max-len
+    'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz',
+  ]
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  for (const key of keys) {
+    await cacache.put(cache, key, 'test data')
+  }
+  await npm.exec('cache', ['ls'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entries')
 })
 
 t.test('cache ls pkgs', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'webpack@>4.44.1', 'npm'])
-  t.strictSame(outputOutput, [
+  const keys = [
     'make-fetch-happen:request-cache:https://registry.npmjs.org/npm',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/npm/-/npm-1.2.0.tgz',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.47.0.tgz',
-  ])
+    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.40.0.tgz',
+  ]
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  for (const key of keys) {
+    await cacache.put(cache, key, 'test data')
+  }
+  await cacache.put(cache,
+    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack',
+    JSON.stringify({ versions: {
+      '4.40.0': { dist: { tarball: 'https://registry.npmjs.org/webpack/-/webpack-4.40.0.tgz' } },
+      '4.47.0': { dist: { tarball: 'https://registry.npmjs.org/webpack/-/webpack-4.47.0.tgz' } },
+    } })
+  )
+  await npm.exec('cache', ['ls', 'webpack@>4.44.1', 'npm'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entries for npm and webpack and one webpack tgz')
 })
 
 t.test('cache ls special', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'foo@1.2.3-beta'])
-  t.strictSame(outputOutput, [
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  await cacache.put(cache,
     'make-fetch-happen:request-cache:https://registry.npmjs.org/foo',
+    JSON.stringify({ versions: { '1.2.3-beta': {} } })
+  )
+  await cacache.put(cache,
     'make-fetch-happen:request-cache:https://registry.npmjs.org/foo/-/foo-1.2.3-beta.tgz',
-  ])
+    'test-data'
+  )
+  await npm.exec('cache', ['ls', 'foo@1.2.3-beta'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entries for foo')
 })
 
 t.test('cache ls nonpublic registry', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'extemporaneously'])
-  t.strictSame(outputOutput, [
-    'make-fetch-happen:request-cache:https://somerepo.github.org/aabbcc/14',
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  await cacache.put(cache,
     'make-fetch-happen:request-cache:https://somerepo.github.org/extemporaneously',
-  ])
+    JSON.stringify({
+      versions: { '1.0.0': { dist: { tarball: 'https://somerepo.github.org/aabbcc/' } } },
+    })
+  )
+  await cacache.put(cache,
+    'make-fetch-happen:request-cache:https://somerepo.github.org/aabbcc/',
+    'test data'
+  )
+  await npm.exec('cache', ['ls', 'extemporaneously'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entry for extemporaneously and its tarball')
 })
 
 t.test('cache ls tagged', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    cache.exec(['ls', 'webpack@latest']),
-    'tagged package',
-    'should throw warning'
+    npm.exec('cache', ['ls', 'webpack@latest']),
+    { code: 'EUSAGE' },
+    'should throw usage error'
   )
 })
 
 t.test('cache ls scoped and scoped slash', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', '@fritzy/staydown', '@gar/npm-expansion'])
-  t.strictSame(outputOutput, [
-    /* eslint-disable-next-line max-len */
+  const keys = [
+    // eslint-disable-next-line max-len
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy/staydown/-/@fritzy/staydown-3.1.1.tgz',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy%2fstaydown',
-    /* eslint-disable-next-line max-len */
+    // eslint-disable-next-line max-len
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-2.1.0.tgz',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar%2fnpm-expansion',
-  ])
+  ]
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  for (const key of keys) {
+    await cacache.put(cache, key, 'test data')
+  }
+  await npm.exec('cache', ['ls', '@fritzy/staydown', '@gar/npm-expansion'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entries for @gar and @fritzy')
 })
 
 t.test('cache ls corrupted', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'corrupted'])
-  t.strictSame(outputOutput, [
+  const keys = [
     'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted/-/corrupted-3.1.0.tgz',
-  ])
-})
-
-t.test('cache ls missing packument dist', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'missing-dist'])
-  t.strictSame(outputOutput, [
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist/-/missing-dist-23.0.0.tgz',
-  ])
+  ]
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  for (const key of keys) {
+    await cacache.put(cache, key, Buffer.from('<>>>}"'))
+  }
+  await npm.exec('cache', ['ls', 'corrupted'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entries with bad data')
 })
 
 t.test('cache ls missing packument version not an object', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['ls', 'missing-version'])
-  t.strictSame(outputOutput, [
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  await cacache.put(cache,
     'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version',
-    /* eslint-disable-next-line max-len */
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version/-/missing-version-16.2.0.tgz',
-  ])
+    JSON.stringify({ versions: 'not an object' })
+  )
+  await npm.exec('cache', ['ls', 'missing-version'])
+  t.matchSnapshot(joinedOutput(), 'logs cache entry for packument')
 })
 
 t.test('cache rm', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
-  await cache.exec(['rm',
-    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz'])
-  t.strictSame(outputOutput, [
-    /* eslint-disable-next-line max-len */
-    'Deleted: make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz',
-  ])
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const cache = path.join(npm.cache, '_cacache')
+  // eslint-disable-next-line max-len
+  await cacache.put(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package', '{}')
+  // eslint-disable-next-line max-len
+  await cacache.put(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz', 'test data')
+  // eslint-disable-next-line max-len
+  await npm.exec('cache', ['rm', 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'])
+  t.matchSnapshot(joinedOutput(), 'logs deleting single entry')
+  // eslint-disable-next-line max-len
+  t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
+  // eslint-disable-next-line max-len
+  t.rejects(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
 })
 
 t.test('cache rm unfound', async t => {
-  t.teardown(() => {
-    outputOutput = []
-    logOutput = []
-  })
-  await cache.exec(['rm', 'made-up-key'])
-  t.strictSame(logOutput, [
-    ['warn', 'Not Found: made-up-key'],
-  ], 'logs correctly')
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  await npm.exec('cache', ['rm', 'made-up-key'])
+  t.same(joinedOutput(), '', 'no errors, no output')
 })
 
 t.test('cache verify', async t => {
-  t.teardown(() => {
-    outputOutput = []
-  })
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  await npm.exec('cache', ['verify'])
+  t.matchSnapshot(joinedOutput(), 'shows verified cache output')
+})
 
-  await cache.exec(['verify'])
-  t.match(outputOutput, [
-    `Cache verified and compressed (${path.join(npm.cache, '_cacache')})`,
-    'Content verified: 1 (100 bytes)',
-    'Index entries: 1',
-    'Finished in 2s',
-  ], 'prints correct output')
+t.test('cache verify as part of home', async t => {
+  const { npm, joinedOutput, prefix } = await loadMockNpm(t)
+  mockGlobals(t, { 'process.env.HOME': path.dirname(prefix) })
+  await npm.exec('cache', ['verify'])
+  t.match(joinedOutput(), 'Cache verified and compressed (~', 'contains ~ shorthand')
 })
 
 t.test('cache verify w/ extra output', async t => {
-  npm.cache = `${process.env.HOME}/fake/path`
-  cacacheVerifyStats.badContentCount = 1
-  cacacheVerifyStats.reclaimedCount = 2
-  cacacheVerifyStats.reclaimedSize = 200
-  cacacheVerifyStats.missingContent = 3
-  t.teardown(() => {
-    npm.cache = '/fake/path'
-    outputOutput = []
-    delete cacacheVerifyStats.badContentCount
-    delete cacacheVerifyStats.reclaimedCount
-    delete cacacheVerifyStats.reclaimedSize
-    delete cacacheVerifyStats.missingContent
+  const verify = {
+    runTime: {
+      markStartTime: 0,
+      fixPerms: 3,
+      garbageCollect: 54982,
+      rebuildIndex: 62779,
+      cleanTmp: 62781,
+      writeVerifile: 62783,
+      markEndTime: 62783,
+      total: 62783,
+    },
+    verifiedContent: 17057,
+    reclaimedCount: 1144,
+    reclaimedSize: 248164665,
+    badContentCount: 12345,
+    keptSize: 1644485260,
+    missingContent: 92,
+    rejectedEntries: 92,
+    totalEntries: 20175,
+  }
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    mocks: { cacache: { verify: () => verify } },
   })
-
-  await cache.exec(['check'])
-  t.match(outputOutput, [
-    `Cache verified and compressed (~${path.join('/fake/path', '_cacache')})`,
-    'Content verified: 1 (100 bytes)',
-    'Corrupted content removed: 1',
-    'Content garbage-collected: 2 (200 bytes)',
-    'Missing content: 3',
-    'Index entries: 1',
-    'Finished in 2s',
-  ], 'prints correct output')
+  await npm.exec('cache', ['verify'])
+  t.matchSnapshot(joinedOutput(), 'shows extra output')
 })
 
 t.test('cache completion', async t => {
+  const { npm } = await loadMockNpm(t)
+  const cache = await npm.cmd('cache')
   const { completion } = cache
 
   const testComp = (argv, expect) => {

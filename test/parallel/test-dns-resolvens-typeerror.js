@@ -49,7 +49,7 @@ assert.throws(
 assert.throws(
   () => dns.resolveNs(''), // bad callback
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   }
 );

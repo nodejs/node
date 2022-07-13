@@ -136,6 +136,8 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
+
+  'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -190,7 +192,19 @@
   # Apple silicon. See:
   # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
   'test-assembler-arm64/printf_no_preserve': [SKIP],
+
+  # https://crbug.com/v8/12588
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_interpreter': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_interpreter': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_interpreter': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_interpreter': [SKIP],
 }],  # arch == arm64 and system == macos and not simulator_run
+
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Fails on ODROID: https://crbug.com/v8/11634
+  'test-wasm-metrics/*': [SKIP],
+}],  # arch == arm and not simulator_run
 
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
@@ -280,12 +294,10 @@
 
 ##############################################################################
 ['byteorder == big', {
-  # Skip Wasm atomic tests on big-endian machines.
-  # There is no support to emulate atomic Wasm operations on big-endian
-  # platforms, since this would require bit swapping as a part of atomic
-  # operations.
-  'test-run-wasm-atomics/*': [SKIP],
-  'test-run-wasm-atomics64/*': [SKIP],
+  # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
+  'test-api/WasmI32AtomicWaitCallback': [SKIP],
+  'test-api/WasmI64AtomicWaitCallback': [SKIP],
+  # Peephole optimization not supported on big-endian machines.
   'test-regexp/Peephole*': [SKIP],
 }],  # 'byteorder == big'
 
@@ -334,12 +346,6 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == arm'
-
-##############################################################################
-['arch == arm and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
-}],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
@@ -406,12 +412,6 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mips or arch == mips64', {
-  # TODO(mips-team): Implement I64Atomic operations on MIPS
-  'test-run-wasm-atomics64/*': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
-
-##############################################################################
 ['mips_arch_variant == r6', {
   # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
   # will cause failures on several tests that expect exact floating-point
@@ -428,11 +428,6 @@
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
   # SIMD not fully implemented yet.
-  'test-run-wasm-relaxed-simd/*': [SKIP],
-  'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
-  'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-simd/*':[SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
@@ -516,11 +511,6 @@
 
   'test-wasm-breakpoints/*' : [SKIP],
 
-  # SIMD / Liftoff not fully implemented yet
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
-
   # TODO(11856): Port nondeterminism detection.
   'test-liftoff-for-fuzzing/*': [SKIP],
 
@@ -529,20 +519,12 @@
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
-  # Liftoff is not currently supported on ppc
-  'test-liftoff-*': [SKIP],
-  'test-gc/RunWasmLiftoff*': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
-  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
-}],
 
-##############################################################################
-['arch == ppc64 and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
-}],  # 'arch == ppc64 and not simulator_run'
+  # SIMD / Liftoff not fully implemented yet
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
+}],
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -598,6 +580,7 @@
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api/WasmSetJitCodeEventHandler': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
+  'test-api-wasm/WasmCompileToWasmModuleObject': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
@@ -740,19 +723,6 @@
   # Too slow on arm64 simulator on Mac.
   'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
-
-##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier', {
-  # Require inlining.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  # Turboprop doesn't use call feedback and hence doesn't inline even if
-  # the inlining flag is explicitly set.
-  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
-  'test-js-to-wasm/*': [SKIP],
-}],  # variant == turboprop or variant == turboprop_as_toptier
 
 ##############################################################################
 ['no_i18n == True', {
@@ -1062,22 +1032,15 @@
   'test-debug/TerminateOnResumeFromOtherThread': [SKIP],
   'test-debug/TerminateOnResumeRunJavaScriptAtBreakpoint': [SKIP],
   'test-debug/TerminateOnResumeRunMicrotaskAtBreakpoint': [SKIP],
+  'test-embedder-tracing/BasicTracedReference': [SKIP],
   'test-embedder-tracing/GarbageCollectionForTesting': [SKIP],
   'test-embedder-tracing/NotifyEmptyStack': [SKIP],
-  'test-embedder-tracing/TracedGlobalCopy': [SKIP],
-  'test-embedder-tracing/TracedGlobalCopyNoDestructor': [SKIP],
-  'test-embedder-tracing/TracedGlobalCopyWithDestructor': [SKIP],
-  'test-embedder-tracing/TracedGlobalDestructor': [SKIP],
-  'test-embedder-tracing/TracedGlobalInStdUnorderedMap': [SKIP],
-  'test-embedder-tracing/TracedGlobalInStdVector': [SKIP],
-  'test-embedder-tracing/TracedGlobalMove': [SKIP],
-  'test-embedder-tracing/TracedGlobalNoDestructor': [SKIP],
-  'test-embedder-tracing/TracedGlobalSetFinalizationCallbackMarkSweep': [SKIP],
-  'test-embedder-tracing/TracedGlobalToUnmodifiedJSObjectDiesOnMarkSweep': [SKIP],
+  'test-embedder-tracing/TracedReferenceCopyReferences': [SKIP],
   'test-embedder-tracing/TracedReferenceCopy': [SKIP],
   'test-embedder-tracing/TracedReferenceHandlesDoNotLeak': [SKIP],
   'test-embedder-tracing/TracedReferenceHandlesMarking': [SKIP],
   'test-embedder-tracing/TracedReferenceMove': [SKIP],
+  'test-embedder-tracing/TracedReferenceToUnmodifiedJSObjectDiesOnMarkSweep': [SKIP],
   'test-embedder-tracing/TracingInEphemerons': [SKIP],
   'test-embedder-tracing/TracingInRevivedSubgraph': [SKIP],
   'test-embedder-tracing/V8RegisteringEmbedderReference': [SKIP],
@@ -1251,4 +1214,18 @@
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
+
+##############################################################################
+['variant == assert_types', {
+  # Type assertions add strong pointers, breaking these test.
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
+  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
+  'test-heap/LeakNativeContextViaMapKeyed': [SKIP],
+  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
+  # Type assertions only work without concurrent compilation, but this test
+  # always triggers a concurrent compilation.
+  'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
+}],  # variant == assert_types
+
 ]

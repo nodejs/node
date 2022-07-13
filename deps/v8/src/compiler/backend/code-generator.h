@@ -165,8 +165,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
   SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
-  size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
-  size_t GetHandlerTableOffset() const { return handler_table_offset_; }
+  size_t handler_table_offset() const { return handler_table_offset_; }
 
   const ZoneVector<int>& block_starts() const { return block_starts_; }
   const ZoneVector<TurbolizerInstructionStartInfo>& instr_starts() const {
@@ -237,15 +236,13 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   CodeGenResult AssembleDeoptimizerCall(DeoptimizationExit* exit);
 
-  void AssembleDeoptImmediateArgs(
-      const ZoneVector<ImmediateOperand*>* immediate_args, Label* deopt_exit);
-
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
+  void AssembleArchJumpRegardlessOfAssemblyOrder(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
 
   // Generates special branch for deoptimization condition.
@@ -424,7 +421,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<HandlerInfo> handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
-  int eager_soft_and_bailout_deopt_count_ = 0;
+  int eager_deopt_count_ = 0;
   int lazy_deopt_count_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
@@ -440,7 +437,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // per Code object. All deopt exits can then near-call to this label. Note:
   // not used on all architectures.
   Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
-  Label jump_deoptimization_or_resume_entry_labels_[kDeoptimizeReasonCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and
   // the maximal number of pushed arguments for function calls. Applied as an

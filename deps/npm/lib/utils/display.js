@@ -35,6 +35,7 @@ class Display {
       loglevel,
       unicode,
       progress,
+      silent,
       heading = 'npm',
     } = config
 
@@ -59,8 +60,7 @@ class Display {
       log.disableUnicode()
     }
 
-    // if it's more than error, don't show progress
-    const silent = log.levels[log.level] > log.levels.error
+    // if it's silent, don't show progress
     if (progress && !silent) {
       log.enableProgress()
     } else {

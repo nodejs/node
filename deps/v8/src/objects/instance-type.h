@@ -16,9 +16,9 @@ namespace v8 {
 namespace internal {
 
 // We use the full 16 bits of the instance_type field to encode heap object
-// instance types. All the high-order bits (bits 6-15) are cleared if the object
+// instance types. All the high-order bits (bits 7-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
-const uint32_t kIsNotStringMask = ~((1 << 6) - 1);
+const uint32_t kIsNotStringMask = ~((1 << 7) - 1);
 const uint32_t kStringTag = 0x0;
 
 // For strings, bits 0-2 indicate the representation of the string. In
@@ -46,6 +46,16 @@ const uint32_t kStringEncodingMask = 1 << 3;
 const uint32_t kTwoByteStringTag = 0;
 const uint32_t kOneByteStringTag = 1 << 3;
 
+// Combined tags for convenience (add more if needed).
+constexpr uint32_t kStringRepresentationAndEncodingMask =
+    kStringRepresentationMask | kStringEncodingMask;
+constexpr uint32_t kSeqOneByteStringTag = kSeqStringTag | kOneByteStringTag;
+constexpr uint32_t kSeqTwoByteStringTag = kSeqStringTag | kTwoByteStringTag;
+constexpr uint32_t kExternalOneByteStringTag =
+    kExternalStringTag | kOneByteStringTag;
+constexpr uint32_t kExternalTwoByteStringTag =
+    kExternalStringTag | kTwoByteStringTag;
+
 // For strings, bit 4 indicates whether the data pointer of an external string
 // is cached. Note that the string representation is expected to be
 // kExternalStringTag.
@@ -57,6 +67,26 @@ const uint32_t kUncachedExternalStringTag = 1 << 4;
 const uint32_t kIsNotInternalizedMask = 1 << 5;
 const uint32_t kNotInternalizedTag = 1 << 5;
 const uint32_t kInternalizedTag = 0;
+
+// For strings, bit 6 indicates that the string is accessible by more than one
+// thread. Note that a string that is allocated in the shared heap is not
+// accessible by more than one thread until it is explicitly shared (e.g. by
+// postMessage).
+//
+// Runtime code that shares strings with other threads directly need to manually
+// set this bit.
+//
+// TODO(v8:12007): External strings cannot be shared yet.
+//
+// TODO(v8:12007): This bit is currently ignored on internalized strings, which
+// are either always shared or always not shared depending on
+// FLAG_shared_string_table. This will be hardcoded once
+// FLAG_shared_string_table is removed.
+const uint32_t kSharedStringMask = 1 << 6;
+const uint32_t kSharedStringTag = 1 << 6;
+
+constexpr uint32_t kStringRepresentationEncodingAndSharedMask =
+    kStringRepresentationAndEncodingMask | kSharedStringMask;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -109,6 +139,11 @@ enum InstanceType : uint16_t {
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
+  SHARED_STRING_TYPE = STRING_TYPE | kSharedStringTag,
+  SHARED_ONE_BYTE_STRING_TYPE = ONE_BYTE_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_STRING_TYPE = THIN_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_ONE_BYTE_STRING_TYPE =
+      THIN_ONE_BYTE_STRING_TYPE | kSharedStringTag,
 
 // Most instance types are defined in Torque, with the exception of the string
 // types above. They are ordered by inheritance hierarchy so that we can easily
@@ -231,6 +266,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
+  V(FreeSpaceOrFiller)                   \
   V(ExternalString)                      \
   V(InternalizedString)
 
@@ -241,7 +277,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 namespace InstanceTypeChecker {
 #define IS_TYPE_FUNCTION_DECL(Type, ...) \
-  V8_INLINE bool Is##Type(InstanceType instance_type);
+  V8_INLINE constexpr bool Is##Type(InstanceType instance_type);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 
@@ -254,8 +290,11 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
 }  // namespace InstanceTypeChecker
 
 // This list must contain only maps that are shared by all objects of their
-// instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                          \
+// instance type AND respective object must not represent a parent class for
+// multiple instance types (e.g. DescriptorArray has a unique map, but it has
+// a subclass StrongDescriptorArray which is included into the "DescriptorArray"
+// range of instance types).
+#define UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                     \
   V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                       \
   V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                       \
   V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)        \
@@ -263,6 +302,7 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
     ArrayBoilerplateDescription)                                               \
   V(_, BreakPointMap, break_point_map, BreakPoint)                             \
   V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)                \
+  V(_, BytecodeArrayMap, bytecode_array_map, BytecodeArray)                    \
   V(_, CachedTemplateObjectMap, cached_template_object_map,                    \
     CachedTemplateObject)                                                      \
   V(_, CellMap, cell_map, Cell)                                                \
@@ -271,14 +311,15 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, CodeDataContainerMap, code_data_container_map, CodeDataContainer)       \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
+  V(_, FreeSpaceMap, free_space_map, FreeSpace)                                \
   V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)                 \
   V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)          \
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
   V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
   V(_, MetaMap, meta_map, Map)                                                 \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
+  V(_, PropertyArrayMap, property_array_map, PropertyArray)                    \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \
   V(_, SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfo)    \
   V(_, SmallOrderedHashSetMap, small_ordered_hash_set_map,                     \
@@ -290,8 +331,14 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, SwissNameDictionaryMap, swiss_name_dictionary_map, SwissNameDictionary) \
   V(_, SymbolMap, symbol_map, Symbol)                                          \
   V(_, TransitionArrayMap, transition_array_map, TransitionArray)              \
-  V(_, Tuple2Map, tuple2_map, Tuple2)                                          \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)                \
+  V(_, Tuple2Map, tuple2_map, Tuple2)
+
+// This list must contain only maps that are shared by all objects of their
+// instance type.
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)           \
+  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)            \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)              \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray) \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal

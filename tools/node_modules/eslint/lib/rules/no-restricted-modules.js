@@ -49,7 +49,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified modules when loaded by `require`",
+            description: "Disallow specified modules when loaded by `require`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-modules"
         },
@@ -103,7 +103,8 @@ module.exports = {
             return {};
         }
 
-        const ig = ignore().add(restrictedPatterns);
+        // relative paths are supported for this rule
+        const ig = ignore({ allowRelativePaths: true }).add(restrictedPatterns);
 
 
         /**

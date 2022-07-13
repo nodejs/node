@@ -133,20 +133,17 @@ def files(action):
   output_file = 'node'
   output_prefix = 'out/Release/'
 
-  if 'false' == variables.get('node_shared'):
+  if is_windows:
+    output_file += '.exe'
+  action([output_prefix + output_file], 'bin/' + output_file)
+
+  if 'true' == variables.get('node_shared'):
     if is_windows:
-      output_file += '.exe'
-  else:
-    if is_windows:
-      output_file += '.dll'
+      action([output_prefix + 'libnode.dll'], 'bin/libnode.dll')
+      action([output_prefix + 'libnode.lib'], 'lib/libnode.lib')
     else:
-      output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
-
-  if 'false' == variables.get('node_shared'):
-    action([output_prefix + output_file], 'bin/' + output_file)
-  else:
-    action([output_prefix + output_file], 'lib/' + output_file)
-
+      output_lib = 'libnode.' + variables.get('shlib_suffix')
+      action([output_prefix + output_lib], 'lib/' + output_lib)
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
 
@@ -185,6 +182,7 @@ def headers(action):
       'deps/v8/include/v8-date.h',
       'deps/v8/include/v8-debug.h',
       'deps/v8/include/v8-embedder-heap.h',
+      'deps/v8/include/v8-embedder-state-scope.h',
       'deps/v8/include/v8-exception.h',
       'deps/v8/include/v8-extension.h',
       'deps/v8/include/v8-external.h',
@@ -228,6 +226,12 @@ def headers(action):
     files_arg = [name for name in files_arg if name in v8_headers]
     action(files_arg, dest)
 
+  def wanted_zoslib_headers(files_arg, dest):
+    import glob
+    zoslib_headers = glob.glob(zoslibinc + '/*.h')
+    files_arg = [name for name in files_arg if name in zoslib_headers]
+    action(files_arg, dest)
+
   action([
     'common.gypi',
     'config.gypi',
@@ -261,6 +265,14 @@ def headers(action):
       'deps/zlib/zconf.h',
       'deps/zlib/zlib.h',
     ], 'include/node/')
+
+  if sys.platform == 'zos':
+    zoslibinc = os.environ.get('ZOSLIB_INCLUDES')
+    if not zoslibinc:
+      raise RuntimeError('Environment variable ZOSLIB_INCLUDES is not set\n')
+    if not os.path.isfile(zoslibinc + '/zos-base.h'):
+      raise RuntimeError('ZOSLIB_INCLUDES is not set to a valid location\n')
+    subdir_files(zoslibinc, 'include/node/zoslib/', wanted_zoslib_headers)
 
 def run(args):
   global node_prefix, install_path, target_defaults, variables

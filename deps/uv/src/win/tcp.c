@@ -1044,7 +1044,6 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->flags &= ~UV_HANDLE_READING;
           DECREASE_ACTIVE_COUNT(loop, handle);
         }
-        handle->flags &= ~UV_HANDLE_READABLE;
 
         buf.base = 0;
         buf.len = 0;
@@ -1081,7 +1080,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           }
         } else {
           /* Connection closed */
-          handle->flags &= ~(UV_HANDLE_READING | UV_HANDLE_READABLE);
+          handle->flags &= ~UV_HANDLE_READING;
           DECREASE_ACTIVE_COUNT(loop, handle);
 
           handle->read_cb((uv_stream_t*)handle, UV_EOF, &buf);
@@ -1651,7 +1650,7 @@ int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int f
     err = WSAGetLastError();
     if (err == ERROR_IO_PENDING) {
       /* Result should complete immediately, since we already called connect,
-       * but emperically, we sometimes have to poll the kernel a couple times
+       * but empirically, we sometimes have to poll the kernel a couple times
        * until it notices that. */
       while (!WSAGetOverlappedResult(client1, &overlap, &bytes, FALSE, &flags)) {
         err = WSAGetLastError();

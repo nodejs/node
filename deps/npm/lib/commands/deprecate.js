@@ -9,11 +9,13 @@ const BaseCommand = require('../base-command.js')
 class Deprecate extends BaseCommand {
   static description = 'Deprecate a version of a package'
   static name = 'deprecate'
-  static usage = ['<pkg>[@<version>] <message>']
+  static usage = ['<package-spec> <message>']
   static params = [
     'registry',
     'otp',
   ]
+
+  static ignoreImplicitWorkspace = false
 
   async completion (opts) {
     if (opts.conf.argv.remain.length > 1) {
@@ -24,7 +26,7 @@ class Deprecate extends BaseCommand {
     const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
     return Object.keys(packages)
       .filter((name) =>
-        packages[name] === 'write' &&
+        packages[name] === 'read-write' &&
         (opts.conf.argv.remain.length === 0 ||
           name.startsWith(opts.conf.argv.remain[0])))
   }

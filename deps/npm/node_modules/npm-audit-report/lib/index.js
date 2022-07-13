@@ -4,7 +4,7 @@ const reporters = {
   install: require('./reporters/install'),
   detail: require('./reporters/detail'),
   json: require('./reporters/json'),
-  quiet: require('./reporters/quiet')
+  quiet: require('./reporters/quiet'),
 }
 
 const exitCode = require('./exit-code.js')
@@ -20,20 +20,22 @@ module.exports = Object.assign((data, options = {}) => {
   // CLI defaults this to `null` so the defaulting method above doesn't work
   const auditLevel = options.auditLevel || 'low'
 
-  if (!data)
+  if (!data) {
     throw Object.assign(
       new TypeError('ENOAUDITDATA'),
       {
         code: 'ENOAUDITDATA',
-        message: 'missing audit data'
+        message: 'missing audit data',
       }
     )
+  }
 
-  if (typeof data.toJSON === 'function')
+  if (typeof data.toJSON === 'function') {
     data = data.toJSON()
+  }
 
   return {
     report: reporters[reporter](data, { color, unicode, indent }),
-    exitCode: exitCode(data, auditLevel)
+    exitCode: exitCode(data, auditLevel),
   }
 }, { reporters })

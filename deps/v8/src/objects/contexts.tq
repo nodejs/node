@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 @abstract
-@export
-@customCppClass
 // We normally don't generate a BodyDescriptor for an abstact class, but here we
 // do since all context classes share the same BodyDescriptor.
 @generateBodyDescriptor
-class Context extends HeapObject {
+extern class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }
@@ -159,6 +157,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
 
   BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
   BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
+
+  WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
 
   MIN_CONTEXT_SLOTS,
   ...

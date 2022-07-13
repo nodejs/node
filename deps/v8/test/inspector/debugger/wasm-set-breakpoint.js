@@ -58,7 +58,8 @@ Protocol.Debugger.onPaused(async msg => {
     var lineNumber = frame.location.lineNumber;
     var columnNumber = frame.location.columnNumber;
     InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
-    if (!/^wasm/.test(frame.url)) {
+    var url = session.getCallFrameUrl(frame);
+    if (!/^wasm/.test(url)) {
       InspectorTest.log('   -- skipped');
       continue;
     }
@@ -73,10 +74,10 @@ Protocol.Debugger.onPaused(async msg => {
   if (first_iteration && loc.columnNumber == func_a.body_offset) {
     // Check that setting breakpoints on active instances of A and B takes
     // effect immediately.
-    setBreakpoint(func_a.body_offset + 1, loc.scriptId, frame.url);
+    setBreakpoint(func_a.body_offset + 1, loc.scriptId, url);
     // All of the following breakpoints are in reachable code, except offset 17.
     for (offset of [18, 17, 11, 10, 8, 6, 2, 4]) {
-      setBreakpoint(func_b.body_offset + offset, loc.scriptId, frame.url);
+      setBreakpoint(func_b.body_offset + offset, loc.scriptId, url);
     }
     first_iteration = false;
   }

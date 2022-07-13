@@ -19,8 +19,12 @@ class Hook extends BaseCommand {
     'update <id> <url> <secret>',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async exec (args) {
-    return otplease(this.npm.flatOptions, (opts) => {
+    return otplease({
+      ...this.npm.flatOptions,
+    }, (opts) => {
       switch (args[0]) {
         case 'add':
           return this.add(args[1], args[2], args[3], opts)
@@ -44,7 +48,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
@@ -62,7 +66,7 @@ class Hook extends BaseCommand {
       })
     } else if (!hooks.length) {
       this.npm.output("You don't have any hooks configured yet.")
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       if (hooks.length === 1) {
         this.npm.output('You have one hook configured.')
       } else {
@@ -99,7 +103,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`- ${this.hookName(hook)} ${
         opts.unicode ? ' ✘ ' : ' X '
       } ${hook.endpoint}`)
@@ -113,7 +117,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)

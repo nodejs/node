@@ -136,23 +136,8 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier', {
-  # Deopts differently than TurboFan.
-  'debug/debug-optimize': [SKIP],
-  'debug/debug-compile-optimized': [SKIP],
-}],  # variant == turboprop or variant == turboprop_as_toptier
-
-##############################################################################
-# Liftoff needs to be enabled before running these tests.
-['arch in (s390, s390x, ppc, ppc64)', {
-  'regress/regress-crbug-1032042': [SKIP],
-  'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/*': [SKIP],
-}],
-
-##############################################################################
 # Tests requiring Sparkplug.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, loong64)', {
   'regress/regress-crbug-1199681': [SKIP],
 }],
 

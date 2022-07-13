@@ -1,4 +1,3 @@
-// Flags: --experimental-json-modules
 'use strict';
 const common = require('../common');
 const { strictEqual } = require('assert');

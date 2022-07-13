@@ -219,9 +219,11 @@
 
   ##################### FLAKY TESTS #####################
 
+  # BUG(v8:12558): These tests time out on Windows and also in debug mode.
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', SKIP]],
+  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', SKIP]],
+
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
   'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
@@ -252,8 +254,8 @@
   'ecma/Date/15.9.5.29-1': [PASS, FAIL],
   'ecma/Date/15.9.5.28-1': [PASS, FAIL],
 
-  # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
-  'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
+  # v8:12655: Test keeps flaking, probably related to time issues
+  'ecma/Array/15.4.4.5-3': [SKIP],
 
   # These 4 tests made an incorrect assumption that the timezone offset of any
   # given timezone has not changed over time. With icu-timezone-data enabled

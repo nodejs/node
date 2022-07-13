@@ -19,7 +19,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
@@ -210,8 +210,8 @@ void SamplerManager::AddSampler(Sampler* sampler) {
     sampler_map_.emplace(thread_id, std::move(samplers));
   } else {
     SamplerList& samplers = it->second;
-    auto it = std::find(samplers.begin(), samplers.end(), sampler);
-    if (it == samplers.end()) samplers.push_back(sampler);
+    auto sampler_it = std::find(samplers.begin(), samplers.end(), sampler);
+    if (sampler_it == samplers.end()) samplers.push_back(sampler);
   }
 }
 
@@ -467,7 +467,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #error Unexpected iOS target architecture.
 #endif  // V8_TARGET_ARCH_ARM64
 
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
 #if V8_HOST_ARCH_X64
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__rsp);

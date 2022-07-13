@@ -1,764 +1,691 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm.js')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const MockRegistry = require('../../fixtures/mock-registry.js')
 
-let result = ''
-let readPackageNamePrefix = null
-let readPackageNameResponse = null
+const path = require('path')
+const npa = require('npm-package-arg')
+const packageName = '@npmcli/test-package'
+const spec = npa(packageName)
+const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
 
-const noop = () => null
-
-const npm = mockNpm({
-  output: (msg) => {
-    result = result ? `${result}\n${msg}` : msg
-  },
-})
-
-const npmFetch = { json: noop }
-const log = { error: noop, info: noop, verbose: noop }
-const pacote = { packument: noop }
-
-const mocks = {
-  'proc-log': log,
-  'npm-registry-fetch': npmFetch,
-  pacote,
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
-  '../../../lib/utils/read-package-name.js': async (prefix) => {
-    readPackageNamePrefix = prefix
-    return readPackageNameResponse
-  },
-  '../../../lib/utils/usage.js': () => 'usage instructions',
-}
-
-const npmcliMaintainers = [
-  { email: 'quitlahok@gmail.com', name: 'nlf' },
-  { email: 'ruyadorno@hotmail.com', name: 'ruyadorno' },
-  { email: 'darcy@darcyclarke.me', name: 'darcyclarke' },
-  { email: 'i@izs.me', name: 'isaacs' },
+const maintainers = [
+  { email: 'test-user-a@npmjs.org', name: 'test-user-a' },
+  { email: 'test-user-b@npmjs.org', name: 'test-user-b' },
 ]
 
-const Owner = t.mock('../../../lib/commands/owner.js', mocks)
-const owner = new Owner(npm)
+const workspaceFixture = {
+  'package.json': JSON.stringify({
+    name: packageName,
+    version: '1.2.3-test',
+    workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+  }),
+  'workspace-a': {
+    'package.json': JSON.stringify({
+      name: 'workspace-a',
+      version: '1.2.3-a',
+    }),
+  },
+  'workspace-b': {
+    'package.json': JSON.stringify({
+      name: 'workspace-b',
+      version: '1.2.3-n',
+    }),
+  },
+  'workspace-c': JSON.stringify({
+    'package.json': {
+      name: 'workspace-n',
+      version: '1.2.3-n',
+    },
+  }),
+}
+
+function registryPackage (t, registry, name) {
+  const mockRegistry = new MockRegistry({ tap: t, registry })
+
+  const manifest = mockRegistry.manifest({
+    name,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  return mockRegistry.package({ manifest })
+}
 
 t.test('owner no args', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-  })
-
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    owner.exec([]),
-    owner.usage)
+    npm.exec('owner', []),
+    { code: 'EUSAGE' },
+    'rejects with usage'
+  )
 })
 
 t.test('owner ls no args', async t => {
-  t.plan(4)
-
-  result = ''
-
-  readPackageNameResponse = '@npmcli/map-workspaces'
-  pacote.packument = async (spec, opts) => {
-    t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
-    t.match(
-      opts,
-      {
-        ...npm.flatOptions,
-        fullMetadata: true,
-      },
-      'should forward expected options to pacote.packument'
-    )
-    return { maintainers: npmcliMaintainers }
-  }
-  t.teardown(() => {
-    npm.prefix = null
-    result = ''
-    pacote.packument = noop
-    readPackageNameResponse = null
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: packageName }),
+    },
   })
-  npm.prefix = 'test-npm-prefix'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
 
-  await owner.exec(['ls'])
-  t.matchSnapshot(result, 'should output owners of cwd package')
-  t.equal(readPackageNamePrefix, 'test-npm-prefix', 'read-package-name gets npm.prefix')
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  await registry.package({ manifest })
+
+  await npm.exec('owner', ['ls'])
+  t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+})
+
+t.test('local package.json has no name', async t => {
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ hello: 'world' }),
+    },
+  })
+  await t.rejects(
+    npm.exec('owner', ['ls']),
+    { code: 'EUSAGE' }
+  )
 })
 
 t.test('owner ls global', async t => {
-  t.teardown(() => {
-    npm.config.set('global', false)
+  const { npm } = await loadMockNpm(t, {
+    config: { global: true },
   })
-  npm.config.set('global', true)
 
   await t.rejects(
-    owner.exec(['ls']),
-    owner.usage
+    npm.exec('owner', ['ls']),
+    { code: 'EUSAGE' },
+    'rejects with usage'
   )
 })
 
 t.test('owner ls no args no cwd package', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-    log.error = noop
-  })
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    owner.exec(['ls']),
-    owner.usage
+    npm.exec('owner', ['ls'])
   )
 })
 
 t.test('owner ls fails to retrieve packument', async t => {
-  t.plan(4)
-
-  result = ''
-  readPackageNameResponse = '@npmcli/map-workspaces'
-  pacote.packument = () => {
-    throw new Error('ERR')
-  }
-  log.error = (title, msg, pkgName) => {
-    t.equal(title, 'owner ls', 'should list npm owner ls title')
-    t.equal(msg, "Couldn't get owner data", 'should use expected msg')
-    t.equal(pkgName, '@npmcli/map-workspaces', 'should use pkg name')
-  }
-  t.teardown(() => {
-    result = ''
-    log.error = noop
-    pacote.packument = noop
+  const { npm, logs } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: packageName }),
+    },
   })
-
-  await t.rejects(
-    owner.exec(['ls']),
-    /ERR/,
-    'should throw unknown error'
-  )
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  registry.nock.get(`/${spec.escapedName}`).reply(404)
+  await t.rejects(npm.exec('owner', ['ls']))
+  t.match(logs.error, [['owner ls', "Couldn't get owner data", '@npmcli/test-package']])
 })
 
 t.test('owner ls <pkg>', async t => {
-  t.plan(3)
-
-  result = ''
-  pacote.packument = async (spec, opts) => {
-    t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
-    t.match(
-      opts,
-      {
-        ...npm.flatOptions,
-        fullMetadata: true,
-      },
-      'should forward expected options to pacote.packument'
-    )
-    return { maintainers: npmcliMaintainers }
-  }
-  t.teardown(() => {
-    result = ''
-    pacote.packument = noop
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
 
-  await owner.exec(['ls', '@npmcli/map-workspaces'])
-  t.matchSnapshot(result, 'should output owners of <pkg>')
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  await registry.package({ manifest })
+
+  await npm.exec('owner', ['ls', packageName])
+  t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
 })
 
 t.test('owner ls <pkg> no maintainers', async t => {
-  result = ''
-  pacote.packument = async (spec, opts) => {
-    return { maintainers: [] }
-  }
-  t.teardown(() => {
-    result = ''
-    pacote.packument = noop
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
+  const manifest = registry.manifest({
+    name: packageName,
+    versions: ['1.0.0'],
+  })
+  await registry.package({ manifest })
 
-  await owner.exec(['ls', '@npmcli/map-workspaces'])
-  t.equal(result, 'no admin found', 'should output no admint found msg')
+  await npm.exec('owner', ['ls', packageName])
+  t.equal(joinedOutput(), 'no admin found')
 })
 
 t.test('owner add <user> <pkg>', async t => {
-  t.plan(8)
-
-  result = ''
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      t.ok('should request user info')
-      t.match(opts, { ...npm.flatOptions }, 'should use expected opts')
-      return {
-        _id: 'org.couchdb.user:foo',
-        email: 'foo@github.com',
-        name: 'foo',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      t.ok('should put changed owner')
-      t.match(opts, {
-        ...npm.flatOptions,
-        method: 'PUT',
-        body: {
-          _rev: '1-foobaaa1',
-          maintainers: npmcliMaintainers,
-        },
-        otp: '123456',
-        spec: {
-          name: '@npmcli/map-workspaces',
-        },
-      }, 'should use expected opts')
-      t.same(
-        opts.body.maintainers,
-        [
-          ...npmcliMaintainers,
-          {
-            name: 'foo',
-            email: 'foo@github.com',
-          },
-        ],
-        'should contain expected new owners, adding requested user'
-      )
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => {
-    t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
-    t.match(
-      opts,
-      {
-        ...npm.flatOptions,
-        fullMetadata: true,
-      },
-      'should forward expected options to pacote.packument'
-    )
-    return {
-      _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers,
-    }
-  }
-  t.teardown(() => {
-    result = ''
-    npmFetch.json = noop
-    pacote.packument = noop
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-
-  await owner.exec(['add', 'foo', '@npmcli/map-workspaces'])
-  t.equal(result, '+ foo (@npmcli/map-workspaces)', 'should output add result')
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: [
+        ...manifest.maintainers,
+        { name: username, email: '' },
+      ],
+    })
+    return true
+  }).reply(200, {})
+  await npm.exec('owner', ['add', username, packageName])
+  t.equal(joinedOutput(), `+ ${username} (${packageName})`)
 })
 
 t.test('owner add <user> cwd package', async t => {
-  result = ''
-  readPackageNameResponse = '@npmcli/map-workspaces'
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      return {
-        _id: 'org.couchdb.user:foo',
-        email: 'foo@github.com',
-        name: 'foo',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers,
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: packageName }),
+    },
+    config: { ...auth },
   })
-  t.teardown(() => {
-    result = ''
-    readPackageNameResponse = null
-    npmFetch.json = noop
-    pacote.packument = noop
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-
-  await owner.exec(['add', 'foo'])
-  t.equal(result, '+ foo (@npmcli/map-workspaces)', 'should output add result')
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: [
+        ...manifest.maintainers,
+        { name: username, email: '' },
+      ],
+    })
+    return true
+  }).reply(200, {})
+  await npm.exec('owner', ['add', username])
+  t.equal(joinedOutput(), `+ ${username} (${packageName})`)
 })
 
 t.test('owner add <user> <pkg> already an owner', async t => {
-  t.plan(2)
-
-  result = ''
-  log.info = (title, msg) => {
-    t.equal(title, 'owner add', 'should use expected title')
-    t.equal(
-      msg,
-      'Already a package owner: ruyadorno <ruyadorno@hotmail.com>',
-      'should log already package owner info message'
-    )
-  }
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:ruyadorno') {
-      return {
-        _id: 'org.couchdb.user:ruyadorno',
-        email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno',
-      }
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => {
-    return {
-      _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers,
-    }
-  }
-  t.teardown(() => {
-    result = ''
-    log.info = noop
-    npmFetch.json = noop
-    pacote.packument = noop
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-
-  await owner.exec(['add', 'ruyadorno', '@npmcli/map-workspaces'])
+  const username = maintainers[0].name
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  await npm.exec('owner', ['add', username, packageName])
+  t.equal(joinedOutput(), '')
+  t.match(
+    logs.info,
+    [['owner add', 'Already a package owner: test-user-a <test-user-a@npmjs.org>']]
+  )
 })
 
 t.test('owner add <user> <pkg> fails to retrieve user', async t => {
-  result = ''
-  readPackageNameResponse =
-  npmFetch.json = async (uri, opts) => {
-    // retrieve borked user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      return { ok: false }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers,
+  const { npm, logs } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-  t.teardown(() => {
-    result = ''
-    readPackageNameResponse = null
-    npmFetch.json = noop
-    pacote.packument = noop
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-
-  await t.rejects(
-    owner.exec(['add', 'foo', '@npmcli/map-workspaces']),
-    { code: 'EOWNERUSER', message: /Couldn't get user data for foo: {"ok":false}/ },
-    'should throw user data error'
-  )
+  registry.couchuser({ username, responseCode: 404, body: {} })
+  await t.rejects(npm.exec('owner', ['add', username, packageName]))
+  t.match(logs.error, [['owner mutate', `Error getting user data for ${username}`]])
 })
 
 t.test('owner add <user> <pkg> fails to PUT updates', async t => {
-  result = ''
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      return {
-        _id: 'org.couchdb.user:foo',
-        email: 'foo@github.com',
-        name: 'foo',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      return {
-        error: {
-          status: '418',
-          message: "I'm a teapot",
-        },
-      }
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers,
+  const { npm } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-  t.teardown(() => {
-    result = ''
-    npmFetch.json = noop
-    pacote.packument = noop
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`).reply(404, {})
   await t.rejects(
-    owner.exec(['add', 'foo', '@npmcli/map-workspaces']),
-    { code: 'EOWNERMUTATE', message: /Failed to update package/ },
-    'should throw failed to update package error'
-  )
-})
-
-t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
-  t.plan(3)
-
-  result = ''
-  log.error = (title, msg) => {
-    t.equal(title, 'owner mutate', 'should use expected title')
-    t.equal(msg, 'Error getting user data for foo')
-  }
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      throw Object.assign(
-        new Error("I'm a teapot"),
-        { status: 418 }
-      )
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers,
-  })
-  t.teardown(() => {
-    result = ''
-    log.error = noop
-    npmFetch.json = noop
-    pacote.packument = noop
-  })
-
-  await t.rejects(
-    owner.exec(['add', 'foo', '@npmcli/map-workspaces']),
-    "I'm a teapot",
-    'should throw server error response'
+    npm.exec('owner', ['add', username, packageName]),
+    { code: 'EOWNERMUTATE' }
   )
 })
 
 t.test('owner add <user> <pkg> no previous maintainers property from server', async t => {
-  result = ''
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      return {
-        _id: 'org.couchdb.user:foo',
-        email: 'foo@github.com',
-        name: 'foo',
-      }
-    } else if (uri === '/@npmcli%2fno-owners-pkg/-rev/1-foobaaa1') {
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => {
-    return {
-      _rev: '1-foobaaa1',
-      maintainers: null,
-    }
-  }
-  t.teardown(() => {
-    result = ''
-    npmFetch.json = noop
-    pacote.packument = noop
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-
-  await owner.exec(['add', 'foo', '@npmcli/no-owners-pkg'])
-  t.equal(result, '+ foo (@npmcli/no-owners-pkg)', 'should output add result')
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers: undefined, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: [{ name: username, email: '' }],
+    })
+    return true
+  }).reply(200, {})
+  await npm.exec('owner', ['add', username, packageName])
+  t.equal(joinedOutput(), `+ ${username} (${packageName})`)
 })
 
 t.test('owner add no user', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-  })
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    owner.exec(['add']),
-    owner.usage
+    npm.exec('owner', ['add']),
+    { code: 'EUSAGE' }
   )
 })
 
-t.test('owner add no pkg global', async t => {
-  t.teardown(() => {
-    npm.config.set('global', false)
+t.test('owner add <user> no pkg global', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: { global: true },
   })
-  npm.config.set('global', true)
 
   await t.rejects(
-    owner.exec(['add', 'gar']),
-    owner.usage
+    npm.exec('owner', ['add', 'foo']),
+    { code: 'EUSAGE' }
   )
 })
 
 t.test('owner add <user> no cwd package', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-  })
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    owner.exec(['add', 'foo']),
-    owner.usage
+    npm.exec('owner', ['add', 'foo']),
+    { code: 'EUSAGE' }
   )
 })
 
 t.test('owner rm <user> <pkg>', async t => {
-  t.plan(8)
-
-  result = ''
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:ruyadorno') {
-      t.ok('should request user info')
-      t.match(opts, { ...npm.flatOptions }, 'should use expected opts')
-      return {
-        _id: 'org.couchdb.user:ruyadorno',
-        email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      t.ok('should put changed owner')
-      t.match(opts, {
-        ...npm.flatOptions,
-        method: 'PUT',
-        body: {
-          _rev: '1-foobaaa1',
-        },
-        otp: '123456',
-        spec: {
-          name: '@npmcli/map-workspaces',
-        },
-      }, 'should use expected opts')
-      t.same(
-        opts.body.maintainers,
-        npmcliMaintainers.filter(m => m.name !== 'ruyadorno'),
-        'should contain expected new owners, removing requested user'
-      )
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => {
-    t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
-    t.match(
-      opts,
-      {
-        ...npm.flatOptions,
-        fullMetadata: true,
-      },
-      'should forward expected options to pacote.packument'
-    )
-    return {
-      _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers,
-    }
-  }
-  t.teardown(() => {
-    result = ''
-    npmFetch.json = noop
-    pacote.packument = noop
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-
-  await owner.exec(['rm', 'ruyadorno', '@npmcli/map-workspaces'])
-  t.equal(result, '- ruyadorno (@npmcli/map-workspaces)', 'should output rm result')
+  const username = maintainers[0].name
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: maintainers.slice(1),
+    })
+    return true
+  }).reply(200, {})
+  await npm.exec('owner', ['rm', username, packageName])
+  t.equal(joinedOutput(), `- ${username} (${packageName})`)
 })
 
 t.test('owner rm <user> <pkg> not a current owner', async t => {
-  t.plan(2)
-
-  result = ''
-  log.info = (title, msg) => {
-    t.equal(title, 'owner rm', 'should log expected title')
-    t.equal(msg, 'Not a package owner: foo', 'should log.info not a package owner msg')
-  }
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo') {
-      return {
-        _id: 'org.couchdb.user:foo',
-        email: 'foo@github.com',
-        name: 'foo',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => {
-    return {
-      _rev: '1-foobaaa1',
-      maintainers: npmcliMaintainers,
-    }
-  }
-  t.teardown(() => {
-    result = ''
-    log.info = noop
-    npmFetch.json = noop
-    pacote.packument = noop
+  const { npm, logs } = await loadMockNpm(t, {
+    config: { ...auth },
   })
-
-  await owner.exec(['rm', 'foo', '@npmcli/map-workspaces'])
+  const username = 'foo'
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  await npm.exec('owner', ['rm', username, packageName])
+  t.match(logs.info, [['owner rm', `Not a package owner: ${username}`]])
 })
 
 t.test('owner rm <user> cwd package', async t => {
-  result = ''
-  readPackageNameResponse = '@npmcli/map-workspaces'
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:ruyadorno') {
-      return {
-        _id: 'org.couchdb.user:ruyadorno',
-        email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno',
-      }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
-      return {}
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: npmcliMaintainers,
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: packageName }),
+    },
+    config: { ...auth },
   })
-  t.teardown(() => {
-    result = ''
-    readPackageNameResponse = null
-    npmFetch.json = noop
-    pacote.packument = noop
+  const username = maintainers[0].name
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-
-  await owner.exec(['rm', 'ruyadorno'])
-  t.equal(result, '- ruyadorno (@npmcli/map-workspaces)', 'should output rm result')
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
+  registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: maintainers.slice(1),
+    })
+    return true
+  }).reply(200, {})
+  await npm.exec('owner', ['rm', username])
+  t.equal(joinedOutput(), `- ${username} (${packageName})`)
 })
 
 t.test('owner rm <user> only user', async t => {
-  result = ''
-  readPackageNameResponse = 'ipt'
-  npmFetch.json = async (uri, opts) => {
-    // retrieve user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:ruyadorno') {
-      return {
-        _id: 'org.couchdb.user:ruyadorno',
-        email: 'ruyadorno@hotmail.com',
-        name: 'ruyadorno',
-      }
-    } else {
-      t.fail(`unexpected fetch json call to uri: ${uri}`)
-    }
-  }
-  pacote.packument = async (spec, opts) => ({
-    _rev: '1-foobaaa1',
-    maintainers: [{
-      name: 'ruyadorno',
-      email: 'ruyadorno@hotmail.com',
-    }],
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: packageName }),
+    },
+    config: { ...auth },
   })
-  t.teardown(() => {
-    result = ''
-    readPackageNameResponse = null
-    npmFetch.json = noop
-    pacote.packument = noop
+  const username = maintainers[0].name
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-
+  const manifest = registry.manifest({
+    name: packageName,
+    packuments: [{ maintainers: maintainers.slice(0, 1), version: '1.0.0' }],
+  })
+  registry.couchuser({ username })
+  await registry.package({ manifest })
   await t.rejects(
-    owner.exec(['rm', 'ruyadorno']),
-    { code: 'EOWNERRM', message: 'Cannot remove all owners of a package. Add someone else first.' },
-    'should throw unable to remove unique owner message'
+    npm.exec('owner', ['rm', username]),
+    {
+      code: 'EOWNERRM',
+      message: 'Cannot remove all owners of a package. Add someone else first.',
+    }
   )
 })
 
 t.test('owner rm no user', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-  })
-
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    owner.exec(['rm']),
-    owner.usage
+    npm.exec('owner', ['rm']),
+    { code: 'EUSAGE' }
   )
 })
 
 t.test('owner rm no pkg global', async t => {
-  t.teardown(() => {
-    npm.config.set('global', false)
+  const { npm } = await loadMockNpm(t, {
+    config: { global: true },
   })
-  npm.config.set('global', true)
-
   await t.rejects(
-    owner.exec(['rm', 'foo']),
-    owner.usage
+    npm.exec('owner', ['rm', 'foo']),
+    { code: 'EUSAGE' }
   )
 })
 
 t.test('owner rm <user> no cwd package', async t => {
-  result = ''
-  t.teardown(() => {
-    result = ''
-  })
-
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    owner.exec(['rm', 'foo']),
-    owner.usage
+    npm.exec('owner', ['rm', 'foo']),
+    { code: 'EUSAGE' }
   )
 })
 
-t.test('completion', async t => {
-  const testComp = async (argv, expect) => {
-    const res = await owner.completion({ conf: { argv: { remain: argv } } })
-    t.strictSame(res, expect, argv.join(' '))
-  }
-
-  await Promise.all([
-    testComp(['npm', 'foo'], []),
-    testComp(['npm', 'owner'], ['add', 'rm', 'ls']),
-    testComp(['npm', 'owner', 'add'], []),
-    testComp(['npm', 'owner', 'ls'], []),
-    testComp(['npm', 'owner', 'rm', 'foo'], []),
-  ])
-
-  // npm owner rm completion is async
-  t.test('completion npm owner rm', async t => {
-    t.plan(2)
-    readPackageNameResponse = '@npmcli/map-workspaces'
-    pacote.packument = async spec => {
-      t.equal(spec.name, readPackageNameResponse, 'should use package spec')
-      return {
-        maintainers: npmcliMaintainers,
-      }
-    }
-    t.teardown(() => {
-      readPackageNameResponse = null
-      pacote.packument = noop
+t.test('workspaces', async t => {
+  t.test('owner no args --workspace', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
     })
-
-    const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
-    t.strictSame(res,
-      ['nlf', 'ruyadorno', 'darcyclarke', 'isaacs'],
-      'should return list of current owners'
+    npm.config.set('workspace', ['workspace-a'])
+    await t.rejects(
+      npm.exec('owner', []),
+      { code: 'EUSAGE' },
+      'rejects with usage'
     )
   })
 
+  t.test('owner ls implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    await registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await npm.exec('owner', ['ls'])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls explicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => prefix,
+      }),
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    await registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await npm.exec('owner', ['ls'])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls <pkg> implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    await registryPackage(t, npm.config.get('registry'), packageName)
+    await npm.exec('owner', ['ls', packageName])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls <pkg> explicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => prefix,
+      }),
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    await registryPackage(t, npm.config.get('registry'), packageName)
+    await npm.exec('owner', ['ls', packageName])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner add implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    const username = 'foo'
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    await registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: [
+          ...manifest.maintainers,
+          { name: username, email: '' },
+        ],
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['add', username])
+    t.equal(joinedOutput(), `+ ${username} (workspace-a)`)
+  })
+
+  t.test('owner add --workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    const username = 'foo'
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    await registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: [
+          ...manifest.maintainers,
+          { name: username, email: '' },
+        ],
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['add', username])
+    t.equal(joinedOutput(), `+ ${username} (workspace-a)`)
+  })
+
+  t.test('owner rm --workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const username = maintainers[0].name
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    await registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: maintainers.slice(1),
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['rm', username])
+    t.equal(joinedOutput(), `- ${username} (workspace-a)`)
+  })
+})
+
+t.test('completion', async t => {
+  t.test('basic commands', async t => {
+    const { npm } = await loadMockNpm(t)
+    const owner = await npm.cmd('owner')
+    const testComp = async (argv, expect) => {
+      const res = await owner.completion({ conf: { argv: { remain: argv } } })
+      t.strictSame(res, expect, argv.join(' '))
+    }
+
+    await Promise.all([
+      testComp(['npm', 'foo'], []),
+      testComp(['npm', 'owner'], ['add', 'rm', 'ls']),
+      testComp(['npm', 'owner', 'add'], []),
+      testComp(['npm', 'owner', 'ls'], []),
+      testComp(['npm', 'owner', 'rm', 'foo'], []),
+    ])
+  })
+
+  t.test('completion npm owner rm', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: { 'package.json': JSON.stringify({ name: packageName }) },
+    })
+    const owner = await npm.cmd('owner')
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+    })
+    const manifest = registry.manifest({
+      name: packageName,
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    await registry.package({ manifest })
+    const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
+    t.strictSame(res, maintainers.map(m => m.name), 'should return list of current owners')
+  })
+
   t.test('completion npm owner rm no cwd package', async t => {
+    const { npm } = await loadMockNpm(t)
+    const owner = await npm.cmd('owner')
     const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
     t.strictSame(res, [], 'should have no owners to autocomplete if not cwd package')
-    t.end()
   })
 
   t.test('completion npm owner rm global', async t => {
-    t.teardown(() => {
-      npm.config.set('global', false)
+    const { npm } = await loadMockNpm(t, {
+      config: { global: true },
     })
-    npm.config.set('global', true)
+    const owner = await npm.cmd('owner')
     const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
     t.strictSame(res, [], 'should have no owners to autocomplete if global')
-    t.end()
   })
 
   t.test('completion npm owner rm no owners found', async t => {
-    t.plan(2)
-    readPackageNameResponse = '@npmcli/map-workspaces'
-    pacote.packument = async spec => {
-      t.equal(spec.name, readPackageNameResponse, 'should use package spec')
-      return {
-        maintainers: [],
-      }
-    }
-    t.teardown(() => {
-      readPackageNameResponse = null
-      pacote.packument = noop
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: { 'package.json': JSON.stringify({ name: packageName }) },
     })
+    const owner = await npm.cmd('owner')
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+    })
+    const manifest = registry.manifest({
+      name: packageName,
+      packuments: [{ maintainers: [], version: '1.0.0' }],
+    })
+    await registry.package({ manifest })
 
     const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
     t.strictSame(res, [], 'should return no owners if not found')
   })
-
-  t.end()
 })

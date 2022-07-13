@@ -139,19 +139,28 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
+.It Fl -experimental-global-webcrypto
+Expose the Web Crypto API on the global scope.
+.
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
-.
-.It Fl -experimental-json-modules
-Enable experimental JSON interop support for the ES Module loader.
 .
 .It Fl -experimental-loader Ns = Ns Ar module
 Specify the
 .Ar module
 to use as a custom module loader.
 .
+.It Fl -experimental-network-imports
+Enable experimental support for loading modules using `import` over `https:`.
+.
 .It Fl -experimental-policy
 Use the specified file as a security policy.
+.
+.It Fl -experimental-shadow-realm
+Use this flag to enable ShadowRealm support.
+.
+.It Fl -no-experimental-fetch
+Disable experimental support for the Fetch API.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
@@ -264,7 +273,7 @@ This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
-Specify the maximum size of HTTP headers in bytes. Defaults to 16 KB.
+Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -374,6 +383,13 @@ the secure heap. The default is 0. The value must be a power of two.
 .
 .It Fl -secure-heap-min Ns = Ns Ar n
 Specify the minimum allocation from the OpenSSL secure heap. The default is 2. The value must be a power of two.
+.
+.It Fl -test
+Starts the Node.js command line test runner.
+.
+.It Fl -test-only
+Configures the test runner to only execute top level tests that have the `only`
+option set.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.

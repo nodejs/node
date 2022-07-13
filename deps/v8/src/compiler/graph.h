@@ -70,7 +70,7 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
   // for argument types convertible to Node* during overload resolution.
   template <typename... Nodes,
             typename = typename std::enable_if_t<
-                base::all(std::is_convertible<Nodes, Node*>::value...)>>
+                std::conjunction_v<std::is_convertible<Nodes, Node*>...>>>
   Node* NewNode(const Operator* op, Nodes... nodes) {
     std::array<Node*, sizeof...(nodes)> nodes_arr{
         {static_cast<Node*>(nodes)...}};

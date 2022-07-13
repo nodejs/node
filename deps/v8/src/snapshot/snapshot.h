@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
+#include <vector>
+
 #include "include/v8-snapshot.h"  // For StartupData.
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -13,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class Context;
+class GlobalSafepointScope;
 class Isolate;
 class SnapshotData;
 class JSGlobalProxy;
@@ -36,15 +39,17 @@ class Snapshot : public AllStatic {
     // after deserialization.
     // If unset, we assert that these previously mentioned areas are empty.
     kAllowActiveIsolateForTesting = 1 << 1,
-    // If set, the ReadOnlySerializer reconstructs the read-only object cache
-    // from the existing ReadOnlyHeap's read-only object cache so the same
+    // If set, the ReadOnlySerializer and the SharedHeapSerializer reconstructs
+    // their respective object caches from the existing ReadOnlyHeap's read-only
+    // object cache or the existing shared heap's object cache so the same
     // mapping is used.  This mode is used for testing deserialization of a
-    // snapshot from a live isolate that's using a shared
-    // ReadOnlyHeap. Otherwise during deserialization the indices will mismatch,
-    // causing deserialization crashes when e.g. types mismatch.
-    // If unset, the read-only object cache is populated as read-only objects
-    // are serialized.
-    kReconstructReadOnlyObjectCacheForTesting = 1 << 2,
+    // snapshot from a live isolate that's using a shared ReadOnlyHeap or is
+    // attached to a shared isolate. Otherwise during deserialization the
+    // indices will mismatch, causing deserialization crashes when e.g. types
+    // mismatch.  If unset, the read-only object cache is populated as read-only
+    // objects are serialized, and the shared heap object cache is populated as
+    // shared heap objects are serialized.
+    kReconstructReadOnlyAndSharedObjectCachesForTesting = 1 << 2,
   };
   using SerializerFlags = base::Flags<SerializerFlag>;
   V8_EXPORT_PRIVATE static constexpr SerializerFlags kDefaultSerializerFlags =
@@ -64,12 +69,14 @@ class Snapshot : public AllStatic {
       Isolate* isolate, std::vector<Context>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
+      const GlobalSafepointScope& global_safepoint,
       const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // Convenience helper for the above when only serializing a single context.
   static v8::StartupData Create(
       Isolate* isolate, Context default_context,
+      const GlobalSafepointScope& global_safepoint,
       const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 

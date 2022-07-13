@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining --no-liftoff --experimental-wasm-return-call
-// Flags: --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-gc
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -11,6 +11,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 // output, or implementing testing infrastructure with --allow-natives-syntax.
 
 (function SimpleInliningTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x) = x - 1
@@ -27,6 +28,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function MultiReturnTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x) = (x - 1, x + 1)
@@ -43,6 +45,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function NoReturnTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let global = builder.addGlobal(kWasmI32, true);
@@ -59,7 +62,51 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(10, instance.exports.main(10));
 })();
 
+(function LoopInLoopTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let fact = builder.addFunction("fact", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([// result = 1;
+              kExprI32Const, 1, kExprLocalSet, 1,
+              kExprLoop, kWasmVoid,
+                kExprLocalGet, 1,
+                // if input == 1 return result;
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Eq, kExprBrIf, 1,
+                // result *= input;
+                kExprLocalGet, 0, kExprI32Mul, kExprLocalSet, 1,
+                // input -= 1;
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+                kExprLocalSet, 0,
+                kExprBr, 0,
+              kExprEnd,
+              kExprUnreachable]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 1,
+        // if input == 0 return sum;
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32Eq, kExprBrIf, 1,
+        // sum += fact(input);
+        kExprLocalGet, 0, kExprCallFunction, fact.index,
+        kExprI32Add, kExprLocalSet, 1,
+        // input -= 1;
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+        kExprLocalSet, 0,
+        kExprBr, 0,
+      kExprEnd,
+      kExprUnreachable])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(33, instance.exports.main(4));
+})();
+
 (function InfiniteLoopTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let callee = builder.addFunction("callee", kSig_i_i)
@@ -78,6 +125,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TailCallInCalleeTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x) = g(x - 1)
@@ -98,6 +146,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function MultipleCallAndReturnSitesTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x) = x >= 0 ? x - 1 : x + 1
@@ -121,6 +170,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TailCallInCallerTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x) = x > 0 ? g(x) + 1: g(x - 1);
@@ -148,6 +198,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function HandledInHandledTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let tag = builder.addTag(kSig_v_i);
 
@@ -173,6 +224,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function HandledInUnhandledTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let tag = builder.addTag(kSig_v_i);
 
@@ -194,6 +246,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function UnhandledInUnhandledTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let tag = builder.addTag(kSig_v_i);
 
@@ -213,6 +266,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 // the unhandled calls in the callee (including the 'throw' builtin) to the
 // handler in the caller.
 (function UnhandledInHandledTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let tag = builder.addTag(kSig_v_i);
 
@@ -241,96 +295,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(20, instance.exports.main(10, 20));
 })();
 
-(function CallRefSpecSucceededTest() {
-  let builder = new WasmModuleBuilder();
-
-  // f(x) = x - 1
-  let callee = builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
-
-  let global = builder.addGlobal(wasmRefType(0), false,
-                                 WasmInitExpr.RefFunc(callee.index));
-
-  // g(x) = f(5) + x
-  builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index, kExprCallRef,
-              kExprLocalGet, 0, kExprI32Add])
-    .exportAs("main");
-
-  let instance = builder.instantiate();
-  assertEquals(14, instance.exports.main(10));
-})();
-
-(function CallRefSpecFailedTest() {
-  let builder = new WasmModuleBuilder();
-
-  // h(x) = x - 1
-  builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
-
-  // f(x) = x - 2
-  let callee = builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
-
-  let global = builder.addGlobal(wasmRefType(1), false,
-                                 WasmInitExpr.RefFunc(callee.index));
-
-  // g(x) = f(5) + x
-  builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index, kExprCallRef,
-              kExprLocalGet, 0, kExprI32Add])
-    .exportAs("main");
-
-  let instance = builder.instantiate();
-  assertEquals(13, instance.exports.main(10));
-})();
-
-(function CallReturnRefSpecSucceededTest() {
-  let builder = new WasmModuleBuilder();
-
-  // f(x) = x - 1
-  let callee = builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
-
-  let global = builder.addGlobal(wasmRefType(0), false,
-                                 WasmInitExpr.RefFunc(callee.index));
-
-  // g(x) = f(5 + x)
-  builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
-              kExprGlobalGet, global.index, kExprReturnCallRef])
-    .exportAs("main");
-
-  let instance = builder.instantiate();
-  assertEquals(14, instance.exports.main(10));
-})();
-
-(function CallReturnRefSpecFailedTest() {
-  let builder = new WasmModuleBuilder();
-
-  // h(x) = x - 1
-  builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
-
-  // f(x) = x - 2
-  let callee = builder.addFunction("callee", kSig_i_i)
-    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
-
-  let global = builder.addGlobal(wasmRefType(1), false,
-                                 WasmInitExpr.RefFunc(callee.index));
-
-  // g(x) = f(5 + x)
-  builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
-              kExprGlobalGet, global.index, kExprReturnCallRef])
-    .exportAs("main");
-
-  let instance = builder.instantiate();
-  assertEquals(13, instance.exports.main(10));
-})();
-
-// Tests that no LoopExits are emitted in the inlined function.
 (function LoopUnrollingTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // f(x, y) = { do { y += 1; x -= 1; } while (x > 0); return y; }
@@ -352,4 +318,106 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(25, instance.exports.main(10));
+})();
+
+(function ThrowInLoopTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  // f(x, y) {
+  //   do {
+  //     if (x < 0) throw x;
+  //     y++; x--;
+  //   } while (x > 0);
+  //   return y;
+  // }
+  let callee = builder.addFunction("callee", kSig_i_ii)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32LtS,
+        kExprIf, kWasmVoid,
+          kExprLocalGet, 0, kExprThrow, tag,
+        kExprEnd,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalSet, 1,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub, kExprLocalSet, 0,
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32GtS, kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 1
+    ]);
+  // g(x) = (try { f(x, 5) } catch(x) { x }) + x
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprTry, kWasmI32,
+              kExprLocalGet, 0, kExprI32Const, 5,
+                kExprCallFunction, callee.index,
+              kExprCatch, tag,
+              kExprEnd,
+              kExprLocalGet, 0, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(25, instance.exports.main(10));
+  assertEquals(-20, instance.exports.main(-10));
+})();
+
+(function InlineSubtypeSignatureTest() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  let callee = builder
+    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
+
+  // When inlining "callee", TF should pass the real parameter type (ref 0) and
+  // thus eliminate the null check for struct.get.
+  builder.addFunction("main", makeSig([wasmRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kExprCallFunction, callee.index])
+    .exportFunc();
+
+  builder.instantiate({});
+})();
+
+(function InliningAndEscapeAnalysisTest() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  let callee = builder
+    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
+
+  // The allocation should be removed.
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+      kGCPrefix, kExprRttCanon, struct,
+      kGCPrefix, kExprStructNewWithRtt, struct,
+      kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(11, instance.exports.main(10));
+})();
+
+(function Int64Lowering() {
+  print(arguments.callee.name);
+
+  let kSig_l_li = makeSig([kWasmI64, kWasmI32], [kWasmI64]);
+
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprI64SConvertI32, kExprI64Add]);
+
+  builder.addFunction("main", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(BigInt(21), instance.exports.main(BigInt(10), 11));
 })();

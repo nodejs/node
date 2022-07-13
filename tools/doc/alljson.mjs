@@ -23,24 +23,21 @@ const results = {
 
 // Identify files that should be skipped. As files are processed, they
 // are added to this list to prevent dupes.
-const seen = {
-  'all.json': true,
-  'index.json': true
-};
+const seen = new Set(['all.json', 'index.json']);
 
 // Extract (and concatenate) the selected data from each document.
 // Expand hrefs found in json to include source HTML file.
 for (const link of toc.match(/<a.*?>/g)) {
   const href = /href="(.*?)"/.exec(link)[1];
   const json = href.replace('.html', '.json');
-  if (!jsonFiles.includes(json) || seen[json]) continue;
+  if (!jsonFiles.includes(json) || seen.has(json)) continue;
   const data = JSON.parse(
     fs.readFileSync(new URL(`./${json}`, source), 'utf8')
       .replace(/<a href=\\"#/g, `<a href=\\"${href}#`)
   );
 
   for (const property in data) {
-    if (results.hasOwnProperty(property)) {
+    if (Object.hasOwn(results, property)) {
       data[property].forEach((mod) => {
         mod.source = data.source;
       });
@@ -49,7 +46,7 @@ for (const link of toc.match(/<a.*?>/g)) {
   }
 
   // Mark source as seen.
-  seen[json] = true;
+  seen.add(json);
 }
 
 // Write results.

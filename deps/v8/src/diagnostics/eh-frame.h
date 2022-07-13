@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/memory.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/common/globals.h"
 #include "src/zone/zone-containers.h"
 

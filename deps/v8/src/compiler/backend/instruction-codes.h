@@ -315,6 +315,7 @@ using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 // scary. {HasMemoryAccessMode} does not include these instructions, so they can
 // be easily found by guarding encoding.
 inline bool HasMemoryAccessMode(ArchOpcode opcode) {
+#if defined(TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST)
   switch (opcode) {
 #define CASE(Name) \
   case k##Name:    \
@@ -324,6 +325,9 @@ inline bool HasMemoryAccessMode(ArchOpcode opcode) {
     default:
       return false;
   }
+#else
+  return false;
+#endif
 }
 
 using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;

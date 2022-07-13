@@ -6,6 +6,7 @@ const BaseCommand = require('../base-command.js')
 class Shrinkwrap extends BaseCommand {
   static description = 'Lock down dependency versions for publication'
   static name = 'shrinkwrap'
+  static ignoreImplicitWorkspace = false
 
   async exec () {
     // if has a npm-shrinkwrap.json, nothing to do
@@ -14,7 +15,7 @@ class Shrinkwrap extends BaseCommand {
     //
     // loadVirtual, fall back to loadActual
     // rename shrinkwrap file type, and tree.meta.save()
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       const er = new Error('`npm shrinkwrap` does not work for global packages')
       er.code = 'ESHRINKWRAPGLOBAL'
       throw er

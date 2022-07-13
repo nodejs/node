@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The test needs --no-liftoff because we can't serialize and deserialize
+// Liftoff code.
 // Flags: --wasm-lazy-compilation --allow-natives-syntax --expose-gc
+// Flags: --no-liftoff
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -20,8 +23,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     const wire_bytes = builder.toBuffer();
     const module = new WebAssembly.Module(wire_bytes);
+    // Run one function so that serialization happens.
+    let instance = new WebAssembly.Instance(module);
+    instance.exports.f3();
     const buff = %SerializeWasmModule(module);
-    return [wire_bytes, new WebAssembly.Instance(module), buff];
+    return [wire_bytes, instance, buff];
   })();
 
   gc();
@@ -47,8 +53,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     const wire_bytes = builder.toBuffer();
     const module = new WebAssembly.Module(wire_bytes);
-    const buff = %SerializeWasmModule(module);
     const i1 = new WebAssembly.Instance(module);
+    // Run one function so that serialization happens.
+    i1.exports.f3();
+    const buff = %SerializeWasmModule(module);
 
     assertEquals(2, i1.exports.f2());
     assertEquals(11, i1.exports.f11());

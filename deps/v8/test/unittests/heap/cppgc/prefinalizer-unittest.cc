@@ -291,7 +291,7 @@ class GCedHolder : public GarbageCollected<GCedHolder> {
 
 }  // namespace
 
-#if V8_ENABLE_CHECKS
+#if DEBUG
 #ifdef CPPGC_VERIFY_HEAP
 
 TEST_F(PrefinalizerDeathTest, PrefinalizerCanRewireGraphWithDeadObjects) {
@@ -328,7 +328,7 @@ TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnHeap) {
 }
 
 #endif  // CPPGC_VERIFY_HEAP
-#endif  // V8_ENABLE_CHECKS
+#endif  // DEBUG
 
 #ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
 TEST_F(PrefinalizerTest, AllocatingPrefinalizersInMultipleGCCycles) {

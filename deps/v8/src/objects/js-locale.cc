@@ -689,7 +689,7 @@ MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                     JSObject);
   }
-  if (orientation == ULOC_LAYOUT_LTR) {
+  if (orientation == ULOC_LAYOUT_RTL) {
     // Let dir be "rtl".
     dir = factory->rtl_string();
   }
@@ -727,26 +727,28 @@ MaybeHandle<JSObject> JSLocale::WeekInfo(Isolate* isolate,
   // Let fd be the weekday value indicating which day of the week is considered
   // the 'first' day, for calendar purposes, in the locale.
   int32_t fd = weekdayFromEDaysOfWeek(calendar->getFirstDayOfWeek());
-  bool thursday_is_weekend =
-      (UCAL_WEEKDAY != calendar->getDayOfWeekType(UCAL_THURSDAY, status));
-  bool friday_is_weekend =
-      (UCAL_WEEKDAY != calendar->getDayOfWeekType(UCAL_FRIDAY, status));
-  bool saturday_is_weekend =
-      (UCAL_WEEKDAY != calendar->getDayOfWeekType(UCAL_SATURDAY, status));
-  bool sunday_is_weekend =
-      (UCAL_WEEKDAY != calendar->getDayOfWeekType(UCAL_SUNDAY, status));
+
+  // Let wi be ! WeekInfoOfLocale(loc).
+  // Let we be ! CreateArrayFromList( wi.[[Weekend]] ).
+  Handle<FixedArray> wi = Handle<FixedArray>::cast(factory->NewFixedArray(2));
+  int32_t length = 0;
+  for (int32_t i = 1; i <= 7; i++) {
+    UCalendarDaysOfWeek day =
+        (i == 7) ? UCAL_SUNDAY : static_cast<UCalendarDaysOfWeek>(i + 1);
+    if (UCAL_WEEKDAY != calendar->getDayOfWeekType(day, status)) {
+      wi->set(length++, Smi::FromInt(i));
+      CHECK_LE(length, 2);
+    }
+  }
+  if (length != 2) {
+    wi = wi->ShrinkOrEmpty(isolate, wi, length);
+  }
+  Handle<JSArray> we = factory->NewJSArrayWithElements(wi);
+
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                     JSObject);
   }
-
-  // Let ws be the weekday value indicating which day of the week is considered
-  // the starting day of the 'weekend', for calendar purposes, in the locale.
-  int32_t ws = thursday_is_weekend ? 4 : (friday_is_weekend ? 5 : 6);
-
-  // Let we be the weekday value indicating which day of the week is considered
-  // the ending day of the 'weekend', for calendar purposes, in the locale.
-  int32_t we = sunday_is_weekend ? 7 : (saturday_is_weekend ? 6 : 5);
 
   // Let md be the minimal days required in the first week of a month or year,
   // for calendar purposes, in the locale.
@@ -758,16 +760,9 @@ MaybeHandle<JSObject> JSLocale::WeekInfo(Isolate* isolate,
             factory->NewNumberFromInt(fd), Just(kDontThrow))
             .FromJust());
 
-  // Perform ! CreateDataPropertyOrThrow(info, "weekendStart", ws).
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, info, factory->weekendStart_string(),
-            factory->NewNumberFromInt(ws), Just(kDontThrow))
-            .FromJust());
-
-  // Perform ! CreateDataPropertyOrThrow(info, "weekendEnd", we).
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, info, factory->weekendEnd_string(),
-            factory->NewNumberFromInt(we), Just(kDontThrow))
+  // Perform ! CreateDataPropertyOrThrow(info, "weekend", we).
+  CHECK(JSReceiver::CreateDataProperty(isolate, info, factory->weekend_string(),
+                                       we, Just(kDontThrow))
             .FromJust());
 
   // Perform ! CreateDataPropertyOrThrow(info, "minimalDays", md).

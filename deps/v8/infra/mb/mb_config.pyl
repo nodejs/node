@@ -18,6 +18,7 @@
       'arm64.debug': 'default_debug_arm64',
       'arm64.optdebug': 'default_optdebug_arm64',
       'arm64.release': 'default_release_arm64',
+      'arm64.release.sample': 'release_arm64_sample',
       'ia32.debug': 'default_debug_x86',
       'ia32.optdebug': 'default_optdebug_x86',
       'ia32.release': 'default_release_x86',
@@ -57,9 +58,9 @@
       # Linux.
       'V8 Linux - builder': 'release_x86_gcmole',
       'V8 Linux - debug builder': 'debug_x86',
-      'V8 Linux - shared': 'release_x86_shared_verify_heap',
-      'V8 Linux - noi18n - debug': 'debug_x86_no_i18n',
-      'V8 Linux - verify csa': 'release_x86_verify_csa',
+      'V8 Linux - shared - builder': 'release_x86_shared_verify_heap',
+      'V8 Linux - noi18n - debug builder': 'debug_x86_no_i18n',
+      'V8 Linux - verify csa - builder': 'release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'release_x64',
       'V8 Linux64 - builder (goma cache silo)': 'release_x64',
@@ -70,10 +71,10 @@
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
-      'V8 Linux64 - internal snapshot': 'release_x64_internal',
-      'V8 Linux64 - debug - header includes': 'debug_x64_header_includes',
-      'V8 Linux64 - shared': 'release_x64_shared_verify_heap',
-      'V8 Linux64 - verify csa': 'release_x64_verify_csa',
+      'V8 Linux64 - internal snapshot - builder': 'release_x64_internal',
+      'V8 Linux64 - debug - header includes - builder': 'debug_x64_header_includes',
+      'V8 Linux64 - shared - builder': 'release_x64_shared_verify_heap',
+      'V8 Linux64 - verify csa - builder': 'release_x64_verify_csa',
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
@@ -82,52 +83,52 @@
       'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
-      'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
-      'V8 Win64': 'release_x64_minimal_symbols',
+      'V8 Win64 ASAN - builder': 'release_x64_asan_no_lsan',
+      'V8 Win64 - builder': 'release_x64_minimal_symbols',
       'V8 Win64 - dev image': 'release_x64_minimal_symbols',
-      'V8 Win64 - debug': 'debug_x64_minimal_symbols',
-      'V8 Win64 - msvc': 'release_x64_msvc',
+      'V8 Win64 - debug builder': 'debug_x64_minimal_symbols',
+      'V8 Win64 - msvc - builder': 'release_x64_msvc',
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
       'V8 Mac64 - debug builder': 'debug_x64',
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
-      'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
+      'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
       'V8 Mac - arm64 - debug builder': 'debug_arm64',
       'V8 Mac - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Mac - arm64 - sim - release builder': 'release_simulate_arm64',
       # Sanitizers.
-      'V8 Linux64 ASAN': 'release_x64_asan',
+      'V8 Linux64 ASAN - builder': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux64 TSAN - no-concurrent-marking - builder': 'release_x64_tsan_no_cm',
-      'V8 Linux - arm64 - sim - CFI': 'release_simulate_arm64_cfi',
-      'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
+      'V8 Linux - arm64 - sim - CFI - builder': 'release_simulate_arm64_cfi',
+      'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
       # Misc.
-      'V8 Linux gcc': 'release_x86_gcc',
+      'V8 Linux gcc - builder': 'release_x86_gcc',
       # FYI.
-      'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
       'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
-      'V8 Linux64 - disable runtime call stats': 'release_x64_disable_runtime_call_stats',
+      'V8 Linux64 - disable runtime call stats - builder': 'release_x64_disable_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
-      'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
+      'V8 Linux64 - pointer compression - builder': 'release_x64_pointer_compression',
       'V8 Linux64 - pointer compression without dchecks':
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
-      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
+      'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
-      'V8 Linux64 - cfi': 'release_x64_cfi',
-      'V8 Linux64 UBSan': 'release_x64_ubsan',
+      'V8 Linux64 - cfi - builder': 'release_x64_cfi',
+      'V8 Linux64 UBSan - builder': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
-      'V8 Linux64 - Fuzzilli': 'release_x64_fuzzilli',
-      'V8 Linux - predictable': 'release_x86_predictable',
-      'V8 Linux - full debug': 'full_debug_x86',
-      'V8 Mac64 - full debug': 'full_debug_x64',
+      'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
+      'V8 Linux - predictable - builder': 'release_x86_predictable',
+      'V8 Linux - full debug builder': 'full_debug_x86',
+      'V8 Mac64 - full debug builder': 'full_debug_x64',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
@@ -168,7 +169,6 @@
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
-      'V8 Arm64 - builder - perf': 'official_arm64',
       'V8 Android Arm - builder - perf': 'official_android_arm',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
@@ -179,23 +179,23 @@
       'V8 Arm - builder': 'release_arm',
       'V8 Arm - debug builder': 'debug_arm',
       'V8 Android Arm - builder': 'release_android_arm',
-      'V8 Linux - arm - sim': 'release_simulate_arm',
-      'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
-      'V8 Linux - arm - sim - lite': 'release_simulate_arm_lite',
-      'V8 Linux - arm - sim - lite - debug': 'debug_simulate_arm_lite',
+      'V8 Linux - arm - sim - builder': 'release_simulate_arm',
+      'V8 Linux - arm - sim - debug builder': 'debug_simulate_arm',
+      'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite - debug builder': 'debug_simulate_arm_lite',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
       'V8 Arm64 - builder': 'release_arm64_hard_float',
-      'V8 Linux - arm64 - sim': 'release_simulate_arm64',
-      'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
-      'V8 Linux - arm64 - sim - gc stress': 'debug_simulate_arm64',
+      'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64',
+      'V8 Linux - arm64 - sim - debug builder': 'debug_simulate_arm64',
+      'V8 Linux - arm64 - sim - gc stress - builder': 'debug_simulate_arm64',
       # Mips.
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
       # IBM.
-      'V8 Linux - ppc64 - sim': 'release_simulate_ppc64',
-      'V8 Linux - s390x - sim': 'release_simulate_s390x',
+      'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
+      'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       # Loongson
@@ -225,7 +225,7 @@
       'v8_linux64_cppgc_non_default_dbg_ng': 'debug_x64_non_default_cppgc',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
-      'v8_linux64_disable_runtime_call_stats_rel': 'release_x64_disable_runtime_call_stats',
+      'v8_linux64_disable_runtime_call_stats_rel_ng': 'release_x64_disable_runtime_call_stats',
       'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
@@ -279,8 +279,10 @@
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_compile_full_dbg_ng': 'full_debug_x64',
+      'v8_mac64_asan_compile_rel_ng': 'release_x64_asan_no_lsan',
       'v8_mac64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
+      'v8_linux_arm_lite_compile_dbg': 'debug_simulate_arm_lite',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg_ng': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
@@ -320,6 +322,8 @@
       'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
     'default_release_arm64': [
       'release', 'simulate_arm64'],
+    'release_arm64_sample': [
+      'release', 'arm64', 'sample'],
     'default_debug_mipsel': [
       'debug', 'simulate_mipsel', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_mipsel': [
@@ -465,8 +469,6 @@
     # Official configs for arm
     'official_arm': [
       'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
-    'official_arm64': [
-      'release_bot', 'arm64', 'hard_float', 'official', 'disable_pgo'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
@@ -520,7 +522,7 @@
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_pointer_compression': [
-      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
+      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
     'release_x64_pointer_compression_without_dchecks': [
       'release_bot', 'x64', 'v8_disable_pointer_compression'],
@@ -569,13 +571,14 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
+      'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
-      'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'x64', 'v8_enable_sandbox_future'],
     'debug_x64_heap_sandbox_arm64_sim': [
-      'debug_bot', 'simulate_arm64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -614,10 +617,11 @@
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x86_gcc': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'v8_check_header_includes'],
-    'release_x86_gcc_minimal_symbols': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'minimal_symbols',
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
       'v8_check_header_includes'],
+    'release_x86_gcc_minimal_symbols': [
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
+      'minimal_symbols', 'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -715,7 +719,7 @@
 
     'disable_concurrent_marking': {
       # Disable concurrent marking and atomic object field writes in order to
-      # increase the TSAN coverage for background tasks. We need to keep the 
+      # increase the TSAN coverage for background tasks. We need to keep the
       # atomic marking state enabled because that is needed for the concurrent
       # write-barrier used by background compilation.
       'gn_args': 'v8_enable_concurrent_marking=false '
@@ -917,8 +921,8 @@
       'gn_args': 'v8_enable_runtime_call_stats=false',
     },
 
-    'v8_enable_heap_sandbox': {
-      'gn_args': 'v8_enable_heap_sandbox=true',
+    'v8_enable_sandbox_future': {
+      'gn_args': 'v8_enable_sandbox_future=true',
     },
 
     'v8_enable_lite_mode': {
@@ -927,6 +931,10 @@
 
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
+    },
+
+    'v8_enable_javascript_promise_hooks': {
+      'gn_args': 'v8_enable_javascript_promise_hooks=true',
     },
 
     'v8_enable_google_benchmark': {
@@ -945,7 +953,7 @@
       'gn_args': 'v8_enable_pointer_compression=false',
     },
     'v8_enable_single_generation': {
-      'gn_args': 'v8_enable_single_generation=true ' 
+      'gn_args': 'v8_enable_single_generation=true '
                  'v8_disable_write_barriers=true',
     },
     'v8_enable_test_features': {

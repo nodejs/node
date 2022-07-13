@@ -24,6 +24,20 @@ macro Subslice<T: type>(slice: MutableSlice<T>, start: intptr, length: intptr):
       slice.object, offset, length);
 }
 
+namespace unsafe {
+
+macro AddOffset<T: type>(ref: &T, offset: intptr): &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+macro AddOffset<T: type>(ref: const &T, offset: intptr): const &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+}  // namespace unsafe
+
 namespace torque_internal {
 // Unsafe is a marker that we require to be passed when calling internal APIs
 // that might lead to unsoundness when used incorrectly. Unsafe markers should
@@ -73,11 +87,14 @@ extern macro GCUnsafeReferenceToRawPtr(
 struct Slice<T: type, Reference: type> {
   macro TryAtIndex(index: intptr): Reference labels OutOfBounds {
     if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
-      return unsafe::NewReference<T>(
-          this.object, this.offset + TimesSizeOf<T>(index));
+      return this.UncheckedAtIndex(index);
     } else {
       goto OutOfBounds;
     }
+  }
+  macro UncheckedAtIndex(index: intptr): Reference {
+    return unsafe::NewReference<T>(
+        this.object, this.offset + TimesSizeOf<T>(index));
   }
 
   macro AtIndex(index: intptr): Reference {
@@ -86,6 +103,10 @@ struct Slice<T: type, Reference: type> {
 
   macro AtIndex(index: uintptr): Reference {
     return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
+  }
+
+  macro AtIndex(index: constexpr IntegerLiteral): Reference {
+    return this.AtIndex(FromConstexpr<uintptr>(index));
   }
 
   macro AtIndex(index: constexpr int31): Reference {
@@ -316,6 +337,16 @@ intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string): intptr;
 // (equivalent to &o.x) and optional fields.
 intrinsic %FieldSlice<T: type, TSlice: type>(
     o: T, f: constexpr string): TSlice;
+
+extern macro GetPendingMessage(): TheHole|JSMessageObject;
+extern macro SetPendingMessage(TheHole | JSMessageObject): void;
+
+// This is implicitly performed at the beginning of Torque catch-blocks.
+macro GetAndResetPendingMessage(): TheHole|JSMessageObject {
+  const message = GetPendingMessage();
+  SetPendingMessage(TheHole);
+  return message;
+}
 
 }  // namespace torque_internal
 

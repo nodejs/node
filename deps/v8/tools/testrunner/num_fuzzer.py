@@ -1,12 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# for py2/py3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
 
 import random
 import sys
@@ -76,13 +72,16 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="probability [0-10] of adding --thread-pool-size "
                            "flag to the test")
 
-    # Stress deopt
+    # Stress compiler
     parser.add_option("--stress-deopt", default=0, type="int",
                       help="probability [0-10] of adding --deopt-every-n-times "
                            "flag to the test")
     parser.add_option("--stress-deopt-min", default=1, type="int",
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
+    parser.add_option("--stress-interrupt-budget", default=0, type="int",
+                      help="probability [0-10] of adding the --interrupt-budget "
+                           "flag to the test")
 
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",

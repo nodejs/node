@@ -1,6 +1,6 @@
 {
   "name": "signal-exit",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "description": "when you want to fire an event no matter how a process exits.",
   "main": "index.js",
   "scripts": {

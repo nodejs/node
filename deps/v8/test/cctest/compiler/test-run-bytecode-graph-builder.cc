@@ -120,7 +120,7 @@ class BytecodeGraphTester {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate_));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(isolate_, function, &is_compiled_scope);
     CHECK(function->shared().HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);
@@ -2921,7 +2921,8 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
 class CountBreakDebugDelegate : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<int>&) override {
+                             const std::vector<int>&,
+                             v8::debug::BreakReasons break_reasons) override {
     debug_break_count++;
   }
   int debug_break_count = 0;

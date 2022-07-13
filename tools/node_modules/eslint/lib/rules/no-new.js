@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `new` operators outside of assignments or comparisons",
+            description: "Disallow `new` operators outside of assignments or comparisons",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new"
         },

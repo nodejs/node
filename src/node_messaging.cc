@@ -98,19 +98,19 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     uint32_t id;
     if (!deserializer->ReadUint32(&id))
       return MaybeLocal<Object>();
-    CHECK_LE(id, host_objects_.size());
+    CHECK_LT(id, host_objects_.size());
     return host_objects_[id]->object(isolate);
   }
 
   MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
       Isolate* isolate, uint32_t clone_id) override {
-    CHECK_LE(clone_id, shared_array_buffers_.size());
+    CHECK_LT(clone_id, shared_array_buffers_.size());
     return shared_array_buffers_[clone_id];
   }
 
   MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
-    CHECK_LE(transfer_id, wasm_modules_.size());
+    CHECK_LT(transfer_id, wasm_modules_.size());
     return WasmModuleObject::FromCompiledModule(
         isolate, wasm_modules_[transfer_id]);
   }
@@ -980,7 +980,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   // Even if the backing MessagePort object has already been deleted, we still
   // want to serialize the message to ensure spec-compliant behavior w.r.t.
   // transfers.
-  if (port == nullptr) {
+  if (port == nullptr || port->IsHandleClosing()) {
     Message msg;
     USE(msg.Serialize(env, context, args[0], transfer_list, obj));
     return;

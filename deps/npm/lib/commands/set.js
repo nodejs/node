@@ -4,6 +4,7 @@ class Set extends BaseCommand {
   static description = 'Set a value in the npm configuration'
   static name = 'set'
   static usage = ['<key>=<value> [<key>=<value> ...] (See `npm config`)']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */

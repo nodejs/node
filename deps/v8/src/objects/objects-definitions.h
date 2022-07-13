@@ -49,7 +49,11 @@ namespace internal {
   V(SLICED_ONE_BYTE_STRING_TYPE)                         \
   V(THIN_ONE_BYTE_STRING_TYPE)                           \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
-  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
+  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
+  V(SHARED_STRING_TYPE)                                  \
+  V(SHARED_THIN_STRING_TYPE)                             \
+  V(SHARED_ONE_BYTE_STRING_TYPE)                         \
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)
 
 #define INSTANCE_TYPE_LIST(V) \
   INSTANCE_TYPE_LIST_BASE(V)  \
@@ -94,7 +98,15 @@ namespace internal {
     UncachedExternalOneByteInternalizedString)                                 \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
-    ThinOneByteString)
+    ThinOneByteString)                                                         \
+                                                                               \
+  V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
+  V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
+    shared_one_byte_string, SharedOneByteString)                               \
+  V(SHARED_THIN_STRING_TYPE, ThinString::kSize, shared_thin_string,            \
+    SharedThinString)                                                          \
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize,                       \
+    shared_thin_one_byte_string, SharedThinOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -128,15 +140,18 @@ namespace internal {
   V(_, BREAK_POINT_INFO_TYPE, BreakPointInfo, break_point_info)                \
   V(_, CACHED_TEMPLATE_OBJECT_TYPE, CachedTemplateObject,                      \
     cached_template_object)                                                    \
+  V(_, CALL_SITE_INFO_TYPE, CallSiteInfo, call_site_info)                      \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
+  V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)                \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                     \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
+  V(_, PROMISE_ON_STACK_TYPE, PromiseOnStack, promise_on_stack)                \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
   V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,              \
     property_descriptor_object)                                                \
@@ -144,12 +159,15 @@ namespace internal {
   V(_, REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, RegExpBoilerplateDescription,     \
     regexp_boilerplate_description)                                            \
   V(_, SCRIPT_TYPE, Script, script)                                            \
+  V(_, SCRIPT_OR_MODULE_TYPE, ScriptOrModule, script_or_module)                \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
     module_info_entry)                                                         \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
+  IF_WASM(V, _, WASM_CONTINUATION_OBJECT_TYPE, WasmContinuationObject,         \
+          wasm_continuation_object)                                            \
   IF_WASM(V, _, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag) \
   IF_WASM(V, _, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,  \
           wasm_indirect_function_table)

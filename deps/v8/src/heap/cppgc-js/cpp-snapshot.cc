@@ -358,7 +358,8 @@ void* ExtractEmbedderDataBackref(Isolate* isolate,
   if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
-  if (!v8_object->IsJSObject() || !JSObject::cast(*v8_object).IsApiWrapper())
+  if (!v8_object->IsJSObject() ||
+      !JSObject::cast(*v8_object).MayHaveEmbedderFields())
     return nullptr;
 
   JSObject js_object = JSObject::cast(*v8_object);
@@ -463,7 +464,8 @@ class CppGraphBuilderImpl final {
   void AddEdge(State& parent, const TracedReferenceBase& ref,
                const std::string& edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
-    v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
+    v8::Local<v8::Value> v8_value =
+        ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
     if (!v8_value.IsEmpty()) {
       if (!parent.get_node()) {
         parent.set_node(AddNode(*parent.header()));
@@ -836,7 +838,8 @@ void CppGraphBuilderImpl::VisitWeakContainerForVisibility(
 
 void CppGraphBuilderImpl::VisitForVisibility(State& parent,
                                              const TracedReferenceBase& ref) {
-  v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
+  v8::Local<v8::Value> v8_value =
+      ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
   if (!v8_value.IsEmpty()) {
     parent.MarkVisible();
   }

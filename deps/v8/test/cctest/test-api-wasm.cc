@@ -20,6 +20,10 @@ namespace {
 bool wasm_streaming_callback_got_called = false;
 bool wasm_streaming_data_got_collected = false;
 
+// The bytes of a minimal WebAssembly module.
+const uint8_t kMinimalWasmModuleBytes[]{0x00, 0x61, 0x73, 0x6d,
+                                        0x01, 0x00, 0x00, 0x00};
+
 void WasmStreamingTestFinalizer(const v8::WeakCallbackInfo<void>& data) {
   CHECK(!wasm_streaming_data_got_collected);
   wasm_streaming_data_got_collected = true;
@@ -54,9 +58,8 @@ void WasmStreamingCallbackTestFinishWithSuccess(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::shared_ptr<v8::WasmStreaming> streaming =
       v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  // The bytes of a minimal WebAssembly module.
-  const uint8_t bytes[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
-  streaming->OnBytesReceived(bytes, arraysize(bytes));
+  streaming->OnBytesReceived(kMinimalWasmModuleBytes,
+                             arraysize(kMinimalWasmModuleBytes));
   streaming->Finish();
 }
 
@@ -131,6 +134,16 @@ TEST(WasmStreamingAbortWithReject) {
 TEST(WasmStreamingAbortWithoutReject) {
   TestWasmStreaming(WasmStreamingCallbackTestAbortNoReject,
                     v8::Promise::kPending);
+}
+
+TEST(WasmCompileToWasmModuleObject) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto maybe_module = v8::WasmModuleObject::Compile(
+      CcTest::isolate(),
+      {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)});
+  CHECK(!maybe_module.IsEmpty());
 }
 
 namespace {

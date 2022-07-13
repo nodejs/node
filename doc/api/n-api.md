@@ -1182,13 +1182,18 @@ This API throws a JavaScript `RangeError` with the text provided.
 #### `node_api_throw_syntax_error`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
+
+> Stability: 1 - Experimental
 
 ````c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
                                                     const char* msg);
+```
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] code`: Optional error code to be set on the error.
@@ -1298,8 +1303,12 @@ This API returns a JavaScript `RangeError` with the text provided.
 #### `node_api_create_syntax_error`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
@@ -1645,7 +1654,14 @@ the corresponding object on the heap being retained forever.
 
 There can be multiple persistent references created which refer to the same
 object, each of which will either keep the object live or not based on its
-individual count.
+individual count. Multiple persistent references to the same object
+can result in unexpectedly keeping alive native memory. The native structures
+for a persistent reference must be kept alive until finalizers for the
+referenced object are executed. If a new persistent reference is created
+for the same object, the finalizers for that object will not be
+run and the native memory pointed by the earlier persistent reference
+will not be freed. This can be avoided by calling
+`napi_delete_reference` in addition to `napi_reference_unref` when possible.
 
 #### `napi_create_reference`
 
@@ -2491,6 +2507,39 @@ This API creates a JavaScript `symbol` value from a UTF8-encoded C string.
 
 The JavaScript `symbol` type is described in [Section 19.4][]
 of the ECMAScript Language Specification.
+
+#### `node_api_symbol_for`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_symbol_for(napi_env env,
+                                const char* utf8description,
+                                size_t length,
+                                napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] utf8description`: UTF-8 C string representing the text to be used as the
+  description for the symbol.
+* `[in] length`: The length of the description string in bytes, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[out] result`: A `napi_value` representing a JavaScript `symbol`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API searches in the global registry for an existing symbol with the given
+description. If the symbol already exists it will be returned, otherwise a new
+symbol will be created in the registry.
+
+The JavaScript `symbol` type is described in [Section 19.4][] of the ECMAScript
+Language Specification.
 
 #### `napi_create_typedarray`
 
@@ -4542,6 +4591,7 @@ snippet:
 function AddTwo(num) {
   return num + 2;
 }
+global.AddTwo = AddTwo;
 ```
 
 Then, the above function can be invoked from a native add-on using the
@@ -4677,7 +4727,7 @@ napi_status napi_get_cb_info(napi_env env,
 * `[in-out] argc`: Specifies the length of the provided `argv` array and
   receives the actual count of arguments. `argc` can
   optionally be ignored by passing `NULL`.
-* `[out] argv`: Buffer to which the `napi_value` representing the arguments are
+* `[out] argv`: C array of `napi_value`s to which the arguments will be
   copied. If there are more arguments than the provided count, only the
   requested number of arguments are copied. If there are fewer arguments
   provided than claimed, the rest of `argv` is filled with `napi_value` values
@@ -5078,6 +5128,11 @@ _Caution_: The optional returned reference (if obtained) should be deleted via
 invocation. If it is deleted before then, then the finalize callback may never
 be invoked. Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct disposal of the reference.
+
+Finalizer callbacks may be deferred, leaving a window where the object has
+been garbage collected (and the weak reference is invalid) but the finalizer
+hasn't been called yet. When using `napi_get_reference_value()` on weak
+references returned by `napi_wrap()`, you should still handle an empty result.
 
 Calling `napi_wrap()` a second time on an object will return an error. To
 associate another native instance with the object, use `napi_remove_wrap()`

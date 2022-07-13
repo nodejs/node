@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_LINEAR_ALLOCATION_AREA_H_
 #define V8_HEAP_LINEAR_ALLOCATION_AREA_H_
 
+// This header file is included outside of src/heap/.
+// Avoid including src/heap/ internals.
 #include "include/v8-internal.h"
 #include "src/common/checks.h"
 
@@ -100,6 +102,8 @@ class LinearAllocationArea final {
 #endif  // DEBUG
   }
 
+  static constexpr int kSize = 3 * kSystemPointerSize;
+
  private:
   // The start of the LAB. Initially coincides with `top_`. As top is moved
   // ahead, the area [start_, top_[ denotes a range of new objects. This range
@@ -110,6 +114,10 @@ class LinearAllocationArea final {
   // Limit of the LAB the denotes the end of the valid range for allocation.
   Address limit_ = kNullAddress;
 };
+
+static_assert(sizeof(LinearAllocationArea) == LinearAllocationArea::kSize,
+              "LinearAllocationArea's size must be small because it "
+              "is included in IsolateData.");
 
 }  // namespace internal
 }  // namespace v8

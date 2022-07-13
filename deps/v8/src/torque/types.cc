@@ -432,8 +432,10 @@ StructType::Classification StructType::ClassifyContents() const {
   Classification result = ClassificationFlag::kEmpty;
   for (const Field& struct_field : fields()) {
     const Type* field_type = struct_field.name_and_type.type;
-    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      result |= ClassificationFlag::kTagged;
+    if (field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
+      result |= ClassificationFlag::kStrongTagged;
+    } else if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      result |= ClassificationFlag::kWeakTagged;
     } else if (auto field_as_struct = field_type->StructSupertype()) {
       result |= (*field_as_struct)->ClassifyContents();
     } else {
@@ -618,13 +620,13 @@ void ComputeSlotKindsHelper(std::vector<ObjectSlotKind>* slots,
     } else {
       ObjectSlotKind kind;
       if (type->IsSubtypeOf(TypeOracle::GetObjectType())) {
-        if (field.is_weak) {
+        if (field.custom_weak_marking) {
           kind = ObjectSlotKind::kCustomWeakPointer;
         } else {
           kind = ObjectSlotKind::kStrongPointer;
         }
       } else if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        DCHECK(!field.is_weak);
+        DCHECK(!field.custom_weak_marking);
         kind = ObjectSlotKind::kMaybeObjectPointer;
       } else {
         kind = ObjectSlotKind::kNoPointer;
@@ -848,7 +850,7 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 
   if (field.offset.has_value()) {
     offset_expression =
-        MakeNode<NumberLiteralExpression>(static_cast<double>(*field.offset));
+        MakeNode<IntegerLiteralExpression>(IntegerLiteral(*field.offset));
   } else {
     const Field* previous = GetFieldPreceding(field_index);
     DCHECK_NOT_NULL(previous);
@@ -877,8 +879,8 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
     std::tie(previous_element_size, std::ignore) =
         *SizeOf(previous->name_and_type.type);
     Expression* previous_element_size_expression =
-        MakeNode<NumberLiteralExpression>(
-            static_cast<double>(previous_element_size));
+        MakeNode<IntegerLiteralExpression>(
+            IntegerLiteral(previous_element_size));
 
     // previous.length
     Expression* previous_length_expression = MakeFieldAccessExpression(
@@ -985,8 +987,8 @@ std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type) {
 
 std::ostream& operator<<(std::ostream& os, const Field& field) {
   os << field.name_and_type;
-  if (field.is_weak) {
-    os << " (weak)";
+  if (field.custom_weak_marking) {
+    os << " (custom weak)";
   }
   return os;
 }
@@ -1137,8 +1139,8 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
     return *optional;
   }
   Error("fields of type ", *name_and_type.type, " are not (yet) supported")
-      .Position(pos);
-  return std::make_tuple(0, "#no size");
+      .Position(pos)
+      .Throw();
 }
 
 size_t Type::AlignmentLog2() const {

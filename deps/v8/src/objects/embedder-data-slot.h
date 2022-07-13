@@ -32,30 +32,78 @@ class Object;
 class EmbedderDataSlot
     : public SlotBase<EmbedderDataSlot, Address, kTaggedSize> {
  public:
+#if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+  // When the sandbox is enabled, an EmbedderDataSlot always contains a valid
+  // external pointer table index (initially, zero) in it's "raw" part and a
+  // valid tagged value in its 32-bit "tagged" part.
+  //
+  // Layout (sandbox):
+  // +-----------------------------------+-----------------------------------+
+  // | Tagged (Smi/CompressedPointer)    | External Pointer Table Index      |
+  // +-----------------------------------+-----------------------------------+
+  // ^                                   ^
+  // kTaggedPayloadOffset                kRawPayloadOffset
+  //                                     kExternalPointerOffset
+  static constexpr int kTaggedPayloadOffset = 0;
+  static constexpr int kRawPayloadOffset = kTaggedSize;
+  static constexpr int kExternalPointerOffset = kRawPayloadOffset;
+#elif defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_BIG_ENDIAN)
+  // The raw payload is located in the other "tagged" part of the full pointer
+  // and cotains the upper part of an aligned address. The raw part is not
+  // expected to look like a tagged value.
+  //
+  // Layout (big endian pointer compression):
+  // +-----------------------------------+-----------------------------------+
+  // | External Pointer (high word)      | Tagged (Smi/CompressedPointer)    |
+  // |                                   | OR External Pointer (low word)    |
+  // +-----------------------------------+-----------------------------------+
+  // ^                                   ^
+  // kRawPayloadOffset                   kTaggedayloadOffset
+  // kExternalPointerOffset
+  static constexpr int kExternalPointerOffset = 0;
+  static constexpr int kRawPayloadOffset = 0;
+  static constexpr int kTaggedPayloadOffset = kTaggedSize;
+#elif defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_LITTLE_ENDIAN)
+  // Layout (little endian pointer compression):
+  // +-----------------------------------+-----------------------------------+
+  // | Tagged (Smi/CompressedPointer)    | External Pointer (high word)      |
+  // | OR External Pointer (low word)    |                                   |
+  // +-----------------------------------+-----------------------------------+
+  // ^                                   ^
+  // kTaggedPayloadOffset                kRawPayloadOffset
+  // kExternalPointerOffset
+  static constexpr int kExternalPointerOffset = 0;
+  static constexpr int kTaggedPayloadOffset = 0;
+  static constexpr int kRawPayloadOffset = kTaggedSize;
+#else
+  // Layout (no pointer compression):
+  // +-----------------------------------------------------------------------+
+  // | Tagged (Smi/Pointer) OR External Pointer                              |
+  // +-----------------------------------------------------------------------+
+  // ^
+  // kTaggedPayloadOffset
+  // kExternalPointerOffset
+  static constexpr int kTaggedPayloadOffset = 0;
+  static constexpr int kExternalPointerOffset = 0;
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+
+  static constexpr int kRequiredPtrAlignment = kSmiTagSize;
+
+  using EmbedderDataSlotSnapshot = Address;
+  V8_INLINE static void PopulateEmbedderDataSnapshot(Map map,
+                                                     JSObject js_object,
+                                                     int entry_index,
+                                                     EmbedderDataSlotSnapshot&);
+
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
   V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
-
-#if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
-  static constexpr int kTaggedPayloadOffset = kTaggedSize;
-#else
-  static constexpr int kTaggedPayloadOffset = 0;
-#endif
-
-#ifdef V8_COMPRESS_POINTERS
-  // The raw payload is located in the other "tagged" part of the full pointer
-  // and cotains the upper part of aligned address. The raw part is not expected
-  // to look like a tagged value.
-  // When V8_HEAP_SANDBOX is defined the raw payload contains an index into the
-  // external pointer table.
-  static constexpr int kRawPayloadOffset = kTaggedSize - kTaggedPayloadOffset;
-#endif
-  static constexpr int kRequiredPtrAlignment = kSmiTagSize;
+  V8_INLINE explicit EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot);
 
   // Opaque type used for storing raw embedder data.
   using RawData = Address;
 
-  V8_INLINE void AllocateExternalPointerEntry(Isolate* isolate);
+  V8_INLINE void Initialize(Object initial_value);
 
   V8_INLINE Object load_tagged() const;
   V8_INLINE void store_smi(Smi value);
@@ -72,22 +120,10 @@ class EmbedderDataSlot
   // the pointer-like value. Note, that some Smis could still look like an
   // aligned pointers.
   // Returns true on success.
-  // When V8 heap sandbox is enabled, calling this method when the raw part of
-  // the slot does not contain valid external pointer table index is undefined
-  // behaviour and most likely result in crashes.
+  // When sandboxed external pointers are enabled, calling this method when the
+  // raw part of the slot does not contain valid external pointer table index
+  // is undefined behaviour and most likely result in crashes.
   V8_INLINE bool ToAlignedPointer(Isolate* isolate, void** out_result) const;
-
-  // Same as ToAlignedPointer() but with a workaround for V8 heap sandbox.
-  // When V8 heap sandbox is enabled, this method doesn't crash when the raw
-  // part of the slot contains "undefined" instead of a correct external table
-  // entry index (see Factory::InitializeJSObjectBody() for details).
-  // Returns true when the external pointer table index was pointing to a valid
-  // entry, otherwise false.
-  //
-  // Call this function if you are not sure whether the slot contains valid
-  // external pointer or not.
-  V8_INLINE bool ToAlignedPointerSafe(Isolate* isolate,
-                                      void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.

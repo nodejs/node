@@ -5,11 +5,15 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 @abstract
-@reserveBitsInInstanceType(6)
+@reserveBitsInInstanceType(7)
 extern class String extends Name {
   macro StringInstanceType(): StringInstanceType {
     return %RawDownCast<StringInstanceType>(
         Convert<uint16>(this.map.instance_type));
+  }
+
+  macro IsNotInternalized(): bool {
+    return this.StringInstanceType().is_not_internalized;
   }
 
   const length: int32;
@@ -28,6 +32,7 @@ bitfield struct StringInstanceType extends uint16 {
   is_one_byte: bool: 1 bit;
   is_uncached: bool: 1 bit;
   is_not_internalized: bool: 1 bit;
+  is_shared: bool: 1 bit;
 }
 
 @generateBodyDescriptor

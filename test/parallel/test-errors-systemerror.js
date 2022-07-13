@@ -9,7 +9,7 @@ assert.throws(
   () => { new SystemError(); },
   {
     name: 'TypeError',
-    message: 'String.prototype.match called on null or undefined'
+    message: "Cannot read properties of undefined (reading 'syscall')",
   }
 );
 

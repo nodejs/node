@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 *%(basename)s:8: TypeError: '#a' was defined without a getter
     const a = this.#a;
-              ^
+                   ^
 TypeError: '#a' was defined without a getter
-    at new C (*%(basename)s:8:15)
+    at new C (*%(basename)s:8:20)
     at *%(basename)s:11:1

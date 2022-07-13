@@ -23,9 +23,9 @@ class TryCatch;
 
 namespace internal {
 
+class EmbedderState;
 class ExternalCallbackScope;
 class Isolate;
-class PromiseOnStack;
 class Simulator;
 
 class ThreadLocalTop {
@@ -34,9 +34,9 @@ class ThreadLocalTop {
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
 #else
-  static constexpr uint32_t kSizeInBytes = 24 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
 #endif
 
   // Does early low-level initialization that does not depend on the
@@ -117,6 +117,7 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
+  uintptr_t num_frames_above_pending_handler_;
 
   Address last_api_entry_;
 
@@ -138,11 +139,6 @@ class ThreadLocalTop {
   // C function that was called at c entry.
   Address c_function_;
 
-  // Throwing an exception may cause a Promise rejection.  For this purpose
-  // we keep track of a stack of nested promises and the corresponding
-  // try-catch handlers.
-  PromiseOnStack* promise_on_stack_;
-
   // Simulator field is always present to get predictable layout.
   Simulator* simulator_;
 
@@ -151,6 +147,7 @@ class ThreadLocalTop {
   // The external callback we're currently in.
   ExternalCallbackScope* external_callback_scope_;
   StateTag current_vm_state_;
+  EmbedderState* current_embedder_state_;
 
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;

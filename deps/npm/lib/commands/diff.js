@@ -6,7 +6,7 @@ const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 const log = require('../utils/log-shim')
-const readPackageName = require('../utils/read-package-name.js')
+const readPackage = require('read-package-json-fast')
 const BaseCommand = require('../base-command.js')
 
 class Diff extends BaseCommand {
@@ -32,6 +32,8 @@ class Diff extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args) {
     const specs = this.npm.config.get('diff').filter(d => d)
     if (specs.length > 2) {
@@ -48,7 +50,7 @@ class Diff extends BaseCommand {
     // node_modules is sometimes under ./lib, and in global mode we're only ever
     // walking through node_modules (because we will have been given a package
     // name already)
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       this.top = resolve(this.npm.globalDir, '..')
     } else {
       this.top = this.prefix
@@ -79,7 +81,8 @@ class Diff extends BaseCommand {
   async packageName (path) {
     let name
     try {
-      name = await readPackageName(this.prefix)
+      const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+      name = pkg.name
     } catch (e) {
       log.verbose('diff', 'could not read project dir package.json')
     }
@@ -112,7 +115,8 @@ class Diff extends BaseCommand {
     let noPackageJson
     let pkgName
     try {
-      pkgName = await readPackageName(this.prefix)
+      const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+      pkgName = pkg.name
     } catch (e) {
       log.verbose('diff', 'could not read project dir package.json')
       noPackageJson = true
@@ -223,7 +227,8 @@ class Diff extends BaseCommand {
     if (semverA && semverB) {
       let pkgName
       try {
-        pkgName = await readPackageName(this.prefix)
+        const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+        pkgName = pkg.name
       } catch (e) {
         log.verbose('diff', 'could not read project dir package.json')
       }

@@ -19,7 +19,7 @@ Commands in this document start with `$` or `>` to replicate how they would
 appear in a user's terminal. Do not include the `$` and `>` characters. They are
 there to show the start of each command.
 
-Lines that don’t start with `$` or `>` character show the output of the previous
+Lines that don't start with `$` or `>` character show the output of the previous
 command.
 
 First, make sure to have downloaded and installed Node.js. See
@@ -55,7 +55,7 @@ Open `hello-world.js` in any preferred text editor and
 paste in the following content:
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const hostname = '127.0.0.1';
 const port = 3000;
@@ -88,6 +88,6 @@ Now, open any preferred web browser and visit `http://127.0.0.1:3000`.
 If the browser displays the string `Hello, World!`, that indicates
 the server is working.
 
-[Command-line options]: cli.md#command-line-options
+[Command-line options]: cli.md#options
 [Installing Node.js via package manager]: https://nodejs.org/en/download/package-manager/
 [web server]: http.md

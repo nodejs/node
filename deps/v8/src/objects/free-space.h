@@ -37,6 +37,8 @@ class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
 
+  class BodyDescriptor;
+
  private:
   inline bool IsValid();
 

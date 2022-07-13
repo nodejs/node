@@ -3,11 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <optional>
 #include <unordered_map>
 #include "node_messaging.h"
 #include "uv.h"
 
 namespace node {
+
+struct SnapshotData;
 namespace worker {
 
 class WorkerThreadData;
@@ -28,7 +31,8 @@ class Worker : public AsyncWrap {
          const std::string& url,
          std::shared_ptr<PerIsolateOptions> per_isolate_opts,
          std::vector<std::string>&& exec_argv,
-         std::shared_ptr<KVStore> env_vars);
+         std::shared_ptr<KVStore> env_vars,
+         const SnapshotData* snapshot_data);
   ~Worker() override;
 
   // Run the worker. This is only called from the worker thread.
@@ -47,12 +51,13 @@ class Worker : public AsyncWrap {
   template <typename Fn>
   inline bool RequestInterrupt(Fn&& cb);
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
   bool IsNotIndicativeOfMemoryLeakAtExit() const override;
 
   bool is_stopped() const;
+  const SnapshotData* snapshot_data() const { return snapshot_data_; }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CloneParentEnvVars(
@@ -60,6 +65,7 @@ class Worker : public AsyncWrap {
   static void SetEnvVars(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetResourceLimits(
@@ -80,14 +86,13 @@ class Worker : public AsyncWrap {
 
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  uv_thread_t tid_;
+  std::optional<uv_thread_t> tid_;  // Set while the thread is running
 
   std::unique_ptr<InspectorParentHandle> inspector_parent_handle_;
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
 
-  bool thread_joined_ = true;
   const char* custom_error_ = nullptr;
   std::string custom_error_str_;
   int exit_code_ = 0;
@@ -106,10 +111,6 @@ class Worker : public AsyncWrap {
   std::unique_ptr<MessagePortData> child_port_data_;
   std::shared_ptr<KVStore> env_vars_;
 
-  // This is always kept alive because the JS object associated with the Worker
-  // instance refers to it via its [kPort] property.
-  MessagePort* parent_port_ = nullptr;
-
   // A raw flag that is used by creator and worker threads to
   // sync up on pre-mature termination of worker  - while in the
   // warmup phase.  Once the worker is fully warmed up, use the
@@ -125,6 +126,7 @@ class Worker : public AsyncWrap {
   // destroyed alongwith the worker thread.
   Environment* env_ = nullptr;
 
+  const SnapshotData* snapshot_data_ = nullptr;
   friend class WorkerThreadData;
 };
 

@@ -7,14 +7,11 @@
 // Requirements
 //-----------------------------------------------------------------------------
 
-import path from "path";
-import { fileURLToPath } from "url";
 import createDebug from "debug";
+import path from "path";
 
-import { ConfigArrayFactory } from "./config-array-factory.js";
 import environments from "../conf/environments.js";
-
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+import { ConfigArrayFactory } from "./config-array-factory.js";
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -225,8 +222,8 @@ class FlatCompat {
         this[cafactory] = new ConfigArrayFactory({
             cwd: baseDirectory,
             resolvePluginsRelativeTo,
-            eslintAllPath: path.resolve(dirname, "../conf/eslint-all.cjs"),
-            eslintRecommendedPath: path.resolve(dirname, "../conf/eslint-recommended.cjs")
+            getEslintAllConfig: () => ({ settings: { "eslint:all": true } }),
+            getEslintRecommendedConfig: () => ({ settings: { "eslint:recommended": true } })
         });
     }
 

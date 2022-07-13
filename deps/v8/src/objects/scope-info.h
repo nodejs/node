@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+// scope-info-tq.inc uses NameToIndexHashTable.
+class NameToIndexHashTable;
+
 #include "torque-generated/src/objects/scope-info-tq.inc"
 
 template <typename T>
@@ -88,18 +91,23 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // or context-allocated?
   bool HasAllocatedReceiver() const;
 
-  // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
+  // Does this scope has class brand (for private methods)? If it's a class
+  // scope, this indicates whether the class has a private brand. If it's a
+  // constructor scope, this indicates whther it needs to initialize the
+  // brand.
+  bool ClassScopeHasPrivateBrand() const;
 
-  // Does this scope contain a saved class variable context local slot index
-  // for checking receivers of static private methods?
-  bool HasSavedClassVariableIndex() const;
+  // Does this scope contain a saved class variable for checking receivers of
+  // static private methods?
+  bool HasSavedClassVariable() const;
 
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
 
   // Is this scope the scope of a named function expression?
   V8_EXPORT_PRIVATE bool HasFunctionName() const;
+
+  bool HasContextAllocatedFunctionName() const;
 
   // See SharedFunctionInfo::HasSharedName.
   V8_EXPORT_PRIVATE bool HasSharedFunctionName() const;
@@ -138,8 +146,22 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   SourceTextModuleInfo ModuleDescriptorInfo() const;
 
-  // Return the name of the given context local.
-  String ContextLocalName(int var) const;
+  // Return true if the local names are inlined in the scope info object.
+  inline bool HasInlinedLocalNames() const;
+
+  template <typename ScopeInfoPtr>
+  class LocalNamesRange;
+
+  static inline LocalNamesRange<Handle<ScopeInfo>> IterateLocalNames(
+      Handle<ScopeInfo> scope_info);
+
+  static inline LocalNamesRange<ScopeInfo*> IterateLocalNames(
+      ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc);
+
+  // Return the name of a given context local.
+  // It should only be used if inlined local names.
+  String ContextInlinedLocalName(int var) const;
+  String ContextInlinedLocalName(PtrComprCageBase cage_base, int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -165,8 +187,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(ScopeInfo scope_info, String name,
-                              VariableLookupResult* lookup_result);
+  int ContextSlotIndex(Handle<String> name);
+  int ContextSlotIndex(Handle<String> name,
+                       VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -188,11 +211,13 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // context-allocated.  Otherwise returns a value < 0.
   int ReceiverContextSlotIndex() const;
 
-  // Lookup support for serialized scope info.  Returns the index of the
-  // saved class variable in context local slots if scope is a class scope
+  // Returns the first parameter context slot index.
+  int ParametersStartIndex() const;
+
+  // Lookup support for serialized scope info.  Returns the name and index of
+  // the saved class variable in context local slots if scope is a class scope
   // and it contains static private methods that may be accessed.
-  // Otherwise returns a value < 0.
-  int SavedClassVariableContextLocalIndex() const;
+  std::pair<String, int> SavedClassVariable() const;
 
   FunctionKind function_kind() const;
 
@@ -269,7 +294,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   };
 
   STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  STATIC_ASSERT(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
 
   bool IsEmpty() const;
 
@@ -282,10 +307,11 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
  private:
   friend class WebSnapshotDeserializer;
 
+  int InlinedLocalNamesLookup(String name);
+
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
-  int ReceiverInfoIndex() const;
   int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;

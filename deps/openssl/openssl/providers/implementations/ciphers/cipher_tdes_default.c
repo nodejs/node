@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@ IMPLEMENT_tdes_cipher(ede3, EDE3, cfb1, CFB, TDES_FLAGS, 64*3,  8, 64, stream);
 IMPLEMENT_tdes_cipher(ede3, EDE3, cfb8, CFB, TDES_FLAGS, 64*3,  8, 64, stream);
 
 /* ossl_tdes_ede2_ecb_functions */
-IMPLEMENT_tdes_cipher(ede2, EDE2, ecb, ECB, TDES_FLAGS, 64*2, 64, 64, block);
+IMPLEMENT_tdes_cipher(ede2, EDE2, ecb, ECB, TDES_FLAGS, 64*2, 64, 0, block);
 /* ossl_tdes_ede2_cbc_functions */
 IMPLEMENT_tdes_cipher(ede2, EDE2, cbc, CBC, TDES_FLAGS, 64*2, 64, 64, block);
 /* ossl_tdes_ede2_ofb_functions */

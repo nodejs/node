@@ -12,6 +12,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/pointer-with-payload.h"
+#include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/parsing/import-assertions.h"
@@ -19,7 +21,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -50,7 +51,7 @@ struct ParserFormalParameters : FormalParametersBase {
           position(position),
           initializer_end_position(initializer_end_position) {}
 
-    PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
+    base::PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
 
     Expression* pattern;
     Expression* initializer() const {
@@ -130,7 +131,7 @@ struct ParserTypes<Parser> {
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
-  explicit Parser(ParseInfo* info);
+  Parser(LocalIsolate* local_isolate, ParseInfo* info, Handle<Script> script);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
@@ -139,7 +140,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   static bool IsPreParser() { return false; }
 
   // Sets the literal on |info| if parsing succeeded.
-  void ParseOnBackground(ParseInfo* info, int start_position, int end_position,
+  void ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
+                         int start_position, int end_position,
                          int function_literal_id);
 
   // Initializes an empty scope chain for top-level scripts, or scopes which
@@ -154,13 +156,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // This only deserializes the scope chain, but doesn't connect the scopes to
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
-  void DeserializeScopeChain(Isolate* isolate, ParseInfo* info,
+  template <typename IsolateT>
+  void DeserializeScopeChain(IsolateT* isolate, ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info,
                              Scope::DeserializationMode mode =
                                  Scope::DeserializationMode::kScopesOnly);
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);
+  void UpdateStatistics(
+      Handle<Script> script,
+      base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
+      int* preparse_skipped);
   template <typename IsolateT>
   void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
 
@@ -221,13 +228,23 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseFunction(Isolate* isolate, ParseInfo* info,
                      Handle<SharedFunctionInfo> shared_info);
 
-  void PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+  template <typename IsolateT>
+  void PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
                               FunctionLiteral* literal);
 
   FunctionLiteral* DoParseFunction(Isolate* isolate, ParseInfo* info,
                                    int start_position, int end_position,
                                    int function_literal_id,
                                    const AstRawString* raw_name);
+
+  FunctionLiteral* DoParseDeserializedFunction(
+      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+      ParseInfo* info, int start_position, int end_position,
+      int function_literal_id, const AstRawString* raw_name);
+
+  FunctionLiteral* ParseClassForInstanceMemberInitialization(
+      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
+      int initializer_pos, int initializer_id, int initializer_end_pos);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
@@ -783,7 +800,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return factory()->NewThisExpression(pos);
   }
 
-  Expression* NewSuperPropertyReference(int pos);
+  Expression* NewSuperPropertyReference(Scope* home_object_scope, int pos);
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);
@@ -1054,11 +1071,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class PreParserZoneScope;  // Uses reusable_preparser().
   friend class PreparseDataBuilder;  // Uses preparse_data_buffer()
 
+  LocalIsolate* local_isolate_;
   ParseInfo* info_;
+  Handle<Script> script_;
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
   Mode mode_;
+  bool overall_parse_is_parked_ = false;
 
   MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 

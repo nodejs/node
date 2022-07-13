@@ -24,7 +24,8 @@ class UnmarkedObjectsPoisoner : public HeapVisitor<UnmarkedObjectsPoisoner> {
   bool VisitHeapObjectHeader(HeapObjectHeader& header) {
     if (header.IsFree() || header.IsMarked()) return true;
 
-    ASAN_POISON_MEMORY_REGION(header.ObjectStart(), ObjectView(header).Size());
+    ASAN_POISON_MEMORY_REGION(header.ObjectStart(),
+                              ObjectView<>(header).Size());
     return true;
   }
 };

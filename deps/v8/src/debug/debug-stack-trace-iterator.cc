@@ -82,7 +82,8 @@ int DebugStackTraceIterator::GetContextId() const {
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
   DCHECK(!Done());
   if (frame_inspector_->IsJavaScript() &&
-      frame_inspector_->GetFunction()->shared().kind() == kArrowFunction) {
+      frame_inspector_->GetFunction()->shared().kind() ==
+          FunctionKind::kArrowFunction) {
     // FrameInspector is not able to get receiver for arrow function.
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.
@@ -100,10 +101,8 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
       return v8::MaybeLocal<v8::Value>();
     }
     DisallowGarbageCollection no_gc;
-    VariableLookupResult lookup_result;
-    int slot_index = ScopeInfo::ContextSlotIndex(
-        context->scope_info(), ReadOnlyRoots(isolate_->heap()).this_string(),
-        &lookup_result);
+    int slot_index = context->scope_info().ContextSlotIndex(
+        ReadOnlyRoots(isolate_).this_string_handle());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
     if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();

@@ -219,6 +219,40 @@ Handle<Object> StoreHandler::StoreElementTransition(
   return handler;
 }
 
+// static
+MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
+                                                   Handle<Map> transition_map) {
+  bool is_dictionary_map = transition_map->is_dictionary_map();
+#ifdef DEBUG
+  if (!is_dictionary_map) {
+    InternalIndex descriptor = transition_map->LastAdded();
+    Handle<DescriptorArray> descriptors(
+        transition_map->instance_descriptors(isolate), isolate);
+    PropertyDetails details = descriptors->GetDetails(descriptor);
+    if (descriptors->GetKey(descriptor).IsPrivate()) {
+      DCHECK_EQ(DONT_ENUM, details.attributes());
+    } else {
+      DCHECK_EQ(NONE, details.attributes());
+    }
+    Representation representation = details.representation();
+    DCHECK(!representation.IsNone());
+  }
+#endif
+  // Declarative handlers don't support access checks.
+  DCHECK(!transition_map->is_access_check_needed());
+
+  // StoreOwnTransition does not involve any prototype checks.
+  if (is_dictionary_map) {
+    DCHECK(!transition_map->IsJSGlobalObjectMap());
+    int config = KindBits::encode(Kind::kNormal);
+    return MaybeObjectHandle(Smi::FromInt(config), isolate);
+
+  } else {
+    return MaybeObjectHandle::Weak(transition_map);
+  }
+}
+
+// static
 MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
                                                 Handle<Map> transition_map) {
   bool is_dictionary_map = transition_map->is_dictionary_map();
@@ -227,6 +261,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
     InternalIndex descriptor = transition_map->LastAdded();
     Handle<DescriptorArray> descriptors(
         transition_map->instance_descriptors(isolate), isolate);
+    // Private fields must be added via StoreOwnTransition handler.
+    DCHECK(!descriptors->GetKey(descriptor).IsPrivateName());
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor).IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());

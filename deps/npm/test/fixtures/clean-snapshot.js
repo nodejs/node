@@ -10,7 +10,7 @@ const cleanCwd = (path) => normalizePath(path)
   .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
 
 const cleanDate = (str) =>
-  str.replace(/\d{4}-\d{2}-\d{2}T\d{2}[_:]\d{2}[_:]\d{2}[_:]\d{3}Z/g, '{DATE}')
+  str.replace(/\d{4}-\d{2}-\d{2}T\d{2}[_:]\d{2}[_:]\d{2}[_:.]\d{3}Z/g, '{DATE}')
 
 module.exports = {
   normalizePath,

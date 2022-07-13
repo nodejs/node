@@ -30,6 +30,7 @@ const v8 = require('v8');
 const { previewEntries } = internalBinding('util');
 const { inspect } = util;
 const { MessageChannel } = require('worker_threads');
+const url = require('url');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -434,7 +435,7 @@ assert.strictEqual(
 
 // Array with extra properties.
 {
-  const arr = [1, 2, 3, , ];
+  const arr = [1, 2, 3, , ]; // eslint-disable-line no-sparse-arrays
   arr.foo = 'bar';
   assert.strictEqual(util.inspect(arr),
                      "[ 1, 2, 3, <1 empty item>, foo: 'bar' ]");
@@ -665,9 +666,15 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   delete falsyCause1.stack;
   const falsyCause2 = new Error(undefined, { cause: null });
   falsyCause2.stack = '';
+  const undefinedCause = new Error('', { cause: undefined });
+  undefinedCause.stack = '';
 
   assert.strictEqual(util.inspect(falsyCause1), '[Error] { [cause]: false }');
   assert.strictEqual(util.inspect(falsyCause2), '[Error] { [cause]: null }');
+  assert.strictEqual(
+    util.inspect(undefinedCause),
+    '[Error] { [cause]: undefined }'
+  );
 }
 
 {
@@ -891,7 +898,7 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 
 // Test util.inspect.styles and util.inspect.colors.
 {
-  function testColorStyle(style, input, implicit) {
+  function testColorStyle(style, input) {
     const colorName = util.inspect.styles[style];
     let color = ['', ''];
     if (util.inspect.colors[colorName])
@@ -1390,6 +1397,9 @@ if (typeof Symbol !== 'undefined') {
   class SetSubclass extends Set {}
   class MapSubclass extends Map {}
   class PromiseSubclass extends Promise {}
+  class SymbolNameClass {
+    static name = Symbol('name');
+  }
 
   const x = new ObjectSubclass();
   x.foo = 42;
@@ -1403,6 +1413,8 @@ if (typeof Symbol !== 'undefined') {
                      "MapSubclass(1) [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
                      'PromiseSubclass [Promise] { <pending> }');
+  assert.strictEqual(util.inspect(new SymbolNameClass()),
+                     'Symbol(name) {}');
   assert.strictEqual(
     util.inspect({ a: { b: new ArraySubclass([1, [2], 3]) } }, { depth: 1 }),
     '{ a: { b: [ArraySubclass] } }'
@@ -2136,6 +2148,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [function() {}, '[Function (anonymous)]'],
   [() => {}, '[Function (anonymous)]'],
   [[1, 2], '[ 1, 2 ]'],
+  // eslint-disable-next-line no-sparse-arrays
   [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
   [{ a: 5 }, '{ a: 5 }'],
   [new Set([1, 2]), 'Set(2) { 1, 2 }'],
@@ -2625,6 +2638,24 @@ assert.strictEqual(
 
   assert.strictEqual(out, expected);
 
+  // Array grouping should prevent lining up outer elements on a single line.
+  obj = [[[1, 2, 3, 4, 5, 6, 7, 8, 9]]];
+
+  out = util.inspect(obj, { compact: 3 });
+
+  expected = [
+    '[',
+    '  [',
+    '    [',
+    '      1, 2, 3, 4, 5,',
+    '      6, 7, 8, 9',
+    '    ]',
+    '  ]',
+    ']',
+  ].join('\n');
+
+  assert.strictEqual(out, expected);
+
   // Verify that array grouping and line consolidation does not happen together.
   obj = {
     a: {
@@ -2665,7 +2696,6 @@ assert.strictEqual(
 
   expected = [
     '[',
-    /* eslint-disable max-len */
     '   \u001b[33m0\u001b[39m,  \u001b[33m1\u001b[39m,  \u001b[33m2\u001b[39m,  \u001b[33m3\u001b[39m,',
     '   \u001b[33m4\u001b[39m,  \u001b[33m5\u001b[39m,  \u001b[33m6\u001b[39m,  \u001b[33m7\u001b[39m,',
     '   \u001b[33m8\u001b[39m,  \u001b[33m9\u001b[39m, \u001b[33m10\u001b[39m, \u001b[33m11\u001b[39m,',
@@ -2681,7 +2711,6 @@ assert.strictEqual(
     '  \u001b[33m48\u001b[39m, \u001b[33m49\u001b[39m, \u001b[33m50\u001b[39m, \u001b[33m51\u001b[39m,',
     '  \u001b[33m52\u001b[39m, \u001b[33m53\u001b[39m, \u001b[33m54\u001b[39m, \u001b[33m55\u001b[39m,',
     '  \u001b[33m56\u001b[39m, \u001b[33m57\u001b[39m, \u001b[33m58\u001b[39m, \u001b[33m59\u001b[39m',
-    /* eslint-enable max-len */
     ']',
   ].join('\n');
 
@@ -2783,9 +2812,15 @@ assert.strictEqual(
 }
 
 {
+  const originalCWD = process.cwd();
+
+  process.cwd = () => (process.platform === 'win32' ?
+    'C:\\workspace\\node-test-binary-windows js-suites-%percent-encoded\\node' :
+    '/home/user directory/repository%encoded/node');
+
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
-    'TypedError: Wonderful message!',
+    'Error: CWD is grayed out, even cwd that are percent encoded!',
     '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
@@ -2795,23 +2830,78 @@ assert.strictEqual(
     // This file is not an actual Node.js core file.
     '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
     '    at require (node:internal/modules/cjs/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at ${process.cwd()}/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (${process.cwd()}/node_modules/hyper_module/folder/file.js:2753:10)`,
     '    at /test/test-util-inspect.js:2239:9',
     '    at getActual (node:assert:592:5)',
   ];
-  const isNodeCoreFile = [
-    false, false, true, true, false, true, false, true, false, true,
-  ];
-  const err = new TypeError('Wonderful message!');
+  const err = new Error('CWD is grayed out, even cwd that are percent encoded!');
   err.stack = stack.join('\n');
+  if (process.platform === 'win32') {
+    err.stack = stack.map((frame) => (frame.includes('node:') ?
+      frame :
+      frame.replaceAll('/', '\\'))
+    ).join('\n');
+  }
+  const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let actual = stack[i].replace(/node_modules\/([a-z]+)/g, (a, m) => {
+    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
+    }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
+      return `\x1B[90m${m}\x1B[39m`;
     });
-    if (isNodeCoreFile[i]) {
-      actual = `\u001b[90m${actual}\u001b[39m`;
+    if (expected.includes(process.cwd()) && expected.endsWith(')')) {
+      expected = `${expected.slice(0, -1)}\x1B[90m)\x1B[39m`;
     }
-    assert.strictEqual(actual, line);
+    if (line.includes('node:')) {
+      if (!line.includes('foo') && !line.includes('aaa')) {
+        expected = `\u001b[90m${expected}\u001b[39m`;
+      }
+    } else if (process.platform === 'win32') {
+      expected = expected.replaceAll('/', '\\');
+    }
+    assert.strictEqual(line, expected);
   });
+
+  // Check ESM
+  const encodedCwd = url.pathToFileURL(process.cwd());
+  const sl = process.platform === 'win32' ? '\\' : '/';
+
+  // Use a fake stack to verify the expected colored outcome.
+  err.stack = 'Error: ESM and CJS mixed are both grayed out!\n' +
+              `    at ${encodedCwd}/test/parallel/test-esm.mjs:2760:12\n` +
+              `    at Object.<anonymous> (${encodedCwd}/node_modules/esm_module/folder/file.js:2753:10)\n` +
+              `    at ${process.cwd()}${sl}test${sl}parallel${sl}test-cjs.js:2760:12\n` +
+              `    at Object.<anonymous> (${process.cwd()}${sl}node_modules${sl}cjs_module${sl}folder${sl}file.js:2753:10)`;
+
+  let actual = util.inspect(err, { colors: true });
+  let expected = 'Error: ESM and CJS mixed are both grayed out!\n' +
+    `    at \x1B[90m${encodedCwd}/\x1B[39mtest/parallel/test-esm.mjs:2760:12\n` +
+    `    at Object.<anonymous> \x1B[90m(${encodedCwd}/\x1B[39mnode_modules/\x1B[4mesm_module\x1B[24m/folder/file.js:2753:10\x1B[90m)\x1B[39m\n` +
+    `    at \x1B[90m${process.cwd()}${sl}\x1B[39mtest${sl}parallel${sl}test-cjs.js:2760:12\n` +
+    `    at Object.<anonymous> \x1B[90m(${process.cwd()}${sl}\x1B[39mnode_modules${sl}\x1B[4mcjs_module\x1B[24m${sl}folder${sl}file.js:2753:10\x1B[90m)\x1B[39m`;
+
+  assert.strictEqual(actual, expected);
+
+  // ESM without need for encoding
+  process.cwd = () => (process.platform === 'win32' ?
+    'C:\\workspace\\node-test-binary-windows-js-suites\\node' :
+    '/home/user/repository/node');
+  let expectedCwd = process.cwd();
+  if (process.platform === 'win32') {
+    expectedCwd = `/${expectedCwd.replaceAll('\\', '/')}`;
+  }
+  // Use a fake stack to verify the expected colored outcome.
+  err.stack = 'Error: ESM without need for encoding!\n' +
+              `    at file://${expectedCwd}/file.js:15:15`;
+
+  actual = util.inspect(err, { colors: true });
+  expected = 'Error: ESM without need for encoding!\n' +
+  `    at \x1B[90mfile://${expectedCwd}/\x1B[39mfile.js:15:15`;
+  assert.strictEqual(actual, expected);
+
+  process.cwd = originalCWD;
 }
 
 {
@@ -3163,6 +3253,7 @@ assert.strictEqual(
   util.inspect.defaultOptions.numericSeparator = true;
 
   assert.strictEqual(
+    // eslint-disable-next-line no-loss-of-precision
     util.inspect(1234567891234567891234),
     '1.234567891234568e+21'
   );
@@ -3205,4 +3296,18 @@ assert.strictEqual(
     util.inspect(123456789.12345678, { numericSeparator: true }),
     '123_456_789.123_456_78'
   );
+
+  assert.strictEqual(
+    util.inspect(-123456789.12345678, { numericSeparator: true }),
+    '-123_456_789.123_456_78'
+  );
+}
+
+// Regression test for https://github.com/nodejs/node/issues/41244
+{
+  assert.strictEqual(util.inspect({
+    get [Symbol.iterator]() {
+      throw new Error();
+    }
+  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
 }

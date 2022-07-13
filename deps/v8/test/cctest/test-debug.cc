@@ -195,9 +195,9 @@ int break_point_hit_count = 0;
 int break_point_hit_count_deoptimize = 0;
 class DebugEventCounter : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     break_point_hit_count++;
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
@@ -218,9 +218,9 @@ class DebugEventCounter : public v8::debug::DebugDelegate {
 // Debug event handler which performs a garbage collection.
 class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     // Perform a garbage collection when break point is hit and continue. Based
     // on the number of break points hit either scavenge or mark compact
     // collector is used.
@@ -239,9 +239,9 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
 // collector to have the heap verified.
 class DebugEventBreak : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     // Count the number of breaks.
     break_point_hit_count++;
 
@@ -264,9 +264,9 @@ int max_break_point_hit_count = 0;
 bool terminate_after_max_break_point_hit = false;
 class DebugEventBreakMax : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     v8::Isolate* v8_isolate = CcTest::isolate();
     v8::internal::Isolate* isolate = CcTest::i_isolate();
     if (break_point_hit_count < max_break_point_hit_count) {
@@ -3038,8 +3038,7 @@ TEST(DebugBreakInWrappedScript) {
   {
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> fun =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
     v8::Local<v8::Value> result =
         fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
@@ -3310,9 +3309,10 @@ static v8::Local<v8::Value> expected_context_data;
 
 class ContextCheckEventListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     CheckContext();
   }
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
@@ -3825,9 +3825,10 @@ TEST(DebugBreakInForCondition2) {
 
 class DebugBreakInlineListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     int expected_frame_count = 4;
     int expected_line_number[] = {1, 4, 7, 13};
 
@@ -3907,9 +3908,10 @@ TEST(Regress131642) {
 
 class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
   }
 };
@@ -3947,9 +3949,10 @@ v8::base::Semaphore terminate_fired_semaphore(0);
 
 class DebugBreakTriggerTerminate : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     if (terminate_already_fired_) return;
     terminate_requested_semaphore.Signal();
     // Wait for at most 2 seconds for the terminate request.
@@ -4057,9 +4060,9 @@ class ArchiveRestoreThread : public v8::base::Thread,
     }
   }
 
-  void BreakProgramRequested(
-      v8::Local<v8::Context> context,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context> context,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     auto stack_traces = v8::debug::StackTraceIterator::Create(isolate_);
     if (!stack_traces->Done()) {
       v8::debug::Location location = stack_traces->GetSourceLocation();
@@ -4277,9 +4280,10 @@ TEST(BreakLocationIterator) {
 class DebugStepOverFunctionWithCaughtExceptionListener
     : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     ++break_point_hit_count;
     if (break_point_hit_count >= 3) return;
     PrepareStep(StepOver);
@@ -4356,6 +4360,7 @@ TEST(DebugCoverage) {
   v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
@@ -4409,6 +4414,7 @@ TEST(DebugCoverageWithCoverageOutOfScope) {
       GetScriptDataAndDeleteCoverage(isolate);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
@@ -4493,7 +4499,7 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
        ++builtin) {
-    i::Code code = builtins->code(builtin);
+    i::Code code = FromCodeT(builtins->code(builtin));
     if (code.kind() != i::CodeKind::BUILTIN) continue;
     auto prediction = code.GetBuiltinCatchPrediction();
     USE(prediction);
@@ -4557,6 +4563,48 @@ TEST(DebugEvaluateNoSideEffect) {
     if (failed) isolate->clear_pending_exception();
   }
   DisableDebugger(env->GetIsolate());
+}
+
+TEST(DebugEvaluateGlobalSharedCrossOrigin) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch tryCatch(isolate);
+  tryCatch.SetCaptureMessage(true);
+  v8::MaybeLocal<v8::Value> result =
+      v8::debug::EvaluateGlobal(isolate, v8_str(isolate, "throw new Error()"),
+                                v8::debug::EvaluateGlobalMode::kDefault);
+  CHECK(result.IsEmpty());
+  CHECK(tryCatch.HasCaught());
+  CHECK(tryCatch.Message()->IsSharedCrossOrigin());
+}
+
+TEST(DebugEvaluateLocalSharedCrossOrigin) {
+  struct BreakProgramDelegate : public v8::debug::DebugDelegate {
+    void BreakProgramRequested(v8::Local<v8::Context> context,
+                               std::vector<v8::debug::BreakpointId> const&,
+                               v8::debug::BreakReasons) final {
+      v8::Isolate* isolate = context->GetIsolate();
+      v8::TryCatch tryCatch(isolate);
+      tryCatch.SetCaptureMessage(true);
+      std::unique_ptr<v8::debug::StackTraceIterator> it =
+          v8::debug::StackTraceIterator::Create(isolate);
+      v8::MaybeLocal<v8::Value> result =
+          it->Evaluate(v8_str(isolate, "throw new Error()"), false);
+      CHECK(result.IsEmpty());
+      CHECK(tryCatch.HasCaught());
+      CHECK(tryCatch.Message()->IsSharedCrossOrigin());
+    }
+  } delegate;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  v8::Script::Compile(env.local(), v8_str(isolate, "debugger;"))
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 namespace {
@@ -4778,9 +4826,10 @@ class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
     CHECK_EQ(loc.GetColumnNumber(), 10);
   }
 
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     ++break_count_;
     CHECK_EQ(inspector_break_points_hit[0], id_);
   }
@@ -5204,9 +5253,10 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
   };
   explicit SetTerminateOnResumeDelegate(Options options = kNone)
       : options_(options) {}
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     v8::Isolate* isolate = paused_context->GetIsolate();
     v8::debug::SetTerminateOnResume(isolate);
@@ -5373,8 +5423,7 @@ TEST(TerminateOnResumeAtException) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     v8::MaybeLocal<v8::Value> val =
@@ -5582,9 +5631,10 @@ namespace {
 class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
  public:
   SemaphoreTriggerOnBreak() : enter_(0), exit_(0) {}
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     enter_.Signal();
     exit_.Wait();
@@ -5620,8 +5670,7 @@ TEST(TerminateOnResumeFromOtherThread) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     v8::MaybeLocal<v8::Value> val =
@@ -5675,8 +5724,7 @@ TEST(TerminateOnResumeAtInterruptFromOtherThread) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     CHECK(timeout_thread.Start());
@@ -5691,4 +5739,99 @@ TEST(TerminateOnResumeAtInterruptFromOtherThread) {
   ExpectInt32("1 + 1", 2);
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+namespace {
+
+class NoopDelegate : public v8::debug::DebugDelegate {};
+
+}  // namespace
+
+// Tests that the Isolate::Pop/Push leaves an empty stack for `await` when
+// the Debugger is active but the AsyncEventDelegate is not set.
+// Regression test for https://crbug.com/1225905
+TEST(AwaitCleansUpGlobalPromiseStack) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  NoopDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::debug::SetAsyncEventDelegate(env->GetIsolate(), nullptr);
+
+  v8::Local<v8::String> source = v8_str(
+      "(async () => {\n"
+      "  await Promise.resolve();\n"
+      "})();\n");
+  CompileRun(source);
+
+  CHECK(CcTest::i_isolate()->IsPromiseStackEmpty());
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(CreateMessageFromOldException) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CompileRun(R"javascript(
+        function f1() {
+          throw new Error('error in f1');
+        };
+        f1();
+    )javascript");
+    CHECK(try_catch.HasCaught());
+
+    error = try_catch.Exception();
+  }
+  CHECK(error->IsObject());
+
+  v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(context->GetIsolate(), error);
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(3, message->GetLineNumber(context.local()).FromJust());
+  CHECK_EQ(16, message->GetStartColumn(context.local()).FromJust());
+
+  v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+
+  stackTrace = v8::Exception::GetStackTrace(error);
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+}
+
+TEST(CreateMessageDoesNotInspectStack) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Do not enable Isolate::SetCaptureStackTraceForUncaughtExceptions.
+
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CompileRun(R"javascript(
+        function f1() {
+          throw new Error('error in f1');
+        };
+        f1();
+    )javascript");
+    CHECK(try_catch.HasCaught());
+
+    error = try_catch.Exception();
+  }
+  // The caught error should not have a stack trace attached.
+  CHECK(error->IsObject());
+  CHECK(v8::Exception::GetStackTrace(error).IsEmpty());
+
+  // The corresponding message should also not have a stack trace.
+  v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(context->GetIsolate(), error);
+  CHECK(!message.IsEmpty());
+  CHECK(message->GetStackTrace().IsEmpty());
 }

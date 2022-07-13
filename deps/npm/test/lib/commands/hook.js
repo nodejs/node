@@ -1,18 +1,20 @@
 const t = require('tap')
+const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
 const output = []
-const npm = {
+const npm = mockNpm({
   flatOptions: {
     json: false,
     parseable: false,
-    silent: false,
-    loglevel: 'info',
     unicode: false,
+  },
+  config: {
+    loglevel: 'info',
   },
   output: msg => {
     output.push(msg)
   },
-}
+})
 
 const pkgTypes = {
   semver: 'package',
@@ -61,7 +63,6 @@ const libnpmhook = {
 }
 
 const Hook = t.mock('../../../lib/commands/hook.js', {
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmhook,
 })
 const hook = new Hook(npm)
@@ -78,7 +79,7 @@ t.test('npm hook add', async t => {
 
   await hook.exec(['add', 'semver', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       pkg: 'semver',
@@ -101,7 +102,7 @@ t.test('npm hook add - unicode output', async t => {
 
   await hook.exec(['add', 'semver', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       pkg: 'semver',
@@ -124,7 +125,7 @@ t.test('npm hook add - json output', async t => {
 
   await hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       pkg: '@npmcli',
@@ -156,7 +157,7 @@ t.test('npm hook add - parseable output', async t => {
 
   await hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       pkg: '@npmcli',
@@ -179,16 +180,16 @@ t.test('npm hook add - parseable output', async t => {
 })
 
 t.test('npm hook add - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     hookArgs = null
     output.length = 0
   })
 
   await hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       pkg: '@npmcli',
@@ -209,7 +210,7 @@ t.test('npm hook ls', async t => {
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -234,7 +235,7 @@ t.test('npm hook ls, no results', async t => {
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -263,7 +264,7 @@ t.test('npm hook ls, single result', async t => {
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -286,7 +287,7 @@ t.test('npm hook ls - json output', async t => {
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -331,7 +332,7 @@ t.test('npm hook ls - parseable output', async t => {
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -352,16 +353,16 @@ t.test('npm hook ls - parseable output', async t => {
 })
 
 t.test('npm hook ls - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     hookArgs = null
     output.length = 0
   })
 
   await hook.exec(['ls'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       ...npm.flatOptions,
@@ -380,7 +381,7 @@ t.test('npm hook rm', async t => {
 
   await hook.exec(['rm', '1'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -401,7 +402,7 @@ t.test('npm hook rm - unicode output', async t => {
 
   await hook.exec(['rm', '1'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -413,16 +414,16 @@ t.test('npm hook rm - unicode output', async t => {
 })
 
 t.test('npm hook rm - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     hookArgs = null
     output.length = 0
   })
 
   await hook.exec(['rm', '1'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -443,7 +444,7 @@ t.test('npm hook rm - json output', async t => {
 
   await hook.exec(['rm', '1'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -473,7 +474,7 @@ t.test('npm hook rm - parseable output', async t => {
 
   await hook.exec(['rm', '1'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -499,7 +500,7 @@ t.test('npm hook update', async t => {
 
   await hook.exec(['update', '1', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -522,7 +523,7 @@ t.test('npm hook update - unicode', async t => {
 
   await hook.exec(['update', '1', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -545,7 +546,7 @@ t.test('npm hook update - json output', async t => {
 
   await hook.exec(['update', '1', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -577,7 +578,7 @@ t.test('npm hook update - parseable output', async t => {
 
   await hook.exec(['update', '1', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',
@@ -598,16 +599,16 @@ t.test('npm hook update - parseable output', async t => {
 })
 
 t.test('npm hook update - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     hookArgs = null
     output.length = 0
   })
 
   await hook.exec(['update', '1', 'https://google.com', 'some-secret'])
 
-  t.strictSame(
+  t.match(
     hookArgs,
     {
       id: '1',

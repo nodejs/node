@@ -29,7 +29,7 @@ struct ScriptDetails {
   int column_offset;
   MaybeHandle<Object> name_obj;
   MaybeHandle<Object> source_map_url;
-  MaybeHandle<FixedArray> host_defined_options;
+  MaybeHandle<Object> host_defined_options;
   REPLMode repl_mode;
   const ScriptOriginOptions origin_options;
 };

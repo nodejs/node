@@ -1,7 +1,6 @@
 #include "stream_base.h"  // NOLINT(build/include_inline)
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
-#include "allocated_buffer-inl.h"
 
 #include "env-inl.h"
 #include "js_stream.h"
@@ -453,6 +452,10 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
 void StreamBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  // This function is called by a single thread during start up, so it is safe
+  // to use a local static variable here.
+  static bool is_registered = false;
+  if (is_registered) return;
   registry->Register(GetFD);
   registry->Register(GetExternal);
   registry->Register(GetBytesRead);
@@ -472,6 +475,7 @@ void StreamBase::RegisterExternalReferences(
   registry->Register(
       BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
                                    &Value::IsFunction>);
+  is_registered = true;
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
@@ -601,6 +605,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     StreamReq* req_wrap, int status) {
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
+  if (env->is_stopping()) return;
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

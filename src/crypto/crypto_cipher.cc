@@ -1,7 +1,6 @@
 #include "crypto/crypto_cipher.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -24,21 +23,20 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-#ifdef OPENSSL_NO_OCB
-# define IS_OCB_MODE(mode) false
-#else
-# define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
-#endif
-
 namespace {
 bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
-  const int mode = EVP_CIPHER_mode(cipher);
-  // Check `chacha20-poly1305` separately, it is also an AEAD cipher,
-  // but its mode is 0 which doesn't indicate
-  return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305 ||
-         mode == EVP_CIPH_CCM_MODE ||
-         mode == EVP_CIPH_GCM_MODE ||
-         IS_OCB_MODE(mode);
+  switch (EVP_CIPHER_mode(cipher)) {
+  case EVP_CIPH_CCM_MODE:
+  case EVP_CIPH_GCM_MODE:
+#ifndef OPENSSL_NO_OCB
+  case EVP_CIPH_OCB_MODE:
+#endif
+    return true;
+  case EVP_CIPH_STREAM_CIPHER:
+    return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305;
+  default:
+    return false;
+  }
 }
 
 bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
@@ -198,10 +196,14 @@ void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SSLCtxPointer ctx(SSL_CTX_new(TLS_method()));
-  CHECK(ctx);
+  if (!ctx) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
 
   SSLPointer ssl(SSL_new(ctx.get()));
-  CHECK(ssl);
+  if (!ssl) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_new");
+  }
 
   STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl.get());
 
@@ -235,8 +237,19 @@ void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
 
 void CipherBase::GetCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   CipherPushContext ctx(env);
-  EVP_CIPHER_do_all_sorted(array_push_back<EVP_CIPHER>, &ctx);
+  EVP_CIPHER_do_all_sorted(
+#if OPENSSL_VERSION_MAJOR >= 3
+    array_push_back<EVP_CIPHER,
+                    EVP_CIPHER_fetch,
+                    EVP_CIPHER_free,
+                    EVP_get_cipherbyname,
+                    EVP_CIPHER_get0_name>,
+#else
+    array_push_back<EVP_CIPHER>,
+#endif
+    &ctx);
   args.GetReturnValue().Set(ctx.ToJSArray());
 }
 
@@ -561,9 +574,17 @@ bool CipherBase::InitAuthenticated(
     }
   } else {
     if (auth_tag_len == kNoAuthTagLength) {
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-        env(), "authTagLength required for %s", cipher_type);
-      return false;
+      // We treat ChaCha20-Poly1305 specially. Like GCM, the authentication tag
+      // length defaults to 16 bytes when encrypting. Unlike GCM, the
+      // authentication tag length also defaults to 16 bytes when decrypting,
+      // whereas GCM would accept any valid authentication tag length.
+      if (EVP_CIPHER_CTX_nid(ctx_.get()) == NID_chacha20_poly1305) {
+        auth_tag_len = 16;
+      } else {
+        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "authTagLength required for %s", cipher_type);
+        return false;
+      }
     }
 
     // TODO(tniessen) Support CCM decryption in FIPS mode
@@ -582,7 +603,8 @@ bool CipherBase::InitAuthenticated(
     // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
                              nullptr)) {
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env());
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "Invalid authentication tag length: %u", auth_tag_len);
       return false;
     }
 

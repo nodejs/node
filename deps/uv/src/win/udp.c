@@ -1083,7 +1083,7 @@ int uv__udp_connect(uv_udp_t* handle,
 
 int uv__udp_disconnect(uv_udp_t* handle) {
     int err;
-    struct sockaddr addr;
+    struct sockaddr_storage addr;
 
     memset(&addr, 0, sizeof(addr));
 

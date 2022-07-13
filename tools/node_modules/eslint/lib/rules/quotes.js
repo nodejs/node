@@ -80,7 +80,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce the consistent use of either backticks, double, or single quotes",
+            description: "Enforce the consistent use of either backticks, double, or single quotes",
             recommended: false,
             url: "https://eslint.org/docs/rules/quotes"
         },
@@ -223,8 +223,19 @@ module.exports = {
                 // ModuleSpecifier.
                 case "ImportDeclaration":
                 case "ExportNamedDeclaration":
-                case "ExportAllDeclaration":
                     return parent.source === node;
+
+                // ModuleExportName or ModuleSpecifier.
+                case "ExportAllDeclaration":
+                    return parent.exported === node || parent.source === node;
+
+                // ModuleExportName.
+                case "ImportSpecifier":
+                    return parent.imported === node;
+
+                // ModuleExportName.
+                case "ExportSpecifier":
+                    return parent.local === node || parent.exported === node;
 
                 // Others don't allow.
                 default:
@@ -272,7 +283,7 @@ module.exports = {
                         astUtils.isSurroundedBy(rawVal, settings.quote);
 
                     if (!isValid && avoidEscape) {
-                        isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.indexOf(settings.quote) >= 0;
+                        isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.includes(settings.quote);
                     }
 
                     if (!isValid) {

@@ -8,9 +8,11 @@
 
 <!-- source_link=lib/vm.js -->
 
-The `vm` module enables compiling and running code within V8 Virtual
-Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code.**
+The `node:vm` module enables compiling and running code within V8 Virtual
+Machine contexts.
+
+<strong class="critical">The `node:vm` module is not a security
+mechanism. Do not use it to run untrusted code.</strong>
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
@@ -24,7 +26,7 @@ global variable. Any changes to global variables caused by the invoked
 code are reflected in the context object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const x = 1;
 
@@ -175,7 +177,7 @@ the value of another global variable, then execute the code multiple times.
 The globals are contained in the `context` object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const context = {
   animal: 'cat',
@@ -257,7 +259,7 @@ the code multiple times in different contexts. The globals are set on and
 contained within each individual `context`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const script = new vm.Script('globalVar = "set"');
 
@@ -302,7 +304,7 @@ The following example compiles code that increments a `global` variable then
 executes that code multiple times:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 0;
 
@@ -349,7 +351,7 @@ loader][]. There is also no way to interact with the Loader yet, though
 support is planned.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const contextifiedObject = vm.createContext({
   secret: 42,
@@ -420,7 +422,7 @@ await bar.evaluate();
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextifiedObject = vm.createContext({
   secret: 42,
@@ -558,6 +560,8 @@ The identifier of the current module, as set in the constructor.
     //              ^^^^^ the module specifier
     ```
 
+  * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
+
   * `extra` {Object}
     * `assert` {Object} The data from the assertion:
       <!-- eslint-skip -->
@@ -568,8 +572,6 @@ The identifier of the current module, as set in the constructor.
       Per ECMA-262, hosts are expected to ignore assertions that they do not
       support, as opposed to, for example, triggering an error if an
       unsupported assertion is present.
-
-  * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
 
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
@@ -710,7 +712,7 @@ allow the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const contextifiedObject = vm.createContext({ secret: 42 });
 
@@ -738,7 +740,7 @@ await module.evaluate();
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 const contextifiedObject = vm.createContext({ secret: 42 });
 (async () => {
   const module = new vm.SourceTextModule(
@@ -810,7 +812,7 @@ provide a generic interface for exposing non-JavaScript sources to ECMAScript
 module graphs.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const source = '{ "a": 1 }';
 const module = new vm.SyntheticModule(['default'], function() {
@@ -861,7 +863,7 @@ it is called before the module is linked, an [`ERR_VM_MODULE_STATUS`][] error
 will be thrown.
 
 ```mjs
-import vm from 'vm';
+import vm from 'node:vm';
 
 const m = new vm.SyntheticModule(['x'], () => {
   m.setExport('x', 1);
@@ -874,7 +876,7 @@ assert.strictEqual(m.namespace.x, 1);
 ```
 
 ```cjs
-const vm = require('vm');
+const vm = require('node:vm');
 (async () => {
   const m = new vm.SyntheticModule(['x'], () => {
     m.setExport('x', 1);
@@ -997,7 +999,7 @@ properties but also having the built-in objects and functions any standard
 will remain unchanged.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 3;
 
@@ -1051,7 +1053,7 @@ current V8 isolate, or the main context.
 * `options` {Object} Optional.
   * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
     only the memory measured for the main context will be returned. In
-    detailed mode, the measure measured for all contexts known to the
+    detailed mode, the memory measured for all contexts known to the
     current V8 isolate will be returned.
     **Default:** `'summary'`
   * `execution` {string} Either `'default'` or `'eager'`. With default
@@ -1073,7 +1075,7 @@ the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
 the memory occupied by each heap space in the current V8 instance.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 // Measure the memory used by the main context.
 vm.measureMemory({ mode: 'summary' })
   // This is the same as vm.measureMemory()
@@ -1188,7 +1190,7 @@ The following example compiles and executes different scripts using a single
 [contextified][] object:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = { globalVar: 1 };
 vm.createContext(contextObject);
@@ -1300,7 +1302,7 @@ The following example compiles and executes code that increments a global
 variable and sets a new one. These globals are contained in the `contextObject`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = {
   animal: 'cat',
@@ -1386,7 +1388,7 @@ the JavaScript [`eval()`][] function to run the same code:
 <!-- eslint-disable prefer-const -->
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 let localVar = 'initial value';
 
 const vmResult = vm.runInThisContext('localVar = "vm";');
@@ -1410,17 +1412,17 @@ When using either [`script.runInThisContext()`][] or
 [`vm.runInThisContext()`][], the code is executed within the current V8 global
 context. The code passed to this VM context will have its own isolated scope.
 
-In order to run a simple web server using the `http` module the code passed to
-the context must either call `require('http')` on its own, or have a reference
-to the `http` module passed to it. For instance:
+In order to run a simple web server using the `node:http` module the code passed
+to the context must either call `require('node:http')` on its own, or have a
+reference to the `node:http` module passed to it. For instance:
 
 ```js
 'use strict';
-const vm = require('vm');
+const vm = require('node:vm');
 
 const code = `
 ((require) => {
-  const http = require('http');
+  const http = require('node:http');
 
   http.createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -1449,9 +1451,9 @@ According to the [V8 Embedder's Guide][]:
 When the method `vm.createContext()` is called, the `contextObject` argument
 (or a newly-created object if `contextObject` is `undefined`) is associated
 internally with a new instance of a V8 Context. This V8 Context provides the
-`code` run using the `vm` module's methods with an isolated global environment
-within which it can operate. The process of creating the V8 Context and
-associating it with the `contextObject` is what this document refers to as
+`code` run using the `node:vm` module's methods with an isolated global
+environment within which it can operate. The process of creating the V8 Context
+and associating it with the `contextObject` is what this document refers to as
 "contextifying" the object.
 
 ## Timeout interactions with asynchronous tasks and Promises
@@ -1467,7 +1469,7 @@ timeout of 5 milliseconds schedules an infinite loop to run after a promise
 resolves. The scheduled loop is never interrupted by the timeout:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   console.log('entering loop');
@@ -1487,7 +1489,7 @@ This can be addressed by passing `microtaskMode: 'afterEvaluate'` to the code
 that creates the `Context`:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   while (1) console.log(Date.now());

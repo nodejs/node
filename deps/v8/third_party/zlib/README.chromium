@@ -1,7 +1,7 @@
 Name: zlib
 Short Name: zlib
 URL: http://zlib.net/
-Version: 1.2.11
+Version: 1.2.12
 CPEPrefix: cpe:/a:zlib:zlib:1.2.11
 Security Critical: yes
 License: Custom license
@@ -27,3 +27,4 @@ Local Modifications:
  - Plus the changes in 'patches' folder.
  - Code in contrib/ other than contrib/minizip was added to match zlib's
    contributor layout.
+ - Backported patches from 1.2.12 release (Work In Progress).

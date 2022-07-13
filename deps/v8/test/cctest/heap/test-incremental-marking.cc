@@ -16,11 +16,11 @@
 
 #include <utility>
 
-#include "src/init/v8.h"
-
 #include "src/handles/global-handles.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -35,16 +35,10 @@ namespace heap {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform()
-      : taskrunner_(new MockTaskRunner()),
-        old_platform_(i::V8::GetCurrentPlatform()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : taskrunner_(new MockTaskRunner()) {}
   ~MockPlatform() override {
-    i::V8::SetPlatformForTesting(old_platform_);
     for (auto& task : worker_tasks_) {
-      old_platform_->CallOnWorkerThread(std::move(task));
+      CcTest::default_platform()->CallOnWorkerThread(std::move(task));
     }
     worker_tasks_.clear();
   }
@@ -106,17 +100,13 @@ class MockPlatform : public TestPlatform {
 
   std::shared_ptr<MockTaskRunner> taskrunner_;
   std::vector<std::unique_ptr<Task>> worker_tasks_;
-  v8::Platform* old_platform_;
 };
 
-UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
+TEST_WITH_PLATFORM(IncrementalMarkingUsingTasks, MockPlatform) {
   if (!i::FLAG_incremental_marking) return;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   FLAG_stress_incremental_marking = false;
-  MockPlatform platform;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = CcTest::isolate();
   {
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = CcTest::NewContext(isolate);
@@ -129,6 +119,9 @@ UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
     marking->Stop();
     {
       SafepointScope scope(heap);
+      heap->tracer()->StartCycle(
+          GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+          "collector cctest", GCTracer::MarkingType::kIncremental);
       marking->Start(i::GarbageCollectionReason::kTesting);
     }
     CHECK(platform.PendingTask());
@@ -137,7 +130,6 @@ UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
     }
     CHECK(marking->IsStopped());
   }
-  isolate->Dispose();
 }
 
 }  // namespace heap

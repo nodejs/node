@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-date.h"
 #include "include/v8-debug.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-local-handle.h"
@@ -15,6 +16,7 @@
 #include "include/v8-promise.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
+#include "src/base/enum-set.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -48,12 +50,11 @@ int GetContextId(Local<Context> context);
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
-// Returns the debug name for the function, which is supposed to be used
-// by the debugger and the developer tools. This can thus be different from
-// the name returned by the StackFrame::GetFunctionName() method. For example,
-// in case of WebAssembly, the debug name is WAT-compatible and thus always
-// preceeded by a dollar ('$').
-Local<String> GetFunctionDebugName(Local<StackFrame> frame);
+// Returns a debug string representation of the bigint.
+Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+
+// Returns a debug string representation of the date.
+Local<String> GetDateDescription(Local<Date> date);
 
 // Returns a debug string representation of the function.
 Local<String> GetFunctionDescription(Local<Function> function);
@@ -119,9 +120,24 @@ enum StepAction {
                  // in the current function.
 };
 
+// Record the reason for why the debugger breaks.
+enum class BreakReason : uint8_t {
+  kAlreadyPaused,
+  kStep,
+  kAsyncStep,
+  kException,
+  kAssert,
+  kDebuggerStatement,
+  kOOM,
+  kScheduled,
+  kAgent
+};
+typedef base::EnumSet<BreakReason> BreakReasons;
+
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
-V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
+V8_EXPORT_PRIVATE void BreakRightNow(
+    Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
 // should be set shortly before resuming, i.e. shortly before returning into
@@ -152,6 +168,28 @@ struct LiveEditResult {
 };
 
 /**
+ * An internal representation of the source for a given
+ * `v8::debug::Script`, which can be a `v8::String`, in
+ * which case it represents JavaScript source, or it can
+ * be a managed pointer to a native Wasm module, or it
+ * can be undefined to indicate that source is unavailable.
+ */
+class V8_EXPORT_PRIVATE ScriptSource {
+ public:
+  // The number of characters in case of JavaScript or
+  // the size of the memory in case of WebAssembly.
+  size_t Length() const;
+
+  // The actual size of the source in bytes.
+  size_t Size() const;
+
+  MaybeLocal<String> JavaScriptCode() const;
+#if V8_ENABLE_WEBASSEMBLY
+  Maybe<MemorySpan<const uint8_t>> WasmBytecode() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+};
+
+/**
  * Native wrapper around v8::internal::Script object.
  */
 class V8_EXPORT_PRIVATE Script {
@@ -162,14 +200,15 @@ class V8_EXPORT_PRIVATE Script {
   bool WasCompiled() const;
   bool IsEmbedded() const;
   int Id() const;
-  int LineOffset() const;
-  int ColumnOffset() const;
-  std::vector<int> LineEnds() const;
+  int StartLine() const;
+  int StartColumn() const;
+  int EndLine() const;
+  int EndColumn() const;
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
   Maybe<int> ContextId() const;
-  MaybeLocal<String> Source() const;
+  Local<ScriptSource> Source() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
       const debug::Location& start, const debug::Location& end,
@@ -185,7 +224,7 @@ class V8_EXPORT_PRIVATE Script {
   bool IsWasm() const;
   void RemoveWasmBreakpoint(BreakpointId id);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
+  bool SetInstrumentationBreakpoint(BreakpointId* id) const;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -199,7 +238,6 @@ class WasmScript : public Script {
   MemorySpan<const char> ExternalSymbolsURL() const;
   int NumFunctions() const;
   int NumImportedFunctions() const;
-  MemorySpan<const uint8_t> Bytecode() const;
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
   int GetContainingFunction(int byte_offset) const;
@@ -228,7 +266,11 @@ class DebugDelegate {
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
-      const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
+      const std::vector<debug::BreakpointId>& inspector_break_points_hit,
+      base::EnumSet<BreakReason> break_reasons = {}) {}
+  virtual void BreakOnInstrumentation(
+      v8::Local<v8::Context> paused_context,
+      const debug::BreakpointId instrumentationId) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,
@@ -259,7 +301,8 @@ class AsyncEventDelegate {
                                   bool is_blackboxed) = 0;
 };
 
-void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
+V8_EXPORT_PRIVATE void SetAsyncEventDelegate(Isolate* isolate,
+                                             AsyncEventDelegate* delegate);
 
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
@@ -273,11 +316,8 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
 
-V8_DEPRECATED("See http://crbug.com/v8/10566.")
-int GetStackFrameId(v8::Local<v8::StackFrame> frame);
-
-v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
-                                                v8::Local<v8::Object> error);
+V8_EXPORT_PRIVATE v8::Local<v8::Message> CreateMessageFromException(
+    Isolate* isolate, v8::Local<v8::Value> error);
 
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
@@ -668,6 +708,8 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
+
+bool isExperimentalAsyncStackTaggingApiEnabled();
 
 }  // namespace debug
 }  // namespace v8

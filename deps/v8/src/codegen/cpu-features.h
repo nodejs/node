@@ -26,7 +26,8 @@ enum CpuFeature {
   BMI2,
   LZCNT,
   POPCNT,
-  ATOM,
+  INTEL_ATOM,
+  CETSS,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -147,6 +148,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
   static bool supports_wasm_simd_128_;
+  static bool supports_cetss_;
 };
 
 }  // namespace internal

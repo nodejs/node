@@ -39,6 +39,7 @@ const interval = setInterval(function() {
   try {
     vm.runInNewContext('throw 1;');
   } catch {
+    // Continue regardless of error.
   }
 
   global.gc();

@@ -19,6 +19,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/operations-barrier.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -148,9 +149,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded Wasm
-  // module.
+  // module. If validation fails and {error_msg} is present, it is set to the
+  // validation error.
   bool SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                    const ModuleWireBytes& bytes);
+                    const ModuleWireBytes& bytes,
+                    std::string* error_message = nullptr);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
@@ -224,6 +227,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
+  // Same, but no reset.
+  void DumpTurboStatistics();
 
   // Used to redirect tracing output from {stdout} to a file.
   CodeTracer* GetCodeTracer();
@@ -353,6 +358,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void SampleRethrowEvent(Isolate*);
   void SampleCatchEvent(Isolate*);
 
+  TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -387,6 +394,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::atomic<int> next_compilation_id_{0};
+
+  TypeCanonicalizer type_canonicalizer_;
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

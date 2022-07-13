@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -45,11 +46,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // from the main thread.
   void Safepoint() {
     DCHECK(AllowSafepoints::IsAllowed());
-    ThreadState current = state_relaxed();
+    ThreadState current = state_.load_relaxed();
 
-    // The following condition checks for both kSafepointRequested (background
-    // thread) and kCollectionRequested (main thread).
-    if (V8_UNLIKELY(current == kSafepointRequested)) {
+    if (V8_UNLIKELY(current.IsRunningWithSlowPathFlag())) {
       SafepointSlowPath();
     }
   }
@@ -89,12 +88,25 @@ class V8_EXPORT_PRIVATE LocalHeap {
 #endif
 
   bool IsParked();
+  bool IsRunning();
 
   Heap* heap() { return heap_; }
   Heap* AsHeap() { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
-  ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
+  ConcurrentAllocator* old_space_allocator() {
+    return old_space_allocator_.get();
+  }
+  ConcurrentAllocator* code_space_allocator() {
+    return code_space_allocator_.get();
+  }
+  ConcurrentAllocator* shared_old_space_allocator() {
+    return shared_old_space_allocator_.get();
+  }
+
+  void RegisterCodeObject(Handle<Code> code) {
+    heap()->RegisterCodeObject(code);
+  }
 
   // Mark/Unmark linear allocation areas black. Used for black allocation.
   void MarkLinearAllocationAreaBlack();
@@ -102,6 +114,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Give up linear allocation areas. Used for mark-compact GC.
   void FreeLinearAllocationArea();
+
+  // Free all shared LABs. Used by the shared mark-compact GC.
+  void FreeSharedLinearAllocationArea();
 
   // Create filler object in linear allocation areas. Verifying requires
   // iterable heap.
@@ -122,14 +137,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates an uninitialized object and crashes when object
   // cannot be allocated.
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline void CreateFillerObjectAt(Address addr, int size,
                                    ClearRecordedSlots clear_slots_mode);
@@ -150,27 +165,98 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
- private:
-  enum ThreadState {
-    // Threads in this state are allowed to access the heap.
-    kRunning,
-    // Thread was parked, which means that the thread is not allowed to access
-    // or manipulate the heap in any way. This is considered to be a safepoint.
-    kParked,
+  // Used to make SetupMainThread() available to unit tests.
+  void SetUpMainThreadForTesting();
 
-    // SafepointRequested is used for Running threads to force Safepoint() and
-    // Park() into the slow path.
-    kSafepointRequested,
-    // A thread transitions into this state from SafepointRequested when it
-    // enters a safepoint.
-    kSafepoint,
-    // This state is used for Parked background threads and forces Unpark() into
-    // the slow path. It prevents Unpark() to succeed before the safepoint
-    // operation is finished.
-    kParkedSafepointRequested,
+ private:
+  using ParkedBit = base::BitField8<bool, 0, 1>;
+  using SafepointRequestedBit = ParkedBit::Next<bool, 1>;
+  using CollectionRequestedBit = SafepointRequestedBit::Next<bool, 1>;
+
+  class ThreadState final {
+   public:
+    static constexpr ThreadState Parked() {
+      return ThreadState(ParkedBit::kMask);
+    }
+    static constexpr ThreadState Running() { return ThreadState(0); }
+
+    constexpr bool IsRunning() const { return !ParkedBit::decode(raw_state_); }
+
+    constexpr ThreadState SetRunning() const V8_WARN_UNUSED_RESULT {
+      return ThreadState(raw_state_ & ~ParkedBit::kMask);
+    }
+
+    constexpr bool IsParked() const { return ParkedBit::decode(raw_state_); }
+
+    constexpr ThreadState SetParked() const V8_WARN_UNUSED_RESULT {
+      return ThreadState(ParkedBit::kMask | raw_state_);
+    }
+
+    constexpr bool IsSafepointRequested() const {
+      return SafepointRequestedBit::decode(raw_state_);
+    }
+
+    constexpr bool IsCollectionRequested() const {
+      return CollectionRequestedBit::decode(raw_state_);
+    }
+
+    constexpr bool IsRunningWithSlowPathFlag() const {
+      return IsRunning() && (raw_state_ & (SafepointRequestedBit::kMask |
+                                           CollectionRequestedBit::kMask));
+    }
+
+   private:
+    constexpr explicit ThreadState(uint8_t value) : raw_state_(value) {}
+
+    constexpr uint8_t raw() const { return raw_state_; }
+
+    uint8_t raw_state_;
+
+    friend class LocalHeap;
   };
 
-  ThreadState state_relaxed() { return state_.load(std::memory_order_relaxed); }
+  class AtomicThreadState final {
+   public:
+    constexpr explicit AtomicThreadState(ThreadState state)
+        : raw_state_(state.raw()) {}
+
+    bool CompareExchangeStrong(ThreadState& expected, ThreadState updated) {
+      return raw_state_.compare_exchange_strong(expected.raw_state_,
+                                                updated.raw());
+    }
+
+    bool CompareExchangeWeak(ThreadState& expected, ThreadState updated) {
+      return raw_state_.compare_exchange_weak(expected.raw_state_,
+                                              updated.raw());
+    }
+
+    ThreadState SetParked() {
+      return ThreadState(raw_state_.fetch_or(ParkedBit::kMask));
+    }
+
+    ThreadState SetSafepointRequested() {
+      return ThreadState(raw_state_.fetch_or(SafepointRequestedBit::kMask));
+    }
+
+    ThreadState ClearSafepointRequested() {
+      return ThreadState(raw_state_.fetch_and(~SafepointRequestedBit::kMask));
+    }
+
+    ThreadState SetCollectionRequested() {
+      return ThreadState(raw_state_.fetch_or(CollectionRequestedBit::kMask));
+    }
+
+    ThreadState ClearCollectionRequested() {
+      return ThreadState(raw_state_.fetch_and(~CollectionRequestedBit::kMask));
+    }
+
+    ThreadState load_relaxed() const {
+      return ThreadState(raw_state_.load(std::memory_order_relaxed));
+    }
+
+   private:
+    std::atomic<uint8_t> raw_state_;
+  };
 
   // Slow path of allocation that performs GC and then retries allocation in
   // loop.
@@ -180,34 +266,39 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                             AllocationAlignment alignment);
 
   void Park() {
-    DCHECK(AllowGarbageCollection::IsAllowed());
-    ThreadState expected = kRunning;
-    if (!state_.compare_exchange_strong(expected, kParked)) {
-      ParkSlowPath(expected);
+    DCHECK(AllowSafepoints::IsAllowed());
+    ThreadState expected = ThreadState::Running();
+    if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
+      ParkSlowPath();
     }
   }
 
   void Unpark() {
-    DCHECK(AllowGarbageCollection::IsAllowed());
-    ThreadState expected = kParked;
-    if (!state_.compare_exchange_strong(expected, kRunning)) {
+    DCHECK(AllowSafepoints::IsAllowed());
+    ThreadState expected = ThreadState::Parked();
+    if (!state_.CompareExchangeWeak(expected, ThreadState::Running())) {
       UnparkSlowPath();
     }
   }
 
-  void ParkSlowPath(ThreadState state);
+  void ParkSlowPath();
   void UnparkSlowPath();
   void EnsureParkedBeforeDestruction();
   void SafepointSlowPath();
+  void SleepInSafepoint();
+  void SleepInUnpark();
 
   void EnsurePersistentHandles();
 
   void InvokeGCEpilogueCallbacksInSafepoint();
 
+  void SetUpMainThread();
+  void SetUp();
+
   Heap* heap_;
   bool is_main_thread_;
 
-  std::atomic<ThreadState> state_;
+  AtomicThreadState state_;
 
   bool allocation_failed_;
   bool main_thread_parked_;
@@ -221,14 +312,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::vector<std::pair<GCEpilogueCallback*, void*>> gc_epilogue_callbacks_;
 
-  ConcurrentAllocator old_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
   friend class GlobalSafepoint;
+  friend class IsolateSafepoint;
   friend class Heap;
   friend class Isolate;
   friend class ParkedScope;
+  friend class SafepointScope;
   friend class UnparkedScope;
 };
 

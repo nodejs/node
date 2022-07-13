@@ -50,6 +50,7 @@ using StoreOffset = uint32_t;
 struct UnobservableStore {
   NodeId id_;
   StoreOffset offset_;
+  bool maybe_gc_observable_ = false;
 
   bool operator==(const UnobservableStore other) const {
     return (id_ == other.id_) && (offset_ == other.offset_);
@@ -76,13 +77,15 @@ size_t hash_value(const UnobservableStore& p) {
 // an UnobservablesSet allocates no memory.
 class UnobservablesSet final {
  private:
-  using KeyT = UnobservableStore;
-  using ValueT = bool;  // Emulates set semantics in the map.
+  enum ObservableState {
+    kObservable = 0,    // We haven't seen a store to this offset before.
+    kUnobservable = 1,  // Stores to the same offset can be eliminated.
+    kGCObservable = 2   // Stores to the same offset can only be eliminated,
+                        // if they are not initializing or transitioning.
+  };
 
-  // The PersistentMap uses a special value to signify 'not present'. We use
-  // a boolean value to emulate set semantics.
-  static constexpr ValueT kNotPresent = false;
-  static constexpr ValueT kPresent = true;
+  using KeyT = UnobservableStore;
+  using ValueT = ObservableState;
 
  public:
   using SetT = PersistentMap<KeyT, ValueT>;
@@ -97,13 +100,17 @@ class UnobservablesSet final {
   UnobservablesSet& operator=(const UnobservablesSet& other)
       V8_NOEXCEPT = default;
 
+  // Computes the intersection of two states.
+  ObservableState Intersect(const ObservableState state1,
+                            const ObservableState state2) const;
+
   // Computes the intersection of two UnobservablesSets. If one of the sets is
   // empty, will return empty.
   UnobservablesSet Intersect(const UnobservablesSet& other,
                              const UnobservablesSet& empty, Zone* zone) const;
 
   // Returns a set that it is the current one, plus the observation obs passed
-  // as parameter. If said obs it's already in the set, we don't have to
+  // as parameter. If said obs it's already unobservable, we don't have to
   // create a new one.
   UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
 
@@ -113,9 +120,13 @@ class UnobservablesSet final {
   // This can probably be done better if the observations are stored first by
   // offset and then by node.
   // We are removing all nodes with offset off since different nodes may
-  // alias one another, and we currently we don't have the means to know if
+  // alias one another, and currently we don't have the means to know if
   // two nodes are definitely the same value.
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
+
+  // Returns a new set where all observations are marked as being observable
+  // by GC.
+  UnobservablesSet MarkGCObservable(Zone* zone) const;
 
   const SetT* set() const { return set_; }
 
@@ -123,8 +134,29 @@ class UnobservablesSet final {
   bool IsEmpty() const {
     return set_ == nullptr || set_->begin() == set_->end();
   }
-  bool Contains(UnobservableStore obs) const {
-    return set_ != nullptr && set_->Get(obs) != kNotPresent;
+
+  // We need to guarantee that objects are fully initialized and fields are in
+  // sync with their map when a GC is triggered (potentially by any allocation).
+  // Therefore initializing or transitioning stores are observable if they are
+  // observable by GC. All other stores are not relevant for correct GC
+  // behaviour and can be eliminated even if they are observable by GC.
+  bool IsUnobservable(UnobservableStore obs,
+                      bool maybe_initializing_or_transitioning) const {
+    if (set_ == nullptr) return false;
+    ObservableState state = set_->Get(obs);
+    switch (state) {
+      case kUnobservable:
+        return true;
+      case kObservable:
+        return false;
+      case kGCObservable:
+        return !maybe_initializing_or_transitioning;
+    }
+    UNREACHABLE();
+  }
+
+  bool IsGCObservable(UnobservableStore obs) const {
+    return set_ != nullptr && set_->Get(obs) == kGCObservable;
   }
 
   bool operator==(const UnobservablesSet& other) const {
@@ -145,21 +177,21 @@ class UnobservablesSet final {
   explicit UnobservablesSet(const SetT* set) : set_(set) {}
 
   static SetT* NewSet(Zone* zone) {
-    return zone->New<UnobservablesSet::SetT>(zone, kNotPresent);
+    return zone->New<UnobservablesSet::SetT>(zone, kObservable);
   }
 
-  static void SetAdd(SetT* set, const KeyT& key) { set->Set(key, kPresent); }
+  static void SetAdd(SetT* set, const KeyT& key) {
+    set->Set(key, kUnobservable);
+  }
   static void SetErase(SetT* set, const KeyT& key) {
-    set->Set(key, kNotPresent);
+    set->Set(key, kObservable);
+  }
+  static void SetGCObservable(SetT* set, const KeyT& key) {
+    set->Set(key, kGCObservable);
   }
 
   const SetT* set_ = nullptr;
 };
-
-// These definitions are here in order to please the linker, which in debug mode
-// sometimes requires static constants to be defined in .cc files.
-constexpr UnobservablesSet::ValueT UnobservablesSet::kNotPresent;
-constexpr UnobservablesSet::ValueT UnobservablesSet::kPresent;
 
 class RedundantStoreFinder final {
  public:
@@ -286,7 +318,8 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
       StoreOffset offset = ToOffset(access);
 
       UnobservableStore observation = {stored_to->id(), offset};
-      bool is_not_observable = uses.Contains(observation);
+      const bool is_not_observable = uses.IsUnobservable(
+          observation, access.maybe_initializing_or_transitioning_store);
 
       if (is_not_observable) {
         TRACE("  #%d is StoreField[+%d,%s](#%d), unobservable", node->id(),
@@ -295,10 +328,29 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
         to_remove().insert(node);
         return uses;
       } else {
-        TRACE("  #%d is StoreField[+%d,%s](#%d), observable, recording in set",
-              node->id(), offset,
-              MachineReprToString(access.machine_type.representation()),
-              stored_to->id());
+        const bool is_gc_observable =
+            access.maybe_initializing_or_transitioning_store &&
+            uses.IsGCObservable(observation);
+        // A GC observable store could have been unobservable in a previous
+        // visit. This is possible if the node that previously shadowed the
+        // initializing store is now unobservable, due to additional stores
+        // added to the unobservables set. Example:
+        //            StoreA --> StoreB (init)
+        //               ^
+        //               |
+        // PathX --> Allocate <-- StoreC <-- PathY
+        // When traversing PathX, StoreA will shadow StoreB and we will
+        // eliminate StoreB. When traversing PathY, StoreA will be shadowed by
+        // StoreC and we will eliminate StoreA, but StoreB is now observable by
+        // GC and should not be eliminated.
+        if (is_gc_observable) {
+          to_remove().erase(node);
+        }
+        TRACE(
+            "  #%d is StoreField[+%d,%s](#%d), observable%s, recording in set",
+            node->id(), offset,
+            MachineReprToString(access.machine_type.representation()),
+            stored_to->id(), is_gc_observable ? " by GC" : "");
         return uses.Add(observation, temp_zone());
       }
     }
@@ -315,6 +367,17 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
           loaded_from->id(), offset);
 
       return uses.RemoveSameOffset(offset, temp_zone());
+    }
+    case IrOpcode::kAllocate:
+    case IrOpcode::kAllocateRaw: {
+      // Allocations can trigger a GC, therefore stores observable by allocation
+      // can not be eliminated, if they are initializing or tranisitioning
+      // stores.
+      TRACE(
+          "  #%d is Allocate or AllocateRaw, marking recorded offsets as "
+          "observable by GC",
+          node->id());
+      return uses.MarkGCObservable(temp_zone());
     }
     default:
       if (CannotObserveStoreField(node)) {
@@ -444,6 +507,16 @@ UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
   return UnobservablesSet(NewSet(zone));
 }
 
+UnobservablesSet::ObservableState UnobservablesSet::Intersect(
+    const ObservableState state1, const ObservableState state2) const {
+  if (state1 == state2) return state1;
+  if (state1 == kObservable || state2 == kObservable) return kObservable;
+  if (state1 == kGCObservable || state2 == kGCObservable) {
+    return kGCObservable;
+  }
+  UNREACHABLE();
+}
+
 UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
                                              const UnobservablesSet& empty,
                                              Zone* zone) const {
@@ -451,9 +524,9 @@ UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
 
   UnobservablesSet::SetT* intersection = NewSet(zone);
   for (auto triple : set()->Zip(*other.set())) {
-    if (std::get<1>(triple) && std::get<2>(triple)) {
-      intersection->Set(std::get<0>(triple), kPresent);
-    }
+    ObservableState new_state =
+        Intersect(std::get<1>(triple), std::get<2>(triple));
+    intersection->Set(std::get<0>(triple), new_state);
   }
 
   return UnobservablesSet(intersection);
@@ -461,7 +534,7 @@ UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
 
 UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
                                        Zone* zone) const {
-  if (set()->Get(obs) != kNotPresent) return *this;
+  if (set()->Get(obs) == kUnobservable) return *this;
 
   UnobservablesSet::SetT* new_set = NewSet(zone);
   *new_set = *set();
@@ -479,6 +552,19 @@ UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
   for (auto entry : *new_set) {
     const UnobservableStore& obs = entry.first;
     if (obs.offset_ == offset) SetErase(new_set, obs);
+  }
+
+  return UnobservablesSet(new_set);
+}
+
+UnobservablesSet UnobservablesSet::MarkGCObservable(Zone* zone) const {
+  UnobservablesSet::SetT* new_set = NewSet(zone);
+  *new_set = *set();
+
+  // Mark all elements as observable by GC.
+  for (auto entry : *new_set) {
+    const UnobservableStore& obs = entry.first;
+    SetGCObservable(new_set, obs);
   }
 
   return UnobservablesSet(new_set);

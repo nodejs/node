@@ -52,13 +52,16 @@ class Worklist {
   bool Pop(Segment** segment);
 
   // Returns true if the list of segments is empty.
-  bool IsEmpty();
+  bool IsEmpty() const;
   // Returns the number of segments in the list.
-  size_t Size();
+  size_t Size() const;
 
   // Moves the segments of the given marking worklist into this
   // marking worklist.
   void Merge(Worklist<EntryType, SegmentSize>* other);
+
+  // Swaps the segments with the given marking worklist.
+  void Swap(Worklist<EntryType, SegmentSize>* other);
 
   // These functions are not thread-safe. They should be called only
   // if all local marking worklists that use the current worklist have
@@ -100,13 +103,13 @@ bool Worklist<EntryType, SegmentSize>::Pop(Segment** segment) {
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-bool Worklist<EntryType, SegmentSize>::IsEmpty() {
+bool Worklist<EntryType, SegmentSize>::IsEmpty() const {
   return v8::base::AsAtomicPtr(&top_)->load(std::memory_order_relaxed) ==
          nullptr;
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-size_t Worklist<EntryType, SegmentSize>::Size() {
+size_t Worklist<EntryType, SegmentSize>::Size() const {
   // It is safe to read |size_| without a lock since this variable is
   // atomic, keeping in mind that threads may not immediately see the new
   // value when it is updated.
@@ -191,6 +194,17 @@ void Worklist<EntryType, SegmentSize>::Merge(
 }
 
 template <typename EntryType, uint16_t SegmentSize>
+void Worklist<EntryType, SegmentSize>::Swap(
+    Worklist<EntryType, SegmentSize>* other) {
+  Segment* top = top_;
+  set_top(other->top_);
+  other->set_top(top);
+  size_t other_size = other->size_.exchange(
+      size_.load(std::memory_order_relaxed), std::memory_order_relaxed);
+  size_.store(other_size, std::memory_order_relaxed);
+}
+
+template <typename EntryType, uint16_t SegmentSize>
 class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
  public:
   static const uint16_t kSize = SegmentSize;
@@ -214,14 +228,14 @@ class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
 
   friend class Worklist<EntryType, SegmentSize>::Local;
 
-  FRIEND_TEST(CppgcWorkListTest, SegmentCreate);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPush);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPushPop);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsEmpty);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsFull);
-  FRIEND_TEST(CppgcWorkListTest, SegmentClear);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdateFalse);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdate);
+  FRIEND_TEST(WorkListTest, SegmentCreate);
+  FRIEND_TEST(WorkListTest, SegmentPush);
+  FRIEND_TEST(WorkListTest, SegmentPushPop);
+  FRIEND_TEST(WorkListTest, SegmentIsEmpty);
+  FRIEND_TEST(WorkListTest, SegmentIsFull);
+  FRIEND_TEST(WorkListTest, SegmentClear);
+  FRIEND_TEST(WorkListTest, SegmentUpdateFalse);
+  FRIEND_TEST(WorkListTest, SegmentUpdate);
 };
 
 template <typename EntryType, uint16_t SegmentSize>

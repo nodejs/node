@@ -5,7 +5,7 @@ if (typeof require === 'undefined') {
 }
 
 const path = require('path');
-const { Worker, SHARE_ENV } = require('worker_threads');
+const { Worker } = require('worker_threads');
 
-new Worker(path.resolve(process.cwd(), process.argv[2]), { env: SHARE_ENV })
+new Worker(path.resolve(process.cwd(), process.argv[2]))
   .on('exit', (code) => process.exitCode = code);

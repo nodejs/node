@@ -66,7 +66,7 @@ const tsp = require('timers/promises');
   }, /ERR_MISSING_ARGS/);
   assert.throws(() => {
     pipeline();
-  }, /ERR_INVALID_CALLBACK/);
+  }, /ERR_INVALID_ARG_TYPE/);
 }
 
 {
@@ -560,7 +560,7 @@ const tsp = require('timers/promises');
 
   assert.throws(
     () => pipeline(read, transform, write),
-    { code: 'ERR_INVALID_CALLBACK' }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 }
 
@@ -699,8 +699,8 @@ const tsp = require('timers/promises');
   const ret = pipeline(async function*() {
     await Promise.resolve();
     yield 'hello';
-  }, async function*(source) {
-    for await (const chunk of source) {}
+  }, async function*(source) { // eslint-disable-line require-yield
+    for await (const chunk of source) { } // eslint-disable-line no-unused-vars, no-empty
   }, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
   }));
@@ -712,11 +712,11 @@ const tsp = require('timers/promises');
   // AsyncFunction destination is not returned and error is
   // propagated.
 
-  const ret = pipeline(async function*() {
+  const ret = pipeline(async function*() { // eslint-disable-line require-yield
     await Promise.resolve();
     throw new Error('kaboom');
-  }, async function*(source) {
-    for await (const chunk of source) {}
+  }, async function*(source) { // eslint-disable-line require-yield
+    for await (const chunk of source) { } // eslint-disable-line no-unused-vars, no-empty
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
   }));
@@ -726,7 +726,7 @@ const tsp = require('timers/promises');
 
 {
   const s = new PassThrough();
-  pipeline(async function*() {
+  pipeline(async function*() { // eslint-disable-line require-yield
     throw new Error('kaboom');
   }, s, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
@@ -736,7 +736,7 @@ const tsp = require('timers/promises');
 
 {
   const s = new PassThrough();
-  pipeline(async function*() {
+  pipeline(async function*() { // eslint-disable-line require-yield
     throw new Error('kaboom');
   }(), s, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
@@ -746,7 +746,7 @@ const tsp = require('timers/promises');
 
 {
   const s = new PassThrough();
-  pipeline(function*() {
+  pipeline(function*() { // eslint-disable-line require-yield
     throw new Error('kaboom');
   }, s, common.mustCall((err, val) => {
     assert.strictEqual(err.message, 'kaboom');
@@ -756,7 +756,7 @@ const tsp = require('timers/promises');
 
 {
   const s = new PassThrough();
-  pipeline(function*() {
+  pipeline(function*() { // eslint-disable-line require-yield
     throw new Error('kaboom');
   }(), s, common.mustCall((err, val) => {
     assert.strictEqual(err.message, 'kaboom');
@@ -771,7 +771,7 @@ const tsp = require('timers/promises');
     yield 'hello';
     yield 'world';
   }, s, async function(source) {
-    for await (const chunk of source) {
+    for await (const chunk of source) { // eslint-disable-line no-unused-vars
       throw new Error('kaboom');
     }
   }, common.mustCall((err, val) => {
@@ -784,8 +784,8 @@ const tsp = require('timers/promises');
   const s = new PassThrough();
   const ret = pipeline(function() {
     return ['hello', 'world'];
-  }, s, async function*(source) {
-    for await (const chunk of source) {
+  }, s, async function*(source) { // eslint-disable-line require-yield
+    for await (const chunk of source) { // eslint-disable-line no-unused-vars
       throw new Error('kaboom');
     }
   }, common.mustCall((err) => {
@@ -1054,12 +1054,11 @@ const tsp = require('timers/promises');
   const ws = new Writable({
     write: common.mustNotCall()
   });
-  pipeline(rs, async function*(stream) {
-    /* eslint no-unused-vars: off */
-    for await (const chunk of stream) {
+  pipeline(rs, async function*(stream) { // eslint-disable-line require-yield
+    for await (const chunk of stream) { // eslint-disable-line no-unused-vars
       throw new Error('kaboom');
     }
-  }, async function *(source) {
+  }, async function *(source) { // eslint-disable-line require-yield
     for await (const chunk of source) {
       res += chunk;
     }
@@ -1394,7 +1393,7 @@ const tsp = require('timers/promises');
   const ac = new AbortController();
   const signal = ac.signal;
   pipelinep(
-    async function * ({ signal }) {
+    async function * ({ signal }) { // eslint-disable-line require-yield
       await tsp.setTimeout(1e6, signal);
     },
     async function(source) {
@@ -1511,4 +1510,49 @@ const tsp = require('timers/promises');
     assert.strictEqual(val, 'helloworld');
     assert.strictEqual(s.destroyed, true);
   }));
+}
+
+{
+  const s = new PassThrough({ objectMode: true });
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+    yield 'world';
+  }, s, async function(source) {
+    return null;
+  }, common.mustCall((err, val) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(val, null);
+  }));
+}
+
+{
+  // Mimics a legacy stream without the .destroy method
+  class LegacyWritable extends Stream {
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  }
+
+  const writable = new LegacyWritable();
+  writable.on('error', common.mustCall((err) => {
+    assert.deepStrictEqual(err, new Error('stop'));
+  }));
+
+  pipeline(
+    Readable.from({
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            return Promise.reject(new Error('stop'));
+          }
+        };
+      }
+    }),
+    writable,
+    common.mustCall((err) => {
+      assert.deepStrictEqual(err, new Error('stop'));
+    })
+  );
 }

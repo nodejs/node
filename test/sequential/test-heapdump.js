@@ -24,6 +24,19 @@ process.chdir(tmpdir.path);
   fs.accessSync(heapdump);
 }
 
+{
+  const directory = 'directory';
+  fs.mkdirSync(directory);
+  assert.throws(() => {
+    writeHeapSnapshot(directory);
+  }, (e) => {
+    assert.ok(e, 'writeHeapSnapshot should error');
+    assert.strictEqual(e.code, 'EISDIR');
+    assert.strictEqual(e.syscall, 'open');
+    return true;
+  });
+}
+
 [1, true, {}, [], null, Infinity, NaN].forEach((i) => {
   assert.throws(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',

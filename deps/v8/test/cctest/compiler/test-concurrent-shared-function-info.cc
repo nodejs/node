@@ -35,17 +35,15 @@ void ExpectSharedFunctionInfoState(SharedFunctionInfo sfi,
   HeapObject script_or_debug_info = sfi.script_or_debug_info(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
-      CHECK(
-          function_data.IsBytecodeArray() ||
-          (function_data.IsCodeT() &&
-           FromCodeT(CodeT::cast(function_data)).kind() == CodeKind::BASELINE));
+      CHECK(function_data.IsBytecodeArray() ||
+            (function_data.IsCodeT() &&
+             CodeT::cast(function_data).kind() == CodeKind::BASELINE));
       CHECK(script_or_debug_info.IsScript());
       break;
     case SfiState::DebugInfo:
-      CHECK(
-          function_data.IsBytecodeArray() ||
-          (function_data.IsCodeT() &&
-           FromCodeT(CodeT::cast(function_data)).kind() == CodeKind::BASELINE));
+      CHECK(function_data.IsBytecodeArray() ||
+            (function_data.IsCodeT() &&
+             CodeT::cast(function_data).kind() == CodeKind::BASELINE));
       CHECK(script_or_debug_info.IsDebugInfo());
       {
         DebugInfo debug_info = DebugInfo::cast(script_or_debug_info);
@@ -94,7 +92,6 @@ class BackgroundCompilationThread final : public v8::base::Thread {
 
 TEST(TestConcurrentSharedFunctionInfo) {
   FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
-  FlagScope<bool> concurrent_inlining(&i::FLAG_concurrent_inlining, true);
 
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -122,7 +119,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   Handle<SharedFunctionInfo> test_sfi(test->shared(), isolate);
   DCHECK(test_sfi->HasBytecodeArray());
   IsCompiledScope compiled_scope_test(*test_sfi, isolate);
-  JSFunction::EnsureFeedbackVector(test, &compiled_scope_test);
+  JSFunction::EnsureFeedbackVector(isolate, test, &compiled_scope_test);
 
   // Get function "f"
   Local<Function> function_f = Local<Function>::Cast(
@@ -138,7 +135,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
       Pipeline::GenerateCodeForTesting(&f_info, isolate).ToHandleChecked();
   f->set_code(*f_code, kReleaseStore);
   IsCompiledScope compiled_scope_f(*f_sfi, isolate);
-  JSFunction::EnsureFeedbackVector(f, &compiled_scope_f);
+  JSFunction::EnsureFeedbackVector(isolate, f, &compiled_scope_f);
 
   ExpectSharedFunctionInfoState(*test_sfi, SfiState::Compiled);
 
@@ -148,7 +145,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   // Prepare job.
   {
     CompilationHandleScope compilation(isolate, job->compilation_info());
-    CanonicalHandleScope canonical(isolate, job->compilation_info());
+    CanonicalHandleScopeForTurbofan canonical(isolate, job->compilation_info());
     job->compilation_info()->ReopenHandlesInNewHandleScope(isolate);
     const CompilationJob::Status status = job->PrepareJob(isolate);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);

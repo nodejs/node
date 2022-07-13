@@ -6,14 +6,16 @@
 
 #include "include/v8-cppgc.h"
 #include "src/base/logging.h"
+#include "src/handles/global-handles.h"
+#include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/gc-tracer.h"
-#include "src/objects/embedder-data-slot.h"
-#include "src/objects/js-objects-inl.h"
+#include "src/heap/marking-worklist-inl.h"
 
 namespace v8 {
 namespace internal {
 
 void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
+  CHECK_NULL(cpp_heap_);
   if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
 
   remote_tracer_ = tracer;
@@ -22,21 +24,57 @@ void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
     remote_tracer_->isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
 }
 
+void LocalEmbedderHeapTracer::SetCppHeap(CppHeap* cpp_heap) {
+  CHECK_NULL(remote_tracer_);
+  cpp_heap_ = cpp_heap;
+}
+
+namespace {
+CppHeap::GarbageCollectionFlags ConvertTraceFlags(
+    EmbedderHeapTracer::TraceFlags flags) {
+  CppHeap::GarbageCollectionFlags result;
+  if (flags & EmbedderHeapTracer::TraceFlags::kForced)
+    result |= CppHeap::GarbageCollectionFlagValues::kForced;
+  if (flags & EmbedderHeapTracer::TraceFlags::kReduceMemory)
+    result |= CppHeap::GarbageCollectionFlagValues::kReduceMemory;
+  return result;
+}
+}  // namespace
+
+void LocalEmbedderHeapTracer::PrepareForTrace(
+    EmbedderHeapTracer::TraceFlags flags) {
+  if (cpp_heap_)
+    cpp_heap()->InitializeTracing(
+        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor,
+        ConvertTraceFlags(flags));
+}
+
 void LocalEmbedderHeapTracer::TracePrologue(
     EmbedderHeapTracer::TraceFlags flags) {
   if (!InUse()) return;
 
   embedder_worklist_empty_ = false;
-  remote_tracer_->TracePrologue(flags);
+  if (cpp_heap_)
+    cpp_heap()->StartTracing();
+  else
+    remote_tracer_->TracePrologue(flags);
 }
 
 void LocalEmbedderHeapTracer::TraceEpilogue() {
   if (!InUse()) return;
 
-  EmbedderHeapTracer::TraceSummary summary;
-  remote_tracer_->TraceEpilogue(&summary);
-  if (summary.allocated_size == SIZE_MAX) return;
-  UpdateRemoteStats(summary.allocated_size, summary.time);
+  // Resetting to state unknown as there may be follow up garbage collections
+  // triggered from callbacks that have a different stack state.
+  embedder_stack_state_ =
+      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
+
+  if (cpp_heap_) {
+    cpp_heap()->TraceEpilogue();
+  } else {
+    EmbedderHeapTracer::TraceSummary summary;
+    remote_tracer_->TraceEpilogue(&summary);
+    UpdateRemoteStats(summary.allocated_size, summary.time);
+  }
 }
 
 void LocalEmbedderHeapTracer::UpdateRemoteStats(size_t allocated_size,
@@ -54,65 +92,37 @@ void LocalEmbedderHeapTracer::UpdateRemoteStats(size_t allocated_size,
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
-  remote_tracer_->EnterFinalPause(embedder_stack_state_);
-  // Resetting to state unknown as there may be follow up garbage collections
-  // triggered from callbacks that have a different stack state.
-  embedder_stack_state_ =
-      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
+  if (cpp_heap_)
+    cpp_heap()->EnterFinalPause(embedder_stack_state_);
+  else
+    remote_tracer_->EnterFinalPause(embedder_stack_state_);
 }
 
-bool LocalEmbedderHeapTracer::Trace(double deadline) {
+bool LocalEmbedderHeapTracer::Trace(double max_duration) {
   if (!InUse()) return true;
 
-  return remote_tracer_->AdvanceTracing(deadline);
+  if (cpp_heap_)
+    return cpp_heap()->AdvanceTracing(max_duration);
+  else
+    return remote_tracer_->AdvanceTracing(max_duration);
 }
 
 bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
-  return !InUse() || remote_tracer_->IsTracingDone();
+  return !InUse() || (cpp_heap_ ? cpp_heap()->IsTracingDone()
+                                : remote_tracer_->IsTracingDone());
 }
-
-void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
-    EmbedderHeapTracer::EmbedderStackState stack_state) {
-  if (!InUse()) return;
-
-  embedder_stack_state_ = stack_state;
-  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
-    NotifyEmptyEmbedderStack();
-}
-
-namespace {
-
-bool ExtractWrappableInfo(Isolate* isolate, JSObject js_object,
-                          const WrapperDescriptor& wrapper_descriptor,
-                          LocalEmbedderHeapTracer::WrapperInfo* info) {
-  DCHECK(js_object.IsApiWrapper());
-  if (js_object.GetEmbedderFieldCount() < 2) return false;
-
-  if (EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_type_index)
-          .ToAlignedPointerSafe(isolate, &info->first) &&
-      info->first &&
-      EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_instance_index)
-          .ToAlignedPointerSafe(isolate, &info->second) &&
-      info->second) {
-    return (wrapper_descriptor.embedder_id_for_garbage_collected ==
-            WrapperDescriptor::kUnknownEmbedderId) ||
-           (*static_cast<uint16_t*>(info->first) ==
-            wrapper_descriptor.embedder_id_for_garbage_collected);
-  }
-  return false;
-}
-
-}  // namespace
 
 LocalEmbedderHeapTracer::ProcessingScope::ProcessingScope(
     LocalEmbedderHeapTracer* tracer)
     : tracer_(tracer), wrapper_descriptor_(tracer->wrapper_descriptor_) {
+  DCHECK(!tracer_->cpp_heap_);
   wrapper_cache_.reserve(kWrapperCacheSize);
 }
 
 LocalEmbedderHeapTracer::ProcessingScope::~ProcessingScope() {
+  DCHECK(!tracer_->cpp_heap_);
   if (!wrapper_cache_.empty()) {
-    tracer_->remote_tracer()->RegisterV8References(std::move(wrapper_cache_));
+    tracer_->remote_tracer_->RegisterV8References(std::move(wrapper_cache_));
   }
 }
 
@@ -120,7 +130,7 @@ LocalEmbedderHeapTracer::WrapperInfo
 LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
                                             JSObject js_object) {
   WrapperInfo info;
-  if (ExtractWrappableInfo(isolate, js_object, wrapper_descriptor_, &info)) {
+  if (ExtractWrappableInfo(isolate, js_object, wrapper_descriptor(), &info)) {
     return info;
   }
   return {nullptr, nullptr};
@@ -128,7 +138,7 @@ LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
 
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
-  DCHECK(js_object.IsApiWrapper());
+  DCHECK(js_object.MayHaveEmbedderFields());
   WrapperInfo info;
   if (ExtractWrappableInfo(tracer_->isolate_, js_object, wrapper_descriptor_,
                            &info)) {
@@ -138,8 +148,9 @@ void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
 }
 
 void LocalEmbedderHeapTracer::ProcessingScope::FlushWrapperCacheIfFull() {
+  DCHECK(!tracer_->cpp_heap_);
   if (wrapper_cache_.size() == wrapper_cache_.capacity()) {
-    tracer_->remote_tracer()->RegisterV8References(std::move(wrapper_cache_));
+    tracer_->remote_tracer_->RegisterV8References(std::move(wrapper_cache_));
     wrapper_cache_.clear();
     wrapper_cache_.reserve(kWrapperCacheSize);
   }
@@ -174,13 +185,28 @@ void LocalEmbedderHeapTracer::NotifyEmptyEmbedderStack() {
   isolate_->global_handles()->NotifyEmptyEmbedderStack();
 }
 
-bool DefaultEmbedderRootsHandler::IsRoot(
-    const v8::TracedReference<v8::Value>& handle) {
-  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
+void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
+                                                   JSObject js_object) {
+  DCHECK(InUse());
+  DCHECK(js_object.MayHaveEmbedderFields());
+  if (cpp_heap_) {
+    DCHECK_NOT_NULL(heap->mark_compact_collector());
+    const EmbedderDataSlot type_slot(js_object,
+                                     wrapper_descriptor_.wrappable_type_index);
+    const EmbedderDataSlot instance_slot(
+        js_object, wrapper_descriptor_.wrappable_instance_index);
+    heap->mark_compact_collector()
+        ->local_marking_worklists()
+        ->cpp_marking_state()
+        ->MarkAndPush(type_slot, instance_slot);
+    return;
+  }
+  LocalEmbedderHeapTracer::ProcessingScope scope(this);
+  scope.TracePossibleWrapper(js_object);
 }
 
 bool DefaultEmbedderRootsHandler::IsRoot(
-    const v8::TracedGlobal<v8::Value>& handle) {
+    const v8::TracedReference<v8::Value>& handle) {
   return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
 }
 

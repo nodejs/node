@@ -5,12 +5,14 @@
 #include "test/cctest/wasm/wasm-simd-utils.h"
 
 #include <cmath>
+#include <type_traits>
 
 #include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -481,6 +483,21 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+namespace {
+// Relaxed-simd operations are deterministic only for some range of values.
+// Exclude those from being tested. Currently this is only used for f32x4, f64x2
+// relaxed min and max.
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+ShouldSkipTestingConstants(WasmOpcode opcode, T lhs, T rhs) {
+  bool has_nan = std::isnan(lhs) || std::isnan(rhs);
+  bool zeroes_of_opposite_signs =
+      (lhs == 0 && rhs == 0 && (std::signbit(lhs) != std::signbit(rhs)));
+  return WasmOpcodes::IsRelaxedSimdOpcode(opcode) &&
+         (has_nan || zeroes_of_opposite_signs);
+}
+}  // namespace
+
 void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        FloatBinOp expected_op) {
   WasmRunner<int32_t, float, float> r(execution_tier);
@@ -500,6 +517,7 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT32_INPUTS(y) {
       if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       float expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
@@ -516,6 +534,7 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     FOR_FLOAT32_NAN_INPUTS(j) {
       float y = bit_cast<float>(nan_test_array[j]);
       if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       float expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
@@ -664,6 +683,7 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT64_INPUTS(y) {
       if (!PlatformCanRepresent(x)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       double expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
@@ -681,6 +701,7 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       double y = bit_cast<double>(double_nan_test_array[j]);
       double expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       r.Call(x, y);
       for (int i = 0; i < 2; i++) {
         double actual = LANE(g, i);

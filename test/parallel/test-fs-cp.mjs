@@ -95,6 +95,77 @@ function nextdir() {
 }
 
 
+// It throws error when verbatimSymlinks is not a boolean.
+{
+  const src = './test/fixtures/copy/kitchen-sink';
+  [1, [], {}, null, 1n, undefined, null, Symbol(), '', () => {}]
+    .forEach((verbatimSymlinks) => {
+      assert.throws(
+        () => cpSync(src, src, { verbatimSymlinks }),
+        { code: 'ERR_INVALID_ARG_TYPE' }
+      );
+    });
+}
+
+
+// It throws an error when both dereference and verbatimSymlinks are enabled.
+{
+  const src = './test/fixtures/copy/kitchen-sink';
+  assert.throws(
+    () => cpSync(src, src, { dereference: true, verbatimSymlinks: true }),
+    { code: 'ERR_INCOMPATIBLE_OPTION_PAIR' }
+  );
+}
+
+
+// It resolves relative symlinks to their absolute path by default.
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+
+  cpSync(src, dest, { recursive: true });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, join(src, 'foo.js'));
+}
+
+
+// It resolves relative symlinks when verbatimSymlinks is false.
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+
+  cpSync(src, dest, { recursive: true, verbatimSymlinks: false });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, join(src, 'foo.js'));
+}
+
+
+// It does not resolve relative symlinks when verbatimSymlinks is true.
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+
+  cpSync(src, dest, { recursive: true, verbatimSymlinks: true });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, 'foo.js');
+}
+
+
 // It throws error when src and dest are identical.
 {
   const src = './test/fixtures/copy/kitchen-sink';

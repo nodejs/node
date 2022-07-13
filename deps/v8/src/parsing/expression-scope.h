@@ -63,16 +63,16 @@ class ExpressionScope {
           if (scope->is_with_scope()) {
             passed_through_with = true;
           } else if (scope->is_catch_scope()) {
-            Variable* var = scope->LookupLocal(name);
+            Variable* masking_var = scope->LookupLocal(name);
             // If a variable is declared in a catch scope with a masking
             // catch-declared variable, the initializing assignment is an
             // assignment to the catch-declared variable instead.
             // https://tc39.es/ecma262/#sec-variablestatements-in-catch-blocks
-            if (var != nullptr) {
+            if (masking_var != nullptr) {
               result->set_is_assigned();
               if (passed_through_with) break;
-              result->BindTo(var);
-              var->SetMaybeAssigned();
+              result->BindTo(masking_var);
+              masking_var->SetMaybeAssigned();
               return result;
             }
           }
@@ -758,6 +758,8 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
            kind == FunctionKind::kArrowFunction);
     DCHECK(this->CanBeDeclaration());
     DCHECK(!this->IsCertainlyDeclaration());
+    // clear last next_arrow_function_info tracked strict parameters error.
+    parser->next_arrow_function_info_.ClearStrictParameterError();
   }
 
   ArrowHeadParsingScope(const ArrowHeadParsingScope&) = delete;

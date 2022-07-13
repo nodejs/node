@@ -54,7 +54,7 @@ class RelocInfo {
     // Please note the order is important (see IsRealRelocMode, IsGCRelocMode,
     // and IsShareableRelocMode predicates below).
 
-    NONE,  // Never recorded value. Most common one, hence value 0.
+    NO_INFO,  // Never recorded value. Most common one, hence value 0.
 
     CODE_TARGET,
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
@@ -132,7 +132,7 @@ class RelocInfo {
     return mode <= LAST_GCED_ENUM;
   }
   static constexpr bool IsShareableRelocMode(Mode mode) {
-    return mode == RelocInfo::NONE ||
+    return mode == RelocInfo::NO_INFO ||
            mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
   static constexpr bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
@@ -191,7 +191,7 @@ class RelocInfo {
   static constexpr bool IsOffHeapTarget(Mode mode) {
     return mode == OFF_HEAP_TARGET;
   }
-  static constexpr bool IsNone(Mode mode) { return mode == NONE; }
+  static constexpr bool IsNoInfo(Mode mode) { return mode == NO_INFO; }
 
   static bool IsOnlyForSerializer(Mode mode) {
 #ifdef V8_TARGET_ARCH_IA32
@@ -252,12 +252,9 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   V8_INLINE Address target_address();
-  V8_INLINE HeapObject target_object();
+  // Cage base value is used for decompressing compressed embedded references.
+  V8_INLINE HeapObject target_object(PtrComprCageBase cage_base);
 
-  // In GC operations, we don't have a host_ pointer. Retrieving a target
-  // for COMPRESSED_EMBEDDED_OBJECT mode requires a pointer compression cage
-  // base value.
-  V8_INLINE HeapObject target_object_no_host(PtrComprCageBase cage_base);
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
 
   V8_INLINE void set_target_object(

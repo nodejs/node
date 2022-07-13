@@ -233,6 +233,84 @@ TEST(TestStreamingAndSyncCache) {
   CHECK_EQ(native_module_streaming, native_module_sync);
 }
 
+void TestModuleSharingBetweenIsolates() {
+  class ShareModuleThread : public base::Thread {
+   public:
+    ShareModuleThread(
+        const char* name,
+        std::function<void(std::shared_ptr<NativeModule>)> register_module)
+        : base::Thread(base::Thread::Options{name}),
+          register_module_(std::move(register_module)) {}
+
+    void Run() override {
+      v8::Isolate::CreateParams isolate_create_params;
+      auto* ab_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+      isolate_create_params.array_buffer_allocator = ab_allocator;
+      v8::Isolate* isolate = v8::Isolate::New(isolate_create_params);
+      Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+      isolate->Enter();
+
+      {
+        i::HandleScope handle_scope(i_isolate);
+        v8::Context::New(isolate)->Enter();
+        auto full_bytes =
+            base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
+        memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
+        memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
+        ErrorThrower thrower(i_isolate, "Test");
+        std::shared_ptr<NativeModule> native_module =
+            GetWasmEngine()
+                ->SyncCompile(i_isolate, WasmFeatures::All(), &thrower,
+                              ModuleWireBytes{full_bytes.as_vector()})
+                .ToHandleChecked()
+                ->shared_native_module();
+        register_module_(native_module);
+        // Check that we can access the code (see https://crbug.com/1280451).
+        WasmCodeRefScope code_ref_scope;
+        uint8_t* code_start = native_module->GetCode(0)->instructions().begin();
+        // Use the loaded value in a CHECK to prevent the compiler from just
+        // optimizing it away. Even {volatile} would require that.
+        CHECK_NE(0, *code_start);
+      }
+
+      isolate->Exit();
+      isolate->Dispose();
+      delete ab_allocator;
+    }
+
+   private:
+    const std::function<void(std::shared_ptr<NativeModule>)> register_module_;
+  };
+
+  std::vector<std::shared_ptr<NativeModule>> modules;
+  base::Mutex mutex;
+  auto register_module = [&](std::shared_ptr<NativeModule> module) {
+    base::MutexGuard guard(&mutex);
+    modules.emplace_back(std::move(module));
+  };
+
+  ShareModuleThread thread1("ShareModuleThread1", register_module);
+  CHECK(thread1.Start());
+  thread1.Join();
+
+  // Start a second thread which should get the cached module.
+  ShareModuleThread thread2("ShareModuleThread2", register_module);
+  CHECK(thread2.Start());
+  thread2.Join();
+
+  CHECK_EQ(2, modules.size());
+  CHECK_EQ(modules[0].get(), modules[1].get());
+}
+
+UNINITIALIZED_TEST(TwoIsolatesShareNativeModule) {
+  TestModuleSharingBetweenIsolates();
+}
+
+UNINITIALIZED_TEST(TwoIsolatesShareNativeModuleWithPku) {
+  FLAG_wasm_memory_protection_keys = true;
+  TestModuleSharingBetweenIsolates();
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

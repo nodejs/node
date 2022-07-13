@@ -1,135 +1,152 @@
 const t = require('tap')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
-let getIdentityImpl = () => 'someperson'
-let npmFetchBody = null
+const MockRegistry = require('../../fixtures/mock-registry.js')
 
-const npmFetch = async (uri, opts) => {
-  npmFetchBody = opts.body
-}
+const user = 'test-user'
+const token = 'test-auth-token'
+const auth = { '//registry.npmjs.org/:_authToken': token }
+const versions = ['1.0.0', '1.0.1', '1.0.1-pre']
 
-npmFetch.json = async (uri, opts) => {
-  return {
-    versions: {
-      '1.0.0': {},
-      '1.0.1': {},
-      '1.0.1-pre': {},
-    },
-  }
-}
-
-const Deprecate = t.mock('../../../lib/commands/deprecate.js', {
-  '../../../lib/utils/get-identity.js': async () => getIdentityImpl(),
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  libnpmaccess: {
-    lsPackages: async () => ({ foo: 'write', bar: 'write', baz: 'write', buzz: 'read' }),
-  },
-  'npm-registry-fetch': npmFetch,
-})
-
-const deprecate = new Deprecate({
-  flatOptions: { registry: 'https://registry.npmjs.org' },
-})
+// libnpmaccess maps these to read-write and read-only
+const packages = { foo: 'write', bar: 'write', baz: 'write', buzz: 'read' }
 
 t.test('completion', async t => {
-  const defaultIdentityImpl = getIdentityImpl
-  t.teardown(() => {
-    getIdentityImpl = defaultIdentityImpl
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
   })
 
+  const deprecate = await npm.cmd('deprecate')
   const testComp = async (argv, expect) => {
     const res =
       await deprecate.completion({ conf: { argv: { remain: argv } } })
     t.strictSame(res, expect, `completion: ${argv}`)
   }
 
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
+  })
+
+  registry.whoami({ username: user, times: 4 })
+  registry.lsPackages({ team: user, packages, times: 4 })
   await Promise.all([
     testComp([], ['foo', 'bar', 'baz']),
     testComp(['b'], ['bar', 'baz']),
     testComp(['fo'], ['foo']),
     testComp(['g'], []),
-    testComp(['foo', 'something'], []),
   ])
 
-  getIdentityImpl = () => {
-    throw new Error('deprecate test failure')
-  }
+  await testComp(['foo', 'something'], [])
 
-  t.rejects(testComp([], []), { message: 'deprecate test failure' })
+  registry.whoami({ statusCode: 404, body: {} })
+
+  t.rejects(testComp([], []), { code: 'EINVALIDTYPE' })
 })
 
 t.test('no args', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    deprecate.exec([]),
-    /Usage:/,
+    npm.exec('deprecate', []),
+    { code: 'EUSAGE' },
     'logs usage'
   )
 })
 
 t.test('only one arg', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    deprecate.exec(['foo']),
-    /Usage:/,
+    npm.exec('deprecate', ['foo']),
+    { code: 'EUSAGE' },
     'logs usage'
   )
 })
 
 t.test('invalid semver range', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    deprecate.exec(['foo@notaversion', 'this will fail']),
+    npm.exec('deprecate', ['foo@notaversion', 'this will fail']),
     /invalid version range/,
     'logs semver error'
   )
 })
 
 t.test('undeprecate', async t => {
-  await deprecate.exec(['foo', ''])
-  t.match(npmFetchBody, {
-    versions: {
-      '1.0.0': { deprecated: '' },
-      '1.0.1': { deprecated: '' },
-      '1.0.1-pre': { deprecated: '' },
-    },
-  }, 'undeprecates everything')
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { ...auth } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
+  })
+  const manifest = registry.manifest({
+    name: 'foo',
+    versions,
+  })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.put('/foo', body => {
+    for (const version of versions) {
+      if (body.versions[version].deprecated !== '') {
+        return false
+      }
+    }
+    return true
+  }).reply(200, {})
+
+  await npm.exec('deprecate', ['foo', ''])
+  t.match(joinedOutput(), '')
 })
 
 t.test('deprecates given range', async t => {
-  t.teardown(() => {
-    npmFetchBody = null
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { ...auth } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
   })
-
-  await deprecate.exec(['foo@1.0.0', 'this version is deprecated'])
-  t.match(npmFetchBody, {
-    versions: {
-      '1.0.0': {
-        deprecated: 'this version is deprecated',
-      },
-      '1.0.1': {
-        // the undefined here is necessary to ensure that we absolutely
-        // did not assign this property
-        deprecated: undefined,
-      },
-    },
+  const manifest = registry.manifest({
+    name: 'foo',
+    versions,
   })
+  await registry.package({ manifest, query: { write: true } })
+  const message = 'test deprecation message'
+  registry.nock.put('/foo', body => {
+    if (body.versions['1.0.1'].deprecated) {
+      return false
+    }
+    if (body.versions['1.0.1-pre'].deprecated) {
+      return false
+    }
+    return body.versions['1.0.0'].deprecated === message
+  }).reply(200, {})
+  await npm.exec('deprecate', ['foo@1.0.0', message])
+  t.match(joinedOutput(), '')
 })
 
 t.test('deprecates all versions when no range is specified', async t => {
-  t.teardown(() => {
-    npmFetchBody = null
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { ...auth } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
   })
-
-  await deprecate.exec(['foo', 'this version is deprecated'])
-
-  t.match(npmFetchBody, {
-    versions: {
-      '1.0.0': {
-        deprecated: 'this version is deprecated',
-      },
-      '1.0.1': {
-        deprecated: 'this version is deprecated',
-      },
-      '1.0.1-pre': {
-        deprecated: 'this version is deprecated',
-      },
-    },
+  const manifest = registry.manifest({
+    name: 'foo',
+    versions,
   })
+  await registry.package({ manifest, query: { write: true } })
+  const message = 'test deprecation message'
+  registry.nock.put('/foo', body => {
+    for (const version of versions) {
+      if (body.versions[version].deprecated !== message) {
+        return false
+      }
+    }
+    return true
+  }).reply(200, {})
+
+  await npm.exec('deprecate', ['foo', message])
+  t.match(joinedOutput(), '')
 })

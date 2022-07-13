@@ -18,21 +18,21 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
+  Object obj = args[0];
   return isolate->heap()->ToBoolean(obj.IsJSProxy());
 }
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
+  auto proxy = JSProxy::cast(args[0]);
   return proxy.handler();
 }
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
+  auto proxy = JSProxy::cast(args[0]);
   return proxy.target();
 }
 
@@ -40,15 +40,15 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 2);
+  Handle<JSReceiver> holder = args.at<JSReceiver>(0);
+  Handle<Object> key = args.at(1);
+  Handle<Object> receiver = args.at(2);
   // TODO(mythria): Remove the on_non_existent parameter to this function. This
   // should only be called when getting named properties on receiver. This
   // doesn't handle the global variable loads.
 #ifdef DEBUG
-  CONVERT_ARG_HANDLE_CHECKED(Smi, on_non_existent, 3);
-  DCHECK_NE(static_cast<OnNonExistent>(on_non_existent->value()),
+  int on_non_existent = args.smi_value_at(3);
+  DCHECK_NE(static_cast<OnNonExistent>(on_non_existent),
             OnNonExistent::kThrowReferenceError);
 #endif
 
@@ -67,10 +67,10 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
+  Handle<JSReceiver> holder = args.at<JSReceiver>(0);
+  Handle<Object> key = args.at(1);
+  Handle<Object> value = args.at(2);
+  Handle<Object> receiver = args.at(3);
 
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
@@ -89,10 +89,10 @@ RUNTIME_FUNCTION(Runtime_CheckProxyGetSetTrapResult) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, trap_result, 2);
-  CONVERT_NUMBER_CHECKED(int64_t, access_kind, Int64, args[3]);
+  Handle<Name> name = args.at<Name>(0);
+  Handle<JSReceiver> target = args.at<JSReceiver>(1);
+  Handle<Object> trap_result = args.at(2);
+  int64_t access_kind = NumberToInt64(args[3]);
 
   RETURN_RESULT_OR_FAILURE(isolate, JSProxy::CheckGetSetTrapResult(
                                         isolate, name, target, trap_result,
@@ -103,8 +103,8 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+  Handle<Name> name = args.at<Name>(0);
+  Handle<JSReceiver> target = args.at<JSReceiver>(1);
 
   Maybe<bool> result = JSProxy::CheckHasTrap(isolate, name, target);
   if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
@@ -115,8 +115,8 @@ RUNTIME_FUNCTION(Runtime_CheckProxyDeleteTrapResult) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+  Handle<Name> name = args.at<Name>(0);
+  Handle<JSReceiver> target = args.at<JSReceiver>(1);
 
   Maybe<bool> result = JSProxy::CheckDeleteTrap(isolate, name, target);
   if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();

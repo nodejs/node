@@ -68,7 +68,7 @@ int WrappedMain(int argc, const char** argv) {
 
   for (const TorqueMessage& message : result.messages) {
     if (message.position) {
-      std::cerr << *message.position << ": ";
+      std::cerr << PositionAsString(*message.position) << ": ";
     }
 
     std::cerr << ErrorPrefixFor(message.kind) << ": " << message.message

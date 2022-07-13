@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // This neuters too low stack size passed by the flag fuzzer.
-// Flags: --stack-size=864
+// Flags: --stack-size=1000
 
 var nativeJSON = this.JSON;
 this.JSON = null;

@@ -5,6 +5,8 @@
 #ifndef V8_LOGGING_RUNTIME_CALL_STATS_H_
 #define V8_LOGGING_RUNTIME_CALL_STATS_H_
 
+#include "src/base/macros.h"
+
 #ifdef V8_RUNTIME_CALL_STATS
 
 #include "src/base/atomic-utils.h"
@@ -245,7 +247,7 @@ class RuntimeCallTimer final {
   V(RegExp_Exec)                                           \
   V(RegExp_New)                                            \
   V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunctionInContext)               \
+  V(ScriptCompiler_CompileFunction)                        \
   V(ScriptCompiler_CompileUnbound)                         \
   V(Script_Run)                                            \
   V(Set_Add)                                               \
@@ -314,11 +316,13 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                           \
-                                                                            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, CompileTask)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateSIMD128Registers)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BranchConditionDuplication)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
@@ -371,6 +375,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                \
                                                                             \
@@ -388,8 +393,10 @@ class RuntimeCallTimer final {
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
   V(CodeGenerationFromStringsCallbacks)        \
-  V(CompileBackgroundCompileTask)              \
+  V(CompileBackgroundBaselinePreVisit)         \
+  V(CompileBackgroundBaselineVisit)            \
   V(CompileBaseline)                           \
+  V(CompileBaselineFinalization)               \
   V(CompileBaselinePreVisit)                   \
   V(CompileBaselineVisit)                      \
   V(CompileCollectSourcePositions)             \
@@ -466,6 +473,7 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
+  V(SnapshotDecompress)                        \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
@@ -473,13 +481,15 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
-  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)
+  V(WebSnapshotDeserialize_Strings)            \
+  V(WrappedFunctionLengthGetter)               \
+  V(WrappedFunctionNameGetter)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
@@ -677,16 +687,22 @@ class WorkerThreadRuntimeCallStats final {
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
 // runtime call stats table, and will dump the table to an immediate trace event
 // when it is destroyed.
-class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
+class V8_EXPORT_PRIVATE V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
  public:
+  WorkerThreadRuntimeCallStatsScope() = default;
   explicit WorkerThreadRuntimeCallStatsScope(
       WorkerThreadRuntimeCallStats* off_thread_stats);
   ~WorkerThreadRuntimeCallStatsScope();
 
+  WorkerThreadRuntimeCallStatsScope(WorkerThreadRuntimeCallStatsScope&&) =
+      delete;
+  WorkerThreadRuntimeCallStatsScope(const WorkerThreadRuntimeCallStatsScope&) =
+      delete;
+
   RuntimeCallStats* Get() const { return table_; }
 
  private:
-  RuntimeCallStats* table_;
+  RuntimeCallStats* table_ = nullptr;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
@@ -708,6 +724,10 @@ class V8_NODISCARD RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
+  inline RuntimeCallTimerScope(LocalIsolate* isolate,
+                               RuntimeCallCounterId counter_id,
+                               RuntimeCallStats::CounterMode mode =
+                                   RuntimeCallStats::CounterMode::kExact);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,
                                RuntimeCallStats::CounterMode mode =

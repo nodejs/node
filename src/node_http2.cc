@@ -1,12 +1,11 @@
+#include "node_http2.h"
 #include "aliased_buffer.h"
-#include "allocated_buffer-inl.h"
 #include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
-#include "node_http2.h"
 #include "node_http_common-inl.h"
 #include "node_mem-inl.h"
 #include "node_perf.h"
@@ -197,7 +196,8 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
   // Important: The maxSessionMemory option in javascript is expressed in
   //            terms of MB increments (i.e. the value 1 == 1 MB)
   if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY))
-    set_max_session_memory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1000000);
+    set_max_session_memory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] *
+                           static_cast<uint64_t>(1000000));
 
   if (flags & (1 << IDX_OPTIONS_MAX_SETTINGS)) {
     nghttp2_option_set_max_settings(
@@ -640,7 +640,7 @@ void Http2Stream::EmitStatistics() {
   std::unique_ptr<Http2StreamPerformanceEntry> entry =
       std::make_unique<Http2StreamPerformanceEntry>(
           "Http2Stream",
-          start,
+          start - (node::performance::timeOrigin / 1e6),
           duration,
           statistics_);
 
@@ -660,7 +660,7 @@ void Http2Session::EmitStatistics() {
   std::unique_ptr<Http2SessionPerformanceEntry> entry =
       std::make_unique<Http2SessionPerformanceEntry>(
           "Http2Session",
-          start,
+          start - (node::performance::timeOrigin / 1e6),
           duration,
           statistics_);
 
@@ -1009,6 +1009,42 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   return 0;
 }
 
+// Remove the headers reference.
+// Implicitly calls nghttp2_rcbuf_decref
+void Http2Session::DecrefHeaders(const nghttp2_frame* frame) {
+  int32_t id = GetFrameID(frame);
+  BaseObjectPtr<Http2Stream> stream = FindStream(id);
+
+  if (stream && !stream->is_destroyed() && stream->headers_count() > 0) {
+    Debug(this, "freeing headers for stream %d", id);
+    stream->ClearHeaders();
+    CHECK_EQ(stream->headers_count(), 0);
+    DecrementCurrentSessionMemory(stream->current_headers_length_);
+    stream->current_headers_length_ = 0;
+  }
+}
+
+uint32_t TranslateNghttp2ErrorCode(const int libErrorCode) {
+  switch (libErrorCode) {
+  case NGHTTP2_ERR_STREAM_CLOSED:
+    return NGHTTP2_STREAM_CLOSED;
+  case NGHTTP2_ERR_HEADER_COMP:
+    return NGHTTP2_COMPRESSION_ERROR;
+  case NGHTTP2_ERR_FRAME_SIZE_ERROR:
+    return NGHTTP2_FRAME_SIZE_ERROR;
+  case NGHTTP2_ERR_FLOW_CONTROL:
+    return NGHTTP2_FLOW_CONTROL_ERROR;
+  case NGHTTP2_ERR_REFUSED_STREAM:
+    return NGHTTP2_REFUSED_STREAM;
+  case NGHTTP2_ERR_PROTO:
+  case NGHTTP2_ERR_HTTP_HEADER:
+  case NGHTTP2_ERR_HTTP_MESSAGING:
+    return NGHTTP2_PROTOCOL_ERROR;
+  default:
+    return NGHTTP2_INTERNAL_ERROR;
+  }
+}
+
 // If nghttp2 is unable to send a queued up frame, it will call this callback
 // to let us know. If the failure occurred because we are in the process of
 // closing down the session or stream, we go ahead and ignore it. We don't
@@ -1029,6 +1065,11 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
       error_code == NGHTTP2_ERR_STREAM_CLOSING ||
       session->js_fields_->frame_error_listener_count == 0) {
+    // Nghttp2 contains header limit of 65536. When this value is exceeded the
+    // pipeline is stopped and we should remove the current headers reference
+    // to destroy the session completely.
+    // Further information see: https://github.com/nodejs/node/issues/35233
+    session->DecrefHeaders(frame);
     return 0;
   }
 
@@ -1040,7 +1081,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   Local<Value> argv[3] = {
     Integer::New(isolate, frame->hd.stream_id),
     Integer::New(isolate, frame->hd.type),
-    Integer::New(isolate, error_code)
+    Integer::New(isolate, TranslateNghttp2ErrorCode(error_code))
   };
   session->MakeCallback(
       env->http2session_on_frame_error_function(),
@@ -2604,7 +2645,6 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
       static_cast<SessionType>(
           args[0]->Int32Value(env->context()).ToChecked());
   Http2Session* session = new Http2Session(state, args.This(), type);
-  session->get_async_id();  // avoid compiler warning
   Debug(session, "session created");
 }
 
@@ -3114,9 +3154,6 @@ void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
 void Http2State::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("root_buffer", root_buffer);
 }
-
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey Http2State::type_name;
 
 // Set up the process.binding('http2') binding.
 void Initialize(Local<Object> target,

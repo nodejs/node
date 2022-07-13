@@ -41,7 +41,7 @@ const fn3 = asyncResource.bind(common.mustCall(function() {
 fn3();
 
 const fn4 = asyncResource.bind(common.mustCall(function() {
-  assert.strictEqual(this, asyncResource);
+  assert.strictEqual(this, undefined);
 }));
 fn4();
 
@@ -49,3 +49,8 @@ const fn5 = asyncResource.bind(common.mustCall(function() {
   assert.strictEqual(this, false);
 }), false);
 fn5();
+
+const fn6 = asyncResource.bind(common.mustCall(function() {
+  assert.strictEqual(this, 'test');
+}));
+fn6.call('test');

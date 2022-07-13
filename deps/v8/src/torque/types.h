@@ -6,7 +6,6 @@
 #define V8_TORQUE_TYPES_H_
 
 #include <algorithm>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -226,7 +225,7 @@ struct Field {
   // because we don't support the struct field for on-heap layouts.
   base::Optional<size_t> offset;
 
-  bool is_weak;
+  bool custom_weak_marking;
   bool const_qualified;
   FieldSynchronization read_synchronization;
   FieldSynchronization write_synchronization;
@@ -618,9 +617,9 @@ class StructType final : public AggregateType {
 
   enum class ClassificationFlag {
     kEmpty = 0,
-    kTagged = 1 << 0,
-    kUntagged = 1 << 1,
-    kMixed = kTagged | kUntagged,
+    kStrongTagged = 1 << 0,
+    kWeakTagged = 1 << 1,
+    kUntagged = 1 << 2,
   };
   using Classification = base::Flags<ClassificationFlag>;
 
@@ -669,16 +668,21 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return !IsExtern() || (ShouldGenerateCppClassDefinitions() &&
-                           !IsAbstract() && !HasUndefinedLayout());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (!IsExtern()) return true;
+    if (!ShouldGenerateCppClassDefinitions()) return false;
+    return !IsAbstract() && !HasUndefinedLayout();
   }
   bool ShouldGenerateVerify() const {
-    return !IsExtern() || (ShouldGenerateCppClassDefinitions() &&
-                           !HasUndefinedLayout() && !IsShape());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (!IsExtern()) return true;
+    if (!ShouldGenerateCppClassDefinitions()) return false;
+    return !HasUndefinedLayout() && !IsShape();
   }
   bool ShouldGenerateBodyDescriptor() const {
-    return flags_ & ClassFlag::kGenerateBodyDescriptor ||
-           (!IsAbstract() && !IsExtern());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kGenerateBodyDescriptor) return true;
+    return !IsAbstract() && !IsExtern();
   }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
@@ -689,13 +693,21 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool ShouldGenerateCppClassDefinitions() const {
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
     return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
   }
-  bool ShouldGenerateFullClassDefinition() const {
-    return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);
+  bool ShouldGenerateCppObjectDefinitionAsserts() const {
+    return flags_ & ClassFlag::kCppObjectDefinition;
   }
-  // Class with multiple or non-standard maps, do not auto-generate map.
-  bool HasCustomMap() const { return flags_ & ClassFlag::kCustomMap; }
+  bool ShouldGenerateFullClassDefinition() const { return !IsExtern(); }
+  bool ShouldGenerateUniqueMap() const {
+    return (flags_ & ClassFlag::kGenerateUniqueMap) ||
+           (!IsExtern() && !IsAbstract());
+  }
+  bool ShouldGenerateFactoryFunction() const {
+    return (flags_ & ClassFlag::kGenerateFactoryFunction) ||
+           (ShouldExport() && !IsAbstract());
+  }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;

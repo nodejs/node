@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,6 @@
  */
 #include "internal/deprecated.h"
 
-#include "e_os.h" /* strcasecmp */
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/bn.h>
@@ -90,13 +89,14 @@ static int dsa_gen_type_name2id(const char *name)
     size_t i;
 
     for (i = 0; i < OSSL_NELEM(dsatype2id); ++i) {
-        if (strcasecmp(dsatype2id[i].name, name) == 0)
+        if (OPENSSL_strcasecmp(dsatype2id[i].name, name) == 0)
             return dsatype2id[i].id;
     }
     return -1;
 }
 
-static int dsa_key_todata(DSA *dsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
+static int dsa_key_todata(DSA *dsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
+                          int include_private)
 {
     const BIGNUM *priv = NULL, *pub = NULL;
 
@@ -104,7 +104,8 @@ static int dsa_key_todata(DSA *dsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
         return 0;
 
     DSA_get0_key(dsa, &pub, &priv);
-    if (priv != NULL
+    if (include_private
+        && priv != NULL
         && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_PRIV_KEY, priv))
         return 0;
     if (pub != NULL
@@ -200,8 +201,12 @@ static int dsa_import(void *keydata, int selection, const OSSL_PARAM params[])
 
     if ((selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0)
         ok = ok && ossl_dsa_ffc_params_fromdata(dsa, params);
-    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-        ok = ok && ossl_dsa_key_fromdata(dsa, params);
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int include_private =
+            selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
+
+        ok = ok && ossl_dsa_key_fromdata(dsa, params, include_private);
+    }
 
     return ok;
 }
@@ -210,21 +215,30 @@ static int dsa_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
                       void *cbarg)
 {
     DSA *dsa = keydata;
-    OSSL_PARAM_BLD *tmpl = OSSL_PARAM_BLD_new();
+    OSSL_PARAM_BLD *tmpl;
     OSSL_PARAM *params = NULL;
     int ok = 1;
 
     if (!ossl_prov_is_running() || dsa == NULL)
-        goto err;
+        return 0;
+
+    tmpl = OSSL_PARAM_BLD_new();
+    if (tmpl == NULL)
+        return 0;
 
     if ((selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0)
         ok = ok && ossl_ffc_params_todata(ossl_dsa_get0_params(dsa), tmpl, NULL);
-    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-        ok = ok && dsa_key_todata(dsa, tmpl, NULL);
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int include_private =
+            selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
 
-    if (!ok
-        || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL)
+        ok = ok && dsa_key_todata(dsa, tmpl, NULL, include_private);
+    }
+
+    if (!ok || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL) {
+        ok = 0;
         goto err;
+    }
 
     ok = param_cb(params, cbarg);
     OSSL_PARAM_free(params);
@@ -309,7 +323,7 @@ static ossl_inline int dsa_get_params(void *key, OSSL_PARAM params[])
         && !OSSL_PARAM_set_utf8_string(p, DSA_DEFAULT_MD))
         return 0;
     return ossl_ffc_params_todata(ossl_dsa_get0_params(dsa), NULL, params)
-           && dsa_key_todata(dsa, NULL, params);
+           && dsa_key_todata(dsa, NULL, params, 1);
 }
 
 static const OSSL_PARAM dsa_params[] = {

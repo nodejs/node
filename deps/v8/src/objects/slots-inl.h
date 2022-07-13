@@ -144,8 +144,9 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
 }
 
 HeapObject FullHeapObjectSlot::ToHeapObject() const {
-  DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-  return HeapObject::cast(Object(*location()));
+  TData value = *location();
+  DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
+  return HeapObject::cast(Object(value));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {

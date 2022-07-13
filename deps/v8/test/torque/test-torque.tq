@@ -196,8 +196,8 @@ macro TestFunctionPointers(implicit context: Context)(): Boolean {
 
 @export
 macro TestVariableRedeclaration(implicit context: Context)(): Boolean {
-  let _var1: int31 = FromConstexpr<bool>(42 == 0) ? 0 : 1;
-  let _var2: int31 = FromConstexpr<bool>(42 == 0) ? 1 : 0;
+  let _var1: int31 = FromConstexpr<bool>(42 == 0) ? FromConstexpr<int31>(0) : 1;
+  let _var2: int31 = FromConstexpr<bool>(42 == 0) ? FromConstexpr<int31>(1) : 0;
   return True;
 }
 
@@ -637,7 +637,7 @@ macro TestCatch1(implicit context: Context)(): Smi {
   let r: Smi = 0;
   try {
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
-  } catch (_e) {
+  } catch (_e, _message) {
     r = 1;
     return r;
   }
@@ -653,7 +653,7 @@ macro TestCatch2(implicit context: Context)(): Smi {
   let r: Smi = 0;
   try {
     TestCatch2Wrapper();
-  } catch (_e) {
+  } catch (_e, _message) {
     r = 2;
     return r;
   }
@@ -670,7 +670,7 @@ macro TestCatch3(implicit context: Context)(): Smi {
   let r: Smi = 0;
   try {
     TestCatch3WrapperWithLabel() otherwise Abort;
-  } catch (_e) {
+  } catch (_e, _message) {
     r = 2;
     return r;
   } label Abort {

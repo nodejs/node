@@ -25,7 +25,7 @@ Triagers are given the "Triage" GitHub role and have:
 See:
 
 * [List of triagers](./README.md#triagers)
-* [A guide for triagers](./doc/guides/contributing/issues.md#triaging-a-bug-report)
+* [A guide for triagers](./doc/contributing/issues.md#triaging-a-bug-report)
 
 ## Collaborators
 
@@ -54,7 +54,7 @@ result in collaborators removing their opposition.
 See:
 
 * [List of collaborators](./README.md#current-project-team-members)
-* [A guide for collaborators](./doc/guides/collaborator-guide.md)
+* [A guide for collaborators](./doc/contributing/collaborator-guide.md)
 
 ### Collaborator activities
 

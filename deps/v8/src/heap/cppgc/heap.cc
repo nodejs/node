@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/unmarker.h"
 
 namespace cppgc {
 
@@ -61,21 +62,8 @@ namespace internal {
 
 namespace {
 
-class Unmarker final : private HeapVisitor<Unmarker> {
-  friend class HeapVisitor<Unmarker>;
-
- public:
-  explicit Unmarker(RawHeap& heap) { Traverse(heap); }
-
- private:
-  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
-    if (header.IsMarked()) header.Unmark();
-    return true;
-  }
-};
-
-void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
-                 Heap::SweepingType sweeping_support) {
+void CheckConfig(Heap::Config config, HeapBase::MarkingType marking_support,
+                 HeapBase::SweepingType sweeping_support) {
   CHECK_WITH_MSG(
       (config.collection_type != Heap::Config::CollectionType::kMinor) ||
           (config.stack_state == Heap::Config::StackState::kNoHeapPointers),
@@ -90,23 +78,29 @@ void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces, options.stack_support),
+    : HeapBase(platform, options.custom_spaces, options.stack_support,
+               options.marking_support, options.sweeping_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
-               options.sweeping_support),
-      marking_support_(options.marking_support),
-      sweeping_support_(options.sweeping_support) {
-  CHECK_IMPLIES(options.marking_support != MarkingType::kAtomic,
+               options.sweeping_support) {
+  CHECK_IMPLIES(options.marking_support != HeapBase::MarkingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
-  CHECK_IMPLIES(options.sweeping_support != SweepingType::kAtomic,
+  CHECK_IMPLIES(options.sweeping_support != HeapBase::SweepingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
 }
 
 Heap::~Heap() {
-  subtle::NoGarbageCollectionScope no_gc(*this);
-  // Finish already running GC if any, but don't finalize live objects.
-  sweeper_.FinishIfRunning();
+  // Gracefully finish already running GC if any, but don't finalize live
+  // objects.
+  FinalizeIncrementalGarbageCollectionIfRunning(
+      {Config::CollectionType::kMajor,
+       Config::StackState::kMayContainHeapPointers,
+       Config::MarkingType::kAtomic, Config::SweepingType::kAtomic});
+  {
+    subtle::NoGarbageCollectionScope no_gc(*this);
+    sweeper_.FinishIfRunning();
+  }
 }
 
 void Heap::CollectGarbage(Config config) {
@@ -126,7 +120,7 @@ void Heap::CollectGarbage(Config config) {
 
 void Heap::StartIncrementalGarbageCollection(Config config) {
   DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
+  DCHECK_NE(marking_support_, Config::MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (IsMarking() || in_no_gc_scope()) return;
@@ -137,7 +131,6 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
 }
 
 void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (!IsMarking()) return;
@@ -160,14 +153,14 @@ void Heap::StartGarbageCollection(Config config) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (config.collection_type == Config::CollectionType::kMajor)
-    Unmarker unmarker(raw_heap());
-#endif
+    SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   const Marker::MarkingConfig marking_config{
       config.collection_type, config.stack_state, config.marking_type,
       config.is_forced_gc};
-  marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
-      AsBase(), platform_.get(), marking_config);
+  marker_ = std::make_unique<Marker>(AsBase(), platform_.get(), marking_config);
+  marker_->StartMarking();
 }
 
 void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
@@ -175,9 +168,6 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
-  if (override_stack_state_) {
-    config_.stack_state = *override_stack_state_;
-  }
   SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
   in_atomic_pause_ = true;
   {
@@ -189,15 +179,19 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   marker_.reset();
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
-  MarkingVerifier verifier(*this);
-  verifier.Run(
-      config_.stack_state, stack_end_of_current_gc(),
-      stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
+  MarkingVerifier verifier(*this, config_.collection_type);
+  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
+               stats_collector()->marked_bytes_on_current_cycle() +
+                   bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
 #ifndef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
   DCHECK_EQ(0u, bytes_allocated_in_prefinalizers);
 #endif
   USE(bytes_allocated_in_prefinalizers);
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  ResetRememberedSet();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   subtle::NoGarbageCollectionScope no_gc(*this);
   const Sweeper::SweepingConfig sweeping_config{

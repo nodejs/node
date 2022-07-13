@@ -74,9 +74,8 @@ void AllocationSite::Initialize() {
   set_nested_site(Smi::zero());
   set_pretenure_data(0, kRelaxedStore);
   set_pretenure_create_count(0);
-  set_dependent_code(
-      DependentCode::cast(GetReadOnlyRoots().empty_weak_fixed_array()),
-      SKIP_WRITE_BARRIER);
+  set_dependent_code(DependentCode::empty_dependent_code(GetReadOnlyRoots()),
+                     SKIP_WRITE_BARRIER);
 }
 
 bool AllocationSite::IsZombie() const {
@@ -241,7 +240,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
         JSObject::TransitionElementsKind(boilerplate, to_kind);
         site->dependent_code().DeoptimizeDependentCodeGroup(
-            DependentCode::kAllocationSiteTransitionChangedGroup);
+            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
         result = true;
       }
     }
@@ -261,7 +260,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       }
       site->SetElementsKind(to_kind);
       site->dependent_code().DeoptimizeDependentCodeGroup(
-          DependentCode::kAllocationSiteTransitionChangedGroup);
+          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
       result = true;
     }
   }

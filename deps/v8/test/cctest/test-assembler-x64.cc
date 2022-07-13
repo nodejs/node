@@ -2536,6 +2536,14 @@ TEST(AssemblerX64Regmove256bit) {
   __ vmovdqu(ymm10, ymm11);
   __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
   __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
+  __ vmovaps(ymm3, ymm1);
+  __ vmovups(Operand(rcx, rdx, times_4, 10000), ymm2);
+  __ vmovapd(ymm0, ymm5);
+  __ vmovupd(ymm6, Operand(r8, r9, times_4, 10000));
+  __ vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000));
+  __ vmovddup(ymm3, ymm2);
+  __ vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000));
+  __ vmovshdup(ymm1, ymm2);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2558,11 +2566,31 @@ TEST(AssemblerX64Regmove256bit) {
                      // vmovdqu ymm9,YMMWORD PTR [rbx+rcx*4+0x2710]
                      0xC5, 0x7E, 0x6F, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00,
                      // vmovdqu YMMWORD PTR [rbx+rcx*4+0x2710],ymm0
-                     0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00};
+                     0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+
+                     // vmovaps ymm3, ymm1
+                     0xC5, 0xFC, 0x28, 0xD9,
+                     // vmovups YMMWORD PTR [rcx+rdx*4+0x2710], ymm2
+                     0xC5, 0xFC, 0x11, 0x94, 0x91, 0x10, 0x27, 0x00, 0x00,
+                     // vmovapd ymm0, ymm5
+                     0xC5, 0xFD, 0x28, 0xC5,
+                     // vmovupd ymm6, YMMWORD PTR [r8+r9*4+0x2710]
+                     0xC4, 0x81, 0x7D, 0x10, 0xB4, 0x88, 0x10, 0x27, 0x00, 0x00,
+
+                     // vbroadcastss ymm7, DWORD PTR [rbx+rcx*4+0x2710]
+                     0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00, 0x00,
+
+                     // vmovddup ymm3, ymm2
+                     0xc5, 0xff, 0x12, 0xda,
+                     // vmovddup ymm4, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xc5, 0xff, 0x12, 0xa4, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vmovshdup ymm1, ymm2
+                     0xc5, 0xfe, 0x16, 0xca};
+
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
-TEST(AssemblerX64LaneOp256bit) {
+TEST(AssemblerX64AVX2Op256bit) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2579,8 +2607,14 @@ TEST(AssemblerX64LaneOp256bit) {
   __ vpshufhw(ymm1, Operand(rbx, rcx, times_4, 10000), 85);
   __ vpblendw(ymm2, ymm3, ymm4, 23);
   __ vpblendw(ymm2, ymm3, Operand(rbx, rcx, times_4, 10000), 23);
+  __ vpblendvb(ymm1, ymm2, ymm3, ymm4);
   __ vpalignr(ymm10, ymm11, ymm12, 4);
   __ vpalignr(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000), 4);
+  __ vbroadcastss(ymm7, xmm0);
+  __ vpbroadcastb(ymm2, xmm1);
+  __ vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000));
+  __ vpbroadcastw(ymm15, xmm4);
+  __ vpbroadcastw(ymm5, Operand(rbx, rcx, times_4, 10000));
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2608,10 +2642,22 @@ TEST(AssemblerX64LaneOp256bit) {
       0xC4, 0xE3, 0x65, 0x0E, 0xD4, 0x17,
       // vpblendw ymm2, ymm3, YMMWORD PTR [rbx+rcx*4+0x2710], 23
       0xC4, 0xE3, 0x65, 0x0E, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x17,
+      // vpblendvb ymm1, ymm2, ymm3, ymm4
+      0xC4, 0xE3, 0x6D, 0x4C, 0xCB, 0x40,
       // vpalignr ymm10, ymm11, ymm12, 4
       0xC4, 0x43, 0x25, 0x0F, 0xD4, 0x04,
       // vpalignr ymm10, ymm11, YMMWORD PTR [rbx+rcx*4+0x2710], 4
-      0xC4, 0x63, 0x25, 0x0F, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x04};
+      0xC4, 0x63, 0x25, 0x0F, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x04,
+      // vbroadcastss ymm7, xmm0
+      0xc4, 0xe2, 0x7d, 0x18, 0xf8,
+      // vpbroadcastb ymm2, xmm1
+      0xc4, 0xe2, 0x7d, 0x78, 0xd1,
+      // vpbroadcastb ymm3, BYTE PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x78, 0x9c, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpbroadcastw ymm15, xmm4
+      0xc4, 0x62, 0x7d, 0x79, 0xfc,
+      // vpbroadcastw ymm5, WORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x79, 0xac, 0x8b, 0x10, 0x27, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
@@ -2624,6 +2670,8 @@ TEST(AssemblerX64FloatingPoint256bit) {
   Assembler masm(AssemblerOptions{}, buffer->CreateView());
   CpuFeatureScope fscope(&masm, AVX);
 
+  __ vandpd(ymm1, ymm3, ymm5);
+  __ vminpd(ymm2, ymm3, Operand(r8, r9, times_4, 10000));
   __ vsqrtps(ymm0, ymm1);
   __ vunpcklps(ymm2, ymm3, ymm14);
   __ vsubps(ymm10, ymm11, ymm12);
@@ -2631,6 +2679,9 @@ TEST(AssemblerX64FloatingPoint256bit) {
   __ vroundpd(ymm9, ymm2, kRoundToNearest);
   __ vhaddps(ymm1, ymm2, ymm3);
   __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
+  __ vblendvps(ymm0, ymm3, ymm5, ymm9);
+  __ vblendvpd(ymm7, ymm4, ymm3, ymm1);
+  __ vshufps(ymm3, ymm1, ymm2, 0x75);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2641,7 +2692,11 @@ TEST(AssemblerX64FloatingPoint256bit) {
   code->Print(os);
 #endif
 
-  byte expected[] = {// VSQRTPS
+  byte expected[] = {// vandpd ymm1, ymm3, ymm5
+                     0xC5, 0xE5, 0x54, 0xCD,
+                     // vminpd ymm2, ymm3, YMMWORD PTR [r8+r9*4+0x2710]
+                     0xC4, 0x81, 0x65, 0x5D, 0x94, 0x88, 0x10, 0x27, 0x00, 0x00,
+                     // VSQRTPS
                      0xC5, 0xFC, 0x51, 0xC1,
                      // VUNPCKLPS
                      0xC4, 0xC1, 0x64, 0x14, 0xD6,
@@ -2654,7 +2709,168 @@ TEST(AssemblerX64FloatingPoint256bit) {
                      // VHADDPS ymm1, ymm2, ymm3
                      0xC5, 0xEF, 0x7C, 0xCB,
                      // VHADDPS ymm0, ymm1, YMMWORD PTR [rbx+rcx*4+0x2710]
-                     0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00};
+                     0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vblendvps ymm0, ymm3, ymm5, ymm9
+                     0xC4, 0xE3, 0x65, 0x4A, 0xC5, 0x90,
+                     // vblendvpd ymm7, ymm4, ymm3, ymm1
+                     0xC4, 0xE3, 0x5D, 0x4B, 0xFB, 0x10,
+                     // vshufps ymm3, ymm1, ymm2, 0x75
+                     0xC5, 0xF4, 0xC6, 0xDA, 0x75};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST(AssemblerX64Integer256bit) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX2);
+
+  // SSE2_AVX_INSTRUCTION
+  __ vpunpcklbw(ymm9, ymm2, ymm0);
+  __ vpacksswb(ymm8, ymm3, ymm1);
+  __ vpcmpgtw(ymm2, ymm7, ymm9);
+  __ vpand(ymm2, ymm3, ymm4);
+  __ vpmaxsw(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000));
+  __ vpaddb(ymm1, ymm2, ymm3);
+  __ vpsraw(ymm7, ymm1, xmm4);
+  __ vpsllq(ymm3, ymm2, xmm1);
+
+  // SSSE3_AVX_INSTRUCTION
+  __ vpshufb(ymm1, ymm2, ymm3);
+  __ vphaddw(ymm8, ymm9, Operand(rbx, rcx, times_4, 10000));
+  __ vpmaddubsw(ymm5, ymm7, ymm9);
+  __ vpsignd(ymm7, ymm0, ymm1);
+  __ vpmulhrsw(ymm4, ymm3, ymm1);
+  __ vpabsb(ymm1, ymm2);
+  __ vpabsb(ymm3, Operand(rbx, rcx, times_4, 10000));
+  __ vpabsw(ymm6, ymm5);
+  __ vpabsd(ymm7, ymm10);
+
+  // SSE4_AVX_INSTRUCTION
+  __ vpmuldq(ymm1, ymm5, ymm6);
+  __ vpcmpeqq(ymm0, ymm2, ymm3);
+  __ vpackusdw(ymm4, ymm2, ymm0);
+  __ vpminud(ymm8, ymm9, Operand(rbx, rcx, times_4, 10000));
+  __ vpmaxsb(ymm3, ymm4, ymm7);
+  __ vpmulld(ymm6, ymm5, ymm3);
+
+  // SSE4_2_AVX_INSTRUCTION
+  __ vpcmpgtq(ymm3, ymm2, ymm0);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// SSE2_AVX_INSTRUCTION
+                     // vpunpcklbw ymm9, ymm2, ymm0
+                     0xC5, 0x6D, 0x60, 0xC8,
+                     // vpacksswb ymm8, ymm3, ymm1
+                     0xC5, 0x65, 0x63, 0xC1,
+                     // vpcmpgtw ymm2, ymm7, ymm9
+                     0xC4, 0xC1, 0x45, 0x65, 0xD1,
+                     // vpand ymm2, ymm3, ymm4
+                     0xC5, 0xE5, 0xDB, 0xD4,
+                     // vpmaxsw ymm10, ymm11, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC5, 0x25, 0xEE, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     // vpaddb ymm1, ymm2, ymm3
+                     0xC5, 0xED, 0xFC, 0xCB,
+                     // vpsraw ymm7, ymm1, xmm4
+                     0xC5, 0xF5, 0xE1, 0xFC,
+                     // vpsllq ymm3, ymm2, xmm1
+                     0xC5, 0xED, 0xF3, 0xD9,
+
+                     // SSSE3_AVX_INSTRUCTION
+                     // vpshufb ymm1, ymm2, ymm3
+                     0xC4, 0xE2, 0x6D, 0x00, 0xCB,
+                     // vphaddw ymm8, ymm9, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC4, 0x62, 0x35, 0x01, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     // vpmaddubsw ymm5, ymm7, ymm9
+                     0xC4, 0xC2, 0x45, 0x04, 0xE9,
+                     // vpsignd ymm7, ymm0, ymm1
+                     0xC4, 0xE2, 0x7D, 0x0A, 0xF9,
+                     // vpmulhrsw ymm4, ymm3, ymm1
+                     0xC4, 0xE2, 0x65, 0x0B, 0xE1,
+                     // vpabsb ymm1, ymm2
+                     0xC4, 0xE2, 0x7D, 0x1C, 0xCA,
+                     // vpabsb ymm3, YMMWORD PTR [rbx+rcx+0x2710]
+                     0xC4, 0xE2, 0x7D, 0x1C, 0x9C, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vpabsw ymm6, ymm5
+                     0xC4, 0xE2, 0x7D, 0x1D, 0xF5,
+                     // vpabsd ymm7, ymm10
+                     0xC4, 0xC2, 0x7D, 0x1E, 0xFA,
+
+                     // SSE4_AVX_INSTRUCTION
+                     // vpmuldq ymm1, ymm5, ymm6
+                     0xC4, 0xE2, 0x55, 0x28, 0xCE,
+                     // vpcmpeqq ymm0, ymm2, ymm3
+                     0xC4, 0xE2, 0x6D, 0x29, 0xC3,
+                     // vpackusdw ymm4, ymm2, ymm0
+                     0xC4, 0xE2, 0x6D, 0x2B, 0xE0,
+                     // vpminud ymm8, ymm9, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC4, 0x62, 0x35, 0x3B, 0x84, 0x8B, 0x10, 0x27, 0x0, 0x0,
+                     // vpmaxsb ymm3, ymm4, ymm7
+                     0xC4, 0xE2, 0x5D, 0x3C, 0xDF,
+                     // vpmulld ymm6, ymm5, ymm3
+                     0xC4, 0xE2, 0x55, 0x40, 0xF3,
+
+                     // SSE4_2_AVX_INSTRUCTION
+                     // vpcmpgtq ymm3, ymm2, ymm0
+                     0xC4, 0xE2, 0x6D, 0x37, 0xD8};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST(AssemblerX64CmpOperations256bit) {
+  if (!CpuFeatures::IsSupported(AVX)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX);
+
+  __ vcmpeqps(ymm1, ymm2, ymm4);
+  __ vcmpltpd(ymm4, ymm7, Operand(rcx, rdx, times_4, 10000));
+  __ vcmpleps(ymm9, ymm8, Operand(r8, r11, times_8, 10000));
+  __ vcmpunordpd(ymm3, ymm7, ymm8);
+  __ vcmpneqps(ymm3, ymm5, ymm9);
+  __ vcmpnltpd(ymm10, ymm12, Operand(r12, r11, times_4, 10000));
+  __ vcmpnleps(ymm9, ymm11, Operand(r10, r9, times_8, 10000));
+  __ vcmpgepd(ymm13, ymm3, ymm12);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {
+      // vcmpeqps ymm1, ymm2, ymm4
+      0xC5, 0xEC, 0xC2, 0xCC, 0x00,
+      // vcmpltpd ymm4, ymm7, YMMWORD PTR [rcx+rdx*4+0x2710]
+      0xC5, 0xC5, 0xC2, 0xA4, 0x91, 0x10, 0x27, 0x00, 0x00, 0x01,
+      // vcmpleps ymm9, ymm8, YMMWORD PTR [r8+r11*8+0x2710]
+      0xC4, 0x01, 0x3C, 0xC2, 0x8C, 0xD8, 0x10, 0x27, 0x00, 0x00, 0x02,
+      // vcmpunordpd ymm3, ymm7, ymm8
+      0xC4, 0xC1, 0x45, 0xC2, 0xD8, 0x03,
+      // vcmpneqps ymm3, ymm5, ymm9
+      0xC4, 0xC1, 0x54, 0xC2, 0xD9, 0x04,
+      // vcmpnltpd ymm10, ymm12, YMMWORD PTR [r12+r11*4+0x2710]
+      0xC4, 0x01, 0x1D, 0xC2, 0x94, 0x9C, 0x10, 0x27, 0x00, 0x00, 0x05,
+      // vcmpnleps ymm9, ymm11, YMMWORD PTR [r10+r9*8+0x2710]
+      0xC4, 0x01, 0x24, 0xC2, 0x8C, 0xCA, 0x10, 0x27, 0x00, 0x00, 0x06,
+      // vcmpgepd ymm13, ymm3, ymm12
+      0xC4, 0x41, 0x65, 0xC2, 0xEC, 0x0D};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

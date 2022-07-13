@@ -343,6 +343,22 @@ function nextdir() {
   assert.ok(sourceMap);
 }
 
+// Does not include null for async/await with esm
+// Refs: https://github.com/nodejs/node/issues/42417
+{
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-async.mjs'),
+  ]);
+  // Error in original context of source content:
+  assert.match(
+    output.stderr.toString(),
+    /throw new Error\(message\)\r?\n.*\^/
+  );
+  // Rewritten stack trace:
+  assert.match(output.stderr.toString(), /at Throw \([^)]+throw-async\.ts:4:9\)/);
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {

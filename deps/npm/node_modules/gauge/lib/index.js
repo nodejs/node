@@ -91,8 +91,7 @@ Gauge.prototype._computeTheme = function (theme) {
   if (typeof theme === 'string') {
     theme = this._themes.getTheme(theme)
   } else if (
-    theme &&
-    (Object.keys(theme).length === 0 || theme.hasUnicode != null || theme.hasColor != null)
+    Object.keys(theme).length === 0 || theme.hasUnicode != null || theme.hasColor != null
   ) {
     var useUnicode = theme.hasUnicode == null ? hasUnicode() : theme.hasUnicode
     var useColor = theme.hasColor == null ? hasColor : theme.hasColor

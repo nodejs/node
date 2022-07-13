@@ -35,6 +35,7 @@ namespace interpreter {
 class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
+                            Handle<Script> script,
                             AccountingAllocator* allocator,
                             std::vector<FunctionLiteral*>* eager_inner_literals,
                             LocalIsolate* local_isolate);
@@ -114,14 +115,15 @@ Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
 
 }  // namespace
 
-Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale) {
+CodeT Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                      OperandScale operand_scale) {
   Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
   return isolate_->builtins()->code(builtin);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale, Code handler) {
+                                     OperandScale operand_scale,
+                                     CodeT handler) {
   DCHECK(handler.is_off_heap_trampoline());
   DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
@@ -170,7 +172,7 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 }  // namespace
 
 InterpreterCompilationJob::InterpreterCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate)
@@ -179,8 +181,9 @@ InterpreterCompilationJob::InterpreterCompilationJob(
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
       local_isolate_(local_isolate),
-      generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
-                 eager_inner_literals) {}
+      generator_(local_isolate, &zone_, &compilation_info_,
+                 parse_info->ast_string_constants(), eager_inner_literals,
+                 script) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
@@ -196,8 +199,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
     MaybePrintAst(parse_info(), compilation_info());
   }
 
-  base::Optional<ParkedScope> parked_scope;
-  if (local_isolate_) parked_scope.emplace(local_isolate_);
+  ParkedScope parked_scope(local_isolate_);
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -256,8 +258,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
-  RCS_SCOPE(parse_info()->runtime_call_stats(),
-            RuntimeCallCounterId::kCompileBackgroundIgnitionFinalization);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
+            RuntimeCallStats::kThreadSpecific);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
@@ -303,12 +305,13 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 }
 
 std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
   return std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, eager_inner_literals, local_isolate);
+      parse_info, literal, script, allocator, eager_inner_literals,
+      local_isolate);
 }
 
 std::unique_ptr<UnoptimizedCompilationJob>
@@ -317,7 +320,7 @@ Interpreter::NewSourcePositionCollectionJob(
     Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator,
     LocalIsolate* local_isolate) {
   auto job = std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, nullptr, local_isolate);
+      parse_info, literal, Handle<Script>(), allocator, nullptr, local_isolate);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
   return job;
 }
@@ -342,16 +345,16 @@ void Interpreter::Initialize() {
 
   // Set the interpreter entry trampoline entry point now that builtins are
   // initialized.
-  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  Handle<CodeT> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
   DCHECK(code->is_off_heap_trampoline() ||
-         isolate_->heap()->IsImmovable(*code));
+         isolate_->heap()->IsImmovable(FromCodeT(*code)));
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    Code handler = builtins->code(builtin);
+    CodeT handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
       std::string builtin_name(Builtins::name(builtin));

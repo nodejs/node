@@ -6,7 +6,11 @@
 
 <!--name=module-->
 
-In the Node.js module system, each file is treated as a separate module. For
+CommonJS modules are the original way to package JavaScript code for Node.js.
+Node.js also supports the [ECMAScript modules][] standard used by browsers
+and other JavaScript runtimes.
+
+In Node.js, each file is treated as a separate module. For
 example, consider a file named `foo.js`:
 
 ```js
@@ -61,7 +65,38 @@ module.exports = class Square {
 };
 ```
 
-The module system is implemented in the `require('module')` module.
+The CommonJS module system is implemented in the [`module` core module][].
+
+## Enabling
+
+<!-- type=misc -->
+
+Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
+
+By default, Node.js will treat the following as CommonJS modules:
+
+* Files with a `.cjs` extension;
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  doesn't contain a top-level field [`"type"`][]. Package authors should include
+  the [`"type"`][] field, even in packages where all sources are CommonJS. Being
+  explicit about the `type` of the package will make things easier for build
+  tools and loaders to determine how the files in the package should be
+  interpreted.
+
+* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
+  (when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"`, those files will be recognized as
+  CommonJS modules only if they are being `require`d, not when used as the
+  command-line entry point of the program).
+
+See [Determining module system][] for more details.
+
+Calling `require()` always use the CommonJS module loader. Calling `import()`
+always use the ECMAScript module loader.
 
 ## Accessing the main module
 
@@ -74,9 +109,8 @@ run directly by testing `require.main === module`.
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
-Because `module` provides a `filename` property (normally equivalent to
-`__filename`), the entry point of the current application can be obtained
-by checking `require.main.filename`.
+When the entry point is not a CommonJS module, `require.main` is `undefined`,
+and the main module is out of reach.
 
 ## Package manager tips
 
@@ -133,12 +167,15 @@ relative, and based on the real path of the files making the calls to
 
 ## The `.mjs` extension
 
-It is not possible to `require()` files that have the `.mjs` extension.
-Attempting to do so will throw [an error][]. The `.mjs` extension is
-reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
-See [ECMAScript Modules][] for more details.
+Due to the synchronous nature of `require()`, it is not possible to use it to
+load ECMAScript module files. Attempting to do so will throw a
+[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
 
-## All together...
+The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
+loaded via `require()`. See [Determining module system][] section for more info
+regarding which files are parsed as ECMAScript modules.
+
+## All together
 
 <!-- type=misc -->
 
@@ -296,14 +333,16 @@ described in greater detail elsewhere in this documentation.
 The core modules are defined within the Node.js source and are located in the
 `lib/` folder.
 
-Core modules are always preferentially loaded if their identifier is
-passed to `require()`. For instance, `require('http')` will always
-return the built in HTTP module, even if there is a file by that name.
-
-Core modules can also be identified using the `node:` prefix, in which case
+Core modules can be identified using the `node:` prefix, in which case
 it bypasses the `require` cache. For instance, `require('node:http')` will
 always return the built in HTTP module, even if there is `require.cache` entry
 by that name.
+
+Some core modules are always preferentially loaded if their identifier is
+passed to `require()`. For instance, `require('http')` will always
+return the built-in HTTP module, even if there is a file by that name. The list
+of core modules that can be loaded without using the `node:` prefix is exposed
+as [`module.builtinModules`][].
 
 ## Cycles
 
@@ -375,11 +414,15 @@ correctly within an application.
 
 If the exact filename is not found, then Node.js will attempt to load the
 required filename with the added extensions: `.js`, `.json`, and finally
-`.node`.
+`.node`. When loading a file that has a different extension (e.g. `.cjs`), its
+full name must be passed to `require()`, including its file extension (e.g.
+`require('./file.cjs')`).
 
-`.js` files are interpreted as JavaScript text files, and `.json` files are
-parsed as JSON text files. `.node` files are interpreted as compiled addon
-modules loaded with `process.dlopen()`.
+`.json` files are parsed as JSON text files, `.node` files are interpreted as
+compiled addon modules loaded with `process.dlopen()`. Files using any other
+extension (or no extension at all) are parsed as JavaScript text files. Refer to
+the [Determining module system][] section to understand what parse goal will be
+used.
 
 A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
@@ -392,15 +435,15 @@ A required module prefixed with `'./'` is relative to the file calling
 Without a leading `'/'`, `'./'`, or `'../'` to indicate a file, the module must
 either be a core module or is loaded from a `node_modules` folder.
 
-If the given path does not exist, `require()` will throw an [`Error`][] with its
-`code` property set to `'MODULE_NOT_FOUND'`.
+If the given path does not exist, `require()` will throw a
+[`MODULE_NOT_FOUND`][] error.
 
 ## Folders as modules
 
 <!--type=misc-->
 
-It is convenient to organize programs and libraries into self-contained
-directories, and then provide a single entry point to those directories.
+> Stability: 3 - Legacy: Use [subpath exports][] or [subpath imports][] instead.
+
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
@@ -416,8 +459,6 @@ look like this:
 If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
-
-This is the extent of the awareness of `package.json` files within Node.js.
 
 If there is no [`package.json`][] file present in the directory, or if the
 [`"main"`][] entry is missing or cannot be resolved, then Node.js
@@ -435,13 +476,18 @@ with the default error:
 Error: Cannot find module 'some-library'
 ```
 
+In all three above cases, an `import('./some-library')` call would result in a
+[`ERR_UNSUPPORTED_DIR_IMPORT`][] error. Using package [subpath exports][] or
+[subpath imports][] can provide the same containment organization benefits as
+folders as modules, and work for both `require` and `import`.
+
 ## Loading from `node_modules` folders
 
 <!--type=misc-->
 
 If the module identifier passed to `require()` is not a
 [core](#core-modules) module, and does not begin with `'/'`, `'../'`, or
-`'./'`, then Node.js starts at the parent directory of the current module, and
+`'./'`, then Node.js starts at the directory of the current module, and
 adds `/node_modules`, and attempts to load the module from that location.
 Node.js will not append `node_modules` to a path already ending in
 `node_modules`.
@@ -516,7 +562,7 @@ wrapper that looks like the following:
 
 By doing this, Node.js achieves a few things:
 
-* It keeps top-level variables (defined with `var`, `const` or `let`) scoped to
+* It keeps top-level variables (defined with `var`, `const`, or `let`) scoped to
   the module rather than the global object.
 * It helps to provide some global-looking variables that are actually specific
   to the module, such as:
@@ -644,7 +690,7 @@ const myLocalModule = require('./path/myLocalModule');
 const jsonData = require('./path/filename.json');
 
 // Importing a module from node_modules or Node.js built-in module:
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 ```
 
 #### `require.cache`
@@ -668,13 +714,13 @@ Use with care!
 <!-- eslint-disable node-core/no-duplicate-requires -->
 
 ```js
-const assert = require('assert');
-const realFs = require('fs');
+const assert = require('node:assert');
+const realFs = require('node:fs');
 
 const fakeFs = {};
 require.cache.fs = { exports: fakeFs };
 
-assert.strictEqual(require('fs'), fakeFs);
+assert.strictEqual(require('node:fs'), fakeFs);
 assert.strictEqual(require('node:fs'), realFs);
 ```
 
@@ -711,10 +757,11 @@ extensions gets slower with each registered extension.
 added: v0.1.17
 -->
 
-* {module}
+* {module | undefined}
 
 The `Module` object representing the entry script loaded when the Node.js
-process launched.
+process launched, or `undefined` if the entry point of the program is not a
+CommonJS module.
 See ["Accessing the main module"](#accessing-the-main-module).
 
 In `entry.js` script:
@@ -826,7 +873,7 @@ which is probably not what is desired.
 For example, suppose we were making a module called `a.js`:
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 
 module.exports = new EventEmitter();
 
@@ -1036,19 +1083,27 @@ This section was moved to
   * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
   * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+[Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
-[`Error`]: errors.md#class-error
+[`"type"`]: packages.md#type
+[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
+[`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
+[`MODULE_NOT_FOUND`]: errors.md#module_not_found
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
+[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
+[`module` core module]: module.md
 [`module` object]: #the-module-object
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
-[an error]: errors.md#err_require_esm
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md
+[subpath exports]: packages.md#subpath-exports
+[subpath imports]: packages.md#subpath-imports

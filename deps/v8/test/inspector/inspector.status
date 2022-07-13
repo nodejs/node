@@ -97,16 +97,19 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-['arch == ppc or arch == ppc64', {
-  # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-*': [SKIP],
-}],  # 'arch == ppc or arch == ppc64'
-
-##############################################################################
-['arch == s390 or arch == s390x', {
-  # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-*': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
+['arch == s390x or arch == ppc64', {
+  # Need simd support on Liftoff
+  'debugger/wasm-scope-info': [SKIP],
+  'debugger/wasm-inspect-many-registers': [SKIP],
+  # endian related issue
+  'debugger/wasm-conditional-breakpoints': [SKIP],
+  'debugger/wasm-evaluate-on-call-frame': [SKIP],
+  'debugger/wasm-set-breakpoint': [SKIP],
+  'debugger/wasm-stack-check': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
+  'debugger/wasm-stepping-no-opcode-merging': [SKIP],
+  'debugger/wasm-stepping-with-source-map': [SKIP],
+}],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
 ['no_simd_hardware', {
@@ -121,10 +124,6 @@
   'debugger/wasm-step-after-trap': [SKIP],
 
 }],  # 'arch == riscv64 or arch == loong64'
-
-['arch == riscv64 and variant == stress_incremental_marking', {
-  'debugger/wasm-gc-breakpoints': [SKIP]
-}],  # 'arch == riscv64'
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -187,6 +186,10 @@
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
+
+  # TODO(v8:12590): the test became too slow with external code space enabled.
+  # Skip it for now.
+  'debugger/wasm-step-a-lot': [SKIP],
 
   # Skip tests that might fail with concurrent allocation
   'debugger/pause-on-oom-wide': [SKIP],
@@ -414,7 +417,6 @@
   'debugger/wasm-stepping-with-source-map': [SKIP],
   'debugger/wasm-unnamed-function-names': [SKIP],
   'heap-profiler/collect-garbage': [SKIP],
-  'heap-profiler/console-retaining-path': [SKIP],
   'heap-profiler/sampling-heap-profiler': [SKIP],
   'heap-profiler/take-heap-snapshot-on-pause': [SKIP],
   'json-parse': [SKIP],
@@ -517,10 +519,9 @@
 }], # third_party_heap
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier or variant == future or (tsan and not concurrent_marking)', {
-
+['tsan and not concurrent_marking', {
   'cpu-profiler/coverage-block': [SKIP],
-}],  # variant == turboprop or variant = turboprop_as_toptier
+}],  # tsan and not concurrent_marking
 
 ##############################################################################
 ['no_i18n == True', {

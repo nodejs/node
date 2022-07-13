@@ -2187,11 +2187,11 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-using SimulatorRuntimeCall = int64_t (*)(int32_t arg0, int32_t arg1,
-                                         int32_t arg2, int32_t arg3,
-                                         int32_t arg4, int32_t arg5,
-                                         int32_t arg6, int32_t arg7,
-                                         int32_t arg8, int32_t arg9);
+using SimulatorRuntimeCall = int64_t (*)(
+    int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3, int32_t arg4,
+    int32_t arg5, int32_t arg6, int32_t arg7, int32_t arg8, int32_t arg9,
+    int32_t arg10, int32_t arg11, int32_t arg12, int32_t arg13, int32_t arg14,
+    int32_t arg15, int32_t arg16, int32_t arg17, int32_t arg18, int32_t arg19);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
@@ -2234,7 +2234,17 @@ void Simulator::SoftwareInterrupt() {
     int32_t arg7 = stack_pointer[7];
     int32_t arg8 = stack_pointer[8];
     int32_t arg9 = stack_pointer[9];
-    STATIC_ASSERT(kMaxCParameters == 10);
+    int32_t arg10 = stack_pointer[10];
+    int32_t arg11 = stack_pointer[11];
+    int32_t arg12 = stack_pointer[12];
+    int32_t arg13 = stack_pointer[13];
+    int32_t arg14 = stack_pointer[14];
+    int32_t arg15 = stack_pointer[15];
+    int32_t arg16 = stack_pointer[16];
+    int32_t arg17 = stack_pointer[17];
+    int32_t arg18 = stack_pointer[18];
+    int32_t arg19 = stack_pointer[19];
+    STATIC_ASSERT(kMaxCParameters == 20);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2415,12 +2425,16 @@ void Simulator::SoftwareInterrupt() {
       if (::v8::internal::FLAG_trace_sim) {
         PrintF(
             "Call to host function at %p "
-            "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x\n",
+            "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08xi, "
+            "%08xi, %08xi, %08xi, %08xi, %08xi, %08xi, %08xi, %08xi, %08xi, "
+            "%08xi\n",
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+            arg13, arg14, arg15, arg16, arg17, arg18, arg19);
       }
-      int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+                              arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+                              arg15, arg16, arg17, arg18, arg19);
       set_register(v0, static_cast<int32_t>(result));
       set_register(v1, static_cast<int32_t>(result >> 32));
     }
@@ -3854,6 +3868,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       int32_t res = _rs << sa;
       res += _rt;
       DCHECK_EQ(res, (rs() << (lsa_sa() + 1)) + rt());
+      USE(res);
       SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
       break;
     }

@@ -140,7 +140,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce getter and setter pairs in objects and classes",
+            description: "Enforce getter and setter pairs in objects and classes",
             recommended: false,
             url: "https://eslint.org/docs/rules/accessor-pairs"
         },
@@ -299,12 +299,12 @@ module.exports = {
          * @private
          */
         function checkPropertyDescriptor(node) {
-            const namesToCheck = node.properties
+            const namesToCheck = new Set(node.properties
                 .filter(p => p.type === "Property" && p.kind === "init" && !p.computed)
-                .map(({ key }) => key.name);
+                .map(({ key }) => key.name));
 
-            const hasGetter = namesToCheck.includes("get");
-            const hasSetter = namesToCheck.includes("set");
+            const hasGetter = namesToCheck.has("get");
+            const hasSetter = namesToCheck.has("set");
 
             if (checkSetWithoutGet && hasSetter && !hasGetter) {
                 report(node, "missingGetter");

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -216,7 +216,7 @@ static int servername_cb(SSL *s, int *ad, void *arg)
 
     if (servername) {
         if (s_ctx2 != NULL && sn_server2 != NULL &&
-            !strcasecmp(servername, sn_server2)) {
+            !OPENSSL_strcasecmp(servername, sn_server2)) {
             BIO_printf(bio_stdout, "Switching server context.\n");
             SSL_set_SSL_CTX(s, s_ctx2);
         }
@@ -310,6 +310,11 @@ static int cb_server_alpn(SSL *s, const unsigned char **out,
      * verify_alpn.
      */
     alpn_selected = OPENSSL_malloc(*outlen);
+    if (alpn_selected == NULL) {
+        fprintf(stderr, "failed to allocate memory\n");
+        OPENSSL_free(protos);
+        abort();
+    }
     memcpy(alpn_selected, *out, *outlen);
     *out = alpn_selected;
 
@@ -630,9 +635,11 @@ static void sv_usage(void)
     fprintf(stderr,
             " -dhe512       - use 512 bit key for DHE (to test failure)\n");
     fprintf(stderr,
-            " -dhe1024      - use 1024 bit key (safe prime) for DHE (default, no-op)\n");
-    fprintf(stderr,
             " -dhe1024dsa   - use 1024 bit key (with 160-bit subprime) for DHE\n");
+    fprintf(stderr,
+            " -dhe2048      - use 2048 bit key (safe prime) for DHE (default, no-op)\n");
+    fprintf(stderr,
+            " -dhe4096      - use 4096 bit key (safe prime) for DHE\n");
 #endif
     fprintf(stderr, " -no_dhe       - disable DHE\n");
 #ifndef OPENSSL_NO_EC
@@ -647,6 +654,12 @@ static void sv_usage(void)
 #ifndef OPENSSL_NO_TLS1
     fprintf(stderr, " -tls1         - use TLSv1\n");
 #endif
+#ifndef OPENSSL_NO_TLS1_1
+    fprintf(stderr, " -tls1_1       - use TLSv1.1\n");
+#endif
+#ifndef OPENSSL_NO_TLS1_2
+    fprintf(stderr, " -tls1_2       - use TLSv1.2\n");
+#endif
 #ifndef OPENSSL_NO_DTLS
     fprintf(stderr, " -dtls         - use DTLS\n");
 #ifndef OPENSSL_NO_DTLS1
@@ -658,9 +671,9 @@ static void sv_usage(void)
 #endif
     fprintf(stderr, " -CApath arg   - PEM format directory of CA's\n");
     fprintf(stderr, " -CAfile arg   - PEM format file of CA's\n");
-    fprintf(stderr, " -cert arg     - Server certificate file\n");
+    fprintf(stderr, " -s_cert arg   - Server certificate file\n");
     fprintf(stderr,
-            " -key arg      - Server key file (default: same as -cert)\n");
+            " -s_key arg    - Server key file (default: same as -cert)\n");
     fprintf(stderr, " -c_cert arg   - Client certificate file\n");
     fprintf(stderr,
             " -c_key arg    - Client key file (default: same as -c_cert)\n");
@@ -711,6 +724,8 @@ static void sv_usage(void)
     fprintf(stderr, " -client_sess_in <file>     - Read the client session from a file\n");
     fprintf(stderr, " -should_reuse <number>     - The expected state of reusing the session\n");
     fprintf(stderr, " -no_ticket    - do not issue TLS session ticket\n");
+    fprintf(stderr, " -client_ktls  - try to enable client KTLS\n");
+    fprintf(stderr, " -server_ktls  - try to enable server KTLS\n");
     fprintf(stderr, " -provider <name>    - Load the given provider into the library context\n");
     fprintf(stderr, " -config <cnf>    - Load the given config file into the library context\n");
 }
@@ -871,7 +886,7 @@ int main(int argc, char *argv[])
     int badop = 0;
     enum { BIO_MEM, BIO_PAIR, BIO_IPV4, BIO_IPV6 } bio_type = BIO_MEM;
     int force = 0;
-    int dtls1 = 0, dtls12 = 0, dtls = 0, tls1 = 0, tls1_2 = 0, ssl3 = 0;
+    int dtls1 = 0, dtls12 = 0, dtls = 0, tls1 = 0, tls1_1 = 0, tls1_2 = 0, ssl3 = 0;
     int ret = EXIT_FAILURE;
     int client_auth = 0;
     int server_auth = 0, i;
@@ -883,10 +898,11 @@ int main(int argc, char *argv[])
     int number = 1, reuse = 0;
     int should_reuse = -1;
     int no_ticket = 0;
+    int client_ktls = 0, server_ktls = 0;
     long bytes = 256L;
 #ifndef OPENSSL_NO_DH
     EVP_PKEY *dhpkey;
-    int dhe512 = 0, dhe1024dsa = 0;
+    int dhe512 = 0, dhe1024dsa = 0, dhe4096 = 0;
     int no_dhe = 0;
 #endif
     int no_psk = 0;
@@ -981,6 +997,8 @@ int main(int argc, char *argv[])
             dhe512 = 1;
         else if (strcmp(*argv, "-dhe1024dsa") == 0)
             dhe1024dsa = 1;
+        else if (strcmp(*argv, "-dhe4096") == 0)
+            dhe4096 = 1;
 #endif
         else if (strcmp(*argv, "-no_ecdhe") == 0)
             /* obsolete */;
@@ -999,6 +1017,8 @@ int main(int argc, char *argv[])
         }
         else if (strcmp(*argv, "-tls1_2") == 0) {
             tls1_2 = 1;
+        } else if (strcmp(*argv, "-tls1_1") == 0) {
+            tls1_1 = 1;
         } else if (strcmp(*argv, "-tls1") == 0) {
             tls1 = 1;
         } else if (strcmp(*argv, "-ssl3") == 0) {
@@ -1167,6 +1187,10 @@ int main(int argc, char *argv[])
             should_reuse = !!atoi(*(++argv));
         } else if (strcmp(*argv, "-no_ticket") == 0) {
             no_ticket = 1;
+        } else if (strcmp(*argv, "-client_ktls") == 0) {
+            client_ktls = 1;
+        } else if (strcmp(*argv, "-server_ktls") == 0) {
+            server_ktls = 1;
         } else if (strcmp(*argv, "-provider") == 0) {
             if (--argc < 1)
                 goto bad;
@@ -1217,8 +1241,8 @@ int main(int argc, char *argv[])
         goto end;
     }
 
-    if (ssl3 + tls1 + tls1_2 + dtls + dtls1 + dtls12 > 1) {
-        fprintf(stderr, "At most one of -ssl3, -tls1, -tls1_2, -dtls, -dtls1 or -dtls12 should "
+    if (ssl3 + tls1 + tls1_1 + tls1_2 + dtls + dtls1 + dtls12 > 1) {
+        fprintf(stderr, "At most one of -ssl3, -tls1, -tls1_1, -tls1_2, -dtls, -dtls1 or -dtls12 should "
                 "be requested.\n");
         EXIT(1);
     }
@@ -1230,6 +1254,11 @@ int main(int argc, char *argv[])
 #endif
 #ifdef OPENSSL_NO_TLS1
     if (tls1)
+        no_protocol = 1;
+    else
+#endif
+#ifdef OPENSSL_NO_TLS1_1
+    if (tls1_1)
         no_protocol = 1;
     else
 #endif
@@ -1262,17 +1291,17 @@ int main(int argc, char *argv[])
         goto end;
     }
 
-    if (!ssl3 && !tls1 && !tls1_2 && !dtls && !dtls1 && !dtls12 && number > 1
+    if (!ssl3 && !tls1 && !tls1_1 && !tls1_2 && !dtls && !dtls1 && !dtls12 && number > 1
             && !reuse && !force) {
         fprintf(stderr, "This case cannot work.  Use -f to perform "
                 "the test anyway (and\n-d to see what happens), "
-                "or add one of -ssl3, -tls1, -tls1_2, -dtls, -dtls1, -dtls12, -reuse\n"
+                "or add one of -ssl3, -tls1, -tls1_1, -tls1_2, -dtls, -dtls1, -dtls12, -reuse\n"
                 "to avoid protocol mismatch.\n");
         EXIT(1);
     }
 
     if (print_time) {
-        if (bio_type != BIO_PAIR) {
+        if (bio_type == BIO_MEM) {
             fprintf(stderr, "Using BIO pair (-bio_pair)\n");
             bio_type = BIO_PAIR;
         }
@@ -1318,6 +1347,9 @@ int main(int argc, char *argv[])
     } else if (tls1) {
         min_version = TLS1_VERSION;
         max_version = TLS1_VERSION;
+    } else if (tls1_1) {
+        min_version = TLS1_1_VERSION;
+        max_version = TLS1_1_VERSION;
     } else if (tls1_2) {
         min_version = TLS1_2_VERSION;
         max_version = TLS1_2_VERSION;
@@ -1482,6 +1514,8 @@ int main(int argc, char *argv[])
             dhpkey = get_dh1024dsa(libctx);
         else if (dhe512)
             dhpkey = get_dh512(libctx);
+        else if (dhe4096)
+            dhpkey = get_dh4096(libctx);
         else
             dhpkey = get_dh2048(libctx);
 
@@ -1712,6 +1746,8 @@ int main(int argc, char *argv[])
         /* Use a fixed key so that we can decrypt the ticket. */
         size = SSL_CTX_set_tlsext_ticket_keys(s_ctx, NULL, 0);
         keys = OPENSSL_zalloc(size);
+        if (keys == NULL)
+            goto end;
         SSL_CTX_set_tlsext_ticket_keys(s_ctx, keys, size);
         OPENSSL_free(keys);
     }
@@ -1724,6 +1760,10 @@ int main(int argc, char *argv[])
 
     if (sn_client)
         SSL_set_tlsext_host_name(c_ssl, sn_client);
+    if (client_ktls)
+        SSL_set_options(c_ssl, SSL_OP_ENABLE_KTLS);
+    if (server_ktls)
+        SSL_set_options(s_ssl, SSL_OP_ENABLE_KTLS);
 
     if (!set_protocol_version(server_min_proto, s_ssl, SSL_CTRL_SET_MIN_PROTO_VERSION))
         goto end;
@@ -1991,7 +2031,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_write(c_ssl_bio, cbuf, i);
                 if (r < 0) {
                     if (!BIO_should_retry(c_ssl_bio)) {
-                        fprintf(stderr, "ERROR in CLIENT\n");
+                        fprintf(stderr, "ERROR in CLIENT (write)\n");
                         err_in_client = 1;
                         goto err;
                     }
@@ -2017,7 +2057,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_read(c_ssl_bio, cbuf, sizeof(cbuf));
                 if (r < 0) {
                     if (!BIO_should_retry(c_ssl_bio)) {
-                        fprintf(stderr, "ERROR in CLIENT\n");
+                        fprintf(stderr, "ERROR in CLIENT (read)\n");
                         err_in_client = 1;
                         goto err;
                     }
@@ -2070,7 +2110,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_write(s_ssl_bio, sbuf, i);
                 if (r < 0) {
                     if (!BIO_should_retry(s_ssl_bio)) {
-                        fprintf(stderr, "ERROR in SERVER\n");
+                        fprintf(stderr, "ERROR in SERVER (write)\n");
                         err_in_server = 1;
                         goto err;
                     }
@@ -2091,7 +2131,7 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
                 r = BIO_read(s_ssl_bio, sbuf, sizeof(sbuf));
                 if (r < 0) {
                     if (!BIO_should_retry(s_ssl_bio)) {
-                        fprintf(stderr, "ERROR in SERVER\n");
+                        fprintf(stderr, "ERROR in SERVER (read)\n");
                         err_in_server = 1;
                         goto err;
                     }
@@ -2111,8 +2151,25 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
     }
     while (cw_num > 0 || cr_num > 0 || sw_num > 0 || sr_num > 0);
 
-    if (verbose)
+    if (verbose) {
         print_details(c_ssl, "DONE via TCP connect: ");
+
+        if (BIO_get_ktls_send(SSL_get_wbio(s_ssl))
+                && BIO_get_ktls_recv(SSL_get_rbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS in both directions\n");
+        else if (BIO_get_ktls_send(SSL_get_wbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS for sending\n");
+        else if (BIO_get_ktls_recv(SSL_get_rbio(s_ssl)))
+            BIO_printf(bio_stdout, "Server using Kernel TLS for receiving\n");
+
+        if (BIO_get_ktls_send(SSL_get_wbio(c_ssl))
+                && BIO_get_ktls_recv(SSL_get_rbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS in both directions\n");
+        else if (BIO_get_ktls_send(SSL_get_wbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS for sending\n");
+        else if (BIO_get_ktls_recv(SSL_get_rbio(c_ssl)))
+            BIO_printf(bio_stdout, "Client using Kernel TLS for receiving\n");
+    }
 # ifndef OPENSSL_NO_NEXTPROTONEG
     if (verify_npn(c_ssl, s_ssl) < 0)
         goto end;

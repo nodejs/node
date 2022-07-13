@@ -99,14 +99,12 @@ const LS = t.mock('../../../lib/commands/ls.js', {
 const config = {
   all: true,
   color: false,
-  dev: false,
   depth: Infinity,
   global: false,
   json: false,
   link: false,
-  only: null,
+  omit: [],
   parseable: false,
-  production: false,
   'package-lock-only': false,
 }
 const flatOptions = {
@@ -456,7 +454,7 @@ t.test('ls', t => {
   })
 
   t.test('--dev', async t => {
-    config.dev = true
+    flatOptions.omit = ['peer', 'prod', 'optional']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -479,34 +477,7 @@ t.test('ls', t => {
     })
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should output tree containing dev deps')
-    config.dev = false
-  })
-
-  t.test('--only=development', async t => {
-    config.only = 'development'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.matchSnapshot(redactCwd(result), 'should output tree containing only development deps')
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('--link', async t => {
@@ -581,7 +552,7 @@ t.test('ls', t => {
   })
 
   t.test('--production', async t => {
-    config.production = true
+    flatOptions.omit = ['dev', 'peer']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -604,34 +575,7 @@ t.test('ls', t => {
     })
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should output tree containing production deps')
-    config.production = false
-  })
-
-  t.test('--only=prod', async t => {
-    config.only = 'prod'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.matchSnapshot(redactCwd(result), 'should output tree containing only prod deps')
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('--long', async t => {
@@ -1384,6 +1328,7 @@ t.test('ls', t => {
         name: 'workspaces-tree',
         version: '1.0.0',
         workspaces: ['./a', './b', './d', './group/*'],
+        dependencies: { pacote: '1.0.0' },
       }),
       node_modules: {
         a: t.fixture('symlink', '../a'),
@@ -1411,6 +1356,9 @@ t.test('ls', t => {
         },
         baz: {
           'package.json': JSON.stringify({ name: 'baz', version: '1.0.0' }),
+        },
+        pacote: {
+          'package.json': JSON.stringify({ name: 'pacote', version: '1.0.0' }),
         },
       },
       a: {
@@ -1469,6 +1417,7 @@ t.test('ls', t => {
     npm.flatOptions.workspacesEnabled = false
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should not list workspaces with --no-workspaces')
+
     config.all = true
     config.depth = Infinity
     npm.color = false
@@ -1479,12 +1428,12 @@ t.test('ls', t => {
     t.matchSnapshot(redactCwd(result), 'should list --all workspaces properly')
 
     // --production
-    config.production = true
+    flatOptions.omit = ['dev', 'peer', 'optional']
     await ls.exec([])
 
     t.matchSnapshot(redactCwd(result), 'should list only prod deps of workspaces')
 
-    config.production = false
+    flatOptions.omit = []
 
     // filter out a single workspace using args
     await ls.exec(['d'])
@@ -1494,6 +1443,12 @@ t.test('ls', t => {
     await ls.execWorkspaces([], ['a'])
 
     t.matchSnapshot(redactCwd(result), 'should filter using workspace config')
+
+    // filter out a single workspace and include root
+    npm.flatOptions.includeWorkspaceRoot = true
+    await ls.execWorkspaces([], ['d'])
+    t.matchSnapshot(redactCwd(result), 'should inlude root and specified workspace')
+    npm.flatOptions.includeWorkspaceRoot = false
 
     // filter out a workspace by parent path
     await ls.execWorkspaces([], ['./group'])
@@ -1800,7 +1755,7 @@ t.test('ls --parseable', t => {
   })
 
   t.test('--dev', async t => {
-    config.dev = true
+    flatOptions.omit = ['peer', 'prod', 'optional']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -1823,34 +1778,7 @@ t.test('ls --parseable', t => {
     })
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should output tree containing dev deps')
-    config.dev = false
-  })
-
-  t.test('--only=development', async t => {
-    config.only = 'development'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.matchSnapshot(redactCwd(result), 'should output tree containing only development deps')
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('--link', async t => {
@@ -1891,7 +1819,7 @@ t.test('ls --parseable', t => {
   })
 
   t.test('--production', async t => {
-    config.production = true
+    flatOptions.omit = ['dev', 'peer']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -1914,34 +1842,7 @@ t.test('ls --parseable', t => {
     })
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should output tree containing production deps')
-    config.production = false
-  })
-
-  t.test('--only=prod', async t => {
-    config.only = 'prod'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.matchSnapshot(redactCwd(result), 'should output tree containing only prod deps')
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('--long', async t => {
@@ -2924,7 +2825,7 @@ t.test('ls --json', t => {
   })
 
   t.test('--dev', async t => {
-    config.dev = true
+    flatOptions.omit = ['prod', 'optional', 'peer']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -2965,52 +2866,7 @@ t.test('ls --json', t => {
       },
       'should output json containing dev deps'
     )
-    config.dev = false
-  })
-
-  t.test('--only=development', async t => {
-    config.only = 'development'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.same(
-      jsonParse(result),
-      {
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'dev-dep': {
-            version: '1.0.0',
-            dependencies: {
-              foo: {
-                version: '1.0.0',
-                dependencies: { dog: { version: '1.0.0' } },
-              },
-            },
-          },
-        },
-      },
-      'should output json containing only development deps'
-    )
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('--link', async t => {
@@ -3064,7 +2920,7 @@ t.test('ls --json', t => {
   })
 
   t.test('--production', async t => {
-    config.production = true
+    flatOptions.omit = ['dev', 'peer']
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
@@ -3099,46 +2955,7 @@ t.test('ls --json', t => {
       },
       'should output json containing production deps'
     )
-    config.production = false
-  })
-
-  t.test('--only=prod', async t => {
-    config.only = 'prod'
-    npm.prefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          'prod-dep': '^1.0.0',
-          chai: '^1.0.0',
-        },
-        devDependencies: {
-          'dev-dep': '^1.0.0',
-        },
-        optionalDependencies: {
-          'optional-dep': '^1.0.0',
-        },
-        peerDependencies: {
-          'peer-dep': '^1.0.0',
-        },
-      }),
-      ...diffDepTypesNmFixture,
-    })
-    await ls.exec([])
-    t.same(
-      jsonParse(result),
-      {
-        name: 'test-npm-ls',
-        version: '1.0.0',
-        dependencies: {
-          chai: { version: '1.0.0' },
-          'optional-dep': { version: '1.0.0' },
-          'prod-dep': { version: '1.0.0', dependencies: { dog: { version: '2.0.0' } } },
-        },
-      },
-      'should output json containing only prod deps'
-    )
-    config.only = null
+    flatOptions.omit = []
   })
 
   t.test('from lockfile', async t => {

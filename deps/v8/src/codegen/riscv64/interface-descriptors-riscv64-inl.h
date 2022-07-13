@@ -25,33 +25,22 @@ template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (argc >= 1) DCHECK(allocatable_regs | a0.bit());
-  if (argc >= 2) DCHECK(allocatable_regs | a1.bit());
-  if (argc >= 3) DCHECK(allocatable_regs | a2.bit());
-  if (argc >= 4) DCHECK(allocatable_regs | a3.bit());
-  if (argc >= 5) DCHECK(allocatable_regs | a4.bit());
-  if (argc >= 6) DCHECK(allocatable_regs | a5.bit());
-  if (argc >= 7) DCHECK(allocatable_regs | a6.bit());
-  if (argc >= 8) DCHECK(allocatable_regs | a7.bit());
+  if (argc >= 1) DCHECK(allocatable_regs.has(a0));
+  if (argc >= 2) DCHECK(allocatable_regs.has(a1));
+  if (argc >= 3) DCHECK(allocatable_regs.has(a2));
+  if (argc >= 4) DCHECK(allocatable_regs.has(a3));
+  if (argc >= 5) DCHECK(allocatable_regs.has(a4));
+  if (argc >= 6) DCHECK(allocatable_regs.has(a5));
+  if (argc >= 7) DCHECK(allocatable_regs.has(a6));
+  if (argc >= 8) DCHECK(allocatable_regs.has(a7));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(a1, a5, a4, a2, a0, a3);
-}
-
-// static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == a0);
-  return RegisterArray(kReturnRegister0, a1, a2, a3, cp);
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == a0);
-  return RegisterArray(kReturnRegister0, a1, a2, a3, cp);
+  // TODO(Yuxiang): Remove a7 which is just there for padding.
+  return RegisterArray(a1, a5, a4, a2, a0, a3, kContextRegister, a7);
 }
 
 // static
@@ -63,6 +52,36 @@ constexpr Register LoadDescriptor::SlotRegister() { return a0; }
 
 // static
 constexpr Register LoadWithVectorDescriptor::VectorRegister() { return a3; }
+
+// static
+constexpr Register KeyedLoadBaselineDescriptor::ReceiverRegister() {
+  return a1;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::NameRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::SlotRegister() { return a2; }
+
+// static
+constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
+  return a3;
+}
+
+// static
+constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedHasICBaselineDescriptor::NameRegister() { return a1; }
+// static
+constexpr Register KeyedHasICBaselineDescriptor::SlotRegister() { return a2; }
+
+// static
+constexpr Register KeyedHasICWithVectorDescriptor::VectorRegister() {
+  return a3;
+}
 
 // static
 constexpr Register
@@ -107,7 +126,7 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return a3; }
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return a0; }
 
 // static
-constexpr auto TypeofDescriptor::registers() { return RegisterArray(a3); }
+constexpr auto TypeofDescriptor::registers() { return RegisterArray(a0); }
 
 // static
 constexpr auto CallTrampolineDescriptor::registers() {
@@ -117,8 +136,24 @@ constexpr auto CallTrampolineDescriptor::registers() {
 }
 
 // static
+constexpr auto CopyDataPropertiesWithExcludedPropertiesDescriptor::registers() {
+  // a1 : the source
+  // a0 : the excluded property count
+  return RegisterArray(a1, a0);
+}
+
+// static
+constexpr auto
+CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor::registers() {
+  // a1 : the source
+  // a0 : the excluded property count
+  // a2 : the excluded property base
+  return RegisterArray(a1, a0, a2);
+}
+
+// static
 constexpr auto CallVarargsDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a4 : arguments list length (untagged)
   // a2 : arguments list (FixedArray)
@@ -136,13 +171,13 @@ constexpr auto CallForwardVarargsDescriptor::registers() {
 // static
 constexpr auto CallFunctionTemplateDescriptor::registers() {
   // a1 : function template info
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   return RegisterArray(a1, a0);
 }
 
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a2 : the object to spread
   return RegisterArray(a1, a0, a2);
@@ -157,7 +192,7 @@ constexpr auto CallWithArrayLikeDescriptor::registers() {
 
 // static
 constexpr auto ConstructVarargsDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a3 : the new target
   // a4 : arguments list length (untagged)
@@ -176,7 +211,7 @@ constexpr auto ConstructForwardVarargsDescriptor::registers() {
 
 // static
 constexpr auto ConstructWithSpreadDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a3 : the new target
   // a2 : the object to spread
@@ -234,6 +269,14 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
 }
 
 // static
+constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
+  // a0: left operand
+  // a1: right operand
+  // a2: feedback slot
+  return RegisterArray(a0, a1, a2);
+}
+
+// static
 constexpr auto ApiCallbackDescriptor::registers() {
   return RegisterArray(a1,   // kApiFunctionAddress
                        a2,   // kArgc
@@ -250,7 +293,7 @@ constexpr auto InterpreterDispatchDescriptor::registers() {
 
 // static
 constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
-  return RegisterArray(a0,   // argument count (not including receiver)
+  return RegisterArray(a0,   // argument count
                        a2,   // address of first argument
                        a1);  // the target callable to be call
 }
@@ -258,7 +301,7 @@ constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
 // static
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
   return RegisterArray(
-      a0,   // argument count (not including receiver)
+      a0,   // argument count
       a4,   // address of the first argument
       a1,   // constructor to call
       a3,   // new target

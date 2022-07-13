@@ -383,6 +383,12 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
 
   ObjectWithExternalArrayTestHelper<ElementType>(env.local(), ta, kElementCount,
                                                  array_type, low, high);
+
+  // TODO(v8:11111): Use API functions for testing these, once they're exposed
+  // via the API.
+  i::Handle<i::JSTypedArray> i_ta = v8::Utils::OpenHandle(*ta);
+  CHECK(!i_ta->is_length_tracking());
+  CHECK(!i_ta->is_backed_by_rab());
 }
 
 }  // namespace
@@ -445,6 +451,12 @@ THREADED_TEST(DataView) {
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
+
+  // TODO(v8:11111): Use API functions for testing these, once they're exposed
+  // via the API.
+  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  CHECK(!i_dv->is_length_tracking());
+  CHECK(!i_dv->is_backed_by_rab());
 }
 
 THREADED_TEST(SharedUint8Array) {
@@ -516,6 +528,12 @@ THREADED_TEST(SharedDataView) {
   CHECK_EQ(2u, dv->ByteOffset());
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
+
+  // TODO(v8:11111): Use API functions for testing these, once they're exposed
+  // via the API.
+  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  CHECK(!i_dv->is_length_tracking());
+  CHECK(!i_dv->is_backed_by_rab());
 }
 
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \

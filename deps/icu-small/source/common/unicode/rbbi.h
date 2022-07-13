@@ -147,6 +147,11 @@ private:
      */
     int32_t *fLookAheadMatches;
 
+    /**
+     *  A flag to indicate if phrase based breaking is enabled.
+     */
+    UBool fIsPhraseBreaking;
+
     //=======================================================================
     // constructors
     //=======================================================================
@@ -162,6 +167,21 @@ private:
      * @internal (private)
      */
     RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode &status);
+
+    /**
+     * This constructor uses the udata interface to create a BreakIterator
+     * whose internal tables live in a memory-mapped file.  "image" is an
+     * ICU UDataMemory handle for the pre-compiled break iterator tables.
+     * @param image handle to the memory image for the break iterator data.
+     *        Ownership of the UDataMemory handle passes to the Break Iterator,
+     *        which will be responsible for closing it when it is no longer needed.
+     * @param status Information on any errors encountered.
+     * @param isPhraseBreaking true if phrase based breaking is required, otherwise false.
+     * @see udata_open
+     * @see #getBinaryRules
+     * @internal (private)
+     */
+    RuleBasedBreakIterator(UDataMemory* image, UBool isPhraseBreaking, UErrorCode &status);
 
     /** @internal */
     friend class RBBIRuleBuilder;

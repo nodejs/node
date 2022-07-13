@@ -12,7 +12,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -394,7 +394,7 @@ bool RelocInfo::RequiresRelocation(Code code) {
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
-    case NONE:
+    case NO_INFO:
       return "no reloc";
     case COMPRESSED_EMBEDDED_OBJECT:
       return "compressed embedded object";
@@ -451,9 +451,9 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     os << "  ("
        << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_)) << ")";
   } else if (rmode_ == FULL_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object()) << ")";
+    os << "  (" << Brief(target_object(isolate)) << ")";
   } else if (rmode_ == COMPRESSED_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object()) << " compressed)";
+    os << "  (" << Brief(target_object(isolate)) << " compressed)";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     if (isolate) {
       ExternalReferenceEncoder ref_encoder(isolate);
@@ -476,7 +476,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      os << "  (" << Deoptimizer::MessageFor(type, false)
+      os << "  (" << Deoptimizer::MessageFor(type)
          << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {
@@ -491,11 +491,11 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case COMPRESSED_EMBEDDED_OBJECT:
-      Object::VerifyPointer(isolate, target_object());
+      Object::VerifyPointer(isolate, target_object(isolate));
       break;
     case FULL_EMBEDDED_OBJECT:
     case DATA_EMBEDDED_OBJECT:
-      Object::VerifyAnyTagged(isolate, target_object());
+      Object::VerifyAnyTagged(isolate, target_object(isolate));
       break;
     case CODE_TARGET:
     case RELATIVE_CODE_TARGET: {
@@ -522,7 +522,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
       CHECK(Builtins::IsBuiltinId(
-          InstructionStream::TryLookupCode(isolate, addr)));
+          OffHeapInstructionStream::TryLookupCode(isolate, addr)));
       break;
     }
     case RUNTIME_ENTRY:
@@ -537,7 +537,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case VENEER_POOL:
     case WASM_CALL:
     case WASM_STUB_CALL:
-    case NONE:
+    case NO_INFO:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:

@@ -51,10 +51,12 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
 /** @typedef {import("../shared/types").ConfigData} ConfigData */
 /** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
+/** @typedef {import("../shared/types").SuppressedLintMessage} SuppressedLintMessage */
 /** @typedef {import("../shared/types").ParserOptions} ParserOptions */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").RuleConf} RuleConf */
 /** @typedef {import("../shared/types").Rule} Rule */
+/** @typedef {import("../shared/types").FormatterFunction} FormatterFunction */
 /** @typedef {ReturnType<CascadingConfigArrayFactory.getConfigArrayForFile>} ConfigArray */
 /** @typedef {ReturnType<ConfigArray.extractConfig>} ExtractedConfig */
 
@@ -91,7 +93,9 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
  * @typedef {Object} LintResult
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {SuppressedLintMessage[]} suppressedMessages All of the suppressed messages for the result.
  * @property {number} errorCount Number of errors for the result.
+ * @property {number} fatalErrorCount Number of fatal errors for the result.
  * @property {number} warningCount Number of warnings for the result.
  * @property {number} fixableErrorCount Number of fixable errors for the result.
  * @property {number} fixableWarningCount Number of fixable warnings for the result.
@@ -104,6 +108,7 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
  * @typedef {Object} LintReport
  * @property {LintResult[]} results All of the result.
  * @property {number} errorCount Number of errors for the result.
+ * @property {number} fatalErrorCount Number of fatal errors for the result.
  * @property {number} warningCount Number of warnings for the result.
  * @property {number} fixableErrorCount Number of fixable errors for the result.
  * @property {number} fixableWarningCount Number of fixable warnings for the result.
@@ -261,6 +266,7 @@ function verifyText({
     const result = {
         filePath,
         messages,
+        suppressedMessages: linter.getSuppressedMessages(),
         ...calculateStatsPerFile(messages)
     };
 
@@ -307,7 +313,9 @@ function createIgnoreResult(filePath, baseDir) {
                 message
             }
         ],
+        suppressedMessages: [],
         errorCount: 0,
+        fatalErrorCount: 0,
         warningCount: 1,
         fixableErrorCount: 0,
         fixableWarningCount: 0
@@ -358,9 +366,7 @@ function *iterateRuleDeprecationWarnings(usedConfigArrays) {
 
     // Flatten used configs.
     /** @type {ExtractedConfig[]} */
-    const configs = [].concat(
-        ...usedConfigArrays.map(getUsedExtractedConfigs)
-    );
+    const configs = usedConfigArrays.flatMap(getUsedExtractedConfigs);
 
     // Traverse rule configs.
     for (const config of configs) {
@@ -408,7 +414,7 @@ function isErrorMessage(message) {
  * a directory or looks like a directory (ends in `path.sep`), in which case the file
  * name will be the `cacheFile/.cache_hashOfCWD`
  *
- * if cacheFile points to a file or looks like a file then in will just use that file
+ * if cacheFile points to a file or looks like a file then it will just use that file
  * @param {string} cacheFile The name of file to be used to store the cache
  * @param {string} cwd Current working directory
  * @returns {string} the resolved path to the cache file
@@ -609,8 +615,8 @@ class CLIEngine {
             useEslintrc: options.useEslintrc,
             builtInRules,
             loadRules,
-            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
-            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+            getEslintRecommendedConfig: () => require("../../conf/eslint-recommended.js"),
+            getEslintAllConfig: () => require("../../conf/eslint-all.js")
         });
         const fileEnumerator = new FileEnumerator({
             configArrayFactory,
@@ -680,11 +686,13 @@ class CLIEngine {
 
         results.forEach(result => {
             const filteredMessages = result.messages.filter(isErrorMessage);
+            const filteredSuppressedMessages = result.suppressedMessages.filter(isErrorMessage);
 
             if (filteredMessages.length > 0) {
                 filtered.push({
                     ...result,
                     messages: filteredMessages,
+                    suppressedMessages: filteredSuppressedMessages,
                     errorCount: filteredMessages.length,
                     warningCount: 0,
                     fixableErrorCount: result.fixableErrorCount,
@@ -993,7 +1001,7 @@ class CLIEngine {
      * @param {string} [format] The name of the format to load or the path to a
      *      custom formatter.
      * @throws {any} As may be thrown by requiring of formatter
-     * @returns {(Function|null)} The formatter function or null if the `format` is not a string.
+     * @returns {(FormatterFunction|null)} The formatter function or null if the `format` is not a string.
      */
     getFormatter(format) {
 
@@ -1013,7 +1021,7 @@ class CLIEngine {
             let formatterPath;
 
             // if there's a slash, then it's a file (TODO: this check seems dubious for scoped npm packages)
-            if (!namespace && normalizedFormatName.indexOf("/") > -1) {
+            if (!namespace && normalizedFormatName.includes("/")) {
                 formatterPath = path.resolve(cwd, normalizedFormatName);
             } else {
                 try {

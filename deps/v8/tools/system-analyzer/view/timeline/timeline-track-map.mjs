@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {kChunkVisualWidth, MapLogEntry} from '../../log/map.mjs';
+import {FocusEvent} from '../events.mjs';
 import {CSSColor, DOM} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
@@ -12,7 +13,10 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-map',
                             class TimelineTrackMap extends TimelineTrackBase {
   constructor() {
     super(templateText);
+    this.navigation = new Navigation(this)
   }
+
+  _handleKeyDown(event) {}
 
   getMapStyle(map) {
     return map.edge && map.edge.from ? CSSColor.onBackgroundColor :
@@ -136,3 +140,116 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-map',
     return buffer;
   }
 })
+
+class Navigation {
+  constructor(track) {
+    this._track = track;
+    this._track.addEventListener('keydown', this._handleKeyDown.bind(this));
+    this._map = undefined;
+  }
+
+  _handleKeyDown(event) {
+    if (!this._track.isFocused) return;
+    let handled = false;
+    switch (event.key) {
+      case 'ArrowDown':
+        handled = true;
+        if (event.shiftKey) {
+          this.selectPrevEdge();
+        } else {
+          this.moveInChunk(-1);
+        }
+        break;
+      case 'ArrowUp':
+        handled = true;
+        if (event.shiftKey) {
+          this.selectNextEdge();
+        } else {
+          this.moveInChunk(1);
+        }
+        break;
+      case 'ArrowLeft':
+        handled = true;
+        this.moveInChunks(false);
+        break;
+      case 'ArrowRight':
+        handled = true;
+        this.moveInChunks(true);
+        break;
+      case 'Enter':
+        handled = true;
+        this.selectMap();
+        break
+    }
+    if (handled) {
+      event.stopPropagation();
+      event.preventDefault();
+      return false;
+    }
+  }
+
+  get map() {
+    return this._track.focusedEntry;
+  }
+
+  set map(map) {
+    this._track.focusedEntry = map;
+  }
+
+  get chunks() {
+    return this._track.chunks;
+  }
+
+  selectMap() {
+    if (!this.map) return;
+    this._track.dispatchEvent(new FocusEvent(this.map))
+  }
+
+  selectNextEdge() {
+    if (!this.map) return;
+    if (this.map.children.length != 1) return;
+    this.show(this.map.children[0].to);
+  }
+
+  selectPrevEdge() {
+    if (!this.map) return;
+    if (!this.map.parent) return;
+    this.map = this.map.parent;
+  }
+
+  selectDefaultMap() {
+    this.map = this.chunks[0].at(0);
+  }
+
+  moveInChunks(next) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks);
+    let currentChunk = this.chunks[chunkIndex];
+    let currentIndex = currentChunk.indexOf(this.map);
+    let newChunk;
+    if (next) {
+      newChunk = chunk.next(this.chunks);
+    } else {
+      newChunk = chunk.prev(this.chunks);
+    }
+    if (!newChunk) return;
+    let newIndex = Math.min(currentIndex, newChunk.size() - 1);
+    this.map = newChunk.at(newIndex);
+  }
+
+  moveInChunk(delta) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks)
+    let chunk = this.chunks[chunkIndex];
+    let index = chunk.indexOf(this.map) + delta;
+    let map;
+    if (index < 0) {
+      map = chunk.prev(this.chunks).last();
+    } else if (index >= chunk.size()) {
+      map = chunk.next(this.chunks).first()
+    } else {
+      map = chunk.at(index);
+    }
+    this.map = map;
+  }
+}

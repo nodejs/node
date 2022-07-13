@@ -54,7 +54,7 @@ const expectedEnv = { foo: 'bar' };
         fork(fixtures.path('child-process-echo-options.js'), arg);
       },
       {
-        code: 'ERR_INVALID_ARG_VALUE',
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );
@@ -97,7 +97,7 @@ const expectedEnv = { foo: 'bar' };
         fork(fixtures.path('child-process-echo-options.js'), [], arg);
       },
       {
-        code: 'ERR_INVALID_ARG_VALUE',
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );

@@ -19,6 +19,7 @@
 !.github
 !.gitignore
 !.gitkeep
+!.gitpod.yml
 !.mailmap
 !.nycrc
 !.yamllint.yaml
@@ -159,3 +160,6 @@ install_manifest.txt
 __pycache__
 .DS_Store
 *~
+
+# === Rules for C++ development ===
+compile_commands.json

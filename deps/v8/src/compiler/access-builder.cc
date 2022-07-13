@@ -243,9 +243,12 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectFunction() {
-  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kFunctionOffset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::Function(),    MachineType::TaggedPointer(),
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kFunctionOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        Type::CallableFunction(),
+                        MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
   return access;
 }
@@ -421,8 +424,13 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
       JSTypedArray::kExternalPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
+#ifdef V8_SANDBOXED_POINTERS
+      Type::SandboxedPointer(),
+      MachineType::SandboxedPointer(),
+#else
       Type::ExternalPointer(),
       MachineType::Pointer(),
+#endif
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
@@ -437,8 +445,13 @@ FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
       JSDataView::kDataPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
+#ifdef V8_SANDBOXED_POINTERS
+      Type::SandboxedPointer(),
+      MachineType::SandboxedPointer(),
+#else
       Type::ExternalPointer(),
       MachineType::Pointer(),
+#endif
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
@@ -743,13 +756,12 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       ExternalString::kResourceDataOffset,
       Handle<Name>(),
       MaybeHandle<Map>(),
-      V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
-                           : Type::ExternalPointer(),
+      Type::ExternalPointer(),
       MachineType::Pointer(),
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       kExternalStringResourceDataTag,
 #endif
   };

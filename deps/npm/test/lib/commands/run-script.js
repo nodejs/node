@@ -10,10 +10,12 @@ const RUN_SCRIPTS = []
 const flatOptions = {
   scriptShell: undefined,
 }
+const defaultLoglevel = 'info'
 const config = {
   json: false,
   parseable: false,
   'if-present': false,
+  loglevel: defaultLoglevel,
 }
 
 const npm = mockNpm({
@@ -26,12 +28,14 @@ const npm = mockNpm({
   output: (...msg) => output.push(msg),
 })
 
-const output = []
-
-const npmlog = {
-  disableProgress: () => null,
-  level: 'warn',
+const setLoglevel = (t, level) => {
+  npm.config.set('loglevel', level)
+  t.teardown(() => {
+    npm.config.set('loglevel', defaultLoglevel)
+  })
 }
+
+const output = []
 
 const log = {
   error: () => null,
@@ -39,7 +43,6 @@ const log = {
 
 t.afterEach(() => {
   npm.color = false
-  npmlog.level = 'warn'
   log.error = () => null
   output.length = 0
   RUN_SCRIPTS.length = 0
@@ -58,9 +61,8 @@ const getRS = windows => {
         isServerPackage: require('@npmcli/run-script').isServerPackage,
       }
     ),
-    npmlog,
     'proc-log': log,
-    '../../../lib/utils/is-windows-shell.js': windows,
+    '../../../lib/utils/is-windows.js': { isWindowsShell: windows },
   })
   return new RunScript(npm)
 }
@@ -359,10 +361,7 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
 })
 
 t.test('run silent', async t => {
-  npmlog.level = 'silent'
-  t.teardown(() => {
-    npmlog.level = 'warn'
-  })
+  setLoglevel(t, 'silent')
 
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
@@ -440,12 +439,11 @@ t.test('list scripts', t => {
   })
 
   t.test('silent', async t => {
-    npmlog.level = 'silent'
+    setLoglevel(t, 'silent')
     await runScript.exec([])
     t.strictSame(output, [])
   })
   t.test('warn json', async t => {
-    npmlog.level = 'warn'
     config.json = true
     await runScript.exec([])
     t.strictSame(output, [[JSON.stringify(scripts, 0, 2)]], 'json report')
@@ -723,7 +721,7 @@ t.test('workspaces', t => {
   })
 
   t.test('list no scripts --loglevel=silent', async t => {
-    npmlog.level = 'silent'
+    setLoglevel(t, 'silent')
     await runScript.execWorkspaces([], [])
     t.strictSame(output, [])
   })
@@ -860,9 +858,8 @@ t.test('workspaces', t => {
       '@npmcli/run-script': () => {
         throw new Error('err')
       },
-      npmlog,
       'proc-log': log,
-      '../../../lib/utils/is-windows-shell.js': false,
+      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
     })
     const runScript = new RunScript(npm)
 
@@ -879,9 +876,8 @@ t.test('workspaces', t => {
 
         RUN_SCRIPTS.push(opts)
       },
-      npmlog,
       'proc-log': log,
-      '../../../lib/utils/is-windows-shell.js': false,
+      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
     })
     const runScript = new RunScript(npm)
 

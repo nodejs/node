@@ -227,7 +227,6 @@ v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
 // about and doesn't handle.
 TEST(Unknown) {
   HandleScope scope(CcTest::isolate());
-  v8::V8::Initialize();
 
   { DeclarationContext context;
     context.Check("var x; x",
@@ -260,7 +259,6 @@ class AbsentPropertyContext: public DeclarationContext {
 
 TEST(Absent) {
   v8::Isolate* isolate = CcTest::isolate();
-  v8::V8::Initialize();
   HandleScope scope(isolate);
 
   { AbsentPropertyContext context;
@@ -326,9 +324,7 @@ class AppearingPropertyContext: public DeclarationContext {
   State state_;
 };
 
-
 TEST(Appearing) {
-  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AppearingPropertyContext context;
@@ -350,8 +346,6 @@ TEST(Appearing) {
                   1, 1, EXPECT_RESULT);
   }
 }
-
-
 
 class ExistsInPrototypeContext: public DeclarationContext {
  public:
@@ -411,9 +405,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
   }
 };
 
-
 TEST(AbsentInPrototype) {
-  v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
   { AbsentInPrototypeContext context;
@@ -424,8 +416,6 @@ TEST(AbsentInPrototype) {
                   EXPECT_RESULT, Undefined(CcTest::isolate()));
   }
 }
-
-
 
 class SimpleContext {
  public:

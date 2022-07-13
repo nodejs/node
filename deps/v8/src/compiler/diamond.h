@@ -39,8 +39,8 @@ struct Diamond {
   void Chain(Node* that) { branch->ReplaceInput(1, that); }
 
   // Nest {this} into either the if_true or if_false branch of {that}.
-  void Nest(Diamond const& that, bool if_true) {
-    if (if_true) {
+  void Nest(Diamond const& that, bool cond) {
+    if (cond) {
       branch->ReplaceInput(1, that.if_true);
       that.merge->ReplaceInput(0, merge);
     } else {

@@ -6,13 +6,13 @@
 
 <!-- source_link=lib/zlib.js -->
 
-The `zlib` module provides compression functionality implemented using Gzip,
-Deflate/Inflate, and Brotli.
+The `node:zlib` module provides compression functionality implemented using
+Gzip, Deflate/Inflate, and Brotli.
 
 To access it:
 
 ```js
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 ```
 
 Compression and decompression are built around the Node.js [Streams API][].
@@ -22,12 +22,12 @@ piping the source stream through a `zlib` `Transform` stream into a destination
 stream:
 
 ```js
-const { createGzip } = require('zlib');
-const { pipeline } = require('stream');
+const { createGzip } = require('node:zlib');
+const { pipeline } = require('node:stream');
 const {
   createReadStream,
   createWriteStream
-} = require('fs');
+} = require('node:fs');
 
 const gzip = createGzip();
 const source = createReadStream('input.txt');
@@ -42,7 +42,7 @@ pipeline(source, gzip, destination, (err) => {
 
 // Or, Promisified
 
-const { promisify } = require('util');
+const { promisify } = require('node:util');
 const pipe = promisify(pipeline);
 
 async function do_gzip(input, output) {
@@ -62,7 +62,7 @@ do_gzip('input.txt', 'input.txt.gz')
 It is also possible to compress or decompress data in a single step:
 
 ```js
-const { deflate, unzip } = require('zlib');
+const { deflate, unzip } = require('node:zlib');
 
 const input = '.................................';
 deflate(input, (err, buffer) => {
@@ -84,7 +84,7 @@ unzip(buffer, (err, buffer) => {
 
 // Or, Promisified
 
-const { promisify } = require('util');
+const { promisify } = require('node:util');
 const do_unzip = promisify(unzip);
 
 do_unzip(buffer)
@@ -105,7 +105,7 @@ Creating and using a large number of zlib objects simultaneously can cause
 significant memory fragmentation.
 
 ```js
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 
 const payload = Buffer.from('This is some data');
 
@@ -117,18 +117,18 @@ for (let i = 0; i < 30000; ++i) {
 
 In the preceding example, 30,000 deflate instances are created concurrently.
 Because of how some operating systems handle memory allocation and
-deallocation, this may lead to to significant memory fragmentation.
+deallocation, this may lead to significant memory fragmentation.
 
 It is strongly recommended that the results of compression
 operations be cached to avoid duplication of effort.
 
 ## Compressing HTTP requests and responses
 
-The `zlib` module can be used to implement support for the `gzip`, `deflate`
+The `node:zlib` module can be used to implement support for the `gzip`, `deflate`
 and `br` content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
-The HTTP [`Accept-Encoding`][] header is used within an http request to identify
+The HTTP [`Accept-Encoding`][] header is used within an HTTP request to identify
 the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
@@ -140,10 +140,10 @@ tradeoffs involved in `zlib` usage.
 
 ```js
 // Client request example
-const zlib = require('zlib');
-const http = require('http');
-const fs = require('fs');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
 
 const request = http.get({ host: 'example.com',
                            path: '/',
@@ -181,10 +181,10 @@ request.on('response', (response) => {
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
-const zlib = require('zlib');
-const http = require('http');
-const fs = require('fs');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
@@ -304,8 +304,8 @@ speed, at the cost of memory usage.
 There are equivalents to the zlib options for Brotli-based streams, although
 these options have different ranges than the zlib ones:
 
-* zlib’s `level` option matches Brotli’s `BROTLI_PARAM_QUALITY` option.
-* zlib’s `windowBits` option matches Brotli’s `BROTLI_PARAM_LGWIN` option.
+* zlib's `level` option matches Brotli's `BROTLI_PARAM_QUALITY` option.
+* zlib's `windowBits` option matches Brotli's `BROTLI_PARAM_LGWIN` option.
 
 See [below][Brotli parameters] for more details on Brotli-specific options.
 
@@ -319,9 +319,9 @@ In the following example, `flush()` is used to write a compressed partial
 HTTP response to the client:
 
 ```js
-const zlib = require('zlib');
-const http = require('http');
-const { pipeline } = require('stream');
+const zlib = require('node:zlib');
+const http = require('node:http');
+const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   // For the sake of simplicity, the Accept-Encoding checks are omitted.
@@ -365,14 +365,14 @@ added: v0.5.8
 ### zlib constants
 
 All of the constants defined in `zlib.h` are also defined on
-`require('zlib').constants`. In the normal course of operations, it will not be
-necessary to use these constants. They are documented so that their presence is
-not surprising. This section is taken almost directly from the
+`require('node:zlib').constants`. In the normal course of operations, it will
+not be necessary to use these constants. They are documented so that their
+presence is not surprising. This section is taken almost directly from the
 [zlib documentation][].
 
-Previously, the constants were available directly from `require('zlib')`, for
-instance `zlib.Z_NO_FLUSH`. Accessing the constants directly from the module is
-currently still possible but is deprecated.
+Previously, the constants were available directly from `require('node:zlib')`,
+for instance `zlib.Z_NO_FLUSH`. Accessing the constants directly from the module
+is currently still possible but is deprecated.
 
 Allowed flush values.
 
@@ -678,11 +678,11 @@ changes:
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
 
-Not exported by the `zlib` module. It is documented here because it is the base
-class of the compressor/decompressor classes.
+Not exported by the `node:zlib` module. It is documented here because it is the
+base class of the compressor/decompressor classes.
 
-This class inherits from [`stream.Transform`][], allowing `zlib` objects to be
-used in pipes and similar stream operations.
+This class inherits from [`stream.Transform`][], allowing `node:zlib` objects to
+be used in pipes and similar stream operations.
 
 ### `zlib.bytesRead`
 

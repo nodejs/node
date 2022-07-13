@@ -92,19 +92,19 @@ class DisabledCheckingPolicy {
   void CheckPointer(const void*) {}
 };
 
-#if V8_ENABLE_CHECKS
+#ifdef DEBUG
 // Off heap members are not connected to object graph and thus cannot ressurect
 // dead objects.
 using DefaultMemberCheckingPolicy =
     SameThreadEnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;
 using DefaultPersistentCheckingPolicy =
     SameThreadEnabledCheckingPolicy<true /* kCheckOffHeapAssignments*/>;
-#else
+#else   // !DEBUG
 using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
 using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;
-#endif
+#endif  // !DEBUG
 // For CT(W)P neither marking information (for value), nor objectstart bitmap
-// (for slot) are guaranteed to be present because there's no synchonization
+// (for slot) are guaranteed to be present because there's no synchronization
 // between heaps after marking.
 using DefaultCrossThreadPersistentCheckingPolicy = DisabledCheckingPolicy;
 

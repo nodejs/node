@@ -1,7 +1,6 @@
 const libexec = require('libnpmexec')
 const BaseCommand = require('../base-command.js')
 const getLocationMsg = require('../exec/get-workspace-location-msg.js')
-const log = require('../utils/log-shim')
 
 // it's like this:
 //
@@ -46,10 +45,11 @@ class Exec extends BaseCommand {
     '--package=foo -c \'<cmd> [args...]\'',
   ]
 
-  async exec (_args, { locationMsg, path, runPath } = {}) {
-    if (!path) {
-      path = this.npm.localPrefix
-    }
+  static ignoreImplicitWorkspace = false
+  static isShellout = true
+
+  async exec (_args, { locationMsg, runPath } = {}) {
+    const path = this.npm.localPrefix
 
     if (!runPath) {
       runPath = process.cwd()
@@ -73,11 +73,13 @@ class Exec extends BaseCommand {
 
     return libexec({
       ...flatOptions,
+      // we explicitly set packageLockOnly to false because if it's true
+      // when we try to install a missing package, we won't actually install it
+      packageLockOnly: false,
       args,
       call,
       localBin,
       locationMsg,
-      log,
       globalBin,
       output,
       packages,
@@ -94,7 +96,7 @@ class Exec extends BaseCommand {
 
     for (const path of this.workspacePaths) {
       const locationMsg = await getLocationMsg({ color, path })
-      await this.exec(args, { locationMsg, path, runPath: path })
+      await this.exec(args, { locationMsg, runPath: path })
     }
   }
 }

@@ -220,12 +220,11 @@ void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
       result->message = scope.Escape(result->message);
     }
   } else {
-    v8::debug::LiveEditResult result;
+    v8::debug::LiveEditResult r;
     LiveEdit::PatchScript(
         i_isolate, i_script_a,
-        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false,
-        &result);
-    CHECK_EQ(result.status, v8::debug::LiveEditResult::OK);
+        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, &r);
+    CHECK_EQ(r.status, v8::debug::LiveEditResult::OK);
   }
 }
 }  // anonymous namespace
@@ -416,22 +415,25 @@ TEST(LiveEditPatchFunctions) {
                  "  };\n"
                  "}\n");
   CompileRunChecked(env->GetIsolate(), "var new_closure = ChooseAnimal(3, 4);");
-  v8::Local<v8::String> call_result =
-      CompileRunChecked(env->GetIsolate(), "new_closure()").As<v8::String>();
-  v8::String::Utf8Value new_result_utf8(env->GetIsolate(), call_result);
-  CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara4"));
-  call_result =
-      CompileRunChecked(env->GetIsolate(), "old_closure()").As<v8::String>();
-  v8::String::Utf8Value old_result_utf8(env->GetIsolate(), call_result);
-  CHECK_NOT_NULL(strstr(*old_result_utf8, "Cat2"));
+
+  {
+    v8::Local<v8::String> call_result =
+        CompileRunChecked(env->GetIsolate(), "new_closure()").As<v8::String>();
+    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), call_result);
+    CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara4"));
+    call_result =
+        CompileRunChecked(env->GetIsolate(), "old_closure()").As<v8::String>();
+    v8::String::Utf8Value old_result_utf8(env->GetIsolate(), call_result);
+    CHECK_NOT_NULL(strstr(*old_result_utf8, "Cat2"));
+  }
 
   // Update const literals.
   PatchFunctions(context, "function foo() { return 'a' + 'b'; }",
                  "function foo() { return 'c' + 'b'; }");
   {
-    v8::Local<v8::String> result =
+    v8::Local<v8::String> result_str =
         CompileRunChecked(env->GetIsolate(), "foo()").As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "cb"));
   }
 
@@ -508,9 +510,9 @@ TEST(LiveEditCompileError) {
       strstr(*result_message, "Uncaught SyntaxError: Unexpected token ')'"));
 
   {
-    v8::Local<v8::String> result =
+    v8::Local<v8::String> result_str =
         CompileRunChecked(env->GetIsolate(), "ChooseAnimal()").As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "Cat"));
   }
 
@@ -550,11 +552,11 @@ TEST(LiveEditFunctionExpression) {
       &result);
   CHECK_EQ(result.status, debug::LiveEditResult::OK);
   {
-    v8::Local<v8::String> result =
+    v8::Local<v8::String> result_str =
         f->Call(context, context->Global(), 0, nullptr)
             .ToLocalChecked()
             .As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara"));
   }
 }

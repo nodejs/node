@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-assert-types
 
 // Check that the branch elimination replace the redundant branch condition with
 // a phi node, and then the branch is folded in EffectControlLinearizationPhase.
@@ -18,5 +18,5 @@ function foo(cond, v1, v2) {
 
 %PrepareFunctionForOptimization(foo);
 foo(1, 10, 20); foo(2, 30, 40);
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(1, 10, 20); foo(2, 30, 40);

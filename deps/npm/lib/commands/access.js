@@ -27,6 +27,8 @@ class Access extends BaseCommand {
     'otp',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   static usage = [
     'public [<package>]',
     'restricted [<package>]',
@@ -76,7 +78,9 @@ class Access extends BaseCommand {
       throw this.usageError(`${cmd} is not a recognized subcommand.`)
     }
 
-    return this[cmd](args, this.npm.flatOptions)
+    return this[cmd](args, {
+      ...this.npm.flatOptions,
+    })
   }
 
   public ([pkg], opts) {

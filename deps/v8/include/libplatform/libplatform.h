@@ -90,17 +90,6 @@ V8_PLATFORM_EXPORT void RunIdleTasks(v8::Platform* platform,
                                      double idle_time_in_seconds);
 
 /**
- * Attempts to set the tracing controller for the given platform.
- *
- * The |platform| has to be created using |NewDefaultPlatform|.
- *
- */
-V8_DEPRECATE_SOON("Access the DefaultPlatform directly")
-V8_PLATFORM_EXPORT void SetTracingController(
-    v8::Platform* platform,
-    v8::platform::tracing::TracingController* tracing_controller);
-
-/**
  * Notifies the given platform about the Isolate getting deleted soon. Has to be
  * called for all Isolates which are deleted - unless we're shutting down the
  * platform.

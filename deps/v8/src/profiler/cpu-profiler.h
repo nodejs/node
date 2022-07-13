@@ -29,22 +29,22 @@ class CpuProfilesCollection;
 class Isolate;
 class Symbolizer;
 
-#define CODE_EVENTS_TYPE_LIST(V)                 \
-  V(CODE_CREATION, CodeCreateEventRecord)        \
-  V(CODE_MOVE, CodeMoveEventRecord)              \
-  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
-  V(CODE_DEOPT, CodeDeoptEventRecord)            \
-  V(REPORT_BUILTIN, ReportBuiltinEventRecord)    \
-  V(CODE_DELETE, CodeDeleteEventRecord)
+#define CODE_EVENTS_TYPE_LIST(V)                \
+  V(kCodeCreation, CodeCreateEventRecord)       \
+  V(kCodeMove, CodeMoveEventRecord)             \
+  V(kCodeDisableOpt, CodeDisableOptEventRecord) \
+  V(kCodeDeopt, CodeDeoptEventRecord)           \
+  V(kReportBuiltin, ReportBuiltinEventRecord)   \
+  V(kCodeDelete, CodeDeleteEventRecord)
 
 #define VM_EVENTS_TYPE_LIST(V) \
   CODE_EVENTS_TYPE_LIST(V)     \
-  V(NATIVE_CONTEXT_MOVE, NativeContextMoveEventRecord)
+  V(kNativeContextMove, NativeContextMoveEventRecord)
 
 class CodeEventRecord {
  public:
 #define DECLARE_TYPE(type, ignore) type,
-  enum Type { NONE = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
+  enum class Type { kNoEvent = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
 #undef DECLARE_TYPE
 
   Type type;
@@ -135,7 +135,7 @@ class CodeDeleteEventRecord : public CodeEventRecord {
 class CodeEventsContainer {
  public:
   explicit CodeEventsContainer(
-      CodeEventRecord::Type type = CodeEventRecord::NONE) {
+      CodeEventRecord::Type type = CodeEventRecord::Type::kNoEvent) {
     generic.type = type;
   }
   union  {
@@ -333,8 +333,10 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   CpuProfiler& operator=(const CpuProfiler&) = delete;
 
   static void CollectSample(Isolate* isolate);
+  static size_t GetAllProfilersMemorySize(Isolate* isolate);
 
   using ProfilingMode = v8::CpuProfilingMode;
+  using CpuProfilingResult = v8::CpuProfilingResult;
   using NamingMode = v8::CpuProfilingNamingMode;
   using LoggingMode = v8::CpuProfilingLoggingMode;
   using StartProfilingStatus = CpuProfilingStatus;
@@ -343,15 +345,21 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
   void CollectSample();
-  StartProfilingStatus StartProfiling(
+  size_t GetEstimatedMemoryUsage() const;
+  CpuProfilingResult StartProfiling(
+      CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfilingResult StartProfiling(
       const char* title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
-  StartProfilingStatus StartProfiling(
+  CpuProfilingResult StartProfiling(
       String title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
+  CpuProfile* StopProfiling(ProfilerId id);
+
   int GetProfilesCount();
   CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();

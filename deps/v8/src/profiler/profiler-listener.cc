@@ -43,7 +43,7 @@ ProfilerListener::~ProfilerListener() = default;
 void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        Handle<AbstractCode> code,
                                        const char* name) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry =
@@ -58,7 +58,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        Handle<AbstractCode> code,
                                        Handle<Name> name) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry =
@@ -74,7 +74,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        Handle<AbstractCode> code,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry =
@@ -111,7 +111,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name, int line,
                                        int column) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
@@ -177,7 +177,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
           if (pos_info.script.is_null()) continue;
 
-          int line_number =
+          line_number =
               pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) +
               1;
 
@@ -235,7 +235,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        wasm::WasmName name,
                                        const char* source_url, int code_offset,
                                        int script_id) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
   rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url), 1,
@@ -249,7 +249,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
   rec->entry =
@@ -260,7 +260,7 @@ void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
 
 void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
                                            Address entry_point) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
   rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
@@ -271,7 +271,7 @@ void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
 
 void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
                                            Address entry_point) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
   rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
@@ -282,7 +282,7 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
 
 void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                              Handle<String> source) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry = code_entries_.Create(
@@ -296,7 +296,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 
 void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   DisallowGarbageCollection no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
   rec->from_instruction_start = from.InstructionStart();
   rec->to_instruction_start = to.InstructionStart();
@@ -304,7 +304,7 @@ void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
 }
 
 void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
-  CodeEventsContainer evt_rec(CodeEventRecord::NATIVE_CONTEXT_MOVE);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kNativeContextMove);
   evt_rec.NativeContextMoveEventRecord_.from_address = from;
   evt_rec.NativeContextMoveEventRecord_.to_address = to;
   DispatchCodeEvent(evt_rec);
@@ -312,19 +312,17 @@ void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
 
 void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
                                            Handle<SharedFunctionInfo> shared) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDisableOpt);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
+  rec->bailout_reason =
+      GetBailoutReason(shared->disabled_optimization_reason());
   DispatchCodeEvent(evt_rec);
 }
 
 void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                                      Address pc, int fp_to_sp_delta,
-                                      bool reuse_code) {
-  // When reuse_code is true it is just a bailout and not an actual deopt.
-  if (reuse_code) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
+                                      Address pc, int fp_to_sp_delta) {
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   rec->instruction_start = code->InstructionStart();
@@ -342,7 +340,7 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
 void ProfilerListener::WeakCodeClearEvent() { weak_code_registry_.Sweep(this); }
 
 void ProfilerListener::OnHeapObjectDeletion(CodeEntry* entry) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DELETE);
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDelete);
   evt_rec.CodeDeleteEventRecord_.entry = entry;
   DispatchCodeEvent(evt_rec);
 }

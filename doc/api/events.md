@@ -30,8 +30,20 @@ The following example shows a simple `EventEmitter` instance with a single
 listener. The `eventEmitter.on()` method is used to register listeners, while
 the `eventEmitter.emit()` method is used to trigger the event.
 
-```js
-const EventEmitter = require('events');
+```mjs
+import { EventEmitter } from 'node:events';
+
+class MyEmitter extends EventEmitter {}
+
+const myEmitter = new MyEmitter();
+myEmitter.on('event', () => {
+  console.log('an event occurred!');
+});
+myEmitter.emit('event');
+```
+
+```cjs
+const EventEmitter = require('node:events');
 
 class MyEmitter extends EventEmitter {}
 
@@ -144,7 +156,7 @@ myEmitter.emit('error', new Error('whoops!'));
 ```
 
 To guard against crashing the Node.js process the [`domain`][] module can be
-used. (Note, however, that the `domain` module is deprecated.)
+used. (Note, however, that the `node:domain` module is deprecated.)
 
 As a best practice, listeners should always be added for the `'error'` events.
 
@@ -160,8 +172,19 @@ myEmitter.emit('error', new Error('whoops!'));
 It is possible to monitor `'error'` events without consuming the emitted error
 by installing a listener using the symbol `events.errorMonitor`.
 
-```js
-const { EventEmitter, errorMonitor } = require('events');
+```mjs
+import { EventEmitter, errorMonitor } from 'node:events';
+
+const myEmitter = new EventEmitter();
+myEmitter.on(errorMonitor, (err) => {
+  MyMonitoringTool.log(err);
+});
+myEmitter.emit('error', new Error('whoops!'));
+// Still throws and crashes Node.js
+```
+
+```cjs
+const { EventEmitter, errorMonitor } = require('node:events');
 
 const myEmitter = new EventEmitter();
 myEmitter.on(errorMonitor, (err) => {
@@ -172,8 +195,6 @@ myEmitter.emit('error', new Error('whoops!'));
 ```
 
 ## Capture rejections of promises
-
-> Stability: 1 - captureRejections is experimental.
 
 Using `async` functions with event handlers is problematic, because it
 can lead to an unhandled rejection in case of a thrown exception:
@@ -210,8 +231,20 @@ ee2[Symbol.for('nodejs.rejection')] = console.log;
 Setting `events.captureRejections = true` will change the default for all
 new instances of `EventEmitter`.
 
-```js
-const events = require('events');
+```mjs
+import { EventEmitter } from 'node:events';
+
+EventEmitter.captureRejections = true;
+const ee1 = new EventEmitter();
+ee1.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee1.on('error', console.log);
+```
+
+```cjs
+const events = require('node:events');
 events.captureRejections = true;
 const ee1 = new events.EventEmitter();
 ee1.on('something', async (value) => {
@@ -237,10 +270,14 @@ changes:
     description: Added captureRejections option.
 -->
 
-The `EventEmitter` class is defined and exposed by the `events` module:
+The `EventEmitter` class is defined and exposed by the `node:events` module:
 
-```js
-const EventEmitter = require('events');
+```mjs
+import { EventEmitter } from 'node:events';
+```
+
+```cjs
+const EventEmitter = require('node:events');
 ```
 
 All `EventEmitter`s emit the event `'newListener'` when new listeners are
@@ -339,8 +376,41 @@ to each.
 
 Returns `true` if the event had listeners, `false` otherwise.
 
-```js
-const EventEmitter = require('events');
+```mjs
+import { EventEmitter } from 'node:events';
+const myEmitter = new EventEmitter();
+
+// First listener
+myEmitter.on('event', function firstListener() {
+  console.log('Helloooo! first listener');
+});
+// Second listener
+myEmitter.on('event', function secondListener(arg1, arg2) {
+  console.log(`event with parameters ${arg1}, ${arg2} in second listener`);
+});
+// Third listener
+myEmitter.on('event', function thirdListener(...args) {
+  const parameters = args.join(', ');
+  console.log(`event with parameters ${parameters} in third listener`);
+});
+
+console.log(myEmitter.listeners('event'));
+
+myEmitter.emit('event', 1, 2, 3, 4, 5);
+
+// Prints:
+// [
+//   [Function: firstListener],
+//   [Function: secondListener],
+//   [Function: thirdListener]
+// ]
+// Helloooo! first listener
+// event with parameters 1, 2 in second listener
+// event with parameters 1, 2, 3, 4, 5 in third listener
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const myEmitter = new EventEmitter();
 
 // First listener
@@ -383,8 +453,23 @@ added: v6.0.0
 Returns an array listing the events for which the emitter has registered
 listeners. The values in the array are strings or `Symbol`s.
 
-```js
-const EventEmitter = require('events');
+```mjs
+import { EventEmitter } from 'node:events';
+
+const myEE = new EventEmitter();
+myEE.on('foo', () => {});
+myEE.on('bar', () => {});
+
+const sym = Symbol('symbol');
+myEE.on(sym, () => {});
+
+console.log(myEE.eventNames());
+// Prints: [ 'foo', 'bar', Symbol(symbol) ]
+```
+
+```cjs
+const EventEmitter = require('node:events');
+
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
 myEE.on('bar', () => {});
@@ -741,9 +826,13 @@ emitter.emit('log');
 added:
  - v13.4.0
  - v12.16.0
+changes:
+  - version:
+    - v17.4.0
+    - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 * `err` Error
 * `eventName` {string|symbol}
@@ -755,8 +844,27 @@ promise rejection happens when emitting an event and
 It is possible to use [`events.captureRejectionSymbol`][rejectionsymbol] in
 place of `Symbol.for('nodejs.rejection')`.
 
-```js
-const { EventEmitter, captureRejectionSymbol } = require('events');
+```mjs
+import { EventEmitter, captureRejectionSymbol } from 'node:events';
+
+class MyClass extends EventEmitter {
+  constructor() {
+    super({ captureRejections: true });
+  }
+
+  [captureRejectionSymbol](err, event, ...args) {
+    console.log('rejection happened for', event, 'with', err, ...args);
+    this.destroy(err);
+  }
+
+  destroy(err) {
+    // Tear the resource down here.
+  }
+}
+```
+
+```cjs
+const { EventEmitter, captureRejectionSymbol } = require('node:events');
 
 class MyClass extends EventEmitter {
   constructor() {
@@ -810,8 +918,8 @@ The [`--trace-warnings`][] command-line flag can be used to display the
 stack trace for such warnings.
 
 The emitted warning can be inspected with [`process.on('warning')`][] and will
-have the additional `emitter`, `type` and `count` properties, referring to
-the event emitter instance, the event’s name and the number of attached
+have the additional `emitter`, `type`, and `count` properties, referring to
+the event emitter instance, the event's name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
 
@@ -828,7 +936,7 @@ events. Listeners installed using this symbol are called before the regular
 `'error'` listeners are called.
 
 Installing a listener using this symbol does not change the behavior once an
-`'error'` event is emitted, therefore the process will still crash if no
+`'error'` event is emitted. Therefore, the process will still crash if no
 regular `'error'` listener is installed.
 
 ## `events.getEventListeners(emitterOrTarget, eventName)`
@@ -851,8 +959,25 @@ the emitter.
 For `EventTarget`s this is the only way to get the event listeners for the
 event target. This is useful for debugging and diagnostic purposes.
 
-```js
-const { getEventListeners, EventEmitter } = require('events');
+```mjs
+import { getEventListeners, EventEmitter } from 'node:events';
+
+{
+  const ee = new EventEmitter();
+  const listener = () => console.log('Events are fun');
+  ee.on('foo', listener);
+  getEventListeners(ee, 'foo'); // [listener]
+}
+{
+  const et = new EventTarget();
+  const listener = () => console.log('Events are fun');
+  et.addEventListener('foo', listener);
+  getEventListeners(et, 'foo'); // [listener]
+}
+```
+
+```cjs
+const { getEventListeners, EventEmitter } = require('node:events');
 
 {
   const ee = new EventEmitter();
@@ -895,8 +1020,33 @@ This method is intentionally generic and works with the web platform
 [EventTarget][WHATWG-EventTarget] interface, which has no special
 `'error'` event semantics and does not listen to the `'error'` event.
 
-```js
-const { once, EventEmitter } = require('events');
+```mjs
+import { once, EventEmitter } from 'node:events';
+import process from 'node:process';
+
+const ee = new EventEmitter();
+
+process.nextTick(() => {
+  ee.emit('myevent', 42);
+});
+
+const [value] = await once(ee, 'myevent');
+console.log(value);
+
+const err = new Error('kaboom');
+process.nextTick(() => {
+  ee.emit('error', err);
+});
+
+try {
+  await once(ee, 'myevent');
+} catch (err) {
+  console.log('error happened', err);
+}
+```
+
+```cjs
+const { once, EventEmitter } = require('node:events');
 
 async function run() {
   const ee = new EventEmitter();
@@ -928,8 +1078,22 @@ is used to wait for another event. If `events.once()` is used to wait for the
 '`error'` event itself, then it is treated as any other kind of event without
 special handling:
 
-```js
-const { EventEmitter, once } = require('events');
+```mjs
+import { EventEmitter, once } from 'node:events';
+
+const ee = new EventEmitter();
+
+once(ee, 'error')
+  .then(([err]) => console.log('ok', err.message))
+  .catch((err) => console.log('error', err.message));
+
+ee.emit('error', new Error('boom'));
+
+// Prints: ok boom
+```
+
+```cjs
+const { EventEmitter, once } = require('node:events');
 
 const ee = new EventEmitter();
 
@@ -944,8 +1108,32 @@ ee.emit('error', new Error('boom'));
 
 An {AbortSignal} can be used to cancel waiting for the event:
 
-```js
-const { EventEmitter, once } = require('events');
+```mjs
+import { EventEmitter, once } from 'node:events';
+
+const ee = new EventEmitter();
+const ac = new AbortController();
+
+async function foo(emitter, event, signal) {
+  try {
+    await once(emitter, event, { signal });
+    console.log('event emitted!');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('Waiting for the event was canceled!');
+    } else {
+      console.error('There was an error', error.message);
+    }
+  }
+}
+
+foo(ee, 'foo', ac.signal);
+ac.abort(); // Abort waiting for the event
+ee.emit('foo'); // Prints: Waiting for the event was canceled!
+```
+
+```cjs
+const { EventEmitter, once } = require('node:events');
 
 const ee = new EventEmitter();
 const ac = new AbortController();
@@ -977,8 +1165,32 @@ because the `process.nextTick()` queue is drained before the `Promise` microtask
 queue, and because `EventEmitter` emits all events synchronously, it is possible
 for `events.once()` to miss an event.
 
-```js
-const { EventEmitter, once } = require('events');
+```mjs
+import { EventEmitter, once } from 'node:events';
+import process from 'node:process';
+
+const myEE = new EventEmitter();
+
+async function foo() {
+  await once(myEE, 'bar');
+  console.log('bar');
+
+  // This Promise will never resolve because the 'foo' event will
+  // have already been emitted before the Promise is created.
+  await once(myEE, 'foo');
+  console.log('foo');
+}
+
+process.nextTick(() => {
+  myEE.emit('bar');
+  myEE.emit('foo');
+});
+
+foo().then(() => console.log('done'));
+```
+
+```cjs
+const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
@@ -1004,8 +1216,27 @@ To catch both events, create each of the Promises _before_ awaiting either
 of them, then it becomes possible to use `Promise.all()`, `Promise.race()`,
 or `Promise.allSettled()`:
 
-```js
-const { EventEmitter, once } = require('events');
+```mjs
+import { EventEmitter, once } from 'node:events';
+import process from 'node:process';
+
+const myEE = new EventEmitter();
+
+async function foo() {
+  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+  console.log('foo', 'bar');
+}
+
+process.nextTick(() => {
+  myEE.emit('bar');
+  myEE.emit('foo');
+});
+
+foo().then(() => console.log('done'));
+```
+
+```cjs
+const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
@@ -1028,9 +1259,13 @@ foo().then(() => console.log('done'));
 added:
  - v13.4.0
  - v12.16.0
+changes:
+  - version:
+    - v17.4.0
+    - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 Value: {boolean}
 
@@ -1040,11 +1275,15 @@ Change the default `captureRejections` option on all new `EventEmitter` objects.
 
 <!-- YAML
 added:
- - v13.4.0
- - v12.16.0
+  - v13.4.0
+  - v12.16.0
+changes:
+  - version:
+    - v17.4.0
+    - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 Value: `Symbol.for('nodejs.rejection')`
 
@@ -1065,8 +1304,19 @@ deprecated: v3.2.0
 A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.
 
-```js
-const { EventEmitter, listenerCount } = require('events');
+```mjs
+import { EventEmitter, listenerCount } from 'node:events';
+
+const myEmitter = new EventEmitter();
+myEmitter.on('event', () => {});
+myEmitter.on('event', () => {});
+console.log(listenerCount(myEmitter, 'event'));
+// Prints: 2
+```
+
+```cjs
+const { EventEmitter, listenerCount } = require('node:events');
+
 const myEmitter = new EventEmitter();
 myEmitter.on('event', () => {});
 myEmitter.on('event', () => {});
@@ -1088,8 +1338,29 @@ added:
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
-```js
-const { on, EventEmitter } = require('events');
+```mjs
+import { on, EventEmitter } from 'node:events';
+import process from 'node:process';
+
+const ee = new EventEmitter();
+
+// Emit later on
+process.nextTick(() => {
+  ee.emit('foo', 'bar');
+  ee.emit('foo', 42);
+});
+
+for await (const event of on(ee, 'foo')) {
+  // The execution of this inner block is synchronous and it
+  // processes one event at a time (even with await). Do not use
+  // if concurrent execution is required.
+  console.log(event); // prints ['bar'] [42]
+}
+// Unreachable here
+```
+
+```cjs
+const { on, EventEmitter } = require('node:events');
 
 (async () => {
   const ee = new EventEmitter();
@@ -1117,8 +1388,36 @@ composed of the emitted event arguments.
 
 An {AbortSignal} can be used to cancel waiting on events:
 
-```js
-const { on, EventEmitter } = require('events');
+```mjs
+import { on, EventEmitter } from 'node:events';
+import process from 'node:process';
+
+const ac = new AbortController();
+
+(async () => {
+  const ee = new EventEmitter();
+
+  // Emit later on
+  process.nextTick(() => {
+    ee.emit('foo', 'bar');
+    ee.emit('foo', 42);
+  });
+
+  for await (const event of on(ee, 'foo', { signal: ac.signal })) {
+    // The execution of this inner block is synchronous and it
+    // processes one event at a time (even with await). Do not use
+    // if concurrent execution is required.
+    console.log(event); // prints ['bar'] [42]
+  }
+  // Unreachable here
+})();
+
+process.nextTick(() => ac.abort());
+```
+
+```cjs
+const { on, EventEmitter } = require('node:events');
+
 const ac = new AbortController();
 
 (async () => {
@@ -1154,17 +1453,140 @@ added: v15.4.0
   or {EventEmitter} instances. If none are specified, `n` is set as the default
   max for all newly created {EventTarget} and {EventEmitter} objects.
 
-```js
-const {
-  setMaxListeners,
-  EventEmitter
-} = require('events');
+```mjs
+import { setMaxListeners, EventEmitter } from 'node:events';
 
 const target = new EventTarget();
 const emitter = new EventEmitter();
 
 setMaxListeners(5, target, emitter);
 ```
+
+```cjs
+const {
+  setMaxListeners,
+  EventEmitter
+} = require('node:events');
+
+const target = new EventTarget();
+const emitter = new EventEmitter();
+
+setMaxListeners(5, target, emitter);
+```
+
+## Class: `events.EventEmitterAsyncResource extends EventEmitter`
+
+<!-- YAML
+added:
+  - v17.4.0
+  - v16.14.0
+-->
+
+Integrates `EventEmitter` with {AsyncResource} for `EventEmitter`s that
+require manual async tracking. Specifically, all events emitted by instances
+of `events.EventEmitterAsyncResource` will run within its [async context][].
+
+```mjs
+import { EventEmitterAsyncResource } from 'node:events';
+import { notStrictEqual, strictEqual } from 'node:assert';
+import { executionAsyncId } from 'node:async_hooks';
+
+// Async tracking tooling will identify this as 'Q'.
+const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
+
+// 'foo' listeners will run in the EventEmitters async context.
+ee1.on('foo', () => {
+  strictEqual(executionAsyncId(), ee1.asyncId);
+  strictEqual(triggerAsyncId(), ee1.triggerAsyncId);
+});
+
+const ee2 = new EventEmitter();
+
+// 'foo' listeners on ordinary EventEmitters that do not track async
+// context, however, run in the same async context as the emit().
+ee2.on('foo', () => {
+  notStrictEqual(executionAsyncId(), ee2.asyncId);
+  notStrictEqual(triggerAsyncId(), ee2.triggerAsyncId);
+});
+
+Promise.resolve().then(() => {
+  ee1.emit('foo');
+  ee2.emit('foo');
+});
+```
+
+```cjs
+const { EventEmitterAsyncResource } = require('node:events');
+const { notStrictEqual, strictEqual } = require('node:assert');
+const { executionAsyncId } = require('node:async_hooks');
+
+// Async tracking tooling will identify this as 'Q'.
+const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
+
+// 'foo' listeners will run in the EventEmitters async context.
+ee1.on('foo', () => {
+  strictEqual(executionAsyncId(), ee1.asyncId);
+  strictEqual(triggerAsyncId(), ee1.triggerAsyncId);
+});
+
+const ee2 = new EventEmitter();
+
+// 'foo' listeners on ordinary EventEmitters that do not track async
+// context, however, run in the same async context as the emit().
+ee2.on('foo', () => {
+  notStrictEqual(executionAsyncId(), ee2.asyncId);
+  notStrictEqual(triggerAsyncId(), ee2.triggerAsyncId);
+});
+
+Promise.resolve().then(() => {
+  ee1.emit('foo');
+  ee2.emit('foo');
+});
+```
+
+The `EventEmitterAsyncResource` class has the same methods and takes the
+same options as `EventEmitter` and `AsyncResource` themselves.
+
+### `new events.EventEmitterAsyncResource(options)`
+
+* `options` {Object}
+  * `captureRejections` {boolean} It enables
+    [automatic capturing of promise rejection][capturerejections].
+    **Default:** `false`.
+  * `name` {string} The type of async event. **Default::**
+    [`new.target.name`][].
+  * `triggerAsyncId` {number} The ID of the execution context that created this
+    async event. **Default:** `executionAsyncId()`.
+  * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
+    when the object is garbage collected. This usually does not need to be set
+    (even if `emitDestroy` is called manually), unless the resource's `asyncId`
+    is retrieved and the sensitive API's `emitDestroy` is called with it.
+    When set to `false`, the `emitDestroy` call on garbage collection
+    will only take place if there is at least one active `destroy` hook.
+    **Default:** `false`.
+
+### `eventemitterasyncresource.asyncId`
+
+* Type: {number} The unique `asyncId` assigned to the resource.
+
+### `eventemitterasyncresource.asyncResource`
+
+* Type: The underlying {AsyncResource}.
+
+The returned `AsyncResource` object has an additional `eventEmitter` property
+that provides a reference to this `EventEmitterAsyncResource`.
+
+### `eventemitterasyncresource.emitDestroy()`
+
+Call all `destroy` hooks. This should only ever be called once. An error will
+be thrown if it is called more than once. This **must** be manually called. If
+the resource is left to be collected by the GC then the `destroy` hooks will
+never be called.
+
+### `eventemitterasyncresource.triggerAsyncId`
+
+* Type: {number} The same `triggerAsyncId` that is passed to the
+  `AsyncResource` constructor.
 
 <a id="event-target-and-event-api"></a>
 
@@ -1492,6 +1914,10 @@ changes:
 
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/36258
+    description: add support for `signal` option.
 -->
 
 * `type` {string}
@@ -1504,6 +1930,8 @@ added: v14.5.0
     **Default:** `false`.
   * `capture` {boolean} Not directly used by Node.js. Added for API
     completeness. **Default:** `false`.
+  * `signal` {AbortSignal} The listener will be removed when the given
+    AbortSignal object's `abort()` method is called.
 
 Adds a new handler for the `type` event. Any given `listener` is added
 only once per `type` and per `capture` option value.
@@ -1538,7 +1966,7 @@ added: v14.5.0
 -->
 
 * `event` {Event}
-* Returns: {boolean} `true` if either event’s `cancelable` attribute value is
+* Returns: {boolean} `true` if either event's `cancelable` attribute value is
   false or its `preventDefault()` method was not invoked, otherwise `false`.
 
 Dispatches the `event` to the list of handlers for `event.type`.
@@ -1706,7 +2134,9 @@ to the `EventTarget`.
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
 [`net.Server`]: net.md#class-netserver
+[`new.target.name`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
 [`process.on('warning')`]: process.md#event-warning
+[async context]: async_context.md
 [capturerejections]: #capture-rejections-of-promises
 [error]: #error-events
 [rejection]: #emittersymbolfornodejsrejectionerr-eventname-args

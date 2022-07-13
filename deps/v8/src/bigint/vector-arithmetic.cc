@@ -68,7 +68,7 @@ void Subtract(RWDigits Z, Digits X, Digits Y) {
   for (; i < X.len(); i++) {
     Z[i] = digit_sub(X[i], borrow, &borrow);
   }
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
 }
 

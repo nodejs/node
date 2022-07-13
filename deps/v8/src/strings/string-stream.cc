@@ -303,7 +303,7 @@ void StringStream::PrintUsingMap(JSObject js_object) {
   for (InternalIndex i : map.IterateOwnDescriptors()) {
     PropertyDetails details = descs.GetDetails(i);
     if (details.location() == PropertyLocation::kField) {
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       Object key = descs.GetKey(i);
       if (key.IsString() || key.IsNumber()) {
         int len = 3;
@@ -408,7 +408,7 @@ void StringStream::PrintSecurityTokenIfChanged(JSFunction fun) {
 
 void StringStream::PrintFunction(JSFunction fun, Object receiver, Code* code) {
   PrintPrototype(fun, receiver);
-  *code = fun.code();
+  *code = FromCodeT(fun.code());
 }
 
 void StringStream::PrintPrototype(JSFunction fun, Object receiver) {

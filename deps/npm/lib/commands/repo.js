@@ -1,39 +1,11 @@
-const pacote = require('pacote')
 const { URL } = require('url')
-const log = require('../utils/log-shim')
-const hostedFromMani = require('../utils/hosted-git-info-from-manifest.js')
-const openUrl = require('../utils/open-url.js')
 
-const BaseCommand = require('../base-command.js')
-class Repo extends BaseCommand {
+const PackageUrlCmd = require('../package-url-cmd.js')
+class Repo extends PackageUrlCmd {
   static description = 'Open package repository page in the browser'
   static name = 'repo'
-  static params = ['browser', 'workspace', 'workspaces', 'include-workspace-root']
-  static usage = ['[<pkgname> [<pkgname> ...]]']
 
-  async exec (args) {
-    if (!args || !args.length) {
-      args = ['.']
-    }
-
-    await Promise.all(args.map(pkg => this.get(pkg)))
-  }
-
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
-    return this.exec(this.workspacePaths)
-  }
-
-  async get (pkg) {
-    // XXX It is very odd that `where` is how pacote knows to look anywhere
-    // other than the cwd.
-    const opts = {
-      ...this.npm.flatOptions,
-      where: this.npm.localPrefix,
-      fullMetadata: true,
-    }
-    const mani = await pacote.manifest(pkg, opts)
-
+  getUrl (spec, mani) {
     const r = mani.repository
     const rurl = !r ? null
       : typeof r === 'string' ? r
@@ -42,22 +14,20 @@ class Repo extends BaseCommand {
 
     if (!rurl) {
       throw Object.assign(new Error('no repository'), {
-        pkgid: pkg,
+        pkgid: spec,
       })
     }
 
-    const info = hostedFromMani(mani)
+    const info = this.hostedFromMani(mani)
     const url = info ?
       info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
 
     if (!url) {
       throw Object.assign(new Error('no repository: could not get url'), {
-        pkgid: pkg,
+        pkgid: spec,
       })
     }
-
-    log.silly('docs', 'url', url)
-    await openUrl(this.npm, url, `${mani.name} repo available at the following URL`)
+    return url
   }
 }
 module.exports = Repo

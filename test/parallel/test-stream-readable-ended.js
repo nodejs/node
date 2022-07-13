@@ -7,7 +7,7 @@ const assert = require('assert');
 // basic
 {
   // Find it on Readable.prototype
-  assert(Readable.prototype.hasOwnProperty('readableEnded'));
+  assert(Object.hasOwn(Readable.prototype, 'readableEnded'));
 }
 
 // event

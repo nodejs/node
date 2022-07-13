@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -199,11 +199,11 @@ static int hkdf_common_set_ctx_params(KDF_HKDF *ctx, const OSSL_PARAM params[])
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_MODE)) != NULL) {
         if (p->data_type == OSSL_PARAM_UTF8_STRING) {
-            if (strcasecmp(p->data, "EXTRACT_AND_EXPAND") == 0) {
+            if (OPENSSL_strcasecmp(p->data, "EXTRACT_AND_EXPAND") == 0) {
                 ctx->mode = EVP_KDF_HKDF_MODE_EXTRACT_AND_EXPAND;
-            } else if (strcasecmp(p->data, "EXTRACT_ONLY") == 0) {
+            } else if (OPENSSL_strcasecmp(p->data, "EXTRACT_ONLY") == 0) {
                 ctx->mode = EVP_KDF_HKDF_MODE_EXTRACT_ONLY;
-            } else if (strcasecmp(p->data, "EXPAND_ONLY") == 0) {
+            } else if (OPENSSL_strcasecmp(p->data, "EXPAND_ONLY") == 0) {
                 ctx->mode = EVP_KDF_HKDF_MODE_EXPAND_ONLY;
             } else {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);

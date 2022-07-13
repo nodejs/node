@@ -9,6 +9,10 @@
 // and assertions would fail. We prevent re-runs.
 // Flags: --nostress-opt --no-always-opt
 
+// These tests do not work well if we flush the feedback vector, which causes
+// deoptimization.
+// Flags: --no-stress-flush-code --no-flush-bytecode
+
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
@@ -34,7 +38,7 @@
   assertEquals('AundefinedB', foo('A', 'B'));
   assertTrue(sum_js_got_interpreted);
 
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals('AundefinedB', foo('A', 'B'));
   assertFalse(sum_js_got_interpreted);
   assertOptimized(foo);
@@ -45,7 +49,7 @@
 
   // Now the call will not be inlined.
   %PrepareFunctionForOptimization(foo);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals('AxB', foo('A', 'B'));
   assertTrue(sum_js_got_interpreted);
   assertOptimized(foo);

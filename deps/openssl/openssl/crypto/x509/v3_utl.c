@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -349,7 +349,9 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
                     ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_EMPTY_NAME);
                     goto err;
                 }
-                X509V3_add_value(ntmp, NULL, &values);
+                if (!X509V3_add_value(ntmp, NULL, &values)) {
+                    goto err;
+                }
             }
             break;
 
@@ -362,7 +364,9 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
                     ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NULL_VALUE);
                     goto err;
                 }
-                X509V3_add_value(ntmp, vtmp, &values);
+                if (!X509V3_add_value(ntmp, vtmp, &values)) {
+                    goto err;
+                }
                 ntmp = NULL;
                 q = p + 1;
             }
@@ -376,14 +380,18 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
             ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NULL_VALUE);
             goto err;
         }
-        X509V3_add_value(ntmp, vtmp, &values);
+        if (!X509V3_add_value(ntmp, vtmp, &values)) {
+            goto err;
+        }
     } else {
         ntmp = strip_spaces(q);
         if (!ntmp) {
             ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_EMPTY_NAME);
             goto err;
         }
-        X509V3_add_value(ntmp, NULL, &values);
+        if (!X509V3_add_value(ntmp, NULL, &values)) {
+            goto err;
+        }
     }
     OPENSSL_free(linebuf);
     return values;
@@ -539,8 +547,11 @@ static int append_ia5(STACK_OF(OPENSSL_STRING) **sk,
         return 0;
 
     emtmp = OPENSSL_strndup((char *)email->data, email->length);
-    if (emtmp == NULL)
+    if (emtmp == NULL) {
+        X509_email_free(*sk);
+        *sk = NULL;
         return 0;
+    }
 
     /* Don't add duplicates */
     if (sk_OPENSSL_STRING_find(*sk, emtmp) != -1) {
@@ -704,7 +715,7 @@ static int wildcard_match(const unsigned char *prefix, size_t prefix_len,
     }
     /* IDNA labels cannot match partial wildcards */
     if (!allow_idna &&
-        subject_len >= 4 && strncasecmp((char *)subject, "xn--", 4) == 0)
+        subject_len >= 4 && OPENSSL_strncasecmp((char *)subject, "xn--", 4) == 0)
         return 0;
     /* The wildcard may match a literal '*' */
     if (wildcard_end == wildcard_start + 1 && *wildcard_start == '*')
@@ -764,7 +775,7 @@ static const unsigned char *valid_star(const unsigned char *p, size_t len,
                    || ('A' <= p[i] && p[i] <= 'Z')
                    || ('0' <= p[i] && p[i] <= '9')) {
             if ((state & LABEL_START) != 0
-                && len - i >= 4 && strncasecmp((char *)&p[i], "xn--", 4) == 0)
+                && len - i >= 4 && OPENSSL_strncasecmp((char *)&p[i], "xn--", 4) == 0)
                 state |= LABEL_IDNA;
             state &= ~(LABEL_HYPHEN | LABEL_START);
         } else if (p[i] == '.') {
@@ -833,8 +844,11 @@ static int do_check_string(const ASN1_STRING *a, int cmp_type, equal_fn equal,
             rv = equal(a->data, a->length, (unsigned char *)b, blen, flags);
         else if (a->length == (int)blen && !memcmp(a->data, b, blen))
             rv = 1;
-        if (rv > 0 && peername)
+        if (rv > 0 && peername != NULL) {
             *peername = OPENSSL_strndup((char *)a->data, a->length);
+            if (*peername == NULL)
+                return -1;
+        }
     } else {
         int astrlen;
         unsigned char *astr;
@@ -847,8 +861,13 @@ static int do_check_string(const ASN1_STRING *a, int cmp_type, equal_fn equal,
             return -1;
         }
         rv = equal(astr, astrlen, (unsigned char *)b, blen, flags);
-        if (rv > 0 && peername)
+        if (rv > 0 && peername != NULL) {
             *peername = OPENSSL_strndup((char *)astr, astrlen);
+            if (*peername == NULL) {
+                OPENSSL_free(astr);
+                return -1;
+            }
+        }
         OPENSSL_free(astr);
     }
     return rv;

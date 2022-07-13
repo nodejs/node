@@ -9,16 +9,23 @@ found in the LICENSE file. -->
   #sourceCode {
     white-space: pre-line;
   }
-  .register {
+  .reg, .addr {
     border-bottom: 1px dashed;
     border-radius: 2px;
   }
-  .register:hover {
+  .reg:hover, .addr:hover {
     background-color: var(--border-color);
   }
-  .register.selected {
+  .reg.selected, .addr.selected {
     color: var(--default-color);
     background-color: var(--border-color);
+  }
+  .addr:hover {
+    cursor: pointer;
+  }
+  .basicBlock:hover {
+    background-color: var(--border-color);
+    border-radius: 2px;
   }
 </style>
 
@@ -33,9 +40,9 @@ found in the LICENSE file. -->
   <div class="panelBody">
     <h3>Properties</h3>
     <property-link-table id="properties"></property-link-table>
+    <h3>FeedbackVector</h3>
+    <property-link-table id="feedbackVector"></property-link-table>
     <h3>Disassembly</h3>
     <pre id="disassembly"></pre>
-    <h3>Source Code</h3>
-    <pre id="sourceCode"></pre>
   </div>
 </div>

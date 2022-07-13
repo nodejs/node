@@ -8,6 +8,7 @@
 #include "src/init/v8.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -28,10 +29,7 @@ namespace wasm {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
@@ -238,25 +236,18 @@ class StreamTester {
 };
 }  // namespace
 
-#define RUN_STREAM(name)                                                   \
-  MockPlatform mock_platform;                                              \
-  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
-  v8::Isolate::CreateParams create_params;                                 \
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
-  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
-  {                                                                        \
-    v8::HandleScope handle_scope(isolate);                                 \
-    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
-    v8::Context::Scope context_scope(context);                             \
-    RunStream_##name(&mock_platform, isolate);                             \
-  }                                                                        \
-  isolate->Dispose();
+#define RUN_STREAM(name)                                      \
+  v8::Isolate* isolate = CcTest::isolate();                   \
+  v8::HandleScope handle_scope(isolate);                      \
+  v8::Local<v8::Context> context = v8::Context::New(isolate); \
+  v8::Context::Scope context_scope(context);                  \
+  RunStream_##name(&platform, isolate);
 
 #define STREAM_TEST(name)                                                     \
   void RunStream_##name(MockPlatform*, v8::Isolate*);                         \
-  UNINITIALIZED_TEST(Async##name) { RUN_STREAM(name); }                       \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_STREAM(name); }         \
                                                                               \
-  UNINITIALIZED_TEST(SingleThreaded##name) {                                  \
+  TEST_WITH_PLATFORM(SingleThreaded##name, MockPlatform) {                    \
     i::FlagScope<bool> single_threaded_scope(&i::FLAG_single_threaded, true); \
     RUN_STREAM(name);                                                         \
   }                                                                           \
@@ -1176,13 +1167,7 @@ STREAM_TEST(TestIncrementalCaching) {
   CHECK(tester.native_module()->GetCode(2)->is_liftoff());
   // No TurboFan compilation happened yet, and therefore no call to the cache.
   CHECK_EQ(0, call_cache_counter);
-  bool exception = false;
-  // The tier-up threshold is hard-coded right now.
-  constexpr int tier_up_threshold = 4;
-  for (int i = 0; i < tier_up_threshold; ++i) {
-    testing::CallWasmFunctionForTesting(i_isolate, instance, "f0", 0, nullptr,
-                                        &exception);
-  }
+  i::wasm::TriggerTierUp(i_isolate, tester.native_module().get(), 0, instance);
   tester.RunCompilerTasks();
   CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
   CHECK(tester.native_module()->GetCode(1)->is_liftoff());
@@ -1193,10 +1178,7 @@ STREAM_TEST(TestIncrementalCaching) {
     i::wasm::WasmSerializer serializer(tester.native_module().get());
     serialized_size = serializer.GetSerializedNativeModuleSize();
   }
-  for (int i = 0; i < tier_up_threshold; ++i) {
-    testing::CallWasmFunctionForTesting(i_isolate, instance, "f1", 0, nullptr,
-                                        &exception);
-  }
+  i::wasm::TriggerTierUp(i_isolate, tester.native_module().get(), 1, instance);
   tester.RunCompilerTasks();
   CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
   CHECK(!tester.native_module()->GetCode(1)->is_liftoff());
@@ -1244,6 +1226,7 @@ STREAM_TEST(TestModuleWithErrorAfterDataSection) {
 
 // Test that cached bytes work.
 STREAM_TEST(TestDeserializationBypassesCompilation) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
   ZoneBuffer module_bytes =
@@ -1259,6 +1242,7 @@ STREAM_TEST(TestDeserializationBypassesCompilation) {
 
 // Test that bad cached bytes don't cause compilation of wire bytes to fail.
 STREAM_TEST(TestDeserializationFails) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
   ZoneBuffer module_bytes =
@@ -1302,6 +1286,7 @@ STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
 }
 
 STREAM_TEST(TestSetModuleCompiledCallback) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   StreamTester tester(isolate);
   bool callback_called = false;
   tester.stream()->SetModuleCompiledCallback(

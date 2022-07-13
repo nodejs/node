@@ -16,7 +16,6 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
-#include "src/heap/worklist.h"
 #include "src/init/v8.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"

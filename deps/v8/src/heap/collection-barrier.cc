@@ -9,7 +9,6 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
@@ -22,14 +21,17 @@ bool CollectionBarrier::WasGCRequested() {
   return collection_requested_.load();
 }
 
-void CollectionBarrier::RequestGC() {
+bool CollectionBarrier::TryRequestGC() {
   base::MutexGuard guard(&mutex_);
+  if (shutdown_requested_) return false;
   bool was_already_requested = collection_requested_.exchange(true);
 
   if (!was_already_requested) {
     CHECK(!timer_.IsStarted());
     timer_.Start();
   }
+
+  return true;
 }
 
 class BackgroundCollectionInterruptTask : public CancelableTask {
@@ -59,8 +61,19 @@ void CollectionBarrier::NotifyShutdownRequested() {
 
 void CollectionBarrier::ResumeThreadsAwaitingCollection() {
   base::MutexGuard guard(&mutex_);
+  DCHECK(!timer_.IsStarted());
   collection_requested_.store(false);
   block_for_collection_ = false;
+  collection_performed_ = true;
+  cv_wakeup_.NotifyAll();
+}
+
+void CollectionBarrier::CancelCollectionAndResumeThreads() {
+  base::MutexGuard guard(&mutex_);
+  if (timer_.IsStarted()) timer_.Stop();
+  collection_requested_.store(false);
+  block_for_collection_ = false;
+  collection_performed_ = false;
   cv_wakeup_.NotifyAll();
 }
 
@@ -72,6 +85,10 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
     // set before the next GC.
     base::MutexGuard guard(&mutex_);
     if (shutdown_requested_) return false;
+
+    // Collection was cancelled by the main thread.
+    if (!collection_requested_.load()) return false;
+
     first_thread = !block_for_collection_;
     block_for_collection_ = true;
     CHECK(timer_.IsStarted());
@@ -88,7 +105,8 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
     cv_wakeup_.Wait(&mutex_);
   }
 
-  return true;
+  // Collection may have been cancelled while blocking for it.
+  return collection_performed_;
 }
 
 void CollectionBarrier::ActivateStackGuardAndPostTask() {

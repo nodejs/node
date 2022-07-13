@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>Event phases order</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+    document.addEventListener('DOMContentLoaded', this.step_func_done(function() {
+        var parent = document.getElementById('parent');
+        var child = document.getElementById('child');
+
+        var order = [];
+
+        parent.addEventListener('click', this.step_func(function(){ order.push(1) }), true);
+        child.addEventListener('click', this.step_func(function(){ order.push(2) }), false);
+        parent.addEventListener('click', this.step_func(function(){ order.push(3) }), false);
+
+        child.dispatchEvent(new Event('click', {bubbles: true}));
+
+        assert_array_equals(order, [1, 2, 3]);
+    }));
+}, "Event phases order");
+</script>
+<div id="parent">
+    <div id="child"></div>
+</div>

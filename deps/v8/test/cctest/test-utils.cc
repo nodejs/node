@@ -87,14 +87,17 @@ TEST(BitSetComputer) {
   CHECK_EQ(0, BoolComputer::index(0, 8));
   CHECK_EQ(100, BoolComputer::index(100, 8));
   CHECK_EQ(1, BoolComputer::index(0, 40));
-  uint32_t data = 0;
-  data = BoolComputer::encode(data, 1, true);
-  data = BoolComputer::encode(data, 4, true);
-  CHECK(BoolComputer::decode(data, 1));
-  CHECK(BoolComputer::decode(data, 4));
-  CHECK(!BoolComputer::decode(data, 0));
-  CHECK(!BoolComputer::decode(data, 2));
-  CHECK(!BoolComputer::decode(data, 3));
+
+  {
+    uint32_t data = 0;
+    data = BoolComputer::encode(data, 1, true);
+    data = BoolComputer::encode(data, 4, true);
+    CHECK(BoolComputer::decode(data, 1));
+    CHECK(BoolComputer::decode(data, 4));
+    CHECK(!BoolComputer::decode(data, 0));
+    CHECK(!BoolComputer::decode(data, 2));
+    CHECK(!BoolComputer::decode(data, 3));
+  }
 
   // Lets store 2 bits per item with 3000 items and verify the values are
   // correct.
@@ -171,9 +174,7 @@ void TestMemMove(byte* area1,
   }
 }
 
-
 TEST(MemMove) {
-  v8::V8::Initialize();
   byte* area1 = new byte[kAreaSize];
   byte* area2 = new byte[kAreaSize];
 
@@ -192,7 +193,6 @@ TEST(MemMove) {
   delete[] area1;
   delete[] area2;
 }
-
 
 TEST(Collector) {
   Collector<int> collector(8);

@@ -1,32 +1,10 @@
-const pacote = require('pacote')
-const log = require('../utils/log-shim')
-const openUrl = require('../utils/open-url.js')
-const hostedFromMani = require('../utils/hosted-git-info-from-manifest.js')
-const BaseCommand = require('../base-command.js')
+const PackageUrlCmd = require('../package-url-cmd.js')
 
-class Bugs extends BaseCommand {
+class Bugs extends PackageUrlCmd {
   static description = 'Report bugs for a package in a web browser'
   static name = 'bugs'
-  static usage = ['[<pkgname>]']
-  static params = ['browser', 'registry']
 
-  async exec (args) {
-    if (!args || !args.length) {
-      args = ['.']
-    }
-
-    await Promise.all(args.map(pkg => this.getBugs(pkg)))
-  }
-
-  async getBugs (pkg) {
-    const opts = { ...this.npm.flatOptions, fullMetadata: true }
-    const mani = await pacote.manifest(pkg, opts)
-    const url = this.getBugsUrl(mani)
-    log.silly('bugs', 'url', url)
-    await openUrl(this.npm, url, `${mani.name} bug list available at the following URL`)
-  }
-
-  getBugsUrl (mani) {
+  getUrl (spec, mani) {
     if (mani.bugs) {
       if (typeof mani.bugs === 'string') {
         return mani.bugs
@@ -42,7 +20,7 @@ class Bugs extends BaseCommand {
     }
 
     // try to get it from the repo, if possible
-    const info = hostedFromMani(mani)
+    const info = this.hostedFromMani(mani)
     if (info) {
       return info.bugs()
     }

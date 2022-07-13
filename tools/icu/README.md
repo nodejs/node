@@ -27,8 +27,8 @@ Note:
 
 ## See Also
 
-* [docs/guides/maintaining-icu.md](../../doc/guides/maintaining-icu.md) for
-  information on maintaining ICU in Node.js
+* [docs/guides/maintaining-icu.md](../../doc/contributing/maintaining-icu.md)
+  for information on maintaining ICU in Node.js
 
 * [docs/api/intl.md](../../doc/api/intl.md) for information on the
   internationalization-related APIs in Node.js
@@ -36,4 +36,4 @@ Note:
 * [The ICU Homepage][ICU]
 
 [ICU]: http://icu-project.org
-[ICU data slicer]: https://github.com/unicode-org/icu/blob/master/docs/userguide/icu_data/buildtool.md
+[ICU data slicer]: https://github.com/unicode-org/icu/blob/HEAD/docs/userguide/icu_data/buildtool.md

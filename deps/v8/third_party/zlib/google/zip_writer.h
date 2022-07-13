@@ -36,7 +36,7 @@ class ZipWriter {
 // Creates a writer that will write a ZIP file to |zip_file_fd| or |zip_file|
 // and which entries are relative to |file_accessor|'s source directory.
 // All file reads are performed using |file_accessor|.
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   static std::unique_ptr<ZipWriter> CreateWithFd(int zip_file_fd,
                                                  FileAccessor* file_accessor);
 #endif
@@ -55,6 +55,11 @@ class ZipWriter {
   void SetProgressCallback(ProgressCallback callback, base::TimeDelta period) {
     progress_callback_ = std::move(callback);
     progress_period_ = std::move(period);
+  }
+
+  // Should ignore missing files and directories?
+  void ContinueOnError(bool continue_on_error) {
+    continue_on_error_ = continue_on_error;
   }
 
   // Sets the recursive flag, indicating whether the contents of subdirectories
@@ -138,6 +143,9 @@ class ZipWriter {
 
   // Should recursively add directories?
   bool recursive_ = false;
+
+  // Should ignore missing files and directories?
+  bool continue_on_error_ = false;
 };
 
 }  // namespace internal

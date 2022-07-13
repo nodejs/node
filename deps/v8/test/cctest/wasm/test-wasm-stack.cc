@@ -5,7 +5,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/call-site-info-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -91,7 +91,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                           const ExceptionInfo& topLocation,
                           const v8::Local<v8::StackFrame> stackFrame) {
   MessageLocation loc;
-  CHECK(i_isolate->ComputeLocationFromStackTrace(&loc, exc));
+  CHECK(i_isolate->ComputeLocationFromSimpleStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
   Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
@@ -158,11 +158,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   CHECK(returnObjMaybe.is_null());
 
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},           // -
-      {"js", 4, 2},          // -
-      {"main", 1, 8},        // -
-      {"call_main", 1, 21},  // -
-      {"callFn", 1, 24}      // -
+      {"a", 3, 8},            // -
+      {"js", 4, 2},           // -
+      {"$main", 1, 8},        // -
+      {"$call_main", 1, 21},  // -
+      {"callFn", 1, 24}       // -
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
@@ -210,13 +210,13 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 
   // Extract stack trace from the exception.
   Handle<FixedArray> stack_trace_object =
-      isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
-  CHECK(!stack_trace_object.is_null());
-  Handle<StackFrameInfo> stack_frame(
-      StackFrameInfo::cast(stack_trace_object->get(0)), isolate);
+      isolate->GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
+  CHECK_NE(0, stack_trace_object->length());
+  Handle<CallSiteInfo> stack_frame(
+      CallSiteInfo::cast(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =
-      SerializeStackFrameInfo(isolate, stack_frame);
+      SerializeCallSiteInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
   Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
 
@@ -275,9 +275,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
         unreachable_pos + main_offset + kMainLocalsLength + 1;
     const int expected_call_main_pos = call_main_offset + kMainLocalsLength + 1;
     ExceptionInfo expected_exceptions[] = {
-        {"main", 1, expected_main_pos},            // -
-        {"call_main", 1, expected_call_main_pos},  // -
-        {"callFn", 1, 24}                          //-
+        {"$main", 1, expected_main_pos},            // -
+        {"$call_main", 1, expected_call_main_pos},  // -
+        {"callFn", 1, 24}                           //-
     };
     CheckExceptionInfos(isolate, exception, expected_exceptions);
   }

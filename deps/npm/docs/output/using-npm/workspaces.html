@@ -164,30 +164,32 @@ file system that is explicitly defined in the <a href="../configuring-npm/packag
 <pre lang="json"><code>{
   "name": "my-workspaces-powered-project",
   "workspaces": [
-    "workspace-a"
+    "packages/a"
   ]
 }
 </code></pre>
 <p>Given the above <code>package.json</code> example living at a current working
-directory <code>.</code> that contains a folder named <code>workspace-a</code> that itself contains
+directory <code>.</code> that contains a folder named <code>packages/a</code> that itself contains
 a <code>package.json</code> inside it, defining a Node.js package, e.g:</p>
 <pre><code>.
 +-- package.json
-`-- workspace-a
-   `-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
 </code></pre>
 <p>The expected result once running <code>npm install</code> in this current working
-directory <code>.</code> is that the folder <code>workspace-a</code> will get symlinked to the
+directory <code>.</code> is that the folder <code>packages/a</code> will get symlinked to the
 <code>node_modules</code> folder of the current working dir.</p>
 <p>Below is a post <code>npm install</code> example, given that same previous example
 structure of files and folders:</p>
 <pre><code>.
 +-- node_modules
-|  `-- workspace-a -&gt; ../workspace-a
+|  `-- packages/a -&gt; ../packages/a
 +-- package-lock.json
 +-- package.json
-`-- workspace-a
-   `-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
 </code></pre>
 <h3 id="getting-started-with-workspaces">Getting started with workspaces</h3>
 <p>You may automate the required steps to define a new workspace using

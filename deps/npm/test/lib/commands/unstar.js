@@ -1,29 +1,62 @@
 const t = require('tap')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const MockRegistry = require('../../fixtures/mock-registry.js')
 
-t.test('unstar', async t => {
-  t.plan(3)
+const pkgName = '@npmcli/test-package'
+const authToken = 'test-auth-token'
+const username = 'test-user'
+const auth = { '//registry.npmjs.org/:_authToken': authToken }
 
-  class Star {
-    constructor (npm) {
-      this.npm = npm
-    }
+t.test('no args', async t => {
+  const { npm } = await loadMockNpm(t)
+  await t.rejects(
+    npm.exec('unstar', []),
+    { code: 'EUSAGE' },
+    'should throw usage error'
+  )
+})
 
-    async exec (args) {
-      t.same(args, ['pkg'], 'should forward packages')
-    }
-  }
-  const Unstar = t.mock('../../../lib/commands/unstar.js', {
-    '../../../lib/commands/star.js': Star,
+t.test('unstar a package unicode:false', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { unicode: false, ...auth },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+  const manifest = registry.manifest({ name: pkgName, users: { [username]: true } })
+  await registry.package({ manifest, query: { write: true } })
+  registry.whoami({ username })
+  registry.star(manifest, {})
+
+  await npm.exec('unstar', [pkgName])
+  t.equal(
+    joinedOutput(),
+    '( ) @npmcli/test-package',
+    'should output unstarred package msg'
+  )
+})
+
+t.test('unstar a package unicode:true', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { unicode: true, ...auth },
   })
 
-  const unstar = new Unstar({
-    config: {
-      set: (key, value) => {
-        t.equal(key, 'star.unstar', 'should set unstar config value')
-        t.equal(value, true, 'should set a truthy value')
-      },
-    },
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
   })
+  const manifest = registry.manifest({ name: pkgName, users: { [username]: true } })
+  await registry.package({ manifest, query: { write: true } })
+  registry.whoami({ username })
+  registry.star(manifest, {})
 
-  await unstar.exec(['pkg'])
+  await npm.exec('unstar', [pkgName])
+  t.equal(
+    joinedOutput(),
+    '☆  @npmcli/test-package',
+    'should output unstarred package msg'
+  )
 })

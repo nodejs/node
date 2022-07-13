@@ -17,14 +17,14 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
   explicit LazyBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void GenerateTailCallToJSCode(TNode<Code> code, TNode<JSFunction> function);
+  void GenerateTailCallToJSCode(TNode<CodeT> code, TNode<JSFunction> function);
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
-  void TailCallRuntimeIfMarkerEquals(TNode<Uint32T> marker,
-                                     OptimizationMarker expected_marker,
-                                     Runtime::FunctionId function_id,
-                                     TNode<JSFunction> function);
+  void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,
+                                    TieringState expected_state,
+                                    Runtime::FunctionId function_id,
+                                    TNode<JSFunction> function);
 
   void MaybeTailCallOptimizedCodeSlot(TNode<JSFunction> function,
                                       TNode<FeedbackVector> feedback_vector);

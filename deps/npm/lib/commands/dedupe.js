@@ -1,7 +1,6 @@
 // dedupe duplicated packages, or find them in the tree
 const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('../utils/reify-finish.js')
-const log = require('../utils/log-shim.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
@@ -23,7 +22,7 @@ class Dedupe extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       const er = new Error('`npm dedupe` does not work in global mode.')
       er.code = 'EDEDUPEGLOBAL'
       throw er
@@ -33,9 +32,13 @@ class Dedupe extends ArboristWorkspaceCmd {
     const where = this.npm.prefix
     const opts = {
       ...this.npm.flatOptions,
-      log,
       path: where,
       dryRun,
+      // Saving during dedupe would only update if one of your direct
+      // dependencies was also duplicated somewhere in your tree. It would be
+      // confusing if running this were to also update your package.json.  In
+      // order to reduce potential confusion we set this to false.
+      save: false,
       workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)

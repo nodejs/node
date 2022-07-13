@@ -32,12 +32,7 @@ namespace {
 // Implementation of v8::Platform that can register OOM callbacks.
 class AllocationPlatform : public TestPlatform {
  public:
-  AllocationPlatform() {
-    current_platform = this;
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
-  ~AllocationPlatform() override = default;
+  AllocationPlatform() { current_platform = this; }
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 
@@ -95,8 +90,7 @@ void OnAlignedAllocOOM(const char* location, const char* message) {
 
 }  // namespace
 
-TEST(AccountingAllocatorOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(AccountingAllocatorOOM, AllocationPlatform) {
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
   const bool support_compression = false;
@@ -106,8 +100,7 @@ TEST(AccountingAllocatorOOM) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
-TEST(AccountingAllocatorCurrentAndMax) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(AccountingAllocatorCurrentAndMax, AllocationPlatform) {
   v8::internal::AccountingAllocator allocator;
   static constexpr size_t kAllocationSizes[] = {51, 231, 27};
   std::vector<v8::internal::Segment*> segments;
@@ -135,8 +128,7 @@ TEST(AccountingAllocatorCurrentAndMax) {
   CHECK(!platform.oom_callback_called);
 }
 
-TEST(MallocedOperatorNewOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(MallocedOperatorNewOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
   // On failure, this won't return, since a Malloced::New failure is fatal.
@@ -146,8 +138,7 @@ TEST(MallocedOperatorNewOOM) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
-TEST(NewArrayOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(NewArrayOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnNewArrayOOM);
   // On failure, this won't return, since a NewArray failure is fatal.
@@ -157,8 +148,7 @@ TEST(NewArrayOOM) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
-TEST(AlignedAllocOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(AlignedAllocOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   CcTest::isolate()->SetFatalErrorHandler(OnAlignedAllocOOM);
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
@@ -169,8 +159,7 @@ TEST(AlignedAllocOOM) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
-TEST(AllocVirtualMemoryOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(AllocVirtualMemoryOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
                                      GetHugeMemoryAmount(), nullptr);
@@ -178,8 +167,7 @@ TEST(AllocVirtualMemoryOOM) {
   CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
-TEST(AlignedAllocVirtualMemoryOOM) {
-  AllocationPlatform platform;
+TEST_WITH_PLATFORM(AlignedAllocVirtualMemoryOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
                                      GetHugeMemoryAmount(), nullptr,

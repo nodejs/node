@@ -52,7 +52,7 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
 void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
   A.Normalize();
   B.Normalize();
-  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  DCHECK(B.len() > 0);
   int cmp = Compare(A, B);
   if (cmp < 0) return Q.Clear();
   if (cmp == 0) {
@@ -82,7 +82,7 @@ void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
 void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
   A.Normalize();
   B.Normalize();
-  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  DCHECK(B.len() > 0);
   int cmp = Compare(A, B);
   if (cmp < 0) {
     for (int i = 0; i < B.len(); i++) R[i] = B[i];

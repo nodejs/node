@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -775,8 +775,9 @@ int req_main(int argc, char **argv)
         }
     }
     if (newreq || gen_x509) {
-        if (pkey == NULL /* can happen only if !newreq */) {
-            BIO_printf(bio_err, "Must provide a signature key using -key\n");
+        if (CAcert == NULL && pkey == NULL) {
+            BIO_printf(bio_err, "Must provide a signature key using -key or"
+                " provide -CA / -CAkey\n");
             goto end;
         }
 
@@ -991,7 +992,7 @@ int req_main(int argc, char **argv)
             goto end;
         }
         fprintf(stdout, "Modulus=");
-        if (EVP_PKEY_is_a(tpubkey, "RSA")) {
+        if (EVP_PKEY_is_a(tpubkey, "RSA") || EVP_PKEY_is_a(tpubkey, "RSA-PSS")) {
             BIGNUM *n = NULL;
 
             if (!EVP_PKEY_get_bn_param(tpubkey, "n", &n))
@@ -1594,6 +1595,13 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
         *pkeytype = OPENSSL_strndup(keytype, keytypelen);
     else
         *pkeytype = OPENSSL_strdup(keytype);
+
+    if (*pkeytype == NULL) {
+        BIO_printf(bio_err, "Out of memory\n");
+        EVP_PKEY_free(param);
+        return NULL;
+    }
+
     if (keylen >= 0)
         *pkeylen = keylen;
 

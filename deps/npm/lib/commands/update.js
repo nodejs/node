@@ -10,13 +10,16 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Update extends ArboristWorkspaceCmd {
   static description = 'Update packages'
   static name = 'update'
+
   static params = [
+    'save',
     'global',
     'global-style',
     'legacy-bundling',
+    'omit',
     'strict-peer-deps',
     'package-lock',
-    'omit',
+    'foreground-scripts',
     'ignore-scripts',
     'audit',
     'bin-links',
@@ -36,23 +39,30 @@ class Update extends ArboristWorkspaceCmd {
   async exec (args) {
     const update = args.length === 0 ? true : args
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.config.get('global')
+    const where = this.npm.global
       ? global
       : this.npm.prefix
+
+    // In the context of `npm update` the save
+    // config value should default to `false`
+    const save = this.npm.config.isDefault('save')
+      ? false
+      : this.npm.config.get('save')
 
     if (this.npm.config.get('depth')) {
       log.warn('update', 'The --depth option no longer has any effect. See RFC0019.\n' +
         'https://github.com/npm/rfcs/blob/latest/implemented/0019-remove-update-depth-option.md')
     }
 
-    const arb = new Arborist({
+    const opts = {
       ...this.npm.flatOptions,
-      log,
       path: where,
+      save,
       workspaces: this.workspaceNames,
-    })
+    }
+    const arb = new Arborist(opts)
 
-    await arb.reify({ update })
+    await arb.reify({ ...opts, update })
     await reifyFinish(this.npm, arb)
   }
 }

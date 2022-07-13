@@ -1,15 +1,4 @@
 {
-  "transform-async-to-generator": {
-    "chrome": "55",
-    "opera": "42",
-    "edge": "15",
-    "firefox": "52",
-    "safari": "10.1",
-    "node": "7.6",
-    "ios": "10.3",
-    "samsung": "6",
-    "electron": "1.6"
-  },
   "bugfix/transform-async-arrows-in-class": {
     "chrome": "55",
     "opera": "42",
@@ -20,17 +9,6 @@
     "ios": "11",
     "samsung": "6",
     "electron": "1.6"
-  },
-  "transform-parameters": {
-    "chrome": "49",
-    "opera": "36",
-    "edge": "15",
-    "firefox": "53",
-    "safari": "10",
-    "node": "6",
-    "ios": "10",
-    "samsung": "5",
-    "electron": "0.37"
   },
   "bugfix/transform-edge-default-parameters": {
     "chrome": "49",
@@ -43,17 +21,6 @@
     "samsung": "5",
     "electron": "0.37"
   },
-  "transform-function-name": {
-    "chrome": "51",
-    "opera": "38",
-    "edge": "14",
-    "firefox": "53",
-    "safari": "10",
-    "node": "6.5",
-    "ios": "10",
-    "samsung": "5",
-    "electron": "1.2"
-  },
   "bugfix/transform-edge-function-name": {
     "chrome": "51",
     "opera": "38",
@@ -64,17 +31,6 @@
     "ios": "10",
     "samsung": "5",
     "electron": "1.2"
-  },
-  "transform-block-scoping": {
-    "chrome": "49",
-    "opera": "36",
-    "edge": "14",
-    "firefox": "51",
-    "safari": "10",
-    "node": "6",
-    "ios": "10",
-    "samsung": "5",
-    "electron": "0.37"
   },
   "bugfix/transform-safari-block-shadowing": {
     "chrome": "49",
@@ -108,19 +64,7 @@
     "firefox": "2",
     "node": "6",
     "samsung": "5",
-    "rhino": "1.7.13",
     "electron": "0.37"
-  },
-  "transform-template-literals": {
-    "chrome": "41",
-    "opera": "28",
-    "edge": "13",
-    "firefox": "34",
-    "safari": "9",
-    "node": "4",
-    "ios": "9",
-    "samsung": "3.4",
-    "electron": "0.21"
   },
   "bugfix/transform-tagged-template-caching": {
     "chrome": "41",
@@ -131,7 +75,18 @@
     "node": "4",
     "ios": "13",
     "samsung": "3.4",
+    "rhino": "1.7.14",
     "electron": "0.21"
+  },
+  "bugfix/transform-v8-spread-parameters-in-optional-chaining": {
+    "chrome": "91",
+    "opera": "77",
+    "edge": "91",
+    "firefox": "74",
+    "safari": "13.1",
+    "node": "16.9",
+    "ios": "13.4",
+    "electron": "13.0"
   },
   "proposal-optional-chaining": {
     "chrome": "80",
@@ -144,14 +99,59 @@
     "samsung": "13",
     "electron": "8.0"
   },
-  "bugfix/transform-v8-spread-parameters-in-optional-chaining": {
-    "chrome": "91",
-    "opera": "77",
-    "edge": "91",
-    "firefox": "74",
-    "safari": "13.1",
-    "node": "16.9",
-    "ios": "13.4",
-    "electron": "13.0"
+  "transform-parameters": {
+    "chrome": "49",
+    "opera": "36",
+    "edge": "15",
+    "firefox": "53",
+    "safari": "10",
+    "node": "6",
+    "ios": "10",
+    "samsung": "5",
+    "electron": "0.37"
+  },
+  "transform-async-to-generator": {
+    "chrome": "55",
+    "opera": "42",
+    "edge": "15",
+    "firefox": "52",
+    "safari": "10.1",
+    "node": "7.6",
+    "ios": "10.3",
+    "samsung": "6",
+    "electron": "1.6"
+  },
+  "transform-template-literals": {
+    "chrome": "41",
+    "opera": "28",
+    "edge": "13",
+    "firefox": "34",
+    "safari": "9",
+    "node": "4",
+    "ios": "9",
+    "samsung": "3.4",
+    "electron": "0.21"
+  },
+  "transform-function-name": {
+    "chrome": "51",
+    "opera": "38",
+    "edge": "14",
+    "firefox": "53",
+    "safari": "10",
+    "node": "6.5",
+    "ios": "10",
+    "samsung": "5",
+    "electron": "1.2"
+  },
+  "transform-block-scoping": {
+    "chrome": "49",
+    "opera": "36",
+    "edge": "14",
+    "firefox": "51",
+    "safari": "10",
+    "node": "6",
+    "ios": "10",
+    "samsung": "5",
+    "electron": "0.37"
   }
 }

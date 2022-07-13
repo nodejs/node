@@ -94,6 +94,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
+  // Creates a new CodeDataContainer for a Code object.
+  Handle<CodeDataContainer> NewCodeDataContainer(int flags,
+                                                 AllocationType allocation);
+
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
@@ -106,6 +110,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocate a new fixed array with Smi(0) entries.
+  Handle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new uninitialized fixed double array.
@@ -153,8 +161,16 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
                                  int script_id);
 
+  Handle<ArrayList> NewArrayList(
+      int size, AllocationType allocation = AllocationType::kYoung);
+
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
+
+  // Create a copy of a given SharedFunctionInfo for use as a placeholder in
+  // off-thread compilation
+  Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
+      Handle<SharedFunctionInfo> other);
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
@@ -166,6 +182,17 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
       Handle<String> inferred_name, int32_t start_position,
       int32_t end_position, Handle<PreparseData>);
+
+  Handle<UncompiledDataWithoutPreparseDataWithJob>
+  NewUncompiledDataWithoutPreparseDataWithJob(Handle<String> inferred_name,
+                                              int32_t start_position,
+                                              int32_t end_position);
+
+  Handle<UncompiledDataWithPreparseDataAndJob>
+  NewUncompiledDataWithPreparseDataAndJob(Handle<String> inferred_name,
+                                          int32_t start_position,
+                                          int32_t end_position,
+                                          Handle<PreparseData>);
 
   // Allocates a FeedbackMedata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
@@ -208,6 +235,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
       Handle<String> left, Handle<String> right, int length, bool one_byte,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
+      int length);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawSharedTwoByteString(
+      int length);
+
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
   Handle<FreshlyAllocatedBigInt> NewBigInt(
@@ -234,6 +266,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
+  MaybeHandle<Map> GetInPlaceInternalizedStringMap(Map from_string_map);
+
+  Handle<Map> GetStringMigrationSentinelMap(InstanceType from_string_type);
+
+  AllocationType RefineAllocationTypeForInPlaceInternalizableString(
+      AllocationType allocation, Map string_map);
+
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);
@@ -248,7 +287,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
   Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
@@ -259,9 +298,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> maybe_name,
       MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,
-      FunctionKind kind = kNormalFunction);
+      FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
+
+  template <typename SeqStringT>
+  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Map map,
+                                              AllocationType allocation);
 
  private:
   friend class WebSnapshotDeserializer;
@@ -270,7 +313,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+                         AllocationAlignment alignment = kTaggedAligned);
 
   friend TorqueGeneratedFactory<Impl>;
 };

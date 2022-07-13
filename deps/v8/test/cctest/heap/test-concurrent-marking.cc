@@ -10,7 +10,6 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/worklist.h"
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -35,7 +34,8 @@ TEST(ConcurrentMarking) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;
@@ -57,7 +57,8 @@ TEST(ConcurrentMarkingReschedule) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;
@@ -83,7 +84,8 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   if (!heap->incremental_marking()->IsStopped()) return;
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   MarkingWorklists marking_worklists;

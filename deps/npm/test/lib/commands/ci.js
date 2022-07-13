@@ -1,233 +1,201 @@
-const fs = require('fs')
-const util = require('util')
-const readdir = util.promisify(fs.readdir)
-
 const t = require('tap')
+const { load: _loadMockNpm } = require('../../fixtures/mock-npm')
+const MockRegistry = require('../../fixtures/mock-registry.js')
 
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const path = require('path')
+const fs = require('@npmcli/fs')
 
-t.test('should ignore scripts with --ignore-scripts', async t => {
-  const SCRIPTS = []
-  let REIFY_CALLED = false
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '../../../lib/utils/reify-finish.js': async () => {},
-    '@npmcli/run-script': ({ event }) => {
-      SCRIPTS.push(event)
+// t.cleanSnapshot = str => str.replace(/ in [0-9ms]+/g, ' in {TIME}')
+
+const loadMockNpm = async (t, opts) => {
+  const mock = await _loadMockNpm(t, opts)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: mock.npm.config.get('registry'),
+  })
+  return { registry, ...mock }
+}
+
+const packageJson = {
+  name: 'test-package',
+  version: '1.0.0',
+  dependencies: {
+    abbrev: '^1.0.0',
+  },
+}
+const packageLock = {
+  name: 'test-package',
+  version: '1.0.0',
+  lockfileVersion: 2,
+  requires: true,
+  packages: {
+    '': {
+      name: 'test-package',
+      version: '1.0.0',
+      dependencies: {
+        abbrev: '^1.0.0',
+      },
     },
-    '@npmcli/arborist': function () {
-      this.loadVirtual = async () => {}
-      this.reify = () => {
-        REIFY_CALLED = true
-      }
+    'node_modules/abbrev': {
+      version: '1.0.0',
+      resolved: 'https://registry.npmjs.org/abbrev/-/abbrev-1.0.0.tgz',
+      // integrity changes w/ each test cause the path is different?
+    },
+  },
+  dependencies: {
+    abbrev: {
+      version: '1.0.0',
+      resolved: 'https://registry.npmjs.org/abbrev/-/abbrev-1.0.0.tgz',
+      // integrity changes w/ each test cause the path is different?
+    },
+  },
+}
+
+const abbrev = {
+  'package.json': '{"name": "abbrev", "version": "1.0.0"}',
+  test: 'test file',
+}
+
+t.test('reifies, audits, removes node_modules', async t => {
+  const { npm, joinedOutput, registry } = await loadMockNpm(t, {
+    prefixDir: {
+      abbrev: abbrev,
+      'package.json': JSON.stringify(packageJson),
+      'package-lock.json': JSON.stringify(packageLock),
+      node_modules: { test: 'test file that will be removed' },
     },
   })
-
-  const npm = mockNpm({
-    globalDir: 'path/to/node_modules/',
-    prefix: 'foo',
-    config: {
-      global: false,
-      'ignore-scripts': true,
-    },
+  const manifest = registry.manifest({ name: 'abbrev' })
+  await registry.tarball({
+    manifest: manifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'abbrev'),
   })
-  const ci = new CI(npm)
-
-  await ci.exec([])
-  t.equal(REIFY_CALLED, true, 'called reify')
-  t.strictSame(SCRIPTS, [], 'no scripts when running ci')
+  registry.nock.post('/-/npm/v1/security/advisories/bulk').reply(200, {})
+  await npm.exec('ci', [])
+  t.match(joinedOutput(), 'added 1 package, and audited 2 packages in')
+  await t.resolveMatch(
+    fs.exists(path.join(npm.prefix, 'node_modules', 'test')),
+    false,
+    'existing node_modules is removed'
+  )
+  await t.resolveMatch(
+    fs.exists(path.join(npm.prefix, 'node_modules', 'abbrev')),
+    true,
+    'installs abbrev'
+  )
 })
 
-t.test('should use Arborist and run-script', async t => {
-  const scripts = [
+t.test('--no-audit and --ignore-scripts', async t => {
+  const { npm, joinedOutput, registry } = await loadMockNpm(t, {
+    config: {
+      'ignore-scripts': true,
+      audit: false,
+    },
+    prefixDir: {
+      abbrev: {
+        'package.json': '{"name": "abbrev", "version": "1.0.0"}',
+        test: 'test-file',
+      },
+      'package.json': JSON.stringify({
+        ...packageJson,
+        // Would make install fail
+        scripts: { install: 'echo "SHOULD NOT RUN" && exit 1' },
+      }),
+      'package-lock.json': JSON.stringify(packageLock),
+    },
+  })
+  require('nock').emitter.on('no match', req => {
+    t.fail('Should not audit')
+  })
+  const manifest = registry.manifest({ name: 'abbrev' })
+  await registry.tarball({
+    manifest: manifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'abbrev'),
+  })
+  await npm.exec('ci', [])
+  t.match(joinedOutput(), 'added 1 package in', 'would fail if install script ran')
+})
+
+t.test('lifecycle scripts', async t => {
+  const scripts = []
+  const { npm, registry } = await loadMockNpm(t, {
+    prefixDir: {
+      abbrev: abbrev,
+      'package.json': JSON.stringify(packageJson),
+      'package-lock.json': JSON.stringify(packageLock),
+    },
+    mocks: {
+      '@npmcli/run-script': (opts) => {
+        t.ok(opts.banner)
+        scripts.push(opts.event)
+      },
+    },
+  })
+  const manifest = registry.manifest({ name: 'abbrev' })
+  await registry.tarball({
+    manifest: manifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'abbrev'),
+  })
+  registry.nock.post('/-/npm/v1/security/advisories/bulk').reply(200, {})
+  await npm.exec('ci', [])
+  t.same(scripts, [
     'preinstall',
     'install',
     'postinstall',
-    'prepublish', // XXX should we remove this finally??
+    'prepublish',
     'preprepare',
     'prepare',
     'postprepare',
-  ]
-
-  // set to true when timer starts, false when it ends
-  // when the test is done, we assert that all timers ended
-  const timers = {}
-  const onTime = msg => {
-    if (timers[msg]) {
-      throw new Error(`saw duplicate timer: ${msg}`)
-    }
-    timers[msg] = true
-  }
-  const onTimeEnd = msg => {
-    if (!timers[msg]) {
-      throw new Error(`ended timer that was not started: ${msg}`)
-    }
-    timers[msg] = false
-  }
-  process.on('time', onTime)
-  process.on('timeEnd', onTimeEnd)
-  t.teardown(() => {
-    process.removeListener('time', onTime)
-    process.removeListener('timeEnd', onTimeEnd)
-  })
-
-  const path = t.testdir({
-    node_modules: {
-      foo: {
-        'package.json': JSON.stringify({
-          name: 'foo',
-          version: '1.2.3',
-        }),
-      },
-      '.dotdir': {},
-      '.dotfile': 'a file with a dot',
-    },
-  })
-  const expectRimrafs = 3
-  let actualRimrafs = 0
-
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '../../../lib/utils/reify-finish.js': async () => {},
-    '@npmcli/run-script': opts => {
-      t.match(opts, { event: scripts.shift() })
-    },
-    '@npmcli/arborist': function (args) {
-      t.ok(args, 'gets options object')
-      this.loadVirtual = () => {
-        t.ok(true, 'loadVirtual is called')
-        return Promise.resolve(true)
-      }
-      this.reify = () => {
-        t.ok(true, 'reify is called')
-      }
-    },
-    rimraf: (path, ...args) => {
-      actualRimrafs++
-      t.ok(path, 'rimraf called with path')
-      // callback is always last arg
-      args.pop()()
-    },
-    '../../../lib/utils/reify-output.js': function (arb) {
-      t.ok(arb, 'gets arborist tree')
-    },
-  })
-
-  const npm = mockNpm({
-    prefix: path,
-    config: {
-      global: false,
-    },
-  })
-  const ci = new CI(npm)
-
-  await ci.exec(null)
-  for (const [msg, result] of Object.entries(timers)) {
-    t.notOk(result, `properly resolved ${msg} timer`)
-  }
-  t.match(timers, { 'npm-ci:rm': false }, 'saw the rimraf timer')
-  t.equal(actualRimrafs, expectRimrafs, 'removed the right number of things')
-  t.strictSame(scripts, [], 'called all scripts')
-})
-
-t.test('should pass flatOptions to Arborist.reify', async t => {
-  t.plan(1)
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '../../../lib/utils/reify-finish.js': async () => {},
-    '@npmcli/run-script': opts => {},
-    '@npmcli/arborist': function () {
-      this.loadVirtual = () => Promise.resolve(true)
-      this.reify = async (options) => {
-        t.equal(options.production, true, 'should pass flatOptions to Arborist.reify')
-      }
-    },
-  })
-  const npm = mockNpm({
-    prefix: 'foo',
-    flatOptions: {
-      production: true,
-    },
-  })
-  const ci = new CI(npm)
-  await ci.exec(null)
+  ], 'runs appropriate scripts, in order')
 })
 
 t.test('should throw if package-lock.json or npm-shrinkwrap missing', async t => {
-  const testDir = t.testdir({
-    'index.js': 'some contents',
-    'package.json': 'some info',
-  })
-
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '@npmcli/run-script': opts => {},
-    '../../../lib/utils/reify-finish.js': async () => {},
-    'proc-log': {
-      verbose: () => {
-        t.ok(true, 'log fn called')
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify(packageJson),
+      node_modules: {
+        'test-file': 'should not be removed',
       },
     },
   })
-  const npm = mockNpm({
-    prefix: testDir,
-    config: {
-      global: false,
-    },
-  })
-  const ci = new CI(npm)
-  await t.rejects(
-    ci.exec(null),
-    /package-lock.json/,
-    'throws error when there is no package-lock'
+  await t.rejects(npm.exec('ci', []), { code: 'EUSAGE', message: /package-lock.json/ })
+  await t.resolveMatch(
+    fs.exists(path.join(npm.prefix, 'node_modules', 'test-file')),
+    true,
+    'does not remove node_modules'
   )
 })
 
 t.test('should throw ECIGLOBAL', async t => {
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '@npmcli/run-script': opts => {},
-    '../../../lib/utils/reify-finish.js': async () => {},
+  const { npm } = await loadMockNpm(t, {
+    config: { global: true },
   })
-  const npm = mockNpm({
-    prefix: 'foo',
-    config: {
-      global: true,
-    },
-  })
-  const ci = new CI(npm)
-  await t.rejects(
-    ci.exec(null),
-    { code: 'ECIGLOBAL' },
-    'throws error with global packages'
-  )
+  await t.rejects(npm.exec('ci', []), { code: 'ECIGLOBAL' })
 })
 
-t.test('should remove existing node_modules before installing', async t => {
-  t.plan(2)
-  const testDir = t.testdir({
-    node_modules: {
-      'some-file': 'some contents',
+t.test('should throw error when ideal inventory mismatches virtual', async t => {
+  const { npm, registry } = await loadMockNpm(t, {
+    prefixDir: {
+      abbrev: abbrev,
+      'package.json': JSON.stringify({
+        ...packageJson,
+        dependencies: { notabbrev: '^1.0.0' },
+      }),
+      'package-lock.json': JSON.stringify(packageLock),
+      node_modules: {
+        'test-file': 'should not be removed',
+      },
     },
   })
-
-  const CI = t.mock('../../../lib/commands/ci.js', {
-    '@npmcli/run-script': opts => {},
-    '../../../lib/utils/reify-finish.js': async () => {},
-    '@npmcli/arborist': function () {
-      this.loadVirtual = () => Promise.resolve(true)
-      this.reify = async (options) => {
-        t.equal(options.save, false, 'npm ci should never save')
-        // check if node_modules was removed before reifying
-        const contents = await readdir(testDir)
-        const nodeModules = contents.filter((path) => path.startsWith('node_modules'))
-        t.same(nodeModules, ['node_modules'], 'should only have the node_modules directory')
-      }
-    },
-  })
-
-  const npm = mockNpm({
-    prefix: testDir,
-    config: {
-      global: false,
-    },
-  })
-  const ci = new CI(npm)
-
-  await ci.exec(null)
+  const manifest = registry.manifest({ name: 'notabbrev' })
+  await registry.package({ manifest })
+  await t.rejects(
+    npm.exec('ci', []),
+    { code: 'EUSAGE', message: /in sync/ }
+  )
+  await t.resolveMatch(
+    fs.exists(path.join(npm.prefix, 'node_modules', 'test-file')),
+    true,
+    'does not remove node_modules'
+  )
 })

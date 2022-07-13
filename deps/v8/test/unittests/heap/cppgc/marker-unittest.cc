@@ -40,8 +40,8 @@ class MarkerTest : public testing::TestWithHeap {
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
                         MarkingConfig config) {
-    marker_ =
-        MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
+    marker_ = std::make_unique<Marker>(heap, platform, config);
+    marker_->StartMarking();
   }
 
   Marker* marker() const { return marker_.get(); }
@@ -421,11 +421,11 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
                         MarkingConfig config) {
-    GetMarkerRef() =
-        MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
+    GetMarkerRef() = std::make_unique<Marker>(heap, platform, config);
+    GetMarkerRef()->StartMarking();
   }
 
-  MarkerBase* marker() const { return GetMarkerRef().get(); }
+  MarkerBase* marker() const { return Heap::From(GetHeap())->marker(); }
 
  private:
   bool SingleStep(MarkingConfig::StackState stack_state) {

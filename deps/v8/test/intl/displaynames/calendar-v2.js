@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.islamic'
 
-// Flags: --harmony_intl_displaynames_v2
-
 const calendars = [
     'buddhist', 'chinese', 'coptic', 'dangi', 'ethioaa', 'ethiopic-amete-alem',
     'ethiopic', 'gregory', 'hebrew', 'indian', 'islamic', 'islamic-umalqura',

@@ -149,18 +149,18 @@ class Builtins {
   }
 
   // Convenience wrappers.
-  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> NonPrimitiveToPrimitive(
+  Handle<CodeT> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<CodeT> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<CodeT> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> JSConstructStubGeneric();
+  Handle<CodeT> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  Handle<CodeT> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
-  void set_code(Builtin builtin, Code code);
+  void set_code(Builtin builtin, CodeT code);
 
-  V8_EXPORT_PRIVATE Code code(Builtin builtin);
-  V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
+  V8_EXPORT_PRIVATE CodeT code(Builtin builtin);
+  V8_EXPORT_PRIVATE Handle<CodeT> code_handle(Builtin builtin);
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
@@ -276,6 +276,11 @@ class Builtins {
     js_entry_handler_offset_ = offset;
   }
 
+  // Returns given builtin's slot in the main builtin table.
+  FullObjectSlot builtin_slot(Builtin builtin);
+  // Returns given builtin's slot in the tier0 builtin table.
+  FullObjectSlot builtin_tier0_slot(Builtin builtin);
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -286,10 +291,10 @@ class Builtins {
 
   enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                              Handle<Code> code);
+                                              Handle<CodeT> code);
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
-                                                     Handle<Code> code);
+                                                     Handle<CodeT> code);
 
   static void Generate_InterpreterPushArgsThenCallImpl(
       MacroAssembler* masm, ConvertReceiverMode receiver_mode,
@@ -297,10 +302,6 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
-
-  template <class Descriptor>
-  static void Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm,
-                                                  Handle<Code> builtin_target);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
@@ -323,6 +324,24 @@ class Builtins {
 
   friend class SetupIsolateDelegate;
 };
+
+V8_INLINE constexpr bool IsInterpreterTrampolineBuiltin(Builtin builtin_id) {
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  return builtin_id != Builtin::kNoBuiltinId &&
+         (builtin_id == Builtin::kInterpreterEntryTrampoline ||
+          builtin_id == Builtin::kInterpreterEnterAtBytecode ||
+          builtin_id == Builtin::kInterpreterEnterAtNextBytecode);
+}
+
+V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  return builtin_id != Builtin::kNoBuiltinId &&
+         (builtin_id == Builtin::kBaselineOutOfLinePrologue ||
+          builtin_id == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+          builtin_id == Builtin::kBaselineOrInterpreterEnterAtNextBytecode);
+}
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id);

@@ -13,13 +13,13 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-statistics-collector.h"
 #include "src/heap/cppgc/heap-visitor.h"
-#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/unmarker.h"
 
 namespace cppgc {
 namespace internal {
@@ -37,7 +37,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader& header) {
-    return ObjectView(header).Size();
+    return ObjectView<>(header).Size();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader& header) {
@@ -54,7 +54,8 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-    StackSupport stack_support)
+    StackSupport stack_support, MarkingType marking_support,
+    SweepingType sweeping_support)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
@@ -78,7 +79,16 @@ HeapBase::HeapBase(
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
                         *prefinalizer_handler_),
       sweeper_(*this),
-      stack_support_(stack_support) {
+      strong_persistent_region_(*oom_handler_.get()),
+      weak_persistent_region_(*oom_handler_.get()),
+      strong_cross_thread_persistent_region_(*oom_handler_.get()),
+      weak_cross_thread_persistent_region_(*oom_handler_.get()),
+#if defined(CPPGC_YOUNG_GENERATION)
+      remembered_set_(*this),
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+      stack_support_(stack_support),
+      marking_support_(marking_support),
+      sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
 }
@@ -97,10 +107,6 @@ size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
 }
 
-void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
-  if (marker_) marker_->AdvanceMarkingOnAllocation();
-}
-
 size_t HeapBase::ExecutePreFinalizers() {
 #ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
   // Allocations in pre finalizers should not trigger another GC.
@@ -113,6 +119,32 @@ size_t HeapBase::ExecutePreFinalizers() {
   return prefinalizer_handler_->ExtractBytesAllocatedInPrefinalizers();
 }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+void HeapBase::ResetRememberedSet() {
+  class AllLABsAreEmpty final : protected HeapVisitor<AllLABsAreEmpty> {
+    friend class HeapVisitor<AllLABsAreEmpty>;
+
+   public:
+    explicit AllLABsAreEmpty(RawHeap& raw_heap) { Traverse(raw_heap); }
+
+    bool value() const { return !some_lab_is_set_; }
+
+   protected:
+    bool VisitNormalPageSpace(NormalPageSpace& space) {
+      some_lab_is_set_ |=
+          static_cast<bool>(space.linear_allocation_buffer().size());
+      return true;
+    }
+
+   private:
+    bool some_lab_is_set_ = false;
+  };
+  DCHECK(AllLABsAreEmpty(raw_heap()).value());
+  caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
+  remembered_set_.Reset();
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());
   CHECK(!in_disallow_gc_scope());
@@ -122,6 +154,7 @@ void HeapBase::Terminate() {
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;
   bool more_termination_gcs_needed = false;
+
   do {
     CHECK_LT(gc_count++, kMaxTerminationGCs);
 
@@ -134,15 +167,27 @@ void HeapBase::Terminate() {
       weak_cross_thread_persistent_region_.ClearAllUsedNodes();
     }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+    // Unmark the heap so that the sweeper destructs all objects.
+    // TODO(chromium:1029379): Merge two heap iterations (unmarking + sweeping)
+    // into forced finalization.
+    SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
+    in_atomic_pause_ = true;
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kForced);
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
+    // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
+    // compile-time option). Run sweeping with forced finalization here.
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    in_atomic_pause_ = false;
+
     sweeper().NotifyDoneIfNeeded();
     more_termination_gcs_needed =
         strong_persistent_region_.NodesInUse() ||

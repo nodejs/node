@@ -11,7 +11,7 @@ switch (process.argv[2]) {
     require(binding);
     // fallthrough
   case 'worker-twice':
-  case 'worker':
+  case 'worker': {
     const worker = new Worker(`require(${JSON.stringify(binding)});`, {
       eval: true
     });
@@ -23,6 +23,7 @@ switch (process.argv[2]) {
       }));
     }
     return;
+  }
   case 'main-thread':
     process.env.addExtraItemToEventLoop = 'yes';
     require(binding);

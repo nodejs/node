@@ -1,18 +1,25 @@
 'use strict';
 const stripAnsi = require('strip-ansi');
 const isFullwidthCodePoint = require('is-fullwidth-code-point');
+const emojiRegex = require('emoji-regex');
 
-module.exports = str => {
-	if (typeof str !== 'string' || str.length === 0) {
+const stringWidth = string => {
+	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
 
-	str = stripAnsi(str);
+	string = stripAnsi(string);
+
+	if (string.length === 0) {
+		return 0;
+	}
+
+	string = string.replace(emojiRegex(), '  ');
 
 	let width = 0;
 
-	for (let i = 0; i < str.length; i++) {
-		const code = str.codePointAt(i);
+	for (let i = 0; i < string.length; i++) {
+		const code = string.codePointAt(i);
 
 		// Ignore control characters
 		if (code <= 0x1F || (code >= 0x7F && code <= 0x9F)) {
@@ -34,3 +41,7 @@ module.exports = str => {
 
 	return width;
 };
+
+module.exports = stringWidth;
+// TODO: remove this in the next major version
+module.exports.default = stringWidth;

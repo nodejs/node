@@ -18,6 +18,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
+#include "test/common/flag-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -6698,7 +6699,310 @@ TEST(RunCallCFunction9) {
              m.Call(x));
   }
 }
-#endif  // USE_SIMULATOR
+
+#endif  // !USE_SIMULATOR
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+#define IF_SIMULATOR_ADD_SIGNATURE                                     \
+  EncodedCSignature sig = m.call_descriptor()->ToEncodedCSignature();  \
+  m.main_isolate()->simulator_data()->AddSignatureForTargetForTesting( \
+      func_address, sig);
+#else
+#define IF_SIMULATOR_ADD_SIGNATURE
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+#define EXTERNAL_REF_FROM_FUNC(FUNC)                                  \
+  Address func_address = FUNCTION_ADDR(&FUNC);                        \
+  ExternalReference::Type func_type = ExternalReference::FAST_C_CALL; \
+  ApiFunction func(func_address);                                     \
+  ExternalReference ref = ExternalReference::Create(&func, func_type);
+
+namespace {
+
+void CheckEqual(double expected, double actual) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+  } else {
+    CHECK_EQ(actual, expected);
+  }
+}
+
+void CheckLessOrEqual(double actual, double expected) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+  } else if (std::isnan(actual)) {
+    return;
+  } else {
+    CHECK_LE(actual, expected);
+  }
+}
+
+const double foo_result = 3.14;
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+union Int64OrDoubleUnion {
+  int64_t int64_value;
+  double double_value;
+};
+
+Int64OrDoubleUnion double_foo0() {
+  Int64OrDoubleUnion ret;
+  ret.double_value = foo_result;
+  return ret;
+}
+
+Int64OrDoubleUnion double_foo1(Int64OrDoubleUnion x) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = x.double_value;
+  return ret;
+}
+
+Int64OrDoubleUnion double_foo2(Int64OrDoubleUnion x, Int64OrDoubleUnion y) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = x.double_value * 10 + y.double_value;
+  return ret;
+}
+
+Int64OrDoubleUnion double_foo8(Int64OrDoubleUnion a, Int64OrDoubleUnion b,
+                               Int64OrDoubleUnion c, Int64OrDoubleUnion d,
+                               Int64OrDoubleUnion e, Int64OrDoubleUnion f,
+                               Int64OrDoubleUnion g, Int64OrDoubleUnion h) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = a.double_value + b.double_value + c.double_value +
+                     d.double_value + e.double_value + f.double_value +
+                     g.double_value + h.double_value;
+  return ret;
+}
+
+Int64OrDoubleUnion double_foo9(Int64OrDoubleUnion a, Int64OrDoubleUnion b,
+                               Int64OrDoubleUnion c, Int64OrDoubleUnion d,
+                               Int64OrDoubleUnion e, Int64OrDoubleUnion f,
+                               Int64OrDoubleUnion g, Int64OrDoubleUnion h,
+                               Int64OrDoubleUnion i) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = a.double_value + b.double_value + c.double_value +
+                     d.double_value + e.double_value + f.double_value +
+                     g.double_value + h.double_value + i.double_value;
+  return ret;
+}
+
+Int64OrDoubleUnion double_foo10(Int64OrDoubleUnion a, Int64OrDoubleUnion b,
+                                Int64OrDoubleUnion c, Int64OrDoubleUnion d,
+                                Int64OrDoubleUnion e, Int64OrDoubleUnion f,
+                                Int64OrDoubleUnion g, Int64OrDoubleUnion h,
+                                Int64OrDoubleUnion i, Int64OrDoubleUnion j) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = a.double_value + b.double_value + c.double_value +
+                     d.double_value + e.double_value + f.double_value +
+                     g.double_value + h.double_value + i.double_value +
+                     j.int64_value;
+  return ret;
+}
+
+Int64OrDoubleUnion int_foo10(Int64OrDoubleUnion a, Int64OrDoubleUnion b,
+                             Int64OrDoubleUnion c, Int64OrDoubleUnion d,
+                             Int64OrDoubleUnion e, Int64OrDoubleUnion f,
+                             Int64OrDoubleUnion g, Int64OrDoubleUnion h,
+                             Int64OrDoubleUnion i, Int64OrDoubleUnion j) {
+  Int64OrDoubleUnion ret;
+  ret.double_value = a.int64_value + b.int64_value + c.int64_value +
+                     d.int64_value + e.int64_value + f.int64_value +
+                     g.int64_value + h.int64_value + i.int64_value +
+                     j.double_value;
+  return ret;
+}
+#else   // def V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+double double_foo0() { return foo_result; }
+
+double double_foo1(double x) { return x; }
+
+double double_foo2(double x, double y) { return x * 10 + y; }
+
+double double_foo8(double a, double b, double c, double d, double e, double f,
+                   double g, double h) {
+  return a + b + c + d + e + f + g + h;
+}
+
+double double_foo9(double a, double b, double c, double d, double e, double f,
+                   double g, double h, double i) {
+  return a + b + c + d + e + f + g + h + i;
+}
+
+double double_foo10(double a, double b, double c, double d, double e, double f,
+                    double g, double h, double i, int64_t j) {
+  return a + b + c + d + e + f + g + h + i + j;
+}
+
+double int_foo10(int64_t a, int64_t b, int64_t c, int64_t d, int64_t e,
+                 int64_t f, int64_t g, int64_t h, int64_t i, double j) {
+  return a + b + c + d + e + f + g + h + i + j;
+}
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+}  // namespace
+
+TEST(RunCallDoubleCFunction0) {
+  RawMachineAssemblerTester<double> m;
+  EXTERNAL_REF_FROM_FUNC(double_foo0)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction(function, MachineType::Float64()));
+  CheckEqual(foo_result, m.Call());
+}
+
+TEST(RunCallDoubleCFunction1) {
+  RawMachineAssemblerTester<double> m(MachineType::Float64());
+  EXTERNAL_REF_FROM_FUNC(double_foo1)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(
+      m.CallCFunction(function, MachineType::Float64(),
+                      std::make_pair(MachineType::Float64(), m.Parameter(0))));
+  FOR_FLOAT64_INPUTS(x) { CheckEqual(x, m.Call(x)); }
+}
+
+TEST(RunCallDoubleCFunction2) {
+  RawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                      MachineType::Float64());
+  EXTERNAL_REF_FROM_FUNC(double_foo2)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(
+      m.CallCFunction(function, MachineType::Float64(),
+                      std::make_pair(MachineType::Float64(), m.Parameter(0)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(1))));
+  FOR_FLOAT64_INPUTS(x) {
+    if (std::isnan(x)) continue;
+    FOR_FLOAT64_INPUTS(y) { CheckEqual(x * 10 + y, m.Call(x, y)); }
+  }
+}
+
+TEST(RunCallDoubleCFunction8) {
+  RawMachineAssemblerTester<double> m(
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64());
+  EXTERNAL_REF_FROM_FUNC(double_foo8)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction(function, MachineType::Float64(),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param),
+                           std::make_pair(MachineType::Float64(), param)));
+  FOR_FLOAT64_INPUTS(x) {
+    double diff = std::fabs(x * 8.0 - m.Call(x));
+    CheckLessOrEqual(diff, std::numeric_limits<double>::epsilon());
+  }
+}
+
+TEST(RunCallDoubleCFunction9) {
+  RawMachineAssemblerTester<double> m(
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64());
+  EXTERNAL_REF_FROM_FUNC(double_foo9)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction(
+      function, MachineType::Float64(),
+      std::make_pair(MachineType::Float64(), param),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(1))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(2))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(3))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(4))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(5))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(6))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(7))),
+      std::make_pair(MachineType::Float64(),
+                     m.Float64Add(param, m.Float64Constant(8)))));
+  FOR_FLOAT64_INPUTS(x) {
+    double diff = x * 9.0 + 36.0 - m.Call(x);
+    CheckLessOrEqual(diff, std::numeric_limits<double>::epsilon());
+  }
+}
+
+TEST(RunCallDoubleCFunction10) {
+  RawMachineAssemblerTester<double> m(
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
+      MachineType::Int64());
+  EXTERNAL_REF_FROM_FUNC(double_foo10)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(
+      m.CallCFunction(function, MachineType::Float64(),
+                      std::make_pair(MachineType::Float64(), m.Parameter(0)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(1)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(2)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(3)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(4)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(5)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(6)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(7)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(8)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(9))));
+  FOR_INT64_INPUTS(x) {
+    double c = m.Call(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, x);
+    double diff = 45.0 + x - c;
+    CheckLessOrEqual(fabs(diff), std::numeric_limits<double>::epsilon());
+  }
+}
+
+TEST(RunCallIntCFunction10) {
+  RawMachineAssemblerTester<double> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
+      MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
+      MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
+      MachineType::Float64());
+  EXTERNAL_REF_FROM_FUNC(int_foo10)
+  IF_SIMULATOR_ADD_SIGNATURE
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(
+      m.CallCFunction(function, MachineType::Float64(),
+                      std::make_pair(MachineType::Int64(), m.Parameter(0)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(1)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(2)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(3)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(4)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(5)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(6)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(7)),
+                      std::make_pair(MachineType::Int64(), m.Parameter(8)),
+                      std::make_pair(MachineType::Float64(), m.Parameter(9))));
+  FOR_FLOAT64_INPUTS(x) {
+    double c = m.Call(static_cast<int64_t>(1), static_cast<int64_t>(2),
+                      static_cast<int64_t>(3), static_cast<int64_t>(4),
+                      static_cast<int64_t>(5), static_cast<int64_t>(6),
+                      static_cast<int64_t>(7), static_cast<int64_t>(8),
+                      static_cast<int64_t>(9), x);
+    double diff = 45.0 + x - c;
+    CheckLessOrEqual(fabs(diff), std::numeric_limits<double>::epsilon());
+  }
+}
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 
 #if V8_TARGET_ARCH_64_BIT
 // TODO(titzer): run int64 tests on all platforms when supported.
@@ -7154,10 +7458,10 @@ TEST(RunComputedCodeObject) {
   RawMachineLabel merge;
   r.Branch(r.Parameter(0), &tlabel, &flabel);
   r.Bind(&tlabel);
-  Node* fa = r.HeapConstant(a.GetCode());
+  Node* fa = r.HeapConstant(a.GetCodeT());
   r.Goto(&merge);
   r.Bind(&flabel);
-  Node* fb = r.HeapConstant(b.GetCode());
+  Node* fb = r.HeapConstant(b.GetCodeT());
   r.Goto(&merge);
   r.Bind(&merge);
   Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);
@@ -7296,6 +7600,32 @@ TEST(Regression738952) {
                   m.TruncateFloat64ToWord32(m.Float64Constant(d))));
   CHECK_EQ(sentinel, m.Call());
 }
+
+#if V8_TARGET_ARCH_64_BIT
+TEST(Regression12330) {
+  FLAG_SCOPE(turbo_force_mid_tier_regalloc);
+
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+  Node* add = m.Int64SubWithOverflow(m.Int64Constant(0), m.Parameter(0));
+  Node* ovf = m.Projection(1, add);
+  m.Return(ovf);
+  m.GenerateCode();
+}
+
+TEST(Regression12373) {
+  FOR_INT64_INPUTS(i) {
+    RawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                         MachineType::Int64());
+    RawMachineAssemblerTester<int64_t> n(MachineType::Int64());
+
+    Node* mul_rr = m.Int64Mul(m.Parameter(0), m.Parameter(1));
+    Node* mul_ri = n.Int64Mul(n.Parameter(0), n.Int64Constant(i));
+    m.Return(mul_rr);
+    n.Return(mul_ri);
+    FOR_INT64_INPUTS(j) { CHECK_EQ(m.Call(j, i), n.Call(j)); }
+  }
+}
+#endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace compiler
 }  // namespace internal

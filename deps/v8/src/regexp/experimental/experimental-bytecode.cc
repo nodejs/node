@@ -36,22 +36,22 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
     case RegExpInstruction::ASSERTION:
       os << "ASSERTION ";
       switch (inst.payload.assertion_type) {
-        case RegExpAssertion::START_OF_INPUT:
+        case RegExpAssertion::Type::START_OF_INPUT:
           os << "START_OF_INPUT";
           break;
-        case RegExpAssertion::END_OF_INPUT:
+        case RegExpAssertion::Type::END_OF_INPUT:
           os << "END_OF_INPUT";
           break;
-        case RegExpAssertion::START_OF_LINE:
+        case RegExpAssertion::Type::START_OF_LINE:
           os << "START_OF_LINE";
           break;
-        case RegExpAssertion::END_OF_LINE:
+        case RegExpAssertion::Type::END_OF_LINE:
           os << "END_OF_LINE";
           break;
-        case RegExpAssertion::BOUNDARY:
+        case RegExpAssertion::Type::BOUNDARY:
           os << "BOUNDARY";
           break;
-        case RegExpAssertion::NON_BOUNDARY:
+        case RegExpAssertion::Type::NON_BOUNDARY:
           os << "NON_BOUNDARY";
           break;
       }

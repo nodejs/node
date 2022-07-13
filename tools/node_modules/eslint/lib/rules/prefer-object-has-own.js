@@ -50,7 +50,7 @@ module.exports = {
         type: "suggestion",
         docs: {
             description:
-                "disallow use of `Object.prototype.hasOwnProperty.call()` and prefer use of `Object.hasOwn()`",
+                "Disallow use of `Object.prototype.hasOwnProperty.call()` and prefer use of `Object.hasOwn()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-object-has-own"
         },

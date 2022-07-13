@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -204,7 +204,7 @@ int SipHash_Final(SIPHASH *ctx, unsigned char *out, size_t outlen)
     uint64_t v2 = ctx->v2;
     uint64_t v3 = ctx->v3;
 
-    if (outlen != (size_t)ctx->hash_size)
+    if (ctx->crounds == 0 || outlen == 0 || outlen != (size_t)ctx->hash_size)
         return 0;
 
     switch (ctx->len) {

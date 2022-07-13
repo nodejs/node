@@ -3,6 +3,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
+
 
 def _CommonChecks(input_api, output_api):
   results = []
@@ -12,8 +16,9 @@ def _CommonChecks(input_api, output_api):
   results.extend(input_api.RunTests(pylint_checks))
 
   # Run the MB unittests.
-  results.extend(input_api.canned_checks.RunUnitTestsInDirectory(
-      input_api, output_api, '.', [ r'^.+_unittest\.py$']))
+  results.extend(
+      input_api.canned_checks.RunUnitTestsInDirectory(input_api, output_api,
+                                                      '.', [r'^.+_test\.py$']))
 
   # Validate the format of the mb_config.pyl file.
   cmd = [input_api.python_executable, 'mb.py', 'validate']
@@ -23,12 +28,10 @@ def _CommonChecks(input_api, output_api):
                         cmd=cmd, kwargs=kwargs,
                         message=output_api.PresubmitError)]))
 
+  is_mb_config = (lambda filepath: 'mb_config.pyl' in filepath.LocalPath())
   results.extend(
       input_api.canned_checks.CheckLongLines(
-          input_api,
-          output_api,
-          maxlen=80,
-          source_file_filter=lambda x: 'mb_config.pyl' in x.LocalPath()))
+          input_api, output_api, maxlen=80, source_file_filter=is_mb_config))
 
   return results
 
