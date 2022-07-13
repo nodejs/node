@@ -13,14 +13,14 @@ namespace node {
 namespace single_executable_application {
 
 const char* sea_fuse = "AE249F4D38193B9BEFE654DF3AFD7065:00";
-#define FUSE_SENTINAL_LENGTH 33
+constexpr const int fuse_sentinal_length = 33;
 
-#define MAGIC_HEADER "NODEJSSEA"
-#define VERSION_CHARS "00000001"
-#define FLAG_CHARS "00000000"
-#define ARGC_OFFSET                                                            \
-  strlen(MAGIC_HEADER) + strlen(VERSION_CHARS) + strlen(FLAG_CHARS)
-#define ARGC_LENGTH 8
+constexpr const char* magic_header = "NODEJSSEA";
+constexpr const char* version_chars = "00000001";
+constexpr const char* flag_chars = "00000000";
+constexpr const int argc_offset =
+    strlen(magic_header) + strlen(version_chars) + strlen(flag_chars);
+constexpr const int argc_length = 8;
 
 #if defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
 static int callback(struct dl_phdr_info* info, size_t size, void* data) {
@@ -29,7 +29,7 @@ static int callback(struct dl_phdr_info* info, size_t size, void* data) {
     if (info->dlpi_phdr[index].p_type == PT_LOAD) {
       char* content = reinterpret_cast<char*>(info->dlpi_addr +
                                               info->dlpi_phdr[index].p_vaddr);
-      if (strncmp(MAGIC_HEADER, content, strlen(MAGIC_HEADER)) == 0) {
+      if (strncmp(magic_header, content, strlen(magic_header)) == 0) {
         *(static_cast<char**>(data)) = content;
         break;
       }
@@ -40,18 +40,18 @@ static int callback(struct dl_phdr_info* info, size_t size, void* data) {
 #endif  // defined(__POSIX__) && !defined(_AIX) && !defined(__APPLE__)
 
 bool CheckFuse(void) {
-  return (strncmp(sea_fuse + FUSE_SENTINAL_LENGTH,
+  return (strncmp(sea_fuse + fuse_sentinal_length,
                   "01",
-                  FUSE_SENTINAL_LENGTH + 2) == 0);
+                  fuse_sentinal_length + 2) == 0);
 }
 
 // from Jesec's version
 // 4096 chars should be more than enough to deal with
 // header + node options + script size
 // but definitely not elegant to have this limit
-#define SEA_BUF_SIZE 4096
-char sea_buf[SEA_BUF_SIZE];
-std::string executable_path() {
+constexpr const int sea_buf_size = 4096;
+char sea_buf[sea_buf_size];
+std::string GetExecutablePath() {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
 
@@ -62,8 +62,8 @@ std::string executable_path() {
   return "";
 }
 
-char* search_single_binary_data() {
-  auto exec = executable_path();
+char* SearchExecutableForSEAData() {
+  std::string exec = GetExecutablePath();
   if (exec.empty()) {
     return nullptr;
   }
@@ -75,8 +75,8 @@ char* search_single_binary_data() {
   }
 
   std::string needle;
-  needle += MAGIC_HEADER;
-  needle += VERSION_CHARS;
+  needle += magic_header;
+  needle += version_chars;
 
   constexpr auto buf_size = 1 << 20;
 
@@ -97,7 +97,7 @@ char* search_single_binary_data() {
     f->seekg(f_pos, std::ios::beg);
 
     delete[] buf;
-    f->read(sea_buf, SEA_BUF_SIZE);
+    f->read(sea_buf, sea_buf_size);
     return (sea_buf);
   }
 
@@ -114,7 +114,7 @@ char* search_single_binary_data() {
       f->seekg(f_pos, std::ios::beg);
 
       delete[] buf;
-      f->read(sea_buf, SEA_BUF_SIZE);
+      f->read(sea_buf, sea_buf_size);
       return (sea_buf);
     }
   }
@@ -132,7 +132,7 @@ char* GetSEAData() {
 
   if (single_executable_data == nullptr) {
     // no special segment so read binary instead
-    single_executable_data = search_single_binary_data();
+    single_executable_data = SearchExecutableForSEAData();
   }
 
   return single_executable_data;
@@ -148,10 +148,10 @@ bool CheckForSingleBinary(int argc,
     if (single_executable_data != nullptr) {
       // get the new arguments info
       std::string argc_string(
-          static_cast<char*>(&single_executable_data[ARGC_OFFSET]),
-          ARGC_LENGTH);
+          static_cast<char*>(&single_executable_data[argc_offset]),
+          argc_length);
       int argument_count = std::stoi(argc_string, 0, 16);
-      char* arguments = &(single_executable_data[ARGC_OFFSET + ARGC_LENGTH]);
+      char* arguments = &(single_executable_data[argc_offset + argc_length]);
 
       // copy over the first argument which needs to stay in place
       new_argv->push_back(argv[0]);
