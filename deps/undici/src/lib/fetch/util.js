@@ -145,6 +145,49 @@ function isValidHTTPToken (characters) {
   return true
 }
 
+// https://fetch.spec.whatwg.org/#header-name
+// https://github.com/chromium/chromium/blob/b3d37e6f94f87d59e44662d6078f6a12de845d17/net/http/http_util.cc#L342
+function isValidHeaderName (potentialValue) {
+  if (potentialValue.length === 0) {
+    return false
+  }
+
+  for (const char of potentialValue) {
+    if (!isValidHTTPToken(char)) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#header-value
+ * @param {string} potentialValue
+ */
+function isValidHeaderValue (potentialValue) {
+  // - Has no leading or trailing HTTP tab or space bytes.
+  // - Contains no 0x00 (NUL) or HTTP newline bytes.
+  if (
+    potentialValue.startsWith('\t') ||
+    potentialValue.startsWith(' ') ||
+    potentialValue.endsWith('\t') ||
+    potentialValue.endsWith(' ')
+  ) {
+    return false
+  }
+
+  if (
+    potentialValue.includes('\0') ||
+    potentialValue.includes('\r') ||
+    potentialValue.includes('\n')
+  ) {
+    return false
+  }
+
+  return true
+}
+
 // https://w3c.github.io/webappsec-referrer-policy/#set-requests-referrer-policy-on-redirect
 function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
   //  Given a request request and a response actualResponse, this algorithm
@@ -388,6 +431,11 @@ function makeIterator (iterator, name) {
   return Object.setPrototypeOf({}, i)
 }
 
+/**
+ * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
+ */
+const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
+
 module.exports = {
   isAborted,
   isCancelled,
@@ -418,5 +466,8 @@ module.exports = {
   sameOrigin,
   normalizeMethod,
   serializeJavascriptValueToJSONString,
-  makeIterator
+  makeIterator,
+  isValidHeaderName,
+  isValidHeaderValue,
+  hasOwn
 }

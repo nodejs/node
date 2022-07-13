@@ -461,14 +461,14 @@ Arguments:
 * **options** `RequestOptions`
 * **callback** `(error: Error | null, data: ResponseData) => void` (optional)
 
-Returns: `void | Promise<ResponseData>` - Only returns a `Promise` if no `callback` argument was passed
+Returns: `void | Promise<ResponseData>` - Only returns a `Promise` if no `callback` argument was passed.
 
 #### Parameter: `RequestOptions`
 
 Extends: [`DispatchOptions`](#parameter-dispatchoptions)
 
-* **opaque** `unknown` (optional) - Default: `null` - Used for passing through context to `ResponseData`
-* **signal** `AbortSignal | events.EventEmitter | null` (optional) - Default: `null`
+* **opaque** `unknown` (optional) - Default: `null` - Used for passing through context to `ResponseData`.
+* **signal** `AbortSignal | events.EventEmitter | null` (optional) - Default: `null`.
 * **onInfo** `({statusCode: number, headers: Record<string, string | string[]>}) => void | null` (optional) - Default: `null` - Callback collecting all the info headers (HTTP 100-199) received.
 
 The `RequestOptions.method` property should not be value `'CONNECT'`.
@@ -476,7 +476,7 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 #### Parameter: `ResponseData`
 
 * **statusCode** `number`
-* **headers** `http.IncomingHttpHeaders`
+* **headers** `http.IncomingHttpHeaders` - Note that all header keys are lower-cased, e. g. `content-type`.
 * **body** `stream.Readable` which also implements [the body mixin from the Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
 * **trailers** `Record<string, string>` - This object starts out
   as empty and will be mutated to contain trailers after `body` has emitted `'end'`.
@@ -496,6 +496,8 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 `body` contains the following additional extensions:
 
 - `dump({ limit: Integer })`, dump the response by reading up to `limit` bytes without killing the socket (optional) - Default: 262144.
+
+Note that body will still be a `Readable` even if it is empty, but attempting to deserialize it with `json()` will result in an exception. Recommended way to ensure there is a body to deserialize is to check if status code is not 204, and `content-type` header starts with `application/json`.
 
 #### Example 1 - Basic GET Request
 

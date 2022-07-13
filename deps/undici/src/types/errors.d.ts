@@ -1,3 +1,5 @@
+import {IncomingHttpHeaders} from "http";
+
 export = Errors
 import { SocketInfo } from './client'
 
@@ -14,6 +16,15 @@ declare namespace Errors {
   export class BodyTimeoutError extends UndiciError {
     name: 'BodyTimeoutError';
     code: 'UND_ERR_BODY_TIMEOUT';
+  }
+
+  export class ResponseStatusCodeError extends UndiciError {
+    name: 'ResponseStatusCodeError';
+    code: 'UND_ERR_RESPONSE_STATUS_CODE';
+    body: null | Record<string, any> | string
+    status: number
+    statusCode: number
+    headers: IncomingHttpHeaders | string[] | null;
   }
 
   /** A socket exceeds the `socketTimeout` option. */

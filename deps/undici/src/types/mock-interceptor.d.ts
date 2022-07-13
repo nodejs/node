@@ -26,7 +26,7 @@ declare class MockInterceptor {
   reply<TData extends object = object>(replyOptionsCallback: MockInterceptor.MockReplyOptionsCallback<TData>): MockScope<TData>;
   reply<TData extends object = object>(
     statusCode: number,
-    data: TData | Buffer | string | MockInterceptor.MockResponseDataHandler<TData>,
+    data?: TData | Buffer | string | MockInterceptor.MockResponseDataHandler<TData>,
     responseOptions?: MockInterceptor.MockResponseOptions
   ): MockScope<TData>;
   /** Mock an undici request by throwing the defined reply error. */
@@ -84,7 +84,7 @@ declare namespace MockInterceptor {
 
   export type MockReplyOptionsCallback<TData extends object = object> = (
     opts: MockResponseCallbackOptions
-  ) => { statusCode: number, data: TData | Buffer | string, responseOptions?: MockResponseOptions }
+  ) => { statusCode: number, data?: TData | Buffer | string, responseOptions?: MockResponseOptions }
 }
 
 interface Interceptable extends Dispatcher {

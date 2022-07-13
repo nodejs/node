@@ -140,8 +140,8 @@ class Request {
     }
 
     if (util.isFormDataLike(this.body)) {
-      if (nodeMajor < 16 || (nodeMajor === 16 && nodeMinor < 5)) {
-        throw new InvalidArgumentError('Form-Data bodies are only supported in node v16.5 and newer.')
+      if (nodeMajor < 16 || (nodeMajor === 16 && nodeMinor < 8)) {
+        throw new InvalidArgumentError('Form-Data bodies are only supported in node v16.8 and newer.')
       }
 
       if (!extractBody) {

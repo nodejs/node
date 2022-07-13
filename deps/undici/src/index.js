@@ -80,7 +80,7 @@ function makeDispatcher (fn) {
 module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
-if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 5)) {
+if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
   let fetchImpl = null
   module.exports.fetch = async function fetch (resource) {
     if (!fetchImpl) {

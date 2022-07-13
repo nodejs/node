@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.5.1",
+  "version": "5.7.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -48,7 +48,7 @@
     "lint:fix": "standard --fix | snazzy",
     "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:jest && tsd",
     "test:node-fetch": "node scripts/verifyVersion.js 16 || mocha test/node-fetch",
-    "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap test/fetch/*.js)",
+    "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap test/fetch/*.js && tap test/webidl/*.js)",
     "test:jest": "jest",
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
@@ -93,7 +93,7 @@
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.20.0",
+    "tsd": "^0.22.0",
     "wait-on": "^6.0.0"
   },
   "engines": {

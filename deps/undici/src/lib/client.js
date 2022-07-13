@@ -720,7 +720,7 @@ class Parser {
       }
     }
 
-    if (request.method === 'CONNECT' && statusCode >= 200 && statusCode < 300) {
+    if (request.method === 'CONNECT') {
       assert(client[kRunning] === 1)
       this.upgrade = true
       return 2
@@ -889,10 +889,8 @@ function onParserTimeout (parser) {
 
   /* istanbul ignore else */
   if (timeoutType === TIMEOUT_HEADERS) {
-    if (!socket[kWriting]) {
-      assert(!parser.paused, 'cannot be paused while waiting for headers')
-      util.destroy(socket, new HeadersTimeoutError())
-    }
+    assert(!parser.paused, 'cannot be paused while waiting for headers')
+    util.destroy(socket, new HeadersTimeoutError())
   } else if (timeoutType === TIMEOUT_BODY) {
     if (!parser.paused) {
       util.destroy(socket, new BodyTimeoutError())

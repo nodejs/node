@@ -1,10 +1,10 @@
 'use strict'
 
-const { kProxy, kClose, kDestroy } = require('./core/symbols')
+const { kClose, kDestroy } = require('./core/symbols')
 const Client = require('./agent')
 const Agent = require('./agent')
 const DispatcherBase = require('./dispatcher-base')
-const { InvalidArgumentError } = require('./core/errors')
+const { InvalidArgumentError, RequestAbortedError } = require('./core/errors')
 const buildConnector = require('./core/connect')
 
 const kAgent = Symbol('proxy agent')
@@ -14,10 +14,22 @@ const kRequestTls = Symbol('request tls settings')
 const kProxyTls = Symbol('proxy tls settings')
 const kConnectEndpoint = Symbol('connect endpoint function')
 
+function defaultProtocolPort (protocol) {
+  return protocol === 'https:' ? 443 : 80
+}
+
 class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
-    this[kProxy] = buildProxyOptions(opts)
+
+    if (typeof opts === 'string') {
+      opts = { uri: opts }
+    }
+
+    if (!opts || !opts.uri) {
+      throw new InvalidArgumentError('Proxy opts.uri is mandatory')
+    }
+
     this[kRequestTls] = opts.requestTls
     this[kProxyTls] = opts.proxyTls
     this[kProxyHeaders] = {}
@@ -26,10 +38,49 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${opts.auth}`
     }
 
+    const { origin, port } = new URL(opts.uri)
+
     const connect = buildConnector({ ...opts.proxyTls })
     this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
     this[kClient] = new Client({ origin: opts.origin, connect })
-    this[kAgent] = new Agent({ ...opts, connect: this.connectTunnel.bind(this) })
+    this[kAgent] = new Agent({
+      ...opts,
+      connect: async (opts, callback) => {
+        let requestedHost = opts.host
+        if (!opts.port) {
+          requestedHost += `:${defaultProtocolPort(opts.protocol)}`
+        }
+        try {
+          const { socket, statusCode } = await this[kClient].connect({
+            origin,
+            port,
+            path: requestedHost,
+            signal: opts.signal,
+            headers: {
+              ...this[kProxyHeaders],
+              host: opts.host
+            }
+          })
+          if (statusCode !== 200) {
+            socket.on('error', () => {}).destroy()
+            callback(new RequestAbortedError('Proxy response !== 200 when HTTP Tunneling'))
+          }
+          if (opts.protocol !== 'https:') {
+            callback(null, socket)
+            return
+          }
+          let servername
+          if (this[kRequestTls]) {
+            servername = this[kRequestTls].servername
+          } else {
+            servername = opts.servername
+          }
+          this[kConnectEndpoint]({ ...opts, servername, httpSocket: socket }, callback)
+        } catch (err) {
+          callback(err)
+        }
+      }
+    })
   }
 
   dispatch (opts, handler) {
@@ -48,35 +99,6 @@ class ProxyAgent extends DispatcherBase {
     )
   }
 
-  async connectTunnel (opts, callback) {
-    try {
-      const { socket } = await this[kClient].connect({
-        origin: this[kProxy].origin,
-        port: this[kProxy].port,
-        path: opts.host,
-        signal: opts.signal,
-        headers: {
-          ...this[kProxyHeaders],
-          host: opts.host
-        },
-        httpTunnel: true
-      })
-      if (opts.protocol !== 'https:') {
-        callback(null, socket)
-        return
-      }
-      let servername
-      if (this[kRequestTls]) {
-        servername = this[kRequestTls].servername
-      } else {
-        servername = opts.servername
-      }
-      this[kConnectEndpoint]({ ...opts, servername, httpSocket: socket }, callback)
-    } catch (err) {
-      callback(err)
-    }
-  }
-
   async [kClose] () {
     await this[kAgent].close()
     await this[kClient].close()
@@ -86,18 +108,6 @@ class ProxyAgent extends DispatcherBase {
     await this[kAgent].destroy()
     await this[kClient].destroy()
   }
-}
-
-function buildProxyOptions (opts) {
-  if (typeof opts === 'string') {
-    opts = { uri: opts }
-  }
-
-  if (!opts || !opts.uri) {
-    throw new InvalidArgumentError('Proxy opts.uri is mandatory')
-  }
-
-  return new URL(opts.uri)
 }
 
 /**

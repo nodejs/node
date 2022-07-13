@@ -84,7 +84,8 @@ class RequestHandler extends AsyncResource {
     }
 
     const parsedHeaders = util.parseHeaders(rawHeaders)
-    const body = new Readable(resume, abort, parsedHeaders['content-type'])
+    const contentType = parsedHeaders['content-type']
+    const body = new Readable(resume, abort, contentType)
 
     this.callback = null
     this.res = body
@@ -92,8 +93,8 @@ class RequestHandler extends AsyncResource {
 
     if (callback !== null) {
       if (this.throwOnError && statusCode >= 400) {
-        this.runInAsyncScope(callback, null,
-          new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers)
+        this.runInAsyncScope(getResolveErrorBodyCallback, null,
+          { callback, body, contentType, statusCode, statusMessage, headers }
         )
         return
       }
@@ -150,6 +151,33 @@ class RequestHandler extends AsyncResource {
       util.destroy(body, err)
     }
   }
+}
+
+async function getResolveErrorBodyCallback ({ callback, body, contentType, statusCode, statusMessage, headers }) {
+  if (statusCode === 204 || !contentType) {
+    body.dump()
+    process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
+    return
+  }
+
+  try {
+    if (contentType.startsWith('application/json')) {
+      const payload = await body.json()
+      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
+      return
+    }
+
+    if (contentType.startsWith('text/')) {
+      const payload = await body.text()
+      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
+      return
+    }
+  } catch (err) {
+    // Process in a fallback if error
+  }
+
+  body.dump()
+  process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
 }
 
 function request (opts, callback) {

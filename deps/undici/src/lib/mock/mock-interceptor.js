@@ -130,7 +130,7 @@ class MockInterceptor {
           throw new InvalidArgumentError('reply options callback must return an object')
         }
 
-        const { statusCode, data, responseOptions = {} } = resolvedData
+        const { statusCode, data = '', responseOptions = {} } = resolvedData
         this.validateReplyParameters(statusCode, data, responseOptions)
         // Since the values can be obtained immediately we return them
         // from this higher order function that will be resolved later.
@@ -145,10 +145,10 @@ class MockInterceptor {
     }
 
     // We can have either one or three parameters, if we get here,
-    // we should have 2-3 parameters. So we spread the arguments of
+    // we should have 1-3 parameters. So we spread the arguments of
     // this function to obtain the parameters, since replyData will always
     // just be the statusCode.
-    const [statusCode, data, responseOptions = {}] = [...arguments]
+    const [statusCode, data = '', responseOptions = {}] = [...arguments]
     this.validateReplyParameters(statusCode, data, responseOptions)
 
     // Send in-already provided data like usual

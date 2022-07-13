@@ -36,7 +36,6 @@ const {
   isAborted
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
-const { AbortError } = require('../core/errors')
 const assert = require('assert')
 const { safelyExtractBody, extractBody } = require('./body')
 const {
@@ -44,7 +43,8 @@ const {
   nullBodyStatus,
   safeMethods,
   requestBodyHeader,
-  subresource
+  subresource,
+  DOMException
 } = require('./constants')
 const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
@@ -56,6 +56,10 @@ const { TransformStream } = require('stream/web')
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
 let ReadableStream
+
+const nodeVersion = process.versions.node.split('.')
+const nodeMajor = Number(nodeVersion[0])
+const nodeMinor = Number(nodeVersion[1])
 
 class Fetch extends EE {
   constructor (dispatcher) {
@@ -82,7 +86,7 @@ class Fetch extends EE {
       return
     }
 
-    const reason = new AbortError()
+    const reason = new DOMException('The operation was aborted.', 'AbortError')
 
     this.state = 'aborted'
     this.connection?.destroy(reason)
@@ -91,24 +95,12 @@ class Fetch extends EE {
 }
 
 // https://fetch.spec.whatwg.org/#fetch-method
-async function fetch (...args) {
-  if (args.length < 1) {
+async function fetch (input, init = {}) {
+  if (arguments.length < 1) {
     throw new TypeError(
-      `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${args.length} present.`
+      `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`
     )
   }
-  if (
-    args.length >= 1 &&
-    typeof args[1] !== 'object' &&
-    args[1] !== undefined
-  ) {
-    throw new TypeError(
-      "Failed to execute 'fetch' on 'Window': cannot convert to dictionary."
-    )
-  }
-
-  const resource = args[0]
-  const init = args.length >= 1 ? args[1] ?? {} : {}
 
   // 1. Let p be a new promise.
   const p = createDeferredPromise()
@@ -116,7 +108,14 @@ async function fetch (...args) {
   // 2. Let requestObject be the result of invoking the initial value of
   // Request as constructor with input and init as arguments. If this throws
   // an exception, reject p with it and return p.
-  const requestObject = new Request(resource, init)
+  let requestObject
+
+  try {
+    requestObject = new Request(input, init)
+  } catch (e) {
+    p.reject(e)
+    return p.promise
+  }
 
   // 3. Let request be requestObject’s request.
   const request = requestObject[kState]
@@ -288,14 +287,16 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-function markResourceTiming () {
-  // TODO
+function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
+  if (nodeMajor >= 18 && nodeMinor >= 2) {
+    performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState)
+  }
 }
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject) {
   // 1. Let error be an "AbortError" DOMException.
-  const error = new AbortError()
+  const error = new DOMException('The operation was aborted.', 'AbortError')
 
   // 2. Reject promise with error.
   p.reject(error)
@@ -1058,7 +1059,7 @@ async function httpFetch (fetchParams) {
     // 2. Switch on request’s redirect mode:
     if (request.redirect === 'error') {
       // Set response to a network error.
-      response = makeNetworkError()
+      response = makeNetworkError('unexpected redirect')
     } else if (request.redirect === 'manual') {
       // Set response to an opaque-redirect filtered response whose internal
       // response is actualResponse.
@@ -1555,7 +1556,7 @@ async function httpNetworkFetch (
     destroy (err) {
       if (!this.destroyed) {
         this.destroyed = true
-        this.abort?.(err ?? new AbortError())
+        this.abort?.(err ?? new DOMException('The operation was aborted.', 'AbortError'))
       }
     }
   }
@@ -1885,7 +1886,9 @@ async function httpNetworkFetch (
 
       // 2. If stream is readable, error stream with an "AbortError" DOMException.
       if (isReadable(stream)) {
-        fetchParams.controller.controller.error(new AbortError())
+        fetchParams.controller.controller.error(
+          new DOMException('The operation was aborted.', 'AbortError')
+        )
       }
     } else {
       // 3. Otherwise, if stream is readable, error stream with a TypeError.
@@ -1926,7 +1929,7 @@ async function httpNetworkFetch (
           const { connection } = fetchParams.controller
 
           if (connection.destroyed) {
-            abort(new AbortError())
+            abort(new DOMException('The operation was aborted.', 'AbortError'))
           } else {
             fetchParams.controller.on('terminated', abort)
             this.abort = connection.abort = abort

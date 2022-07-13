@@ -8,7 +8,6 @@ const util = require('../core/util')
 const {
   isValidHTTPToken,
   sameOrigin,
-  toUSVString,
   normalizeMethod
 } = require('./util')
 const {
@@ -22,6 +21,7 @@ const {
 } = require('./constants')
 const { kEnumerableProperty } = util
 const { kHeaders, kSignal, kState, kGuard, kRealm } = require('./symbols')
+const { webidl } = require('./webidl')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 
@@ -36,27 +36,19 @@ const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
-  constructor (...args) {
-    if (args[0] === kInit) {
+  constructor (input, init = {}) {
+    if (input === kInit) {
       return
     }
 
-    if (args.length < 1) {
+    if (arguments.length < 1) {
       throw new TypeError(
-        `Failed to construct 'Request': 1 argument required, but only ${args.length} present.`
+        `Failed to construct 'Request': 1 argument required, but only ${arguments.length} present.`
       )
     }
-    if (
-      args.length >= 1 &&
-      typeof args[1] !== 'object' &&
-      args[1] !== undefined
-    ) {
-      throw new TypeError(
-        "Failed to construct 'Request': cannot convert to dictionary."
-      )
-    }
-    const input = args[0] instanceof Request ? args[0] : toUSVString(args[0])
-    const init = args.length >= 1 ? args[1] ?? {} : {}
+
+    input = webidl.converters.RequestInfo(input)
+    init = webidl.converters.RequestInit(init)
 
     // TODO
     this[kRealm] = { settingsObject: {} }
@@ -266,7 +258,10 @@ class Request {
 
     // 17. If mode is "navigate", then throw a TypeError.
     if (mode === 'navigate') {
-      throw new TypeError()
+      webidl.errors.exception({
+        header: 'Request constructor',
+        message: 'invalid request mode navigate.'
+      })
     }
 
     // 18. If mode is non-null, set request’s mode to mode.
@@ -748,7 +743,7 @@ class Request {
   }
 }
 
-mixinBody(Request.prototype)
+mixinBody(Request)
 
 function makeRequest (init) {
   // https://fetch.spec.whatwg.org/#requests
@@ -822,5 +817,110 @@ Object.defineProperties(Request.prototype, {
   clone: kEnumerableProperty,
   signal: kEnumerableProperty
 })
+
+webidl.converters.Request = webidl.interfaceConverter(
+  Request
+)
+
+// https://fetch.spec.whatwg.org/#requestinfo
+webidl.converters.RequestInfo = function (V) {
+  if (typeof V === 'string') {
+    return webidl.converters.USVString(V)
+  }
+
+  if (V instanceof Request) {
+    return webidl.converters.Request(V)
+  }
+
+  return webidl.converters.USVString(V)
+}
+
+webidl.converters.AbortSignal = webidl.interfaceConverter(
+  AbortSignal
+)
+
+// https://fetch.spec.whatwg.org/#requestinit
+webidl.converters.RequestInit = webidl.dictionaryConverter([
+  {
+    key: 'method',
+    converter: webidl.converters.ByteString
+  },
+  {
+    key: 'headers',
+    converter: webidl.converters.HeadersInit
+  },
+  {
+    key: 'body',
+    converter: webidl.nullableConverter(
+      webidl.converters.BodyInit
+    )
+  },
+  {
+    key: 'referrer',
+    converter: webidl.converters.USVString
+  },
+  {
+    key: 'referrerPolicy',
+    converter: webidl.converters.DOMString,
+    // https://w3c.github.io/webappsec-referrer-policy/#referrer-policy
+    allowedValues: [
+      '', 'no-referrer', 'no-referrer-when-downgrade',
+      'same-origin', 'origin', 'strict-origin',
+      'origin-when-cross-origin', 'strict-origin-when-cross-origin',
+      'unsafe-url'
+    ]
+  },
+  {
+    key: 'mode',
+    converter: webidl.converters.DOMString,
+    // https://fetch.spec.whatwg.org/#concept-request-mode
+    allowedValues: [
+      'same-origin', 'cors', 'no-cors', 'navigate', 'websocket'
+    ]
+  },
+  {
+    key: 'credentials',
+    converter: webidl.converters.DOMString,
+    // https://fetch.spec.whatwg.org/#requestcredentials
+    allowedValues: [
+      'omit', 'same-origin', 'include'
+    ]
+  },
+  {
+    key: 'cache',
+    converter: webidl.converters.DOMString,
+    // https://fetch.spec.whatwg.org/#requestcache
+    allowedValues: [
+      'default', 'no-store', 'reload', 'no-cache', 'force-cache',
+      'only-if-cached'
+    ]
+  },
+  {
+    key: 'redirect',
+    converter: webidl.converters.DOMString,
+    // https://fetch.spec.whatwg.org/#requestredirect
+    allowedValues: [
+      'follow', 'error', 'manual'
+    ]
+  },
+  {
+    key: 'integrity',
+    converter: webidl.converters.DOMString
+  },
+  {
+    key: 'keepalive',
+    converter: webidl.converters.boolean
+  },
+  {
+    key: 'signal',
+    converter: webidl.nullableConverter(
+      webidl.converters.AbortSignal
+    )
+  },
+  {
+    key: 'window',
+    converter: webidl.converters.any
+  }
+])
 
 module.exports = { Request, makeRequest }
