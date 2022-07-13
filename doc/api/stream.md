@@ -2789,7 +2789,7 @@ added:
 
 Returns whether the stream is readable.
 
-### `stream.Readable.toWeb(streamReadable)`
+### `stream.Readable.toWeb(streamReadable[, options])`
 
 <!-- YAML
 added: v17.0.0
@@ -2798,6 +2798,10 @@ added: v17.0.0
 > Stability: 1 - Experimental
 
 * `streamReadable` {stream.Readable}
+* `options` {Object}
+  * `strategy` {Object}
+    * `highWaterMark` {number}
+    * `size` {Function}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
