@@ -133,7 +133,7 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   // Used to synchronize access to the code cache map
   Mutex code_cache_mutex_;
 
-  static bool has_code_cache_;
+  bool has_code_cache_;
 
   friend class ::PerProcessTest;
 };

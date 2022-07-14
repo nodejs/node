@@ -1188,8 +1188,7 @@ int Start(int argc, char** argv) {
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
     if (snapshot_data != nullptr) {
-      native_module::NativeModuleLoader::RefreshCodeCache(
-          snapshot_data->code_cache);
+      NativeModuleLoader::RefreshCodeCache(snapshot_data->code_cache);
     }
     NodeMainInstance main_instance(snapshot_data,
                                    uv_default_loop(),

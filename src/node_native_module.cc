@@ -30,7 +30,8 @@ using v8::Value;
 
 NativeModuleLoader NativeModuleLoader::instance_;
 
-NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
+NativeModuleLoader::NativeModuleLoader()
+    : config_(GetConfig()), has_code_cache_(false) {
   LoadJavaScriptSource();
 }
 
@@ -39,19 +40,19 @@ NativeModuleLoader* NativeModuleLoader::GetInstance() {
 }
 
 bool NativeModuleLoader::Exists(const char* id) {
-  auto& source = NativeModuleLoader::GetInstance()->source_;
+  auto& source = GetInstance()->source_;
   return source.find(id) != source.end();
 }
 
 bool NativeModuleLoader::Add(const char* id, const UnionBytes& source) {
-  auto result = NativeModuleLoader::GetInstance()->source_.emplace(id, source);
+  auto result = GetInstance()->source_.emplace(id, source);
   return result.second;
 }
 
 Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   Local<Object> out = Object::New(isolate);
-  auto& source = NativeModuleLoader::GetInstance()->source_;
+  auto& source = GetInstance()->source_;
   for (auto const& x : source) {
     Local<String> key = OneByteString(isolate, x.first.c_str(), x.first.size());
     out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
@@ -60,7 +61,7 @@ Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context) {
 }
 
 Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate) {
-  return NativeModuleLoader::GetInstance()->config_.ToStringChecked(isolate);
+  return GetInstance()->config_.ToStringChecked(isolate);
 }
 
 std::vector<std::string> NativeModuleLoader::GetModuleIds() {
@@ -361,20 +362,17 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     const char* id,
     std::vector<Local<String>>* parameters,
     Environment* optional_env) {
-  NativeModuleLoader::Result result;
+  Result result;
   MaybeLocal<Function> maybe =
-      NativeModuleLoader::GetInstance()->LookupAndCompileInternal(
-          context, id, parameters, &result);
+      GetInstance()->LookupAndCompileInternal(context, id, parameters, &result);
   if (optional_env != nullptr) {
     RecordResult(id, result, optional_env);
   }
   return maybe;
 }
 
-bool NativeModuleLoader::has_code_cache_ = false;
-
 bool NativeModuleLoader::CompileAllModules(Local<Context> context) {
-  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  NativeModuleLoader* loader = GetInstance();
   std::vector<std::string> ids = loader->GetModuleIds();
   bool all_succeeded = true;
   for (const auto& id : ids) {
@@ -383,7 +381,7 @@ bool NativeModuleLoader::CompileAllModules(Local<Context> context) {
       continue;
     }
     v8::TryCatch bootstrapCatch(context->GetIsolate());
-    native_module::NativeModuleLoader::Result result;
+    Result result;
     USE(loader->CompileAsModule(context, id.c_str(), &result));
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
@@ -397,7 +395,7 @@ bool NativeModuleLoader::CompileAllModules(Local<Context> context) {
 }
 
 void NativeModuleLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) {
-  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  NativeModuleLoader* loader = GetInstance();
   Mutex::ScopedLock lock(loader->code_cache_mutex());
   auto in = loader->code_cache();
   for (auto const& item : *in) {
@@ -409,7 +407,7 @@ void NativeModuleLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) {
 
 void NativeModuleLoader::RefreshCodeCache(
     const std::vector<CodeCacheInfo>& in) {
-  NativeModuleLoader* loader = NativeModuleLoader::GetInstance();
+  NativeModuleLoader* loader = GetInstance();
   Mutex::ScopedLock lock(loader->code_cache_mutex());
   auto out = loader->code_cache();
   for (auto const& item : in) {
@@ -426,7 +424,7 @@ void NativeModuleLoader::RefreshCodeCache(
       out->emplace(item.id, new_cache.release());
     }
   }
-  NativeModuleLoader::has_code_cache_ = true;
+  loader->has_code_cache_ = true;
 }
 
 void NativeModuleLoader::GetModuleCategories(
@@ -438,9 +436,8 @@ void NativeModuleLoader::GetModuleCategories(
 
   // Copy from the per-process categories
   std::set<std::string> cannot_be_required =
-      NativeModuleLoader::GetInstance()->GetCannotBeRequired();
-  std::set<std::string> can_be_required =
-      NativeModuleLoader::GetInstance()->GetCanBeRequired();
+      GetInstance()->GetCannotBeRequired();
+  std::set<std::string> can_be_required = GetInstance()->GetCanBeRequired();
 
   if (!env->owns_process_state()) {
     can_be_required.erase("trace_events");
@@ -522,8 +519,7 @@ void NativeModuleLoader::ModuleIdsGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
 
-  std::vector<std::string> ids =
-      NativeModuleLoader::GetInstance()->GetModuleIds();
+  std::vector<std::string> ids = GetInstance()->GetModuleIds();
   info.GetReturnValue().Set(
       ToV8Value(isolate->GetCurrentContext(), ids).ToLocalChecked());
 }
@@ -550,8 +546,7 @@ void NativeModuleLoader::CompileFunction(
   const char* id = *id_v;
   NativeModuleLoader::Result result;
   MaybeLocal<Function> maybe =
-      NativeModuleLoader::GetInstance()->CompileAsModule(
-          env->context(), id, &result);
+      GetInstance()->CompileAsModule(env->context(), id, &result);
   RecordResult(id, result, env);
   Local<Function> fn;
   if (maybe.ToLocal(&fn)) {
@@ -562,7 +557,7 @@ void NativeModuleLoader::CompileFunction(
 void NativeModuleLoader::HasCachedBuiltins(
     const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
-      v8::Boolean::New(args.GetIsolate(), NativeModuleLoader::has_code_cache_));
+      v8::Boolean::New(args.GetIsolate(), GetInstance()->has_code_cache_));
 }
 
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize
