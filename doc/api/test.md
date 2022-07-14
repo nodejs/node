@@ -320,6 +320,10 @@ internally.
 
 <!-- YAML
 added: v18.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: add a timeout to tests and allow setting it in options.
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -339,6 +343,9 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `30_000`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -519,6 +526,10 @@ test('top level test', (t) => {
 
 <!-- YAML
 added: v18.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: add a timeout to tests and allow setting it in options.
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
@@ -538,6 +549,9 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `30_000`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
