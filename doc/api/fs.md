@@ -128,7 +128,7 @@ added: v10.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31553
-    description: Exposed as `require('node:fs/promises')`.
+    description: Exposed as `require('fs/promises')`.
   - version:
     - v11.14.0
     - v10.17.0
@@ -136,7 +136,7 @@ changes:
     description: This API is no longer experimental.
   - version: v10.1.0
     pr-url: https://github.com/nodejs/node/pull/20504
-    description: The API is accessible via `require('node:fs').promises` only.
+    description: The API is accessible via `require('fs').promises` only.
 -->
 
 The `fs/promises` API provides asynchronous file system methods that return
