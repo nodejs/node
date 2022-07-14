@@ -996,11 +996,11 @@ struct SnapshotData {
   static const size_t kNodeBaseContextIndex = 0;
   static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
 
-  DataOwnership data_ownership;
+  DataOwnership data_ownership = DataOwnership::kOwned;
 
   // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
   // building process.
-  v8::StartupData v8_snapshot_blob_data;
+  v8::StartupData v8_snapshot_blob_data{nullptr, 0};
 
   std::vector<size_t> isolate_data_indices;
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
@@ -1012,7 +1012,6 @@ struct SnapshotData {
   // v8::ScriptCompiler::CachedData is not copyable.
   std::vector<native_module::CodeCacheInfo> code_cache;
 
-  static std::unique_ptr<SnapshotData> New();
   ~SnapshotData();
 
   SnapshotData(const SnapshotData&) = delete;
@@ -1020,7 +1019,6 @@ struct SnapshotData {
   SnapshotData(SnapshotData&&) = delete;
   SnapshotData& operator=(SnapshotData&&) = delete;
 
-  // Only invoked by New().
   SnapshotData() = default;
 };
 

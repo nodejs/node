@@ -38,13 +38,6 @@ using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
-std::unique_ptr<SnapshotData> SnapshotData::New() {
-  std::unique_ptr<SnapshotData> result = std::make_unique<SnapshotData>();
-  result->data_ownership = DataOwnership::kOwned;
-  result->v8_snapshot_blob_data.data = nullptr;
-  return result;
-}
-
 SnapshotData::~SnapshotData() {
   if (data_ownership == DataOwnership::kOwned &&
       v8_snapshot_blob_data.data != nullptr) {
@@ -349,12 +342,12 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 int SnapshotBuilder::Generate(std::ostream& out,
                               const std::vector<std::string> args,
                               const std::vector<std::string> exec_args) {
-  std::unique_ptr<SnapshotData> data = SnapshotData::New();
-  int exit_code = Generate(data.get(), args, exec_args);
+  SnapshotData data;
+  int exit_code = Generate(&data, args, exec_args);
   if (exit_code != 0) {
     return exit_code;
   }
-  FormatBlob(out, data.get());
+  FormatBlob(out, &data);
   return exit_code;
 }
 
