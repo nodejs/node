@@ -662,6 +662,8 @@ maintaining the Node.js project.
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [Mesteery](https://github.com/Mesteery) -
   **Mestery** <<mestery@protonmail.com>> (he/him)
+* [MoLow](https://github.com/MoLow) -
+  **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [RaisinTen](https://github.com/RaisinTen) -
