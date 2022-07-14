@@ -119,6 +119,8 @@ Notes:
 * Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
 * Examples will use the fictional release version `1.2.3`.
+* When preparing a security release, follow the security steps in the details
+  sections.
 
 ### 0. Pre-release steps
 
@@ -216,6 +218,42 @@ Then, push to the staging branch to keep it up-to-date.
 $ git push upstream v1.x-staging
 ```
 
+<details>
+<summary>Security release</summary>
+
+Security releases with private patches need to be prepared in the `nodejs-private`
+GitHub organisation.
+
+Add the `nodejs-private` remote:
+
+```console
+$ git remote add private git@github.com:nodejs-private/node-private.git
+```
+
+For security releases, we generally try to only include the security patches.
+As there may already be commits on the `vN.x-staging` branch, it is preferable
+to checkout the `vN.x` branch and build up the release directly in a proposal
+branch.
+
+```console
+$ git checkout vN.x
+$ git reset --hard upstream/vN.x
+```
+
+The list of patches to include should be listed in the "Next Security Release"
+issue in `nodejs-private`. Ask the security release steward if you're unsure.
+
+The `git node land` tool does not work with the `nodejs-private`
+organisation. To land a PR in Node.js private, use `git cherry-pick` to apply
+each commit from the PR. You will also need to manually apply the PR
+metadata (`PR-URL`, `Reviewed-by`, etc.) by amending the commit messages. If
+known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
+
+**Note**: Do not run CI on the PRs in `nodejs-private` until CI is locked down.
+You can integrate the PRs into the proposal without running full CI.
+
+</details>
+
 ### 2. Create a new branch for the release
 
 Create a new branch named `vx.y.z-proposal`, off the corresponding staging
@@ -305,6 +343,43 @@ $ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change --pla
 Be sure that the `<a>` tag, as well as the two headings, are not indented at
 all.
 
+<details>
+<summary>Security release</summary>
+
+For security releases, it is necessary to include more detailed information
+including which vulnerabilities have been fixed, and any revert flags or
+workarounds to revert to the old behaviour.
+
+You can use the following template as a guide:
+
+```markdown
+<a id="x.y.x"></a>
+## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
+
+This is a security release.
+
+### Notable changes
+
+* <CVE Title> (High|Medium|Low)(CVE-XXXX-XXXXX)
+* ...
+
+### Commits
+
+* Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
+```
+
+Alternatively, refer to one of the [previous security release changelog entries](https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md#2022-01-10-version-1731-current-bethgriggs)
+to get an idea of the structure and level of detail.
+
+For each fix, use your judgement as to whether a subheading is necessary to
+describe the fix in more detail. Much of this information should be able to be
+lifted from the "post-release" announcement (should be available in
+`nodejs-private`). If the CVE is being fixed in multiple release lines, try to
+coordinate the changelog content between the other release so the descriptions
+are consistent.
+
+</details>
+
 At the top of the root `CHANGELOG.md` file, there is a table indexing all
 releases in each major release line. A link to the new release needs to be added
 to it. Follow the existing examples and be sure to add the release to the _top_
@@ -363,6 +438,9 @@ Notable changes:
 PR-URL: TBD
 ```
 
+<details>
+<summary>Security release</summary>
+
 For security releases, begin the commit message with the phrase
 `This is a security release.` to allow the
 [distribution indexer](https://github.com/nodejs/nodejs-dist-indexer) to
@@ -379,6 +457,8 @@ Notable changes:
 
 PR-URL: TBD
 ```
+
+</details>
 
 ### 6. Propose release on GitHub
 
@@ -410,6 +490,14 @@ good place to @-mention the relevant contributors.
 After opening the PR, update the release commit to include `PR-URL` metadata and
 force-push the proposal.
 
+<details>
+<summary>Security release</summary>
+
+If there are private security patches, remember to push and open the proposal
+in the `nodejs-private` GitHub repository.
+
+</details>
+
 ### 7. Ensure that the release branch is stable
 
 Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
@@ -425,6 +513,15 @@ purpose. Run it once with the base `vx.x` branch as a reference and with the
 proposal branch to check if new regressions could be introduced in the
 ecosystem.
 
+<details>
+<summary>Security release</summary>
+
+If there are private security patches, do not run any CI jobs on the proposal
+until CI has been locked down. The security steward should be coordinating this
+with the Build Working Group.
+
+</details>
+
 ### 8. Produce a nightly build _(optional)_
 
 If there is a reason to produce a test release for the purpose of having others
@@ -436,6 +533,13 @@ enter a proper length commit SHA, enter a date string, and select "nightly" for
 
 This is particularly recommended if there has been recent work relating to the
 macOS or Windows installers as they are not tested in any way by CI.
+
+<details>
+<summary>Security release</summary>
+
+Do not produce a release candidate build.
+
+</details>
 
 ### 9. Produce release builds
 
@@ -555,6 +659,26 @@ $ git rebase v1.x
 $ git push upstream v1.x-staging
 ```
 
+<details>
+<summary>Security release</summary>
+
+For security releases, you can start merging the release in the `nodejs-private`
+GitHub organisation in advance by following the same steps:
+
+```console
+$ git checkout v1.x
+$ git merge --ff-only v1.2.3-proposal
+$ git push private v1.x
+$ git checkout v1.x-staging
+$ git rebase v1.x
+$ git push private v1.x-staging
+```
+
+Once all releasers are ready, you can push each of the branches to the public
+repository.
+
+</details>
+
 ### 13. Cherry-pick the release commit to `main`
 
 ```console
@@ -584,6 +708,27 @@ $ git push upstream main
 ```
 
 **Do not** cherry-pick the "Working on vx.y.z" commit to `main`.
+
+<details>
+<summary>Security release</summary>
+
+For security releases, you will also need to land the fixes on the `main`
+branch (if they apply there). Often, you can just cherry-pick the same commit
+that landed in the `current` security release which should already have the
+metadata.
+
+It is useful to first push the patches to `private/main` to check that the
+GitHub actions runs pass, before pushing to `upstream/main`:
+
+```console
+$ git checkout main
+$ git reset --hard upstream/main
+$ git cherry-pick ... # apply the patches which apply to main
+$ git push private main # push to private main first run GitHub actions
+$ git push upstream main
+```
+
+</details>
 
 ### 14. Push the release tag
 
@@ -743,6 +888,13 @@ will be shared with the community in the email to coordinate these
 announcements.
 
 Ping the IRC ops and the other [Partner Communities][] liaisons.
+
+<details>
+<summary>Security release</summary>
+
+Let the security release steward know the releases are available.
+
+</details>
 
 ### 21. Celebrate
 
