@@ -5,5 +5,7 @@ tasks:
 # Ref: https://www.gitpod.io/docs/prebuilds#github-specific-configuration
 github:
   prebuilds:
-    # add a "Review in Gitpod" button as a comment to pull requests (defaults to true)
-    addComment: false
+    # enable for pull requests coming from this repo (defaults to true)
+    pullRequests: false
+    # add a check to pull requests (defaults to true)
+    addCheck: false
