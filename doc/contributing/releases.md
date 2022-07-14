@@ -516,7 +516,7 @@ ecosystem.
 
 If there are private security patches, do not run any CI jobs on the proposal
 until CI has been locked down. The security steward should be coordinating this
- with the Build Working Group.
+with the Build Working Group.
 
 </details>
 
