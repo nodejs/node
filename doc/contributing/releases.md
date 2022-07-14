@@ -352,19 +352,21 @@ workarounds to revert to the old behaviour.
 
 You can use the following template as a guide:
 
-    <a id="x.y.x"></a>
-    ## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
+```markdown
+<a id="x.y.x"></a>
+## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
 
-    This is a security release.
+This is a security release.
 
-    ### Notable changes
+### Notable changes
 
-    * <CVE Title> (High|Medium|Low)(CVE-XXXX-XXXXX)
-    * ...
+* <CVE Title> (High|Medium|Low)(CVE-XXXX-XXXXX)
+* ...
 
-    ### Commits
+### Commits
 
-    * Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
+* Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
+```
 
 Alternatively, refer to one of the [previous security release changelog entries](https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md#2022-01-10-version-1731-current-bethgriggs)
 to get an idea of the structure and level of detail.
@@ -663,12 +665,14 @@ $ git push upstream v1.x-staging
 For security releases, you can start merging the release in the `nodejs-private`
 GitHub organisation in advance by following the same steps:
 
-    $ git checkout v1.x
-    $ git merge --ff-only v1.2.3-proposal
-    $ git push private v1.x
-    $ git checkout v1.x-staging
-    $ git rebase v1.x
-    $ git push private v1.x-staging
+```console
+$ git checkout v1.x
+$ git merge --ff-only v1.2.3-proposal
+$ git push private v1.x
+$ git checkout v1.x-staging
+$ git rebase v1.x
+$ git push private v1.x-staging
+```
 
 Once all releasers are ready, you can push each of the branches to the public
 repository.
