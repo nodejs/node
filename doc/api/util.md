@@ -1477,7 +1477,7 @@ added: v10.0.0
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34055
-    description: Exposed as `require('node:util/types')`.
+    description: Exposed as `require('util/types')`.
 -->
 
 `util.types` provides type checks for different kinds of built-in objects.

@@ -447,7 +447,7 @@ added: v0.11.15
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('node:path/posix')`.
+    description: Exposed as `require('path/posix')`.
 -->
 
 * {Object}
@@ -592,7 +592,7 @@ added: v0.11.15
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('node:path/win32')`.
+    description: Exposed as `require('path/win32')`.
 -->
 
 * {Object}
