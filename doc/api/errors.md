@@ -265,7 +265,8 @@ added: v16.9.0
 * {any}
 
 The `error.cause` property is the cause of the error, as set by calling
-`new Error(message, { cause })`. It is `undefined` if no cause has been set.
+`new Error(message, { cause })`. It is not set if the `cause` option is not
+provided.
 
 This property allows errors to be chained. When serializing `Error` objects,
 [`util.inspect()`][] recursively serializes `error.cause` if it is set.
