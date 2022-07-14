@@ -26,7 +26,6 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -87,18 +86,10 @@ void LogSecret(
   keylog_cb(ssl.get(), line.c_str());
 }
 
-bool SetALPN(const SSLPointer& ssl, const std::string& alpn) {
-  return SSL_set_alpn_protos(
-      ssl.get(),
-      reinterpret_cast<const uint8_t*>(alpn.c_str()),
-      alpn.length()) == 0;
-}
-
-bool SetALPN(const SSLPointer& ssl, Local<Value> alpn) {
-  if (!alpn->IsArrayBufferView())
-    return false;
-  ArrayBufferViewContents<unsigned char> protos(alpn.As<ArrayBufferView>());
-  return SSL_set_alpn_protos(ssl.get(), protos.data(), protos.length()) == 0;
+bool SetALPN(const SSLPointer& ssl, std::string_view alpn) {
+  return SSL_set_alpn_protos(ssl.get(),
+                             reinterpret_cast<const uint8_t*>(alpn.data()),
+                             alpn.length()) == 0;
 }
 
 MaybeLocal<Value> GetSSLOCSPResponse(

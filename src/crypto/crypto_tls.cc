@@ -1530,7 +1530,8 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
   if (w->is_client()) {
-    CHECK(SetALPN(w->ssl_, args[0]));
+    ArrayBufferViewContents<char> protos(args[0].As<ArrayBufferView>());
+    CHECK(SetALPN(w->ssl_, {protos.data(), protos.length()}));
   } else {
     CHECK(
         w->object()->SetPrivate(
