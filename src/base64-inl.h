@@ -1,3 +1,32 @@
+/*
+ * Copyright 2019 Daniel Lemire, Wojciech Muła
+
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef SRC_BASE64_INL_H_
 #define SRC_BASE64_INL_H_
 
@@ -120,7 +149,7 @@ size_t base64_decode(char* const dst, const size_t dstlen,
 }
 
 
-inline size_t base64_encode(const char* src,
+inline size_t base64_encode_scalar(const char* src,
                             size_t slen,
                             char* dst,
                             size_t dlen,
@@ -181,6 +210,96 @@ inline size_t base64_encode(const char* src,
 
   return dlen;
 }
+
+
+#if (defined(__x86_64) || defined(__x86_64__)) && \
+    (defined(__GNUC__) || defined(__GNUC))
+#pragma GCC target("avx512vl", "avx512vbmi")
+#include <immintrin.h>
+inline size_t base64_encode_avx512vl(const char* src,
+                                     size_t slen,
+                                     char* dst,
+                                     size_t dlen,
+                                     Base64Mode mode) {
+  // Do the exact check as scalar algorithm.
+  CHECK(dlen >= base64_encoded_size(slen, mode) &&
+        "not enough space provided for base64 encode");
+  size_t dlen_remain = dlen;
+  const char* lookup_tbl = base64_select_table(mode);
+  // 32-bit input
+  // [ 0  0  0  0  0  0  0  0|c1 c0 d5 d4 d3 d2 d1 d0|
+  //  b3 b2 b1 b0 c5 c4 c3 c2|a5 a4 a3 a2 a1 a0 b5 b4]
+  // output order  [1, 2, 0, 1]
+  // [b3 b2 b1 b0 c5 c4 c3 c2|c1 c0 d5 d4 d3 d2 d1 d0|
+  //  a5 a4 a3 a2 a1 a0 b5 b4|b3 b2 b1 b0 c3 c2 c1 c0]
+
+  const __m512i shuffle_input = _mm512_setr_epi32(
+      0x01020001, 0x04050304, 0x07080607, 0x0a0b090a,
+      0x0d0e0c0d, 0x10110f10, 0x13141213, 0x16171516,
+      0x191a1819, 0x1c1d1b1c, 0x1f201e1f, 0x22232122,
+      0x25262425, 0x28292728, 0x2b2c2a2b, 0x2e2f2d2e);
+  const __m512i lookup = _mm512_loadu_si512((const __m512i*)(lookup_tbl));
+
+  while (slen >= 64) {
+    const __m512i v = _mm512_loadu_si512((const __m512i*)src);
+
+    // Reorder bytes
+    // [b3 b2 b1 b0 c5 c4 c3 c2|c1 c0 d5 d4 d3 d2 d1 d0|
+    //  a5 a4 a3 a2 a1 a0 b5 b4|b3 b2 b1 b0 c3 c2 c1 c0]
+    const __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
+
+    // After multishift a single 32-bit lane has following layout
+    // [c1 c0 d5 d4 d3 d2 d1 d0|b1 b0 c5 c4 c3 c2 c1 c0|
+    //  a1 a0 b5 b4 b3 b2 b1 b0|d1 d0 a5 a4 a3 a2 a1 a0]
+    // (a = [10:17], b = [4:11], c = [22:27], d = [16:21])
+
+    // 48, 54, 36, 42, 16, 22, 4, 10
+    const __m512i shifts  = _mm512_set1_epi64(0x3036242a1016040alu);
+    const __m512i indices = _mm512_multishift_epi64_epi8(shifts, in);
+
+    // Note: the two higher bits of each indices' byte have garbage
+    // but the following permutexvar instruction masks them out
+
+    // Translation 6-bit values to ASCII.
+    const __m512i result = _mm512_permutexvar_epi8(indices, lookup);
+
+    _mm512_storeu_si512(reinterpret_cast<__m512i*>(dst), result);
+
+    dlen_remain -= 64;
+    dst += 64;
+    src += 48;
+    slen -= 48;
+  }
+
+  if (slen > 0)
+      base64_encode_scalar(src, slen, dst, dlen_remain, mode);
+
+  return dlen;
+}
+
+
+inline size_t base64_encode(const char* src,
+                            size_t slen,
+                            char* dst,
+                            size_t dlen,
+                            Base64Mode mode) {
+  if (__builtin_cpu_supports("avx512vl") && \
+      __builtin_cpu_supports("avx512vbmi")) {
+    return base64_encode_avx512vl(src, slen, dst, dlen, mode);
+  } else {
+    return base64_encode_scalar(src, slen, dst, dlen, mode);
+  }
+}
+#pragma GCC reset_options
+#else
+inline size_t base64_encode(const char* src,
+                            size_t slen,
+                            char* dst,
+                            size_t dlen,
+                            Base64Mode mode) {
+  return base64_encode_scalar(src, slen, dst, dlen, mode);
+}
+#endif
 
 }  // namespace node
 
