@@ -90,7 +90,7 @@ class InstructionOperandConverter {
     return ToExternalReference(instr_->InputAt(index));
   }
 
-  Handle<Code> InputCode(size_t index) {
+  Handle<CodeT> InputCode(size_t index) {
     return ToCode(instr_->InputAt(index));
   }
 
@@ -168,7 +168,7 @@ class InstructionOperandConverter {
     return ToConstant(op).ToExternalReference();
   }
 
-  Handle<Code> ToCode(InstructionOperand* op) {
+  Handle<CodeT> ToCode(InstructionOperand* op) {
     return ToConstant(op).ToCode();
   }
 

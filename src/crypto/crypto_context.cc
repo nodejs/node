@@ -110,20 +110,20 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // Try getting issuer from a cert store
   if (ret) {
     if (issuer == nullptr) {
-      ret = SSL_CTX_get_issuer(ctx, x.get(), &issuer);
-      ret = ret < 0 ? 0 : 1;
+      // TODO(tniessen): SSL_CTX_get_issuer does not allow the caller to
+      // distinguish between a failed operation and an empty result. Fix that
+      // and then handle the potential error properly here (set ret to 0).
+      *issuer_ = SSL_CTX_get_issuer(ctx, x.get());
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
     } else {
       // Increment issuer reference count
-      issuer = X509_dup(issuer);
-      if (issuer == nullptr) {
+      issuer_->reset(X509_dup(issuer));
+      if (!*issuer_) {
         ret = 0;
       }
     }
   }
-
-  issuer_->reset(issuer);
 
   if (ret && x != nullptr) {
     cert->reset(X509_dup(x.get()));
@@ -508,6 +508,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_.reset(SSL_CTX_new(method));
+  if (!sc->ctx_) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
   // Disable SSLv2 in the case when method == TLS_method() and the

@@ -66,7 +66,9 @@ class ExternalReferenceRegistry {
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
   V(messaging)                                                                 \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
+  V(options)                                                                   \
   V(os)                                                                        \
   V(performance)                                                               \
   V(process_methods)                                                           \
@@ -88,6 +90,7 @@ class ExternalReferenceRegistry {
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(zlib)                                                                      \
+  V(wasm_web_api)                                                              \
   V(worker)
 
 #if NODE_HAVE_I18N_SUPPORT

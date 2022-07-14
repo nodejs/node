@@ -80,7 +80,6 @@ class EffectControlLinearizer {
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
-  void LowerDynamicCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckClosure(Node* node, Node* frame_state);
@@ -163,6 +162,7 @@ class EffectControlLinearizer {
   Node* LowerStringConcat(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
+  Node* StringCharCodeAt(Node* receiver, Node* position);
   Node* LowerStringCodePointAt(Node* node);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
@@ -184,8 +184,6 @@ class EffectControlLinearizer {
   void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
   void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
   Node* LowerTypeOf(Node* node);
-  void LowerTierUpCheck(Node* node);
-  void LowerUpdateInterruptBudget(Node* node);
   Node* LowerToBoolean(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -342,6 +340,7 @@ class EffectControlLinearizer {
   Zone* temp_zone_;
   MaintainSchedule maintain_schedule_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
+  bool inside_region_ = false;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
   JSHeapBroker* broker_;
@@ -625,7 +624,7 @@ void EffectControlLinearizer::Run() {
       continue;
     }
 
-    gasm()->Reset(block);
+    gasm()->Reset();
 
     BasicBlock::iterator instr = block->begin();
     BasicBlock::iterator end_instr = block->end();
@@ -764,8 +763,6 @@ void EffectControlLinearizer::Run() {
       ProcessNode(node, &frame_state);
     }
 
-    block = gasm()->FinalizeCurrentBlock(block);
-
     switch (block->control()) {
       case BasicBlock::kGoto:
       case BasicBlock::kNone:
@@ -864,6 +861,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
   if (node->opcode() == IrOpcode::kFinishRegion) {
     // Reset the current region observability.
     region_observability_ = RegionObservability::kObservable;
+    inside_region_ = false;
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
     return RemoveRenameNode(node);
@@ -874,6 +872,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     // StoreField and other operators).
     DCHECK_NE(RegionObservability::kNotObservable, region_observability_);
     region_observability_ = RegionObservabilityOf(node->op());
+    inside_region_ = true;
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
     return RemoveRenameNode(node);
@@ -889,6 +888,14 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     DCHECK_EQ(RegionObservability::kObservable, region_observability_);
     *frame_state = NodeProperties::GetFrameStateInput(node);
     return;
+  }
+
+  if (node->opcode() == IrOpcode::kStoreField) {
+    // Mark stores outside a region as non-initializing and non-transitioning.
+    if (!inside_region_) {
+      const FieldAccess access = FieldAccessOf(node->op());
+      NodeProperties::ChangeOp(node, simplified()->StoreField(access, false));
+    }
   }
 
   // The IfSuccess nodes should always start a basic block (and basic block
@@ -972,9 +979,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
-      break;
-    case IrOpcode::kDynamicCheckMaps:
-      LowerDynamicCheckMaps(node, frame_state);
       break;
     case IrOpcode::kCompareMaps:
       result = LowerCompareMaps(node);
@@ -1159,12 +1163,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
-      break;
-    case IrOpcode::kTierUpCheck:
-      LowerTierUpCheck(node);
-      break;
-    case IrOpcode::kUpdateInterruptBudget:
-      LowerUpdateInterruptBudget(node);
       break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
@@ -1929,56 +1927,6 @@ void EffectControlLinearizer::TryMigrateInstance(Node* value, Node* value_map) {
           __ ExternalConstant(ExternalReference::Create(id)),
           __ Int32Constant(1), __ NoContextConstant());
   __ Goto(&done);
-  __ Bind(&done);
-}
-
-void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
-                                                    Node* frame_state_node) {
-  DynamicCheckMapsParameters const& p =
-      DynamicCheckMapsParametersOf(node->op());
-  FrameState frame_state(frame_state_node);
-  Node* value = node->InputAt(0);
-
-  FeedbackSource const& feedback = p.feedback();
-  Node* feedback_vector = __ HeapConstant(feedback.vector);
-  Node* slot_index = __ IntPtrConstant(feedback.index());
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* actual_handler =
-      p.handler()->IsSmi()
-          ? __ SmiConstant(Smi::ToInt(*p.handler()))
-          : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
-
-  auto done = __ MakeLabel();
-
-  ZoneHandleSet<Map> maps = p.maps();
-  size_t const map_count = maps.size();
-  for (size_t i = 0; i < map_count; ++i) {
-    Node* map = __ HeapConstant(maps[i]);
-    Node* check = __ TaggedEqual(value_map, map);
-    if (i == map_count - 1) {
-      if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
-        auto migrate = __ MakeDeferredLabel();
-        __ BranchWithCriticalSafetyCheck(check, &done, &migrate);
-
-        __ Bind(&migrate);
-        TryMigrateInstance(value, value_map);
-
-        // Reload the current map of the {value} before performing the dynanmic
-        // map check.
-        value_map = __ LoadField(AccessBuilder::ForMap(), value);
-      }
-
-      __ DynamicCheckMapsWithDeoptUnless(check, slot_index, value_map,
-                                         actual_handler, feedback_vector,
-                                         frame_state);
-      __ Goto(&done);
-    } else {
-      auto next_map = __ MakeLabel();
-      __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
-      __ Bind(&next_map);
-    }
-  }
-
   __ Bind(&done);
 }
 
@@ -3588,85 +3536,6 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
                  __ NoContextConstant());
 }
 
-void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
-  TierUpCheckNode n(node);
-  TNode<FeedbackVector> vector = n.feedback_vector();
-
-  Node* optimization_state =
-      __ LoadField(AccessBuilder::ForFeedbackVectorFlags(), vector);
-
-  // TODO(jgruber): The branch introduces a sequence of spills before the
-  // branch (and restores at `fallthrough`) that are completely unnecessary
-  // since the IfFalse continuation ends in a tail call. Investigate how to
-  // avoid these and fix it.
-
-  auto fallthrough = __ MakeLabel();
-  auto has_optimized_code_or_marker = __ MakeDeferredLabel();
-  __ BranchWithHint(
-      __ Word32Equal(
-          __ Word32And(optimization_state,
-                       __ Uint32Constant(
-                           FeedbackVector::
-                               kHasNoTopTierCodeOrCompileOptimizedMarkerMask)),
-          __ Int32Constant(0)),
-      &fallthrough, &has_optimized_code_or_marker, BranchHint::kTrue);
-
-  __ Bind(&has_optimized_code_or_marker);
-
-  // The optimization marker field contains a non-trivial value, and some
-  // action has to be taken. For example, perhaps tier-up has been requested
-  // and we need to kick off a compilation job; or optimized code is available
-  // and should be tail-called.
-  //
-  // Currently we delegate these tasks to the InterpreterEntryTrampoline.
-  // TODO(jgruber,v8:8888): Consider a dedicated builtin instead.
-
-  TNode<HeapObject> code =
-      __ HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
-
-  JSTrampolineDescriptor descriptor;
-  CallDescriptor::Flags flags = CallDescriptor::kFixedTargetRegister |
-                                CallDescriptor::kIsTailCallForTierUp;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-      Operator::kNoProperties);
-  Node* nodes[] = {code,        n.target(),  n.new_target(), n.input_count(),
-                   n.context(), __ effect(), __ control()};
-
-#ifdef DEBUG
-  static constexpr int kCodeContextEffectControl = 4;
-  DCHECK_EQ(arraysize(nodes),
-            descriptor.GetParameterCount() + kCodeContextEffectControl);
-#endif  // DEBUG
-
-  __ TailCall(call_descriptor, arraysize(nodes), nodes);
-
-  __ Bind(&fallthrough);
-}
-
-void EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
-  UpdateInterruptBudgetNode n(node);
-  TNode<FeedbackCell> feedback_cell = n.feedback_cell();
-  TNode<Int32T> budget = __ LoadField<Int32T>(
-      AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell);
-  Node* new_budget = __ Int32Add(budget, __ Int32Constant(n.delta()));
-  __ StoreField(AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell,
-                new_budget);
-  if (n.delta() < 0) {
-    auto next = __ MakeLabel();
-    auto if_budget_exhausted = __ MakeDeferredLabel();
-    __ Branch(__ Int32LessThan(new_budget, __ Int32Constant(0)),
-              &if_budget_exhausted, &next);
-
-    __ Bind(&if_budget_exhausted);
-    CallBuiltin(Builtin::kBytecodeBudgetInterruptFromCode,
-                node->op()->properties(), feedback_cell);
-    __ Goto(&next);
-
-    __ Bind(&next);
-  }
-}
-
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
   Node* obj = node->InputAt(0);
   Callable const callable =
@@ -3683,10 +3552,8 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
   Node* arguments_length = ChangeIntPtrToSmi(
       __ Load(MachineType::Pointer(), __ LoadFramePointer(),
               __ IntPtrConstant(StandardFrameConstants::kArgCOffset)));
-  if (kJSArgcIncludesReceiver) {
-    arguments_length =
-        __ SmiSub(arguments_length, __ SmiConstant(kJSArgcReceiverSlots));
-  }
+  arguments_length =
+      __ SmiSub(arguments_length, __ SmiConstant(kJSArgcReceiverSlots));
   return arguments_length;
 }
 
@@ -3700,10 +3567,8 @@ Node* EffectControlLinearizer::LowerRestLength(Node* node) {
   Node* arguments_length = ChangeIntPtrToSmi(
       __ Load(MachineType::Pointer(), frame,
               __ IntPtrConstant(StandardFrameConstants::kArgCOffset)));
-  if (kJSArgcIncludesReceiver) {
-    arguments_length =
-        __ SmiSub(arguments_length, __ SmiConstant(kJSArgcReceiverSlots));
-  }
+  arguments_length =
+      __ SmiSub(arguments_length, __ SmiConstant(kJSArgcReceiverSlots));
   Node* rest_length =
       __ SmiSub(arguments_length, __ SmiConstant(formal_parameter_count));
   __ GotoIf(__ SmiLessThan(rest_length, __ SmiConstant(0)), &done,
@@ -3964,10 +3829,8 @@ Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
-  Node* receiver = node->InputAt(0);
-  Node* position = node->InputAt(1);
-
+Node* EffectControlLinearizer::StringCharCodeAt(Node* receiver,
+                                                Node* position) {
   // We need a loop here to properly deal with indirect strings
   // (SlicedString, ConsString and ThinString).
   auto loop = __ MakeLoopLabel(MachineRepresentation::kTagged,
@@ -4113,19 +3976,41 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   return loop_done.PhiAt(0);
 }
 
+Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
+  Node* receiver = node->InputAt(0);
+  Node* position = node->InputAt(1);
+  return StringCharCodeAt(receiver, position);
+}
+
 Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kStringCodePointAt);
-  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
-                 position, __ NoContextConstant());
+  auto return_result = __ MakeLabel(MachineRepresentation::kWord32);
+  Node* first_code_unit = StringCharCodeAt(receiver, position);
+
+  __ GotoIfNot(
+      __ Word32Equal(__ Word32And(first_code_unit, __ Int32Constant(0xFC00)),
+                     __ Int32Constant(0xD800)),
+      &return_result, BranchHint::kFalse, first_code_unit);
+
+  auto length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
+  auto next_index = __ IntAdd(position, __ IntPtrConstant(1));
+  __ GotoIfNot(__ IntLessThan(next_index, length), &return_result,
+               first_code_unit);
+  Node* second_code_unit = StringCharCodeAt(receiver, next_index);
+  __ GotoIfNot(
+      __ Word32Equal(__ Word32And(second_code_unit, __ Int32Constant(0xFC00)),
+                     __ Int32Constant(0xDC00)),
+      &return_result, first_code_unit);
+
+  auto surrogate_offset = __ Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
+  auto result = __ Int32Add(__ Word32Shl(first_code_unit, __ Int32Constant(10)),
+                            __ Int32Add(second_code_unit, surrogate_offset));
+  __ Goto(&return_result, result);
+
+  __ Bind(&return_result);
+  return return_result.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,
@@ -4972,36 +4857,6 @@ void EffectControlLinearizer::LowerStoreMessage(Node* node) {
   __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
 }
 
-namespace {
-MachineType MachineTypeFor(CTypeInfo::Type type) {
-  switch (type) {
-    case CTypeInfo::Type::kVoid:
-      return MachineType::AnyTagged();
-    case CTypeInfo::Type::kBool:
-      return MachineType::Bool();
-    case CTypeInfo::Type::kInt32:
-      return MachineType::Int32();
-    case CTypeInfo::Type::kUint32:
-      return MachineType::Uint32();
-    case CTypeInfo::Type::kInt64:
-      return MachineType::Int64();
-    case CTypeInfo::Type::kAny:
-      static_assert(sizeof(AnyCType) == 8,
-                    "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
-      return MachineType::Int64();
-    case CTypeInfo::Type::kUint64:
-      return MachineType::Uint64();
-    case CTypeInfo::Type::kFloat32:
-      return MachineType::Float32();
-    case CTypeInfo::Type::kFloat64:
-      return MachineType::Float64();
-    case CTypeInfo::Type::kV8Value:
-    case CTypeInfo::Type::kApiObject:
-      return MachineType::AnyTagged();
-  }
-}
-}  // namespace
-
 Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
     Node* node, ElementsKind expected_elements_kind,
     GraphAssemblerLabel<0>* bailout) {
@@ -5320,15 +5175,14 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
            value_input_count);
 
   Node* stack_slot = nullptr;
+  int kAlign = alignof(v8::FastApiCallbackOptions);
+  int kSize = sizeof(v8::FastApiCallbackOptions);
+  // If this check fails, you've probably added new fields to
+  // v8::FastApiCallbackOptions, which means you'll need to write code
+  // that initializes and reads from them too.
+  CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
+  stack_slot = __ StackSlot(kSize, kAlign);
   if (c_signature->HasOptions()) {
-    int kAlign = alignof(v8::FastApiCallbackOptions);
-    int kSize = sizeof(v8::FastApiCallbackOptions);
-    // If this check fails, you've probably added new fields to
-    // v8::FastApiCallbackOptions, which means you'll need to write code
-    // that initializes and reads from them too.
-    CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-    stack_slot = __ StackSlot(kSize, kAlign);
-
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         stack_slot,
@@ -5339,17 +5193,29 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
              n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
+  } else {
+    __ Store(
+        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
+        stack_slot,
+        0,  // fallback = false
+        __ Int32Constant(0));
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             0,  // no data
+             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
   }
 
   MachineSignature::Builder builder(
       graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
+  MachineType return_type =
+      MachineType::TypeForCType(c_signature->ReturnInfo());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
     CTypeInfo type = c_signature->ArgumentInfo(i);
     MachineType machine_type =
         type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineTypeFor(type.GetType())
+            ? MachineType::TypeForCType(type)
             : MachineType::AnyTagged();
     builder.AddParam(machine_type);
   }
@@ -5487,10 +5353,8 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
     __ Branch(is_zero, &if_success, &if_error);
   } else {
-    // If c_call_result is nullptr, we didn't execute the fast path, so
-    // we need to follow the slow path.
-    Node* is_zero = __ WordEqual(c_call_result, __ IntPtrConstant(0));
-    __ Branch(is_zero, &if_error, &if_success);
+    Node* true_constant = __ TrueConstant();
+    __ Branch(true_constant, &if_success, &if_error);
   }
 
   __ Bind(&if_success);
@@ -6818,7 +6682,7 @@ Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
   DCHECK(machine()->Is64());
   DCHECK_EQ(bitfield == nullptr, digit == nullptr);
   static constexpr auto zero_bitfield =
-      BigInt::SignBits::update(BigInt::LengthBits::encode(0), 0);
+      BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
 
   Node* map = __ HeapConstant(factory()->bigint_map());
 
@@ -6846,27 +6710,10 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone, base::nullopt, nullptr);
+  JSGraphAssembler graph_assembler_(graph, temp_zone);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
                                      MaintainSchedule::kDiscard, broker);
-  linearizer.Run();
-}
-
-void LowerToMachineSchedule(JSGraph* js_graph, Schedule* schedule,
-                            Zone* temp_zone,
-                            SourcePositionTable* source_positions,
-                            NodeOriginTable* node_origins,
-                            JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler(js_graph, temp_zone, base::nullopt,
-                                   schedule);
-  EffectControlLinearizer linearizer(js_graph, schedule, &graph_assembler,
-                                     temp_zone, source_positions, node_origins,
-                                     MaintainSchedule::kMaintain, broker);
-  MemoryLowering memory_lowering(js_graph, temp_zone, &graph_assembler);
-  SelectLowering select_lowering(&graph_assembler, js_graph->graph());
-  graph_assembler.AddInlineReducer(&memory_lowering);
-  graph_assembler.AddInlineReducer(&select_lowering);
   linearizer.Run();
 }
 

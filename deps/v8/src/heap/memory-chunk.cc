@@ -6,9 +6,12 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 
@@ -116,84 +119,87 @@ PageAllocator::Permission DefaultWritableCodePermissions() {
 
 }  // namespace
 
-MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                     Executability executable) {
-  MemoryChunk* chunk = static_cast<MemoryChunk*>(basic_chunk);
-
-  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
+MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                         Address area_start, Address area_end,
+                         VirtualMemory reservation, Executability executable,
+                         PageSize page_size)
+    : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
+                       std::move(reservation)) {
+  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_NEW], nullptr);
+  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_OLD], nullptr);
+  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_SHARED], nullptr);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_CODE],
-                                         nullptr);
+    base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_CODE], nullptr);
   }
-  base::AsAtomicPointer::Release_Store(&chunk->sweeping_slot_set_, nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
+  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_NEW], nullptr);
+  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_OLD], nullptr);
+  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_SHARED],
                                        nullptr);
-  base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
-                                       nullptr);
-  chunk->invalidated_slots_[OLD_TO_NEW] = nullptr;
-  chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
+  invalidated_slots_[OLD_TO_NEW] = nullptr;
+  invalidated_slots_[OLD_TO_OLD] = nullptr;
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // Not actually used but initialize anyway for predictability.
-    chunk->invalidated_slots_[OLD_TO_CODE] = nullptr;
+    invalidated_slots_[OLD_TO_CODE] = nullptr;
   }
-  chunk->progress_bar_.Initialize();
-  chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
-  chunk->page_protection_change_mutex_ = new base::Mutex();
-  chunk->write_unprotect_counter_ = 0;
-  chunk->mutex_ = new base::Mutex();
-  chunk->young_generation_bitmap_ = nullptr;
+  progress_bar_.Initialize();
+  set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
+  page_protection_change_mutex_ = new base::Mutex();
+  write_unprotect_counter_ = 0;
+  mutex_ = new base::Mutex();
+  young_generation_bitmap_ = nullptr;
 
-  chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
-      0;
-  chunk->external_backing_store_bytes_
-      [ExternalBackingStoreType::kExternalString] = 0;
+  external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
+  external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] = 0;
 
-  chunk->categories_ = nullptr;
+  categories_ = nullptr;
 
-  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
+  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(this,
                                                                         0);
   if (executable == EXECUTABLE) {
-    chunk->SetFlag(IS_EXECUTABLE);
+    SetFlag(IS_EXECUTABLE);
     if (heap->write_protect_code_memory()) {
-      chunk->write_unprotect_counter_ =
+      write_unprotect_counter_ =
           heap->code_space_memory_modification_scope_depth();
     } else {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
-      DCHECK(IsAligned(chunk->area_start(), page_size));
-      size_t area_size =
-          RoundUp(chunk->area_end() - chunk->area_start(), page_size);
-      CHECK(chunk->reservation_.SetPermissions(
-          chunk->area_start(), area_size, DefaultWritableCodePermissions()));
+      DCHECK(IsAligned(area_start_, page_size));
+      size_t area_size = RoundUp(area_end_ - area_start_, page_size);
+      CHECK(reservation_.SetPermissions(area_start_, area_size,
+                                        DefaultWritableCodePermissions()));
     }
   }
 
-  if (chunk->owner()->identity() == CODE_SPACE) {
-    chunk->code_object_registry_ = new CodeObjectRegistry();
+  if (owner()->identity() == CODE_SPACE) {
+    code_object_registry_ = new CodeObjectRegistry();
   } else {
-    chunk->code_object_registry_ = nullptr;
+    code_object_registry_ = nullptr;
   }
 
-  chunk->possibly_empty_buckets_.Initialize();
+  possibly_empty_buckets_.Initialize();
+
+  if (page_size == PageSize::kRegular) {
+    active_system_pages_.Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
+                              MemoryAllocator::GetCommitPageSizeBits(), size());
+  } else {
+    // We do not track active system pages for large pages.
+    active_system_pages_.Clear();
+  }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (heap->IsShared()) chunk->SetFlag(IN_SHARED_HEAP);
+  if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
 #endif
 
 #ifdef DEBUG
-  ValidateOffsets(chunk);
+  ValidateOffsets(this);
 #endif
-
-  return chunk;
 }
 
-size_t MemoryChunk::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits() || owner_identity() == LO_SPACE)
-    return size();
-  return high_water_mark_;
+size_t MemoryChunk::CommittedPhysicalMemory() const {
+  if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
+  return active_system_pages_.Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
@@ -237,7 +243,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 
   possibly_empty_buckets_.Release();
   ReleaseSlotSet<OLD_TO_NEW>();
-  ReleaseSweepingSlotSet();
   ReleaseSlotSet<OLD_TO_OLD>();
   if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
@@ -259,6 +264,8 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
 
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
+template V8_EXPORT_PRIVATE SlotSet*
+MemoryChunk::AllocateSlotSet<OLD_TO_SHARED>();
 #ifdef V8_EXTERNAL_CODE_SPACE
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
 #endif  // V8_EXTERNAL_CODE_SPACE
@@ -266,10 +273,6 @@ template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
   return AllocateSlotSet(&slot_set_[type]);
-}
-
-SlotSet* MemoryChunk::AllocateSweepingSlotSet() {
-  return AllocateSlotSet(&sweeping_slot_set_);
 }
 
 SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
@@ -286,6 +289,7 @@ SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
 
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
+template void MemoryChunk::ReleaseSlotSet<OLD_TO_SHARED>();
 #ifdef V8_EXTERNAL_CODE_SPACE
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
 #endif  // V8_EXTERNAL_CODE_SPACE
@@ -293,10 +297,6 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
   ReleaseSlotSet(&slot_set_[type]);
-}
-
-void MemoryChunk::ReleaseSweepingSlotSet() {
-  ReleaseSlotSet(&sweeping_slot_set_);
 }
 
 void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
@@ -308,6 +308,7 @@ void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
 
 template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_NEW>();
 template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
+template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_SHARED>();
 
 template <RememberedSetType type>
 TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
@@ -324,6 +325,7 @@ TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
 
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
+template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_SHARED>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseTypedSlotSet() {
@@ -429,9 +431,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->live_byte_count_) - chunk->address(),
       MemoryChunkLayout::kLiveByteCountOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->sweeping_slot_set_) - chunk->address(),
-      MemoryChunkLayout::kSweepingSlotSetOffset);
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->typed_slot_set_) - chunk->address(),
       MemoryChunkLayout::kTypedSlotSetOffset);

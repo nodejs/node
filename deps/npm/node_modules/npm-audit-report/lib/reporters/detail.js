@@ -6,7 +6,7 @@ const install = require('./install.js')
 module.exports = (data, { color }) => {
   const summary = install.summary(data, { color })
   const none = data.metadata.vulnerabilities.total === 0
-  return none ? summary : fullReport(data, {color, summary})
+  return none ? summary : fullReport(data, { color, summary })
 }
 
 const fullReport = (data, { color, summary }) => {
@@ -14,10 +14,11 @@ const fullReport = (data, { color, summary }) => {
   const output = [c.white('# npm audit report'), '']
 
   const printed = new Set()
-  for (const [name, vuln] of Object.entries(data.vulnerabilities)) {
+  for (const [, vuln] of Object.entries(data.vulnerabilities)) {
     // only print starting from the top-level advisories
-    if (vuln.via.filter(v => typeof v !== 'string').length !== 0)
-      output.push(printVuln(vuln, c, data.vulnerabilities))
+    if (vuln.via.filter(v => typeof v !== 'string').length !== 0) {
+      output.push(printVuln(vuln, c, data.vulnerabilities, printed))
+    }
   }
 
   output.push(summary)
@@ -25,9 +26,10 @@ const fullReport = (data, { color, summary }) => {
   return output.join('\n')
 }
 
-const printVuln = (vuln, c, vulnerabilities, printed = new Set(), indent = '') => {
-  if (printed.has(vuln))
+const printVuln = (vuln, c, vulnerabilities, printed, indent = '') => {
+  if (printed.has(vuln)) {
     return null
+  }
 
   printed.add(vuln)
   const output = []
@@ -59,7 +61,7 @@ const printVuln = (vuln, c, vulnerabilities, printed = new Set(), indent = '') =
           `${c.yellow('fix available')} via \`npm audit fix --force\``,
           `Will install ${fa.name}@${fa.version}` +
           `, which is ${fa.isSemVerMajor ? 'a breaking change' :
-            'outside the stated dependency range' }`
+            'outside the stated dependency range'}`
         )
       }
     }
@@ -70,10 +72,10 @@ const printVuln = (vuln, c, vulnerabilities, printed = new Set(), indent = '') =
   }
 
   for (const effect of vuln.effects) {
-    const vuln = vulnerabilities[effect]
-    const e = printVuln(vuln, c, vulnerabilities, printed, '  ')
-    if (e)
+    const e = printVuln(vulnerabilities[effect], c, vulnerabilities, printed, '  ')
+    if (e) {
       output.push(...e.split('\n'))
+    }
   }
 
   if (indent === '') {

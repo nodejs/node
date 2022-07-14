@@ -15,10 +15,10 @@ The cluster module allows easy creation of child processes that all share
 server ports.
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 const numCPUs = cpus().length;
 
@@ -46,10 +46,10 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
+const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -98,7 +98,7 @@ handles back and forth.
 The cluster module supports two methods of distributing incoming
 connections.
 
-The first one (and the default one on all platforms except Windows),
+The first one (and the default one on all platforms except Windows)
 is the round-robin approach, where the primary process listens on a
 port, accepts new connections and distributes them across the workers
 in a round-robin fashion, with some built-in smarts to avoid
@@ -131,7 +131,7 @@ Node.js process and a cluster worker differs:
    port is random the first time, but predictable thereafter. To listen
    on a unique port, generate a port number based on the cluster worker ID.
 
-Node.js does not provide routing logic. It is, therefore important to design an
+Node.js does not provide routing logic. It is therefore important to design an
 application such that it does not rely too heavily on in-memory data objects for
 things like sessions and login.
 
@@ -143,7 +143,7 @@ will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
 responsibility to manage the worker pool based on its own needs.
 
-Although a primary use case for the `cluster` module is networking, it can
+Although a primary use case for the `node:cluster` module is networking, it can
 also be used for other use cases requiring worker processes.
 
 ## Class: `Worker`
@@ -195,33 +195,37 @@ added: v0.11.2
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
-const worker = cluster.fork();
-worker.on('exit', (code, signal) => {
-  if (signal) {
-    console.log(`worker was killed by signal: ${signal}`);
-  } else if (code !== 0) {
-    console.log(`worker exited with error code: ${code}`);
-  } else {
-    console.log('worker success!');
-  }
-});
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+  worker.on('exit', (code, signal) => {
+    if (signal) {
+      console.log(`worker was killed by signal: ${signal}`);
+    } else if (code !== 0) {
+      console.log(`worker exited with error code: ${code}`);
+    } else {
+      console.log('worker success!');
+    }
+  });
+}
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
-const worker = cluster.fork();
-worker.on('exit', (code, signal) => {
-  if (signal) {
-    console.log(`worker was killed by signal: ${signal}`);
-  } else if (code !== 0) {
-    console.log(`worker exited with error code: ${code}`);
-  } else {
-    console.log('worker success!');
-  }
-});
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+  worker.on('exit', (code, signal) => {
+    if (signal) {
+      console.log(`worker was killed by signal: ${signal}`);
+    } else if (code !== 0) {
+      console.log(`worker exited with error code: ${code}`);
+    } else {
+      console.log('worker success!');
+    }
+  });
+}
 ```
 
 ### Event: `'listening'`
@@ -235,16 +239,12 @@ added: v0.7.0
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
 ```mjs
-import cluster from 'cluster';
-
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
 ```
 
 ```cjs
-const cluster = require('cluster');
-
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
@@ -271,10 +271,10 @@ Here is an example using the message system. It keeps a count in the primary
 process of the number of HTTP requests received by the workers:
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 if (cluster.isPrimary) {
 
@@ -315,9 +315,9 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const process = require('node:process');
 
 if (cluster.isPrimary) {
 
@@ -335,7 +335,7 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = require('os').cpus().length;
+  const numCPUs = require('node:os').cpus().length;
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -429,7 +429,7 @@ if (cluster.isPrimary) {
   });
 
 } else if (cluster.isWorker) {
-  const net = require('net');
+  const net = require('node:net');
   const server = net.createServer((socket) => {
     // Connections never end
   });
@@ -477,7 +477,7 @@ worker.kill();
 added: v0.8.0
 -->
 
-* {number}
+* {integer}
 
 Each new worker is given its own unique id, this id is stored in the
 `id`.
@@ -505,10 +505,10 @@ This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 const numCPUs = cpus().length;
 
@@ -538,10 +538,10 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
+const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -741,7 +741,7 @@ primary.
 
 The event handler is executed with two arguments, the `worker` contains the
 worker object and the `address` object contains the following connection
-properties: `address`, `port` and `addressType`. This is very useful if the
+properties: `address`, `port`, and `addressType`. This is very useful if the
 worker is listening on more than one address.
 
 ```js
@@ -982,7 +982,7 @@ The defaults above apply to the first call only; the defaults for later
 calls are the current values at the time of `cluster.setupPrimary()` is called.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 cluster.setupPrimary({
   exec: 'worker.js',
@@ -998,7 +998,7 @@ cluster.fork(); // http worker
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 cluster.setupPrimary({
   exec: 'worker.js',
@@ -1026,7 +1026,7 @@ added: v0.7.0
 A reference to the current worker object. Not available in the primary process.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 if (cluster.isPrimary) {
   console.log('I am primary');
@@ -1038,7 +1038,7 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 if (cluster.isPrimary) {
   console.log('I am primary');
@@ -1067,7 +1067,7 @@ advance. However, it is guaranteed that the removal from the `cluster.workers`
 list happens before the last `'disconnect'` or `'exit'` event is emitted.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');
@@ -1075,7 +1075,7 @@ for (const worker of Object.values(cluster.workers)) {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');

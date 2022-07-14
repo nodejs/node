@@ -131,11 +131,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       input,
       tabSize: 0
     }),
-    {
-      message: 'The value of "tabSize" is out of range. ' +
-                'It must be >= 1 && < 4294967296. Received 0',
-      code: 'ERR_OUT_OF_RANGE'
-    }
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 
   assert.throws(
@@ -1010,6 +1006,17 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling the question callback with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const { signal } = new AbortController();
+    rli.question('foo?', { signal }, common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
   // Calling the question multiple times
   {
     const [rli] = getInterface({ terminal });
@@ -1027,6 +1034,19 @@ for (let i = 0; i < 12; i++) {
     const [rli] = getInterface({ terminal });
     const question = util.promisify(rli.question).bind(rli);
     question('foo?')
+    .then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Calling the promisified question with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    const { signal } = new AbortController();
+    question('foo?', { signal })
     .then(common.mustCall((answer) => {
       assert.strictEqual(answer, 'bar');
     }));
@@ -1090,6 +1110,40 @@ for (let i = 0; i < 12; i++) {
       assert.strictEqual(error.name, 'AbortError');
     }));
     rli.close();
+  }
+
+  // Call question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      assert.throws(() => {
+        rli.question('How are you?', common.mustNotCall());
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call promisified question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    question('What\'s your name?').then(common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      question('How are you?')
+        .then(common.mustNotCall(), common.expectsError({
+          code: 'ERR_USE_AFTER_CLOSE',
+          name: 'Error'
+        }));
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
   }
 
   // Can create a new readline Interface with a null output argument

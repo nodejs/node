@@ -1,10 +1,9 @@
 #include "crypto/crypto_hmac.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -89,7 +88,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
   ByteSource key = ByteSource::FromSecretKeyBytes(env, args[1]);
-  hmac->HmacInit(*hash_type, key.get(), key.size());
+  hmac->HmacInit(*hash_type, key.data<char>(), key.size());
 }
 
 bool Hmac::HmacUpdate(const char* data, size_t len) {
@@ -124,8 +123,11 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   unsigned int md_len = 0;
 
   if (hmac->ctx_) {
-    HMAC_Final(hmac->ctx_.get(), md_value, &md_len);
+    bool ok = HMAC_Final(hmac->ctx_.get(), md_value, &md_len);
     hmac->ctx_.reset();
+    if (!ok) {
+      return ThrowCryptoError(env, ERR_get_error(), "Failed to finalize HMAC");
+    }
   }
 
   Local<Value> error;
@@ -239,17 +241,14 @@ bool HmacTraits::DeriveBits(
     return false;
   }
 
-  char* data = MallocOpenSSL<char>(EVP_MAX_MD_SIZE);
-  ByteSource buf = ByteSource::Allocated(data, EVP_MAX_MD_SIZE);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(EVP_MAX_MD_SIZE);
   unsigned int len;
 
-  if (!HMAC_Final(ctx.get(), ptr, &len)) {
+  if (!HMAC_Final(ctx.get(), buf.data<unsigned char>(), &len)) {
     return false;
   }
 
-  buf.Resize(len);
-  *out = std::move(buf);
+  *out = std::move(buf).release(len);
 
   return true;
 }
@@ -265,9 +264,8 @@ Maybe<bool> HmacTraits::EncodeOutput(
       break;
     case SignConfiguration::kVerify:
       *result =
-          out->size() > 0 &&
-          out->size() == params.signature.size() &&
-          memcmp(out->get(), params.signature.get(), out->size()) == 0
+          out->size() > 0 && out->size() == params.signature.size() &&
+                  memcmp(out->data(), params.signature.data(), out->size()) == 0
               ? v8::True(env->isolate())
               : v8::False(env->isolate());
       break;

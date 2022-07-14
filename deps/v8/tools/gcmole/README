@@ -109,7 +109,7 @@ script "bootstrap.sh" mentioned above).
 
 TROUBLESHOOTING ---------------------------------------------------------------
 
-gcmole is tighly coupled with the AST structure that Clang produces. Therefore
+gcmole is tightly coupled with the AST structure that Clang produces. Therefore
 when upgrading to a newer Clang version, it might start producing bogus output
 or completely stop outputting warnings. In such occasion, one might start the
 debugging process by checking weather a new AST node type is introduced which

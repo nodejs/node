@@ -22,6 +22,12 @@ const ctors = [
   MyBigInt64Array,
 ];
 
+const floatCtors = [
+  Float32Array,
+  Float64Array,
+  MyFloat32Array
+];
+
 // Each element of the following array is [getter, setter, size, isBigInt].
 const dataViewAccessorsAndSizes = [[DataView.prototype.getUint8,
                                     DataView.prototype.setUint8, 1, false],
@@ -48,6 +54,23 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
 
 function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
   return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
+function IsBigIntTypedArray(ta) {
+  return (ta instanceof BigInt64Array) || (ta instanceof BigUint64Array);
+}
+
+function AllBigIntMatchedCtorCombinations(test) {
+  for (let targetCtor of ctors) {
+    for (let sourceCtor of ctors) {
+      if (IsBigIntTypedArray(new targetCtor()) !=
+          IsBigIntTypedArray(new sourceCtor())) {
+        // Can't mix BigInt and non-BigInt types.
+        continue;
+      }
+      test(targetCtor, sourceCtor);
+    }
+  }
 }
 
 function ReadDataFromBuffer(ab, ctor) {
@@ -131,6 +154,55 @@ function IncludesHelper(array, n, fromIndex) {
   return array.includes(n, fromIndex);
 }
 
+function IndexOfHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Technically, passing fromIndex here would still result in the correct
+      // behavior, since "undefined" gets converted to 0 which is a good
+      // "default" index.
+      return array.indexOf(BigInt(n));
+    }
+    return array.indexOf(BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return array.indexOf(n);
+  }
+  return array.indexOf(n, fromIndex);
+}
+
+function LastIndexOfHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Shouldn't pass fromIndex here, since passing "undefined" is not the
+      // same as not passing the parameter at all. "Undefined" will get
+      // converted to 0 which is not a good "default" index, since lastIndexOf
+      // iterates from the index downwards.
+      return array.lastIndexOf(BigInt(n));
+    }
+    return array.lastIndexOf(BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return array.lastIndexOf(n);
+  }
+  return array.lastIndexOf(n, fromIndex);
+}
+
+function SetHelper(target, source, offset) {
+  if (target instanceof BigInt64Array || target instanceof BigUint64Array) {
+    const bigIntSource = [];
+    for (s of source) {
+      bigIntSource.push(BigInt(s));
+    }
+    source = bigIntSource;
+  }
+  if (offset == undefined) {
+    return target.set(source);
+  }
+  return target.set(source, offset);
+}
+
 function testDataViewMethodsUpToSize(view, bufferSize) {
   for (const [getter, setter, size, isBigInt] of dataViewAccessorsAndSizes) {
     for (let i = 0; i <= bufferSize - size; ++i) {
@@ -161,4 +233,22 @@ function assertAllDataViewMethodsThrow(view, index, errorType) {
     }
     assertThrows(() => { getter.call(view, index); }, errorType);
   }
+}
+
+function ObjectDefinePropertyHelper(ta, index, value) {
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    Object.defineProperty(ta, index, {value: BigInt(value)});
+  } else {
+    Object.defineProperty(ta, index, {value: value});
+  }
+}
+
+function ObjectDefinePropertiesHelper(ta, index, value) {
+  const values = {};
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    values[index] = {value: BigInt(value)};
+  } else {
+    values[index] = {value: value};
+  }
+  Object.defineProperties(ta, values);
 }

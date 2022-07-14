@@ -19,7 +19,6 @@ const npm = mockNpm({
   },
 })
 const mocks = {
-  ansistyles: { bright: a => a },
   npmlog: {
     gauge: { show () {} },
   },
@@ -41,11 +40,6 @@ const mocks = {
         .join('\n')
     }
   },
-  '../../../lib/utils/pulse-till-done.js': {
-    withPromise: async a => a,
-  },
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../../lib/utils/usage.js': () => 'usage instructions',
   '../../../lib/utils/read-user-info.js': {
     async password () {},
     async otp () {},

@@ -5,8 +5,6 @@
 #ifndef V8_DEBUG_DEBUG_SCOPES_H_
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
-#include <vector>
-
 #include "src/debug/debug-frames.h"
 #include "src/parsing/parse-info.h"
 

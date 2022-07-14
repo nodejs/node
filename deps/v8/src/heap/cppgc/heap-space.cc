@@ -20,6 +20,8 @@ BaseSpace::BaseSpace(RawHeap* heap, size_t index, PageType type,
   USE(is_compactable_);
 }
 
+BaseSpace::~BaseSpace() = default;
+
 void BaseSpace::AddPage(BasePage* page) {
   v8::base::LockGuard<v8::base::Mutex> lock(&pages_mutex_);
   DCHECK_EQ(pages_.cend(), std::find(pages_.cbegin(), pages_.cend(), page));

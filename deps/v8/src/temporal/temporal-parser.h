@@ -123,9 +123,9 @@ struct ParsedISO8601Duration {
  */
 class V8_EXPORT_PRIVATE TemporalParser {
  public:
-#define DEFINE_PARSE_METHOD(R, NAME)                 \
-  V8_WARN_UNUSED_RESULT static Maybe<R> Parse##NAME( \
-      Isolate* isolate, Handle<String> iso_string, bool* satisfy)
+#define DEFINE_PARSE_METHOD(R, NAME)                                  \
+  V8_WARN_UNUSED_RESULT static Maybe<R> Parse##NAME(Isolate* isolate, \
+                                                    Handle<String> iso_string)
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalTimeString);

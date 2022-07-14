@@ -25,7 +25,6 @@
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_clienthello-inl.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
@@ -296,8 +295,8 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
 
 void ConfigureSecureContext(SecureContext* sc) {
   // OCSP stapling
-  SSL_CTX_set_tlsext_status_cb(sc->ctx_.get(), TLSExtStatusCallback);
-  SSL_CTX_set_tlsext_status_arg(sc->ctx_.get(), nullptr);
+  SSL_CTX_set_tlsext_status_cb(sc->ctx().get(), TLSExtStatusCallback);
+  SSL_CTX_set_tlsext_status_arg(sc->ctx().get(), nullptr);
 }
 
 inline bool Set(
@@ -1251,8 +1250,7 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NOT_NULL(wrap->ssl_);
 
-  const char* servername = SSL_get_servername(wrap->ssl_.get(),
-                                              TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(wrap->ssl_.get());
   if (servername != nullptr) {
     args.GetReturnValue().Set(OneByteString(env->isolate(), servername));
   } else {
@@ -1283,7 +1281,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(s);
   if (!Set(env, p->GetOwner(), env->servername_string(), servername))
     return SSL_TLSEXT_ERR_NOACK;
 
@@ -1305,20 +1303,20 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
   ConfigureSecureContext(sc);
-  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx_.get()), sc->ctx_.get());
+  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx().get()), sc->ctx().get());
   p->SetCACerts(sc);
 
   return SSL_TLSEXT_ERR_OK;
 }
 
 int TLSWrap::SetCACerts(SecureContext* sc) {
-  int err = SSL_set1_verify_cert_store(
-      ssl_.get(), SSL_CTX_get_cert_store(sc->ctx_.get()));
+  int err = SSL_set1_verify_cert_store(ssl_.get(),
+                                       SSL_CTX_get_cert_store(sc->ctx().get()));
   if (err != 1)
     return err;
 
   STACK_OF(X509_NAME)* list =
-      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx_.get()));
+      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx().get()));
 
   // NOTE: `SSL_set_client_CA_list` takes the ownership of `list`
   SSL_set_client_CA_list(ssl_.get(), list);
@@ -1611,9 +1609,19 @@ void TLSWrap::GetFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
-  CHECK_EQ(len, SSL_get_finished(w->ssl_.get(), buf.data(), len));
-  args.GetReturnValue().Set(buf.ToBuffer().FromMaybe(Local<Value>()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
+  }
+
+  CHECK_EQ(bs->ByteLength(),
+           SSL_get_finished(w->ssl_.get(), bs->Data(), bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
@@ -1632,9 +1640,19 @@ void TLSWrap::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
-  CHECK_EQ(len, SSL_get_peer_finished(w->ssl_.get(), buf.data(), len));
-  args.GetReturnValue().Set(buf.ToBuffer().FromMaybe(Local<Value>()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
+  }
+
+  CHECK_EQ(bs->ByteLength(),
+           SSL_get_peer_finished(w->ssl_.get(), bs->Data(), bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::GetSession(const FunctionCallbackInfo<Value>& args) {
@@ -1651,10 +1669,19 @@ void TLSWrap::GetSession(const FunctionCallbackInfo<Value>& args) {
   if (slen <= 0)
     return;  // Invalid or malformed session.
 
-  AllocatedBuffer sbuf = AllocatedBuffer::AllocateManaged(env, slen);
-  unsigned char* p = reinterpret_cast<unsigned char*>(sbuf.data());
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), slen);
+  }
+
+  unsigned char* p = static_cast<unsigned char*>(bs->Data());
   CHECK_LT(0, i2d_SSL_SESSION(sess, &p));
-  args.GetReturnValue().Set(sbuf.ToBuffer().FromMaybe(Local<Value>()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::SetSession(const FunctionCallbackInfo<Value>& args) {
@@ -1667,10 +1694,10 @@ void TLSWrap::SetSession(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_MISSING_ARGS(env, "Session argument is mandatory");
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Session");
-
-  SSLSessionPointer sess = GetTLSSession(args[0]);
+  ArrayBufferViewContents<unsigned char> sbuf(args[0]);
+  SSLSessionPointer sess = GetTLSSession(sbuf.data(), sbuf.length());
   if (sess == nullptr)
-    return;
+    return;  // TODO(tniessen): figure out error handling
 
   if (!SetTLSSession(w->ssl_, sess))
     return env->ThrowError("SSL_set_session error");
@@ -1825,7 +1852,11 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
   uint32_t olen = args[0].As<Uint32>()->Value();
   Utf8Value label(env->isolate(), args[1]);
 
-  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, olen);
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), olen);
+  }
 
   ByteSource context;
   bool use_context = !args[2]->IsUndefined();
@@ -1834,11 +1865,11 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
 
   if (SSL_export_keying_material(
           w->ssl_.get(),
-          reinterpret_cast<unsigned char*>(out.data()),
+          static_cast<unsigned char*>(bs->Data()),
           olen,
           *label,
           label.length(),
-          reinterpret_cast<const unsigned char*>(context.get()),
+          context.data<unsigned char>(),
           context.size(),
           use_context) != 1) {
     return ThrowCryptoError(
@@ -1847,7 +1878,10 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
          "SSL_export_keying_material");
   }
 
-  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::EndParser(const FunctionCallbackInfo<Value>& args) {

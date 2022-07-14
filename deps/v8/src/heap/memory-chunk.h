@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
@@ -52,6 +53,10 @@ class MemoryChunk : public BasicMemoryChunk {
   // Maximum number of nested code memory modification scopes.
   static const int kMaxWriteUnprotectCounter = 3;
 
+  MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+              Address area_end, VirtualMemory reservation,
+              Executability executable, PageSize page_size);
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return cast(BasicMemoryChunk::FromAddress(a));
@@ -93,7 +98,7 @@ class MemoryChunk : public BasicMemoryChunk {
     return static_cast<ConcurrentSweepingState>(concurrent_sweeping_.load());
   }
 
-  bool SweepingDone() {
+  bool SweepingDone() const {
     return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
   }
 
@@ -108,13 +113,6 @@ class MemoryChunk : public BasicMemoryChunk {
     if (access_mode == AccessMode::ATOMIC)
       return base::AsAtomicPointer::Acquire_Load(&slot_set_[type]);
     return slot_set_[type];
-  }
-
-  template <AccessMode access_mode = AccessMode::ATOMIC>
-  SlotSet* sweeping_slot_set() {
-    if (access_mode == AccessMode::ATOMIC)
-      return base::AsAtomicPointer::Acquire_Load(&sweeping_slot_set_);
-    return sweeping_slot_set_;
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
@@ -133,7 +131,7 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void ReleaseSlotSet();
   void ReleaseSlotSet(SlotSet** slot_set);
-  void ReleaseSweepingSlotSet();
+
   template <RememberedSetType type>
   TypedSlotSet* AllocateTypedSlotSet();
   // Not safe to be called concurrently.
@@ -160,7 +158,7 @@ class MemoryChunk : public BasicMemoryChunk {
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory();
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
 
   class ProgressBar& ProgressBar() {
     return progress_bar_;
@@ -173,7 +171,7 @@ class MemoryChunk : public BasicMemoryChunk {
   inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) {
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const {
     return external_backing_store_bytes_[type];
   }
 
@@ -218,9 +216,6 @@ class MemoryChunk : public BasicMemoryChunk {
 #endif
 
  protected:
-  static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                 Executability executable);
-
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
@@ -253,7 +248,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  SlotSet* sweeping_slot_set_;
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
@@ -290,6 +284,8 @@ class MemoryChunk : public BasicMemoryChunk {
   CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
+
+  ActiveSystemPages active_system_pages_;
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   ObjectStartBitmap object_start_bitmap_;

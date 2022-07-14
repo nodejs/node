@@ -35,6 +35,8 @@ set projgen=
 set nobuild=
 set sign=
 set nosnapshot=
+set nonpm=
+set nocorepack=
 set cctest_args=
 set test_args=
 set stage_package=
@@ -89,6 +91,8 @@ if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
+if /i "%1"=="nocorepack"    set nocorepack=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
@@ -184,6 +188,8 @@ if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
+if defined nonpm            set configure_flags=%configure_flags% --without-npm
+if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
@@ -198,7 +204,6 @@ if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%ta
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
 if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
-if "%target_arch%"=="arm64" set configure_flags=%configure_flags% --cross-compiling
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -400,7 +405,7 @@ if errorlevel 1 echo "Could not create junction to 'out\%config%'." & exit /B
 if not defined sign goto licensertf
 
 call tools\sign.bat Release\node.exe
-if errorlevel 1 echo Failed to sign exe&goto exit
+if errorlevel 1 echo Failed to sign exe, got error code %errorlevel%&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
@@ -421,12 +426,12 @@ if "%use_x64_node_exe%"=="true" (
     set exit_code=1
     goto exit
   )
-  %x64_node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %x64_node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 ) else (
-  %node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 )
 
-if errorlevel 1 echo Failed to generate license.rtf&goto exit
+if errorlevel 1 echo Failed to generate license.rtf, got error code %errorlevel%&goto exit
 
 :stage_package
 if not defined stage_package goto install-doctools
@@ -445,22 +450,29 @@ copy /Y ..\README.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy README.md && goto package_error
 copy /Y ..\CHANGELOG.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
-robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
-if errorlevel 8 echo Cannot copy npm package && goto package_error
-robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
-if errorlevel 8 echo Cannot copy corepack package && goto package_error
-copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm && goto package_error
-copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
-copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx && goto package_error
-copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
-copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy corepack && goto package_error
-copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
+
+if not defined nonpm (
+  robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
+  if errorlevel 8 echo Cannot copy npm package && goto package_error
+  copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm && goto package_error
+  copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
+  copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx && goto package_error
+  copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
+)
+
+if not defined nocorepack (
+  robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
+  if errorlevel 8 echo Cannot copy corepack package && goto package_error
+  copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy corepack && goto package_error
+  copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
+)
+
 copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul
@@ -468,6 +480,19 @@ if errorlevel 1 echo Cannot copy install_tools scripts && goto package_error
 if not defined noetw (
     copy /Y ..\src\res\node_etw_provider.man %TARGET_NAME%\ > nul
     if errorlevel 1 echo Cannot copy node_etw_provider.man && goto package_error
+)
+if defined dll (
+  copy /Y libnode.dll %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
+
+  mkdir %TARGET_NAME%\Release > nul
+  copy /Y node.def %TARGET_NAME%\Release\ > nul
+  if errorlevel 1 echo Cannot copy node.def && goto package_error
+
+  set HEADERS_ONLY=1
+  python ..\tools\install.py install %CD%\%TARGET_NAME% \ > nul
+  if errorlevel 1 echo Cannot install headers && goto package_error
+  set HEADERS_ONLY=
 )
 cd ..
 
@@ -513,7 +538,7 @@ if errorlevel 1 goto exit
 
 if not defined sign goto upload
 call tools\sign.bat node-v%FULLVERSION%-%target_arch%.msi
-if errorlevel 1 echo Failed to sign msi&goto exit
+if errorlevel 1 echo Failed to sign msi, got error code %errorlevel%&goto exit
 
 :upload
 @rem Skip upload if not requested
@@ -596,7 +621,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
 set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -614,7 +639,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 :: building js-native-api
 setlocal
 set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
+"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
@@ -633,7 +658,7 @@ for /d %%F in (test\node-api\??_*) do (
 :: building node-api
 setlocal
 set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
+"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -747,7 +772,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!-- Copyright 2021 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>V8 Heap Layout</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.2.2/echarts.min.js"></script>
+
+  <script type="module" src="heap-layout-viewer.mjs"></script>
+  <script type="module" src="heap-size-trend-viewer.mjs"></script>
+  <script type="module" src="trace-file-reader.mjs"></script>
+
+  <link rel="stylesheet" type="text/css" href="./index.css">
+
+  <script>
+    'use strict';
+    function $(id) { return document.querySelector(id); }
+
+    function globalDataChanged(e) {
+      $('#heap-layout-viewer').data = e.detail;
+      $('#heap-size-trend-viewer').data = e.detail;
+      $('.button-container').style.display = 'block';
+    }
+
+    function selectSnapshotAtIndex(e) {
+      const index = e.detail;
+      $('#heap-layout-viewer').drawChart(index);
+    }
+
+
+    function OnPrevClick() {
+      const heap_size_trend_viewer = $('#heap-size-trend-viewer');
+      const heap_layout_viewer = $('#heap-layout-viewer');
+      heap_size_trend_viewer.setXMarkLine(heap_size_trend_viewer.currentIndex - 1);
+      heap_layout_viewer.drawChart(heap_layout_viewer.currentIndex - 1);
+    }
+
+    function OnNextClick() {
+      const heap_size_trend_viewer = $('#heap-size-trend-viewer');
+      const heap_layout_viewer = $('#heap-layout-viewer');
+      heap_size_trend_viewer.setXMarkLine(heap_size_trend_viewer.currentIndex + 1);
+      heap_layout_viewer.drawChart(heap_layout_viewer.currentIndex + 1);
+    }
+
+  </script>
+</head>
+
+<body>
+  <h1>V8 Heap Layout</h1>
+  <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
+  <heap-size-trend-viewer id="heap-size-trend-viewer" onchange="selectSnapshotAtIndex(event)"></heap-size-trend-viewer>
+  <heap-layout-viewer id="heap-layout-viewer"></heap-layout-viewer>
+  <div class="button-container">
+    <button id="button_prev" type="button" onclick="OnPrevClick()">Prev</button>
+    <button id="button_next" type="button" onclick="OnNextClick()">Next</button>
+  </div>
+
+  <p>Heap layout is a HTML-based tool for visualizing V8-internal heap layout.</p>
+  <p>Visualize heap layout that have been gathered using</p>
+  <ul>
+    <li><code>--trace-gc-heap-layout</code> on V8</li>
+
+  </ul>
+
+</body>
+
+</html>

@@ -46,6 +46,7 @@ enum InstanceType : uint16_t;
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
   V(JSDataView)                         \
+  V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
@@ -55,7 +56,9 @@ enum InstanceType : uint16_t;
   V(JSWeakCollection)                   \
   V(Map)                                \
   V(NativeContext)                      \
+  V(Oddball)                            \
   V(PreparseData)                       \
+  V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
@@ -78,6 +81,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmInstanceObject)        \
   IF_WASM(V, WasmInternalFunction)      \
   IF_WASM(V, WasmJSFunctionData)        \
+  IF_WASM(V, WasmOnFulfilledData)       \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmTypeInfo)              \
@@ -415,8 +419,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline bool has_sloppy_arguments_elements() const;
   inline bool has_fast_sloppy_arguments_elements() const;
   inline bool has_fast_string_wrapper_elements() const;
-  inline bool has_typed_array_elements() const;
-  inline bool has_rab_gsab_typed_array_elements() const;
   inline bool has_typed_array_or_rab_gsab_typed_array_elements() const;
   inline bool has_any_typed_array_or_wasm_array_elements() const;
   inline bool has_dictionary_elements() const;

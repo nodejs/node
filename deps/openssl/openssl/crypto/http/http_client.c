@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2018-2020
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -322,7 +322,7 @@ static int add1_headers(OSSL_HTTP_REQ_CTX *rctx,
 
     for (i = 0; i < sk_CONF_VALUE_num(headers); i++) {
         hdr = sk_CONF_VALUE_value(headers, i);
-        if (add_host && strcasecmp("host", hdr->name) == 0)
+        if (add_host && OPENSSL_strcasecmp("host", hdr->name) == 0)
             add_host = 0;
         if (!OSSL_HTTP_REQ_CTX_add1_header(rctx, hdr->name, hdr->value))
             return 0;
@@ -666,13 +666,13 @@ int OSSL_HTTP_REQ_CTX_nbio(OSSL_HTTP_REQ_CTX *rctx)
         }
         if (value != NULL && line_end != NULL) {
             if (rctx->state == OHS_REDIRECT
-                    && strcasecmp(key, "Location") == 0) {
+                    && OPENSSL_strcasecmp(key, "Location") == 0) {
                 rctx->redirection_url = value;
                 return 0;
             }
-            if (rctx->expected_ct != NULL
-                    && strcasecmp(key, "Content-Type") == 0) {
-                if (strcasecmp(rctx->expected_ct, value) != 0) {
+            if (rctx->state == OHS_HEADERS && rctx->expected_ct != NULL
+                    && OPENSSL_strcasecmp(key, "Content-Type") == 0) {
+                if (OPENSSL_strcasecmp(rctx->expected_ct, value) != 0) {
                     ERR_raise_data(ERR_LIB_HTTP, HTTP_R_UNEXPECTED_CONTENT_TYPE,
                                    "expected=%s, actual=%s",
                                    rctx->expected_ct, value);
@@ -682,12 +682,12 @@ int OSSL_HTTP_REQ_CTX_nbio(OSSL_HTTP_REQ_CTX *rctx)
             }
 
             /* https://tools.ietf.org/html/rfc7230#section-6.3 Persistence */
-            if (strcasecmp(key, "Connection") == 0) {
-                if (strcasecmp(value, "keep-alive") == 0)
+            if (OPENSSL_strcasecmp(key, "Connection") == 0) {
+                if (OPENSSL_strcasecmp(value, "keep-alive") == 0)
                     found_keep_alive = 1;
-                else if (strcasecmp(value, "close") == 0)
+                else if (OPENSSL_strcasecmp(value, "close") == 0)
                     found_keep_alive = 0;
-            } else if (strcasecmp(key, "Content-Length") == 0) {
+            } else if (OPENSSL_strcasecmp(key, "Content-Length") == 0) {
                 resp_len = (size_t)strtoul(value, &line_end, 10);
                 if (line_end == value || *line_end != '\0') {
                     ERR_raise_data(ERR_LIB_HTTP,
@@ -947,6 +947,7 @@ OSSL_HTTP_REQ_CTX *OSSL_HTTP_open(const char *server, const char *port,
     }
     /* now overall_timeout is guaranteed to be >= 0 */
 
+    /* adapt in order to fix callback design flaw, see #17088 */
     /* callback can be used to wrap or prepend TLS session */
     if (bio_update_fn != NULL) {
         BIO *orig_bio = cbio;
@@ -1134,6 +1135,14 @@ BIO *OSSL_HTTP_get(const char *url, const char *proxy, const char *no_proxy,
                 current_url = redirection_url;
                 if (*redirection_url == '/') { /* redirection to same server */
                     path = OPENSSL_strdup(redirection_url);
+                    if (path == NULL) {
+                        OPENSSL_free(host);
+                        OPENSSL_free(port);
+                        (void)OSSL_HTTP_close(rctx, 1);
+                        BIO_free(resp);
+                        OPENSSL_free(current_url);
+                        return NULL;
+                    }
                     goto new_rpath;
                 }
                 OPENSSL_free(host);
@@ -1197,11 +1206,17 @@ BIO *OSSL_HTTP_transfer(OSSL_HTTP_REQ_CTX **prctx,
 
 int OSSL_HTTP_close(OSSL_HTTP_REQ_CTX *rctx, int ok)
 {
+    BIO *wbio;
     int ret = 1;
 
-    /* callback can be used to clean up TLS session on disconnect */
-    if (rctx != NULL && rctx->upd_fn != NULL)
-        ret = (*rctx->upd_fn)(rctx->wbio, rctx->upd_arg, 0, ok) != NULL;
+    /* callback can be used to finish TLS session and free its BIO */
+    if (rctx != NULL && rctx->upd_fn != NULL) {
+        wbio = (*rctx->upd_fn)(rctx->wbio, rctx->upd_arg,
+                               0 /* disconnect */, ok);
+        ret = wbio != NULL;
+        if (ret)
+            rctx->wbio = wbio;
+    }
     OSSL_HTTP_REQ_CTX_free(rctx);
     return ret;
 }

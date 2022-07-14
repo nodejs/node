@@ -15,7 +15,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce line breaks between arguments of a function call",
+            description: "Enforce line breaks between arguments of a function call",
             recommended: false,
             url: "https://eslint.org/docs/rules/function-call-argument-newline"
         },

@@ -146,6 +146,8 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
   STATIC_ASSERT(2 * kAllocationGranularity ==
                 api_constants::kMaxSupportedAlignment);
   STATIC_ASSERT(kAllocationGranularity == sizeof(HeapObjectHeader));
+  STATIC_ASSERT(kAllocationGranularity ==
+                api_constants::kAllocationGranularity);
   DCHECK_EQ(2 * sizeof(HeapObjectHeader), static_cast<size_t>(alignment));
   constexpr size_t kAlignment = 2 * kAllocationGranularity;
   constexpr size_t kAlignmentMask = kAlignment - 1;

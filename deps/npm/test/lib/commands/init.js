@@ -17,7 +17,6 @@ const npm = mockNpm({
   config,
 })
 const mocks = {
-  '../../../lib/utils/usage.js': () => 'usage instructions',
   npmlog: {
     disableProgress: () => null,
     enableProgress: () => null,
@@ -289,6 +288,7 @@ t.test('workspaces', t => {
     t.teardown(() => {
       npm._mockOutputs.length = 0
     })
+    npm._mockOutputs.length = 0
     npm.localPrefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'top-level',
@@ -305,6 +305,39 @@ t.test('workspaces', t => {
     const init = new Init(npm)
     await init.execWorkspaces([], ['a'])
     t.matchSnapshot(npm._mockOutputs, 'should print helper info')
+  })
+
+  t.test('post workspace-init reify', async t => {
+    const _consolelog = console.log
+    console.log = () => null
+    t.teardown(() => {
+      console.log = _consolelog
+      npm._mockOutputs.length = 0
+      delete npm.flatOptions.workspacesUpdate
+    })
+    npm.started = Date.now()
+    npm._mockOutputs.length = 0
+    npm.flatOptions.workspacesUpdate = true
+    npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    })
+
+    const Init = t.mock('../../../lib/commands/init.js', {
+      ...mocks,
+      'init-package-json': (dir, initFile, config, cb) => {
+        t.equal(dir, resolve(npm.localPrefix, 'a'), 'should use the ws path')
+        return require('init-package-json')(dir, initFile, config, cb)
+      },
+    })
+    const init = new Init(npm)
+    await init.execWorkspaces([], ['a'])
+    const output = npm._mockOutputs.map(arr => arr.map(i => i.replace(/[0-9]*ms$/, '100ms')))
+    t.matchSnapshot(output, 'should print helper info')
+    const lockFilePath = resolve(npm.localPrefix, 'package-lock.json')
+    const lockFile = fs.readFileSync(lockFilePath, { encoding: 'utf8' })
+    t.matchSnapshot(lockFile, 'should reify tree on init ws complete')
   })
 
   t.test('no args, existing folder', async t => {

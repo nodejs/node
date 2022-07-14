@@ -83,8 +83,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
+#ifdef RISCV_HAS_NO_UNALIGNED
   bool CanReadUnaligned() const override;
-
+#endif
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
@@ -155,10 +156,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  static constexpr Register current_input_offset() { return a6; }
+  static constexpr Register current_input_offset() { return s1; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  static constexpr Register current_character() { return a7; }
+  static constexpr Register current_character() { return s2; }
 
   // Register holding address of the end of the input string.
   static constexpr Register end_of_input_address() { return t2; }
@@ -172,7 +173,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   static constexpr Register backtrack_stackpointer() { return t0; }
 
   // Register holding pointer to the current code object.
-  static constexpr Register code_pointer() { return a5; }
+  static constexpr Register code_pointer() { return s4; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
   inline int char_size() const { return static_cast<int>(mode_); }

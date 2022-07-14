@@ -59,6 +59,7 @@
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
@@ -86,8 +87,9 @@
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(wasi)                                                                      \
-  V(worker)                                                                    \
+  V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
+  V(worker)                                                                    \
   V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                                \

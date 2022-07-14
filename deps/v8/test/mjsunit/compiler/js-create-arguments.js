@@ -37,5 +37,5 @@ function main() {
 
 main();
 main();
-%OptimizeFunctionForTopTier(main);
+%OptimizeFunctionOnNextCall(main);
 main();

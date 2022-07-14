@@ -233,17 +233,35 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   PagePermissionsMap page_permissions_;
 };
 
-// This test is currently incompatible with the VirtualMemoryCage. Enable it
-// once the VirtualMemorySpace interface is stable.
-#if !V8_OS_FUCHSIA && !V8_VIRTUAL_MEMORY_CAGE
-class SequentialUnmapperTest : public TestWithIsolate {
+// This test is currently incompatible with the sandbox. Enable it
+// once the VirtualAddressSpace interface is stable.
+#if !V8_OS_FUCHSIA && !V8_SANDBOX
+
+template <typename TMixin>
+class SequentialUnmapperTestMixin : public TMixin {
+ public:
+  SequentialUnmapperTestMixin();
+  ~SequentialUnmapperTestMixin() override;
+};
+
+class SequentialUnmapperTest : public                                     //
+                               WithInternalIsolateMixin<                  //
+                                   WithIsolateScopeMixin<                 //
+                                       WithIsolateMixin<                  //
+                                           SequentialUnmapperTestMixin<   //
+                                               WithDefaultPlatformMixin<  //
+                                                   ::testing::Test>>>>> {
  public:
   SequentialUnmapperTest() = default;
   ~SequentialUnmapperTest() override = default;
   SequentialUnmapperTest(const SequentialUnmapperTest&) = delete;
   SequentialUnmapperTest& operator=(const SequentialUnmapperTest&) = delete;
 
-  static void SetUpTestCase() {
+  static void FreeProcessWidePtrComprCageForTesting() {
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
+  }
+
+  static void DoMixinSetUp() {
     CHECK_NULL(tracking_page_allocator_);
     old_page_allocator_ = GetPlatformPageAllocator();
     tracking_page_allocator_ = new TrackingPageAllocator(old_page_allocator_);
@@ -255,30 +273,27 @@ class SequentialUnmapperTest : public TestWithIsolate {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Reinitialize the process-wide pointer cage so it can pick up the
     // TrackingPageAllocator.
-    // The pointer cage must be destroyed before the virtual memory cage.
+    // The pointer cage must be destroyed before the sandbox.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    // Reinitialze the virtual memory cage so it uses the TrackingPageAllocator.
-    GetProcessWideVirtualMemoryCage()->TearDown();
+#ifdef V8_SANDBOX
+    // Reinitialze the sandbox so it uses the TrackingPageAllocator.
+    GetProcessWideSandbox()->TearDown();
     constexpr bool use_guard_regions = false;
-    CHECK(GetProcessWideVirtualMemoryCage()->Initialize(
-        tracking_page_allocator_, kVirtualMemoryCageMinimumSize,
-        use_guard_regions));
+    CHECK(GetProcessWideSandbox()->Initialize(
+        tracking_page_allocator_, kSandboxMinimumSize, use_guard_regions));
 #endif
     IsolateAllocator::InitializeOncePerProcess();
 #endif
-    TestWithIsolate::SetUpTestCase();
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolate::TearDownTestCase();
+  static void DoMixinTearDown() {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Free the process-wide cage reservation, otherwise the pages won't be
     // freed until process teardown.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #endif
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    GetProcessWideVirtualMemoryCage()->TearDown();
+#ifdef V8_SANDBOX
+    GetProcessWideSandbox()->TearDown();
 #endif
     i::FLAG_concurrent_sweeping = old_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
@@ -309,18 +324,27 @@ TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
 v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
 bool SequentialUnmapperTest::old_flag_;
 
+template <typename TMixin>
+SequentialUnmapperTestMixin<TMixin>::SequentialUnmapperTestMixin() {
+  SequentialUnmapperTest::DoMixinSetUp();
+}
+template <typename TMixin>
+SequentialUnmapperTestMixin<TMixin>::~SequentialUnmapperTestMixin() {
+  SequentialUnmapperTest::DoMixinTearDown();
+}
+
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   if (FLAG_enable_third_party_heap) return;
-  Page* page = allocator()->AllocatePage(
-      MemoryChunkLayout::AllocatableMemoryInDataPage(),
-      static_cast<PagedSpace*>(heap()->old_space()),
-      Executability::NOT_EXECUTABLE);
+  Page* page =
+      allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
+                                static_cast<PagedSpace*>(heap()->old_space()),
+                                Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
-  allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
+  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->FreeQueuedChunks();
@@ -341,16 +365,16 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   if (FLAG_enable_third_party_heap) return;
-  Page* page = allocator()->AllocatePage(
-      MemoryChunkLayout::AllocatableMemoryInDataPage(),
-      static_cast<PagedSpace*>(heap()->old_space()),
-      Executability::NOT_EXECUTABLE);
+  Page* page =
+      allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
+                                static_cast<PagedSpace*>(heap()->old_space()),
+                                Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
 
-  allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
+  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->TearDown();
@@ -364,7 +388,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
-#endif  // !V8_OS_FUCHSIA && !V8_VIRTUAL_MEMORY_CAGE
+#endif  // !V8_OS_FUCHSIA && !V8_SANDBOX
 
 }  // namespace internal
 }  // namespace v8

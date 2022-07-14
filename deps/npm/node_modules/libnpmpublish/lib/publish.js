@@ -58,7 +58,7 @@ Remove the 'private' field from the package.json to publish it.`),
       ...opts,
       query: { write: true },
     })
-    const newMetadata = patchMetadata(current, metadata, opts)
+    const newMetadata = patchMetadata(current, metadata)
     return npmFetch(spec.escapedName, {
       ...opts,
       method: 'PUT',

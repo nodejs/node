@@ -23,7 +23,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
   DeserializeStringTable();
   DeserializeDeferredObjects();
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
+  if (should_rehash()) {
     // Hash seed was initialized in ReadOnlyDeserializer.
     Rehash();
   }

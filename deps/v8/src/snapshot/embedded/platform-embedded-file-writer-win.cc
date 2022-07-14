@@ -11,7 +11,7 @@
 #if defined(V8_OS_WIN64)
 #include "src/builtins/builtins.h"
 #include "src/diagnostics/unwinding-info-win64.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #endif  // V8_OS_WIN64
 
@@ -639,6 +639,11 @@ void PlatformEmbeddedFileWriterWin::DeclareSymbolGlobal(const char* name) {
 void PlatformEmbeddedFileWriterWin::AlignToCodeAlignment() {
 #if V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  STATIC_ASSERT(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#elif V8_TARGET_ARCH_PPC64
+  // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
+  // don't cross 64-byte boundaries.
   STATIC_ASSERT(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #else

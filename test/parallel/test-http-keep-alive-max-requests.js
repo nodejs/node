@@ -91,7 +91,7 @@ server.listen(0, common.mustCall((res) => {
 
   anotherSocket.on('ready', common.mustCall(() => {
     // Do another 2 requests with another socket
-    // enusre that this will not affect the first socket
+    // ensure that this will not affect the first socket
     initialRequests(anotherSocket, 2, common.mustCall(() => {
       let buffer = '';
 

@@ -156,8 +156,10 @@ FSReqPromise<AliasedBufferT>::New(BindingData* binding_data,
 
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::~FSReqPromise() {
-  // Validate that the promise was explicitly resolved or rejected.
-  CHECK(finished_);
+  // Validate that the promise was explicitly resolved or rejected but only if
+  // the Isolate is not terminating because in this case the promise might have
+  // not finished.
+  CHECK_IMPLIES(!finished_, !env()->can_call_into_js());
 }
 
 template <typename AliasedBufferT>

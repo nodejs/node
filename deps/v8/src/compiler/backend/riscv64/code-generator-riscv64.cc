@@ -126,6 +126,8 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
       case kMode_MRI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
+      case kMode_Root:
+        return MemOperand(kRootRegister, InputInt32(index));
       case kMode_MRR:
         // TODO(plind): r6 address mode, to be implemented ...
         UNREACHABLE();
@@ -1721,7 +1723,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvStoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
-          UNREACHABLE();
+          Register dst = sp;
+          if (i.InputInt32(1) != 0) {
+            dst = kScratchReg2;
+            __ Add64(kScratchReg2, sp, Operand(i.InputInt32(1)));
+          }
+          __ VU.set(kScratchReg, E8, m1);
+          __ vs(i.InputSimd128Register(0), dst, 0, E8);
         } else {
           __ StoreDouble(i.InputDoubleRegister(0),
                          MemOperand(sp, i.InputInt32(1)));
@@ -2749,13 +2757,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int64_t imm1 = make_uint64(i.InputInt32(3), i.InputInt32(2));
       int64_t imm2 = make_uint64(i.InputInt32(5), i.InputInt32(4));
       __ VU.set(kScratchReg, VSew::E64, Vlmul::m1);
-      __ li(kScratchReg, 1);
-      __ vmv_vx(v0, kScratchReg);
-      __ li(kScratchReg, imm1);
-      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
       __ li(kScratchReg, imm2);
-      __ vsll_vi(v0, v0, 1);
-      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+      __ vmv_sx(kSimd128ScratchReg2, kScratchReg);
+      __ vslideup_vi(kSimd128ScratchReg, kSimd128ScratchReg2, 1);
+      __ li(kScratchReg, imm1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
 
       __ VU.set(kScratchReg, E8, m1);
       if (dst == src0) {
@@ -2769,6 +2775,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
       __ vrgather_vv(kSimd128ScratchReg3, src1, kSimd128ScratchReg);
       __ vor_vv(dst, dst, kSimd128ScratchReg3);
+      break;
+    }
+    case kRiscvI8x16Popcnt: {
+      VRegister dst = i.OutputSimd128Register(),
+                src = i.InputSimd128Register(0);
+      Label t;
+
+      __ VU.set(kScratchReg, E8, m1);
+      __ vmv_vv(kSimd128ScratchReg, src);
+      __ vmv_vv(dst, kSimd128RegZero);
+
+      __ bind(&t);
+      __ vmsne_vv(v0, kSimd128ScratchReg, kSimd128RegZero);
+      __ vadd_vi(dst, dst, 1, Mask);
+      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
+      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
+      // kScratchReg = -1 if kSimd128ScratchReg == 0 i.e. no active element
+      __ vfirst_m(kScratchReg, kSimd128ScratchReg);
+      __ bgez(kScratchReg, &t);
       break;
     }
     case kRiscvF64x2NearestInt: {
@@ -2962,6 +2987,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kRiscvF64x2Qfma: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF64x2Qfms: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kRiscvF32x4ExtractLane: {
       __ VU.set(kScratchReg, E32, m1);
       __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0),
@@ -3134,6 +3173,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfmin_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
                   i.InputSimd128Register(0), Mask);
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4RecipApprox: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfrec7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4RecipSqrtApprox: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfrsqrt7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4Qfma: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF32x4Qfms: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {
@@ -3488,8 +3551,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   AssembleArchBranch(instr, branch);
 }
 
-void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));
+void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
+    RpoNumber target) {
+  __ Branch(GetLabel(target));
 }
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
@@ -3786,17 +3850,17 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
-    int count = base::bits::CountPopulation(saves_fpu);
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fpu.is_empty()) {
+    int count = saves_fpu.Count();
     DCHECK_EQ(kNumCalleeSavedFPU, count);
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kSystemPointerSize));
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
-    int count = base::bits::CountPopulation(saves);
+  if (!saves.is_empty()) {
+    int count = saves.Count();
     frame->AllocateSavedCalleeRegisterSlots(count);
   }
 }
@@ -3847,7 +3911,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
@@ -3887,20 +3951,20 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
 
   // Skip callee-saved and return slots, which are pushed below.
-  required_slots -= base::bits::CountPopulation(saves);
-  required_slots -= base::bits::CountPopulation(saves_fpu);
+  required_slots -= saves.Count();
+  required_slots -= saves_fpu.Count();
   required_slots -= returns;
   if (required_slots > 0) {
     __ Sub64(sp, sp, Operand(required_slots * kSystemPointerSize));
   }
 
-  if (saves_fpu != 0) {
+  if (!saves_fpu.is_empty()) {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
-    DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation(saves_fpu));
+    DCHECK_EQ(kNumCalleeSavedFPU, saves_fpu.Count());
   }
 
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     // Save callee-saved registers.
     __ MultiPush(saves);
   }
@@ -3921,13 +3985,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore GP registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ MultiPop(saves);
   }
 
   // Restore FPU registers.
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fpu.is_empty()) {
     __ MultiPopFPU(saves_fpu);
   }
 
@@ -3979,9 +4043,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
-    if (!kJSArgcIncludesReceiver) {
-      __ Add64(t0, t0, Operand(1));  // Also pop the receiver.
-    }
     if (parameter_slots > 1) {
       Label done;
       __ li(kScratchReg, parameter_slots);
@@ -4014,11 +4075,10 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     total_size += (exit->kind() == DeoptimizeKind::kLazy)
                       ? Deoptimizer::kLazyDeoptExitSize
-                      : Deoptimizer::kNonLazyDeoptExitSize;
+                      : Deoptimizer::kEagerDeoptExitSize;
   }
 
   __ CheckTrampolinePoolQuick(total_size);
-  DCHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
@@ -4134,17 +4194,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       VRegister src = g.ToSimd128Register(source);
       if (destination->IsSimd128Register()) {
         VRegister dst = g.ToSimd128Register(destination);
+        __ VU.set(kScratchReg, E8, m1);
         __ vmv_vv(dst, src);
       } else {
         DCHECK(destination->IsSimd128StackSlot());
-        Register dst = g.ToMemOperand(destination).offset() == 0
-                           ? g.ToMemOperand(destination).rm()
-                           : kScratchReg;
-        if (g.ToMemOperand(destination).offset() != 0) {
-          __ Add64(dst, g.ToMemOperand(destination).rm(),
-                   g.ToMemOperand(destination).offset());
+        __ VU.set(kScratchReg, E8, m1);
+        MemOperand dst = g.ToMemOperand(destination);
+        Register dst_r = dst.rm();
+        if (dst.offset() != 0) {
+          dst_r = kScratchReg;
+          __ Add64(dst_r, dst.rm(), dst.offset());
         }
-        __ vs(src, dst, 0, E8);
+        __ vs(src, dst_r, 0, E8);
       }
     } else {
       FPURegister src = g.ToDoubleRegister(source);
@@ -4166,24 +4227,25 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     MemOperand src = g.ToMemOperand(source);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
-      Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
+      __ VU.set(kScratchReg, E8, m1);
+      Register src_r = src.rm();
       if (src.offset() != 0) {
-        __ Add64(src_reg, src.rm(), src.offset());
+        src_r = kScratchReg;
+        __ Add64(src_r, src.rm(), src.offset());
       }
       if (destination->IsSimd128Register()) {
-        __ vl(g.ToSimd128Register(destination), src_reg, 0, E8);
+        __ vl(g.ToSimd128Register(destination), src_r, 0, E8);
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         VRegister temp = kSimd128ScratchReg;
-        Register dst = g.ToMemOperand(destination).offset() == 0
-                           ? g.ToMemOperand(destination).rm()
-                           : kScratchReg;
-        if (g.ToMemOperand(destination).offset() != 0) {
-          __ Add64(dst, g.ToMemOperand(destination).rm(),
-                   g.ToMemOperand(destination).offset());
+        MemOperand dst = g.ToMemOperand(destination);
+        Register dst_r = dst.rm();
+        if (dst.offset() != 0) {
+          dst_r = kScratchReg2;
+          __ Add64(dst_r, dst.rm(), dst.offset());
         }
-        __ vl(temp, src_reg, 0, E8);
-        __ vs(temp, dst, 0, E8);
+        __ vl(temp, src_r, 0, E8);
+        __ vs(temp, dst_r, 0, E8);
       }
     } else {
       if (destination->IsFPRegister()) {
@@ -4214,91 +4276,106 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   RiscvOperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    // Register-register.
-    Register temp = kScratchReg;
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      Register dst = g.ToRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
-    } else {
-      DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ Ld(src, dst);
-      __ Sd(temp, dst);
-    }
-  } else if (source->IsStackSlot()) {
-    DCHECK(destination->IsStackSlot());
-    Register temp_0 = kScratchReg;
-    Register temp_1 = kScratchReg2;
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    __ Ld(temp_0, src);
-    __ Ld(temp_1, dst);
-    __ Sd(temp_0, dst);
-    __ Sd(temp_1, src);
-  } else if (source->IsFPRegister()) {
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    if (rep == MachineRepresentation::kSimd128) {
-      UNIMPLEMENTED();
-    } else {
-      FPURegister temp = kScratchDoubleReg;
-      FPURegister src = g.ToDoubleRegister(source);
-      if (destination->IsFPRegister()) {
-        FPURegister dst = g.ToDoubleRegister(destination);
+  switch (MoveType::InferSwap(source, destination)) {
+    case MoveType::kRegisterToRegister:
+      if (source->IsRegister()) {
+        Register temp = kScratchReg;
+        Register src = g.ToRegister(source);
+        Register dst = g.ToRegister(destination);
         __ Move(temp, src);
         __ Move(src, dst);
         __ Move(dst, temp);
       } else {
-        DCHECK(destination->IsFPStackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
-        if (rep == MachineRepresentation::kFloat32) {
-          __ MoveFloat(temp, src);
-          __ LoadFloat(src, dst);
-          __ StoreFloat(temp, dst);
+        if (source->IsFloatRegister() || source->IsDoubleRegister()) {
+          FPURegister temp = kScratchDoubleReg;
+          FPURegister src = g.ToDoubleRegister(source);
+          FPURegister dst = g.ToDoubleRegister(destination);
+          __ Move(temp, src);
+          __ Move(src, dst);
+          __ Move(dst, temp);
         } else {
-          DCHECK_EQ(rep, MachineRepresentation::kFloat64);
-          __ MoveDouble(temp, src);
-          __ LoadDouble(src, dst);
-          __ StoreDouble(temp, dst);
+          DCHECK(source->IsSimd128Register());
+          VRegister src = g.ToDoubleRegister(source).toV();
+          VRegister dst = g.ToDoubleRegister(destination).toV();
+          VRegister temp = kSimd128ScratchReg;
+          __ VU.set(kScratchReg, E8, m1);
+          __ vmv_vv(temp, src);
+          __ vmv_vv(src, dst);
+          __ vmv_vv(dst, temp);
         }
       }
-    }
-  } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPStackSlot());
-    Register temp_0 = kScratchReg;
-    MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rm(), src0.offset() + kIntSize);
-    MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    if (rep == MachineRepresentation::kSimd128) {
-      UNIMPLEMENTED();
-    } else {
-      FPURegister temp_1 = kScratchDoubleReg;
-      if (rep == MachineRepresentation::kFloat32) {
-        __ LoadFloat(temp_1, dst0);  // Save destination in temp_1.
-        __ Lw(temp_0, src0);  // Then use temp_0 to copy source to destination.
-        __ Sw(temp_0, dst0);
-        __ StoreFloat(temp_1, src0);
+      return;
+    case MoveType::kRegisterToStack: {
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsRegister()) {
+        Register temp = kScratchReg;
+        Register src = g.ToRegister(source);
+        __ mv(temp, src);
+        __ Ld(src, dst);
+        __ Sd(temp, dst);
       } else {
-        DCHECK_EQ(rep, MachineRepresentation::kFloat64);
-        __ LoadDouble(temp_1, dst0);  // Save destination in temp_1.
-        __ Lw(temp_0, src0);  // Then use temp_0 to copy source to destination.
-        __ Sw(temp_0, dst0);
-        __ Lw(temp_0, src1);
-        __ Sw(temp_0, dst1);
-        __ StoreDouble(temp_1, src0);
+        MemOperand dst = g.ToMemOperand(destination);
+        if (source->IsFloatRegister()) {
+          DoubleRegister src = g.ToDoubleRegister(source);
+          DoubleRegister temp = kScratchDoubleReg;
+          __ fmv_s(temp, src);
+          __ LoadFloat(src, dst);
+          __ StoreFloat(temp, dst);
+        } else if (source->IsDoubleRegister()) {
+          DoubleRegister src = g.ToDoubleRegister(source);
+          DoubleRegister temp = kScratchDoubleReg;
+          __ fmv_d(temp, src);
+          __ LoadDouble(src, dst);
+          __ StoreDouble(temp, dst);
+        } else {
+          DCHECK(source->IsSimd128Register());
+          VRegister src = g.ToDoubleRegister(source).toV();
+          VRegister temp = kSimd128ScratchReg;
+          __ VU.set(kScratchReg, E8, m1);
+          __ vmv_vv(temp, src);
+          Register dst_v = dst.rm();
+          if (dst.offset() != 0) {
+            dst_v = kScratchReg2;
+            __ Add64(dst_v, dst.rm(), Operand(dst.offset()));
+          }
+          __ vl(src, dst_v, 0, E8);
+          __ vs(temp, dst_v, 0, E8);
+        }
       }
+      return;
     }
-  } else {
-    // No other combinations are possible.
-    UNREACHABLE();
+    case MoveType::kStackToStack: {
+      MemOperand src = g.ToMemOperand(source);
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsSimd128StackSlot()) {
+        __ VU.set(kScratchReg, E8, m1);
+        Register src_v = src.rm();
+        Register dst_v = dst.rm();
+        if (src.offset() != 0) {
+          src_v = kScratchReg;
+          __ Add64(src_v, src.rm(), Operand(src.offset()));
+        }
+        if (dst.offset() != 0) {
+          dst_v = kScratchReg2;
+          __ Add64(dst_v, dst.rm(), Operand(dst.offset()));
+        }
+        __ vl(kSimd128ScratchReg, src_v, 0, E8);
+        __ vl(kSimd128ScratchReg2, dst_v, 0, E8);
+        __ vs(kSimd128ScratchReg, dst_v, 0, E8);
+        __ vs(kSimd128ScratchReg2, src_v, 0, E8);
+      } else {
+        UseScratchRegisterScope scope(tasm());
+        Register temp_0 = kScratchReg;
+        Register temp_1 = kScratchReg2;
+        __ Ld(temp_0, src);
+        __ Ld(temp_1, dst);
+        __ Sd(temp_0, dst);
+        __ Sd(temp_1, src);
+      }
+      return;
+    }
+    default:
+      UNREACHABLE();
   }
 }
 

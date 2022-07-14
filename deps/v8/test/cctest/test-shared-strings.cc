@@ -235,9 +235,58 @@ UNINITIALIZED_TEST(YoungInternalization) {
   CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
 }
 
+class ConcurrentStringThreadBase : public v8::base::Thread {
+ public:
+  ConcurrentStringThreadBase(const char* name, MultiClientIsolateTest* test,
+                             Handle<FixedArray> shared_strings,
+                             base::Semaphore* sema_ready,
+                             base::Semaphore* sema_execute_start,
+                             base::Semaphore* sema_execute_complete)
+      : v8::base::Thread(base::Thread::Options(name)),  // typeid(this).name?
+        test_(test),
+        shared_strings_(shared_strings),
+        sema_ready_(sema_ready),
+        sema_execute_start_(sema_execute_start),
+        sema_execute_complete_(sema_execute_complete) {}
+
+  virtual void Setup() {}
+  virtual void RunForString(Handle<String> string) = 0;
+  virtual void Teardown() {}
+  void Run() override {
+    isolate = test_->NewClientIsolate();
+    i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+    Setup();
+
+    sema_ready_->Signal();
+    sema_execute_start_->Wait();
+
+    HandleScope scope(i_isolate);
+    for (int i = 0; i < shared_strings_->length(); i++) {
+      Handle<String> input_string(String::cast(shared_strings_->get(i)),
+                                  i_isolate);
+      RunForString(input_string);
+    }
+
+    sema_execute_complete_->Signal();
+
+    Teardown();
+  }
+
+ protected:
+  v8::Isolate* isolate;
+  Isolate* i_isolate;
+  MultiClientIsolateTest* test_;
+  Handle<FixedArray> shared_strings_;
+  base::Semaphore* sema_ready_;
+  base::Semaphore* sema_execute_start_;
+  base::Semaphore* sema_execute_complete_;
+};
+
 enum TestHitOrMiss { kTestMiss, kTestHit };
 
-class ConcurrentInternalizationThread final : public v8::base::Thread {
+class ConcurrentInternalizationThread final
+    : public ConcurrentStringThreadBase {
  public:
   ConcurrentInternalizationThread(MultiClientIsolateTest* test,
                                   Handle<FixedArray> shared_strings,
@@ -245,56 +294,64 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
                                   base::Semaphore* sema_ready,
                                   base::Semaphore* sema_execute_start,
                                   base::Semaphore* sema_execute_complete)
-      : v8::base::Thread(
-            base::Thread::Options("ConcurrentInternalizationThread")),
-        test_(test),
-        shared_strings_(shared_strings),
-        hit_or_miss_(hit_or_miss),
-        sema_ready_(sema_ready),
-        sema_execute_start_(sema_execute_start),
-        sema_execute_complete_(sema_execute_complete) {}
+      : ConcurrentStringThreadBase("ConcurrentInternalizationThread", test,
+                                   shared_strings, sema_ready,
+                                   sema_execute_start, sema_execute_complete),
+        hit_or_miss_(hit_or_miss) {}
 
-  void Run() override {
-    v8::Isolate* isolate = test_->NewClientIsolate();
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-    Factory* factory = i_isolate->factory();
+  void Setup() override { factory = i_isolate->factory(); }
 
-    sema_ready_->Signal();
-    sema_execute_start_->Wait();
-
-    HandleScope scope(i_isolate);
-
-    Handle<String> manual_thin_actual =
-        factory->InternalizeString(factory->NewStringFromAsciiChecked("TODO"));
-
-    for (int i = 0; i < shared_strings_->length(); i++) {
-      Handle<String> input_string(String::cast(shared_strings_->get(i)),
-                                  i_isolate);
-      CHECK(input_string->IsShared());
-      if (hit_or_miss_ == kTestMiss) {
-        Handle<String> interned = factory->InternalizeString(input_string);
-        CHECK_EQ(*input_string, *interned);
-      } else {
-        // TODO(v8:12007): Make this branch also test InternalizeString. But
-        // LookupString needs to be made threadsafe first and restart-aware.
-        input_string->MakeThin(i_isolate, *manual_thin_actual);
-        CHECK(input_string->IsThinString());
-      }
+  void RunForString(Handle<String> input_string) override {
+    CHECK(input_string->IsShared());
+    Handle<String> interned = factory->InternalizeString(input_string);
+    CHECK(interned->IsShared());
+    if (hit_or_miss_ == kTestMiss) {
+      CHECK_EQ(*input_string, *interned);
+    } else {
+      // TODO(v8:12007): In-place internalization currently do not migrate
+      // shared strings to ThinStrings. This is triviailly threadsafe for
+      // character access but bad for performance, as run-time
+      // internalizations do not speed up comparisons for shared strings.
+      CHECK(!input_string->IsThinString());
+      CHECK_NE(*input_string, *interned);
+      CHECK(String::Equals(i_isolate, input_string, interned));
     }
-
-    sema_execute_complete_->Signal();
   }
 
  private:
-  MultiClientIsolateTest* test_;
-  Handle<FixedArray> shared_strings_;
   TestHitOrMiss hit_or_miss_;
-  base::Semaphore* sema_ready_;
-  base::Semaphore* sema_execute_start_;
-  base::Semaphore* sema_execute_complete_;
+  Factory* factory;
 };
 
 namespace {
+
+Handle<FixedArray> CreateSharedOneByteStrings(Isolate* isolate,
+                                              Factory* factory, int count,
+                                              bool internalize) {
+  Handle<FixedArray> shared_strings =
+      factory->NewFixedArray(count, AllocationType::kSharedOld);
+  for (int i = 0; i < count; i++) {
+    char* ascii = new char[i + 3];
+    // Don't make single character strings, which will end up deduplicating to
+    // an RO string and mess up the string table hit test.
+    for (int j = 0; j < i + 2; j++) ascii[j] = 'a';
+    ascii[i + 2] = '\0';
+    if (internalize) {
+      // When testing concurrent string table hits, pre-internalize a string of
+      // the same contents so all subsequent internalizations are hits.
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+    }
+    Handle<String> string = String::Share(
+        isolate,
+        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
+    CHECK(string->IsShared());
+    string->EnsureHash();
+    shared_strings->set(i, *string);
+    delete[] ascii;
+  }
+  return shared_strings;
+}
+
 void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
@@ -311,27 +368,9 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   Factory* factory = i_isolate->factory();
 
   HandleScope scope(i_isolate);
-  Handle<FixedArray> shared_strings =
-      factory->NewFixedArray(kStrings, AllocationType::kSharedOld);
-  for (int i = 0; i < kStrings; i++) {
-    char* ascii = new char[i + 3];
-    // Don't make single character strings, which might will end up
-    // deduplicating to an RO string and mess up the string table hit test.
-    for (int j = 0; j < i + 2; j++) ascii[j] = 'a';
-    ascii[i + 2] = '\0';
-    if (hit_or_miss == kTestHit) {
-      // When testing concurrent string table hits, pre-internalize a string of
-      // the same contents so all subsequent internalizations are hits.
-      factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
-    }
-    Handle<String> string = String::Share(
-        i_isolate,
-        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
-    CHECK(string->IsShared());
-    string->EnsureHash();
-    shared_strings->set(i, *string);
-    delete[] ascii;
-  }
+
+  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+      i_isolate, factory, kStrings, hit_or_miss == kTestHit);
 
   base::Semaphore sema_ready(0);
   base::Semaphore sema_execute_start(0);
@@ -361,6 +400,82 @@ UNINITIALIZED_TEST(ConcurrentInternalizationMiss) {
 
 UNINITIALIZED_TEST(ConcurrentInternalizationHit) {
   TestConcurrentInternalization(kTestHit);
+}
+
+class ConcurrentStringTableLookupThread final
+    : public ConcurrentStringThreadBase {
+ public:
+  ConcurrentStringTableLookupThread(MultiClientIsolateTest* test,
+                                    Handle<FixedArray> shared_strings,
+                                    base::Semaphore* sema_ready,
+                                    base::Semaphore* sema_execute_start,
+                                    base::Semaphore* sema_execute_complete)
+      : ConcurrentStringThreadBase("ConcurrentStringTableLookup", test,
+                                   shared_strings, sema_ready,
+                                   sema_execute_start, sema_execute_complete) {}
+
+  void RunForString(Handle<String> input_string) override {
+    CHECK(input_string->IsShared());
+    Object result = Object(StringTable::TryStringToIndexOrLookupExisting(
+        i_isolate, input_string->ptr()));
+    if (result.IsString()) {
+      String internalized = String::cast(result);
+      CHECK(internalized.IsInternalizedString());
+      CHECK_IMPLIES(input_string->IsInternalizedString(),
+                    *input_string == internalized);
+    } else {
+      CHECK_EQ(Smi::cast(result).value(), ResultSentinel::kNotFound);
+    }
+  }
+};
+
+UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+
+  constexpr int kTotalThreads = 4;
+  constexpr int kInternalizationThreads = 1;
+  constexpr int kStrings = 4096;
+
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  HandleScope scope(i_isolate);
+
+  Handle<FixedArray> shared_strings =
+      CreateSharedOneByteStrings(i_isolate, factory, kStrings, false);
+
+  base::Semaphore sema_ready(0);
+  base::Semaphore sema_execute_start(0);
+  base::Semaphore sema_execute_complete(0);
+  std::vector<std::unique_ptr<v8::base::Thread>> threads;
+  for (int i = 0; i < kInternalizationThreads; i++) {
+    auto thread = std::make_unique<ConcurrentInternalizationThread>(
+        &test, shared_strings, kTestMiss, &sema_ready, &sema_execute_start,
+        &sema_execute_complete);
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+  for (int i = 0; i < kTotalThreads - kInternalizationThreads; i++) {
+    auto thread = std::make_unique<ConcurrentStringTableLookupThread>(
+        &test, shared_strings, &sema_ready, &sema_execute_start,
+        &sema_execute_complete);
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  for (int i = 0; i < kTotalThreads; i++) sema_ready.Wait();
+  for (int i = 0; i < kTotalThreads; i++) sema_execute_start.Signal();
+  for (int i = 0; i < kTotalThreads; i++) sema_execute_complete.Wait();
+
+  for (auto& thread : threads) {
+    thread->Join();
+  }
 }
 
 namespace {

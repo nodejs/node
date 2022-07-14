@@ -84,6 +84,7 @@ class SourcePosition final {
   std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
   std::vector<SourcePositionInfo> InliningStack(
       OptimizedCompilationInfo* cinfo) const;
+  SourcePositionInfo FirstInfo(Handle<Code> code) const;
 
   void Print(std::ostream& out, Code code) const;
   void PrintJson(std::ostream& out) const;

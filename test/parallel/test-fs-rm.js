@@ -16,6 +16,15 @@ let count = 0;
 const nextDirPath = (name = 'rm') =>
   path.join(tmpdir.path, `${name}-${count++}`);
 
+const isGitPresent = (() => {
+  try { execSync('git --version'); return true; } catch { return false; }
+})();
+
+function gitInit(gitDirectory) {
+  fs.mkdirSync(gitDirectory);
+  execSync('git init', { cwd: gitDirectory });
+}
+
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
   fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
@@ -130,6 +139,16 @@ function removeAsync(dir) {
   }));
 }
 
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rm(gitDirectory, { recursive: true }, common.mustSucceed(() => {
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  }));
+}
+
 // Test the synchronous version.
 {
   const dir = nextDirPath();
@@ -177,6 +196,15 @@ function removeAsync(dir) {
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
+}
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rmSync(gitDirectory, { recursive: true });
+  assert.strictEqual(fs.existsSync(gitDirectory), false);
 }
 
 // Test the Promises based version.
@@ -229,6 +257,17 @@ function removeAsync(dir) {
     fs.rmSync(fileURL, { force: true });
   }
 })().then(common.mustCall());
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  (async () => {
+    const gitDirectory = nextDirPath();
+    gitInit(gitDirectory);
+    await fs.promises.rm(gitDirectory, { recursive: true });
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  })().then(common.mustCall());
+}
 
 // Test input validation.
 {

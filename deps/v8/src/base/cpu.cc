@@ -50,6 +50,8 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 #endif
 
@@ -85,7 +87,7 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS || \
-    V8_HOST_ARCH_MIPS64
+    V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if V8_OS_LINUX
 
@@ -354,7 +356,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -444,7 +446,8 @@ CPU::CPU()
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
-      has_msa_(false) {
+      has_msa_(false),
+      has_rvv_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -498,6 +501,9 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    // CET shadow stack feature flag. See
+    // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
+    has_cetss_ = (cpu_info7[2] & 0x00000080) != 0;
     // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
     // See https://lwn.net/Articles/301888/
     // This is checking for any hypervisor. Hypervisors may choose not to
@@ -758,6 +764,15 @@ CPU::CPU()
   // user-space.
   has_non_stop_time_stamp_counter_ = true;
 
+  // Defined in winnt.h, but only in 10.0.20348.0 version of the Windows SDK.
+  // Copy the value here to support older versions as well.
+#if !defined(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE = 44;
+#endif
+
+  has_jscvt_ =
+      IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
+
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
   uint32_t hwcaps = ReadELFHWCaps();
@@ -770,7 +785,7 @@ CPU::CPU()
     has_jscvt_ = HasListItem(features, "jscvt");
     delete[] features;
   }
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
   // ARM64 Macs always have JSCVT.
   has_jscvt_ = true;
 #endif  // V8_OS_WIN
@@ -854,7 +869,19 @@ CPU::CPU()
   }
 #endif  // V8_OS_AIX
 #endif  // !USE_SIMULATOR
-#endif  // V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+
+#elif V8_HOST_ARCH_RISCV64
+  CPUInfo cpu_info;
+  char* features = cpu_info.ExtractField("isa");
+
+  if (HasListItem(features, "rv64imafdc")) {
+    has_fpu_ = true;
+  }
+  if (HasListItem(features, "rv64imafdcv")) {
+    has_fpu_ = true;
+    has_rvv_ = true;
+  }
+#endif  // V8_HOST_ARCH_RISCV64
 }
 
 }  // namespace base

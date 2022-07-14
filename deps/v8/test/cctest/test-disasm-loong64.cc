@@ -621,11 +621,11 @@ TEST(TypeOp17) {
   COMPARE(slt(a5, a5, a6), "00122929       slt          a5, a5, a6");
   COMPARE(slt(a6, t3, t4), "001241ea       slt          a6, t3, t4");
 
-  COMPARE(masknez(a5, a5, a3), "00131d29       masknez      a5, a5, a3");
-  COMPARE(masknez(a3, a4, a5), "00132507       masknez      a3, a4, a5");
+  COMPARE(maskeqz(a6, a7, t0), "0013316a       maskeqz      a6, a7, t0");
+  COMPARE(maskeqz(t1, t2, t3), "00133dcd       maskeqz      t1, t2, t3");
 
-  COMPARE(maskeqz(a6, a7, t0), "0013b16a       maskeqz      a6, a7, t0");
-  COMPARE(maskeqz(t1, t2, t3), "0013bdcd       maskeqz      t1, t2, t3");
+  COMPARE(masknez(a5, a5, a3), "00139d29       masknez      a5, a5, a3");
+  COMPARE(masknez(a3, a4, a5), "0013a507       masknez      a3, a4, a5");
 
   COMPARE(or_(s3, sp, zero_reg),
           "0015007a       or           s3, sp, zero_reg");

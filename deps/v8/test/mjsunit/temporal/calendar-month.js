@@ -10,8 +10,7 @@ assertEquals(7, cal.month(new Temporal.PlainDate(2021, 7, 15)));
 assertEquals(8, cal.month(new Temporal.PlainDateTime(1997, 8, 23, 5, 30, 13)));
 assertEquals(6, cal.month(new Temporal.PlainYearMonth(1999, 6)));
 assertEquals(3, cal.month("2019-03-15"));
-assertThrows(() => cal.month(new Temporal.PlainMonthDay(3, 16)), TypeError,
-    "invalid_argument");
+assertThrows(() => cal.month(new Temporal.PlainMonthDay(3, 16)), TypeError);
 
 // TODO Test the following later.
 //assertEquals(1, cal.month(new Temporal.ZonedDateTime(86400n * 366n * 50n,

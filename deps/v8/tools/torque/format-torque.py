@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -7,13 +7,16 @@
 """This program either generates the parser files for Torque, generating
 the source and header files directly in V8's src directory."""
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import subprocess
 import sys
 import re
 from subprocess import Popen, PIPE
+
+def decode(arg, encoding="utf-8"):
+  return arg.decode(encoding)
+
+def encode(arg, encoding="utf-8"):
+  return arg.encode(encoding)
 
 kPercentEscape = r'α';  # Unicode alpha
 kDerefEscape = r'☆'; # Unicode star
@@ -103,8 +106,8 @@ def process(filename, lint, should_format):
     p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
   else:
     p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-  output, err = p.communicate(preprocess(content))
-  output = postprocess(output)
+  output, err = p.communicate(encode(preprocess(content)))
+  output = postprocess(decode(output))
   rc = p.returncode
   if (rc != 0):
     print("error code " + str(rc) + " running clang-format. Exiting...")
@@ -116,7 +119,7 @@ def process(filename, lint, should_format):
 
     if should_format:
       output_file = open(filename, 'wb')
-      output_file.write(output);
+      output_file.write(encode(output))
       output_file.close()
 
 def print_usage():

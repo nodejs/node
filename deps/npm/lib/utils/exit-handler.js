@@ -1,14 +1,15 @@
 const os = require('os')
-const log = require('./log-shim.js')
 
+const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
 const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
+const indent = (val) => Array.isArray(val) ? val.map(v => indent(v)) : `    ${val}`
 
 let npm = null // set by the cli
 let exitHandlerCalled = false
-let showLogFileMessage = false
+let showLogFileError = false
 
 process.on('exit', code => {
   log.disableProgress()
@@ -36,42 +37,73 @@ process.on('exit', code => {
   if (!exitHandlerCalled) {
     process.exitCode = code || 1
     log.error('', 'Exit handler never called!')
+    // eslint-disable-next-line no-console
     console.error('')
     log.error('', 'This is an error with npm itself. Please report this error at:')
     log.error('', '    <https://github.com/npm/cli/issues>')
-    showLogFileMessage = true
-  }
-
-  // In timing mode we always show the log file message
-  if (hasLoadedNpm && npm.config.get('timing')) {
-    showLogFileMessage = true
+    showLogFileError = true
   }
 
   // npm must be loaded to know where the log file was written
-  if (showLogFileMessage && hasLoadedNpm) {
-    // just a line break
-    if (log.levels[log.level] <= log.levels.error) {
-      console.error('')
+  if (hasLoadedNpm) {
+    // write the timing file now, this might do nothing based on the configs set.
+    // we need to call it here in case it errors so we dont tell the user
+    // about a timing file that doesn't exist
+    npm.writeTimingFile()
+
+    const logsDir = npm.logsDir
+    const logFiles = npm.logFiles
+
+    const timingDir = npm.timingDir
+    const timingFile = npm.timingFile
+
+    const timing = npm.config.get('timing')
+    const logsMax = npm.config.get('logs-max')
+
+    // Determine whether to show log file message and why it is
+    // being shown since in timing mode we always show the log file message
+    const logMethod = showLogFileError ? 'error' : timing ? 'info' : null
+
+    if (logMethod) {
+      if (!npm.silent) {
+        // just a line break if not in silent mode
+        // eslint-disable-next-line no-console
+        console.error('')
+      }
+
+      const message = []
+
+      if (timingFile) {
+        message.push('Timing info written to:', indent(timingFile))
+      } else if (timing) {
+        message.push(
+          `The timing file was not written due to an error writing to the directory: ${timingDir}`
+        )
+      }
+
+      if (logFiles.length) {
+        message.push('A complete log of this run can be found in:', ...indent(logFiles))
+      } else if (logsMax <= 0) {
+        // user specified no log file
+        message.push(`Log files were not written due to the config logs-max=${logsMax}`)
+      } else {
+        // could be an error writing to the directory
+        message.push(
+          `Log files were not written due to an error writing to the directory: ${logsDir}`,
+          'You can rerun the command with `--loglevel=verbose` to see the logs in your terminal'
+        )
+      }
+
+      log[logMethod]('', message.join('\n'))
     }
 
-    log.error(
-      '',
-      [
-        'A complete log of this run can be found in:',
-        ...npm.logFiles.map(f => '    ' + f),
-      ].join('\n')
-    )
-  }
-
-  // This removes any listeners npm setup and writes files if necessary
-  // This is mostly used for tests to avoid max listener warnings
-  if (hasLoadedNpm) {
+    // This removes any listeners npm setup, mostly for tests to avoid max listener warnings
     npm.unload()
   }
 
   // these are needed for the tests to have a clean slate in each test case
   exitHandlerCalled = false
-  showLogFileMessage = false
+  showLogFileError = false
 })
 
 const exitHandler = err => {
@@ -84,12 +116,14 @@ const exitHandler = err => {
 
   if (!hasNpm) {
     err = err || new Error('Exit prior to setting npm in exit handler')
+    // eslint-disable-next-line no-console
     console.error(err.stack || err.message)
     return process.exit(1)
   }
 
   if (!hasLoadedNpm) {
     err = err || new Error('Exit prior to config file resolving.')
+    // eslint-disable-next-line no-console
     console.error(err.stack || err.message)
   }
 
@@ -110,7 +144,7 @@ const exitHandler = err => {
     // will presumably print its own errors and exit with a proper status
     // code if there's a problem.  If we got an error with a code=0, then...
     // something else went wrong along the way, so maybe an npm problem?
-    const isShellout = npm.shelloutCommands.includes(npm.command)
+    const isShellout = npm.commandInstance && npm.commandInstance.constructor.isShellout
     const quietShellout = isShellout && typeof err.code === 'number' && err.code
     if (quietShellout) {
       exitCode = err.code
@@ -135,10 +169,8 @@ const exitHandler = err => {
         }
       }
 
-      const args = replaceInfo(process.argv)
       log.verbose('cwd', process.cwd())
       log.verbose('', os.type() + ' ' + os.release())
-      log.verbose('argv', args.map(JSON.stringify).join(' '))
       log.verbose('node', process.version)
       log.verbose('npm ', 'v' + npm.version)
 
@@ -162,7 +194,7 @@ const exitHandler = err => {
             detail: messageText(msg.detail),
           },
         }
-        console.error(JSON.stringify(error, null, 2))
+        npm.outputError(JSON.stringify(error, null, 2))
       }
 
       if (typeof err.errno === 'number') {
@@ -175,17 +207,18 @@ const exitHandler = err => {
 
   log.verbose('exit', exitCode || 0)
 
-  showLogFileMessage = log.level === 'silent' || noLogMessage
+  showLogFileError = (hasLoadedNpm && npm.silent) || noLogMessage
     ? false
     : !!exitCode
 
   // explicitly call process.exit now so we don't hang on things like the
-  // update notifier, also flush stdout beforehand because process.exit doesn't
+  // update notifier, also flush stdout/err beforehand because process.exit doesn't
   // wait for that to happen.
-  process.stdout.write('', () => process.exit(exitCode))
+  let flushed = 0
+  const flush = [process.stderr, process.stdout]
+  const exit = () => ++flushed === flush.length && process.exit(exitCode)
+  flush.forEach((f) => f.write('', exit))
 }
 
 module.exports = exitHandler
-module.exports.setNpm = n => {
-  npm = n
-}
+module.exports.setNpm = n => (npm = n)

@@ -6,8 +6,7 @@
 #define V8_CODEGEN_LOONG64_REGISTER_LOONG64_H_
 
 #include "src/codegen/loong64/constants-loong64.h"
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -47,74 +46,6 @@ namespace internal {
 // Note that the bit values must match those used in actual instruction
 // encoding.
 const int kNumRegs = 32;
-
-const RegList kJSCallerSaved = 1 << 4 |   // a0
-                               1 << 5 |   // a1
-                               1 << 6 |   // a2
-                               1 << 7 |   // a3
-                               1 << 8 |   // a4
-                               1 << 9 |   // a5
-                               1 << 10 |  // a6
-                               1 << 11 |  // a7
-                               1 << 12 |  // t0
-                               1 << 13 |  // t1
-                               1 << 14 |  // t2
-                               1 << 15 |  // t3
-                               1 << 16 |  // t4
-                               1 << 17 |  // t5
-                               1 << 20;   // t8
-
-const int kNumJSCallerSaved = 15;
-
-// Callee-saved registers preserved when switching from C to JavaScript.
-const RegList kCalleeSaved = 1 << 22 |  // fp
-                             1 << 23 |  // s0
-                             1 << 24 |  // s1
-                             1 << 25 |  // s2
-                             1 << 26 |  // s3
-                             1 << 27 |  // s4
-                             1 << 28 |  // s5
-                             1 << 29 |  // s6 (roots in Javascript code)
-                             1 << 30 |  // s7 (cp in Javascript code)
-                             1 << 31;   // s8
-
-const int kNumCalleeSaved = 10;
-
-const RegList kCalleeSavedFPU = 1 << 24 |  // f24
-                                1 << 25 |  // f25
-                                1 << 26 |  // f26
-                                1 << 27 |  // f27
-                                1 << 28 |  // f28
-                                1 << 29 |  // f29
-                                1 << 30 |  // f30
-                                1 << 31;   // f31
-
-const int kNumCalleeSavedFPU = 8;
-
-const RegList kCallerSavedFPU = 1 << 0 |   // f0
-                                1 << 1 |   // f1
-                                1 << 2 |   // f2
-                                1 << 3 |   // f3
-                                1 << 4 |   // f4
-                                1 << 5 |   // f5
-                                1 << 6 |   // f6
-                                1 << 7 |   // f7
-                                1 << 8 |   // f8
-                                1 << 9 |   // f9
-                                1 << 10 |  // f10
-                                1 << 11 |  // f11
-                                1 << 12 |  // f12
-                                1 << 13 |  // f13
-                                1 << 14 |  // f14
-                                1 << 15 |  // f15
-                                1 << 16 |  // f16
-                                1 << 17 |  // f17
-                                1 << 18 |  // f18
-                                1 << 19 |  // f19
-                                1 << 20 |  // f20
-                                1 << 21 |  // f21
-                                1 << 22 |  // f22
-                                1 << 23;   // f23
 
 // CPU Registers.
 //
@@ -177,7 +108,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {

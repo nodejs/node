@@ -30,7 +30,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow named `function` expressions",
+            description: "Require or disallow named `function` expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/func-names"
         },

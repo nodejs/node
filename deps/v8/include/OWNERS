@@ -7,9 +7,12 @@ yangguo@chromium.org
 
 per-file *DEPS=file:../COMMON_OWNERS
 per-file v8-internal.h=file:../COMMON_OWNERS
-per-file v8-inspector.h=file:../src/inspector/OWNERS
-per-file v8-inspector-protocol.h=file:../src/inspector/OWNERS
+
+per-file v8-debug.h=file:../src/debug/OWNERS
+
 per-file js_protocol.pdl=file:../src/inspector/OWNERS
+per-file v8-inspector*=file:../src/inspector/OWNERS
+per-file v8-inspector*=file:../src/inspector/OWNERS
 
 # Needed by the auto_tag builder
 per-file v8-version.h=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com

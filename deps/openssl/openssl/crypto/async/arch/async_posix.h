@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,12 +25,26 @@
 #  define ASYNC_POSIX
 #  define ASYNC_ARCH
 
-#  ifdef __CET__
+#  if defined(__CET__) || defined(__ia64__)
 /*
  * When Intel CET is enabled, makecontext will create a different
  * shadow stack for each context.  async_fibre_swapcontext cannot
  * use _longjmp.  It must call swapcontext to swap shadow stack as
  * well as normal stack.
+ * On IA64 the register stack engine is not saved across setjmp/longjmp. Here
+ * swapcontext() performs correctly.
+ */
+#   define USE_SWAPCONTEXT
+#  endif
+#  if defined(__aarch64__) && defined(__clang__) \
+    && defined(__ARM_FEATURE_BTI_DEFAULT) && __ARM_FEATURE_BTI_DEFAULT == 1
+/*
+ * setjmp/longjmp don't currently work with BTI on all libc implementations
+ * when compiled by clang. This is because clang doesn't put a BTI after the
+ * call to setjmp where it returns the second time. This then fails on libc
+ * implementations - notably glibc - which use an indirect jump to there.
+ * So use the swapcontext implementation, which does work.
+ * See https://github.com/llvm/llvm-project/issues/48888.
  */
 #   define USE_SWAPCONTEXT
 #  endif

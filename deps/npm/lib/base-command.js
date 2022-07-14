@@ -2,9 +2,10 @@
 
 const { relative } = require('path')
 
-const usageUtil = require('./utils/usage.js')
 const ConfigDefinitions = require('./utils/config/definitions.js')
 const getWorkspaces = require('./workspaces/get-workspaces.js')
+
+const cmdAliases = require('./utils/cmd-list').aliases
 
 class BaseCommand {
   constructor (npm) {
@@ -20,29 +21,48 @@ class BaseCommand {
     return this.constructor.description
   }
 
-  get usage () {
-    let usage = `npm ${this.constructor.name}\n\n`
-    if (this.constructor.description) {
-      usage = `${usage}${this.constructor.description}\n\n`
-    }
+  get ignoreImplicitWorkspace () {
+    return this.constructor.ignoreImplicitWorkspace
+  }
 
-    usage = `${usage}Usage:\n`
+  get usage () {
+    const usage = [
+      `${this.constructor.description}`,
+      '',
+      'Usage:',
+    ]
+
     if (!this.constructor.usage) {
-      usage = `${usage}npm ${this.constructor.name}`
+      usage.push(`npm ${this.constructor.name}`)
     } else {
-      usage = `${usage}${this.constructor.usage
-        .map(u => `npm ${this.constructor.name} ${u}`)
-        .join('\n')}`
+      usage.push(...this.constructor.usage.map(u => `npm ${this.constructor.name} ${u}`))
     }
 
     if (this.constructor.params) {
-      usage = `${usage}\n\nOptions:\n${this.wrappedParams}`
+      usage.push('')
+      usage.push('Options:')
+      usage.push(this.wrappedParams)
     }
 
-    // Mostly this just appends aliases, this could be more clear
-    usage = usageUtil(this.constructor.name, usage)
-    usage = `${usage}\n\nRun "npm help ${this.constructor.name}" for more info`
-    return usage
+    const aliases = Object.keys(cmdAliases).reduce((p, c) => {
+      if (cmdAliases[c] === this.constructor.name) {
+        p.push(c)
+      }
+      return p
+    }, [])
+
+    if (aliases.length === 1) {
+      usage.push('')
+      usage.push(`alias: ${aliases.join(', ')}`)
+    } else if (aliases.length > 1) {
+      usage.push('')
+      usage.push(`aliases: ${aliases.join(', ')}`)
+    }
+
+    usage.push('')
+    usage.push(`Run "npm help ${this.constructor.name}" for more info`)
+
+    return usage.join('\n')
   }
 
   get wrappedParams () {
@@ -65,7 +85,7 @@ class BaseCommand {
     if (prefix) {
       prefix += '\n\n'
     }
-    return Object.assign(new Error(`\nUsage: ${prefix}${this.usage}`), {
+    return Object.assign(new Error(`\n${prefix}${this.usage}`), {
       code: 'EUSAGE',
     })
   }

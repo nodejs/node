@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmhook.svg)](https://npm.im/libnpmhook)
 [![license](https://img.shields.io/npm/l/libnpmhook.svg)](https://npm.im/libnpmhook)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmhook/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmhook?branch=latest)
+[![CI - libnpmhook](https://github.com/npm/cli/actions/workflows/ci-libnpmhook.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmhook.yml)
 
 [`libnpmhook`](https://github.com/npm/libnpmhook) is a Node.js library for
 programmatically managing the npm registry's server-side hooks.

@@ -17,7 +17,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow reassigning exceptions in `catch` clauses",
+            description: "Disallow reassigning exceptions in `catch` clauses",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-ex-assign"
         },

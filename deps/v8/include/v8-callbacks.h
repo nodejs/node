@@ -368,6 +368,20 @@ using HostInitializeImportMetaObjectCallback = void (*)(Local<Context> context,
                                                         Local<Object> meta);
 
 /**
+ * HostCreateShadowRealmContextCallback is called each time a ShadowRealm is
+ * being constructed in the initiator_context.
+ *
+ * The method combines Context creation and implementation defined abstract
+ * operation HostInitializeShadowRealm into one.
+ *
+ * The embedder should use v8::Context::New or v8::Context:NewFromSnapshot to
+ * create a new context. If the creation fails, the embedder must propagate
+ * that exception by returning an empty MaybeLocal.
+ */
+using HostCreateShadowRealmContextCallback =
+    MaybeLocal<Context> (*)(Local<Context> initiator_context);
+
+/**
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.

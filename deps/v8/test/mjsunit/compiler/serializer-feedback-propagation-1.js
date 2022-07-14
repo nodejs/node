@@ -23,5 +23,5 @@ bar({bla: 1});
 bar({blu: 1});
 bar({blo: 1});
 foo(obj);
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(obj);

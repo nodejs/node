@@ -1,4 +1,10 @@
 
+4.2.1 / 2022-02-21
+==================
+
+**fixes**
+  * [[`8b13b5c`](http://github.com/node-modules/agentkeepalive/commit/8b13b5ca797f4779a0a8d393ad8ecb622cd27987)] - fix: explicitly set `| undefined` in type definitions (#99) (Benoit Lemoine <<lemoine.benoit@gmail.com>>)
+
 4.2.0 / 2021-12-31
 ==================
 

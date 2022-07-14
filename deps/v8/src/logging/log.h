@@ -88,6 +88,7 @@ class ExistingCodeLogger {
       : isolate_(isolate), listener_(listener) {}
 
   void LogCodeObjects();
+  void LogBuiltins();
 
   void LogCompiledFunctions();
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -122,6 +123,9 @@ class Logger : public CodeEventListener {
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
 
+  // Additional steps taken after the logger has been set up.
+  void LateSetup(Isolate* isolate);
+
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.
@@ -141,22 +145,9 @@ class Logger : public CodeEventListener {
   // Emits an event with an int value -> (name, value).
   void IntPtrTEvent(const char* name, intptr_t value);
 
-  // Emits an event with an handle value -> (name, location).
-  void HandleEvent(const char* name, Address* location);
-
   // Emits memory management events for C allocated structures.
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
-
-  // Emits an event with a tag, and some resource usage information.
-  // -> (name, tag, <rusage information>).
-  // Currently, the resource usage information is a process time stamp
-  // and a real time timestamp.
-  void ResourceEvent(const char* name, const char* tag);
-
-  // Emits an event that an undefined property was read from an
-  // object.
-  void SuspectReadEvent(Name name, Object obj);
 
   // ==== Events logged by --log-function-events ====
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
@@ -171,30 +162,6 @@ class Logger : public CodeEventListener {
                              SharedFunctionInfo sfi);
   void ScriptEvent(ScriptEventType type, int script_id);
   void ScriptDetails(Script script);
-
-  // ==== Events logged by --log-api. ====
-  void ApiSecurityCheck() {
-    if (!FLAG_log_api) return;
-    WriteApiSecurityCheck();
-  }
-  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object name) {
-    if (!FLAG_log_api) return;
-    WriteApiNamedPropertyAccess(tag, holder, name);
-  }
-  void ApiIndexedPropertyAccess(const char* tag, JSObject holder,
-                                uint32_t index) {
-    if (!FLAG_log_api) return;
-    WriteApiIndexedPropertyAccess(tag, holder, index);
-  }
-
-  void ApiObjectAccess(const char* tag, JSReceiver obj) {
-    if (!FLAG_log_api) return;
-    WriteApiObjectAccess(tag, obj);
-  }
-  void ApiEntryCall(const char* name) {
-    if (!FLAG_log_api) return;
-    WriteApiEntryCall(name);
-  }
 
   // ==== Events logged by --log-code. ====
   V8_EXPORT_PRIVATE void AddCodeEventListener(CodeEventListener* listener);
@@ -229,7 +196,7 @@ class Logger : public CodeEventListener {
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override;
+                      int fp_to_sp_delta) override;
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
@@ -277,14 +244,22 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  static void CallEventLogger(Isolate* isolate, const char* name,
-                              v8::LogEventStatus se, bool expose_to_api) {
-    if (!isolate->event_logger()) return;
+  V8_INLINE static void CallEventLoggerInternal(Isolate* isolate,
+                                                const char* name,
+                                                v8::LogEventStatus se,
+                                                bool expose_to_api) {
     if (isolate->event_logger() == DefaultEventLoggerSentinel) {
       LOG(isolate, TimerEvent(se, name));
     } else if (expose_to_api) {
       isolate->event_logger()(name, static_cast<v8::LogEventStatus>(se));
     }
+  }
+
+  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
+                                        v8::LogEventStatus se,
+                                        bool expose_to_api) {
+    if (!isolate->event_logger()) return;
+    CallEventLoggerInternal(isolate, name, se, expose_to_api);
   }
 
   V8_EXPORT_PRIVATE bool is_logging();
@@ -301,6 +276,7 @@ class Logger : public CodeEventListener {
   V8_EXPORT_PRIVATE void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   V8_EXPORT_PRIVATE void LogCodeObjects();
+  V8_EXPORT_PRIVATE void LogBuiltins();
   // Logs all Maps found on the heap.
   void LogAllMaps();
 
@@ -371,6 +347,12 @@ class Logger : public CodeEventListener {
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;
   std::unique_ptr<JitLogger> jit_logger_;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  std::unique_ptr<JitLogger> gdb_jit_logger_;
+#endif
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  std::unique_ptr<JitLogger> etw_jit_logger_;
+#endif
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 
@@ -450,11 +432,13 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
+
+  bool is_listening_to_code_events() override { return true; }
 
  protected:
   Isolate* isolate_;
@@ -519,7 +503,7 @@ class ExternalCodeEventListener : public CodeEventListener {
                            Handle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}

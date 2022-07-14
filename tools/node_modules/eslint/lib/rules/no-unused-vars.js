@@ -33,7 +33,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow unused variables",
+            description: "Disallow unused variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unused-vars"
         },
@@ -66,6 +66,9 @@ module.exports = {
                                 enum: ["all", "none"]
                             },
                             caughtErrorsIgnorePattern: {
+                                type: "string"
+                            },
+                            destructuredArrayIgnorePattern: {
                                 type: "string"
                             }
                         },
@@ -114,6 +117,10 @@ module.exports = {
                 if (firstOption.caughtErrorsIgnorePattern) {
                     config.caughtErrorsIgnorePattern = new RegExp(firstOption.caughtErrorsIgnorePattern, "u");
                 }
+
+                if (firstOption.destructuredArrayIgnorePattern) {
+                    config.destructuredArrayIgnorePattern = new RegExp(firstOption.destructuredArrayIgnorePattern, "u");
+                }
             }
         }
 
@@ -155,7 +162,14 @@ module.exports = {
          * @returns {UnusedVarMessageData} The message data to be used with this unused variable.
          */
         function getAssignedMessageData(unusedVar) {
-            const additional = config.varsIgnorePattern ? `. Allowed unused vars must match ${config.varsIgnorePattern.toString()}` : "";
+            const def = unusedVar.defs[0];
+            let additional = "";
+
+            if (config.destructuredArrayIgnorePattern && def && def.name.parent.type === "ArrayPattern") {
+                additional = `. Allowed unused elements of array destructuring patterns must match ${config.destructuredArrayIgnorePattern.toString()}`;
+            } else if (config.varsIgnorePattern) {
+                additional = `. Allowed unused vars must match ${config.varsIgnorePattern.toString()}`;
+            }
 
             return {
                 varName: unusedVar.name,
@@ -245,7 +259,7 @@ module.exports = {
             let scope = ref.from;
 
             while (scope) {
-                if (nodes.indexOf(scope.block) >= 0) {
+                if (nodes.includes(scope.block)) {
                     return true;
                 }
 
@@ -470,12 +484,12 @@ module.exports = {
         }
 
         /**
-         * Determine if an identifier is used either in for-in loops.
+         * Determine if an identifier is used either in for-in or for-of loops.
          * @param {Reference} ref The reference to check.
          * @returns {boolean} whether reference is used in the for-in loops
          * @private
          */
-        function isForInRef(ref) {
+        function isForInOfRef(ref) {
             let target = ref.identifier.parent;
 
 
@@ -484,7 +498,7 @@ module.exports = {
                 target = target.parent.parent;
             }
 
-            if (target.type !== "ForInStatement") {
+            if (target.type !== "ForInStatement" && target.type !== "ForOfStatement") {
                 return false;
             }
 
@@ -517,7 +531,7 @@ module.exports = {
             let rhsNode = null;
 
             return variable.references.some(ref => {
-                if (isForInRef(ref)) {
+                if (isForInOfRef(ref)) {
                     return true;
                 }
 
@@ -584,6 +598,19 @@ module.exports = {
 
                     if (def) {
                         const type = def.type;
+                        const refUsedInArrayPatterns = variable.references.some(ref => ref.identifier.parent.type === "ArrayPattern");
+
+                        // skip elements of array destructuring patterns
+                        if (
+                            (
+                                def.name.parent.type === "ArrayPattern" ||
+                                refUsedInArrayPatterns
+                            ) &&
+                            config.destructuredArrayIgnorePattern &&
+                            config.destructuredArrayIgnorePattern.test(def.name.name)
+                        ) {
+                            continue;
+                        }
 
                         // skip catch variables
                         if (type === "CatchClause") {

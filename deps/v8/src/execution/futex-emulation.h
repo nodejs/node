@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-#include <map>
-
 #include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
@@ -141,6 +139,7 @@ class FutexWaitListNode {
 class FutexEmulation : public AllStatic {
  public:
   enum WaitMode { kSync = 0, kAsync };
+  enum class CallType { kIsNotWasm = 0, kIsWasm };
 
   // Pass to Wake() to wake all waiters.
   static const uint32_t kWakeAll = UINT32_MAX;
@@ -214,17 +213,18 @@ class FutexEmulation : public AllStatic {
   template <typename T>
   static Object Wait(Isolate* isolate, WaitMode mode,
                      Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     bool use_timeout, int64_t rel_timeout_ns);
+                     bool use_timeout, int64_t rel_timeout_ns,
+                     CallType call_type = CallType::kIsNotWasm);
 
   template <typename T>
   static Object WaitSync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                          size_t addr, T value, bool use_timeout,
-                         int64_t rel_timeout_ns);
+                         int64_t rel_timeout_ns, CallType call_type);
 
   template <typename T>
   static Object WaitAsync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                           size_t addr, T value, bool use_timeout,
-                          int64_t rel_timeout_ns);
+                          int64_t rel_timeout_ns, CallType call_type);
 
   // Resolve the Promises of the async waiters which belong to |isolate|.
   static void ResolveAsyncWaiterPromises(Isolate* isolate);

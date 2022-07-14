@@ -337,7 +337,7 @@ header = '''
  */
 
 #include "src/init/v8.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/execution/frames.h"
 #include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/objects/contexts.h"
@@ -359,7 +359,7 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
 #undef FRAME_CONST
 
-''' % sys.argv[0];
+''' % sys.argv[0]
 
 footer = '''
 }
@@ -440,12 +440,12 @@ def load_objects_from_file(objfilename, checktypes):
       continue;
 
     if (in_torque_insttype and (not line or line.isspace())):
-        in_torque_insttype = False
-        continue
+      in_torque_insttype = False
+      continue
 
     if (in_torque_fulldef and (not line or line.isspace())):
-        in_torque_fulldef = False
-        continue
+      in_torque_fulldef = False
+      continue
 
     pre = line.strip()
     line = re.sub('// .*', '', line.strip());
@@ -497,7 +497,7 @@ def load_objects_from_file(objfilename, checktypes):
   for entry in entries:
     entry = entry.strip()
     if not entry:
-        continue
+      continue
     start = entry.find('(');
     end = entry.find(')', start);
     rest = entry[start + 1: end];

@@ -36,8 +36,6 @@ function sleep (time) {
 }
 
 const login = async (npm, { creds, registry, scope }) => {
-  log.warn('deprecated', 'SSO --auth-type is deprecated')
-
   const opts = { ...npm.flatOptions, creds, registry, scope }
   const { ssoType } = opts
 

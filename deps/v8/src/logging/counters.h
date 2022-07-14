@@ -101,36 +101,24 @@ class StatsTable {
 // This class is thread-safe.
 class StatsCounter {
  public:
-  void Set(int value) {
-    if (std::atomic<int>* loc = GetPtr()) {
-      loc->store(value, std::memory_order_relaxed);
-    }
-  }
+  void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
 
   void Increment(int value = 1) {
-    if (std::atomic<int>* loc = GetPtr()) {
-      loc->fetch_add(value, std::memory_order_relaxed);
-    }
+    GetPtr()->fetch_add(value, std::memory_order_relaxed);
   }
 
   void Decrement(int value = 1) {
-    if (std::atomic<int>* loc = GetPtr()) {
-      loc->fetch_sub(value, std::memory_order_relaxed);
-    }
+    GetPtr()->fetch_sub(value, std::memory_order_relaxed);
   }
 
-  // Is this counter enabled?
-  // Returns false if table is full.
-  bool Enabled() { return GetPtr() != nullptr; }
+  // Returns true if this counter is enabled (a lookup function was provided and
+  // it returned a non-null pointer).
+  V8_EXPORT_PRIVATE bool Enabled();
 
   // Get the internal pointer to the counter. This is used
   // by the code generator to emit code that manipulates a
   // given counter without calling the runtime system.
-  std::atomic<int>* GetInternalPointer() {
-    std::atomic<int>* loc = GetPtr();
-    DCHECK_NOT_NULL(loc);
-    return loc;
-  }
+  std::atomic<int>* GetInternalPointer() { return GetPtr(); }
 
  private:
   friend class Counters;
@@ -144,35 +132,22 @@ class StatsCounter {
     name_ = name;
   }
 
-  V8_EXPORT_PRIVATE int* FindLocationInStatsTable() const;
+  V8_NOINLINE V8_EXPORT_PRIVATE std::atomic<int>* SetupPtrFromStatsTable();
 
   // Reset the cached internal pointer.
-  void Reset() {
-    lookup_done_.store(false, std::memory_order_release);
-    ptr_.store(nullptr, std::memory_order_release);
-  }
+  void Reset() { ptr_.store(nullptr, std::memory_order_relaxed); }
 
   // Returns the cached address of this counter location.
   std::atomic<int>* GetPtr() {
-    // {Init} must have been called.
-    DCHECK_NOT_NULL(counters_);
-    DCHECK_NOT_NULL(name_);
     auto* ptr = ptr_.load(std::memory_order_acquire);
     if (V8_LIKELY(ptr)) return ptr;
-    if (!lookup_done_.load(std::memory_order_acquire)) {
-      ptr = base::AsAtomicPtr(FindLocationInStatsTable());
-      ptr_.store(ptr, std::memory_order_release);
-      lookup_done_.store(true, std::memory_order_release);
-    }
-    // Re-load after checking {lookup_done_}.
-    return ptr_.load(std::memory_order_acquire);
+    return SetupPtrFromStatsTable();
   }
 
   Counters* counters_ = nullptr;
   const char* name_ = nullptr;
   // A pointer to an atomic, set atomically in {GetPtr}.
   std::atomic<std::atomic<int>*> ptr_{nullptr};
-  std::atomic<bool> lookup_done_{false};
 };
 
 // A Histogram represents a dynamically created histogram in the

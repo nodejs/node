@@ -52,6 +52,42 @@ BytecodeArray DebugInfo::DebugBytecodeArray() {
   return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
 }
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
+NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
+
+Script StackFrameInfo::script() const {
+  HeapObject object = shared_or_script();
+  if (object.IsSharedFunctionInfo()) {
+    object = SharedFunctionInfo::cast(object).script();
+  }
+  return Script::cast(object);
+}
+
+BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
+                    StackFrameInfo::BytecodeOffsetOrSourcePositionBits)
+BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
+                    StackFrameInfo::IsConstructorBit)
+
+NEVER_READ_ONLY_SPACE_IMPL(ErrorStackData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ErrorStackData)
+
+bool ErrorStackData::HasFormattedStack() const {
+  return !call_site_infos_or_formatted_stack().IsFixedArray();
+}
+
+ACCESSORS_RELAXED_CHECKED(ErrorStackData, formatted_stack, Object,
+                          kCallSiteInfosOrFormattedStackOffset,
+                          !limit_or_stack_frame_infos().IsSmi())
+
+bool ErrorStackData::HasCallSiteInfos() const { return !HasFormattedStack(); }
+
+ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, FixedArray,
+                          kCallSiteInfosOrFormattedStackOffset,
+                          !HasFormattedStack())
+
+NEVER_READ_ONLY_SPACE_IMPL(PromiseOnStack)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseOnStack)
+
 }  // namespace internal
 }  // namespace v8
 

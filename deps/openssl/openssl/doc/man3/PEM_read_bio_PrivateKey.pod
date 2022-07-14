@@ -193,8 +193,8 @@ see L<openssl_user_macros(7)>:
 =head1 DESCRIPTION
 
 All of the functions described on this page that have a I<TYPE> of B<DH>, B<DSA>
-and B<RSA> are deprecated. Applications should use OSSL_ENCODER_to_bio() and
-OSSL_DECODER_from_bio() instead.
+and B<RSA> are deprecated. Applications should use L<OSSL_ENCODER_to_bio(3)> and
+L<OSSL_DECODER_from_bio(3)> instead.
 
 The PEM functions read or write structures in PEM format. In
 this sense PEM format is simply base64 encoded data surrounded
@@ -335,7 +335,7 @@ I<klen> bytes at I<kstr> are used as the passphrase and I<cb> is
 ignored.
 
 If the I<cb> parameters is set to NULL and the I<u> parameter is not
-NULL then the I<u> parameter is interpreted as a null terminated string
+NULL then the I<u> parameter is interpreted as a NUL terminated string
 to use as the passphrase. If both I<cb> and I<u> are NULL then the
 default callback routine is used which will typically prompt for the
 passphrase on the current terminal with echoing turned off.
@@ -355,7 +355,8 @@ value as the I<u> parameter passed to the PEM routine. It allows
 arbitrary data to be passed to the callback by the application
 (for example a window handle in a GUI application). The callback
 I<must> return the number of characters in the passphrase or -1 if
-an error occurred.
+an error occurred. The passphrase can be arbitrary data; in the case where it
+is a string, it is not NUL terminated. See the L</EXAMPLES> section below.
 
 Some implementations may need to use cryptographic algorithms during their
 operation. If this is the case and I<libctx> and I<propq> parameters have been
@@ -573,7 +574,7 @@ PEM_write_bio_DHparams() and PEM_write_DHparams() were deprecated in 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

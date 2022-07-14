@@ -89,8 +89,8 @@ section 6.3.
 OSSL_CRMF_MSG_set1_regCtrl_protocolEncrKey() sets the protocolEncrKey control in
 the given I<msg> copying the given I<pubkey> as value. See RFC 4211 section 6.6.
 
-OSSL_CRMF_MSG_set1_regCtrl_oldCertID() sets the oldCertID control in the given
-I<msg> copying the given I<cid> as value. See RFC 4211, section 6.5.
+OSSL_CRMF_MSG_set1_regCtrl_oldCertID() sets the B<oldCertID> regToken control in
+the given I<msg> copying the given I<cid> as value. See RFC 4211, section 6.5.
 
 OSSL_CRMF_CERTID_gen produces an OSSL_CRMF_CERTID_gen structure copying the
 given I<issuer> name and I<serial> number.
@@ -121,7 +121,7 @@ The OpenSSL CRMF support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

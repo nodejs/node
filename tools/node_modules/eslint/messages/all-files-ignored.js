@@ -12,5 +12,5 @@ If you do want to lint these files, try the following solutions:
 
 * Check your .eslintignore file, or the eslintIgnore property in package.json, to ensure that the files are not configured to be ignored.
 * Explicitly list the files from this glob that you'd like to lint on the command-line, rather than providing a glob as an argument.
-`.trimLeft();
+`.trimStart();
 };

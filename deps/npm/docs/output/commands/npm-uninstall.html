@@ -142,21 +142,27 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [-S|--save|--no-save]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;...
 
-aliases: remove, rm, r, un, unlink
+aliases: unlink, remove, rm, r, un
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This uninstalls a package, completely removing everything npm installed
 on its behalf.</p>
 <p>It also removes the package from the <code>dependencies</code>, <code>devDependencies</code>,
 <code>optionalDependencies</code>, and <code>peerDependencies</code> objects in your
 <code>package.json</code>.</p>
-<p>Futher, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
 will update those files as well.</p>
 <p><code>--no-save</code> will tell npm not to remove the package from your
 <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
@@ -183,12 +189,13 @@ it uninstalls the current package context as a global package.
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages to a package.json file as dependencies.</p>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
-package.json.</p>
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
@@ -239,6 +246,17 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="install-links"><code>install-links</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

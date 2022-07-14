@@ -12,8 +12,10 @@ let d2 = new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 assertDuration(d2.abs(), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, false);
 
 // Test large number
-let d3 = new Temporal.Duration(1e5, 2e5, 3e5, 4e5, 5e5, 6e5, 7e5, 8e5, 9e5, 10e5);
-assertDuration(d3.abs(), 1e5, 2e5, 3e5, 4e5, 5e5, 6e5, 7e5, 8e5, 9e5, 10e5, 1, false);
+let d3 = new Temporal.Duration(
+    1e5, 2e5, 3e5, 4e5, 5e5, 6e5, 7e5, 8e5, 9e5, 10e5);
+assertDuration(d3.abs(),
+    1e5, 2e5, 3e5, 4e5, 5e5, 6e5, 7e5, 8e5, 9e5, 10e5, 1, false);
 
 // Test negative values
 let d4 = new Temporal.Duration(-1, -2, -3, -4, -5, -6, -7, -8, -9, -10);

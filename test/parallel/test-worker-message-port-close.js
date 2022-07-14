@@ -39,3 +39,11 @@ function dummy() {}
     message: 'Cannot send data on closed MessagePort'
   });
 }
+
+// Refs: https://github.com/nodejs/node/issues/42296
+{
+  const ch = new MessageChannel();
+  ch.port1.onmessage = common.mustNotCall();
+  ch.port2.close();
+  ch.port2.postMessage('fhqwhgads');
+}

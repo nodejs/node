@@ -44,6 +44,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineCopyDataProperties:
       return ReduceCopyDataProperties(node);
+    case Runtime::kInlineCopyDataPropertiesWithExcludedPropertiesOnStack:
+      return ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
     case Runtime::kInlineDeoptimizeNow:
@@ -89,6 +91,25 @@ Reduction JSIntrinsicLowering::ReduceCopyDataProperties(Node* node) {
       node, Builtins::CallableFor(isolate(), Builtin::kCopyDataProperties), 0);
 }
 
+Reduction
+JSIntrinsicLowering::ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(
+    Node* node) {
+  int input_count =
+      static_cast<int>(CallRuntimeParametersOf(node->op()).arity());
+  CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+  auto callable = Builtins::CallableFor(
+      isolate(), Builtin::kCopyDataPropertiesWithExcludedProperties);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(), input_count - 1, flags,
+      node->op()->properties());
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  node->InsertInput(graph()->zone(), 2,
+                    jsgraph()->SmiConstant(input_count - 1));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  return Changed(node);
+}
+
 Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 0);
   Node* const done = NodeProperties::GetValueInput(node, 1);
@@ -105,8 +126,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
   // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
   Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kEager,
-                           DeoptimizeReason::kDeoptimizeNow, FeedbackSource()),
+      common()->Deoptimize(DeoptimizeReason::kDeoptimizeNow, FeedbackSource()),
       frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
   Revisit(graph()->end());
@@ -254,11 +274,9 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
                 vfalse, merge);
 }
 
-
 Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
   return Change(node, simplified()->ObjectIsReceiver());
 }
-
 
 Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
   if (FLAG_always_opt) {
@@ -293,18 +311,15 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   return Changed(node);
 }
 
-
 Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToLength());
   return Changed(node);
 }
 
-
 Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToObject());
   return Changed(node);
 }
-
 
 Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
   // ToString is unnecessary if the input is a string.
@@ -316,7 +331,6 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToString());
   return Changed(node);
 }
-
 
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   int const arity =
@@ -354,7 +368,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   return Changed(node);
 }
 
-
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c) {
   RelaxControls(node);
@@ -365,7 +378,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
-
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c, Node* d) {
@@ -396,9 +408,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
 
 Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
 
-
 Isolate* JSIntrinsicLowering::isolate() const { return jsgraph()->isolate(); }
-
 
 CommonOperatorBuilder* JSIntrinsicLowering::common() const {
   return jsgraph()->common();

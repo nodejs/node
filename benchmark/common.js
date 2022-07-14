@@ -289,7 +289,15 @@ function formatResult(data) {
 function sendResult(data) {
   if (process.send) {
     // If forked, report by process send
-    process.send(data);
+    process.send(data, () => {
+      if (Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+        // If, for any reason, the process is unable to self close within
+        // a second after completing, forcefully close it.
+        setTimeout(() => {
+          process.exit(0);
+        }, 5000).unref();
+      }
+    });
   } else {
     // Otherwise report by stdout
     process.stdout.write(formatResult(data));

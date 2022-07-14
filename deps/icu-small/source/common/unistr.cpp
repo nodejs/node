@@ -334,7 +334,8 @@ Replaceable::clone() const {
 // UnicodeString overrides clone() with a real implementation
 UnicodeString *
 UnicodeString::clone() const {
-  return new UnicodeString(*this);
+  LocalPointer<UnicodeString> clonedString(new UnicodeString(*this));
+  return clonedString.isValid() && !clonedString->isBogus() ? clonedString.orphan() : nullptr;
 }
 
 //========================================
@@ -1976,7 +1977,12 @@ The vector deleting destructor is already a part of UObject,
 but defining it here makes sure that it is included with this object file.
 This makes sure that static library dependencies are kept to a minimum.
 */
+#if defined(__clang__) || U_GCC_MAJOR_MINOR >= 1100
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void uprv_UnicodeStringDummy(void) {
     delete [] (new UnicodeString[2]);
 }
+#pragma GCC diagnostic pop
+#endif
 #endif

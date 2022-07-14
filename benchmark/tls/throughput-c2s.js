@@ -33,7 +33,8 @@ function main({ dur, type, size }) {
     key: fixtures.readKey('rsa_private.pem'),
     cert: fixtures.readKey('rsa_cert.crt'),
     ca: fixtures.readKey('rsa_ca.crt'),
-    ciphers: 'AES256-GCM-SHA384'
+    ciphers: 'AES256-GCM-SHA384',
+    maxVersion: 'TLSv1.2',
   };
 
   const server = tls.createServer(options, onConnection);

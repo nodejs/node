@@ -142,16 +142,20 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=&lt;prerelease-id&gt;] | from-git]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
 
-'npm [-v | --version]' to print npm version
-'npm view &lt;pkg&gt; version' to view a package's published version
-'npm ls' to inspect current package/dependency versions
+alias: verison
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -178,7 +182,8 @@ to the same value as the current version.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Tag the commit when using the <code>npm version</code> command.</p>
+<p>Tag the commit when using the <code>npm version</code> command. Setting this to false
+results in no commit being made at all.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="json"><code>json</code></h4>
@@ -253,6 +258,15 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
+<h4 id="workspaces-update"><code>workspaces-update</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the <code>node_modules</code> folder.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -262,6 +276,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

@@ -57,6 +57,7 @@ module.exports = cls => class VirtualLoader extends cls {
     const s = await Shrinkwrap.load({
       path: this.path,
       lockfileVersion: this.options.lockfileVersion,
+      resolveOptions: this.options,
     })
     if (!s.loadedFromDisk && !options.root) {
       const er = new Error('loadVirtual requires existing shrinkwrap file')
@@ -79,7 +80,7 @@ module.exports = cls => class VirtualLoader extends cls {
   async [loadRoot] (s) {
     const pj = this.path + '/package.json'
     const pkg = await rpj(pj).catch(() => s.data.packages['']) || {}
-    return this[loadWorkspaces](this[loadNode]('', pkg))
+    return this[loadWorkspaces](this[loadNode]('', pkg, true))
   }
 
   async [loadFromShrinkwrap] (s, root) {
@@ -264,7 +265,7 @@ module.exports = cls => class VirtualLoader extends cls {
     }
   }
 
-  [loadNode] (location, sw) {
+  [loadNode] (location, sw, loadOverrides) {
     const p = this.virtualTree ? this.virtualTree.realpath : this.path
     const path = resolve(p, location)
     // shrinkwrap doesn't include package name unless necessary
@@ -278,6 +279,7 @@ module.exports = cls => class VirtualLoader extends cls {
     const peer = sw.peer
 
     const node = new Node({
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       root: this.virtualTree,
       path,
@@ -290,6 +292,7 @@ module.exports = cls => class VirtualLoader extends cls {
       optional,
       devOptional,
       peer,
+      loadOverrides,
     })
     // cast to boolean because they're undefined in the lock file when false
     node.extraneous = !!sw.extraneous
@@ -303,6 +306,7 @@ module.exports = cls => class VirtualLoader extends cls {
   [loadLink] (location, targetLoc, target, meta) {
     const path = resolve(this.path, location)
     const link = new Link({
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       path,
       realpath: resolve(this.path, targetLoc),

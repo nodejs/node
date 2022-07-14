@@ -16,7 +16,7 @@ EmulatedVirtualAddressSubspace::EmulatedVirtualAddressSubspace(
     size_t total_size)
     : VirtualAddressSpace(parent_space->page_size(),
                           parent_space->allocation_granularity(), base,
-                          total_size),
+                          total_size, parent_space->max_page_permissions()),
       mapped_size_(mapped_size),
       parent_space_(parent_space),
       region_allocator_(base, mapped_size, parent_space_->page_size()) {
@@ -30,7 +30,7 @@ EmulatedVirtualAddressSubspace::EmulatedVirtualAddressSubspace(
 }
 
 EmulatedVirtualAddressSubspace::~EmulatedVirtualAddressSubspace() {
-  CHECK(parent_space_->FreePages(base(), mapped_size_));
+  parent_space_->FreePages(base(), mapped_size_);
 }
 
 void EmulatedVirtualAddressSubspace::SetRandomSeed(int64_t seed) {
@@ -40,7 +40,7 @@ void EmulatedVirtualAddressSubspace::SetRandomSeed(int64_t seed) {
 
 Address EmulatedVirtualAddressSubspace::RandomPageAddress() {
   MutexGuard guard(&mutex_);
-  Address addr = base() + (rng_.NextInt64() % size());
+  Address addr = base() + (static_cast<uint64_t>(rng_.NextInt64()) % size());
   return RoundDown(addr, allocation_granularity());
 }
 
@@ -64,26 +64,27 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
 
   // No luck or hint is outside of the mapped region. Try to allocate pages in
   // the unmapped space using page allocation hints instead.
-
-  // Somewhat arbitrary size limitation to ensure that the loop below for
-  // finding a fitting base address hint terminates quickly.
-  if (size >= (unmapped_size() / 2)) return kNullAddress;
+  if (!IsUsableSizeForUnmappedRegion(size)) return kNullAddress;
 
   static constexpr int kMaxAttempts = 10;
   for (int i = 0; i < kMaxAttempts; i++) {
-    // If the hint wouldn't result in the entire allocation being inside the
-    // managed region, simply retry. There is at least a 50% chance of
-    // getting a usable address due to the size restriction above.
+    // If an unmapped region exists, it must cover at least 50% of the whole
+    // space (unmapped + mapped region). Since we limit the size of allocation
+    // to 50% of the unmapped region (see IsUsableSizeForUnmappedRegion), a
+    // random page address has at least a 25% chance of being a usable base. As
+    // such, this loop should usually terminate quickly.
+    DCHECK_GE(unmapped_size(), mapped_size());
     while (!UnmappedRegionContains(hint, size)) {
       hint = RandomPageAddress();
     }
+    hint = RoundDown(hint, alignment);
 
-    Address region =
+    const Address result =
         parent_space_->AllocatePages(hint, size, alignment, permissions);
-    if (region && UnmappedRegionContains(region, size)) {
-      return region;
-    } else if (region) {
-      CHECK(parent_space_->FreePages(region, size));
+    if (UnmappedRegionContains(result, size)) {
+      return result;
+    } else if (result) {
+      parent_space_->FreePages(result, size);
     }
 
     // Retry at a different address.
@@ -93,21 +94,76 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
   return kNullAddress;
 }
 
-bool EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
+void EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
   if (MappedRegionContains(address, size)) {
     MutexGuard guard(&mutex_);
-    if (region_allocator_.FreeRegion(address) != size) return false;
+    CHECK_EQ(size, region_allocator_.FreeRegion(address));
     CHECK(parent_space_->DecommitPages(address, size));
-    return true;
+  } else {
+    DCHECK(UnmappedRegionContains(address, size));
+    parent_space_->FreePages(address, size);
   }
-  if (!UnmappedRegionContains(address, size)) return false;
-  return parent_space_->FreePages(address, size);
+}
+
+Address EmulatedVirtualAddressSubspace::AllocateSharedPages(
+    Address hint, size_t size, PagePermissions permissions,
+    PlatformSharedMemoryHandle handle, uint64_t offset) {
+  // Can only allocate shared pages in the unmapped region.
+  if (!IsUsableSizeForUnmappedRegion(size)) return kNullAddress;
+
+  static constexpr int kMaxAttempts = 10;
+  for (int i = 0; i < kMaxAttempts; i++) {
+    // See AllocatePages() for why this loop usually terminates quickly.
+    DCHECK_GE(unmapped_size(), mapped_size());
+    while (!UnmappedRegionContains(hint, size)) {
+      hint = RandomPageAddress();
+    }
+
+    Address region = parent_space_->AllocateSharedPages(hint, size, permissions,
+                                                        handle, offset);
+    if (UnmappedRegionContains(region, size)) {
+      return region;
+    } else if (region) {
+      parent_space_->FreeSharedPages(region, size);
+    }
+
+    hint = RandomPageAddress();
+  }
+
+  return kNullAddress;
+}
+
+void EmulatedVirtualAddressSubspace::FreeSharedPages(Address address,
+                                                     size_t size) {
+  DCHECK(UnmappedRegionContains(address, size));
+  parent_space_->FreeSharedPages(address, size);
 }
 
 bool EmulatedVirtualAddressSubspace::SetPagePermissions(
     Address address, size_t size, PagePermissions permissions) {
   DCHECK(Contains(address, size));
   return parent_space_->SetPagePermissions(address, size, permissions);
+}
+
+bool EmulatedVirtualAddressSubspace::AllocateGuardRegion(Address address,
+                                                         size_t size) {
+  if (MappedRegionContains(address, size)) {
+    MutexGuard guard(&mutex_);
+    return region_allocator_.AllocateRegionAt(address, size);
+  }
+  if (!UnmappedRegionContains(address, size)) return false;
+  return parent_space_->AllocateGuardRegion(address, size);
+}
+
+void EmulatedVirtualAddressSubspace::FreeGuardRegion(Address address,
+                                                     size_t size) {
+  if (MappedRegionContains(address, size)) {
+    MutexGuard guard(&mutex_);
+    CHECK_EQ(size, region_allocator_.FreeRegion(address));
+  } else {
+    DCHECK(UnmappedRegionContains(address, size));
+    parent_space_->FreeGuardRegion(address, size);
+  }
 }
 
 bool EmulatedVirtualAddressSubspace::CanAllocateSubspaces() {
@@ -118,7 +174,7 @@ bool EmulatedVirtualAddressSubspace::CanAllocateSubspaces() {
 std::unique_ptr<v8::VirtualAddressSpace>
 EmulatedVirtualAddressSubspace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
-    PagePermissions max_permissions) {
+    PagePermissions max_page_permissions) {
   UNREACHABLE();
 }
 

@@ -27,7 +27,7 @@ RootsSerializer::RootsSerializer(Isolate* isolate,
 
 int RootsSerializer::SerializeInObjectCache(Handle<HeapObject> heap_object) {
   int index;
-  if (!object_cache_index_map_.LookupOrInsert(heap_object, &index)) {
+  if (!object_cache_index_map_.LookupOrInsert(*heap_object, &index)) {
     // This object is not part of the object cache yet. Add it to the cache so
     // we can refer to it via cache index from the delegating snapshot.
     SerializeObject(heap_object);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -131,7 +131,7 @@ int i2d_PublicKey(const EVP_PKEY *a, unsigned char **pp)
 
         return i2d_provided(a, EVP_PKEY_PUBLIC_KEY, output_info, pp);
     }
-    switch (EVP_PKEY_get_id(a)) {
+    switch (EVP_PKEY_get_base_id(a)) {
     case EVP_PKEY_RSA:
         return i2d_RSAPublicKey(EVP_PKEY_get0_RSA(a), pp);
 #ifndef OPENSSL_NO_DSA

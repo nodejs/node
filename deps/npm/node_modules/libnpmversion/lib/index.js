@@ -1,6 +1,5 @@
 const readJson = require('./read-json.js')
 const version = require('./version.js')
-const proclog = require('./proc-log.js')
 
 module.exports = async (newversion, opts = {}) => {
   const {
@@ -15,8 +14,8 @@ module.exports = async (newversion, opts = {}) => {
     ignoreScripts = false,
     scriptShell = undefined,
     preid = null,
-    log = proclog,
     message = 'v%s',
+    silent,
   } = opts
 
   const pkg = opts.pkg || await readJson(path + '/package.json')
@@ -35,7 +34,7 @@ module.exports = async (newversion, opts = {}) => {
     scriptShell,
     preid,
     pkg,
-    log,
     message,
+    silent,
   })
 }

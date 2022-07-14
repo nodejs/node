@@ -10,8 +10,9 @@ let privateName = %CreatePrivateNameSymbol("privateName");
 function test() {
   "use strict";
 
-  // These computed properties are translated into JSStoreDataPropertyInLiteral
-  // ops, and AccessInfoFactory::ComputePropertyAccessInfo should find a
+  // These computed properties are translated into
+  // JSDefineKeyedOwnPropertyInLiteral ops,
+  // and AccessInfoFactory::ComputePropertyAccessInfo should find a
   // suitable map transition when optimizing. Even if the implementation details
   // are ignored, we still want to assert that these properties are installed as
   // non-enumerable, due to being private symbols.

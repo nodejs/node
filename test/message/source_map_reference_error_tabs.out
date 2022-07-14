@@ -6,9 +6,9 @@ ReferenceError: alert is not defined
     at *tabs.coffee:26:2*
     at *tabs.coffee:1:14*
     at Module._compile (node:internal/modules/cjs/loader:*
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*
+    at Module._extensions..js (node:internal/modules/cjs/loader:*
     at Module.load (node:internal/modules/cjs/loader:*
-    at Function.Module._load (node:internal/modules/cjs/loader:*
+    at Module._load (node:internal/modules/cjs/loader:*
     at Module.require (node:internal/modules/cjs/loader:*
     at require (node:internal/modules/cjs/helpers:*
     at Object.<anonymous> (*source_map_reference_error_tabs.js:*

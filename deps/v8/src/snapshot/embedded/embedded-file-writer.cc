@@ -10,6 +10,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #include "src/objects/code-inl.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -163,6 +164,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
        ++builtin) {
     WriteBuiltin(w, blob, builtin);
   }
+  w->PaddingAfterCode();
   w->Newline();
 }
 
@@ -291,7 +293,7 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     // Verify that the code object is still the "real code" and not a
     // trampoline (which wouldn't have source positions).
     DCHECK(!code.is_off_heap_trampoline());

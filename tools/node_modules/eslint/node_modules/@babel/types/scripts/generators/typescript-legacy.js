@@ -1,4 +1,4 @@
-import t from "../../lib/index.js";
+import * as t from "../../lib/index.js";
 import stringifyValidator from "../utils/stringifyValidator.js";
 import toFunctionName from "../utils/toFunctionName.js";
 

@@ -35,9 +35,15 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-locker.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/flags/flags.h"
@@ -61,19 +67,23 @@
 enum InitializationState { kUnset, kUninitialized, kInitialized };
 static InitializationState initialization_state_ = kUnset;
 
-CcTest* CcTest::last_ = nullptr;
+static v8::base::LazyInstance<CcTestMapType>::type g_cctests =
+    LAZY_INSTANCE_INITIALIZER;
+
+std::unordered_map<std::string, CcTest*>* tests_ =
+    new std::unordered_map<std::string, CcTest*>();
 bool CcTest::initialize_called_ = false;
 v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::ArrayBuffer::Allocator* CcTest::allocator_ = nullptr;
 v8::Isolate* CcTest::isolate_ = nullptr;
+v8::Platform* CcTest::default_platform_ = nullptr;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               bool enabled, bool initialize)
+               bool enabled, bool initialize,
+               TestPlatformFactory* test_platform_factory)
     : callback_(callback),
-      name_(name),
-      enabled_(enabled),
       initialize_(initialize),
-      prev_(last_) {
+      test_platform_factory_(test_platform_factory) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -88,25 +98,57 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
   char *extension = strrchr(basename, '.');
   if (extension) *extension = 0;
   // Install this test in the list of tests
-  file_ = basename;
-  prev_ = last_;
-  last_ = this;
+
+  if (enabled) {
+    auto it =
+        g_cctests.Pointer()->emplace(std::string(basename) + "/" + name, this);
+    CHECK_WITH_MSG(it.second, "Test with same name already exists");
+  }
+  v8::internal::DeleteArray(basename);
 }
 
+void CcTest::Run(const char* snapshot_directory) {
+  v8::V8::InitializeICUDefaultLocation(snapshot_directory);
+  std::unique_ptr<v8::Platform> underlying_default_platform(
+      v8::platform::NewDefaultPlatform());
+  default_platform_ = underlying_default_platform.get();
+  std::unique_ptr<v8::Platform> platform;
+  if (test_platform_factory_) {
+    platform = test_platform_factory_();
+  } else {
+    platform = std::move(underlying_default_platform);
+  }
+  v8::V8::InitializePlatform(platform.get());
+#ifdef V8_SANDBOX
+  CHECK(v8::V8::InitializeSandbox());
+#endif
+  cppgc::InitializeProcess(platform->GetPageAllocator());
+  v8::V8::Initialize();
+  v8::V8::InitializeExternalStartupData(snapshot_directory);
 
-void CcTest::Run() {
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  constexpr bool kUseDefaultTrapHandler = true;
+  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+
+  CcTest::set_array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+
+  v8::RegisterExtension(std::make_unique<i::PrintExtension>());
+  v8::RegisterExtension(std::make_unique<i::ProfilerExtension>());
+  v8::RegisterExtension(std::make_unique<i::TraceExtension>());
+
   if (!initialize_) {
     CHECK_NE(initialization_state_, kInitialized);
     initialization_state_ = kUninitialized;
-    CHECK_NULL(CcTest::isolate_);
+    CHECK_NULL(isolate_);
   } else {
     CHECK_NE(initialization_state_, kUninitialized);
     initialization_state_ = kInitialized;
-    if (isolate_ == nullptr) {
-      v8::Isolate::CreateParams create_params;
-      create_params.array_buffer_allocator = allocator_;
-      isolate_ = v8::Isolate::New(create_params);
-    }
+    CHECK_NULL(isolate_);
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = allocator_;
+    isolate_ = v8::Isolate::New(create_params);
     isolate_->Enter();
   }
 #ifdef DEBUG
@@ -121,14 +163,22 @@ void CcTest::Run() {
   DCHECK_EQ(active_isolates, i::Isolate::non_disposed_isolates());
 #endif  // DEBUG
   if (initialize_) {
-    if (v8::Locker::WasEverUsed()) {
+    if (i_isolate()->was_locker_ever_used()) {
       v8::Locker locker(isolate_);
       EmptyMessageQueues(isolate_);
     } else {
       EmptyMessageQueues(isolate_);
     }
     isolate_->Exit();
+    isolate_->Dispose();
+    isolate_ = nullptr;
+  } else {
+    CHECK_NULL(isolate_);
   }
+
+  v8::V8::Dispose();
+  cppgc::ShutdownProcess();
+  v8::V8::DisposePlatform();
 }
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
@@ -194,10 +244,6 @@ void CcTest::InitializeVM() {
   initialize_called_ = true;
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::Context::New(CcTest::isolate())->Enter();
-}
-
-void CcTest::TearDown() {
-  if (isolate_ != nullptr) isolate_->Dispose();
 }
 
 v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extension_flags,
@@ -278,28 +324,21 @@ i::Handle<i::JSFunction> Optimize(
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  i::Handle<i::Code> code =
+  i::Handle<i::CodeT> code = i::ToCodeT(
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
-          .ToHandleChecked();
+          .ToHandleChecked(),
+      isolate);
   info.native_context().AddOptimizedCode(*code);
   function->set_code(*code, v8::kReleaseStore);
-
   return function;
 }
 
-static void PrintTestList(CcTest* current) {
-  if (current == nullptr) return;
-  PrintTestList(current->prev());
-  printf("%s/%s\n", current->file(), current->name());
-}
-
-
-static void SuggestTestHarness(int tests) {
-  if (tests == 0) return;
-  printf("Running multiple tests in sequence is deprecated and may cause "
-         "bogus failure.  Consider using tools/run-tests.py instead.\n");
+static void PrintTestList() {
+  for (const auto& entry : g_cctests.Get()) {
+    printf("%s\n", entry.first.c_str());
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -332,82 +371,44 @@ int main(int argc, char* argv[]) {
   perfetto::Tracing::Initialize(init_args);
 #endif  // V8_USE_PERFETTO
 
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
-  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
-  v8::V8::InitializePlatform(platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  CHECK(v8::V8::InitializeVirtualMemoryCage());
-#endif
-  cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(
       &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
-  v8::V8::Initialize();
-  v8::V8::InitializeExternalStartupData(argv[0]);
 
-#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
-  constexpr bool kUseDefaultTrapHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
-#endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
-
-  CcTest::set_array_buffer_allocator(
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-
-  v8::RegisterExtension(std::make_unique<i::PrintExtension>());
-  v8::RegisterExtension(std::make_unique<i::ProfilerExtension>());
-  v8::RegisterExtension(std::make_unique<i::TraceExtension>());
-
-  int tests_run = 0;
-  bool print_run_count = true;
-  for (int i = 1; i < argc; i++) {
-    char* arg = argv[i];
+  const char* test_arg = nullptr;
+  for (int i = 1; i < argc; ++i) {
+    const char* arg = argv[i];
     if (strcmp(arg, "--list") == 0) {
-      PrintTestList(CcTest::last());
-      print_run_count = false;
-
-    } else {
-      char* arg_copy = v8::internal::StrDup(arg);
-      char* testname = strchr(arg_copy, '/');
-      if (testname) {
-        // Split the string in two by nulling the slash and then run
-        // exact matches.
-        *testname = 0;
-        char* file = arg_copy;
-        char* name = testname + 1;
-        CcTest* test = CcTest::last();
-        while (test != nullptr) {
-          if (test->enabled()
-              && strcmp(test->file(), file) == 0
-              && strcmp(test->name(), name) == 0) {
-            SuggestTestHarness(tests_run++);
-            test->Run();
-          }
-          test = test->prev();
-        }
-
-      } else {
-        // Run all tests with the specified file or test name.
-        char* file_or_name = arg_copy;
-        CcTest* test = CcTest::last();
-        while (test != nullptr) {
-          if (test->enabled()
-              && (strcmp(test->file(), file_or_name) == 0
-                  || strcmp(test->name(), file_or_name) == 0)) {
-            SuggestTestHarness(tests_run++);
-            test->Run();
-          }
-          test = test->prev();
-        }
-      }
-      v8::internal::DeleteArray<char>(arg_copy);
+      PrintTestList();
+      return 0;
     }
+    if (*arg == '-') {
+      // Ignore flags that weren't removed by SetFlagsFromCommandLine
+      continue;
+    }
+    if (test_arg != nullptr) {
+      fprintf(stderr,
+              "Running multiple tests in sequence is not allowed. Use "
+              "tools/run-tests.py instead.\n");
+      return 1;
+    }
+    test_arg = arg;
   }
-  if (print_run_count && tests_run != 1) {
-    printf("Ran %i tests.\n", tests_run);
+
+  if (test_arg == nullptr) {
+    printf("Ran 0 tests.\n");
+    return 0;
   }
-  CcTest::TearDown();
-  v8::V8::Dispose();
-  v8::V8::DisposePlatform();
+
+  auto it = g_cctests.Get().find(test_arg);
+  if (it == g_cctests.Get().end()) {
+    fprintf(stderr, "ERROR: Did not find test %s.\n", test_arg);
+    return 1;
+  }
+
+  CcTest* test = it->second;
+  test->Run(argv[0]);
+
   return 0;
 }
 
@@ -423,3 +424,124 @@ bool IsValidUnwrapObject(v8::Object* object) {
           instance_type == i::Internals::kJSObjectType ||
           instance_type == i::Internals::kJSSpecialApiObjectType);
 }
+
+ManualGCScope::ManualGCScope(i::Isolate* isolate)
+    : flag_concurrent_marking_(i::FLAG_concurrent_marking),
+      flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+      flag_stress_concurrent_allocation_(i::FLAG_stress_concurrent_allocation),
+      flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
+      flag_parallel_marking_(i::FLAG_parallel_marking),
+      flag_detect_ineffective_gcs_near_heap_limit_(
+          i::FLAG_detect_ineffective_gcs_near_heap_limit) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
+    CcTest::CollectGarbage(i::OLD_SPACE, isolate);
+  }
+
+  i::FLAG_concurrent_marking = false;
+  i::FLAG_concurrent_sweeping = false;
+  i::FLAG_stress_incremental_marking = false;
+  i::FLAG_stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  i::FLAG_parallel_marking = false;
+  i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
+}
+
+ManualGCScope::~ManualGCScope() {
+  i::FLAG_concurrent_marking = flag_concurrent_marking_;
+  i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+  i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
+  i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+  i::FLAG_parallel_marking = flag_parallel_marking_;
+  i::FLAG_detect_ineffective_gcs_near_heap_limit =
+      flag_detect_ineffective_gcs_near_heap_limit_;
+}
+
+v8::PageAllocator* TestPlatform::GetPageAllocator() {
+  return CcTest::default_platform()->GetPageAllocator();
+}
+
+void TestPlatform::OnCriticalMemoryPressure() {
+  CcTest::default_platform()->OnCriticalMemoryPressure();
+}
+
+bool TestPlatform::OnCriticalMemoryPressure(size_t length) {
+  return CcTest::default_platform()->OnCriticalMemoryPressure(length);
+}
+
+int TestPlatform::NumberOfWorkerThreads() {
+  return CcTest::default_platform()->NumberOfWorkerThreads();
+}
+
+std::shared_ptr<v8::TaskRunner> TestPlatform::GetForegroundTaskRunner(
+    v8::Isolate* isolate) {
+  return CcTest::default_platform()->GetForegroundTaskRunner(isolate);
+}
+
+void TestPlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
+  CcTest::default_platform()->CallOnWorkerThread(std::move(task));
+}
+
+void TestPlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                             double delay_in_seconds) {
+  CcTest::default_platform()->CallDelayedOnWorkerThread(std::move(task),
+                                                        delay_in_seconds);
+}
+
+std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
+    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) {
+  return CcTest::default_platform()->PostJob(priority, std::move(job_task));
+}
+
+double TestPlatform::MonotonicallyIncreasingTime() {
+  return CcTest::default_platform()->MonotonicallyIncreasingTime();
+}
+
+double TestPlatform::CurrentClockTimeMillis() {
+  return CcTest::default_platform()->CurrentClockTimeMillis();
+}
+
+bool TestPlatform::IdleTasksEnabled(v8::Isolate* isolate) {
+  return CcTest::default_platform()->IdleTasksEnabled(isolate);
+}
+
+v8::TracingController* TestPlatform::GetTracingController() {
+  return CcTest::default_platform()->GetTracingController();
+}
+
+namespace {
+
+class ShutdownTask final : public v8::Task {
+ public:
+  ShutdownTask(v8::base::Semaphore* destruction_barrier,
+               v8::base::Mutex* destruction_mutex,
+               v8::base::ConditionVariable* destruction_condition,
+               bool* can_destruct)
+      : destruction_barrier_(destruction_barrier),
+        destruction_mutex_(destruction_mutex),
+        destruction_condition_(destruction_condition),
+        can_destruct_(can_destruct)
+
+  {}
+
+  void Run() final {
+    destruction_barrier_->Signal();
+    {
+      v8::base::MutexGuard guard(destruction_mutex_);
+      while (!*can_destruct_) {
+        destruction_condition_->Wait(destruction_mutex_);
+      }
+    }
+    destruction_barrier_->Signal();
+  }
+
+ private:
+  v8::base::Semaphore* const destruction_barrier_;
+  v8::base::Mutex* const destruction_mutex_;
+  v8::base::ConditionVariable* const destruction_condition_;
+  bool* const can_destruct_;
+};
+
+}  // namespace

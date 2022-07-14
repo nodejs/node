@@ -8310,9 +8310,16 @@ EVALUATE(SGR) {
 }
 
 EVALUATE(ALGR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(ALGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  // 64-bit Non-clobbering unsigned arithmetics
+  uint64_t r1_val = get_register(r1);
+  uint64_t r2_val = get_register(r2);
+  bool isOF = CheckOverflowForUIntAdd(r1_val, r2_val);
+  SetS390ConditionCode<uint64_t>(r1_val + r2_val, 0);
+  SetS390OverflowCode(isOF);
+  set_register(r1, r1_val + r2_val);
+  return length;
 }
 
 EVALUATE(SLGR) {

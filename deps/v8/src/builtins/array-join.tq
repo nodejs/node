@@ -55,7 +55,8 @@ LoadJoinElement<array::FastDoubleElements>(
 builtin LoadJoinTypedElement<T : type extends ElementsKind>(
     context: Context, receiver: JSReceiver, k: uintptr): JSAny {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-  dcheck(!IsDetachedBuffer(typedArray.buffer));
+  dcheck(!typed_array::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+      typedArray));
   return typed_array::LoadFixedTypedArrayElementAsTagged(
       typedArray.data_ptr, k, typed_array::KindForArrayType<T>());
 }
@@ -103,7 +104,19 @@ CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
     _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
     _initialLen: Number): bool {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-  return IsDetachedBuffer(typedArray.buffer);
+  // When this is called from toLocaleString(), the underlying buffer might get
+  // detached / resized (in the case of RAB / GSAB) during iterating the
+  // elements. When this is called from join(), it can happen only before the
+  // first element (during parameter conversion). The code below doesn't
+  // differentiate between these two cases, but does the checks in both cases.
+  if (IsDetachedBuffer(typedArray.buffer)) {
+    return true;
+  }
+  if (IsVariableLengthJSArrayBufferView(typedArray)) {
+    // TODO(v8:11111): Add a fast(er) path here.
+    return true;
+  }
+  return false;
 }
 
 // Calculates the running total length of the resulting string.  If the
@@ -387,6 +400,28 @@ transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
       loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
     } else if (kind == ElementsKind::BIGINT64_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint8Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT8_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int8Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint16Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int16Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_INT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT32_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_UINT8_CLAMPED_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Uint8ClampedElements>;
+    } else if (kind == ElementsKind::RAB_GSAB_BIGUINT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_BIGINT64_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
     } else {
       unreachable;
     }
@@ -513,7 +548,7 @@ macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
   // Builtin call was not nested (receiver is the first entry) and
   // did not contain other nested arrays that expanded the stack.
   if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
-    StoreFixedArrayElement(stack, 0, TheHole, SKIP_WRITE_BARRIER);
+    stack.objects[0] = TheHole;
   } else
     deferred {
       JoinStackPop(stack, receiver);
@@ -616,12 +651,13 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
 
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
-  const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
+  const length = typed_array::ValidateTypedArrayAndGetLength(
       context, receiver, '%TypedArray%.prototype.join');
-  const length = Convert<Number>(typedArray.length);
+  const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(
-      false, typedArray, length, separator, Undefined, Undefined);
+      false, typedArray, Convert<Number>(length), separator, Undefined,
+      Undefined);
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
@@ -632,11 +668,11 @@ transitioning javascript builtin TypedArrayPrototypeToLocaleString(
 
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
-  const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
+  const length = typed_array::ValidateTypedArrayAndGetLength(
       context, receiver, '%TypedArray%.prototype.toLocaleString');
-  const length = Convert<Number>(typedArray.length);
+  const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(
-      true, typedArray, length, ',', locales, options);
+      true, typedArray, Convert<Number>(length), ',', locales, options);
 }
 }

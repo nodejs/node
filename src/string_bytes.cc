@@ -642,10 +642,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   switch (encoding) {
     case BUFFER:
       {
-        if (buflen > node::Buffer::kMaxLength) {
-          *error = node::ERR_BUFFER_TOO_LARGE(isolate);
-          return MaybeLocal<Value>();
-        }
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
         Local<v8::Object> buf;
         if (!maybe_buf.ToLocal(&buf)) {

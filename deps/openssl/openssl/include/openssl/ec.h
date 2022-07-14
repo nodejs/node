@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -19,6 +19,8 @@
 
 # include <openssl/opensslconf.h>
 # include <openssl/types.h>
+
+# include <string.h>
 
 # ifdef  __cplusplus
 extern "C" {
@@ -1548,6 +1550,7 @@ OSSL_DEPRECATEDIN_3_0 void EC_KEY_METHOD_get_verify
 
 #  define EVP_EC_gen(curve) \
     EVP_PKEY_Q_keygen(NULL, NULL, "EC", (char *)(strstr(curve, "")))
+    /* strstr is used to enable type checking for the variadic string arg */
 #  define ECParameters_dup(x) ASN1_dup_of(EC_KEY, i2d_ECParameters, \
                                           d2i_ECParameters, x)
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -118,12 +118,12 @@ my @testdata = (
 #        expect => [ 'BEGIN DH PARAMETERS', 'G:    5' ],
 #        message   => 'DH safe prime generator using an alias',
 #    },
-     {
+    {
         algorithm => 'DHX',
         pkeyopts => [ 'type:generator', 'safeprime-generator:5'],
         expect => [ 'ERROR' ],
         message   => 'safe prime generator should fail for DHX',
-    },
+    }
 );
 
 plan skip_all => "DH isn't supported in this build" if disabled("dh");
@@ -140,9 +140,17 @@ foreach my $test (@testdata) {
         push(@pkeyopts, '-pkeyopt');
         push(@pkeyopts, $_);
     }
-    my @lines = run(app(['openssl', 'genpkey', '-genparam',
+    my @lines;
+    if ($expected[0] eq 'ERROR') {
+        @lines = run(app(['openssl', 'genpkey', '-genparam',
+                          '-algorithm', $alg, '-text', @pkeyopts],
+                         stderr => undef),
+                     capture => 1);
+    } else {
+        @lines = run(app(['openssl', 'genpkey', '-genparam',
                           '-algorithm', $alg, '-text', @pkeyopts]),
-                    capture => 1);
+                     capture => 1);
+    }
     ok(compareline(\@lines, \@expected), $msg);
 }
 
@@ -157,7 +165,7 @@ sub compareline {
     }
     print "-----------------\n";
     foreach (@lines) {
-        print $_;
+        print "# ".$_;
     }
     print "-----------------\n";
     foreach my $ex (@expected) {

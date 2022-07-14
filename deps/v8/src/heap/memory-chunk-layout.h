@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/heap.h"
 #include "src/heap/list.h"
 #include "src/heap/progress-bar.h"
@@ -27,9 +28,12 @@ class SlotSet;
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
-  OLD_TO_CODE = V8_EXTERNAL_CODE_SPACE_BOOL ? OLD_TO_OLD + 1 : OLD_TO_OLD,
+  OLD_TO_SHARED,
+  OLD_TO_CODE = V8_EXTERNAL_CODE_SPACE_BOOL ? OLD_TO_SHARED + 1 : OLD_TO_SHARED,
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
+
+using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
@@ -53,7 +57,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(SlotSet* [kNumSets], SlotSet),
     FIELD(ProgressBar, ProgressBar),
     FIELD(std::atomic<intptr_t>, LiveByteCount),
-    FIELD(SlotSet*, SweepingSlotSet),
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
     FIELD(void* [kNumSets], InvalidatedSlots),
     FIELD(base::Mutex*, Mutex),
@@ -67,6 +70,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(Bitmap*, YoungGenerationBitmap),
     FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
+    FIELD(ActiveSystemPages, ActiveSystemPages),
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     FIELD(ObjectStartBitmap, ObjectStartBitmap),
 #endif

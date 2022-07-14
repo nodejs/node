@@ -34,9 +34,10 @@ extern runtime WasmI32AtomicWait(
     Context, WasmInstanceObject, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
-extern runtime WasmAllocateRtt(Context, Smi, Map, Smi): Map;
 extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
+extern runtime WasmArrayInitFromData(
+    Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 }
 
 namespace unsafe {
@@ -47,14 +48,10 @@ extern macro AllocateWasmArray(
 }
 
 namespace wasm {
-const kExternTableType: constexpr int31
-    generates 'wasm::kWasmExternRef.raw_bit_field()';
-const kExternNonNullTableType: constexpr int31
-    generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
-
-const kRttSubCanonicalize: constexpr int31
-    generates 'WasmRttSubMode::kCanonicalize';
-const kRttSubFresh: constexpr int31 generates 'WasmRttSubMode::kFresh';
+const kAnyTableType: constexpr int31
+    generates 'wasm::kWasmAnyRef.raw_bit_field()';
+const kAnyNonNullTableType: constexpr int31
+    generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -75,6 +72,18 @@ macro LoadContextFromFrame(): NativeContext {
 
 builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
+}
+
+builtin WasmFuncRefToJS(val: WasmInternalFunction|Null): JSFunction|Null|
+    Undefined {
+  typeswitch (val) {
+    case (Null): {
+      return Null;
+    }
+    case (func: WasmInternalFunction): {
+      return func.external;
+    }
+  }
 }
 
 builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: JSAnyNotSmi):
@@ -204,8 +213,8 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
     // function dispatch tables.
     // TODO(7748): Update this if further table types are supported.
     const tableType: Smi = table.raw_type;
-    if (tableType != SmiConstant(kExternTableType) &&
-        tableType != SmiConstant(kExternNonNullTableType)) {
+    if (tableType != SmiConstant(kAnyTableType) &&
+        tableType != SmiConstant(kAnyNonNullTableType)) {
       goto CallRuntime;
     }
 
@@ -292,18 +301,6 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(
-      LoadContextFromFrame(), SmiTag(typeIndex), parent,
-      SmiConstant(kRttSubCanonicalize));
-}
-
-builtin WasmAllocateFreshRtt(typeIndex: intptr, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(
-      LoadContextFromFrame(), SmiTag(typeIndex), parent,
-      SmiConstant(kRttSubFresh));
-}
-
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const typeInfo: WasmTypeInfo = %RawDownCast<WasmTypeInfo>(
       rtt.constructor_or_back_pointer_or_native_context);
@@ -350,6 +347,14 @@ builtin WasmAllocateArray_InitNull(
     rtt: Map, length: uint32, elementSize: uint32): HeapObject {
   return WasmAllocateArray(
       rtt, length, elementSize, InitializationMode::kInitializeToNull);
+}
+
+builtin WasmArrayInitFromData(
+    dataSegment: uint32, offset: uint32, length: uint32, rtt: Map): Object {
+  const instance = LoadInstanceFromFrame();
+  tail runtime::WasmArrayInitFromData(
+      LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
+      SmiFromUint32(offset), SmiFromUint32(length), rtt);
 }
 
 // We put all uint32 parameters at the beginning so that they are assigned to
@@ -486,8 +491,8 @@ macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
 
 // Vector format:
 // Two slots per call_ref instruction. These slots' values can be:
-// - uninitialized: (undefined, <unused>). Note: we use {undefined} as the
-//   sentinel as an optimization, as it's the default value for FixedArrays.
+// - uninitialized: (0, <unused>). Note: we use {0} as the sentinel because
+//   it also works as default for vector slots used as counts.
 // - monomorphic: (funcref, count (smi)). The second slot is a counter for how
 //   often the funcref in the first slot has been seen.
 // - polymorphic: (fixed_array, <unused>). In this case, the array
@@ -521,7 +526,8 @@ builtin CallRefIC(
   // All other cases are some sort of miss and must compute the target/
   // instance. They all fall through to returning the computed data.
   const result = GetTargetAndInstance(funcref);
-  if (TaggedEqual(value, Undefined)) {
+  if (TaggedEqual(value, SmiConstant(0))) {
+    // Was uninitialized.
     vector.objects[index] = funcref;
     vector.objects[index + 1] = SmiConstant(1);
   } else if (Is<FixedArray>(value)) {
@@ -626,8 +632,8 @@ builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
 
-builtin ThrowWasmTrapDataSegmentDropped(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentDropped));
+builtin ThrowWasmTrapDataSegmentOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentOutOfBounds));
 }
 
 builtin ThrowWasmTrapElemSegmentDropped(): JSAny {

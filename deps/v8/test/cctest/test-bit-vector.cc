@@ -59,16 +59,21 @@ TEST(BitVector) {
     v.Add(30);
     v.Add(31);
     v.Add(33);
-    BitVector::Iterator iter(&v);
-    CHECK_EQ(27, iter.Current());
-    iter.Advance();
-    CHECK_EQ(30, iter.Current());
-    iter.Advance();
-    CHECK_EQ(31, iter.Current());
-    iter.Advance();
-    CHECK_EQ(33, iter.Current());
-    iter.Advance();
-    CHECK(iter.Done());
+    BitVector::Iterator iter = v.begin();
+    BitVector::Iterator end = v.end();
+    CHECK_NE(iter, end);
+    CHECK_EQ(27, *iter);
+    ++iter;
+    CHECK_NE(iter, end);
+    CHECK_EQ(30, *iter);
+    ++iter;
+    CHECK_NE(iter, end);
+    CHECK_EQ(31, *iter);
+    ++iter;
+    CHECK_NE(iter, end);
+    CHECK_EQ(33, *iter);
+    ++iter;
+    CHECK(!(iter != end));
   }
 
   {

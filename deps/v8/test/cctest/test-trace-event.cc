@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "include/v8-function.h"
+#include "include/v8-platform.h"
 #include "src/init/v8.h"
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
@@ -86,12 +87,6 @@ class MockTracingController : public v8::TracingController {
 
 class MockTracingPlatform : public TestPlatform {
  public:
-  MockTracingPlatform() {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
-  ~MockTracingPlatform() override = default;
-
   v8::TracingController* GetTracingController() override {
     return &tracing_controller_;
   }
@@ -110,18 +105,14 @@ class MockTracingPlatform : public TestPlatform {
 
 }  // namespace
 
-TEST(TraceEventDisabledCategory) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TraceEventDisabledCategory, MockTracingPlatform) {
   // Disabled category, will not add events.
   TRACE_EVENT_BEGIN0("cat", "e1");
   TRACE_EVENT_END0("cat", "e1");
   CHECK_EQ(0, platform.NumberOfTraceObjects());
 }
 
-TEST(TraceEventNoArgs) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TraceEventNoArgs, MockTracingPlatform) {
   // Enabled category will add 2 events.
   TRACE_EVENT_BEGIN0("v8-cat", "e1");
   TRACE_EVENT_END0("v8-cat", "e1");
@@ -136,9 +127,7 @@ TEST(TraceEventNoArgs) {
   CHECK_EQ(0, platform.GetTraceObject(1)->num_args);
 }
 
-TEST(TraceEventWithOneArg) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TraceEventWithOneArg, MockTracingPlatform) {
   TRACE_EVENT_BEGIN1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_END1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_BEGIN1("v8-cat", "e2", "arg1", "abc");
@@ -152,9 +141,7 @@ TEST(TraceEventWithOneArg) {
   CHECK_EQ(1, platform.GetTraceObject(3)->num_args);
 }
 
-TEST(TraceEventWithTwoArgs) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TraceEventWithTwoArgs, MockTracingPlatform) {
   TRACE_EVENT_BEGIN2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_END2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_BEGIN2("v8-cat", "e2", "arg1", "abc", "arg2", 43);
@@ -168,9 +155,7 @@ TEST(TraceEventWithTwoArgs) {
   CHECK_EQ(2, platform.GetTraceObject(3)->num_args);
 }
 
-TEST(ScopedTraceEvent) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(ScopedTraceEvent, MockTracingPlatform) {
   { TRACE_EVENT0("v8-cat", "e"); }
 
   CHECK_EQ(1, platform.NumberOfTraceObjects());
@@ -187,9 +172,7 @@ TEST(ScopedTraceEvent) {
   CHECK_EQ(2, platform.GetTraceObject(2)->num_args);
 }
 
-TEST(TestEventWithFlow) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TestEventWithFlow, MockTracingPlatform) {
   static uint64_t bind_id = 21;
   {
     TRACE_EVENT_WITH_FLOW0("v8-cat", "f1", bind_id, TRACE_EVENT_FLAG_FLOW_OUT);
@@ -211,9 +194,7 @@ TEST(TestEventWithFlow) {
   CHECK_EQ(TRACE_EVENT_FLAG_FLOW_IN, platform.GetTraceObject(2)->flags);
 }
 
-TEST(TestEventWithId) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TestEventWithId, MockTracingPlatform) {
   static uint64_t event_id = 21;
   TRACE_EVENT_ASYNC_BEGIN0("v8-cat", "a1", event_id);
   TRACE_EVENT_ASYNC_END0("v8-cat", "a1", event_id);
@@ -225,9 +206,7 @@ TEST(TestEventWithId) {
   CHECK_EQ(event_id, platform.GetTraceObject(1)->id);
 }
 
-TEST(TestEventWithTimestamp) {
-  MockTracingPlatform platform;
-
+TEST_WITH_PLATFORM(TestEventWithTimestamp, MockTracingPlatform) {
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0("v8-cat", "0arg",
                                       TRACE_EVENT_SCOPE_GLOBAL, 1729);
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP1("v8-cat", "1arg",
@@ -254,9 +233,8 @@ TEST(TestEventWithTimestamp) {
   CHECK_EQ(32832, platform.GetTraceObject(4)->timestamp);
 }
 
-TEST(BuiltinsIsTraceCategoryEnabled) {
+TEST_WITH_PLATFORM(BuiltinsIsTraceCategoryEnabled, MockTracingPlatform) {
   CcTest::InitializeVM();
-  MockTracingPlatform platform;
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -302,9 +280,8 @@ TEST(BuiltinsIsTraceCategoryEnabled) {
   }
 }
 
-TEST(BuiltinsTrace) {
+TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
   CcTest::InitializeVM();
-  MockTracingPlatform platform;
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

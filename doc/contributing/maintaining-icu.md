@@ -11,6 +11,12 @@ functionality. To quote from icu-project.org:
 > widely portable and gives applications the same results on all platforms
 > and between C/C++ and Java software.
 
+If Node.js is configured to use its built-in ICU,
+it uses a strict subset of ICU which is in
+[deps/icu-small](https://github.com/nodejs/node/tree/HEAD/deps/icu-small).
+A good description of the different ways Node.js can be built with ICU
+support is in [api/intl.html](https://nodejs.org/api/intl.html).
+
 ## Data dependencies
 
 ICU consumes and includes:
@@ -51,7 +57,7 @@ files.
 
 #### Example: updating the ICU `.dat` file
 
-* Decompress `deps/icu/source/data/in/icudt##l.dat.bz2`, where `##` is
+* Decompress `deps/icu-small/source/data/in/icudt##l.dat.bz2`, where `##` is
   the ICU major version number.
 * Clone the icu/icu-data repository and copy the latest `tzdata` release `le`
   files into the `source/data/in` directory.
@@ -193,9 +199,9 @@ Floating patches are applied at `configure` time. The "patch" files
 are used instead of the original source files. The patch files are
 complete `.cpp` files replacing the original contents.
 
-Patches are tied to a specific ICU version. They won’t apply to a
+Patches are tied to a specific ICU version. They won't apply to a
 future ICU version.  We assume that you filed a bug against [ICU][] and
-upstreamed the fix, so the patch won’t be needed in a later ICU
+upstreamed the fix, so the patch won't be needed in a later ICU
 version.
 
 ### Example

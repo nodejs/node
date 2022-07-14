@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.12">12.22.12</a><br/>
+<a href="#12.22.11">12.22.11</a><br/>
 <a href="#12.22.10">12.22.10</a><br/>
 <a href="#12.22.9">12.22.9</a><br/>
 <a href="#12.22.8">12.22.8</a><br/>
@@ -65,6 +67,7 @@
 </table>
 
 * Other Versions
+  * [18.x](CHANGELOG_V18.md)
   * [17.x](CHANGELOG_V17.md)
   * [16.x](CHANGELOG_V16.md)
   * [15.x](CHANGELOG_V15.md)
@@ -82,6 +85,65 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.12"></a>
+
+## 2022-04-05, Version 12.22.12 'Erbium' (LTS), @richardlau
+
+### Notable Changes
+
+This is planned to be the final Node.js 12 release. Node.js 12 will
+reach End-of-Life status on 30 April 2022, after which it will no
+receive updates. You are strongly advised to migrate your applications
+to Node.js 16 or 14 (both of which are Long Term Support (LTS) releases)
+to continue to receive future security updates beyond 30 April 2022.
+
+This release fixes a shutdown crash in Node-API (formerly N-API) and a
+potential stack overflow when using `vm.runInNewContext()`.
+
+The list of GPG keys used to sign releases and instructions on how to
+fetch the keys for verifying binaries has been synchronized with the
+main branch.
+
+### Commits
+
+* \[[`1193290f3f`](https://github.com/nodejs/node/commit/1193290f3f)] - **deps**: V8: cherry-pick cc9a8a37445e (devsnek) [#42065](https://github.com/nodejs/node/pull/42065)
+* \[[`333eda8d03`](https://github.com/nodejs/node/commit/333eda8d03)] - **doc**: add a note about possible missing lines to readline.asyncIterator (Igor Mikhalev) [#34675](https://github.com/nodejs/node/pull/34675)
+* \[[`518a49c0c6`](https://github.com/nodejs/node/commit/518a49c0c6)] - **doc**: use openpgp.org for keyserver examples (Nick Schonning) [#39227](https://github.com/nodejs/node/pull/39227)
+* \[[`11aef2ad03`](https://github.com/nodejs/node/commit/11aef2ad03)] - **doc**: update release key for Danielle Adams (Danielle Adams) [#36793](https://github.com/nodejs/node/pull/36793)
+* \[[`a9c38f1003`](https://github.com/nodejs/node/commit/a9c38f1003)] - **doc**: add release key for Danielle Adams (Danielle Adams) [#35545](https://github.com/nodejs/node/pull/35545)
+* \[[`a35f553889`](https://github.com/nodejs/node/commit/a35f553889)] - **doc**: add release key for Bryan English (Bryan English) [#42102](https://github.com/nodejs/node/pull/42102)
+* \[[`5f104e3218`](https://github.com/nodejs/node/commit/5f104e3218)] - **node-api**: cctest on v8impl::Reference (legendecas) [#38970](https://github.com/nodejs/node/pull/38970)
+* \[[`e23c04f0dc`](https://github.com/nodejs/node/commit/e23c04f0dc)] - **node-api**: avoid SecondPassCallback crash (Michael Dawson) [#38899](https://github.com/nodejs/node/pull/38899)
+* \[[`a7224c9559`](https://github.com/nodejs/node/commit/a7224c9559)] - **node-api**: fix shutdown crashes (Michael Dawson) [#38492](https://github.com/nodejs/node/pull/38492)
+* \[[`81b4dc88f1`](https://github.com/nodejs/node/commit/81b4dc88f1)] - **node-api**: make reference weak parameter an indirect link to references (Chengzhong Wu) [#38000](https://github.com/nodejs/node/pull/38000)
+* \[[`2aa9ca1ea9`](https://github.com/nodejs/node/commit/2aa9ca1ea9)] - **node-api**: fix crash in finalization (Michael Dawson) [#37876](https://github.com/nodejs/node/pull/37876)
+* \[[`a2f4206415`](https://github.com/nodejs/node/commit/a2f4206415)] - **node-api**: stop ref gc during environment teardown (Gabriel Schulhof) [#37616](https://github.com/nodejs/node/pull/37616)
+* \[[`171bb66ccc`](https://github.com/nodejs/node/commit/171bb66ccc)] - **node-api**: force env shutdown deferring behavior (Gabriel Schulhof) [#37303](https://github.com/nodejs/node/pull/37303)
+* \[[`e707514c80`](https://github.com/nodejs/node/commit/e707514c80)] - **src**: fix finalization crash (James M Snell) [#38250](https://github.com/nodejs/node/pull/38250)
+
+<a id="12.22.11"></a>
+
+## 2022-03-17, Version 12.22.11 'Erbium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable changes
+
+Update to OpenSSL 1.1.1n, which addresses the following vulnerability:
+
+* Infinite loop in `BN_mod_sqrt()` reachable when parsing certificates (High)(CVE-2022-0778)
+  More details are available at <https://www.openssl.org/news/secadv/20220315.txt>
+
+Fix for building Node.js 12.x with Visual Studio 2019 to allow us to continue to
+run CI tests.
+
+### Commits
+
+* \[[`e3e5bf11ba`](https://github.com/nodejs/node/commit/e3e5bf11ba)] - **build**: pin Windows GitHub runner to windows-2019 (Richard Lau) [#42349](https://github.com/nodejs/node/pull/42349)
+* \[[`f41e7771bf`](https://github.com/nodejs/node/commit/f41e7771bf)] - **build**: fix detection of Visual Studio 2019 (Richard Lau) [#42349](https://github.com/nodejs/node/pull/42349)
+* \[[`c372ec207d`](https://github.com/nodejs/node/commit/c372ec207d)] - **deps**: update archs files for OpenSSL-1.1.n (Richard Lau) [#42348](https://github.com/nodejs/node/pull/42348)
+* \[[`d574a1dccb`](https://github.com/nodejs/node/commit/d574a1dccb)] - **deps**: upgrade openssl sources to 1.1.1n (Richard Lau) [#42348](https://github.com/nodejs/node/pull/42348)
 
 <a id="12.22.10"></a>
 

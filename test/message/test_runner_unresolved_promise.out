@@ -1,0 +1,34 @@
+TAP version 13
+# Subtest: pass
+ok 1 - pass
+  ---
+  duration_ms: *
+  ...
+# Subtest: never resolving promise
+not ok 2 - never resolving promise
+  ---
+  duration_ms: *
+  failureType: 'cancelledByParent'
+  error: 'test did not finish before its parent and was cancelled'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+  ...
+# Subtest: fail
+not ok 3 - fail
+  ---
+  duration_ms: *
+  failureType: 'cancelledByParent'
+  error: 'test did not finish before its parent and was cancelled'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+  ...
+1..3
+# tests 3
+# pass 1
+# fail 0
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms *

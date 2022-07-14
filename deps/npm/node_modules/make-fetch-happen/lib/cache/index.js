@@ -14,8 +14,8 @@ const cacheFetch = async (request, options) => {
 
     // otherwise, we make a request, store it and return it
     const response = await remote(request, options)
-    const entry = new CacheEntry({ request, response, options })
-    return entry.store('miss')
+    const newEntry = new CacheEntry({ request, response, options })
+    return newEntry.store('miss')
   }
 
   // we have a cached response that satisfies this request, however if the cache

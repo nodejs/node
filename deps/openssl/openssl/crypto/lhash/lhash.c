@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -100,6 +100,8 @@ void OPENSSL_LH_flush(OPENSSL_LHASH *lh)
         }
         lh->b[i] = NULL;
     }
+
+    lh->num_items = 0;
 }
 
 void *OPENSSL_LH_insert(OPENSSL_LHASH *lh, void *data)
@@ -124,12 +126,10 @@ void *OPENSSL_LH_insert(OPENSSL_LHASH *lh, void *data)
         nn->hash = hash;
         *rn = nn;
         ret = NULL;
-        lh->num_insert++;
         lh->num_items++;
     } else {                    /* replace same key */
         ret = (*rn)->data;
         (*rn)->data = data;
-        lh->num_replace++;
     }
     return ret;
 }
@@ -144,14 +144,12 @@ void *OPENSSL_LH_delete(OPENSSL_LHASH *lh, const void *data)
     rn = getrn(lh, data, &hash);
 
     if (*rn == NULL) {
-        lh->num_no_delete++;
         return NULL;
     } else {
         nn = *rn;
         *rn = nn->next;
         ret = nn->data;
         OPENSSL_free(nn);
-        lh->num_delete++;
     }
 
     lh->num_items--;
@@ -166,21 +164,13 @@ void *OPENSSL_LH_retrieve(OPENSSL_LHASH *lh, const void *data)
 {
     unsigned long hash;
     OPENSSL_LH_NODE **rn;
-    void *ret;
 
-    tsan_store((TSAN_QUALIFIER int *)&lh->error, 0);
+    if (lh->error != 0)
+        lh->error = 0;
 
     rn = getrn(lh, data, &hash);
 
-    if (*rn == NULL) {
-        tsan_counter(&lh->num_retrieve_miss);
-        return NULL;
-    } else {
-        ret = (*rn)->data;
-        tsan_counter(&lh->num_retrieve);
-    }
-
-    return ret;
+    return *rn == NULL ? NULL : (*rn)->data;
 }
 
 static void doall_util_fn(OPENSSL_LHASH *lh, int use_arg,
@@ -240,14 +230,12 @@ static int expand(OPENSSL_LHASH *lh)
         memset(n + nni, 0, sizeof(*n) * (j - nni));
         lh->pmax = nni;
         lh->num_alloc_nodes = j;
-        lh->num_expand_reallocs++;
         lh->p = 0;
     } else {
         lh->p++;
     }
 
     lh->num_nodes++;
-    lh->num_expands++;
     n1 = &(lh->b[p]);
     n2 = &(lh->b[p + pmax]);
     *n2 = NULL;
@@ -280,7 +268,6 @@ static void contract(OPENSSL_LHASH *lh)
             lh->error++;
             return;
         }
-        lh->num_contract_reallocs++;
         lh->num_alloc_nodes /= 2;
         lh->pmax /= 2;
         lh->p = lh->pmax - 1;
@@ -289,7 +276,6 @@ static void contract(OPENSSL_LHASH *lh)
         lh->p--;
 
     lh->num_nodes--;
-    lh->num_contracts++;
 
     n1 = lh->b[(int)lh->p];
     if (n1 == NULL)
@@ -309,7 +295,6 @@ static OPENSSL_LH_NODE **getrn(OPENSSL_LHASH *lh,
     OPENSSL_LH_COMPFUNC cf;
 
     hash = (*(lh->hash)) (data);
-    tsan_counter(&lh->num_hash_calls);
     *rhash = hash;
 
     nn = hash % lh->pmax;
@@ -319,12 +304,10 @@ static OPENSSL_LH_NODE **getrn(OPENSSL_LHASH *lh,
     cf = lh->comp;
     ret = &(lh->b[(int)nn]);
     for (n1 = *ret; n1 != NULL; n1 = n1->next) {
-        tsan_counter(&lh->num_hash_comps);
         if (n1->hash != hash) {
             ret = &(n1->next);
             continue;
         }
-        tsan_counter(&lh->num_comp_calls);
         if (cf(n1->data, data) == 0)
             break;
         ret = &(n1->next);
@@ -352,7 +335,8 @@ unsigned long OPENSSL_LH_strhash(const char *c)
         v = n | (*c);
         n += 0x100;
         r = (int)((v >> 2) ^ v) & 0x0f;
-        ret = (ret << r) | (ret >> (32 - r));
+        /* cast to uint64_t to avoid 32 bit shift of 32 bit value */
+        ret = (ret << r) | (unsigned long)((uint64_t)ret >> (32 - r));
         ret &= 0xFFFFFFFFL;
         ret ^= v * v;
         c++;
@@ -373,7 +357,8 @@ unsigned long ossl_lh_strcasehash(const char *c)
     for (n = 0x100; *c != '\0'; n += 0x100) {
         v = n | ossl_tolower(*c);
         r = (int)((v >> 2) ^ v) & 0x0f;
-        ret = (ret << r) | (ret >> (32 - r));
+        /* cast to uint64_t to avoid 32 bit shift of 32 bit value */
+        ret = (ret << r) | (unsigned long)((uint64_t)ret >> (32 - r));
         ret &= 0xFFFFFFFFL;
         ret ^= v * v;
         c++;

@@ -23,6 +23,7 @@ async function testVerify({ name,
     privateKey,
     hmacKey,
     rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -52,6 +53,12 @@ async function testVerify({ name,
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
+      },
+      false,
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
       },
       false,
       ['sign']),
@@ -86,6 +93,11 @@ async function testVerify({ name,
 
   await assert.rejects(
     subtle.verify({ name, hash }, rsaKeys.publicKey, signature, plaintext), {
+      message: /Unable to use this key to verify/
+    });
+
+  await assert.rejects(
+    subtle.verify({ name, hash }, okpKeys.publicKey, signature, plaintext), {
       message: /Unable to use this key to verify/
     });
 
@@ -140,6 +152,7 @@ async function testSign({ name,
     privateKey,
     hmacKey,
     rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -169,6 +182,12 @@ async function testSign({ name,
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256',
+      },
+      false,
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
       },
       false,
       ['sign']),
@@ -208,6 +227,11 @@ async function testSign({ name,
 
   await assert.rejects(
     subtle.sign({ name, hash }, rsaKeys.privateKey, plaintext), {
+      message: /Unable to use this key to sign/
+    });
+
+  await assert.rejects(
+    subtle.sign({ name, hash }, okpKeys.privateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 }

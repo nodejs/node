@@ -1,9 +1,26 @@
 'use strict'
 
+const { URL } = require('url')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 const semver = require('semver')
-const { URL } = require('url')
+
+// given a tarball url and a registry url, returns just the
+// relevant pathname portion of it, so that it can be handled
+// elegantly by npm-registry-fetch which only expects pathnames
+// and handles the registry hostname via opts
+const getPathname = (tarball, registry) => {
+  const registryUrl = new URL(registry).pathname.slice(1)
+  let tarballUrl = new URL(tarball).pathname.slice(1)
+
+  // test the tarball url to see if it starts with a possible
+  // pathname from the registry url, in that case strips that portion
+  // of it so that we only return the post-registry-url pathname
+  if (registryUrl) {
+    tarballUrl = tarballUrl.slice(registryUrl.length)
+  }
+  return tarballUrl
+}
 
 const unpublish = async (spec, opts) => {
   spec = npa(spec)
@@ -82,7 +99,7 @@ const unpublish = async (spec, opts) => {
         ...opts,
         query: { write: true },
       })
-      const tarballUrl = new URL(dist.tarball).pathname.substr(1)
+      const tarballUrl = getPathname(dist.tarball, opts.registry)
       await npmFetch(`${tarballUrl}/-rev/${_rev}`, {
         ...opts,
         method: 'DELETE',

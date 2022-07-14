@@ -23,7 +23,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow invalid regular expression strings in `RegExp` constructors",
+            description: "Disallow invalid regular expression strings in `RegExp` constructors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-invalid-regexp"
         },

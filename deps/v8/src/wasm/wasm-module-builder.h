@@ -166,7 +166,8 @@ class WasmModuleBuilder;
 class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
-  void SetSignature(FunctionSig* sig);
+  void SetSignature(const FunctionSig* sig);
+  void SetSignature(uint32_t sig_index);
   uint32_t AddLocal(ValueType type);
   void EmitByte(byte b);
   void EmitI32V(int32_t val);
@@ -208,7 +209,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() { return func_index_; }
   uint32_t sig_index() { return signature_index_; }
-  inline FunctionSig* signature();
+  inline const FunctionSig* signature();
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -311,7 +312,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Building methods.
   uint32_t AddImport(base::Vector<const char> name, FunctionSig* sig,
                      base::Vector<const char> module = {});
-  WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
+  WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
+  WasmFunctionBuilder* AddFunction(uint32_t sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability = true,
                      WasmInitExpr init = WasmInitExpr());
   uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,
@@ -332,11 +334,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // exceeded.
   uint32_t IncreaseTableMinSize(uint32_t table_index, uint32_t count);
   // Adds the signature to the module if it does not already exist.
-  uint32_t AddSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType);
+  uint32_t AddSignature(const FunctionSig* sig,
+                        uint32_t supertype = kNoSuperType);
   // Does not deduplicate function signatures.
-  uint32_t ForceAddSignature(FunctionSig* sig,
+  uint32_t ForceAddSignature(const FunctionSig* sig,
                              uint32_t supertype = kNoSuperType);
-  uint32_t AddException(FunctionSig* type);
+  uint32_t AddException(const FunctionSig* type);
   uint32_t AddStructType(StructType* type, uint32_t supertype = kNoSuperType);
   uint32_t AddArrayType(ArrayType* type, uint32_t supertype = kNoSuperType);
   uint32_t AddTable(ValueType type, uint32_t min_size);
@@ -356,6 +359,22 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetMaxMemorySize(uint32_t value);
   void SetHasSharedMemory();
 
+  void StartRecursiveTypeGroup() {
+    DCHECK_EQ(current_recursive_group_start_, -1);
+    current_recursive_group_start_ = static_cast<int>(types_.size());
+  }
+
+  void EndRecursiveTypeGroup() {
+    // Make sure we are in a recursive group.
+    DCHECK_NE(current_recursive_group_start_, -1);
+    // Make sure the current recursive group has at least one element.
+    DCHECK_GT(static_cast<int>(types_.size()), current_recursive_group_start_);
+    recursive_groups_.emplace(
+        current_recursive_group_start_,
+        static_cast<uint32_t>(types_.size()) - current_recursive_group_start_);
+    current_recursive_group_start_ = -1;
+  }
+
   // Writing methods.
   void WriteTo(ZoneBuffer* buffer) const;
   void WriteAsmJsOffsetTable(ZoneBuffer* buffer) const;
@@ -365,25 +384,27 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ValueType GetTableType(uint32_t index) { return tables_[index].type; }
 
   bool IsSignature(uint32_t index) {
-    return types_[index].kind == Type::kFunctionSig;
+    return types_[index].kind == TypeDefinition::kFunction;
   }
 
-  FunctionSig* GetSignature(uint32_t index) {
-    DCHECK(types_[index].kind == Type::kFunctionSig);
-    return types_[index].sig;
+  const FunctionSig* GetSignature(uint32_t index) {
+    DCHECK(types_[index].kind == TypeDefinition::kFunction);
+    return types_[index].function_sig;
   }
 
   bool IsStructType(uint32_t index) {
-    return types_[index].kind == Type::kStructType;
+    return types_[index].kind == TypeDefinition::kStruct;
   }
-  StructType* GetStructType(uint32_t index) {
+  const StructType* GetStructType(uint32_t index) {
     return types_[index].struct_type;
   }
 
   bool IsArrayType(uint32_t index) {
-    return types_[index].kind == Type::kArrayType;
+    return types_[index].kind == TypeDefinition::kArray;
   }
-  ArrayType* GetArrayType(uint32_t index) { return types_[index].array_type; }
+  const ArrayType* GetArrayType(uint32_t index) {
+    return types_[index].array_type;
+  }
 
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
   int NumExceptions() { return static_cast<int>(exceptions_.size()); }
@@ -394,30 +415,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumFunctions() { return static_cast<int>(functions_.size()); }
 
-  FunctionSig* GetExceptionType(int index) {
-    return types_[exceptions_[index]].sig;
+  const FunctionSig* GetExceptionType(int index) {
+    return types_[exceptions_[index]].function_sig;
   }
 
-  static const uint32_t kNullIndex;
-
  private:
-  struct Type {
-    enum Kind { kFunctionSig, kStructType, kArrayType };
-    explicit Type(FunctionSig* signature, uint32_t supertype)
-        : kind(kFunctionSig), supertype(supertype), sig(signature) {}
-    explicit Type(StructType* struct_type, uint32_t supertype)
-        : kind(kStructType), supertype(supertype), struct_type(struct_type) {}
-    explicit Type(ArrayType* array_type, uint32_t supertype)
-        : kind(kArrayType), supertype(supertype), array_type(array_type) {}
-    Kind kind;
-    uint32_t supertype;
-    union {
-      FunctionSig* sig;
-      StructType* struct_type;
-      ArrayType* array_type;
-    };
-  };
-
   struct WasmFunctionImport {
     base::Vector<const char> module;
     base::Vector<const char> name;
@@ -438,8 +440,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmGlobal {
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmGlobal);
-
     ValueType type;
     bool mutability;
     WasmInitExpr init;
@@ -460,7 +460,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   friend class WasmFunctionBuilder;
   Zone* zone_;
-  ZoneVector<Type> types_;
+  ZoneVector<TypeDefinition> types_;
   ZoneVector<WasmFunctionImport> function_imports_;
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmExport> exports_;
@@ -471,6 +471,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmGlobal> globals_;
   ZoneVector<int> exceptions_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
+  int current_recursive_group_start_;
+  // first index -> size
+  ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
   int start_function_index_;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;
@@ -482,8 +485,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #endif
 };
 
-FunctionSig* WasmFunctionBuilder::signature() {
-  return builder_->types_[signature_index_].sig;
+const FunctionSig* WasmFunctionBuilder::signature() {
+  return builder_->types_[signature_index_].function_sig;
 }
 
 }  // namespace wasm

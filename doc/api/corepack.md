@@ -33,14 +33,14 @@ This feature simplifies two core workflows:
 ### Enabling the feature
 
 Due to its experimental status, Corepack currently needs to be explicitly
-enabled to have any effect. To do that simply run [`corepack enable`][], which
-will set up the symlinks in your environment, next to the `node` binary
+enabled to have any effect. To do that, run [`corepack enable`][], which
+will set up the symlinks in your environment next to the `node` binary
 (and overwrite the existing symlinks if necessary).
 
 From this point forward, any call to the [supported binaries][] will work
-without further setup. Should you experience a problem, just run
+without further setup. Should you experience a problem, run
 [`corepack disable`][] to remove the proxies from your system (and consider
-opening up an issue on the [Corepack repository][] to let us know).
+opening an issue on the [Corepack repository][] to let us know).
 
 ### Configuring a package
 
@@ -57,7 +57,7 @@ successfully retrieved.
 When running outside of an existing project (for example when running
 `yarn init`), Corepack will by default use predefined versions roughly
 corresponding to the latest stable releases from each tool. Those versions can
-be easily overriden by running the [`corepack prepare`][] command along with the
+be overridden by running the [`corepack prepare`][] command along with the
 package manager version you wish to set:
 
 ```bash
@@ -73,8 +73,8 @@ it can conflict with such environments. To avoid that happening, call the
 the same time you're preparing your deploy image). This will ensure that the
 required package managers are available even without network access.
 
-The `prepare` command has [various flags][], consult the detailed
-[Corepack documentation][] for more information on the matter.
+The `prepare` command has [various flags][]. Consult the detailed
+[Corepack documentation][] for more information.
 
 ## Supported package managers
 
@@ -87,10 +87,10 @@ The following binaries are provided through Corepack:
 
 ## Common questions
 
-### How does Corepack currently interact with npm?
+### How does Corepack interact with npm?
 
-While Corepack could easily support npm like any other package manager, its
-shims aren't currently enabled by default. This has a few consequences:
+While Corepack could support npm like any other package manager, its
+shims aren't enabled by default. This has a few consequences:
 
 * It's always possible to run a `npm` command within a project configured to
   be used with another package manager, since Corepack cannot intercept it.
@@ -103,13 +103,13 @@ shims aren't currently enabled by default. This has a few consequences:
 npm prevents accidentally overriding the Corepack binaries when doing a global
 install. To avoid this problem, consider one of the following options:
 
-* Don't run this command anymore; Corepack will provide the package manager
+* Don't run this command; Corepack will provide the package manager
   binaries anyway and will ensure that the requested versions are always
-  available, so installing the package managers explicitly isn't needed anymore.
+  available, so installing the package managers explicitly isn't needed.
 
 * Add the `--force` flag to `npm install`; this will tell npm that it's fine to
-  override binaries, but you'll erase the Corepack ones in the process (should
-  that happen, run [`corepack enable`][] again to add them back).
+  override binaries, but you'll erase the Corepack ones in the process. (Run
+  [`corepack enable`][] to add them back.)
 
 [Corepack]: https://github.com/nodejs/corepack
 [Corepack documentation]: https://github.com/nodejs/corepack#readme

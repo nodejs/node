@@ -111,3 +111,112 @@ function BasicMemory64Tests(num_pages) {
   assertEquals(-1n, instance.exports.grow(7n));  // Above the of 10.
   assertEquals(4n, instance.exports.grow(6n));   // Just at the maximum of 10.
 })();
+
+(function TestBulkMemoryOperations() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const kMemSizeInPages = 10;
+  const kMemSize = kMemSizeInPages * kPageSize;
+  builder.addMemory64(kMemSizeInPages, kMemSizeInPages);
+  const kSegmentSize = 1024;
+  // Build a data segment with values [0, kSegmentSize-1].
+  const segment = Array.from({length: kSegmentSize}, (_, idx) => idx)
+  builder.addPassiveDataSegment(segment);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('fill', makeSig([kWasmI64, kWasmI32, kWasmI64], []))
+      .addBody([
+        kExprLocalGet, 0,                   // local.get 0 (dst)
+        kExprLocalGet, 1,                   // local.get 1 (value)
+        kExprLocalGet, 2,                   // local.get 2 (size)
+        kNumericPrefix, kExprMemoryFill, 0  // memory.fill mem=0
+      ])
+      .exportFunc();
+
+  builder.addFunction('copy', makeSig([kWasmI64, kWasmI64, kWasmI64], []))
+      .addBody([
+        kExprLocalGet, 0,                      // local.get 0 (dst)
+        kExprLocalGet, 1,                      // local.get 1 (src)
+        kExprLocalGet, 2,                      // local.get 2 (size)
+        kNumericPrefix, kExprMemoryCopy, 0, 0  // memory.copy srcmem=0 dstmem=0
+      ])
+      .exportFunc();
+
+  builder.addFunction('init', makeSig([kWasmI64, kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,                      // local.get 0 (dst)
+        kExprLocalGet, 1,                      // local.get 1 (offset)
+        kExprLocalGet, 2,                      // local.get 2 (size)
+        kNumericPrefix, kExprMemoryInit, 0, 0  // memory.init seg=0 mem=0
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+  let fill = instance.exports.fill;
+  let copy = instance.exports.copy;
+  let init = instance.exports.init;
+  // {memory(offset,size)} extracts the memory at [offset, offset+size)] into an
+  // Array.
+  let memory = (offset, size) => Array.from(new Uint8Array(
+      instance.exports.memory.buffer.slice(offset, offset + size)));
+
+  // Empty init (size=0).
+  init(0n, 0, 0);
+  assertEquals([0, 0], memory(0, 2));
+  // Init memory[5..7] with [10..12].
+  init(5n, 10, 3);
+  assertEquals([0, 0, 10, 11, 12, 0, 0], memory(3, 7));
+  // Init the end of memory ([kMemSize-2, kMemSize-1]) with [20, 21].
+  init(BigInt(kMemSize-2), 20, 2);
+  assertEquals([0, 0, 20, 21], memory(kMemSize - 4, 4));
+  // Writing slightly OOB.
+  assertTraps(kTrapMemOutOfBounds, () => init(BigInt(kMemSize-2), 20, 3));
+  // Writing OOB, but the low 32-bit are in-bound.
+  assertTraps(kTrapMemOutOfBounds, () => init(1n << 32n, 0, 0));
+  // OOB even though size == 0.
+  assertTraps(kTrapMemOutOfBounds, () => init(-1n, 0, 0));
+  // More OOB.
+  assertTraps(kTrapMemOutOfBounds, () => init(-1n, 0, 1));
+  assertTraps(kTrapMemOutOfBounds, () => init(1n << 62n, 0, 1));
+  assertTraps(kTrapMemOutOfBounds, () => init(1n << 63n, 0, 1));
+
+  // Empty copy (size=0).
+  copy(0n, 0n, 0n);
+  // Copy memory[5..7] (containing [10..12]) to [3..5].
+  copy(3n, 5n, 3n);
+  assertEquals([0, 0, 0, 10, 11, 12, 11, 12, 0], memory(0, 9));
+  // Copy to the end of memory ([kMemSize-2, kMemSize-1]).
+  copy(BigInt(kMemSize-2), 3n, 2n);
+  assertEquals([0, 0, 10, 11], memory(kMemSize - 4, 4));
+  // Writing slightly OOB.
+  assertTraps(kTrapMemOutOfBounds, () => copy(BigInt(kMemSize-2), 0n, 3n));
+  // Writing OOB, but the low 32-bit are in-bound.
+  assertTraps(kTrapMemOutOfBounds, () => copy(1n << 32n, 0n, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => copy(0n, 0n, 1n << 32n));
+  // OOB even though size == 0.
+  assertTraps(kTrapMemOutOfBounds, () => copy(-1n, 0n, 0n));
+  // More OOB.
+  assertTraps(kTrapMemOutOfBounds, () => copy(-1n, 0n, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => copy(1n << 62n, 0n, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => copy(1n << 63n, 0n, 1n));
+
+  // Empty fill (size=0).
+  fill(0n, 0, 0n);
+  // Fill memory[15..17] with 3s.
+  fill(15n, 3, 3n);
+  assertEquals([0, 3, 3, 3, 0], memory(14, 5));
+  // Fill the end of memory ([kMemSize-2, kMemSize-1]) with 7s.
+  fill(BigInt(kMemSize-2), 7, 2n);
+  assertEquals([0, 0, 7, 7], memory(kMemSize - 4, 4));
+  // Writing slightly OOB.
+  assertTraps(kTrapMemOutOfBounds, () => fill(BigInt(kMemSize-2), 0, 3n));
+  // Writing OOB, but the low 32-bit are in-bound.
+  assertTraps(kTrapMemOutOfBounds, () => fill(1n << 32n, 0, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => fill(0n, 0, 1n << 32n));
+  // OOB even though size == 0.
+  assertTraps(kTrapMemOutOfBounds, () => fill(-1n, 0, 0n));
+  // More OOB.
+  assertTraps(kTrapMemOutOfBounds, () => fill(-1n, 0, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => fill(1n << 62n, 0, 1n));
+  assertTraps(kTrapMemOutOfBounds, () => fill(1n << 63n, 0, 1n));
+})();

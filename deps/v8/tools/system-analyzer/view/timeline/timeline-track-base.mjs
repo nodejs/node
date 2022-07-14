@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {delay} from '../../helper.mjs';
 import {kChunkHeight, kChunkVisualWidth, kChunkWidth} from '../../log/map.mjs';
 import {SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, formatDurationMicros, SVG, V8CustomElement} from '../helper.mjs';
+import {CSSColor, delay, DOM, formatDurationMicros, V8CustomElement} from '../helper.mjs';
 
 export const kTimelineHeight = 200;
 
@@ -27,7 +26,6 @@ export class TimelineTrackBase extends V8CustomElement {
     super(templateText);
     this._selectionHandler = new SelectionHandler(this);
     this._legend = new Legend(this.$('#legendTable'));
-    this._legend.onFilter = (type) => this._handleFilterTimeline();
 
     this.timelineChunks = this.$('#timelineChunks');
     this.timelineSamples = this.$('#timelineSamples');
@@ -37,14 +35,20 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineAnnotationsNode = this.$('#timelineAnnotations');
     this.timelineMarkersNode = this.$('#timelineMarkers');
     this._scalableContentNode = this.$('#scalableContent');
+    this.isLocked = false;
+    this.setAttribute('tabindex', 0);
+  }
 
+  _initEventListeners() {
+    this._legend.onFilter = this._handleFilterTimeline.bind(this);
     this.timelineNode.addEventListener(
-        'scroll', e => this._handleTimelineScroll(e));
+        'scroll', this._handleTimelineScroll.bind(this));
     this.hitPanelNode.onclick = this._handleClick.bind(this);
     this.hitPanelNode.ondblclick = this._handleDoubleClick.bind(this);
     this.hitPanelNode.onmousemove = this._handleMouseMove.bind(this);
+    this.$('#selectionForeground')
+        .addEventListener('mousemove', this._handleMouseMove.bind(this));
     window.addEventListener('resize', () => this._resetCachedDimensions());
-    this.isLocked = false;
   }
 
   static get observedAttributes() {
@@ -59,18 +63,36 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _handleFilterTimeline(type) {
     this._updateChunks();
+    this._legend.update(true);
   }
 
   set data(timeline) {
+    console.assert(timeline);
+    if (!this._timeline) this._initEventListeners();
     this._timeline = timeline;
     this._legend.timeline = timeline;
     this.$('.content').style.display = timeline.isEmpty() ? 'none' : 'relative';
     this._updateChunks();
   }
 
-  set timeSelection(selection) {
-    this._selectionHandler.timeSelection = selection;
+  set timeSelection({start, end, focus = false, zoom = false}) {
+    this._selectionHandler.timeSelection = {start, end};
     this.updateSelection();
+    if (focus || zoom) {
+      if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        throw new Error('Invalid number ranges');
+      }
+      if (focus) {
+        this.currentTime = (start + end) / 2;
+      }
+      if (zoom) {
+        const margin = 0.2;
+        const newVisibleTime = (end - start) * (1 + 2 * margin);
+        const currentVisibleTime =
+            this._cachedTimelineBoundingClientRect.width / this._timeToPixel;
+        this.nofChunks = this.nofChunks * (currentVisibleTime / newVisibleTime);
+      }
+    }
   }
 
   updateSelection() {
@@ -121,8 +143,14 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   set nofChunks(count) {
+    const centerTime = this.currentTime;
+    const kMinNofChunks = 100;
+    if (count < kMinNofChunks) count = kMinNofChunks;
+    const kMaxNofChunks = 10 * 1000;
+    if (count > kMaxNofChunks) count = kMaxNofChunks;
     this._nofChunks = count | 0;
     this._updateChunks();
+    this.currentTime = centerTime;
   }
 
   get nofChunks() {
@@ -136,21 +164,50 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   get chunks() {
+    if (this._chunks?.length != this.nofChunks) {
+      this._chunks =
+          this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
+      console.assert(this._chunks.length == this._nofChunks);
+    }
     return this._chunks;
   }
 
   set selectedEntry(value) {
     this._selectedEntry = value;
-    this.drawAnnotations(value);
   }
 
   get selectedEntry() {
     return this._selectedEntry;
   }
 
+  get focusedEntry() {
+    return this._focusedEntry;
+  }
+
+  set focusedEntry(entry) {
+    this._focusedEntry = entry;
+    if (entry) this._drawAnnotations(entry);
+  }
+
   set scrollLeft(offset) {
     this.timelineNode.scrollLeft = offset;
     this._cachedTimelineScrollLeft = offset;
+  }
+
+  get scrollLeft() {
+    return this._cachedTimelineScrollLeft;
+  }
+
+  set currentTime(time) {
+    const position = this.timeToPosition(time);
+    const centerOffset = this._timelineBoundingClientRect.width / 2;
+    this.scrollLeft = Math.max(0, position - centerOffset);
+  }
+
+  get currentTime() {
+    const centerOffset =
+        this._timelineBoundingClientRect.width / 2 + this.scrollLeft;
+    return this.relativePositionToTime(centerOffset);
   }
 
   handleEntryTypeDoubleClick(e) {
@@ -209,19 +266,13 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _update() {
     this._legend.update();
-    this._drawContent();
-    this._drawAnnotations(this.selectedEntry);
+    this._drawContent().then(() => this._drawAnnotations(this.selectedEntry));
     this._resetCachedDimensions();
   }
 
   async _drawContent() {
-    await delay(5);
     if (this._timeline.isEmpty()) return;
-    if (this.chunks?.length != this.nofChunks) {
-      this._chunks =
-          this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
-      console.assert(this._chunks.length == this._nofChunks);
-    }
+    await delay(5);
     const chunks = this.chunks;
     const max = chunks.max(each => each.size());
     let buffer = '';
@@ -384,12 +435,20 @@ class SelectionHandler {
 
   constructor(timeline) {
     this._timeline = timeline;
+    this._timelineNode = this._timeline.$('#timeline');
     this._timelineNode.addEventListener(
-        'mousedown', e => this._handleTimeSelectionMouseDown(e));
+        'mousedown', this._handleMouseDown.bind(this));
     this._timelineNode.addEventListener(
-        'mouseup', e => this._handleTimeSelectionMouseUp(e));
+        'mouseup', this._handleMouseUp.bind(this));
     this._timelineNode.addEventListener(
-        'mousemove', e => this._handleTimeSelectionMouseMove(e));
+        'mousemove', this._handleMouseMove.bind(this));
+    this._selectionNode = this._timeline.$('#selection');
+    this._selectionForegroundNode = this._timeline.$('#selectionForeground');
+    this._selectionForegroundNode.addEventListener(
+        'dblclick', this._handleDoubleClick.bind(this));
+    this._selectionBackgroundNode = this._timeline.$('#selectionBackground');
+    this._leftHandleNode = this._timeline.$('#leftHandle');
+    this._rightHandleNode = this._timeline.$('#rightHandle');
   }
 
   update() {
@@ -403,9 +462,10 @@ class SelectionHandler {
     this._leftHandleNode.style.left = startPosition + 'px';
     this._rightHandleNode.style.left = endPosition + 'px';
     const delta = endPosition - startPosition;
-    const selectionNode = this._selectionBackgroundNode;
-    selectionNode.style.left = startPosition + 'px';
-    selectionNode.style.width = delta + 'px';
+    this._selectionForegroundNode.style.left = startPosition + 'px';
+    this._selectionForegroundNode.style.width = delta + 'px';
+    this._selectionBackgroundNode.style.left = startPosition + 'px';
+    this._selectionBackgroundNode.style.width = delta + 'px';
   }
 
   set timeSelection(selection) {
@@ -434,26 +494,6 @@ class SelectionHandler {
         this._timeSelection.end != Infinity;
   }
 
-  get _timelineNode() {
-    return this._timeline.$('#timeline');
-  }
-
-  get _selectionNode() {
-    return this._timeline.$('#selection');
-  }
-
-  get _selectionBackgroundNode() {
-    return this._timeline.$('#selectionBackground');
-  }
-
-  get _leftHandleNode() {
-    return this._timeline.$('#leftHandle');
-  }
-
-  get _rightHandleNode() {
-    return this._timeline.$('#rightHandle');
-  }
-
   get _leftHandlePosX() {
     return this._leftHandleNode.getBoundingClientRect().x;
   }
@@ -472,7 +512,7 @@ class SelectionHandler {
         SelectionHandler.SELECTION_OFFSET;
   }
 
-  _handleTimeSelectionMouseDown(event) {
+  _handleMouseDown(event) {
     if (event.button !== 0) return;
     let xPosition = event.clientX
     // Update origin time in case we click on a handle.
@@ -485,7 +525,7 @@ class SelectionHandler {
     this._selectionOriginTime = this.positionToTime(xPosition);
   }
 
-  _handleTimeSelectionMouseMove(event) {
+  _handleMouseMove(event) {
     if (event.button !== 0) return;
     if (!this.isSelecting) return;
     const currentTime = this.positionToTime(event.clientX);
@@ -494,7 +534,7 @@ class SelectionHandler {
         Math.max(this._selectionOriginTime, currentTime)));
   }
 
-  _handleTimeSelectionMouseUp(event) {
+  _handleMouseUp(event) {
     if (event.button !== 0) return;
     this._selectionOriginTime = -1;
     if (this._timeSelection.start === -1) return;
@@ -503,10 +543,18 @@ class SelectionHandler {
     this._timeline.dispatchEvent(new SelectTimeEvent(
         this._timeSelection.start, this._timeSelection.end));
   }
+
+  _handleDoubleClick(event) {
+    if (!this.hasSelection) return;
+    // Focus and zoom to the current selection.
+    this._timeline.dispatchEvent(new SelectTimeEvent(
+        this._timeSelection.start, this._timeSelection.end, true, true));
+  }
 }
 
 class Legend {
   _timeline;
+  _lastSelection;
   _typesFilters = new Map();
   _typeClickHandler = this._handleTypeClick.bind(this);
   _filterPredicate = this.filter.bind(this);
@@ -549,21 +597,39 @@ class Legend {
     return this._typesFilters.get(logEntry.type);
   }
 
-  update() {
+  update(force = false) {
+    if (!force && this._lastSelection === this.selection) return;
+    this._lastSelection = this.selection;
     const tbody = DOM.tbody();
     const missingTypes = new Set(this._typesFilters.keys());
     this._checkDurationField();
-    this.selection.getBreakdown(undefined, this._enableDuration)
-        .forEach(group => {
-          tbody.appendChild(this._addTypeRow(group));
-          missingTypes.delete(group.key);
-        });
-    missingTypes.forEach(key => tbody.appendChild(this._row('', key, 0, '0%')));
-    if (this._timeline.selection) {
-      tbody.appendChild(
-          this._row('', 'Selection', this.selection.length, '100%'));
+    let selectionDuration = 0;
+    const breakdown =
+        this.selection.getBreakdown(undefined, this._enableDuration);
+    if (this._enableDuration) {
+      if (this.selection.cachedDuration === undefined) {
+        this.selection.cachedDuration = this._breakdownTotalDuration(breakdown);
+      }
+      selectionDuration = this.selection.cachedDuration;
     }
-    tbody.appendChild(this._row('', 'All', this._timeline.length, ''));
+    breakdown.forEach(group => {
+      tbody.appendChild(this._addTypeRow(group, selectionDuration));
+      missingTypes.delete(group.key);
+    });
+    missingTypes.forEach(key => {
+      const emptyGroup = {key, length: 0, duration: 0};
+      tbody.appendChild(this._addTypeRow(emptyGroup, selectionDuration));
+    });
+    if (this._timeline.selection) {
+      tbody.appendChild(this._addRow(
+          '', 'Selection', this.selection.length, '100%', selectionDuration,
+          '100%'));
+    }
+    // Showing 100% for 'All' and for 'Selection' would be confusing.
+    const allPercent = this._timeline.selection ? '' : '100%';
+    tbody.appendChild(this._addRow(
+        '', 'All', this._timeline.length, allPercent,
+        this._timeline.cachedDuration, allPercent));
     this._table.tBodies[0].replaceWith(tbody);
   }
 
@@ -572,14 +638,14 @@ class Legend {
     const example = this.selection.at(0);
     if (!example || !('duration' in example)) return;
     this._enableDuration = true;
-    this._table.tHead.appendChild(DOM.td('Duration'));
-    this._table.tHead.appendChild(DOM.td(''));
+    this._table.tHead.rows[0].appendChild(DOM.td('Duration'));
   }
 
-  _row(colorNode, type, count, countPercent, duration, durationPercent) {
+  _addRow(colorNode, type, count, countPercent, duration, durationPercent) {
     const row = DOM.tr();
-    row.appendChild(DOM.td(colorNode));
-    const typeCell = row.appendChild(DOM.td(type));
+    const colorCell = row.appendChild(DOM.td(colorNode, 'color'));
+    colorCell.setAttribute('title', `Toggle '${type}' entries.`);
+    const typeCell = row.appendChild(DOM.td(type, 'text'));
     typeCell.setAttribute('title', type);
     row.appendChild(DOM.td(count.toString()));
     row.appendChild(DOM.td(countPercent));
@@ -590,26 +656,31 @@ class Legend {
     return row
   }
 
-  _addTypeRow(group) {
+  _addTypeRow(group, selectionDuration) {
     const color = this.colorForType(group.key);
-    const colorDiv = DOM.div('colorbox');
+    const classes = ['colorbox'];
+    if (group.length == 0) classes.push('empty');
+    const colorDiv = DOM.div(classes);
+    colorDiv.style.borderColor = color;
     if (this._typesFilters.get(group.key)) {
       colorDiv.style.backgroundColor = color;
     } else {
-      colorDiv.style.borderColor = color;
       colorDiv.style.backgroundColor = CSSColor.backgroundImage;
     }
     let duration = 0;
+    let durationPercent = '';
     if (this._enableDuration) {
-      const entries = group.entries;
-      for (let i = 0; i < entries.length; i++) {
-        duration += entries[i].duration;
-      }
+      // group.duration was added in _breakdownTotalDuration.
+      duration = group.duration;
+      durationPercent = selectionDuration == 0 ?
+          '0%' :
+          this._formatPercent(duration / selectionDuration);
     }
-    let countPercent =
-        `${(group.length / this.selection.length * 100).toFixed(1)}%`;
-    const row = this._row(
-        colorDiv, group.key, group.length, countPercent, duration, '');
+    const countPercent =
+        this._formatPercent(group.length / this.selection.length);
+    const row = this._addRow(
+        colorDiv, group.key, group.length, countPercent, duration,
+        durationPercent);
     row.className = 'clickable';
     row.onclick = this._typeClickHandler;
     row.data = group.key;
@@ -620,5 +691,27 @@ class Legend {
     const type = e.currentTarget.data;
     this._typesFilters.set(type, !this._typesFilters.get(type));
     this.onFilter(type);
+  }
+
+  _breakdownTotalDuration(breakdown) {
+    let duration = 0;
+    breakdown.forEach(group => {
+      group.duration = this._groupDuration(group);
+      duration += group.duration;
+    })
+    return duration;
+  }
+
+  _groupDuration(group) {
+    let duration = 0;
+    const entries = group.entries;
+    for (let i = 0; i < entries.length; i++) {
+      duration += entries[i].duration;
+    }
+    return duration;
+  }
+
+  _formatPercent(ratio) {
+    return `${(ratio * 100).toFixed(1)}%`;
   }
 }

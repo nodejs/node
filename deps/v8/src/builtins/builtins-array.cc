@@ -17,6 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
@@ -536,7 +537,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
     // c. Let fromPresent be ? HasProperty(O, from).
     bool from_present;
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, from_present, JSReceiver::HasProperty(receiver, from));
+        isolate, from_present,
+        JSReceiver::HasProperty(isolate, receiver, from));
 
     // d. If fromPresent is true, then.
     if (from_present) {
@@ -1045,7 +1047,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
 bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
   FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
-    Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
+    Maybe<bool> maybe = JSReceiver::HasElement(isolate, receiver, i);
     if (maybe.IsNothing()) return false;
     if (maybe.FromJust()) {
       Handle<Object> element_value;
@@ -1122,7 +1124,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         if (!element_value->IsTheHole(isolate)) {
           if (!visitor->visit(j, element_value)) return false;
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't
@@ -1160,7 +1162,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
               isolate->factory()->NewNumber(double_value);
           if (!visitor->visit(j, element_value)) return false;
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't
@@ -1540,6 +1542,300 @@ BUILTIN(ArrayConcat) {
       return ReadOnlyRoots(isolate).exception();
   }
   return Slow_ArrayConcat(&args, species, isolate);
+}
+
+namespace {
+
+// https://tc39.es/proposal-array-grouping/#sec-add-value-to-keyed-group
+// Each keyed group is an array list.
+inline Handle<OrderedHashMap> AddValueToKeyedGroup(
+    Isolate* isolate, Handle<OrderedHashMap> groups, Handle<Object> key,
+    Handle<Object> value) {
+  InternalIndex entry = groups->FindEntry(isolate, *key);
+  if (!entry.is_found()) {
+    Handle<ArrayList> array = ArrayList::New(isolate, 1);
+    array = ArrayList::Add(isolate, array, value);
+    return OrderedHashMap::Add(isolate, groups, key, array).ToHandleChecked();
+  }
+  Handle<ArrayList> array =
+      Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
+  array = ArrayList::Add(isolate, array, value);
+  groups->SetEntry(entry, *key, *array);
+  return groups;
+}
+
+inline bool IsFastArray(Handle<JSReceiver> object) {
+  Isolate* isolate = object->GetIsolate();
+  if (isolate->force_slow_path()) return false;
+  if (!object->IsJSArray()) return false;
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  if (!array->HasFastElements(isolate)) return false;
+
+  Context context = isolate->context();
+  if (array->map().prototype() !=
+      context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
+    return false;
+  }
+
+  return Protectors::IsNoElementsIntact(isolate);
+}
+
+inline bool CheckArrayMapNotModified(Handle<JSArray> array,
+                                     Handle<Map> original_map) {
+  if (array->map() != *original_map) {
+    return false;
+  }
+  return Protectors::IsNoElementsIntact(array->GetIsolate());
+}
+
+enum class GroupByMode { kToObject, kToMap };
+
+template <GroupByMode mode>
+inline MaybeHandle<OrderedHashMap> GenericArrayGroupBy(
+    Isolate* isolate, Handle<JSReceiver> O, Handle<Object> callbackfn,
+    Handle<OrderedHashMap> groups, double initialK, double len) {
+  // 6. Repeat, while k < len
+  for (double k = initialK; k < len; ++k) {
+    // 6a. Let Pk be ! ToString(𝔽(k)).
+    Handle<Name> Pk;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, Pk, Object::ToName(isolate, isolate->factory()->NewNumber(k)),
+        OrderedHashMap);
+    // 6b. Let kValue be ? Get(O, Pk).
+    Handle<Object> kValue;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, kValue,
+                               Object::GetPropertyOrElement(isolate, O, Pk),
+                               OrderedHashMap);
+
+    // Common steps for ArrayPrototypeGroupBy and ArrayPrototypeGroupByToMap
+    // 6c. Let key be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
+    Handle<Object> propertyKey;
+    Handle<Object> argv[] = {kValue, isolate->factory()->NewNumber(k), O};
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, propertyKey,
+                               Execution::Call(isolate, callbackfn, O, 3, argv),
+                               OrderedHashMap);
+
+    if (mode == GroupByMode::kToMap) {
+      // 6d. If key is -0𝔽, set key to +0𝔽.
+      if (propertyKey->IsMinusZero()) {
+        propertyKey = Handle<Smi>(Smi::FromInt(0), isolate);
+      }
+    } else {
+      // 6c. Let propertyKey be ? ToPropertyKey(? Call(callbackfn, thisArg, «
+      // kValue, 𝔽(k), O »)).
+      Handle<Name> propertyKeyName;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, propertyKeyName,
+                                 Object::ToName(isolate, propertyKey),
+                                 OrderedHashMap);
+      propertyKey = isolate->factory()->InternalizeName(propertyKeyName);
+    }
+
+    // 6e. Perform ! AddValueToKeyedGroup(groups, propertyKey, kValue).
+    groups = AddValueToKeyedGroup(isolate, groups, propertyKey, kValue);
+
+    // 6f. Set k to k + 1.
+    // done by the loop.
+  }
+
+  return groups;
+}
+
+template <GroupByMode mode>
+inline MaybeHandle<OrderedHashMap> FastArrayGroupBy(
+    Isolate* isolate, Handle<JSArray> array, Handle<Object> callbackfn,
+    Handle<OrderedHashMap> groups, double len,
+    ElementsKind* result_elements_kind) {
+  DCHECK_NOT_NULL(result_elements_kind);
+
+  Handle<Map> original_map = Handle<Map>(array->map(), isolate);
+  uint32_t uint_len = static_cast<uint32_t>(len);
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+
+  // 4. Let k be 0.
+  // 6. Repeat, while k < len
+  for (InternalIndex k : InternalIndex::Range(uint_len)) {
+    if (!CheckArrayMapNotModified(array, original_map) ||
+        k.as_uint32() >= static_cast<uint32_t>(array->length().Number())) {
+      return GenericArrayGroupBy<mode>(isolate, array, callbackfn, groups,
+                                       k.as_uint32(), len);
+    }
+    // 6a. Let Pk be ! ToString(𝔽(k)).
+    // 6b. Let kValue be ? Get(O, Pk).
+    Handle<Object> kValue = accessor->Get(array, k);
+    if (kValue->IsTheHole()) {
+      kValue = isolate->factory()->undefined_value();
+    }
+
+    // Common steps for ArrayPrototypeGroupBy and ArrayPrototypeGroupByToMap
+    // 6c. Let key be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
+    Handle<Object> propertyKey;
+    Handle<Object> argv[] = {
+        kValue, isolate->factory()->NewNumber(k.as_uint32()), array};
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, propertyKey,
+        Execution::Call(isolate, callbackfn, array, 3, argv), OrderedHashMap);
+
+    if (mode == GroupByMode::kToMap) {
+      // 6d. If key is -0𝔽, set key to +0𝔽.
+      if (propertyKey->IsMinusZero()) {
+        propertyKey = Handle<Smi>(Smi::FromInt(0), isolate);
+      }
+    } else {
+      // 6c. Let propertyKey be ? ToPropertyKey(? Call(callbackfn, thisArg, «
+      // kValue, 𝔽(k), O »)).
+      Handle<Name> propertyKeyName;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, propertyKeyName,
+                                 Object::ToName(isolate, propertyKey),
+                                 OrderedHashMap);
+      propertyKey = isolate->factory()->InternalizeName(propertyKeyName);
+    }
+
+    // 6e. Perform ! AddValueToKeyedGroup(groups, propertyKey, kValue).
+    groups = AddValueToKeyedGroup(isolate, groups, propertyKey, kValue);
+
+    // 6f. Set k to k + 1.
+    // done by the loop.
+  }
+
+  // When staying on the fast path, we can deduce a more specific results
+  // ElementsKind for the keyed groups based on the input ElementsKind.
+  //
+  // Double elements are stored as HeapNumbers in the keyed group elements
+  // so that we don't need to cast all the keyed groups when switching from
+  // fast path to the generic path.
+  // TODO(v8:12499) add unboxed double elements support
+  if (array->GetElementsKind() == ElementsKind::PACKED_SMI_ELEMENTS) {
+    *result_elements_kind = ElementsKind::PACKED_SMI_ELEMENTS;
+  }
+
+  return groups;
+}
+
+}  // namespace
+
+// https://tc39.es/proposal-array-grouping/#sec-array.prototype.groupby
+BUILTIN(ArrayPrototypeGroupBy) {
+  const char* const kMethodName = "Array.prototype.groupBy";
+  HandleScope scope(isolate);
+
+  Handle<JSReceiver> O;
+  // 1. Let O be ? ToObject(this value).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, O, Object::ToObject(isolate, args.receiver(), kMethodName));
+
+  // 2. Let len be ? LengthOfArrayLike(O).
+  double len;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
+                                           GetLengthProperty(isolate, O));
+
+  // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  Handle<Object> callbackfn = args.atOrUndefined(isolate, 1);
+  if (!callbackfn->IsCallable()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callbackfn));
+  }
+
+  // 5. Let groups be a new empty List.
+  Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
+  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
+  if (IsFastArray(O)) {
+    Handle<JSArray> array = Handle<JSArray>::cast(O);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups,
+        FastArrayGroupBy<GroupByMode::kToObject>(
+            isolate, array, callbackfn, groups, len, &result_elements_kind));
+  } else {
+    // 4. Let k be 0.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups,
+        GenericArrayGroupBy<GroupByMode::kToObject>(isolate, O, callbackfn,
+                                                    groups, 0, len));
+  }
+
+  // 7. Let obj be ! OrdinaryObjectCreate(null).
+  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
+
+  // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
+  for (InternalIndex entry : groups->IterateEntries()) {
+    Handle<Name> key = Handle<Name>(Name::cast(groups->KeyAt(entry)), isolate);
+    // 8a. Let elements be ! CreateArrayFromList(g.[[Elements]]).
+    Handle<ArrayList> array_list =
+        Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
+    Handle<FixedArray> elements = ArrayList::Elements(isolate, array_list);
+    Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
+        elements, result_elements_kind, array_list->Length());
+
+    // 8b. Perform ! CreateDataPropertyOrThrow(obj, g.[[Key]], elements).
+    JSReceiver::CreateDataProperty(isolate, obj, key, array,
+                                   Just(kThrowOnError))
+        .Check();
+  }
+
+  // 9. Return obj.
+  return *obj;
+}
+
+// https://tc39.es/proposal-array-grouping/#sec-array.prototype.groupbymap
+BUILTIN(ArrayPrototypeGroupByToMap) {
+  const char* const kMethodName = "Array.prototype.groupByToMap";
+  HandleScope scope(isolate);
+
+  Handle<JSReceiver> O;
+  // 1. Let O be ? ToObject(this value).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, O, Object::ToObject(isolate, args.receiver(), kMethodName));
+
+  // 2. Let len be ? LengthOfArrayLike(O).
+  double len;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
+                                           GetLengthProperty(isolate, O));
+
+  // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  Handle<Object> callbackfn = args.atOrUndefined(isolate, 1);
+  if (!callbackfn->IsCallable()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callbackfn));
+  }
+
+  // 5. Let groups be a new empty List.
+  Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
+  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
+  if (IsFastArray(O)) {
+    Handle<JSArray> array = Handle<JSArray>::cast(O);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups,
+        FastArrayGroupBy<GroupByMode::kToMap>(
+            isolate, array, callbackfn, groups, len, &result_elements_kind));
+  } else {
+    // 4. Let k be 0.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups,
+        GenericArrayGroupBy<GroupByMode::kToMap>(isolate, O, callbackfn, groups,
+                                                 0, len));
+  }
+
+  // 7. Let map be ! Construct(%Map%).
+  Handle<JSMap> map = isolate->factory()->NewJSMap();
+  Handle<OrderedHashMap> map_table = isolate->factory()->NewOrderedHashMap();
+  // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
+  for (InternalIndex entry : groups->IterateEntries()) {
+    Handle<Object> key = Handle<Object>(groups->KeyAt(entry), isolate);
+    // 8a. Let elements be ! CreateArrayFromList(g.[[Elements]]).
+    Handle<ArrayList> array_list =
+        Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
+    Handle<FixedArray> elements = ArrayList::Elements(isolate, array_list);
+    Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
+        elements, result_elements_kind, array_list->Length());
+
+    // 8b. Let entry be the Record { [[Key]]: g.[[Key]], [[Value]]: elements }.
+    // 8c. Append entry as the last element of map.[[MapData]].
+    map_table =
+        OrderedHashMap::Add(isolate, map_table, key, array).ToHandleChecked();
+  }
+  map->set_table(*map_table);
+
+  // 9. Return map.
+  return *map;
 }
 
 }  // namespace internal

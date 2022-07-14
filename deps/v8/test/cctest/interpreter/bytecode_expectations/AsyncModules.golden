@@ -11,9 +11,9 @@ top level: yes
 snippet: "
   await 42;
 "
-frame size: 7
+frame size: 6
 parameter count: 1
-bytecode array length: 116
+bytecode array length: 112
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(2),
@@ -48,10 +48,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star4),
-                B(LdaTrue),
-                B(Star5),
                 B(Mov), R(0), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(2),
   /*   10 S> */ B(Return),
                 B(Star3),
                 B(CreateCatchContext), R(3), U8(4),
@@ -62,10 +60,8 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star5),
-                B(LdaTrue),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -76,16 +72,16 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [47, 92, 92],
+  [47, 90, 90],
 ]
 
 ---
 snippet: "
   await import(\"foo\");
 "
-frame size: 7
+frame size: 6
 parameter count: 1
-bytecode array length: 125
+bytecode array length: 121
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(2),
@@ -123,10 +119,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star4),
-                B(LdaTrue),
-                B(Star5),
                 B(Mov), R(0), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(2),
   /*   21 S> */ B(Return),
                 B(Star3),
                 B(CreateCatchContext), R(3), U8(5),
@@ -137,10 +131,8 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star5),
-                B(LdaTrue),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -152,7 +144,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [47, 101, 101],
+  [47, 99, 99],
 ]
 
 ---
@@ -163,9 +155,9 @@ snippet: "
   }
   foo();
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 126
+bytecode array length: 122
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(3),
@@ -204,10 +196,8 @@ bytecodes: [
   /*   47 S> */ B(CallUndefinedReceiver0), R(1), U8(0),
                 B(LdaUndefined),
                 B(Star5),
-                B(LdaTrue),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(4), U8(2),
   /*   54 S> */ B(Return),
                 B(Star4),
                 B(CreateCatchContext), R(4), U8(5),
@@ -218,10 +208,8 @@ bytecodes: [
                 B(PushContext), R(4),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -233,7 +221,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [54, 102, 102],
+  [54, 100, 100],
 ]
 
 ---
@@ -241,9 +229,9 @@ snippet: "
   import * as foo from \"bar\";
   await import(\"goo\");
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 135
+bytecode array length: 131
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(3),
@@ -286,10 +274,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star5),
-                B(LdaTrue),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(4), U8(2),
   /*   49 S> */ B(Return),
                 B(Star4),
                 B(CreateCatchContext), R(4), U8(5),
@@ -300,10 +286,8 @@ bytecodes: [
                 B(PushContext), R(4),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -315,6 +299,6 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [57, 111, 111],
+  [57, 109, 109],
 ]
 

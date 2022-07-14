@@ -47,7 +47,7 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if os.sep.join(['proposals', proposal['name']]) in self.path:
         return proposal['flags']
-    return ['--experimental-wasm-reftypes']
+    return []
 
 
 def GetSuite(*args, **kwargs):

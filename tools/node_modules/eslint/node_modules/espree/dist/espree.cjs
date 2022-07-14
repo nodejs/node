@@ -739,7 +739,7 @@ var espree = () => Parser => {
     };
 };
 
-const version$1 = "9.3.1";
+const version$1 = "9.3.2";
 
 /**
  * @fileoverview Main Espree file that converts Acorn into Esprima output.

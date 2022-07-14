@@ -76,7 +76,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #else
   base::CPU cpu;
   if (cpu.part() == base::CPU::kPPCPower10) {
+// IBMi does not yet support prefixed instructions introduced on Power10.
+// Run on P9 mode until OS adds support.
+#if defined(__PASE__)
+    supported_ |= (1u << PPC_9_PLUS);
+#else
     supported_ |= (1u << PPC_10_PLUS);
+#endif
   } else if (cpu.part() == base::CPU::kPPCPower9) {
     supported_ |= (1u << PPC_9_PLUS);
   } else if (cpu.part() == base::CPU::kPPCPower8) {
@@ -226,7 +232,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(ip.bit()),
+      scratch_register_list_({ip}),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -276,7 +282,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -1135,6 +1141,110 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
+// Prefixed instructions.
+#define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
+  CHECK(is_int34(immediate));                                       \
+  int32_t prefix =                                                  \
+      SIGN_EXT_IMM18((immediate >> 16) & kImm18Mask); /* 18 bits.*/ \
+  int16_t suffix = immediate & kImm16Mask;            /* 16 bits.*/ \
+  DCHECK(is_int18(prefix));
+
+void Assembler::paddi(Register dst, Register src, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  DCHECK(src != r0);  // use pli instead to show intent.
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  addi(dst, src, Operand(lo));
+}
+
+void Assembler::pli(Register dst, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  li(dst, Operand(lo));
+}
+
+void Assembler::psubi(Register dst, Register src, const Operand& imm) {
+  paddi(dst, src, Operand(-(imm.immediate())));
+}
+
+void Assembler::plbz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lbz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plhz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lhz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plha(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lha(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lwz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwa(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLWA | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pld(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLD | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::plfs(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfs(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfd(dst, MemOperand(src.ra(), lo));
+}
+#undef GENERATE_PREFIX_SUFFIX_BITS
+
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
@@ -1162,7 +1272,9 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
 #else
   bool allowOverflow = !(canOptimize || dst == r0);
 #endif
-  if (canOptimize && is_int16(value)) {
+  if (canOptimize &&
+      (is_int16(value) ||
+       (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
     // Prefer a single-instruction load-immediate.
     return false;
   }
@@ -1209,7 +1321,10 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
 
   canOptimize =
-      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+      !(relocatable ||
+        (is_trampoline_pool_blocked() &&
+         (!is_int16(value) ||
+          !(CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))));
 
   if (!src.IsHeapObjectRequest() &&
       use_constant_pool_for_mov(dst, src, canOptimize)) {
@@ -1239,6 +1354,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   if (canOptimize) {
     if (is_int16(value)) {
       li(dst, Operand(value));
+    } else if (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)) {
+      pli(dst, Operand(value));
     } else {
       uint16_t u16;
 #if V8_TARGET_ARCH_PPC64
@@ -2109,11 +2226,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
 }
 
 }  // namespace internal

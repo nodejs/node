@@ -277,13 +277,13 @@ inline void FileHandle::Close() {
                        detail.fd);
     if (env->filehandle_close_warning()) {
       env->set_filehandle_close_warning(false);
-      ProcessEmitDeprecationWarning(
+      USE(ProcessEmitDeprecationWarning(
           env,
           "Closing a FileHandle object on garbage collection is deprecated. "
           "Please close FileHandle objects explicitly using "
           "FileHandle.prototype.close(). In the future, an error will be "
           "thrown if a file descriptor is closed during garbage collection.",
-          "DEP0137").IsNothing();
+          "DEP0137"));
     }
   }, CallbackFlags::kUnrefed);
 }
@@ -377,6 +377,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
     std::unique_ptr<CloseReq> close(CloseReq::from_req(req));
     CHECK_NOT_NULL(close);
     close->file_handle()->AfterClose();
+    if (!close->env()->can_call_into_js()) return;
     Isolate* isolate = close->env()->isolate();
     if (req->result < 0) {
       HandleScope handle_scope(isolate);
@@ -650,6 +651,10 @@ void FSReqAfterScope::Reject(uv_fs_t* req) {
 }
 
 bool FSReqAfterScope::Proceed() {
+  if (!wrap_->env()->can_call_into_js()) {
+    return false;
+  }
+
   if (req_->result < 0) {
     Reject(req_);
     return false;
@@ -1382,6 +1387,7 @@ int MKDirpSync(uv_loop_t* loop,
           }
           break;
         case UV_EACCES:
+        case UV_ENOSPC:
         case UV_ENOTDIR:
         case UV_EPERM: {
           return err;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-reftypes
+// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -34,9 +34,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
+  global = new WebAssembly.Global({value: "funcref"});
+  type = global.type();
+  assertEquals("funcref", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
   global = new WebAssembly.Global({value: "anyfunc"});
   type = global.type();
-  assertEquals("anyfunc", type.value);
+  assertEquals("funcref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
@@ -73,9 +79,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(fun2, instance.exports.get_global());
 })();
 
-// This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to
-// multiple table indexes. If --experimental-wasm-reftypes is enabled by default
-// this test case can supersede the other one.
 (function TestFunctionMultiTableSetAndCall() {
   let builder = new WasmModuleBuilder();
   let v1 = 7; let v2 = 9; let v3 = 0.0;

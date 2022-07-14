@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -752,7 +752,7 @@ int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
 # pragma pointer_size 32
 #endif
         /* Windows doesn't seem to have in_addr_t */
-#ifdef OPENSSL_SYS_WINDOWS
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
         static uint32_t he_fallback_address;
         static const char *he_fallback_addresses[] =
             { (char *)&he_fallback_address, NULL };

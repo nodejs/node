@@ -25,8 +25,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Map, to_map, 1);
+  Handle<JSObject> object = args.at<JSObject>(0);
+  Handle<Map> to_map = args.at<Map>(1);
   ElementsKind to_kind = to_map->elements_kind();
   if (ElementsAccessor::ForKind(to_kind)
           ->TransitionElementsKind(object, to_map)
@@ -43,9 +43,8 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
 RUNTIME_FUNCTION(Runtime_TransitionElementsKindWithKind) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, elements_kind_smi, 1);
-  ElementsKind to_kind = static_cast<ElementsKind>(elements_kind_smi->value());
+  Handle<JSObject> object = args.at<JSObject>(0);
+  ElementsKind to_kind = static_cast<ElementsKind>(args.smi_value_at(1));
   JSObject::TransitionElementsKind(object, to_kind);
   return *object;
 }
@@ -56,9 +55,9 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   int const argc = args.length() - 3;
   // argv points to the arguments constructed by the JavaScript call.
   JavaScriptArguments argv(argc, args.address_of_arg_at(0));
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, argc);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
+  Handle<JSFunction> constructor = args.at<JSFunction>(argc);
+  Handle<JSReceiver> new_target = args.at<JSReceiver>(argc + 1);
+  Handle<HeapObject> type_info = args.at<HeapObject>(argc + 2);
   // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
   Handle<AllocationSite> site = type_info->IsAllocationSite()
                                     ? Handle<AllocationSite>::cast(type_info)
@@ -157,8 +156,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
 RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  CHECK(!array->HasTypedArrayElements());
+  Handle<JSObject> array = args.at<JSObject>(0);
+  CHECK(!array->HasTypedArrayOrRabGsabTypedArrayElements());
   CHECK(!array->IsJSGlobalProxy());
   JSObject::NormalizeElements(array);
   return *array;
@@ -169,8 +168,8 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
 RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<JSObject> object = args.at<JSObject>(0);
+  Handle<Object> key = args.at(1);
   uint32_t index;
   if (key->IsSmi()) {
     int value = Smi::ToInt(*key);
@@ -204,7 +203,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
 RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<Object> object = args.at(0);
   Maybe<bool> result = Object::IsArray(object);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -213,14 +212,14 @@ RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
 RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
+  Object obj = args[0];
   return isolate->heap()->ToBoolean(obj.IsJSArray());
 }
 
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, original_array, 0);
+  Handle<Object> original_array = args.at(0);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::ArraySpeciesConstructor(isolate, original_array));
 }
@@ -229,8 +228,8 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
 RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   HandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
+  Handle<Object> search_element = args.at(1);
+  Handle<Object> from_index = args.at(2);
 
   // Let O be ? ToObject(this value).
   Handle<JSReceiver> object;
@@ -330,8 +329,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   HandleScope hs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
+  Handle<Object> search_element = args.at(1);
+  Handle<Object> from_index = args.at(2);
 
   // Let O be ? ToObject(this value).
   Handle<JSReceiver> object;

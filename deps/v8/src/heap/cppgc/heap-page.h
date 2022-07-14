@@ -57,7 +57,8 @@ class V8_EXPORT_PRIVATE BasePage {
 
   // |address| is guaranteed to point into the page but not payload. Returns
   // nullptr when pointing into free list entries and the valid header
-  // otherwise.
+  // otherwise. The function is not thread-safe and cannot be called when
+  // e.g. sweeping is in progress.
   HeapObjectHeader* TryObjectHeaderFromInnerAddress(void* address) const;
   const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
       const void* address) const;

@@ -8,7 +8,7 @@
 // valid asm.js and then break them with invalid instantiation arguments. If
 // this script is run more than once (e.g. --stress-opt) then modules remain
 // broken in the second run and assertions would fail. We prevent re-runs.
-// Flags: --nostress-opt
+// Flags: --no-stress-opt
 
 function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func));
@@ -532,4 +532,30 @@ function assertValidAsm(func) {
       () => regress1068355({Uint8Array: Uint8Array}, {}, heap), TypeError,
       /Uint8Array is not a constructor/);
   assertFalse(%IsAsmWasmCode(regress1068355));
+})();
+
+(function TestTooManyParametersToImport() {
+  function MakeModule(num_arguments) {
+    let template = `
+      'use asm';
+      var imported = foreign.imported;
+      function main() {
+        imported(ARGS);
+      }
+
+      return main;
+      `;
+    let args = new Array(num_arguments).fill('0').join(', ');
+    return new Function('stdlib', 'foreign', template.replace('ARGS', args));
+  }
+
+  // V8 has an internal limit of 1000 parameters (see wasm-limits.h).
+  let Module1000Params = MakeModule(1000);
+  let Module1001Params = MakeModule(1001);
+
+  Module1000Params({}, {imported: i => i});
+  Module1001Params({}, {imported: i => i});
+
+  assertTrue(%IsAsmWasmCode(Module1000Params));
+  assertFalse(%IsAsmWasmCode(Module1001Params));
 })();

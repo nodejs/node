@@ -20,6 +20,8 @@ class Pkg extends BaseCommand {
     'workspaces',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args, { prefix } = {}) {
     if (!prefix) {
       this.prefix = this.npm.localPrefix
@@ -27,7 +29,7 @@ class Pkg extends BaseCommand {
       this.prefix = prefix
     }
 
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       throw Object.assign(
         new Error(`There's no package.json file to manage on global mode`),
         { code: 'EPKGGLOBAL' }

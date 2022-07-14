@@ -6,11 +6,11 @@
 
 <!-- source_link=lib/os.js -->
 
-The `os` module provides operating system-related utility methods and
+The `node:os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
 ```js
-const os = require('os');
+const os = require('node:os');
 ```
 
 ## `os.EOL`
@@ -224,6 +224,13 @@ always `[0, 0, 0]`.
 
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: v18.4.0
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object}

@@ -7,7 +7,10 @@ import("../../gni/v8.gni")
 
 if (v8_enable_google_benchmark) {
   config("benchmark_config") {
-    include_dirs = [ "src/include" ]
+    include_dirs = [
+      "src/include",
+      "precompiled_headers",
+    ]
   }
 
   source_set("google_benchmark") {
@@ -25,6 +28,7 @@ if (v8_enable_google_benchmark) {
       "src/src/benchmark_register.h",
       "src/src/benchmark_runner.cc",
       "src/src/benchmark_runner.h",
+      "src/src/check.cc",
       "src/src/check.h",
       "src/src/colorprint.cc",
       "src/src/colorprint.h",

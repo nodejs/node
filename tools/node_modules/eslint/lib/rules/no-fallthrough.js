@@ -64,7 +64,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow fallthrough of `case` statements",
+            description: "Disallow fallthrough of `case` statements",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-fallthrough"
         },

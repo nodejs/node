@@ -1,7 +1,7 @@
 promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).then(runURLTests), "Loading data…");
 
 function bURL(url, base) {
-  return new URL(url, base || "about:blank")
+  return base ? new URL(url, base) : new URL(url)
 }
 
 function runURLTests(urltests) {

@@ -76,7 +76,7 @@ foreach my $libname (@libnames) {
                 # Drop the first space and everything following it
                 s| .*||;
                 # Drop OpenSSL dynamic version information if there is any
-                s|\@\@OPENSSL_[0-9._]+[a-z]?$||;
+                s|\@\@.+$||;
                 # Return the result
                 $_
             }

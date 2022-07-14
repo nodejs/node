@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --budget-for-feedback-vector-allocation=0 --interrupt-budget=1000
+// Flags: --interrupt-budget-for-feedback-allocation=0 --interrupt-budget=1000
 
 (function() {
 Empty = function() {};

@@ -20,7 +20,8 @@ void HeapLayoutTracer::GCProloguePrintHeapLayout(v8::Isolate* isolate,
                                                  v8::GCCallbackFlags flags,
                                                  void* data) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  PrintF("Before GC:%d,", heap->gc_count());
+  // gc_count_ will increase after this callback, manually add 1.
+  PrintF("Before GC:%d,", heap->gc_count() + 1);
   PrintF("collector_name:%s\n", Heap::CollectorName(gc_type));
   PrintHeapLayout(std::cout, heap);
 }

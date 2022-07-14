@@ -5,10 +5,11 @@ const log = require('../utils/log-shim')
 
 const BaseCommand = require('../base-command.js')
 class SetScript extends BaseCommand {
-  static description = 'Set tasks in the scripts section of package.json'
+  static description = 'Set tasks in the scripts section of package.json, deprecated'
   static params = ['workspace', 'workspaces', 'include-workspace-root']
   static name = 'set-script'
   static usage = ['[<script>] [<command>]']
+  static ignoreImplicitWorkspace = false
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -33,6 +34,8 @@ class SetScript extends BaseCommand {
 
   async exec (args) {
     this.validate(args)
+    log.warn('set-script',
+      'set-script is deprecated, use `npm pkg set scripts.scriptname="cmd" instead.')
     const warn = await this.doSetScript(this.npm.localPrefix, args[0], args[1])
     if (warn) {
       log.warn('set-script', `Script "${args[0]}" was overwritten`)

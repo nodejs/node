@@ -80,7 +80,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce the consistent use of the radix argument when using `parseInt()`",
+            description: "Enforce the consistent use of the radix argument when using `parseInt()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/radix"
         },

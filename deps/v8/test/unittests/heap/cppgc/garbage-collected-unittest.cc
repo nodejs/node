@@ -142,8 +142,7 @@ struct PostConstructionCallbackTrait<
 
 template <typename T>
 struct PostConstructionCallbackTrait<
-    T,
-    internal::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
+    T, std::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
   // The parameter could just be T*.
   static void Call(
       internal::GCedWithMixinWithPostConstructionCallback* object) {

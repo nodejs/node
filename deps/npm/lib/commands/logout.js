@@ -11,6 +11,8 @@ class Logout extends BaseCommand {
     'scope',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async exec (args) {
     const registry = this.npm.config.get('registry')
     const scope = this.npm.config.get('scope')
@@ -25,7 +27,6 @@ class Logout extends BaseCommand {
         ...this.npm.flatOptions,
         method: 'DELETE',
         ignoreBody: true,
-        log,
       })
     } else if (auth.isBasicAuth) {
       log.verbose('logout', `clearing user credentials for ${reg}`)

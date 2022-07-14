@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -706,9 +706,9 @@ int x509_main(int argc, char **argv)
                        : "Certificate request self-signature did not match the contents\n");
             goto end;
         }
-        BIO_printf(out, "Certificate request self-signature ok\n");
+        BIO_printf(bio_err, "Certificate request self-signature ok\n");
 
-        print_name(out, "subject=", X509_REQ_get_subject_name(req));
+        print_name(bio_err, "subject=", X509_REQ_get_subject_name(req));
     } else if (!x509toreq && ext_copy != EXT_COPY_UNSET) {
         BIO_printf(bio_err, "Warning: ignoring -copy_extensions since neither -x509toreq nor -req is given\n");
     }
@@ -954,7 +954,7 @@ int x509_main(int argc, char **argv)
                 purpose_print(out, x, X509_PURPOSE_get0(j));
         } else if (i == modulus) {
             BIO_printf(out, "Modulus=");
-            if (EVP_PKEY_is_a(pkey, "RSA")) {
+            if (EVP_PKEY_is_a(pkey, "RSA") || EVP_PKEY_is_a(pkey, "RSA-PSS")) {
                 BIGNUM *n = NULL;
 
                 /* Every RSA key has an 'n' */

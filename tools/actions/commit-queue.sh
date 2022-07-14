@@ -7,7 +7,7 @@ REPOSITORY=$2
 shift 2
 
 UPSTREAM=origin
-DEFAULT_BRANCH=master
+DEFAULT_BRANCH=main
 
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
@@ -40,7 +40,7 @@ for pr in "$@"; do
   fi
 
   # Skip PR if CI is still running
-  if ncu-ci url "https://github.com/${OWNER}/${REPOSITORY}/pull/${pr}" 2>&1 | grep "^Result *PENDING"; then
+  if gh pr checks "$pr" | grep -q "\spending\s"; then
     echo "pr ${pr} skipped, CI still running"
     continue
   fi
@@ -86,7 +86,7 @@ for pr in "$@"; do
     commit_title=$(git log -1 --pretty='format:%s')
     commit_body=$(git log -1 --pretty='format:%b')
     commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
- 
+
     jq -n \
       --arg title "${commit_title}" \
       --arg body "${commit_body}" \

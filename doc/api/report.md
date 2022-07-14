@@ -131,11 +131,20 @@ is provided below for reference.
     }
   ],
   "javascriptHeap": {
-    "totalMemory": 6127616,
-    "totalCommittedMemory": 4357352,
-    "usedMemory": 3221136,
-    "availableMemory": 1521370240,
-    "memoryLimit": 1526909922,
+    "totalMemory": 5660672,
+    "executableMemory": 524288,
+    "totalCommittedMemory": 5488640,
+    "availableMemory": 4341379928,
+    "totalGlobalHandlesMemory": 8192,
+    "usedGlobalHandlesMemory": 3136,
+    "usedMemory": 4816432,
+    "memoryLimit": 4345298944,
+    "mallocedMemory": 254128,
+    "externalMemory": 315644,
+    "peakMallocedMemory": 98752,
+    "nativeContextCount": 1,
+    "detachedContextCount": 0,
+    "doesZapGarbage": 0,
     "heapSpaces": {
       "read_only_space": {
         "memorySize": 524288,
@@ -515,7 +524,7 @@ Node.js report completed
 
 When a report is written, start and end messages are issued to stderr
 and the filename of the report is returned to the caller. The default filename
-includes the date, time, PID and a sequence number. The sequence number helps
+includes the date, time, PID, and a sequence number. The sequence number helps
 in associating the report dump with the runtime state if generated multiple
 times for the same Node.js process.
 
@@ -542,7 +551,7 @@ Special meaning is attached to `stdout` and `stderr`. Usage of these
 will result in report being written to the associated standard streams.
 In cases where standard streams are used, the value in `directory` is ignored.
 URLs are not supported. Defaults to a composite filename that contains
-timestamp, PID and sequence number.
+timestamp, PID, and sequence number.
 
 `directory` specifies the filesystem directory where the report will be written.
 URLs are not supported. Defaults to the current working directory of the

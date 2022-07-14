@@ -19,21 +19,27 @@ namespace internal {
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
-class JSFunctionOrBoundFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
-                                                      JSObject> {
+class JSFunctionOrBoundFunctionOrWrappedFunction
+    : public TorqueGeneratedJSFunctionOrBoundFunctionOrWrappedFunction<
+          JSFunctionOrBoundFunctionOrWrappedFunction, JSObject> {
  public:
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
 
+  // https://tc39.es/proposal-shadowrealm/#sec-copynameandlength
+  static Maybe<bool> CopyNameAndLength(
+      Isolate* isolate,
+      Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
+      Handle<JSReceiver> target, Handle<String> prefix, int arg_count);
+
   STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
 
 // JSBoundFunction describes a bound function exotic object.
 class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<JSBoundFunction,
-                                            JSFunctionOrBoundFunction> {
+    : public TorqueGeneratedJSBoundFunction<
+          JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -51,9 +57,34 @@ class JSBoundFunction
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
 
+// JSWrappedFunction describes a wrapped function exotic object.
+class JSWrappedFunction
+    : public TorqueGeneratedJSWrappedFunction<
+          JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+ public:
+  static MaybeHandle<String> GetName(Isolate* isolate,
+                                     Handle<JSWrappedFunction> function);
+  static Maybe<int> GetLength(Isolate* isolate,
+                              Handle<JSWrappedFunction> function);
+  // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
+  static MaybeHandle<Object> Create(Isolate* isolate,
+                                    Handle<NativeContext> creation_context,
+                                    Handle<JSReceiver> value);
+
+  // Dispatched behavior.
+  DECL_PRINTER(JSWrappedFunction)
+  DECL_VERIFIER(JSWrappedFunction)
+
+  // The wrapped function's string representation implemented according
+  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
+  static Handle<String> ToString(Handle<JSWrappedFunction> function);
+
+  TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
+};
+
 // JSFunction describes JavaScript functions.
-class JSFunction
-    : public TorqueGeneratedJSFunction<JSFunction, JSFunctionOrBoundFunction> {
+class JSFunction : public TorqueGeneratedJSFunction<
+                       JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)
@@ -64,7 +95,7 @@ class JSFunction
   DECL_RELAXED_GETTER(shared, SharedFunctionInfo)
 
   // Fast binding requires length and name accessors.
-  static const int kMinDescriptorsForFastBind = 2;
+  static const int kMinDescriptorsForFastBindAndWrap = 2;
 
   // [context]: The context for this function.
   inline Context context();
@@ -74,7 +105,7 @@ class JSFunction
   inline NativeContext native_context();
   inline int length();
 
-  static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
+  static Handle<String> GetName(Isolate* isolate, Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
@@ -84,14 +115,12 @@ class JSFunction
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_ACCESSORS(code, Code)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+  DECL_ACCESSORS(code, CodeT)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeT)
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
   // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
-  inline void set_code(CodeT code,
-                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_code(CodeT code, ReleaseStoreTag,
+  inline void set_code(Code code, ReleaseStoreTag,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 #endif
 
@@ -129,45 +158,34 @@ class JSFunction
 
   base::Optional<CodeKind> GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
-  bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsBaseline() const;
-  bool ActiveTierIsMidtierTurboprop() const;
-  bool ActiveTierIsToptierTurboprop() const;
-
-  CodeKind NextTier() const;
+  bool ActiveTierIsMaglev() const;
+  bool ActiveTierIsTurbofan() const;
 
   // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
   // attached code can be recreated at a later point by replacing it with
   // CompileLazy.
   bool CanDiscardCompiled() const;
 
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
+  // Tells whether function's code object checks its tiering state (some code
+  // kinds, e.g. TURBOFAN, ignore the tiering state).
+  inline bool ChecksTieringState();
 
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
+  inline TieringState tiering_state() const;
+  inline void set_tiering_state(TieringState state);
+  inline void reset_tiering_state();
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
-  inline void MarkForOptimization(ConcurrencyMode mode);
+  void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
+                           ConcurrencyMode mode);
 
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
-
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
-
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
-
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
+  inline TieringState osr_tiering_state();
+  inline void set_osr_tiering_state(TieringState marker);
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
-  inline void SetInterruptBudget();
+  void SetInterruptBudget(Isolate* isolate);
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
@@ -194,7 +212,11 @@ class JSFunction
   inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function, IsCompiledScope* compiled_scope);
+      Isolate* isolate, Handle<JSFunction> function,
+      IsCompiledScope* compiled_scope);
+  static void CreateAndAttachFeedbackVector(Isolate* isolate,
+                                            Handle<JSFunction> function,
+                                            IsCompiledScope* compiled_scope);
 
   // Functions related to closure feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback
@@ -278,7 +300,7 @@ class JSFunction
                                        : JSFunction::kSizeWithoutPrototype;
   }
 
-  // Prints the name of the function using PrintF.
+  std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
 
   // Calculate the instance size and in-object properties count.
@@ -317,9 +339,6 @@ class JSFunction
   class BodyDescriptor;
 
  private:
-  DECL_ACCESSORS(raw_code, CodeT)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, CodeT)
-
   // JSFunction doesn't have a fixed header size:
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;

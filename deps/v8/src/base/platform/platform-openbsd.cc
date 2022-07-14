@@ -116,7 +116,7 @@ void OS::SignalCodeMovingGC() {
   void* addr =
       mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
   DCHECK(addr != MAP_FAILED);
-  CHECK(OS::Free(addr, size));
+  OS::Free(addr, size);
   fclose(f);
 }
 

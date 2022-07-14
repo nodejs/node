@@ -6,14 +6,15 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
 // Test Encrypt/Decrypt RSA-OAEP
 {
-  const buf = getRandomValues(new Uint8Array(50));
+  const buf = webcrypto.getRandomValues(new Uint8Array(50));
 
   async function test() {
     const ec = new TextEncoder();
@@ -44,8 +45,8 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 
 // Test Encrypt/Decrypt AES-CTR
 {
-  const buf = getRandomValues(new Uint8Array(50));
-  const counter = getRandomValues(new Uint8Array(16));
+  const buf = webcrypto.getRandomValues(new Uint8Array(50));
+  const counter = webcrypto.getRandomValues(new Uint8Array(16));
 
   async function test() {
     const key = await subtle.generateKey({
@@ -71,8 +72,8 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 
 // Test Encrypt/Decrypt AES-CBC
 {
-  const buf = getRandomValues(new Uint8Array(50));
-  const iv = getRandomValues(new Uint8Array(16));
+  const buf = webcrypto.getRandomValues(new Uint8Array(50));
+  const iv = webcrypto.getRandomValues(new Uint8Array(16));
 
   async function test() {
     const key = await subtle.generateKey({
@@ -98,8 +99,8 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 
 // Test Encrypt/Decrypt AES-GCM
 {
-  const buf = getRandomValues(new Uint8Array(50));
-  const iv = getRandomValues(new Uint8Array(12));
+  const buf = webcrypto.getRandomValues(new Uint8Array(50));
+  const iv = webcrypto.getRandomValues(new Uint8Array(12));
 
   async function test() {
     const key = await subtle.generateKey({

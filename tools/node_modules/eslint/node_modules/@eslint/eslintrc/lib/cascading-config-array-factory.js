@@ -22,13 +22,18 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+import debugOrig from "debug";
 import os from "os";
 import path from "path";
+
+import { ConfigArrayFactory } from "./config-array-factory.js";
+import {
+    ConfigArray,
+    ConfigDependency,
+    IgnorePattern
+} from "./config-array/index.js";
 import ConfigValidator from "./shared/config-validator.js";
 import { emitDeprecationWarning } from "./shared/deprecation-warnings.js";
-import { ConfigArrayFactory } from "./config-array-factory.js";
-import { ConfigArray, ConfigDependency, IgnorePattern } from "./config-array/index.js";
-import debugOrig from "debug";
 
 const debug = debugOrig("eslintrc:cascading-config-array-factory");
 
@@ -57,7 +62,9 @@ const debug = debugOrig("eslintrc:cascading-config-array-factory");
  * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
  * @property {Object} [resolver=ModuleResolver] The module resolver object.
  * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {Function} getEslintAllConfig Returns the config data for eslint:all.
  * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
+ * @property {Function} getEslintRecommendedConfig Returns the config data for eslint:recommended.
  */
 
 /**
@@ -78,7 +85,9 @@ const debug = debugOrig("eslintrc:cascading-config-array-factory");
  * @property {Map<string,Rule>} builtInRules The rules that are built in to ESLint.
  * @property {Object} [resolver=ModuleResolver] The module resolver object.
  * @property {string} eslintAllPath The path to the definitions for eslint:all.
+ * @property {Function} getEslintAllConfig Returns the config data for eslint:all.
  * @property {string} eslintRecommendedPath The path to the definitions for eslint:recommended.
+ * @property {Function} getEslintRecommendedConfig Returns the config data for eslint:recommended.
  */
 
 /** @type {WeakMap<CascadingConfigArrayFactory, CascadingConfigArrayFactoryInternalSlots>} */
@@ -219,7 +228,9 @@ class CascadingConfigArrayFactory {
         loadRules,
         resolver,
         eslintRecommendedPath,
-        eslintAllPath
+        getEslintRecommendedConfig,
+        eslintAllPath,
+        getEslintAllConfig
     } = {}) {
         const configArrayFactory = new ConfigArrayFactory({
             additionalPluginPool,
@@ -228,7 +239,9 @@ class CascadingConfigArrayFactory {
             builtInRules,
             resolver,
             eslintRecommendedPath,
-            eslintAllPath
+            getEslintRecommendedConfig,
+            eslintAllPath,
+            getEslintAllConfig
         });
 
         internalSlotsMap.set(this, {

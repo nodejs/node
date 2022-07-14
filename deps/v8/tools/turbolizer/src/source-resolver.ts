@@ -81,7 +81,7 @@ interface InstructionsPhase {
   name: string;
   data: any;
   instructionOffsetToPCOffset?: any;
-  blockIdtoInstructionRange?: any;
+  blockIdToInstructionRange?: any;
   nodeIdToInstructionRange?: any;
   codeOffsetsInfo?: CodeOffsetsInfo;
 }
@@ -595,8 +595,8 @@ export class SourceResolver {
           if (phase.nodeIdToInstructionRange) {
             this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
           }
-          if (phase.blockIdtoInstructionRange) {
-            this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
+          if (phase.blockIdToInstructionRange) {
+            this.readBlockIdToInstructionRange(phase.blockIdToInstructionRange);
           }
           if (phase.instructionOffsetToPCOffset) {
             this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);

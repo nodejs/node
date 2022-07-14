@@ -22,7 +22,7 @@ const astUtils = require("./utils/ast-utils");
  *     shorthand form.
  */
 function isCommutativeOperatorWithShorthand(operator) {
-    return ["*", "&", "^", "|"].indexOf(operator) >= 0;
+    return ["*", "&", "^", "|"].includes(operator);
 }
 
 /**
@@ -33,7 +33,7 @@ function isCommutativeOperatorWithShorthand(operator) {
  *     a shorthand form.
  */
 function isNonCommutativeOperatorWithShorthand(operator) {
-    return ["+", "-", "/", "%", "<<", ">>", ">>>", "**"].indexOf(operator) >= 0;
+    return ["+", "-", "/", "%", "<<", ">>", ">>>", "**"].includes(operator);
 }
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow assignment operator shorthand where possible",
+            description: "Require or disallow assignment operator shorthand where possible",
             recommended: false,
             url: "https://eslint.org/docs/rules/operator-assignment"
         },
@@ -76,8 +76,8 @@ module.exports = {
 
         fixable: "code",
         messages: {
-            replaced: "Assignment (=) can be replaced with operator assignment ({{operator}}=).",
-            unexpected: "Unexpected operator assignment ({{operator}}=) shorthand."
+            replaced: "Assignment (=) can be replaced with operator assignment ({{operator}}).",
+            unexpected: "Unexpected operator assignment ({{operator}}) shorthand."
         }
     },
 
@@ -109,11 +109,13 @@ module.exports = {
             const operator = expr.operator;
 
             if (isCommutativeOperatorWithShorthand(operator) || isNonCommutativeOperatorWithShorthand(operator)) {
+                const replacementOperator = `${operator}=`;
+
                 if (astUtils.isSameReference(left, expr.left, true)) {
                     context.report({
                         node,
                         messageId: "replaced",
-                        data: { operator },
+                        data: { operator: replacementOperator },
                         fix(fixer) {
                             if (canBeFixed(left) && canBeFixed(expr.left)) {
                                 const equalsToken = getOperatorToken(node);
@@ -126,7 +128,7 @@ module.exports = {
                                     return null;
                                 }
 
-                                return fixer.replaceText(node, `${leftText}${expr.operator}=${rightText}`);
+                                return fixer.replaceText(node, `${leftText}${replacementOperator}${rightText}`);
                             }
                             return null;
                         }
@@ -141,7 +143,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "replaced",
-                        data: { operator }
+                        data: { operator: replacementOperator }
                     });
                 }
             }

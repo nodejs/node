@@ -37,14 +37,17 @@ AUTO_EXCLUDE = [
   'src/trap-handler/trap-handler-simulator.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
-  'src/base/atomicops_internals_.*',
-  # TODO(petermarshall): Enable once Perfetto is built by default.
-  'src/libplatform/tracing/perfetto*',
+    'src/base/atomicops_internals_.*',
+    # TODO(petermarshall): Enable once Perfetto is built by default.
+    'src/libplatform/tracing/perfetto*',
+    # TODO(v8:7700): Enable once Maglev is built by default.
+    'src/maglev/.*',
 ] + [
-  # platform-specific headers
-  '\\b{}\\b'.format(p) for p in
-    ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390',
-     'ppc', 'riscv64', 'loong64')]
+    # platform-specific headers
+    '\\b{}\\b'.format(p)
+    for p in ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64',
+              's390', 'ppc', 'riscv64', 'loong64')
+]
 
 args = None
 def parse_args():

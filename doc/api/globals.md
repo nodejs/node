@@ -60,7 +60,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason` {any} An optional reason, retrievable on the `AbortSignal`s
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
   `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
@@ -210,7 +210,7 @@ If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 ## Class: `Blob`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 <!-- type=global -->
@@ -228,6 +228,16 @@ added: v0.1.103
 * {Function}
 
 Used to handle binary data. See the [buffer section][].
+
+## Class: `ByteLengthQueuingStrategy`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ByteLengthQueuingStrategy`][].
 
 ## `__dirname`
 
@@ -250,7 +260,7 @@ Global alias for [`buffer.atob()`][].
 ## `BroadcastChannel`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 See {BroadcastChannel}.
@@ -295,6 +305,16 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
+## Class: `CompressionStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`CompressionStream`][].
+
 ## `console`
 
 <!-- YAML
@@ -307,10 +327,22 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## Class: `CountQueuingStrategy`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`CountQueuingStrategy`][].
+
 ## `Crypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -318,12 +350,14 @@ added: v17.6.0
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `crypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -334,7 +368,9 @@ A browser-compatible implementation of the [Web Crypto API][].
 ## `CryptoKey`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -342,7 +378,17 @@ added: v17.6.0
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
+
+## Class: `DecompressionStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`DecompressionStream`][].
 
 ## `Event`
 
@@ -381,7 +427,9 @@ This variable may appear to be global but is not. See [`exports`][].
 ## `fetch`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -392,7 +440,9 @@ A browser-compatible implementation of the [`fetch()`][] function.
 ## Class `FormData`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -418,7 +468,9 @@ Node.js this is different. The top-level scope is not the global scope;
 ## Class `Headers`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -516,6 +568,66 @@ DataHandler.prototype.load = async function load(key) {
 };
 ```
 
+## Class: `ReadableByteStreamController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableByteStreamController`][].
+
+## Class: `ReadableStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStream`][].
+
+## Class: `ReadableStreamBYOBReader`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
+
+## Class: `ReadableStreamBYOBRequest`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
+
+## Class: `ReadableStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamDefaultController`][].
+
+## Class: `ReadableStreamDefaultReader`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
+
 ## `require()`
 
 This variable may appear to be global but is not. See [`require()`][].
@@ -523,7 +635,9 @@ This variable may appear to be global but is not. See [`require()`][].
 ## `Response`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -534,7 +648,9 @@ A browser-compatible implementation of {Response}.
 ## `Request`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -585,7 +701,9 @@ The WHATWG [`structuredClone`][] method.
 ## `SubtleCrypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -593,7 +711,7 @@ added: v17.6.0
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `DOMException`
 
@@ -615,6 +733,16 @@ added: v11.0.0
 
 The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
+## Class: `TextDecoderStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TextDecoderStream`][].
+
 ## `TextEncoder`
 
 <!-- YAML
@@ -624,6 +752,36 @@ added: v11.0.0
 <!-- type=global -->
 
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
+
+## Class: `TextEncoderStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TextEncoderStream`][].
+
+## Class: `TransformStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TransformStream`][].
+
+## Class: `TransformStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TransformStreamDefaultController`][].
 
 ## `URL`
 
@@ -659,19 +817,66 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+## Class: `WritableStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStream`][].
+
+## Class: `WritableStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStreamDefaultController`][].
+
+## Class: `WritableStreamDefaultWriter`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
+
 [Web Crypto API]: webcrypto.md
 [`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+[`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
+[`CompressionStream`]: webstreams.md#class-compressionstream
+[`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
+[`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
+[`ReadableByteStreamController`]: webstreams.md#class-readablebytestreamcontroller
+[`ReadableStreamBYOBReader`]: webstreams.md#class-readablestreambyobreader
+[`ReadableStreamBYOBRequest`]: webstreams.md#class-readablestreambyobrequest
+[`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
+[`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
+[`ReadableStream`]: webstreams.md#class-readablestream
+[`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TextDecoder`]: util.md#class-utiltextdecoder
+[`TextEncoderStream`]: webstreams.md#class-textencoderstream
 [`TextEncoder`]: util.md#class-utiltextencoder
+[`TransformStreamDefaultController`]: webstreams.md#class-transformstreamdefaultcontroller
+[`TransformStream`]: webstreams.md#class-transformstream
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
+[`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
+[`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
+[`WritableStream`]: webstreams.md#class-writablestream
 [`__dirname`]: modules.md#__dirname
 [`__filename`]: modules.md#__filename
 [`buffer.atob()`]: buffer.md#bufferatobdata

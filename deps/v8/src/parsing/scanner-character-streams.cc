@@ -337,20 +337,17 @@ class RelocatingCharacterStream final
   RelocatingCharacterStream(Isolate* isolate, size_t pos, TArgs... args)
       : UnbufferedCharacterStream<OnHeapStream>(pos, args...),
         isolate_(isolate) {
-    isolate->heap()->AddGCEpilogueCallback(UpdateBufferPointersCallback,
-                                           v8::kGCTypeAll, this);
+    isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+        UpdateBufferPointersCallback, this);
   }
 
  private:
   ~RelocatingCharacterStream() final {
-    isolate_->heap()->RemoveGCEpilogueCallback(UpdateBufferPointersCallback,
-                                               this);
+    isolate_->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        UpdateBufferPointersCallback, this);
   }
 
-  static void UpdateBufferPointersCallback(v8::Isolate* v8_isolate,
-                                           v8::GCType type,
-                                           v8::GCCallbackFlags flags,
-                                           void* stream) {
+  static void UpdateBufferPointersCallback(void* stream) {
     reinterpret_cast<RelocatingCharacterStream*>(stream)
         ->UpdateBufferPointers();
   }

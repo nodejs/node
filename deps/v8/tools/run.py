@@ -1,12 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """This program wraps an arbitrary command since gn currently can only execute
 scripts."""
-
-from __future__ import print_function
 
 import subprocess
 import sys

@@ -127,6 +127,7 @@ class ToStringFormatter {
         out_end_(out + chars_available),
         out_(out_end_),
         processor_(processor) {
+    digits_.Normalize();
     DCHECK(chars_available >= ToStringResultLength(digits_, radix_, sign_));
   }
 

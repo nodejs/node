@@ -32,5 +32,5 @@ class GitUnknownError extends GitError {
 module.exports = {
   GitConnectionError,
   GitPathspecError,
-  GitUnknownError
+  GitUnknownError,
 }

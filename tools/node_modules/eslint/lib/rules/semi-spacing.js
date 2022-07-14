@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before and after semicolons",
+            description: "Enforce consistent spacing before and after semicolons",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi-spacing"
         },

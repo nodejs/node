@@ -27,6 +27,11 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+static bool CanCompileWithConcurrentBaseline(SharedFunctionInfo shared,
+                                             Isolate* isolate) {
+  return !shared.HasBaselineCode() && CanCompileWithBaseline(isolate, shared);
+}
+
 class BaselineCompilerTask {
  public:
   BaselineCompilerTask(Isolate* isolate, PersistentHandles* handles,
@@ -60,15 +65,13 @@ class BaselineCompilerTask {
     }
     // Don't install the code if the bytecode has been flushed or has
     // already some baseline code installed.
-    if (!shared_function_info_->is_compiled() ||
-        shared_function_info_->HasBaselineCode()) {
+    if (!CanCompileWithConcurrentBaseline(*shared_function_info_, isolate)) {
       return;
     }
     shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
-      // Arm back edges for OSR
       shared_function_info_->GetBytecodeArray(isolate)
-          .set_osr_loop_nesting_level(AbstractCode::kMaxLoopNestingMarker);
+          .RequestOsrAtNextOpportunity();
     }
     if (FLAG_trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
@@ -90,8 +93,7 @@ class BaselineCompilerTask {
 class BaselineBatchCompilerJob {
  public:
   BaselineBatchCompilerJob(Isolate* isolate, Handle<WeakFixedArray> task_queue,
-                           int batch_size)
-      : isolate_for_local_isolate_(isolate) {
+                           int batch_size) {
     handles_ = isolate->NewPersistentHandles();
     tasks_.reserve(batch_size);
     for (int i = 0; i < batch_size; i++) {
@@ -103,7 +105,7 @@ class BaselineBatchCompilerJob {
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
       // Skip functions where the bytecode has been flushed.
       SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
-      if (ShouldSkipFunction(shared)) continue;
+      if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
     if (FLAG_trace_baseline_concurrent_compilation) {
@@ -113,34 +115,14 @@ class BaselineBatchCompilerJob {
     }
   }
 
-  bool ShouldSkipFunction(SharedFunctionInfo shared) {
-    return !shared.is_compiled() || shared.HasBaselineCode() ||
-           !CanCompileWithBaseline(isolate_for_local_isolate_, shared);
-  }
-
   // Executed in the background thread.
-  void Compile() {
-#ifdef V8_RUNTIME_CALL_STATS
-    WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
-        isolate_for_local_isolate_->counters()
-            ->worker_thread_runtime_call_stats());
-    LocalIsolate local_isolate(isolate_for_local_isolate_,
-                               ThreadKind::kBackground,
-                               runtime_call_stats_scope.Get());
-#else
-    LocalIsolate local_isolate(isolate_for_local_isolate_,
-                               ThreadKind::kBackground);
-#endif
-    local_isolate.heap()->AttachPersistentHandles(std::move(handles_));
-    UnparkedScope unparked_scope(&local_isolate);
-    LocalHandleScope handle_scope(&local_isolate);
-
+  void Compile(LocalIsolate* local_isolate) {
+    local_isolate->heap()->AttachPersistentHandles(std::move(handles_));
     for (auto& task : tasks_) {
-      task.Compile(&local_isolate);
+      task.Compile(local_isolate);
     }
-
     // Get the handle back since we'd need them to install the code later.
-    handles_ = local_isolate.heap()->DetachPersistentHandles();
+    handles_ = local_isolate->heap()->DetachPersistentHandles();
   }
 
   // Executed in the main thread.
@@ -151,7 +133,6 @@ class BaselineBatchCompilerJob {
   }
 
  private:
-  Isolate* isolate_for_local_isolate_;
   std::vector<BaselineCompilerTask> tasks_;
   std::unique_ptr<PersistentHandles> handles_;
 };
@@ -169,14 +150,19 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
+      LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+      UnparkedScope unparked_scope(&local_isolate);
+      LocalHandleScope handle_scope(&local_isolate);
+
+      // Since we're going to compile an entire batch, this guarantees that
+      // we only switch back the memory chunks to RX at the end.
+      CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
+
       while (!incoming_queue_->IsEmpty() && !delegate->ShouldYield()) {
-        // Since we're going to compile an entire batch, this guarantees that
-        // we only switch back the memory chunks to RX at the end.
-        CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
         std::unique_ptr<BaselineBatchCompilerJob> job;
         if (!incoming_queue_->Dequeue(&job)) break;
         DCHECK_NOT_NULL(job);
-        job->Compile();
+        job->Compile(&local_isolate);
         outgoing_queue_->Enqueue(std::move(job));
       }
       isolate_->stack_guard()->RequestInstallBaselineCode();

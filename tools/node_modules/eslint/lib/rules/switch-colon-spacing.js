@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce spacing around colons of switch statements",
+            description: "Enforce spacing around colons of switch statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/switch-colon-spacing"
         },

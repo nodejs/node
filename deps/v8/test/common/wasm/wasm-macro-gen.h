@@ -210,7 +210,7 @@
 #define WASM_SELECT_D(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kF64Code
 #define WASM_SELECT_R(tval, fval, cond) \
-  tval, fval, cond, kExprSelectWithType, U32V_1(1), kExternRefCode
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kAnyRefCode
 #define WASM_SELECT_A(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kFuncRefCode
 
@@ -531,17 +531,23 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_REF_IS_FUNC(ref) ref, WASM_GC_OP(kExprRefIsFunc)
 #define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
+#define WASM_REF_IS_ARRAY(ref) ref, WASM_GC_OP(kExprRefIsArray)
 #define WASM_REF_IS_I31(ref) ref, WASM_GC_OP(kExprRefIsI31)
 #define WASM_REF_AS_FUNC(ref) ref, WASM_GC_OP(kExprRefAsFunc)
 #define WASM_REF_AS_DATA(ref) ref, WASM_GC_OP(kExprRefAsData)
+#define WASM_REF_AS_ARRAY(ref) ref, WASM_GC_OP(kExprRefAsArray)
 #define WASM_REF_AS_I31(ref) ref, WASM_GC_OP(kExprRefAsI31)
 #define WASM_BR_ON_FUNC(depth) \
   WASM_GC_OP(kExprBrOnFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_ARRAY(depth) \
+  WASM_GC_OP(kExprBrOnArray), static_cast<byte>(depth)
 #define WASM_BR_ON_DATA(depth) \
   WASM_GC_OP(kExprBrOnData), static_cast<byte>(depth)
 #define WASM_BR_ON_I31(depth) WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_FUNC(depth) \
   WASM_GC_OP(kExprBrOnNonFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_NON_ARRAY(depth) \
+  WASM_GC_OP(kExprBrOnNonArray), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_DATA(depth) \
   WASM_GC_OP(kExprBrOnNonData), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_I31(depth) \
@@ -564,8 +570,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   array, index, WASM_GC_OP(kExprArrayGetS), static_cast<byte>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
-#define WASM_ARRAY_LEN(typeidx, array) \
-  array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
+#define WASM_ARRAY_LEN(array) \
+  array, WASM_GC_OP(kExprArrayLen), /* dummy index */ 0
 #define WASM_ARRAY_COPY(dst_idx, src_idx, dst_array, dst_index, src_array, \
                         src_index, length)                                 \
   dst_array, dst_index, src_array, src_index, length,                      \
@@ -578,15 +584,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   __VA_ARGS__, WASM_GC_OP(kExprArrayInitStatic), static_cast<byte>(index), \
       static_cast<byte>(length)
 
-#define WASM_RTT_WITH_DEPTH(depth, typeidx) \
-  kRttWithDepthCode, U32V_1(depth), U32V_1(typeidx)
 #define WASM_RTT(typeidx) kRttCode, U32V_1(typeidx)
 #define WASM_RTT_CANON(typeidx) \
   WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
-#define WASM_RTT_SUB(typeidx, supertype) \
-  supertype, WASM_GC_OP(kExprRttSub), static_cast<byte>(typeidx)
-#define WASM_RTT_FRESH_SUB(typeidx, supertype) \
-  supertype, WASM_GC_OP(kExprRttFreshSub), static_cast<byte>(typeidx)
 
 #define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
 #define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)

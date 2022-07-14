@@ -20,7 +20,7 @@ if (/^### Changes between (\S+) and (\S+) \[xx XXX xxxx\]/
         $_ = <<_____
 ### Changes between $v2 and $RELEASE_TEXT [xx XXX xxxx]
 
- * 
+ * none yet
 
 ### Changes between $v1 and $v2 [$PREV_RELEASE_DATE]
 _____

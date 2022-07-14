@@ -1,42 +1,78 @@
-const options = require('./options.js')
-const { quiet = false } = options
-const { loglevel = quiet ? 'warn' : 'silly' } = options
+const log = require('proc-log')
+const mkdirp = require('mkdirp')
+const fs = require('fs')
+const { dirname } = require('path')
+const os = require('os')
+const { inspect, format } = require('util')
 
-const levels = [
+const { bin: options } = require('./options.js')
+
+// add a meta method to proc-log for passing optional
+// metadata through to log handlers
+const META = Symbol('meta')
+const parseArgs = (...args) => {
+  const { [META]: isMeta } = args[args.length - 1] || {}
+  return isMeta
+    ? [args[args.length - 1], ...args.slice(0, args.length - 1)]
+    : [{}, ...args]
+}
+log.meta = (meta = {}) => ({ [META]: true, ...meta })
+
+const levels = new Map([
   'silly',
   'verbose',
   'info',
-  'timing',
   'http',
   'notice',
   'warn',
   'error',
   'silent',
-]
+].map((level, index) => [level, index]))
 
-const levelMap = new Map(levels.reduce((set, level, index) => {
-  set.push([level, index], [index, level])
-  return set
-}, []))
+const addLogListener = (write, { eol = os.EOL, loglevel = 'silly', colors = false } = {}) => {
+  const levelIndex = levels.get(loglevel)
 
-const { inspect, format } = require('util')
-const colors = process.stderr.isTTY
-const magenta = colors ? msg => `\x1B[35m${msg}\x1B[39m` : m => m
-if (loglevel !== 'silent') {
-  process.on('log', (level, ...args) => {
-    if (levelMap.get(level) < levelMap.get(loglevel)) {
-      return
+  const magenta = m => colors ? `\x1B[35m${m}\x1B[39m` : m
+  const dim = m => colors ? `\x1B[2m${m}\x1B[22m` : m
+  const red = m => colors ? `\x1B[31m${m}\x1B[39m` : m
+
+  const formatter = (level, ...args) => {
+    const depth = level === 'error' && args[0] && args[0].code === 'ERESOLVE' ? Infinity : 10
+
+    if (level === 'info' && args[0] === 'timeEnd') {
+      args[1] = dim(args[1])
+    } else if (level === 'error' && args[0] === 'timeError') {
+      args[1] = red(args[1])
     }
+
+    const messages = args.map(a => typeof a === 'string' ? a : inspect(a, { depth, colors }))
     const pref = `${process.pid} ${magenta(level)} `
-    if (level === 'warn' && args[0] === 'ERESOLVE') {
-      args[2] = inspect(args[2], { depth: 10, colors })
-    } else {
-      args = args.map(a => {
-        return typeof a === 'string' ? a
-          : inspect(a, { depth: 10, colors })
-      })
+
+    return pref + format(...messages).trim().split('\n').join(`${eol}${pref}`) + eol
+  }
+
+  process.on('log', (...args) => {
+    const [meta, level, ...logArgs] = parseArgs(...args)
+
+    if (levelIndex <= levels.get(level) || meta.force) {
+      write(formatter(level, ...logArgs))
     }
-    const msg = pref + format(...args).trim().split('\n').join(`\n${pref}`)
-    console.error(msg)
   })
 }
+
+if (options.loglevel !== 'silent') {
+  addLogListener((v) => process.stderr.write(v), {
+    eol: '\n',
+    colors: options.colors,
+    loglevel: options.loglevel,
+  })
+}
+
+if (options.logfile) {
+  log.silly('logfile', options.logfile)
+  mkdirp.sync(dirname(options.logfile))
+  const fd = fs.openSync(options.logfile, 'a')
+  addLogListener((str) => fs.writeSync(fd, str))
+}
+
+module.exports = log

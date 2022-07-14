@@ -62,8 +62,8 @@ function newParser(type) {
 
 
 function expectBody(expected) {
-  return mustCall(function(buf, start, len) {
-    const body = String(buf.slice(start, start + len));
+  return mustCall(function(buf) {
+    const body = String(buf);
     assert.strictEqual(body, expected);
   });
 }
@@ -126,8 +126,8 @@ function expectBody(expected) {
     assert.strictEqual(statusMessage, 'OK');
   };
 
-  const onBody = (buf, start, len) => {
-    const body = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const body = String(buf);
     assert.strictEqual(body, 'pong');
   };
 
@@ -195,8 +195,8 @@ function expectBody(expected) {
     parser[kOnHeaders] = mustCall(onHeaders);
   };
 
-  const onBody = (buf, start, len) => {
-    const body = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const body = String(buf);
     assert.strictEqual(body, 'ping');
     seen_body = true;
   };
@@ -291,8 +291,8 @@ function expectBody(expected) {
     assert.strictEqual(versionMinor, 1);
   };
 
-  const onBody = (buf, start, len) => {
-    const body = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const body = String(buf);
     assert.strictEqual(body, 'foo=42&bar=1337');
   };
 
@@ -332,8 +332,8 @@ function expectBody(expected) {
   let body_part = 0;
   const body_parts = ['123', '123456', '1234567890'];
 
-  const onBody = (buf, start, len) => {
-    const body = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const body = String(buf);
     assert.strictEqual(body, body_parts[body_part++]);
   };
 
@@ -371,8 +371,8 @@ function expectBody(expected) {
   const body_parts =
           ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
 
-  const onBody = (buf, start, len) => {
-    const body = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const body = String(buf);
     assert.strictEqual(body, body_parts[body_part++]);
   };
 
@@ -428,8 +428,8 @@ function expectBody(expected) {
 
     let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-    const onBody = (buf, start, len) => {
-      const chunk = String(buf.slice(start, start + len));
+    const onBody = (buf) => {
+      const chunk = String(buf);
       assert.strictEqual(expected_body.indexOf(chunk), 0);
       expected_body = expected_body.slice(chunk.length);
     };
@@ -445,9 +445,7 @@ function expectBody(expected) {
 
   for (let i = 1; i < request.length - 1; ++i) {
     const a = request.slice(0, i);
-    console.error(`request.slice(0, ${i}) = ${JSON.stringify(a.toString())}`);
     const b = request.slice(i);
-    console.error(`request.slice(${i}) = ${JSON.stringify(b.toString())}`);
     test(a, b);
   }
 }
@@ -488,8 +486,8 @@ function expectBody(expected) {
 
   let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-  const onBody = (buf, start, len) => {
-    const chunk = String(buf.slice(start, start + len));
+  const onBody = (buf) => {
+    const chunk = String(buf);
     assert.strictEqual(expected_body.indexOf(chunk), 0);
     expected_body = expected_body.slice(chunk.length);
   };

@@ -26,6 +26,7 @@
   'inspector/endless-loop': [SKIP],
   'inspector/invalid': [SKIP],
   'inspector/regress-1166549': [SKIP],
+  'inspector/regress-1297964': [SKIP],
 }], # third_party_heap
 
 ]

@@ -133,6 +133,19 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object);
   }
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  // The following types have external pointers, which must be visited.
+  // TODO(v8:10391) Consider adding custom visitor IDs for these.
+  if (object.IsExternalOneByteString()) {
+    ExternalOneByteString::BodyDescriptor::IterateBody(map, object, size,
+                                                       visitor);
+  } else if (object.IsExternalTwoByteString()) {
+    ExternalTwoByteString::BodyDescriptor::IterateBody(map, object, size,
+                                                       visitor);
+  } else if (object.IsForeign()) {
+    Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
+  }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   return static_cast<ResultType>(size);
 }
 

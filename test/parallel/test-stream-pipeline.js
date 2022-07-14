@@ -1511,3 +1511,48 @@ const tsp = require('timers/promises');
     assert.strictEqual(s.destroyed, true);
   }));
 }
+
+{
+  const s = new PassThrough({ objectMode: true });
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+    yield 'world';
+  }, s, async function(source) {
+    return null;
+  }, common.mustCall((err, val) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(val, null);
+  }));
+}
+
+{
+  // Mimics a legacy stream without the .destroy method
+  class LegacyWritable extends Stream {
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  }
+
+  const writable = new LegacyWritable();
+  writable.on('error', common.mustCall((err) => {
+    assert.deepStrictEqual(err, new Error('stop'));
+  }));
+
+  pipeline(
+    Readable.from({
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            return Promise.reject(new Error('stop'));
+          }
+        };
+      }
+    }),
+    writable,
+    common.mustCall((err) => {
+      assert.deepStrictEqual(err, new Error('stop'));
+    })
+  );
+}

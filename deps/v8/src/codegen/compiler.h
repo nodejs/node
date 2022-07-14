@@ -30,24 +30,23 @@ namespace internal {
 
 // Forward declarations.
 class AlignedCachedData;
-class AstRawString;
 class BackgroundCompileTask;
 class IsCompiledScope;
-class JavaScriptFrame;
 class OptimizedCompilationInfo;
-class OptimizedCompilationJob;
 class ParseInfo;
-class Parser;
 class RuntimeCallStats;
 class TimedHistogram;
+class TurbofanCompilationJob;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
+class UnoptimizedFrame;
 class WorkerThreadRuntimeCallStats;
 struct ScriptDetails;
 struct ScriptStreamingData;
 
-using UnoptimizedCompilationJobList =
-    std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
+namespace maglev {
+class MaglevCompilationJob;
+}  // namespace maglev
 
 // The V8 compiler API.
 //
@@ -77,6 +76,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Compile(Isolate* isolate, Handle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
+  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
+      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+      IsCompiledScope* is_compiled_scope);
+
   static bool CompileSharedWithBaseline(Isolate* isolate,
                                         Handle<SharedFunctionInfo> shared,
                                         ClearExceptionFlag flag,
@@ -84,37 +87,47 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
-  static bool CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                               ConcurrencyMode mode, CodeKind code_kind);
-  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
-      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
-      IsCompiledScope* is_compiled_scope);
 
-  static void LogFunctionCompilation(Isolate* isolate,
-                                     CodeEventListener::LogEventsAndTags tag,
-                                     Handle<Script> script,
-                                     Handle<SharedFunctionInfo> shared,
-                                     Handle<FeedbackVector> feedback_vector,
-                                     Handle<AbstractCode> abstract_code,
-                                     CodeKind kind, double time_taken_ms);
+  static bool CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                            ConcurrencyMode mode,
+                            IsCompiledScope* is_compiled_scope);
+
+  static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+                               ConcurrencyMode mode, CodeKind code_kind);
+
+  // Generate and return optimized code for OSR. The empty handle is returned
+  // either on failure, or after spawning a concurrent OSR task (in which case
+  // a future OSR request will pick up the resulting code object).
+  V8_WARN_UNUSED_RESULT static MaybeHandle<CodeT> CompileOptimizedOSR(
+      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
+      UnoptimizedFrame* frame, ConcurrencyMode mode);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
+                     Isolate* isolate);
+
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).
   static bool CollectSourcePositions(Isolate* isolate,
                                      Handle<SharedFunctionInfo> shared);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
-  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     Isolate* isolate);
-
   // Finalize and install code from previously run background compile task.
   static bool FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
                                             Isolate* isolate,
                                             ClearExceptionFlag flag);
 
-  // Finalize and install optimized code from previously run job.
-  static bool FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
-                                              Isolate* isolate);
+  // Dispose a job without finalization.
+  static void DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                            bool restore_function_code);
+
+  // Finalize and install Turbofan code from a previously run job.
+  static bool FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                             Isolate* isolate);
+
+  // Finalize and install Maglev code from a previously run job.
+  static bool FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+                                           Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -215,7 +228,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data);
 
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForWebSnapshot(
-      Isolate* isolate, Handle<String> source);
+      Isolate* isolate, Handle<String> source, MaybeHandle<Object> script_name);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
@@ -223,20 +236,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
                                                           Handle<Script> script,
                                                           IsolateT* isolate);
-
-  // ===========================================================================
-  // The following family of methods provides support for OSR. Code generated
-  // for entry via OSR might not be suitable for normal entry, hence will be
-  // returned directly to the caller.
-  //
-  // Please note this interface is the only part dealing with {Code} objects
-  // directly. Other methods are agnostic to {Code} and can use an interpreter
-  // instead of generating JIT code for a function at all.
-
-  // Generate and return optimized code for OSR, or empty handle on failure.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      JavaScriptFrame* osr_frame);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main
@@ -365,23 +364,47 @@ class UnoptimizedCompilationJob : public CompilationJob {
 // Each of the three phases can either fail or succeed.
 class OptimizedCompilationJob : public CompilationJob {
  public:
-  OptimizedCompilationJob(OptimizedCompilationInfo* compilation_info,
-                          const char* compiler_name,
-                          State initial_state = State::kReadyToPrepare)
-      : CompilationJob(initial_state),
-        compilation_info_(compilation_info),
-        compiler_name_(compiler_name) {}
+  OptimizedCompilationJob(const char* compiler_name, State initial_state)
+      : CompilationJob(initial_state), compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
 
-  // Executes the compile job. Can be called on a background thread if
-  // can_execute_on_background_thread() returns true.
+  // Executes the compile job. Can be called on a background thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status
   ExecuteJob(RuntimeCallStats* stats, LocalIsolate* local_isolate = nullptr);
 
   // Finalizes the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
+
+  const char* compiler_name() const { return compiler_name_; }
+
+ protected:
+  // Overridden by the actual implementation.
+  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
+  virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
+                                LocalIsolate* local_heap) = 0;
+  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
+
+  base::TimeDelta time_taken_to_prepare_;
+  base::TimeDelta time_taken_to_execute_;
+  base::TimeDelta time_taken_to_finalize_;
+
+ private:
+  const char* const compiler_name_;
+};
+
+// Thin wrapper to split off Turbofan-specific parts.
+class TurbofanCompilationJob : public OptimizedCompilationJob {
+ public:
+  TurbofanCompilationJob(OptimizedCompilationInfo* compilation_info,
+                         State initial_state)
+      : OptimizedCompilationJob("Turbofan", initial_state),
+        compilation_info_(compilation_info) {}
+
+  OptimizedCompilationInfo* compilation_info() const {
+    return compilation_info_;
+  }
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -391,28 +414,12 @@ class OptimizedCompilationJob : public CompilationJob {
   // Should only be called on optimization compilation jobs.
   Status AbortOptimization(BailoutReason reason);
 
-  enum CompilationMode { kConcurrent, kSynchronous };
-  void RecordCompilationStats(CompilationMode mode, Isolate* isolate) const;
+  void RecordCompilationStats(ConcurrencyMode mode, Isolate* isolate) const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 
-  OptimizedCompilationInfo* compilation_info() const {
-    return compilation_info_;
-  }
-
- protected:
-  // Overridden by the actual implementation.
-  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
-  virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
-                                LocalIsolate* local_heap) = 0;
-  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
-
  private:
-  OptimizedCompilationInfo* compilation_info_;
-  base::TimeDelta time_taken_to_prepare_;
-  base::TimeDelta time_taken_to_execute_;
-  base::TimeDelta time_taken_to_finalize_;
-  const char* compiler_name_;
+  OptimizedCompilationInfo* const compilation_info_;
 };
 
 class FinalizeUnoptimizedCompilationData {
@@ -517,6 +524,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
       TimedHistogram* timer, int max_stack_size);
 
   void Run();
+  void RunOnMainThread(Isolate* isolate);
   void Run(LocalIsolate* isolate,
            ReusableUnoptimizedCompileState* reusable_state);
 
@@ -529,7 +537,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void AbortFunction();
 
   UnoptimizedCompileFlags flags() const { return flags_; }
-  LanguageMode language_mode() const { return language_mode_; }
 
  private:
   void ReportStatistics(Isolate* isolate);
@@ -561,8 +568,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
-
-  LanguageMode language_mode_;
 };
 
 // Contains all data which needs to be transmitted between threads for

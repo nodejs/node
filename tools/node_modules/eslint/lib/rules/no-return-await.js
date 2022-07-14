@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary `return await`",
+            description: "Disallow unnecessary `return await`",
 
             recommended: false,
 

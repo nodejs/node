@@ -4,7 +4,7 @@
 
 Report security bugs in Node.js via [HackerOne](https://hackerone.com/nodejs).
 
-Your report will be acknowledged within 5 days, and you’ll receive a more
+Your report will be acknowledged within 5 days, and you'll receive a more
 detailed response to your report within 10 days indicating the next steps in
 handling your submission.
 
@@ -22,14 +22,7 @@ the HackerOne platform. See <https://hackerone.com/nodejs> for further details.
 ## Reporting a bug in a third party module
 
 Security bugs in third party modules should be reported to their respective
-maintainers and should also be coordinated through the Node.js Ecosystem
-Security Team via [HackerOne](https://hackerone.com/nodejs-ecosystem).
-
-Details regarding this process can be found in the
-[Security Working Group repository](https://github.com/nodejs/security-wg/blob/HEAD/processes/third_party_vuln_process.md).
-
-Thank you for improving the security of Node.js and its ecosystem. Your efforts
-and responsible disclosure are greatly appreciated and will be acknowledged.
+maintainers.
 
 ## Disclosure policy
 
@@ -56,7 +49,7 @@ Here is the security disclosure policy for Node.js
 
 * This process can take some time, especially when coordination is required
   with maintainers of other projects. Every effort will be made to handle the
-  bug in as timely a manner as possible; however, it’s important that we follow
+  bug in as timely a manner as possible; however, it's important that we follow
   the release process above to ensure that the disclosure is handled in a
   consistent manner.
 

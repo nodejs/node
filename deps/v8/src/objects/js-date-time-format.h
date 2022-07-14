@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
-#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
 #include <set>
 #include <string>
@@ -25,6 +25,7 @@ namespace U_ICU_NAMESPACE {
 class DateIntervalFormat;
 class Locale;
 class SimpleDateFormat;
+class TimeZone;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -40,6 +41,12 @@ class JSDateTimeFormat
       Handle<Object> options, const char* service);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static Handle<String> Calendar(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static Handle<Object> TimeZone(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
 
   // ecma402/#sec-unwrapdatetimeformat
@@ -84,6 +91,12 @@ class JSDateTimeFormat
       const char* method_name);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  Handle<Object> static TimeZoneId(Isolate* isolate, const icu::TimeZone& tz);
+  std::unique_ptr<icu::TimeZone> static CreateTimeZone(const char* timezone);
+
+  V8_EXPORT_PRIVATE static std::string CanonicalizeTimeZoneID(
+      const std::string& input);
 
   Handle<String> HourCycleAsString() const;
 

@@ -27,7 +27,7 @@ const withTempDir = async (root, fn, opts) => {
 
   try {
     await rm(target, { force: true, recursive: true })
-  } catch (err) {}
+  } catch {}
 
   if (err) {
     throw err

@@ -6,14 +6,11 @@
 // https://tc39.es/proposal-temporal/#sec-temporal.calendar
 // 1. If NewTarget is undefined, then
 // a. Throw a TypeError exception.
-assertThrows(() => Temporal.Calendar("iso8601"), TypeError,
-    "Constructor Temporal.Calendar requires 'new'");
+assertThrows(() => Temporal.Calendar("iso8601"), TypeError);
 
-assertThrows(() => new Temporal.Calendar(), RangeError,
-    "Invalid calendar specified: undefined");
+assertThrows(() => new Temporal.Calendar(), RangeError);
 
 // Wrong case
-assertThrows(() => new Temporal.Calendar("ISO8601"), RangeError,
-    "Invalid calendar specified: ISO8601");
+assertThrows(() => new Temporal.Calendar("ISO8601"), RangeError);
 
 assertEquals("iso8601", (new Temporal.Calendar("iso8601")).id)

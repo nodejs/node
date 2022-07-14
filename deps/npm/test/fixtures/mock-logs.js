@@ -60,7 +60,27 @@ const mockLogs = (otherMocks = {}) => {
         return acc
       }, {}),
       // except collect timing logs
-      { timing: (...args) => logs.push(['timing', ...args]) },
+      {
+        timing: (...args) => logs.push(['timing', ...args]),
+        newItem: () => {
+          return {
+            info: (...p) => {
+              logs.push(['info', ...p])
+            },
+            warn: (...p) => {
+              logs.push(['warn', ...p])
+            },
+            error: (...p) => {
+              logs.push(['error', ...p])
+            },
+            silly: (...p) => {
+              logs.push(['silly', ...p])
+            },
+            completeWork: () => {},
+            finish: () => {},
+          }
+        },
+      },
       otherMocks.npmlog
     )),
   }

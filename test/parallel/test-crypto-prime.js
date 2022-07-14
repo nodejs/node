@@ -41,12 +41,14 @@ const pCheckPrime = promisify(checkPrime);
   });
 });
 
-[-1, 0].forEach((i) => {
-  assert.throws(() => generatePrime(i, common.mustNotCall()), {
-    code: 'ERR_OUT_OF_RANGE'
+[-1, 0, 2 ** 31, 2 ** 31 + 1, 2 ** 32 - 1, 2 ** 32].forEach((size) => {
+  assert.throws(() => generatePrime(size, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: />= 1 && <= 2147483647/
   });
-  assert.throws(() => generatePrimeSync(i), {
-    code: 'ERR_OUT_OF_RANGE'
+  assert.throws(() => generatePrimeSync(size), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: />= 1 && <= 2147483647/
   });
 });
 

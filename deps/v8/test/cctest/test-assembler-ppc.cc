@@ -263,7 +263,7 @@ TEST(4) {
     CpuFeatures::Scope scope(VFP3);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ mov(r4, Operand(r0));
@@ -321,7 +321,7 @@ TEST(4) {
     __ vneg(d0, d1);
     __ vstr(d0, r4, offsetof(T, n));
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -659,7 +659,7 @@ TEST(8) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, a)));
@@ -678,7 +678,7 @@ TEST(8) {
     __ vstm(ia_w, r4, s6, s7);
     __ vstm(ia_w, r4, s0, s5);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -770,7 +770,7 @@ TEST(9) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, a)));
@@ -793,7 +793,7 @@ TEST(9) {
     __ addi(r4, r4, Operand(2 * 4));
     __ vstm(ia, r4, s0, s5);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -885,7 +885,7 @@ TEST(10) {
     CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ addi(r4, r0, Operand(offsetof(D, h) + 8));
@@ -904,7 +904,7 @@ TEST(10) {
     __ vstm(db_w, r4, s0, s5);
     __ vstm(db_w, r4, s6, s7);
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);

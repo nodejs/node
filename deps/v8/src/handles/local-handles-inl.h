@@ -16,6 +16,7 @@ namespace internal {
 // static
 V8_INLINE Address* LocalHandleScope::GetHandle(LocalHeap* local_heap,
                                                Address value) {
+  DCHECK(local_heap->IsRunning());
   if (local_heap->is_main_thread())
     return LocalHandleScope::GetMainThreadHandle(local_heap, value);
 
@@ -57,10 +58,16 @@ LocalHandleScope::~LocalHandleScope() {
 
 template <typename T>
 Handle<T> LocalHandleScope::CloseAndEscape(Handle<T> handle_value) {
-  HandleScopeData* current = &local_heap_->handles()->scope_;
+  HandleScopeData* current;
   T value = *handle_value;
   // Throw away all handles in the current scope.
-  CloseScope(local_heap_, prev_next_, prev_limit_);
+  if (local_heap_->is_main_thread()) {
+    current = local_heap_->heap()->isolate()->handle_scope_data();
+    CloseMainThreadScope(local_heap_, prev_next_, prev_limit_);
+  } else {
+    current = &local_heap_->handles()->scope_;
+    CloseScope(local_heap_, prev_next_, prev_limit_);
+  }
   // Allocate one handle in the parent scope.
   DCHECK(current->level > current->sealed_level);
   Handle<T> result(value, local_heap_);

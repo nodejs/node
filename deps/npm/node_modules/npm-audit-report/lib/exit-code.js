@@ -5,7 +5,7 @@ const severities = new Map(Object.entries([
   'moderate',
   'high',
   'critical',
-  'none'
+  'none',
 ]).map(s => s.reverse()))
 
 module.exports = (data, level) =>

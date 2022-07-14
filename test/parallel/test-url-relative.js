@@ -53,6 +53,7 @@ const relativeTests = [
   ['/foo/bar/baz', '/../etc/passwd', '/etc/passwd'],
   ['http://localhost', 'file:///Users/foo', 'file:///Users/foo'],
   ['http://localhost', 'file://foo/Users', 'file://foo/Users'],
+  ['https://registry.npmjs.org', '@foo/bar', 'https://registry.npmjs.org/@foo/bar'],
 ];
 relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);

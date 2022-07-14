@@ -22,7 +22,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "disallow all tabs",
+            description: "Disallow all tabs",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-tabs"
         },

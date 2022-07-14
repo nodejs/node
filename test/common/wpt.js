@@ -56,7 +56,7 @@ class ResourceLoader {
   /**
    * Load a resource in test/fixtures/wpt specified with a URL
    * @param {string} from the path of the file loading this resource,
-   *                      relative to thw WPT folder.
+   *                      relative to the WPT folder.
    * @param {string} url the url of the resource being loaded.
    * @param {boolean} asFetch if true, return the resource in a
    *                          pseudo-Response object.
@@ -78,7 +78,7 @@ class ResourceLoader {
 }
 
 class StatusRule {
-  constructor(key, value, pattern = undefined) {
+  constructor(key, value, pattern) {
     this.key = key;
     this.requires = value.requires || [];
     this.fail = value.fail;

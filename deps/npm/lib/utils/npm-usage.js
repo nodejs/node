@@ -45,7 +45,7 @@ const wrap = (arr) => {
     : Math.min(60, Math.max(process.stdout.columns - 16, 24))
 
   let l = 0
-  for (const c of arr.sort((a, b) => a < b ? -1 : 1)) {
+  for (const c of arr) {
     if (out[l].length + c.length + 2 < line) {
       out[l] += ', ' + c
     } else {
@@ -53,7 +53,7 @@ const wrap = (arr) => {
       out[l] = c
     }
   }
-  return out.join('\n    ').substr(2)
+  return out.join('\n    ').slice(2)
 }
 
 const usages = async (npm) => {

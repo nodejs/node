@@ -1,170 +1,92 @@
 const t = require('tap')
-const Minipass = require('minipass')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const MockRegistry = require('../../fixtures/mock-registry.js')
 const libnpmsearchResultFixture =
   require('../../fixtures/libnpmsearch-stream-result.js')
 
-let result = ''
-const flatOptions = {
-  search: {
-    exclude: null,
-    limit: 20,
-    opts: '',
-  },
-}
-const config = {
-  json: false,
-  parseable: false,
-}
-const npm = mockNpm({
-  config,
-  flatOptions: { ...flatOptions },
-  output: (...msg) => {
-    result += msg.join('\n')
-  },
-})
-const npmlog = {
-  silly () {},
-  clearProgress () {},
-}
-const libnpmsearch = {
-  stream () {},
-}
-const mocks = {
-  npmlog,
-  libnpmsearch,
-  '../../../lib/utils/usage.js': () => 'usage instructions',
-}
-
-t.afterEach(() => {
-  result = ''
-  config.json = false
-  config.parseable = false
-  npm.flatOptions = { ...flatOptions }
-})
-
-const Search = t.mock('../../../lib/commands/search.js', mocks)
-const search = new Search(npm)
-
 t.test('no args', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    search.exec([]),
+    npm.exec('search', []),
     /search must be called with arguments/,
     'should throw usage instructions'
   )
 })
 
-t.test('search <name>', async t => {
-  const src = new Minipass()
-  src.objectMode = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
-
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+t.test('search <name> text', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  for (const i of libnpmsearchResultFixture) {
-    src.write(i)
-  }
-
-  src.end()
-
-  await search.exec(['libnpm'])
-  t.matchSnapshot(result, 'should have expected search results')
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'should have expected search results')
 })
 
 t.test('search <name> --json', async t => {
-  const src = new Minipass()
-  src.objectMode = true
-
-  npm.flatOptions.json = true
-  config.json = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
-
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  for (const i of libnpmsearchResultFixture) {
-    src.write(i)
-  }
+  registry.search({ results: libnpmsearchResultFixture })
 
-  src.end()
-  await search.exec(['libnpm'])
-
-  const parsedResult = JSON.parse(result)
-  parsedResult.forEach((entry) => {
-    entry.date = new Date(entry.date)
-  })
+  await npm.exec('search', ['libnpm'])
 
   t.same(
-    parsedResult,
+    JSON.parse(joinedOutput()),
     libnpmsearchResultFixture,
     'should have expected search results as json'
   )
-
-  config.json = false
 })
 
-t.test('search <invalid-module> --json', async t => {
-  const src = new Minipass()
-  src.objectMode = true
-
-  npm.flatOptions.json = true
-  config.json = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
-
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+t.test('search <name> --parseable', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { parseable: true } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  src.end()
-  await search.exec(['foo'])
-
-  t.equal(result, '\n[]\n', 'should have expected empty square brackets')
-
-  config.json = false
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'should have expected search results as parseable')
 })
 
-t.test('search <name> --searchexclude --searchopts', async t => {
-  npm.flatOptions.search = {
-    ...flatOptions.search,
-    exclude: '',
-  }
-
-  const src = new Minipass()
-  src.objectMode = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
-
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+t.test('search <name> --color', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { color: 'always' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  src.write({
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'should have expected search results with color')
+})
+
+t.test('search /<name>/--color', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { color: 'always' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['/libnpm/'])
+  t.matchSnapshot(joinedOutput(), 'should have expected search results with color')
+})
+
+t.test('search <name>', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: [{
     name: 'foo',
     scope: 'unscoped',
     version: '1.0.0',
@@ -176,8 +98,7 @@ t.test('search <name> --searchexclude --searchopts', async t => {
     maintainers: [
       { username: 'foo', email: 'foo@npmjs.com' },
     ],
-  })
-  src.write({
+  }, {
     name: 'libnpmversion',
     scope: 'unscoped',
     version: '1.0.0',
@@ -189,58 +110,100 @@ t.test('search <name> --searchexclude --searchopts', async t => {
     maintainers: [
       { username: 'foo', email: 'foo@npmjs.com' },
     ],
-  })
+  }] })
 
-  src.end()
-  await search.exec(['foo'])
+  await npm.exec('search', ['foo'])
 
-  t.matchSnapshot(result, 'should have filtered expected search results')
+  t.matchSnapshot(joinedOutput(), 'should have filtered expected search results')
 })
 
 t.test('empty search results', async t => {
-  const src = new Minipass()
-  src.objectMode = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
-
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  src.end()
-  await search.exec(['foo'])
+  registry.search({ results: [] })
+  await npm.exec('search', ['foo'])
 
-  t.matchSnapshot(result, 'should have expected search results')
+  t.matchSnapshot(joinedOutput(), 'should have expected search results')
+})
+
+t.test('empty search results --json', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: [] })
+
+  await npm.exec('search', ['foo'])
+  t.equal(joinedOutput(), '\n[]\n', 'should have expected empty square brackets')
 })
 
 t.test('search api response error', async t => {
-  const src = new Minipass()
-  src.objectMode = true
-  const libnpmsearch = {
-    stream () {
-      return src
-    },
-  }
+  const { npm } = await loadMockNpm(t)
 
-  const Search = t.mock('../../../lib/commands/search.js', {
-    ...mocks,
-    libnpmsearch,
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
-  const search = new Search(npm)
 
-  setImmediate(() => {
-    src.emit('error', new Error('ERR'))
-    src.end()
-  })
+  registry.search({ error: 'ERR' })
 
   await t.rejects(
-    search.exec(['foo']),
+    npm.exec('search', ['foo']),
     /ERR/,
     'should throw response error'
   )
+})
+
+t.test('search exclude string', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { searchexclude: 'libnpmversion' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'results should not have libnpmversion')
+})
+
+t.test('search exclude username with upper case letters', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { searchexclude: 'NLF' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'results should not have nlf')
+})
+
+t.test('search exclude regex', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { searchexclude: '/version/' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'results should not have libnpmversion')
+})
+
+t.test('search exclude forward slash', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: { searchexclude: '/version' } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(joinedOutput(), 'results should not have libnpmversion')
 })

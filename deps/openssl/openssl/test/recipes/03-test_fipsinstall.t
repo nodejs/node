@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,7 @@ plan skip_all => "Test only supported in a fips build" if disabled("fips");
 plan tests => 29;
 
 my $infile = bldtop_file('providers', platform->dso('fips'));
-my $fipskey = $ENV{FIPSKEY} // '00';
+my $fipskey = $ENV{FIPSKEY} // config('FIPSKEY') // '00';
 
 # Read in a text $infile and replace the regular expression in $srch with the
 # value in $repl and output to a new file $outfile.

@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
@@ -229,8 +230,8 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
-    isolate->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
-                                           v8::kGCTypeAll, this);
+    isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+        UpdatePointersCallback, this);
     chars_ = SeqString::cast(*source_).GetChars(no_gc);
     chars_may_relocate_ = true;
   }
@@ -274,6 +275,17 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   if (isolate()->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate(), script);
   }
+
+  StackTraceFrameIterator it(isolate_);
+  if (!it.done() && it.is_javascript()) {
+    FrameSummary summary = it.GetTopValidFrame();
+    script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
+    if (summary.script()->IsScript()) {
+      script->set_origin_options(
+          Script::cast(*summary.script()).origin_options());
+    }
+  }
+
   // We should sent compile error event because we compile JSON object in
   // separated source file.
   isolate()->debug()->OnCompileError(script);
@@ -305,7 +317,8 @@ JsonParser<Char>::~JsonParser() {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
     SeqString::cast(*source_);
-    isolate()->heap()->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+    isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        UpdatePointersCallback, this);
   }
 }
 
@@ -473,14 +486,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                      descriptor_index)),
                  isolate_);
     } else {
-      DisallowGarbageCollection no_gc;
-      TransitionsAccessor transitions(isolate(), *map, &no_gc);
+      TransitionsAccessor transitions(isolate(), *map);
       expected = transitions.ExpectedTransitionKey();
       if (!expected.is_null()) {
         // Directly read out the target while reading out the key, otherwise it
         // might die while building the string below.
-        target = TransitionsAccessor(isolate(), *map, &no_gc)
-                     .ExpectedTransitionTarget();
+        target =
+            TransitionsAccessor(isolate(), *map).ExpectedTransitionTarget();
       }
     }
 
@@ -492,7 +504,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         map = ParentOfDescriptorOwner(isolate_, map, feedback, descriptor);
         feedback_descriptors = 0;
       }
-      if (!TransitionsAccessor(isolate(), map)
+      if (!TransitionsAccessor(isolate(), *map)
                .FindTransitionToField(key)
                .ToHandle(&target)) {
         break;

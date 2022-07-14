@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow labeled statements",
+            description: "Disallow labeled statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-labels"
         },

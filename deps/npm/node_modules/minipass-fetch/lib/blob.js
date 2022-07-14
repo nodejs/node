@@ -18,10 +18,10 @@ class Blob {
         const buffer = element instanceof Buffer ? element
           : ArrayBuffer.isView(element)
             ? Buffer.from(element.buffer, element.byteOffset, element.byteLength)
-          : element instanceof ArrayBuffer ? Buffer.from(element)
-          : element instanceof Blob ? element[BUFFER]
-          : typeof element === 'string' ? Buffer.from(element)
-          : Buffer.from(String(element))
+            : element instanceof ArrayBuffer ? Buffer.from(element)
+            : element instanceof Blob ? element[BUFFER]
+            : typeof element === 'string' ? Buffer.from(element)
+            : Buffer.from(String(element))
         size += buffer.length
         buffers.push(buffer)
       }

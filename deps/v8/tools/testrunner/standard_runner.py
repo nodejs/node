@@ -1,12 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
 from functools import reduce
 
 import datetime
@@ -46,7 +43,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ('more' first - it has the longer running tests)
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
+  'extra': ['nooptimization', 'future', 'no_wasm_traps',
             'instruction_scheduling', 'always_sparkplug'],
 }
 

@@ -47,7 +47,7 @@ class V8_EXPORT ScriptOrModule {
    * The options that were passed by the embedder as HostDefinedOptions to
    * the ScriptOrigin.
    */
-  V8_DEPRECATE_SOON("Use HostDefinedOptions")
+  V8_DEPRECATED("Use HostDefinedOptions")
   Local<PrimitiveArray> GetHostDefinedOptions();
   Local<Data> HostDefinedOptions();
 };
@@ -173,29 +173,6 @@ class V8_EXPORT Module : public Data {
   Local<Value> GetException() const;
 
   /**
-   * Returns the number of modules requested by this module.
-   */
-  V8_DEPRECATED("Use Module::GetModuleRequests() and FixedArray::Length().")
-  int GetModuleRequestsLength() const;
-
-  /**
-   * Returns the ith module specifier in this module.
-   * i must be < GetModuleRequestsLength() and >= 0.
-   */
-  V8_DEPRECATED(
-      "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
-  Local<String> GetModuleRequest(int i) const;
-
-  /**
-   * Returns the source location (line number and column number) of the ith
-   * module specifier's first occurrence in this module.
-   */
-  V8_DEPRECATED(
-      "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
-      "Module::SourceOffsetToLocation().")
-  Location GetModuleRequestLocation(int i) const;
-
-  /**
    * Returns the ModuleRequests for this module.
    */
   Local<FixedArray> GetModuleRequests() const;
@@ -211,9 +188,6 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback =
-      MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
-                             Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
       Local<Context> context, Local<String> specifier,
       Local<FixedArray> import_assertions, Local<Module> referrer);
@@ -225,11 +199,6 @@ class V8_EXPORT Module : public Data {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATED(
-      "Use the version of InstantiateModule that takes a ResolveModuleCallback "
-      "parameter")
-  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
-                                                      ResolveCallback callback);
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
       Local<Context> context, ResolveModuleCallback callback);
 
@@ -407,6 +376,7 @@ class V8_EXPORT ScriptCompiler {
   class Source {
    public:
     // Source takes ownership of both CachedData and CodeCacheConsumeTask.
+    // The caller *must* ensure that the cached data is from a trusted source.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
                      CachedData* cached_data = nullptr,
                      ConsumeCodeCacheTask* consume_cache_task = nullptr);
@@ -473,18 +443,6 @@ class V8_EXPORT ScriptCompiler {
      * V8 has parsed the data it received so far.
      */
     virtual size_t GetMoreData(const uint8_t** src) = 0;
-
-    /**
-     * [DEPRECATED]: No longer used, will be removed soon.
-     */
-    V8_DEPRECATED("Not used")
-    virtual bool SetBookmark() { return false; }
-
-    /**
-     * [DEPRECATED]: No longer used, will be removed soon.
-     */
-    V8_DEPRECATED("Not used")
-    virtual void ResetToBookmark() {}
   };
 
   /**

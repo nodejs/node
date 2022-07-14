@@ -8,5 +8,7 @@ class Stop extends LifecycleCmd {
     'ignore-scripts',
     'script-shell',
   ]
+
+  static ignoreImplicitWorkspace = false
 }
 module.exports = Stop

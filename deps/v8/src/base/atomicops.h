@@ -130,6 +130,12 @@ inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
                                        std::memory_order_relaxed);
 }
 
+inline Atomic32 SeqCst_AtomicExchange(volatile Atomic32* ptr,
+                                      Atomic32 new_value) {
+  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
+                                       std::memory_order_seq_cst);
+}
+
 inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
   return increment + std::atomic_fetch_add_explicit(helper::to_std_atomic(ptr),
@@ -241,6 +247,16 @@ inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
                                    std::memory_order_acquire);
 }
 
+inline Atomic8 SeqCst_Load(volatile const Atomic8* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
+}
+
+inline Atomic32 SeqCst_Load(volatile const Atomic32* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
+}
+
 #if defined(V8_HOST_ARCH_64_BIT)
 
 inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
@@ -255,6 +271,12 @@ inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,
                                        Atomic64 new_value) {
   return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
                                        std::memory_order_relaxed);
+}
+
+inline Atomic64 SeqCst_AtomicExchange(volatile Atomic64* ptr,
+                                      Atomic64 new_value) {
+  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
+                                       std::memory_order_seq_cst);
 }
 
 inline Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr,
@@ -312,6 +334,11 @@ inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {
 inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
   return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
                                    std::memory_order_acquire);
+}
+
+inline Atomic64 SeqCst_Load(volatile const Atomic64* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
 }
 
 #endif  // defined(V8_HOST_ARCH_64_BIT)
@@ -441,7 +468,7 @@ inline int Relaxed_Memcmp(volatile const Atomic8* s1,
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
-#if defined(V8_OS_MACOSX) || defined(V8_OS_OPENBSD) || defined(V8_OS_AIX)
+#if defined(V8_OS_DARWIN) || defined(V8_OS_OPENBSD) || defined(V8_OS_AIX)
 #include "src/base/atomicops_internals_atomicword_compat.h"
 #endif
 

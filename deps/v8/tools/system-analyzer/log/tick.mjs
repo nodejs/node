@@ -10,6 +10,28 @@ export class TickLogEntry extends LogEntry {
     super(TickLogEntry.extractType(vmState, processedStack), time);
     this.state = vmState;
     this.stack = processedStack;
+    this._endTime = time;
+  }
+
+  end(time) {
+    if (this.isInitialized) throw new Error('Invalid timer change');
+    this._endTime = time;
+  }
+
+  get isInitialized() {
+    return this._endTime !== this._time;
+  }
+
+  get startTime() {
+    return this._time;
+  }
+
+  get endTime() {
+    return this._endTime;
+  }
+
+  get duration() {
+    return this._endTime - this._time;
   }
 
   static extractType(vmState, processedStack) {

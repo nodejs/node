@@ -146,10 +146,18 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm pkg get [&lt;field&gt; [.&lt;subfield&gt; ...]]
-npm pkg set &lt;field&gt;=&lt;value&gt; [.&lt;subfield&gt;=&lt;value&gt; ...]
-npm pkg delete &lt;field&gt; [.&lt;subfield&gt; ...]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm pkg set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
+npm pkg get [&lt;key&gt; [&lt;key&gt; ...]]
+npm pkg delete &lt;key&gt; [&lt;key&gt; ...]
+npm pkg set [&lt;array&gt;[&lt;index&gt;].&lt;key&gt;=&lt;value&gt; ...]
+npm pkg set [&lt;array&gt;[].&lt;key&gt;=&lt;value&gt; ...]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>A command that automates the management of <code>package.json</code> files.
 <code>npm pkg</code> provide 3 different sub commands that allow you to modify or retrieve
@@ -183,6 +191,11 @@ the contributor emails for a package, you would run:</p>
 an item in an array field. To just get the email address of the first
 contributor in the list, you can run:</p>
 <pre lang="bash"><code>npm pkg get contributors[0].email
+</code></pre>
+<p>For complex fields you can also name a property in square brackets
+to specifically select a child field. This is especially helpful
+with the exports object:</p>
+<pre lang="bash"><code>npm pkg get "exports[.].require"
 </code></pre>
 </li>
 <li>
@@ -278,6 +291,7 @@ range (including SemVer-major changes).</li>
 <li>Allow conflicting peerDependencies to be installed in the root project.</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
+<li>Allow unpublishing of entire packages (not just a single version).</li>
 </ul>
 <p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>

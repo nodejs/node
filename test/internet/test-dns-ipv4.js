@@ -1,3 +1,5 @@
+// Flags: --dns-result-order=ipv4first
+
 'use strict';
 const common = require('../common');
 const { addresses } = require('../common/internet');

@@ -61,6 +61,10 @@ for (const { protocol, createServer } of [
     const host = new URL(base);
     host.protocol = protocol;
     host.hostname = hostname;
+    // /not-found is a 404
+    // ?redirect causes a redirect, no body. JSON.parse({status:number,location:string})
+    // ?mime sets the content-type, string
+    // ?body sets the body, string
     const server = createServer(function(_req, res) {
       const url = new URL(_req.url, host);
       const redirect = url.searchParams.get('redirect');
@@ -112,6 +116,21 @@ for (const { protocol, createServer } of [
     assert.strict.notEqual(redirectedNS.default, ns.default);
     assert.strict.equal(redirectedNS.url, url.href);
 
+    // Redirects have the same import.meta.url but different cache
+    // entry on Web
+    const relativeAfterRedirect = new URL(url.href + 'foo/index.js');
+    const redirected = new URL(url.href + 'bar/index.js');
+    redirected.searchParams.set('body', 'export let relativeDepURL = (await import("./baz.js")).url');
+    relativeAfterRedirect.searchParams.set('redirect', JSON.stringify({
+      status: 302,
+      location: redirected.href
+    }));
+    const relativeAfterRedirectedNS = await import(relativeAfterRedirect.href);
+    assert.strict.equal(
+      relativeAfterRedirectedNS.relativeDepURL,
+      url.href + 'bar/baz.js'
+    );
+
     const crossProtocolRedirect = new URL(url.href);
     crossProtocolRedirect.searchParams.set('redirect', JSON.stringify({
       status: 302,
@@ -133,6 +152,14 @@ for (const { protocol, createServer } of [
     assert.strict.equal(depsNS.data, 1);
     assert.strict.equal(depsNS.http, ns);
 
+    const relativeDeps = new URL(url.href);
+    relativeDeps.searchParams.set('body', `
+      import * as http from "./";
+      export {http};
+    `);
+    const relativeDepsNS = await import(relativeDeps.href);
+    assert.strict.deepStrictEqual(Object.keys(relativeDepsNS), ['http']);
+    assert.strict.equal(relativeDepsNS.http, ns);
     const fileDep = new URL(url.href);
     const { href } = pathToFileURL(path('/es-modules/message.mjs'));
     fileDep.searchParams.set('body', `
@@ -140,7 +167,7 @@ for (const { protocol, createServer } of [
       export default 1;`);
     await assert.rejects(
       import(fileDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const builtinDep = new URL(url.href);
@@ -150,7 +177,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(builtinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unprefixedBuiltinDep = new URL(url.href);
@@ -160,7 +187,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(unprefixedBuiltinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unsupportedMIME = new URL(url.href);

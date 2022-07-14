@@ -64,7 +64,7 @@ Allows servers to accept client-initiated renegotiation. Equivalent to
 setting B<SSL_OP_ALLOW_CLIENT_RENEGOTIATION>.
 Only used by servers.
 
-=item B<-legacyrenegotiation>
+=item B<-legacy_renegotiation>
 
 Permits the use of unsafe legacy renegotiation. Equivalent to setting
 B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION>.
@@ -460,7 +460,7 @@ B<SessionTicket>: session ticket support, enabled by default. Inverse of
 B<SSL_OP_NO_TICKET>: that is B<-SessionTicket> is the same as setting
 B<SSL_OP_NO_TICKET>.
 
-B<Compression>: SSL/TLS compression support, enabled by default. Inverse
+B<Compression>: SSL/TLS compression support, disabled by default. Inverse
 of B<SSL_OP_NO_COMPRESSION>.
 
 B<EmptyFragments>: use empty fragments as a countermeasure against a
@@ -496,7 +496,6 @@ Equivalent to B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION>.
 
 B<UnsafeLegacyServerConnect>: permits the use of unsafe legacy renegotiation
 for OpenSSL clients only. Equivalent to B<SSL_OP_LEGACY_SERVER_CONNECT>.
-Set by default.
 
 B<EncryptThenMac>: use encrypt-then-mac extension, enabled by
 default. Inverse of B<SSL_OP_NO_ENCRYPT_THEN_MAC>: that is,
@@ -731,9 +730,12 @@ B<MinProtocol> and B<MaxProtocol> where added in OpenSSL 1.1.0.
 
 B<AllowNoDHEKEX> and B<PrioritizeChaCha> were added in OpenSSL 1.1.1.
 
+The B<UnsafeLegacyServerConnect> option is no longer set by default from
+OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

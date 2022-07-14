@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,6 +49,13 @@ int configure_handshake_ctx_for_srp(SSL_CTX *server_ctx, SSL_CTX *server2_ctx,
         SSL_CTX_set_srp_username_callback(server_ctx, server_srp_cb);
         server_ctx_data->srp_user = OPENSSL_strdup(extra->server.srp_user);
         server_ctx_data->srp_password = OPENSSL_strdup(extra->server.srp_password);
+        if (server_ctx_data->srp_user == NULL || server_ctx_data->srp_password == NULL) {
+            OPENSSL_free(server_ctx_data->srp_user);
+            OPENSSL_free(server_ctx_data->srp_password);
+            server_ctx_data->srp_user = NULL;
+            server_ctx_data->srp_password = NULL;
+            return 0;
+        }
         SSL_CTX_set_srp_cb_arg(server_ctx, server_ctx_data);
     }
     if (extra->server2.srp_user != NULL) {
@@ -57,6 +64,13 @@ int configure_handshake_ctx_for_srp(SSL_CTX *server_ctx, SSL_CTX *server2_ctx,
         SSL_CTX_set_srp_username_callback(server2_ctx, server_srp_cb);
         server2_ctx_data->srp_user = OPENSSL_strdup(extra->server2.srp_user);
         server2_ctx_data->srp_password = OPENSSL_strdup(extra->server2.srp_password);
+        if (server2_ctx_data->srp_user == NULL || server2_ctx_data->srp_password == NULL) {
+            OPENSSL_free(server2_ctx_data->srp_user);
+            OPENSSL_free(server2_ctx_data->srp_password);
+            server2_ctx_data->srp_user = NULL;
+            server2_ctx_data->srp_password = NULL;
+            return 0;
+        }
         SSL_CTX_set_srp_cb_arg(server2_ctx, server2_ctx_data);
     }
     if (extra->client.srp_user != NULL) {
@@ -65,6 +79,8 @@ int configure_handshake_ctx_for_srp(SSL_CTX *server_ctx, SSL_CTX *server2_ctx,
             return 0;
         SSL_CTX_set_srp_client_pwd_callback(client_ctx, client_srp_cb);
         client_ctx_data->srp_password = OPENSSL_strdup(extra->client.srp_password);
+        if (client_ctx_data->srp_password == NULL)
+            return 0;
         SSL_CTX_set_srp_cb_arg(client_ctx, client_ctx_data);
     }
     return 1;

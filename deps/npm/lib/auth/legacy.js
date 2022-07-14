@@ -1,6 +1,6 @@
 const profile = require('npm-profile')
 const log = require('../utils/log-shim')
-const openUrl = require('../utils/open-url.js')
+const openUrlPrompt = require('../utils/open-url-prompt.js')
 const read = require('../utils/read-user-info.js')
 
 const loginPrompter = async (creds) => {
@@ -47,7 +47,15 @@ const login = async (npm, opts) => {
     return newUser
   }
 
-  const openerPromise = (url) => openUrl(npm, url, 'to complete your login please visit')
+  const openerPromise = (url, emitter) =>
+    openUrlPrompt(
+      npm,
+      url,
+      'Authenticate your account at',
+      'Press ENTER to open in the browser...',
+      emitter
+    )
+
   try {
     res = await profile.login(openerPromise, loginPrompter, opts)
   } catch (err) {

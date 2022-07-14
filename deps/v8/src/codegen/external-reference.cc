@@ -5,7 +5,7 @@
 #include "src/codegen/external-reference.h"
 
 #include "include/v8-fast-api-calls.h"
-#include "src/api/api.h"
+#include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
@@ -214,40 +214,33 @@ ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
   return ExternalReference(isolate->builtin_table());
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-ExternalReference ExternalReference::builtins_code_data_container_table(
-    Isolate* isolate) {
-  return ExternalReference(isolate->builtin_code_data_container_table());
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
-
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_CAGED_POINTERS
-ExternalReference ExternalReference::virtual_memory_cage_base_address() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()->base_address());
+#ifdef V8_SANDBOXED_POINTERS
+ExternalReference ExternalReference::sandbox_base_address() {
+  return ExternalReference(GetProcessWideSandbox()->base_address());
 }
 
-ExternalReference ExternalReference::virtual_memory_cage_end_address() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()->end_address());
+ExternalReference ExternalReference::sandbox_end_address() {
+  return ExternalReference(GetProcessWideSandbox()->end_address());
 }
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()
+  return ExternalReference(GetProcessWideSandbox()
                                ->constants()
                                .empty_backing_store_buffer_address());
 }
-#endif  // V8_CAGED_POINTERS
+#endif  // V8_SANDBOXED_POINTERS
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->external_pointer_table_address());
 }
-#endif
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -565,6 +558,10 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_shared_string_table_flag() {
+  return ExternalReference(&FLAG_shared_string_table);
+}
+
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {
   return ExternalReference(
@@ -665,6 +662,11 @@ ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
 ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
   return ExternalReference(
       reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
+}
+
+ExternalReference ExternalReference::supports_cetss_address() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&CpuFeatures::supports_cetss_));
 }
 
 ExternalReference
@@ -1377,9 +1379,9 @@ FUNCTION_REFERENCE(
     js_finalization_registry_remove_cell_from_unregister_token_map,
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
-#ifdef V8_HEAP_SANDBOX
-FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
-                   ExternalPointerTable::GrowTable)
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+FUNCTION_REFERENCE(external_pointer_table_allocate_entry,
+                   ExternalPointerTable::AllocateEntry)
 #endif
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {

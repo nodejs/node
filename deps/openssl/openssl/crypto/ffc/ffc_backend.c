@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,6 +37,7 @@ int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[])
         const DH_NAMED_GROUP *group = NULL;
 
         if (prm->data_type != OSSL_PARAM_UTF8_STRING
+            || prm->data == NULL
             || (group = ossl_ffc_name_to_dh_named_group(prm->data)) == NULL
             || !ossl_ffc_named_group_set_pqg(ffc, group))
 #endif

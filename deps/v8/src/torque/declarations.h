@@ -93,9 +93,9 @@ class Declarations {
   static Namespace* DeclareNamespace(const std::string& name);
   static TypeAlias* DeclareType(const Identifier* name, const Type* type);
 
-  static const TypeAlias* PredeclareTypeAlias(const Identifier* name,
-                                              TypeDeclaration* type,
-                                              bool redeclaration);
+  static TypeAlias* PredeclareTypeAlias(const Identifier* name,
+                                        TypeDeclaration* type,
+                                        bool redeclaration);
   static TorqueMacro* CreateTorqueMacro(std::string external_name,
                                         std::string readable_name,
                                         bool exported_to_csa,

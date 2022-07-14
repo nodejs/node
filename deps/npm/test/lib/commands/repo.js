@@ -188,10 +188,10 @@ const openUrl = async (npm, url, errMsg) => {
 }
 t.afterEach(() => opened = {})
 
-const loadMockNpm = async (t, prefix) => {
+const loadMockNpm = async (t, prefixDir) => {
   const res = await _loadMockNpm(t, {
     mocks: { '../../lib/utils/open-url.js': openUrl },
-    testdir: prefix,
+    prefixDir,
   })
   return res
 }

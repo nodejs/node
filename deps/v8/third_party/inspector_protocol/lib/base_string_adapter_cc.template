@@ -27,97 +27,6 @@ using {{"::".join(config.protocol.namespace)}}::StringUtil;
 namespace {{namespace}} {
 {% endfor %}
 
-std::unique_ptr<protocol::Value> toProtocolValue(
-    const base::Value* value, int depth) {
-  if (!value || !depth)
-    return nullptr;
-  if (value->is_none())
-    return protocol::Value::null();
-  if (value->is_bool())
-    return protocol::FundamentalValue::create(value->GetBool());
-  if (value->is_int())
-    return protocol::FundamentalValue::create(value->GetInt());
-  if (value->is_double())
-    return protocol::FundamentalValue::create(value->GetDouble());
-  if (value->is_string())
-    return protocol::StringValue::create(value->GetString());
-  if (value->is_list()) {
-    std::unique_ptr<protocol::ListValue> result = protocol::ListValue::create();
-    for (const base::Value& item : value->GetList()) {
-      std::unique_ptr<protocol::Value> converted =
-          toProtocolValue(&item, depth - 1);
-      if (converted)
-        result->pushValue(std::move(converted));
-    }
-    return result;
-  }
-  if (value->is_dict()) {
-    std::unique_ptr<protocol::DictionaryValue> result =
-        protocol::DictionaryValue::create();
-    for (const auto& it : value->DictItems()) {
-      std::unique_ptr<protocol::Value> converted =
-          toProtocolValue(&it.second, depth - 1);
-      if (converted)
-        result->setValue(it.first, std::move(converted));
-    }
-    return result;
-  }
-  return nullptr;
-}
-
-std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
-  if (!value || !depth)
-    return nullptr;
-  if (value->type() == Value::TypeNull)
-    return std::make_unique<base::Value>();
-  if (value->type() == Value::TypeBoolean) {
-    bool inner;
-    value->asBoolean(&inner);
-    return base::WrapUnique(new base::Value(inner));
-  }
-  if (value->type() == Value::TypeInteger) {
-    int inner;
-    value->asInteger(&inner);
-    return base::WrapUnique(new base::Value(inner));
-  }
-  if (value->type() == Value::TypeDouble) {
-    double inner;
-    value->asDouble(&inner);
-    return base::WrapUnique(new base::Value(inner));
-  }
-  if (value->type() == Value::TypeString) {
-    std::string inner;
-    value->asString(&inner);
-    return base::WrapUnique(new base::Value(inner));
-  }
-  if (value->type() == Value::TypeArray) {
-    ListValue* list = ListValue::cast(value);
-    std::unique_ptr<base::Value> result(new base::Value(
-        base::Value::Type::LIST));
-    for (size_t i = 0; i < list->size(); i++) {
-      std::unique_ptr<base::Value> converted =
-          toBaseValue(list->at(i), depth - 1);
-      if (converted)
-        result->Append(std::move(*converted));
-    }
-    return result;
-  }
-  if (value->type() == Value::TypeObject) {
-    DictionaryValue* dict = DictionaryValue::cast(value);
-    std::unique_ptr<base::Value> result(new base::Value(
-        base::Value::Type::DICTIONARY));
-    for (size_t i = 0; i < dict->size(); i++) {
-      DictionaryValue::Entry entry = dict->at(i);
-      std::unique_ptr<base::Value> converted =
-          toBaseValue(entry.second, depth - 1);
-      if (converted)
-        result->SetKey(entry.first, std::move(*converted));
-    }
-    return result;
-  }
-  return nullptr;
-}
-
 // In Chromium, we do not support big endian architectures, so no conversion is needed
 // to interpret UTF16LE.
 // static
@@ -127,105 +36,88 @@ String StringUtil::fromUTF16LE(const uint16_t* data, size_t length) {
   return utf8;
 }
 
-bool StringUtil::ReadString(DeserializerState* state, String* value) {
-  auto* tokenizer = state->tokenizer();
-  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
-    const auto str = tokenizer->GetString8();
-    *value = StringUtil::fromUTF8(str.data(), str.size());
-    return true;
+std::unique_ptr<protocol::Value> toProtocolValue(
+    const base::Value& value, int depth) {
+  if (!depth)
+    return nullptr;
+  if (value.is_none())
+    return protocol::Value::null();
+  if (value.is_bool())
+    return protocol::FundamentalValue::create(value.GetBool());
+  if (value.is_int())
+    return protocol::FundamentalValue::create(value.GetInt());
+  if (value.is_double())
+    return protocol::FundamentalValue::create(value.GetDouble());
+  if (value.is_string())
+    return protocol::StringValue::create(value.GetString());
+  if (value.is_list()) {
+    auto result = protocol::ListValue::create();
+    for (const base::Value& item : value.GetList()) {
+      if (auto converted = toProtocolValue(item, depth - 1)) {
+        result->pushValue(std::move(converted));
+      }
+    }
+    return result;
   }
-  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
-    const auto str = tokenizer->GetString16WireRep();
-    *value = StringUtil::fromUTF16LE(reinterpret_cast<const uint16_t*>(str.data()), str.size() / 2);
-    return true;
+  if (value.is_dict()) {
+    auto result = protocol::DictionaryValue::create();
+    for (auto kv : value.DictItems()) {
+      if (auto converted = toProtocolValue(kv.second, depth - 1)) {
+        result->setValue(kv.first, std::move(converted));
+      }
+    }
+    return result;
   }
-  state->RegisterError(Error::BINDINGS_STRING_VALUE_EXPECTED);
-  return false;
+  return nullptr;
 }
 
-void StringUtil::WriteString(const String& str, std::vector<uint8_t>* bytes) {
-  cbor::EncodeString8(span<uint8_t>(StringUtil::CharactersUTF8(str),
-                                    StringUtil::CharacterCount(str)),
-                      bytes);
-}
-
-Binary::Binary() : bytes_(new base::RefCountedBytes) {}
-Binary::Binary(const Binary& binary) : bytes_(binary.bytes_) {}
-Binary::Binary(scoped_refptr<base::RefCountedMemory> bytes) : bytes_(bytes) {}
-Binary::~Binary() {}
-
-void Binary::AppendSerialized(std::vector<uint8_t>* out) const {
-  crdtp::cbor::EncodeBinary(crdtp::span<uint8_t>(data(), size()), out);
-}
-
-String Binary::toBase64() const {
-  std::string encoded;
-  base::Base64Encode(
-      base::StringPiece(reinterpret_cast<const char*>(bytes_->front()),
-                        bytes_->size()),
-      &encoded);
-  return encoded;
-}
-
-// static
-Binary Binary::fromBase64(const String& base64, bool* success) {
-  std::string decoded;
-  *success = base::Base64Decode(base::StringPiece(base64), &decoded);
-  if (*success) {
-    return Binary::fromString(std::move(decoded));
+base::Value toBaseValue(Value* value, int depth) {
+  if (!value || !depth)
+    return base::Value();
+  if (value->type() == Value::TypeBoolean) {
+    bool inner;
+    value->asBoolean(&inner);
+    return base::Value(inner);
   }
-  return Binary();
-}
-
-// static
-Binary Binary::fromRefCounted(scoped_refptr<base::RefCountedMemory> memory) {
-  return Binary(memory);
-}
-
-// static
-Binary Binary::fromVector(std::vector<uint8_t> data) {
-  return Binary(base::RefCountedBytes::TakeVector(&data));
-}
-
-// static
-Binary Binary::fromString(std::string data) {
-  return Binary(base::RefCountedString::TakeString(&data));
-}
-
-// static
-Binary Binary::fromSpan(const uint8_t* data, size_t size) {
-  return Binary(scoped_refptr<base::RefCountedBytes>(
-      new base::RefCountedBytes(data, size)));
+  if (value->type() == Value::TypeInteger) {
+    int inner;
+    value->asInteger(&inner);
+    return base::Value(inner);
+  }
+  if (value->type() == Value::TypeDouble) {
+    double inner;
+    value->asDouble(&inner);
+    return base::Value(inner);
+  }
+  if (value->type() == Value::TypeString) {
+    std::string inner;
+    value->asString(&inner);
+    return base::Value(inner);
+  }
+  if (value->type() == Value::TypeArray) {
+    ListValue* list = ListValue::cast(value);
+    base::Value result(base::Value::Type::LIST);
+    for (size_t i = 0; i < list->size(); i++) {
+      base::Value converted = toBaseValue(list->at(i), depth - 1);
+      if (!converted.is_none())
+        result.Append(std::move(converted));
+    }
+    return result;
+  }
+  if (value->type() == Value::TypeObject) {
+    DictionaryValue* dict = DictionaryValue::cast(value);
+    base::Value result(base::Value::Type::DICTIONARY);
+    for (size_t i = 0; i < dict->size(); i++) {
+      DictionaryValue::Entry entry = dict->at(i);
+      base::Value converted = toBaseValue(entry.second, depth - 1);
+      if (!converted.is_none())
+        result.SetKey(entry.first, std::move(converted));
+    }
+    return result;
+  }
+  return base::Value();
 }
 
 {% for namespace in config.protocol.namespace %}
-} // namespace {{namespace}}
+}  // namespace {{namespace}} {
 {% endfor %}
-
-namespace {{config.crdtp.namespace}} {
-
-// static
-bool ProtocolTypeTraits<Binary>::Deserialize(DeserializerState* state, Binary* value) {
-  auto* tokenizer = state->tokenizer();
-  if (tokenizer->TokenTag() == cbor::CBORTokenTag::BINARY) {
-    const span<uint8_t> bin = tokenizer->GetBinary();
-    *value = Binary::fromSpan(bin.data(), bin.size());
-    return true;
-  }
-  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
-    const auto str_span = tokenizer->GetString8();
-    String str = StringUtil::fromUTF8(str_span.data(), str_span.size());
-    bool success = false;
-    *value = Binary::fromBase64(str, &success);
-    return success;
-  }
-  state->RegisterError(Error::BINDINGS_BINARY_VALUE_EXPECTED);
-  return false;
-}
-
-// static
-void ProtocolTypeTraits<Binary>::Serialize(const Binary& value, std::vector<uint8_t>* bytes) {
-  value.AppendSerialized(bytes);
-}
-
-}  // namespace {{config.crdtp.namespace}}

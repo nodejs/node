@@ -21,6 +21,7 @@ class Isolate;
 namespace metrics {
 
 struct GarbageCollectionPhases {
+  int64_t total_wall_clock_duration_in_us = -1;
   int64_t compact_wall_clock_duration_in_us = -1;
   int64_t mark_wall_clock_duration_in_us = -1;
   int64_t sweep_wall_clock_duration_in_us = -1;
@@ -34,6 +35,7 @@ struct GarbageCollectionSizes {
 };
 
 struct GarbageCollectionFullCycle {
+  int reason = -1;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;
@@ -59,25 +61,38 @@ struct GarbageCollectionFullMainThreadIncrementalMark {
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalMark {
-  std::vector<GarbageCollectionFullMainThreadIncrementalMark> events;
-};
-
 struct GarbageCollectionFullMainThreadIncrementalSweep {
   int64_t wall_clock_duration_in_us = -1;
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
-  std::vector<GarbageCollectionFullMainThreadIncrementalSweep> events;
+template <typename EventType>
+struct GarbageCollectionBatchedEvents {
+  std::vector<EventType> events;
 };
 
+using GarbageCollectionFullMainThreadBatchedIncrementalMark =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalMark>;
+using GarbageCollectionFullMainThreadBatchedIncrementalSweep =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalSweep>;
+
 struct GarbageCollectionYoungCycle {
+  int reason = -1;
   int64_t total_wall_clock_duration_in_us = -1;
   int64_t main_thread_wall_clock_duration_in_us = -1;
-  double collection_rate_in_percent;
-  double efficiency_in_bytes_per_us;
-  double main_thread_efficiency_in_bytes_per_us;
+  double collection_rate_in_percent = -1.0;
+  double efficiency_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_in_bytes_per_us = -1.0;
+#if defined(CPPGC_YOUNG_GENERATION)
+  GarbageCollectionPhases total_cpp;
+  GarbageCollectionSizes objects_cpp;
+  GarbageCollectionSizes memory_cpp;
+  double collection_rate_cpp_in_percent = -1.0;
+  double efficiency_cpp_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_cpp_in_bytes_per_us = -1.0;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 };
 
 struct WasmModuleDecoded {
@@ -230,6 +245,8 @@ struct V8_EXPORT LongTaskStats {
   int64_t gc_full_atomic_wall_clock_duration_us = 0;
   int64_t gc_full_incremental_wall_clock_duration_us = 0;
   int64_t gc_young_wall_clock_duration_us = 0;
+  // Only collected with --slow-histograms
+  int64_t v8_execute_us = 0;
 };
 
 }  // namespace metrics

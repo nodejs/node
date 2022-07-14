@@ -268,6 +268,13 @@ void Int64Lowering::LowerNode(Node* node) {
                             MachineType::Int32(), access.write_barrier_kind)));
       break;
     }
+    case IrOpcode::kLoadImmutableFromObject: {
+      ObjectAccess access = ObjectAccessOf(node->op());
+      LowerLoadOperator(node, access.machine_type.representation(),
+                        simplified()->LoadImmutableFromObject(ObjectAccess(
+                            MachineType::Int32(), access.write_barrier_kind)));
+      break;
+    }
     case IrOpcode::kStore: {
       StoreRepresentation store_rep = StoreRepresentationOf(node->op());
       LowerStoreOperator(
@@ -288,6 +295,13 @@ void Int64Lowering::LowerNode(Node* node) {
       ObjectAccess access = ObjectAccessOf(node->op());
       LowerStoreOperator(node, access.machine_type.representation(),
                          simplified()->StoreToObject(ObjectAccess(
+                             MachineType::Int32(), access.write_barrier_kind)));
+      break;
+    }
+    case IrOpcode::kInitializeImmutableInObject: {
+      ObjectAccess access = ObjectAccessOf(node->op());
+      LowerStoreOperator(node, access.machine_type.representation(),
+                         simplified()->InitializeImmutableInObject(ObjectAccess(
                              MachineType::Int32(), access.write_barrier_kind)));
       break;
     }

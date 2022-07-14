@@ -73,13 +73,15 @@ class PackageJson {
       )
     }
 
-    for (const step of knownSteps)
+    for (const step of knownSteps) {
       this[_manifest] = step({ content, originalContent: this[_manifest] })
+    }
 
     // unknown properties will just be overwitten
     for (const [key, value] of Object.entries(content)) {
-      if (!knownKeys.has(key))
+      if (!knownKeys.has(key)) {
         this[_manifest][key] = value
+      }
     }
 
     return this
@@ -98,8 +100,9 @@ class PackageJson {
     }\n`
       .replace(/\n/g, eol)
 
-    if (fileContent.trim() !== this[_readFileContent].trim())
+    if (fileContent.trim() !== this[_readFileContent].trim()) {
       return await writeFile(this[_filename], fileContent)
+    }
   }
 }
 

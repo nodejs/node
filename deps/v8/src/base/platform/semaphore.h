@@ -11,7 +11,7 @@
 #include "src/base/win32-headers.h"
 #endif
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <dispatch/dispatch.h>
 #elif V8_OS_POSIX
 #include <semaphore.h>
@@ -55,7 +55,7 @@ class V8_BASE_EXPORT Semaphore final {
   // the semaphore counter is decremented and true is returned.
   bool WaitFor(const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   using NativeHandle = dispatch_semaphore_t;
 #elif V8_OS_POSIX
   using NativeHandle = sem_t;

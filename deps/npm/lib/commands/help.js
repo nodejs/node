@@ -5,25 +5,29 @@ const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
+const globify = pattern => pattern.split('\\').join('/')
 const BaseCommand = require('../base-command.js')
 
 // Strips out the number from foo.7 or foo.7. or foo.7.tgz
 // We don't currently compress our man pages but if we ever did this would
 // seemlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
+// Searches for the "npm-" prefix in page names, to prefer those.
+const manNpmPrefixRegex = /\/npm-/
 
 class Help extends BaseCommand {
   static description = 'Get help on npm'
   static name = 'help'
   static usage = ['<term> [<terms..>]']
   static params = ['viewer']
+  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     if (opts.conf.argv.remain.length > 2) {
       return []
     }
     const g = path.resolve(__dirname, '../../man/man[0-9]/*.[0-9]')
-    const files = await glob(g)
+    const files = await glob(globify(g))
 
     return Object.keys(files.reduce(function (acc, file) {
       file = path.basename(file).replace(/\.[0-9]+$/, '')
@@ -58,15 +62,29 @@ class Help extends BaseCommand {
     const manroot = path.resolve(__dirname, '..', '..', 'man')
     // find either section.n or npm-section.n
     const f = `${manroot}/${manSearch}/?(npm-)${section}.[0-9]*`
-    let mans = await glob(f)
+    let mans = await glob(globify(f))
     mans = mans.sort((a, b) => {
-      // Because of the glob we know the manNumberRegex will pass
-      const aManNumber = a.match(manNumberRegex)[1]
-      const bManNumber = b.match(manNumberRegex)[1]
+      // Prefer the page with an npm prefix, if there's only one.
+      const aHasPrefix = manNpmPrefixRegex.test(a)
+      const bHasPrefix = manNpmPrefixRegex.test(b)
+      if (aHasPrefix !== bHasPrefix) {
+        return aHasPrefix ? -1 : 1
+      }
 
-      // man number sort first so that 1 aka commands are preferred
-      if (aManNumber !== bManNumber) {
-        return aManNumber - bManNumber
+      // Because the glob is (subtly) different from manNumberRegex,
+      // we can't rely on it passing.
+      const aManNumberMatch = a.match(manNumberRegex)
+      const bManNumberMatch = b.match(manNumberRegex)
+      if (aManNumberMatch) {
+        if (!bManNumberMatch) {
+          return -1
+        }
+        // man number sort first so that 1 aka commands are preferred
+        if (aManNumberMatch[1] !== bManNumberMatch[1]) {
+          return aManNumberMatch[1] - bManNumberMatch[1]
+        }
+      } else if (bManNumberMatch) {
+        return 1
       }
 
       return localeCompare(a, b)

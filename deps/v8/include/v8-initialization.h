@@ -8,10 +8,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8-isolate.h"   // NOLINT(build/include_directory)
-#include "v8-platform.h"  // NOLINT(build/include_directory)
-#include "v8config.h"     // NOLINT(build/include_directory)
+#include "v8-callbacks.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"   // NOLINT(build/include_directory)
+#include "v8-isolate.h"    // NOLINT(build/include_directory)
+#include "v8-platform.h"   // NOLINT(build/include_directory)
+#include "v8config.h"      // NOLINT(build/include_directory)
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
@@ -99,8 +100,10 @@ class V8_EXPORT V8 {
     const int kBuildConfiguration =
         (internal::PointerCompressionIsEnabled() ? kPointerCompression : 0) |
         (internal::SmiValuesAre31Bits() ? k31BitSmis : 0) |
-        (internal::HeapSandboxIsEnabled() ? kHeapSandbox : 0) |
-        (internal::VirtualMemoryCageIsEnabled() ? kVirtualMemoryCage : 0);
+        (internal::SandboxedExternalPointersAreEnabled()
+             ? kSandboxedExternalPointers
+             : 0) |
+        (internal::SandboxIsEnabled() ? kSandbox : 0);
     return Initialize(kBuildConfiguration);
   }
 
@@ -181,64 +184,74 @@ class V8_EXPORT V8 {
    * V8 was disposed.
    */
   static void DisposePlatform();
-  V8_DEPRECATE_SOON("Use DisposePlatform()")
+  V8_DEPRECATED("Use DisposePlatform()")
   static void ShutdownPlatform() { DisposePlatform(); }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_SANDBOX
   //
-  // Virtual Memory Cage related API.
+  // Sandbox related API.
   //
   // This API is not yet stable and subject to changes in the future.
   //
 
   /**
-   * Initializes the virtual memory cage for V8.
+   * Initializes the V8 sandbox.
    *
    * This must be invoked after the platform was initialized but before V8 is
-   * initialized. The virtual memory cage is torn down during platform shutdown.
+   * initialized. The sandbox is torn down during platform shutdown.
    * Returns true on success, false otherwise.
    *
-   * TODO(saelo) Once it is no longer optional to create the virtual memory
-   * cage when compiling with V8_VIRTUAL_MEMORY_CAGE, the cage initialization
-   * will likely happen as part of V8::Initialize, at which point this function
-   * should be removed.
+   * TODO(saelo) Once it is no longer optional to initialize the sandbox when
+   * compiling with V8_SANDBOX, the sandbox initialization will likely happen
+   * as part of V8::Initialize, at which point this function should be removed.
    */
-  static bool InitializeVirtualMemoryCage();
+  static bool InitializeSandbox();
+  V8_DEPRECATE_SOON("Use InitializeSandbox()")
+  static bool InitializeVirtualMemoryCage() { return InitializeSandbox(); }
 
   /**
-   * Provides access to the virtual memory cage page allocator.
+   * Provides access to the virtual address subspace backing the sandbox.
    *
-   * This allocator allocates pages inside the virtual memory cage. It can for
-   * example be used to obtain virtual memory for ArrayBuffer backing stores,
-   * which must be located inside the cage.
+   * This can be used to allocate pages inside the sandbox, for example to
+   * obtain virtual memory for ArrayBuffer backing stores, which must be
+   * located inside the sandbox.
    *
-   * It should be assumed that an attacker can corrupt data inside the cage,
-   * and so in particular the contents of pages returned by this allocator,
-   * arbitrarily and concurrently. Due to this, it is recommended to to only
-   * place pure data buffers in pages obtained through this allocator.
+   * It should be assumed that an attacker can corrupt data inside the sandbox,
+   * and so in particular the contents of pages allocagted in this virtual
+   * address space, arbitrarily and concurrently. Due to this, it is
+   * recommended to to only place pure data buffers in them.
    *
-   * This function must only be called after initializing the virtual memory
-   * cage and V8.
+   * This function must only be called after initializing the sandbox.
    */
+  static VirtualAddressSpace* GetSandboxAddressSpace();
+  V8_DEPRECATE_SOON("Use GetSandboxAddressSpace()")
   static PageAllocator* GetVirtualMemoryCagePageAllocator();
 
   /**
-   * Returns the size of the virtual memory cage in bytes.
+   * Returns the size of the sandbox in bytes.
    *
-   * If the cage has not been initialized, or if the initialization failed,
+   * If the sandbox has not been initialized, or if the initialization failed,
    * this returns zero.
    */
-  static size_t GetVirtualMemoryCageSizeInBytes();
+  static size_t GetSandboxSizeInBytes();
+  V8_DEPRECATE_SOON("Use GetSandboxSizeInBytes()")
+  static size_t GetVirtualMemoryCageSizeInBytes() {
+    return GetSandboxSizeInBytes();
+  }
 
   /**
-   * Returns whether the virtual memory cage is configured securely.
+   * Returns whether the sandbox is configured securely.
    *
-   * If V8 cannot create a proper virtual memory cage, it will fall back to
-   * creating a cage that doesn't have the desired security properties but at
-   * least still allows V8 to function. This API can be used to determine if
-   * such an insecure cage is being used, in which case it will return false.
+   * If V8 cannot create a proper sandbox, it will fall back to creating a
+   * sandbox that doesn't have the desired security properties but at least
+   * still allows V8 to function. This API can be used to determine if such an
+   * insecure sandbox is being used, in which case it will return false.
    */
-  static bool IsUsingSecureVirtualMemoryCage();
+  static bool IsSandboxConfiguredSecurely();
+  V8_DEPRECATE_SOON("Use IsSandboxConfiguredSecurely()")
+  static bool IsUsingSecureVirtualMemoryCage() {
+    return IsSandboxConfiguredSecurely();
+  }
 #endif
 
   /**
@@ -264,6 +277,14 @@ class V8_EXPORT V8 {
 #endif
 
   /**
+   * Allows the host application to provide a callback that will be called when
+   * v8 has encountered a fatal failure to allocate memory and is about to
+   * terminate.
+   */
+
+  static void SetFatalMemoryErrorCallback(OOMErrorCallback oom_error_callback);
+
+  /**
    * Get statistics about the shared memory usage.
    */
   static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
@@ -274,8 +295,8 @@ class V8_EXPORT V8 {
   enum BuildConfigurationFeatures {
     kPointerCompression = 1 << 0,
     k31BitSmis = 1 << 1,
-    kHeapSandbox = 1 << 2,
-    kVirtualMemoryCage = 1 << 3,
+    kSandboxedExternalPointers = 1 << 2,
+    kSandbox = 1 << 3,
   };
 
   /**

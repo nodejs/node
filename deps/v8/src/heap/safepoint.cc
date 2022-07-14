@@ -14,6 +14,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -33,14 +34,13 @@ void IsolateSafepoint::EnterLocalSafepointScope() {
   DCHECK_NULL(LocalHeap::Current());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
-  LockMutex(heap_->isolate()->main_thread_local_heap());
+  LockMutex(isolate()->main_thread_local_heap());
   if (++active_safepoint_scopes_ > 1) return;
 
   // Local safepoint can only be initiated on the isolate's main thread.
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
 
-  TimedHistogramScope timer(
-      heap_->isolate()->counters()->gc_time_to_safepoint());
+  TimedHistogramScope timer(isolate()->counters()->gc_time_to_safepoint());
   TRACE_GC(heap_->tracer(), GCTracer::Scope::TIME_TO_SAFEPOINT);
 
   barrier_.Arm();
@@ -72,6 +72,7 @@ class PerClientSafepointData final {
 
 void IsolateSafepoint::InitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
+  shared_isolate()->global_safepoint()->AssertActive();
   IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
   LockMutex(initiator->main_thread_local_heap());
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
@@ -79,9 +80,27 @@ void IsolateSafepoint::InitiateGlobalSafepointScope(
 
 void IsolateSafepoint::TryInitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
+  shared_isolate()->global_safepoint()->AssertActive();
   if (!local_heaps_mutex_.TryLock()) return;
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
 }
+
+class GlobalSafepointInterruptTask : public CancelableTask {
+ public:
+  explicit GlobalSafepointInterruptTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
+
+  ~GlobalSafepointInterruptTask() override = default;
+  GlobalSafepointInterruptTask(const GlobalSafepointInterruptTask&) = delete;
+  GlobalSafepointInterruptTask& operator=(const GlobalSafepointInterruptTask&) =
+      delete;
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override { heap_->main_thread_local_heap()->Safepoint(); }
+
+  Heap* heap_;
+};
 
 void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
     Isolate* initiator, PerClientSafepointData* client_data) {
@@ -89,13 +108,21 @@ void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
   barrier_.Arm();
 
   size_t running =
-      SetSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
+      SetSafepointRequestedFlags(ShouldIncludeMainThread(initiator));
   client_data->set_locked_and_running(running);
+
+  if (isolate() != initiator) {
+    // An isolate might be waiting in the event loop. Post a task in order to
+    // wake it up.
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
+        ->PostTask(std::make_unique<GlobalSafepointInterruptTask>(heap_));
+  }
 }
 
-IsolateSafepoint::IncludeMainThread
-IsolateSafepoint::IncludeMainThreadUnlessInitiator(Isolate* initiator) {
-  const bool is_initiator = heap_->isolate() == initiator;
+IsolateSafepoint::IncludeMainThread IsolateSafepoint::ShouldIncludeMainThread(
+    Isolate* initiator) {
+  const bool is_initiator = isolate() == initiator;
   return is_initiator ? IncludeMainThread::kNo : IncludeMainThread::kYes;
 }
 
@@ -135,7 +162,7 @@ void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
 void IsolateSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
   local_heaps_mutex_.AssertHeld();
   CHECK_EQ(--active_safepoint_scopes_, 0);
-  ClearSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
+  ClearSafepointRequestedFlags(ShouldIncludeMainThread(initiator));
   barrier_.Disarm();
   local_heaps_mutex_.Unlock();
 }
@@ -233,23 +260,6 @@ void IsolateSafepoint::Barrier::WaitInUnpark() {
   }
 }
 
-bool IsolateSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
-  base::RecursiveMutexGuard guard(&local_heaps_mutex_);
-  LocalHeap* current = local_heaps_head_;
-
-  while (current) {
-    if (current == local_heap) return true;
-    current = current->next_;
-  }
-
-  return false;
-}
-
-bool IsolateSafepoint::ContainsAnyLocalHeap() {
-  base::RecursiveMutexGuard guard(&local_heaps_mutex_);
-  return local_heaps_head_ != nullptr;
-}
-
 void IsolateSafepoint::Iterate(RootVisitor* visitor) {
   AssertActive();
   for (LocalHeap* current = local_heaps_head_; current;
@@ -261,6 +271,12 @@ void IsolateSafepoint::Iterate(RootVisitor* visitor) {
 void IsolateSafepoint::AssertMainThreadIsOnlyThread() {
   DCHECK_EQ(local_heaps_head_, heap_->main_thread_local_heap());
   DCHECK_NULL(heap_->main_thread_local_heap()->next_);
+}
+
+Isolate* IsolateSafepoint::isolate() const { return heap_->isolate(); }
+
+Isolate* IsolateSafepoint::shared_isolate() const {
+  return isolate()->shared_isolate();
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
@@ -343,6 +359,12 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
         initiator, &clients.back());
   });
 
+  // Make it possible to use AssertActive() on shared isolates.
+  CHECK(shared_isolate_->heap()->safepoint()->local_heaps_mutex_.TryLock());
+
+  // Shared isolates should never have multiple threads.
+  shared_isolate_->heap()->safepoint()->AssertMainThreadIsOnlyThread();
+
   // Iterate all clients again to initiate the safepoint for all of them - even
   // if that means blocking.
   for (PerClientSafepointData& client : clients) {
@@ -366,6 +388,8 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 }
 
 void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
+  shared_isolate_->heap()->safepoint()->local_heaps_mutex_.Unlock();
+
   IterateClientIsolates([initiator](Isolate* client) {
     Heap* client_heap = client->heap();
     client_heap->safepoint()->LeaveGlobalSafepointScope(initiator);

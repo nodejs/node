@@ -3,9 +3,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import argparse
 import os
 import sys
@@ -80,7 +77,7 @@ class DetectRevisionToRoll(Step):
       version = self.GetVersionTag(revision)
       assert version, "Internal error. All recent releases should have a tag"
 
-      if SortingKey(self["last_version"]) < SortingKey(version):
+      if LooseVersion(self["last_version"]) < LooseVersion(version):
         self["roll"] = revision
         break
     else:

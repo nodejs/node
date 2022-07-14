@@ -229,8 +229,9 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
                               int reg_size, int reg_count, RegList allowed);
 
 // As PopulateRegisterArray, but for floating-point registers.
-RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
-                               int reg_size, int reg_count, RegList allowed);
+DoubleRegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
+                                     int reg_size, int reg_count,
+                                     DoubleRegList allowed);
 
 // Ovewrite the contents of the specified registers. This enables tests to
 // check that register contents are written in cases where it's likely that the
@@ -244,7 +245,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list,
              uint64_t const value = 0xFEDCBA9876543210UL);
 
 // As Clobber, but for FP registers.
-void ClobberFP(MacroAssembler* masm, RegList reg_list,
+void ClobberFP(MacroAssembler* masm, DoubleRegList reg_list,
                double const value = kFP64SignallingNaN);
 
 // As Clobber, but for a CPURegList with either FP or integer registers. When

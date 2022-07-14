@@ -35,9 +35,9 @@ struct RawPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
 
-// A RawPtrT that is guaranteed to point into the virtual memory cage.
-struct CagedPtrT : WordT {
-  static constexpr MachineType kMachineType = MachineType::CagedPointer();
+// A RawPtrT that is guaranteed to point into the sandbox.
+struct SandboxedPtrT : WordT {
+  static constexpr MachineType kMachineType = MachineType::SandboxedPointer();
 };
 
 template <class To>
@@ -84,11 +84,16 @@ struct UintPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::UintPtr();
 };
 
+// An index into the external pointer table.
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+struct ExternalPointerT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+#else
 struct ExternalPointerT : UntaggedT {
-  static const MachineRepresentation kMachineRepresentation =
-      MachineType::PointerRepresentation();
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
+#endif
 
 struct Float32T : UntaggedT {
   static const MachineRepresentation kMachineRepresentation =
@@ -180,7 +185,7 @@ struct MachineRepresentationOf {
 // If T defines kMachineType, then we take the machine representation from
 // there.
 template <class T>
-struct MachineRepresentationOf<T, base::void_t<decltype(T::kMachineType)>> {
+struct MachineRepresentationOf<T, std::void_t<decltype(T::kMachineType)>> {
   static const MachineRepresentation value = T::kMachineType.representation();
 };
 template <class T>

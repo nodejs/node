@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-type OptimizationMarker extends uint16 constexpr 'OptimizationMarker';
-type OptimizationTier extends uint16 constexpr 'OptimizationTier';
+type TieringState extends uint16 constexpr 'TieringState';
 
 bitfield struct FeedbackVectorFlags extends uint32 {
-  optimization_marker: OptimizationMarker: 3 bit;
-  optimization_tier: OptimizationTier: 2 bit;
-  global_ticks_at_last_runtime_profiler_interrupt: uint32: 24 bit;
+  tiering_state: TieringState: 3 bit;
+  // Whether the maybe_optimized_code field contains a code object. 'maybe',
+  // because they flag may lag behind the actual state of the world (it will be
+  // updated in time).
+  maybe_has_optimized_code: bool: 1 bit;
+  // Just one bit, since only {kNone,kInProgress} are relevant for OSR.
+  osr_tiering_state: TieringState: 1 bit;
+  all_your_bits_are_belong_to_jgruber: uint32: 27 bit;
 }
 
 @generateBodyDescriptor

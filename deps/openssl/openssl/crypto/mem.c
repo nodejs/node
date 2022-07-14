@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,11 +26,17 @@ static CRYPTO_free_fn free_impl = CRYPTO_free;
 #if !defined(OPENSSL_NO_CRYPTO_MDEBUG) && !defined(FIPS_MODULE)
 # include "internal/tsan_assist.h"
 
+# ifdef TSAN_REQUIRES_LOCKING
+#  define INCREMENT(x) /* empty */
+#  define LOAD(x) 0
+# else  /* TSAN_REQUIRES_LOCKING */
 static TSAN_QUALIFIER int malloc_count;
 static TSAN_QUALIFIER int realloc_count;
 static TSAN_QUALIFIER int free_count;
 
-# define INCREMENT(x) tsan_counter(&(x))
+#  define INCREMENT(x) tsan_counter(&(x))
+#  define LOAD(x)      tsan_load(&x)
+# endif /* TSAN_REQUIRES_LOCKING */
 
 static char *md_failstring;
 static long md_count;
@@ -79,11 +85,11 @@ void CRYPTO_get_mem_functions(CRYPTO_malloc_fn *malloc_fn,
 void CRYPTO_get_alloc_counts(int *mcount, int *rcount, int *fcount)
 {
     if (mcount != NULL)
-        *mcount = tsan_load(&malloc_count);
+        *mcount = LOAD(malloc_count);
     if (rcount != NULL)
-        *rcount = tsan_load(&realloc_count);
+        *rcount = LOAD(realloc_count);
     if (fcount != NULL)
-        *fcount = tsan_load(&free_count);
+        *fcount = LOAD(free_count);
 }
 
 /*

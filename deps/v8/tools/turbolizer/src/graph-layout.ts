@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 import { MAX_RANK_SENTINEL } from "../src/constants";
-import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge";
-import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node";
+import { Edge } from "../src/edge";
+import { GNode, MINIMUM_EDGE_SEPARATION, NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
 import { Graph } from "./graph";
 
-const DEFAULT_NODE_ROW_SEPARATION = 130;
+const DEFAULT_NODE_ROW_SEPARATION = 150;
 const traceLayout = false;
 
 function newGraphOccupation(graph: Graph) {

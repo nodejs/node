@@ -195,8 +195,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
-                                             : RememberedSetAction::kOmit;
+        mode_ > RecordWriteMode::kValueIsMap ||
+                FLAG_use_full_record_write_builtin
+            ? RememberedSetAction::kEmit
+            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -514,7 +516,7 @@ void CodeGenerator::AssembleDeconstructFrame() {
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    __ ldm(ia, fp, lr.bit() | fp.bit());
+    __ ldm(ia, fp, {lr, fp});
   }
   frame_access_state()->SetFrameAccessToSP();
 }
@@ -940,6 +942,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
@@ -3548,8 +3557,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   AssembleArchBranch(instr, branch);
 }
 
-void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
+void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
+    RpoNumber target) {
+  __ b(GetLabel(target));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3656,24 +3666,24 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {
     frame->AlignSavedCalleeRegisterSlots();
   }
 
-  if (saves_fp != 0) {
+  if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
-    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
-    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-    DCHECK_EQ((last - first + 1), base::bits::CountPopulation(saves_fp));
+    uint32_t last = base::bits::CountLeadingZeros32(saves_fp.bits()) - 1;
+    uint32_t first = base::bits::CountTrailingZeros32(saves_fp.bits());
+    DCHECK_EQ((last - first + 1), saves_fp.Count());
     frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
                                             (kDoubleSize / kSystemPointerSize));
   }
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     // Save callee-saved registers.
-    frame->AllocateSavedCalleeRegisterSlots(base::bits::CountPopulation(saves));
+    frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
 }
 
@@ -3731,7 +3741,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
@@ -3770,25 +3780,21 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are pushed below.
-    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= saves.Count();
     required_slots -= frame()->GetReturnSlotCount();
-    required_slots -= 2 * base::bits::CountPopulation(saves_fp);
+    required_slots -= 2 * saves_fp.Count();
     if (required_slots > 0) {
       __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
-  if (saves_fp != 0) {
+  if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
-    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
-    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-    DCHECK_EQ((last - first + 1), base::bits::CountPopulation(saves_fp));
-    __ vstm(db_w, sp, DwVfpRegister::from_code(first),
-            DwVfpRegister::from_code(last));
+    __ vstm(db_w, sp, saves_fp.first(), saves_fp.last());
   }
 
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);
   }
@@ -3809,18 +3815,15 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ ldm(ia_w, sp, saves);
   }
 
   // Restore FP registers.
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
-    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
-    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-    __ vldm(ia_w, sp, DwVfpRegister::from_code(first),
-            DwVfpRegister::from_code(last));
+    __ vldm(ia_w, sp, saves_fp.first(), saves_fp.last());
   }
 
   unwinding_info_writer_.MarkBlockWillExit();
@@ -3865,7 +3868,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     if (drop_jsargs) {
       // Get the actual argument count.
       __ ldr(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     }
     AssembleDeconstructFrame();
   }
@@ -3875,22 +3878,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // The number of arguments without the receiver is
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
-      if (kJSArgcIncludesReceiver) {
-        __ cmp(argc_reg, Operand(parameter_slots));
-        __ mov(argc_reg, Operand(parameter_slots), LeaveCC, lt);
-      } else {
-        const int parameter_slots_without_receiver = parameter_slots - 1;
-        __ cmp(argc_reg, Operand(parameter_slots_without_receiver));
-        __ mov(argc_reg, Operand(parameter_slots_without_receiver), LeaveCC,
-               lt);
-      }
+      __ cmp(argc_reg, Operand(parameter_slots));
+      __ mov(argc_reg, Operand(parameter_slots), LeaveCC, lt);
     }
     __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
-                     kJSArgcIncludesReceiver
-                         ? TurboAssembler::kCountIncludesReceiver
-                         : TurboAssembler::kCountExcludesReceiver);
+                     TurboAssembler::kCountIncludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     DCHECK_EQ(Constant::kInt32, g.ToConstant(additional_pop_count).type());
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();

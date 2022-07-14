@@ -118,8 +118,7 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   MutexGuard guard(&mutex_);
 
   Address address = reinterpret_cast<Address>(raw_address);
-  size_t freed_size = region_allocator_.FreeRegion(address);
-  if (freed_size != size) return false;
+  CHECK_EQ(size, region_allocator_.FreeRegion(address));
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     // When we are required to return zero-initialized pages, we decommit the
@@ -167,15 +166,15 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     // See comment in FreePages().
-    return page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
-                                          free_size);
+    CHECK(page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
+                                         free_size));
   } else {
     DCHECK_EQ(page_initialization_mode_,
               PageInitializationMode::kAllocatedPagesCanBeUninitialized);
-    return page_allocator_->SetPermissions(
-        reinterpret_cast<void*>(free_address), free_size,
-        PageAllocator::kNoAccess);
+    CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(free_address),
+                                          free_size, PageAllocator::kNoAccess));
   }
+  return true;
 }
 
 bool BoundedPageAllocator::SetPermissions(void* address, size_t size,

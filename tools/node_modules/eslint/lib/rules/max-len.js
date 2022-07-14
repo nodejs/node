@@ -69,7 +69,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce a maximum line length",
+            description: "Enforce a maximum line length",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-len"
         },

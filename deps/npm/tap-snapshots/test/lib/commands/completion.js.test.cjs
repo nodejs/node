@@ -44,72 +44,84 @@ exports[`test/lib/commands/completion.js TAP completion double dashes escape fro
 Array [
   Array [
     String(
-      ci
-      install-ci-test
-      install
-      install-test
-      uninstall
-      cache
-      config
-      set
-      get
-      update
-      outdated
-      prune
-      pack
-      find-dupes
-      dedupe
-      hook
-      rebuild
-      link
-      publish
-      star
-      stars
-      unstar
-      adduser
-      login
-      logout
-      unpublish
-      owner
       access
-      team
-      deprecate
-      shrinkwrap
-      token
-      profile
+      adduser
       audit
-      fund
-      org
-      help
-      ls
-      ll
-      search
-      view
-      init
-      version
-      edit
-      explore
-      docs
-      repo
-      bugs
-      root
-      prefix
       bin
-      whoami
+      bugs
+      cache
+      ci
+      completion
+      config
+      dedupe
+      deprecate
       diff
       dist-tag
-      ping
-      pkg
-      test
-      stop
-      start
-      restart
-      run-script
-      set-script
-      completion
+      docs
       doctor
+      edit
       exec
       explain
+      explore
+      find-dupes
+      fund
+      get
+      help
+      hook
+      init
+      install
+      install-ci-test
+      install-test
+      link
+      ll
+      login
+      logout
+      ls
+      org
+      outdated
+      owner
+      pack
+      ping
+      pkg
+      prefix
+      profile
+      prune
+      publish
+      rebuild
+      repo
+      restart
+      root
+      run-script
+      search
+      set
+      set-script
+      shrinkwrap
+      star
+      stars
+      start
+      stop
+      team
+      test
+      token
+      uninstall
+      unpublish
+      unstar
+      update
+      version
+      view
+      whoami
+      login
+      author
+      home
+      issues
+      info
+      show
+      find
+      add
+      unlink
+      remove
+      rm
+      r
       un
       rb
       list
@@ -143,29 +155,18 @@ Array [
       isnt
       isnta
       isntal
+      isntall
       install-clean
       isntall-clean
       hlep
       dist-tags
       upgrade
       udpate
-      login
-      add-user
-      author
-      home
-      issues
-      info
-      show
-      find
-      add
-      unlink
-      remove
-      rm
-      r
       rum
       sit
       urn
       ogr
+      add-user
     ),
   ],
 ]
@@ -197,12 +198,12 @@ exports[`test/lib/commands/completion.js TAP completion multiple command names >
 Array [
   Array [
     String(
-      adduser
       access
+      adduser
       audit
-      add-user
       author
       add
+      add-user
     ),
   ],
 ]

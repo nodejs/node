@@ -142,15 +142,18 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm audit [--json] [--production] [--audit-level=(low|moderate|high|critical)]
-npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]
-
-common options: [--production] [--only=(dev|prod)]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm audit [fix]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
@@ -316,6 +319,7 @@ range (including SemVer-major changes).</li>
 <li>Allow conflicting peerDependencies to be installed in the root project.</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
+<li>Allow unpublishing of entire packages (not just a single version).</li>
 </ul>
 <p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
@@ -361,6 +365,30 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.</p>
+<p>Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
@@ -411,6 +439,17 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="install-links"><code>install-links</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

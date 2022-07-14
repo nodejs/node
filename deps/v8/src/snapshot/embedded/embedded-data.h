@@ -127,14 +127,30 @@ class EmbeddedData final {
     data_ = nullptr;
   }
 
-  Address InstructionStartOfBuiltin(Builtin builtin) const;
-  uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
+  // TODO(ishell): rename XyzOfBuiltin() to XyzOf().
+  inline Address InstructionStartOfBuiltin(Builtin builtin) const;
+  inline uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
 
-  Address InstructionStartOfBytecodeHandlers() const;
-  Address InstructionEndOfBytecodeHandlers() const;
+  inline Address InstructionStartOfBytecodeHandlers() const;
+  inline Address InstructionEndOfBytecodeHandlers() const;
 
-  Address MetadataStartOfBuiltin(Builtin builtin) const;
-  uint32_t MetadataSizeOfBuiltin(Builtin builtin) const;
+  inline Address MetadataStartOfBuiltin(Builtin builtin) const;
+  inline uint32_t MetadataSizeOfBuiltin(Builtin builtin) const;
+
+  inline Address SafepointTableStartOf(Builtin builtin) const;
+  inline uint32_t SafepointTableSizeOf(Builtin builtin) const;
+
+  inline Address HandlerTableStartOf(Builtin builtin) const;
+  inline uint32_t HandlerTableSizeOf(Builtin builtin) const;
+
+  inline Address ConstantPoolStartOf(Builtin builtin) const;
+  inline uint32_t ConstantPoolSizeOf(Builtin builtin) const;
+
+  inline Address CodeCommentsStartOf(Builtin builtin) const;
+  inline uint32_t CodeCommentsSizeOf(Builtin builtin) const;
+
+  inline Address UnwindingInfoStartOf(Builtin builtin) const;
+  inline uint32_t UnwindingInfoSizeOf(Builtin builtin) const;
 
   uint32_t AddressForHashing(Address addr) {
     DCHECK(IsInCodeRange(addr));
@@ -144,11 +160,7 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   // TODO(v8:11045): Consider removing code alignment.
-  uint32_t PaddedInstructionSizeOfBuiltin(Builtin builtin) const {
-    uint32_t size = InstructionSizeOfBuiltin(builtin);
-    CHECK_NE(size, 0);
-    return PadAndAlignCode(size);
-  }
+  inline uint32_t PaddedInstructionSizeOfBuiltin(Builtin builtin) const;
 
   size_t CreateEmbeddedBlobDataHash() const;
   size_t CreateEmbeddedBlobCodeHash() const;
@@ -173,9 +185,18 @@ class EmbeddedData final {
     uint32_t instruction_offset;
     uint32_t instruction_length;
     // The offset and (unpadded) length of this builtin's metadata area
-    // from the start of the embedded code section.
+    // from the start of the embedded data section.
     uint32_t metadata_offset;
     uint32_t metadata_length;
+
+    // The offsets describing inline metadata tables, relative to the start
+    // of the embedded data section.
+    uint32_t handler_table_offset;
+#if V8_EMBEDDED_CONSTANT_POOL
+    uint32_t constant_pool_offset;
+#endif
+    uint32_t code_comments_offset_offset;
+    uint32_t unwinding_info_offset_offset;
   };
   STATIC_ASSERT(offsetof(LayoutDescription, instruction_offset) ==
                 0 * kUInt32Size);
@@ -185,7 +206,23 @@ class EmbeddedData final {
                 2 * kUInt32Size);
   STATIC_ASSERT(offsetof(LayoutDescription, metadata_length) ==
                 3 * kUInt32Size);
-  STATIC_ASSERT(sizeof(LayoutDescription) == 4 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, handler_table_offset) ==
+                4 * kUInt32Size);
+#if V8_EMBEDDED_CONSTANT_POOL
+  STATIC_ASSERT(offsetof(LayoutDescription, constant_pool_offset) ==
+                5 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, code_comments_offset_offset) ==
+                6 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
+                7 * kUInt32Size);
+  STATIC_ASSERT(sizeof(LayoutDescription) == 8 * kUInt32Size);
+#else
+  STATIC_ASSERT(offsetof(LayoutDescription, code_comments_offset_offset) ==
+                5 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
+                6 * kUInt32Size);
+  STATIC_ASSERT(sizeof(LayoutDescription) == 7 * kUInt32Size);
+#endif
 
   // The layout of the blob is as follows:
   //
@@ -240,9 +277,11 @@ class EmbeddedData final {
 
   const uint8_t* RawCode() const { return code_ + RawCodeOffset(); }
 
-  const LayoutDescription* LayoutDescription() const {
-    return reinterpret_cast<const struct LayoutDescription*>(
-        data_ + LayoutDescriptionTableOffset());
+  const LayoutDescription& LayoutDescription(Builtin builtin) const {
+    const struct LayoutDescription* descs =
+        reinterpret_cast<const struct LayoutDescription*>(
+            data_ + LayoutDescriptionTableOffset());
+    return descs[static_cast<int>(builtin)];
   }
   const uint8_t* RawMetadata() const { return data_ + RawMetadataOffset(); }
 

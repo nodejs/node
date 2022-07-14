@@ -38,7 +38,7 @@
   assertTrue(sum_js_got_interpreted);
 
   // The protector should be invalidated, which prevents inlining.
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals('AxB', foo('A', 'B'));
   assertTrue(sum_js_got_interpreted);
   assertOptimized(foo);

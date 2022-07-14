@@ -107,7 +107,7 @@ declare function InternalBinding(binding: 'async_wrap'): {
     promiseAfterHook: InternalAsyncWrapBinding.PromiseHook | undefined,
     promiseResolveHook: InternalAsyncWrapBinding.PromiseHook | undefined
   ): void;
-  registerDestroyHook(promise: Promise<unknown>, asyncId: number, destroyed: { destroyed: boolean }): void;
+  registerDestroyHook(resource: object, asyncId: number, destroyed?: { destroyed: boolean }): void;
   async_hook_fields: Uint32Array;
   async_id_fields: Float64Array;
   async_ids_stack: Float64Array;

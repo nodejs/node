@@ -103,6 +103,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "no-confusing-arrow": () => require("./no-confusing-arrow"),
     "no-console": () => require("./no-console"),
     "no-const-assign": () => require("./no-const-assign"),
+    "no-constant-binary-expression": () => require("./no-constant-binary-expression"),
     "no-constant-condition": () => require("./no-constant-condition"),
     "no-constructor-return": () => require("./no-constructor-return"),
     "no-continue": () => require("./no-continue"),

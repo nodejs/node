@@ -10,7 +10,7 @@ For the active staging branches see the [Release Schedule][].
 
 ## What needs to be backported?
 
-If a cherry-pick from master does not land cleanly on a staging branch, the
+If a cherry-pick from `main` does not land cleanly on a staging branch, the
 releaser will mark the pull request with a particular label for that release
 line (e.g. `backport-requested-vN.x`), specifying to our tooling that this
 pull request should not be included. The releaser will then add a comment
@@ -54,7 +54,7 @@ replace that with the staging branch for the targeted release line.
    ```bash
    # Assuming your fork of Node.js is checked out in $NODE_DIR,
    # the origin remote points to your fork, and the upstream remote points
-   # to git://github.com/nodejs/node
+   # to git@github.com:nodejs/node.git
    cd $NODE_DIR
    # If v10.x-staging is checked out `pull` should be used instead of `fetch`
    git fetch upstream v10.x-staging:v10.x-staging -f
@@ -105,11 +105,14 @@ replace that with the staging branch for the targeted release line.
    6. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
 
-10. If during the review process conflicts arise, use the following to rebase:
+10. Replace the `backport-requested-v10.x` label on the original pull request
+    with `backport-open-v10.x`.
+
+11. If during the review process conflicts arise, use the following to rebase:
     `git pull --rebase upstream v10.x-staging`
 
-After the pull request lands, replace the `backport-requested-v10.x` label
-on the original pull request with `backported-to-v10.x`.
+After the pull request lands, replace the `backport-open-v10.x` label on the
+original pull request with `backported-to-v10.x`.
 
 [Release Plan]: https://github.com/nodejs/Release#release-plan
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule

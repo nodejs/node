@@ -7,7 +7,7 @@ const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
 const querystring = require('querystring')
-const isWindows = require('../is-windows.js')
+const { isWindows } = require('../is-windows.js')
 const { join } = require('path')
 
 // used by cafile flattening to flatOptions.ca
@@ -147,6 +147,8 @@ define('_auth', {
   type: [null, String],
   description: `
     A basic-auth string to use when authenticating against the npm registry.
+    This will ONLY be used to authenticate against the npm registry.  For other
+    registries you will need to scope it like "//other-registry.tld/:_auth"
 
     Warning: This should generally not be set via a command-line option.  It
     is safer to use a registry-provided authentication bearer token stored in
@@ -236,13 +238,15 @@ define('audit-level', {
 
 define('auth-type', {
   default: 'legacy',
-  type: ['legacy', 'sso', 'saml', 'oauth'],
+  type: ['legacy', 'webauthn', 'sso', 'saml', 'oauth'],
   deprecated: `
-    This method of SSO/SAML/OAuth is deprecated and will be removed in
+    The SSO/SAML/OAuth methods are deprecated and will be removed in
     a future version of npm in favor of web-based login.
   `,
   description: `
     What authentication strategy to use with \`adduser\`/\`login\`.
+
+    Pass \`webauthn\` to use a web-based login.
   `,
   flatten,
 })
@@ -531,7 +535,7 @@ define('dev', {
 
 define('diff', {
   default: [],
-  hint: '<pkg-name|spec|version>',
+  hint: '<package-spec>',
   type: [String, Array],
   description: `
     Define arguments to compare in \`npm diff\`.
@@ -740,6 +744,7 @@ define('force', {
     * Allow conflicting peerDependencies to be installed in the root project.
     * Implicitly set \`--yes\` during \`npm init\`.
     * Allow clobbering existing values in \`npm pkg\`
+    * Allow unpublishing of entire packages (not just a single version).
 
     If you don't have a clear idea of what you want to do, it is strongly
     recommended that you do not use this option!
@@ -798,7 +803,8 @@ define('git-tag-version', {
   default: true,
   type: Boolean,
   description: `
-    Tag the commit when using the \`npm version\` command.
+    Tag the commit when using the \`npm version\` command.  Setting this to
+    false results in no commit being made at all.
   `,
   flatten,
 })
@@ -878,6 +884,7 @@ define('https-proxy', {
 define('if-present', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     If true, npm will not exit with an error code when \`run-script\` is
     invoked for a script that isn't defined in the \`scripts\` section of
@@ -936,6 +943,7 @@ define('include-staged', {
 define('include-workspace-root', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     Include the workspace root when workspaces are enabled for a command.
 
@@ -1066,6 +1074,17 @@ define('init.version', {
   `,
 })
 
+define('install-links', {
+  default: false,
+  type: Boolean,
+  description: `
+    When set file: protocol dependencies that exist outside of the project root
+    will be packed and installed as regular dependencies instead of creating a
+    symlink. This option has no effect on workspaces.
+  `,
+  flatten,
+})
+
 define('json', {
   default: false,
   type: Boolean,
@@ -1162,11 +1181,23 @@ define('location', {
   `,
   description: `
     When passed to \`npm config\` this refers to which config file to use.
+
+    When set to "global" mode, packages are installed into the \`prefix\` folder
+    instead of the current working directory. See
+    [folders](/configuring-npm/folders) for more on the differences in behavior.
+
+    * packages are installed into the \`{prefix}/lib/node_modules\` folder,
+      instead of the current working directory.
+    * bin files are linked to \`{prefix}/bin\`
+    * man pages are linked to \`{prefix}/share/man\`
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
     if (flatOptions.global) {
       flatOptions.location = 'global'
+    }
+    if (obj.location === 'global') {
+      flatOptions.global = true
     }
   },
 })
@@ -1222,6 +1253,21 @@ define('loglevel', {
 
     See also the \`foreground-scripts\` config.
   `,
+  flatten (key, obj, flatOptions) {
+    flatOptions.silent = obj[key] === 'silent'
+  },
+})
+
+define('logs-dir', {
+  default: null,
+  type: [null, path],
+  defaultDescription: `
+    A directory named \`_logs\` inside the cache
+`,
+  description: `
+    The location of npm's log directory.  See [\`npm
+    logging\`](/using-npm/logging) for more information.
+  `,
 })
 
 define('logs-max', {
@@ -1229,6 +1275,8 @@ define('logs-max', {
   type: Number,
   description: `
     The maximum number of log files to store.
+
+    If set to 0, no log files will be written for the current run.
   `,
 })
 
@@ -1351,6 +1399,18 @@ define('omit', {
   },
 })
 
+define('omit-lockfile-registry-resolved', {
+  default: false,
+  type: Boolean,
+  description: `
+    This option causes npm to create lock files without a \`resolved\` key for
+    registry dependencies. Subsequent installs will need to resolve tarball
+    endpoints with the configured registry, likely resulting in a longer install
+    time.
+  `,
+  flatten,
+})
+
 define('only', {
   default: null,
   type: [null, 'prod', 'production'],
@@ -1398,7 +1458,7 @@ define('otp', {
 
 define('package', {
   default: [],
-  hint: '<pkg>[@<version>]',
+  hint: '<package-spec>',
   type: [String, Array],
   description: `
     The package to install for [\`npm exec\`](/commands/npm-exec)
@@ -1413,10 +1473,6 @@ define('package-lock', {
     If set to false, then ignore \`package-lock.json\` files when installing.
     This will also prevent _writing_ \`package-lock.json\` if \`save\` is
     true.
-
-    When package package-locks are disabled, automatic pruning of extraneous
-    modules will also be disabled.  To remove extraneous modules with
-    package-locks disabled use \`npm prune\`.
 
     This configuration does not affect \`npm ci\`.
   `,
@@ -1586,8 +1642,8 @@ define('registry', {
 
 define('save', {
   default: true,
-  defaultDescription: `\`true\` unless when using \`npm update\` or
-  \`npm dedupe\` where it defaults to \`false\``,
+  defaultDescription: `\`true\` unless when using \`npm update\` where it
+  defaults to \`false\``,
   usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle',
   type: Boolean,
   short: 'S',
@@ -1811,7 +1867,7 @@ define('script-shell', {
   type: [null, String],
   description: `
     The shell to use for scripts run with the \`npm exec\`,
-    \`npm run\` and \`npm init <pkg>\` commands.
+    \`npm run\` and \`npm init <package-spec>\` commands.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.scriptShell = obj[key] || undefined
@@ -1826,7 +1882,7 @@ define('searchexclude', {
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.search = flatOptions.search || { limit: 20 }
-    flatOptions.search.exclude = obj[key]
+    flatOptions.search.exclude = obj[key].toLowerCase()
   },
 })
 
@@ -2020,8 +2076,8 @@ define('timing', {
   default: false,
   type: Boolean,
   description: `
-    If true, writes an \`npm-debug\` log to \`_logs\` and timing information
-    to \`_timing.json\`, both in your cache, even if the command completes
+    If true, writes a debug log to \`logs-dir\` and timing information
+    to \`_timing.json\` in the cache, even if the command completes
     successfully.  \`_timing.json\` is a newline delimited list of JSON
     objects.
 
@@ -2263,6 +2319,16 @@ define('workspaces', {
     // configuration, so we need an option specifically to disable workspaces
     flatOptions.workspacesEnabled = obj[key] !== false
   },
+})
+
+define('workspaces-update', {
+  default: true,
+  type: Boolean,
+  description: `
+    If set to true, the npm cli will run an update after operations that may
+    possibly change the workspaces installed to the \`node_modules\` folder.
+  `,
+  flatten,
 })
 
 define('yes', {

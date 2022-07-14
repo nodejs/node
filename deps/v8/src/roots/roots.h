@@ -96,6 +96,8 @@ class Symbol;
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
+  V(Map, name_to_index_hash_table_map, NameToIndexHashTableMap)                \
+  V(Map, registered_symbol_table_map, RegisteredSymbolTableMap)                \
   V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
   V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \
@@ -117,6 +119,7 @@ class Symbol;
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
+  IF_WASM(V, Map, wasm_onfulfilled_data_map, WasmOnFulfilledDataMap)           \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
@@ -185,6 +188,7 @@ class Symbol;
   V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
     EmptySwissPropertyDictionary)                                              \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(ArrayList, empty_array_list, EmptyArrayList)                               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \
@@ -291,34 +295,36 @@ class Symbol;
   V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)
 
 // These root references can be updated by the mutator.
-#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
-  /* Caches */                                                             \
-  V(FixedArray, number_string_cache, NumberStringCache)                    \
-  /* Lists and dictionaries */                                             \
-  V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
-  V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
-  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
-  V(WeakArrayList, script_list, ScriptList)                                \
-  V(FixedArray, materialized_objects, MaterializedObjects)                 \
-  V(WeakArrayList, detached_contexts, DetachedContexts)                    \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
-  /* Feedback vectors that we need for code coverage or type profile */    \
-  V(Object, feedback_vectors_for_profiling_tools,                          \
-    FeedbackVectorsForProfilingTools)                                      \
-  V(FixedArray, serialized_objects, SerializedObjects)                     \
-  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
-  V(TemplateList, message_listeners, MessageListeners)                     \
-  /* Support for async stack traces */                                     \
-  V(HeapObject, current_microtask, CurrentMicrotask)                       \
-  /* KeepDuringJob set for JS WeakRefs */                                  \
-  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
-  V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
-    InterpreterEntryTrampolineForProfiling)                                \
-  V(Object, pending_optimize_for_test_bytecode,                            \
-    PendingOptimizeForTestBytecode)                                        \
-  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)        \
-  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)               \
-  IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
+  /* Caches */                                                              \
+  V(FixedArray, number_string_cache, NumberStringCache)                     \
+  /* Lists and dictionaries */                                              \
+  V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
+  V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
+  V(RegisteredSymbolTable, api_private_symbol_table, ApiPrivateSymbolTable) \
+  V(WeakArrayList, script_list, ScriptList)                                 \
+  V(FixedArray, materialized_objects, MaterializedObjects)                  \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                     \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)            \
+  /* Feedback vectors that we need for code coverage or type profile */     \
+  V(Object, feedback_vectors_for_profiling_tools,                           \
+    FeedbackVectorsForProfilingTools)                                       \
+  V(FixedArray, serialized_objects, SerializedObjects)                      \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)  \
+  V(TemplateList, message_listeners, MessageListeners)                      \
+  /* Support for async stack traces */                                      \
+  V(HeapObject, current_microtask, CurrentMicrotask)                        \
+  /* KeepDuringJob set for JS WeakRefs */                                   \
+  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
+  V(HeapObject, interpreter_entry_trampoline_for_profiling,                 \
+    InterpreterEntryTrampolineForProfiling)                                 \
+  V(Object, pending_optimize_for_test_bytecode,                             \
+    PendingOptimizeForTestBytecode)                                         \
+  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
+  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
+  IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
+  IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
+  IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

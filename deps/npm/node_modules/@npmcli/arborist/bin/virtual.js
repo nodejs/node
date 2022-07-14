@@ -1,18 +1,14 @@
 const Arborist = require('../')
 
-const print = require('./lib/print-tree.js')
-const options = require('./lib/options.js')
-require('./lib/logging.js')
-require('./lib/timers.js')
+const printTree = require('./lib/print-tree.js')
 
-const start = process.hrtime()
-new Arborist(options).loadVirtual().then(tree => {
-  const end = process.hrtime(start)
-  if (!options.quiet) {
-    print(tree)
-  }
-  if (options.save) {
-    tree.meta.save()
-  }
-  console.error(`read ${tree.inventory.size} deps in ${end[0] * 1000 + end[1] / 1e6}ms`)
-}).catch(er => console.error(er))
+module.exports = (options, time) => new Arborist(options)
+  .loadVirtual()
+  .then(time)
+  .then(async ({ timing, result: tree }) => {
+    printTree(tree)
+    if (options.save) {
+      await tree.meta.save()
+    }
+    return `read ${tree.inventory.size} deps in ${timing.ms}`
+  })

@@ -22,6 +22,7 @@
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 
@@ -72,14 +73,110 @@ struct WasmFunction {
   bool declared;
 };
 
+// A representation of a constant expression. The most common expression types
+// are hard-coded, while the rest are represented as a {WireBytesRef}.
+class ConstantExpression {
+ public:
+  enum Kind {
+    kEmpty,
+    kI32Const,
+    kRefNull,
+    kRefFunc,
+    kWireBytesRef,
+    kLastKind = kWireBytesRef
+  };
+
+  union Value {
+    int32_t i32_value;
+    uint32_t index_or_offset;
+    HeapType::Representation repr;
+  };
+
+  ConstantExpression() : bit_field_(KindField::encode(kEmpty)) {}
+
+  static ConstantExpression I32Const(int32_t value) {
+    return ConstantExpression(ValueField::encode(value) |
+                              KindField::encode(kI32Const));
+  }
+  static ConstantExpression RefFunc(uint32_t index) {
+    return ConstantExpression(ValueField::encode(index) |
+                              KindField::encode(kRefFunc));
+  }
+  static ConstantExpression RefNull(HeapType::Representation repr) {
+    return ConstantExpression(ValueField::encode(repr) |
+                              KindField::encode(kRefNull));
+  }
+  static ConstantExpression WireBytes(uint32_t offset, uint32_t length) {
+    return ConstantExpression(OffsetField::encode(offset) |
+                              LengthField::encode(length) |
+                              KindField::encode(kWireBytesRef));
+  }
+
+  Kind kind() const { return KindField::decode(bit_field_); }
+
+  bool is_set() const { return kind() != kEmpty; }
+
+  uint32_t index() const {
+    DCHECK_EQ(kind(), kRefFunc);
+    return ValueField::decode(bit_field_);
+  }
+
+  HeapType::Representation repr() const {
+    DCHECK_EQ(kind(), kRefNull);
+    return static_cast<HeapType::Representation>(
+        ValueField::decode(bit_field_));
+  }
+
+  int32_t i32_value() const {
+    DCHECK_EQ(kind(), kI32Const);
+    return ValueField::decode(bit_field_);
+  }
+
+  WireBytesRef wire_bytes_ref() const {
+    DCHECK_EQ(kind(), kWireBytesRef);
+    return WireBytesRef(OffsetField::decode(bit_field_),
+                        LengthField::decode(bit_field_));
+  }
+
+ private:
+  static constexpr int kValueBits = 32;
+  static constexpr int kLengthBits = 30;
+  static constexpr int kOffsetBits = 30;
+  static constexpr int kKindBits = 3;
+
+  // There are two possible combinations of fields: offset + length + kind if
+  // kind = kWireBytesRef, or value + kind for anything else.
+  using ValueField = base::BitField<uint32_t, 0, kValueBits, uint64_t>;
+  using OffsetField = base::BitField<uint32_t, 0, kOffsetBits, uint64_t>;
+  using LengthField = OffsetField::Next<uint32_t, kLengthBits>;
+  using KindField = LengthField::Next<Kind, kKindBits>;
+
+  // Make sure we reserve enough bits for a {WireBytesRef}'s length and offset.
+  STATIC_ASSERT(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
+  STATIC_ASSERT(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
+  // Make sure kind fits in kKindBits.
+  STATIC_ASSERT(kLastKind <= KindField::kMax + 1);
+
+  explicit ConstantExpression(uint64_t bit_field) : bit_field_(bit_field) {}
+
+  uint64_t bit_field_;
+};
+
+// We want to keep {ConstantExpression} small to reduce memory usage during
+// compilation/instantiation.
+STATIC_ASSERT(sizeof(ConstantExpression) <= 8);
+
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  ValueType type;     // type of the global.
-  bool mutability;    // {true} if mutable.
-  WireBytesRef init;  // the initialization expression of the global.
+  ValueType type;           // type of the global.
+  bool mutability;          // {true} if mutable.
+  ConstantExpression init;  // the initialization expression of the global.
   union {
-    uint32_t index;   // index of imported mutable global.
-    uint32_t offset;  // offset into global memory (if not imported & mutable).
+    // Index of imported mutable global.
+    uint32_t index;
+    // Offset into global memory (if not imported & mutable). Expressed in bytes
+    // for value-typed globals, and in tagged words for reference-typed globals.
+    uint32_t offset;
   };
   bool imported;  // true if imported.
   bool exported;  // true if exported.
@@ -100,58 +197,60 @@ struct WasmTag {
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
   // Construct an active segment.
-  explicit WasmDataSegment(WireBytesRef dest_addr)
-      : dest_addr(std::move(dest_addr)), active(true) {}
+  explicit WasmDataSegment(ConstantExpression dest_addr)
+      : dest_addr(dest_addr), active(true) {}
 
   // Construct a passive segment, which has no dest_addr.
   WasmDataSegment() : active(false) {}
 
-  WireBytesRef dest_addr;  // destination memory address of the data.
-  WireBytesRef source;     // start offset in the module bytes.
-  bool active = true;      // true if copied automatically during instantiation.
+  ConstantExpression dest_addr;  // destination memory address of the data.
+  WireBytesRef source;           // start offset in the module bytes.
+  bool active = true;  // true if copied automatically during instantiation.
 };
 
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
+  enum Status {
+    kStatusActive,      // copied automatically during instantiation.
+    kStatusPassive,     // copied explicitly after instantiation.
+    kStatusDeclarative  // purely declarative and never copied.
+  };
+  enum ElementType { kFunctionIndexElements, kExpressionElements };
+
   // Construct an active segment.
-  WasmElemSegment(ValueType type, uint32_t table_index, WireBytesRef offset)
-      : type(type),
+  WasmElemSegment(ValueType type, uint32_t table_index,
+                  ConstantExpression offset, ElementType element_type)
+      : status(kStatusActive),
+        type(type),
         table_index(table_index),
         offset(std::move(offset)),
-        status(kStatusActive) {}
+        element_type(element_type) {}
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
-  WasmElemSegment(ValueType type, bool declarative)
-      : type(type),
-        table_index(0),
-        status(declarative ? kStatusDeclarative : kStatusPassive) {}
+  WasmElemSegment(ValueType type, Status status, ElementType element_type)
+      : status(status), type(type), table_index(0), element_type(element_type) {
+    DCHECK_NE(status, kStatusActive);
+  }
 
-  // Construct a passive or declarative segment, which has no table index or
-  // offset.
+  // Default constructor. Constucts an invalid segment.
   WasmElemSegment()
-      : type(kWasmBottom), table_index(0), status(kStatusActive) {}
+      : status(kStatusActive),
+        type(kWasmBottom),
+        table_index(0),
+        element_type(kFunctionIndexElements) {}
 
   WasmElemSegment(const WasmElemSegment&) = delete;
   WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
   WasmElemSegment& operator=(const WasmElemSegment&) = delete;
   WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
 
+  Status status;
   ValueType type;
   uint32_t table_index;
-  WireBytesRef offset;
-  struct Entry {
-    enum Kind { kGlobalGetEntry, kRefFuncEntry, kRefNullEntry } kind;
-    uint32_t index;
-    Entry(Kind kind, uint32_t index) : kind(kind), index(index) {}
-    Entry() : kind(kRefNullEntry), index(0) {}
-  };
-  std::vector<Entry> entries;
-  enum Status {
-    kStatusActive,      // copied automatically during instantiation.
-    kStatusPassive,     // copied explicitly after instantiation.
-    kStatusDeclarative  // purely declarative and never copied.
-  } status;
+  ConstantExpression offset;
+  ElementType element_type;
+  std::vector<ConstantExpression> entries;
 };
 
 // Static representation of a wasm import.
@@ -245,15 +344,47 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   std::unique_ptr<AsmJsOffsets> decoded_offsets_;
 };
 
+// Used as the supertype for a type at the top of the type hierarchy.
+constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
+
 struct TypeDefinition {
-  explicit TypeDefinition(const FunctionSig* sig) : function_sig(sig) {}
-  explicit TypeDefinition(const StructType* type) : struct_type(type) {}
-  explicit TypeDefinition(const ArrayType* type) : array_type(type) {}
+  enum Kind { kFunction, kStruct, kArray };
+
+  TypeDefinition(const FunctionSig* sig, uint32_t supertype)
+      : function_sig(sig), supertype(supertype), kind(kFunction) {}
+  TypeDefinition(const StructType* type, uint32_t supertype)
+      : struct_type(type), supertype(supertype), kind(kStruct) {}
+  TypeDefinition(const ArrayType* type, uint32_t supertype)
+      : array_type(type), supertype(supertype), kind(kArray) {}
+  TypeDefinition()
+      : function_sig(nullptr), supertype(kNoSuperType), kind(kFunction) {}
+
   union {
     const FunctionSig* function_sig;
     const StructType* struct_type;
     const ArrayType* array_type;
   };
+
+  bool operator==(const TypeDefinition& other) const {
+    if (supertype != other.supertype || kind != other.kind) {
+      return false;
+    }
+    switch (kind) {
+      case kFunction:
+        return *function_sig == *other.function_sig;
+      case kStruct:
+        return *struct_type == *other.struct_type;
+      case kArray:
+        return *array_type == *other.array_type;
+    }
+  }
+
+  bool operator!=(const TypeDefinition& other) const {
+    return !(*this == other);
+  }
+
+  uint32_t supertype;
+  Kind kind;
 };
 
 struct V8_EXPORT_PRIVATE WasmDebugSymbols {
@@ -279,11 +410,6 @@ struct TypeFeedbackStorage {
 
 struct WasmTable;
 
-// End of a chain of explicit supertypes.
-constexpr uint32_t kGenericSuperType = 0xFFFFFFFE;
-// Used for types that have no explicit supertype.
-constexpr uint32_t kNoSuperType = 0xFFFFFFFF;
-
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
@@ -296,7 +422,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool mem_export = false;         // true if the memory is exported
   int start_function_index = -1;   // start function, >= 0 if any
 
-  std::vector<WasmGlobal> globals;
   // Size of the buffer required for all globals that are not imported and
   // mutable.
   uint32_t untagged_globals_buffer_size = 0;
@@ -311,26 +436,26 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
-  std::vector<TypeDefinition> types;  // by type index
-  std::vector<uint8_t> type_kinds;    // by type index
-  std::vector<uint32_t> supertypes;   // by type index
-  // Map from each type index to the index of its corresponding canonical index.
-  // Canonical indices do not correspond to types.
-  // Note: right now, only functions are canonicalized, and arrays and structs
-  // map to 0.
-  std::vector<uint32_t> canonicalized_type_ids;
+
+  void add_type(TypeDefinition type) {
+    types.push_back(type);
+    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
+                                ? signature_map.FindOrInsert(*type.function_sig)
+                                : 0;
+    canonicalized_type_ids.push_back(canonical_id);
+    // Canonical type will be computed later.
+    isorecursive_canonical_type_ids.push_back(kNoSuperType);
+  }
 
   bool has_type(uint32_t index) const { return index < types.size(); }
 
   void add_signature(const FunctionSig* sig, uint32_t supertype) {
-    types.push_back(TypeDefinition(sig));
-    type_kinds.push_back(kWasmFunctionTypeCode);
-    supertypes.push_back(supertype);
-    uint32_t canonical_id = sig ? signature_map.FindOrInsert(*sig) : 0;
-    canonicalized_type_ids.push_back(canonical_id);
+    DCHECK_NOT_NULL(sig);
+    add_type(TypeDefinition(sig, supertype));
   }
   bool has_signature(uint32_t index) const {
-    return index < types.size() && type_kinds[index] == kWasmFunctionTypeCode;
+    return index < types.size() &&
+           types[index].kind == TypeDefinition::kFunction;
   }
   const FunctionSig* signature(uint32_t index) const {
     DCHECK(has_signature(index));
@@ -338,14 +463,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   void add_struct_type(const StructType* type, uint32_t supertype) {
-    types.push_back(TypeDefinition(type));
-    type_kinds.push_back(kWasmStructTypeCode);
-    supertypes.push_back(supertype);
-    // No canonicalization for structs.
-    canonicalized_type_ids.push_back(0);
+    DCHECK_NOT_NULL(type);
+    add_type(TypeDefinition(type, supertype));
   }
   bool has_struct(uint32_t index) const {
-    return index < types.size() && type_kinds[index] == kWasmStructTypeCode;
+    return index < types.size() && types[index].kind == TypeDefinition::kStruct;
   }
   const StructType* struct_type(uint32_t index) const {
     DCHECK(has_struct(index));
@@ -353,14 +475,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   void add_array_type(const ArrayType* type, uint32_t supertype) {
-    types.push_back(TypeDefinition(type));
-    type_kinds.push_back(kWasmArrayTypeCode);
-    supertypes.push_back(supertype);
-    // No canonicalization for arrays.
-    canonicalized_type_ids.push_back(0);
+    DCHECK_NOT_NULL(type);
+    add_type(TypeDefinition(type, supertype));
   }
   bool has_array(uint32_t index) const {
-    return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
+    return index < types.size() && types[index].kind == TypeDefinition::kArray;
   }
   const ArrayType* array_type(uint32_t index) const {
     DCHECK(has_array(index));
@@ -368,14 +487,24 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   uint32_t supertype(uint32_t index) const {
-    DCHECK(index < supertypes.size());
-    return supertypes[index];
+    DCHECK(index < types.size());
+    return types[index].supertype;
   }
   bool has_supertype(uint32_t index) const {
     return supertype(index) != kNoSuperType;
   }
 
+  std::vector<TypeDefinition> types;  // by type index
+  // TODO(7748): Unify the following two arrays.
+  // Maps each type index to a canonical index for purposes of call_indirect.
+  std::vector<uint32_t> canonicalized_type_ids;
+  // Maps each type index to its global (cross-module) canonical index as per
+  // isorecursive type canonicalization.
+  std::vector<uint32_t> isorecursive_canonical_type_ids;
+  // Canonicalizing map for signature indexes.
+  SignatureMap signature_map;
   std::vector<WasmFunction> functions;
+  std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
   std::vector<WasmTable> tables;
   std::vector<WasmImport> import_table;
@@ -384,9 +513,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
-  SignatureMap signature_map;  // canonicalizing map for signature indexes.
-  // Entries in this storage are short-lived: when tier-up of a function is
-  // scheduled, an entry is placed; the Turbofan graph builder consumes it.
   mutable TypeFeedbackStorage type_feedback;
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
@@ -399,7 +525,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
-  ~WasmModule();
   WasmModule& operator=(const WasmModule&) = delete;
 };
 
@@ -413,7 +538,7 @@ struct WasmTable {
   static bool IsValidTableType(ValueType type, const WasmModule* module) {
     if (!type.is_object_reference()) return false;
     HeapType heap_type = type.heap_type();
-    return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
+    return heap_type == HeapType::kFunc || heap_type == HeapType::kAny ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }
@@ -424,7 +549,7 @@ struct WasmTable {
   bool has_maximum_size = false;  // true if there is a maximum size.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.
-  WireBytesRef initial_value;
+  ConstantExpression initial_value;
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

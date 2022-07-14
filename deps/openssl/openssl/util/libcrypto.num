@@ -5425,3 +5425,5 @@ ASN1_item_d2i_ex                        5552	3_0_0	EXIST::FUNCTION:
 ASN1_TIME_print_ex                      5553	3_0_0	EXIST::FUNCTION:
 EVP_PKEY_get0_provider                  5554	3_0_0	EXIST::FUNCTION:
 EVP_PKEY_CTX_get0_provider              5555	3_0_0	EXIST::FUNCTION:
+OPENSSL_strcasecmp                      5556	3_0_3	EXIST::FUNCTION:
+OPENSSL_strncasecmp                     5557	3_0_3	EXIST::FUNCTION:

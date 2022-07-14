@@ -20,13 +20,13 @@ std::string DisassembleFunction(const char* function) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(context, v8_str(function)).ToLocalChecked())));
 
-  Address begin = f->code().raw_instruction_start();
-  Address end = f->code().raw_instruction_end();
   Isolate* isolate = CcTest::i_isolate();
+  Handle<Code> code(FromCodeT(f->code()), isolate);
+  Address begin = code->raw_instruction_start();
+  Address end = code->raw_instruction_end();
   std::ostringstream os;
   Disassembler::Decode(isolate, os, reinterpret_cast<byte*>(begin),
-                       reinterpret_cast<byte*>(end),
-                       CodeReference(handle(f->code(), isolate)));
+                       reinterpret_cast<byte*>(end), CodeReference(code));
   return os.str();
 }
 

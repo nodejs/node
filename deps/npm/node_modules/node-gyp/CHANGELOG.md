@@ -1,5 +1,38 @@
 # Changelog
 
+## [9.0.0](https://www.github.com/nodejs/node-gyp/compare/v8.4.1...v9.0.0) (2022-02-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* increase "engines" to "node" : "^12.22 || ^14.13 || >=16" (#2601)
+
+### Bug Fixes
+
+* _ in npm_config_ env variables ([eef4eef](https://www.github.com/nodejs/node-gyp/commit/eef4eefccb13ff6a32db862709ee5b2d4edf7e95))
+* update make-fetch-happen to a minimum of 10.0.3 ([839e414](https://www.github.com/nodejs/node-gyp/commit/839e414b63790c815a4a370d0feee8f24a94d40f))
+
+
+### Miscellaneous
+
+* add minimal SECURITY.md ([#2560](https://www.github.com/nodejs/node-gyp/issues/2560)) ([c2a1850](https://www.github.com/nodejs/node-gyp/commit/c2a185056e2e589b520fbc0bcc59c2935cd07ede))
+
+
+### Doc
+
+* Add notes/disclaimers for upgrading the copy of node-gyp that npm uses ([#2585](https://www.github.com/nodejs/node-gyp/issues/2585)) ([faf6d48](https://www.github.com/nodejs/node-gyp/commit/faf6d48f8a77c08a313baf9332358c4b1231c73c))
+* Rename and update Common-issues.md --> docs/README.md ([#2567](https://www.github.com/nodejs/node-gyp/issues/2567)) ([2ef5fb8](https://www.github.com/nodejs/node-gyp/commit/2ef5fb86277c4d81baffc0b9f642a8d86be1bfa5))
+* rephrase explanation of which node-gyp is used by npm ([#2587](https://www.github.com/nodejs/node-gyp/issues/2587)) ([a2f2988](https://www.github.com/nodejs/node-gyp/commit/a2f298870692022302fa27a1d42363c4a72df407))
+* title match content ([#2574](https://www.github.com/nodejs/node-gyp/issues/2574)) ([6e8f93b](https://www.github.com/nodejs/node-gyp/commit/6e8f93be0443f2649d4effa7bc773a9da06a33b4))
+* Update Python versions ([#2571](https://www.github.com/nodejs/node-gyp/issues/2571)) ([e069f13](https://www.github.com/nodejs/node-gyp/commit/e069f13658a8bfb5fd60f74708cf8be0856d92e3))
+
+
+### Core
+
+* add lib.target as path for searching libnode on z/OS ([1d499dd](https://www.github.com/nodejs/node-gyp/commit/1d499dd5606f39de2d34fa822fd0fa5ce17fbd06))
+* increase "engines" to "node" : "^12.22 || ^14.13 || >=16" ([#2601](https://www.github.com/nodejs/node-gyp/issues/2601)) ([6562f92](https://www.github.com/nodejs/node-gyp/commit/6562f92a6f2e67aeae081ddf5272ff117f1fab07))
+* make-fetch-happen@10.0.1 ([78f6660](https://www.github.com/nodejs/node-gyp/commit/78f66604e0df480d4f36a8fa4f3618c046a6fbdc))
+
 ### [8.4.1](https://www.github.com/nodejs/node-gyp/compare/v8.4.0...v8.4.1) (2021-11-19)
 
 

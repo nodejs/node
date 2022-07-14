@@ -62,9 +62,9 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
   };
 
   // Design doc: https://bit.ly/36MfD6Y
-  class AbstractState final : public ZoneObject {
+  class HalfState final : public ZoneObject {
    public:
-    explicit AbstractState(Zone* zone)
+    explicit HalfState(Zone* zone)
         : zone_(zone),
           fresh_entries_(zone, InnerMap(zone)),
           constant_entries_(zone, InnerMap(zone)),
@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
           constant_unknown_entries_(zone, InnerMap(zone)),
           arbitrary_unknown_entries_(zone, InnerMap(zone)) {}
 
-    bool Equals(AbstractState const* that) const {
+    bool Equals(HalfState const* that) const {
       return fresh_entries_ == that->fresh_entries_ &&
              constant_entries_ == that->constant_entries_ &&
              arbitrary_entries_ == that->arbitrary_entries_ &&
@@ -81,33 +81,22 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
              constant_unknown_entries_ == that->constant_unknown_entries_ &&
              arbitrary_unknown_entries_ == that->arbitrary_unknown_entries_;
     }
-    void IntersectWith(AbstractState const* that);
-
-    AbstractState const* KillField(Node* object, Node* offset,
-                                   MachineRepresentation repr) const;
-    AbstractState const* AddField(Node* object, Node* offset, Node* value,
-                                  MachineRepresentation repr) const;
+    void IntersectWith(HalfState const* that);
+    HalfState const* KillField(Node* object, Node* offset,
+                               MachineRepresentation repr) const;
+    HalfState const* AddField(Node* object, Node* offset, Node* value,
+                              MachineRepresentation repr) const;
     FieldInfo Lookup(Node* object, Node* offset) const;
-
     void Print() const;
 
    private:
-    Zone* zone_;
     using InnerMap = PersistentMap<Node*, FieldInfo>;
     template <typename OuterKey>
     using OuterMap = PersistentMap<OuterKey, InnerMap>;
-
     // offset -> object -> info
     using ConstantOffsetInfos = OuterMap<uint32_t>;
-    ConstantOffsetInfos fresh_entries_;
-    ConstantOffsetInfos constant_entries_;
-    ConstantOffsetInfos arbitrary_entries_;
-
     // object -> offset -> info
     using UnknownOffsetInfos = OuterMap<Node*>;
-    UnknownOffsetInfos fresh_unknown_entries_;
-    UnknownOffsetInfos constant_unknown_entries_;
-    UnknownOffsetInfos arbitrary_unknown_entries_;
 
     // Update {map} so that {map.Get(outer_key).Get(inner_key)} returns {info}.
     template <typename OuterKey>
@@ -123,12 +112,43 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
                            MachineRepresentation repr, Zone* zone);
     void KillOffsetInFresh(Node* object, uint32_t offset,
                            MachineRepresentation repr);
-
     template <typename OuterKey>
     static void IntersectWith(OuterMap<OuterKey>& to,
                               const OuterMap<OuterKey>& from);
     static void Print(const ConstantOffsetInfos& infos);
     static void Print(const UnknownOffsetInfos& infos);
+
+    Zone* zone_;
+    ConstantOffsetInfos fresh_entries_;
+    ConstantOffsetInfos constant_entries_;
+    ConstantOffsetInfos arbitrary_entries_;
+    UnknownOffsetInfos fresh_unknown_entries_;
+    UnknownOffsetInfos constant_unknown_entries_;
+    UnknownOffsetInfos arbitrary_unknown_entries_;
+  };
+
+  // An {AbstractState} consists of two {HalfState}s, representing the mutable
+  // and immutable sets of known fields, respectively. These sets correspond to
+  // LoadFromObject/StoreToObject and LoadImmutableFromObject/
+  // InitializeImmutableInObject respectively. The two half-states should not
+  // overlap.
+  struct AbstractState : public ZoneObject {
+    explicit AbstractState(Zone* zone)
+        : mutable_state(zone), immutable_state(zone) {}
+    explicit AbstractState(HalfState mutable_state, HalfState immutable_state)
+        : mutable_state(mutable_state), immutable_state(immutable_state) {}
+
+    bool Equals(AbstractState const* that) const {
+      return this->immutable_state.Equals(&that->immutable_state) &&
+             this->mutable_state.Equals(&that->mutable_state);
+    }
+    void IntersectWith(AbstractState const* that) {
+      mutable_state.IntersectWith(&that->mutable_state);
+      immutable_state.IntersectWith(&that->immutable_state);
+    }
+
+    HalfState mutable_state;
+    HalfState immutable_state;
   };
 
   Reduction ReduceLoadFromObject(Node* node, ObjectAccess const& access);

@@ -187,7 +187,7 @@ int PopLowestIndexAsCode(CPURegList* list) {
   if (list->IsEmpty()) {
     return -1;
   }
-  RegList reg_list = list->list();
+  uint64_t reg_list = list->bits();
   int index = base::bits::CountTrailingZeros(reg_list);
   DCHECK((1LL << index) & reg_list);
   list->Remove(index);
@@ -313,9 +313,9 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
     return get_sp();
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // Otherwise the limit is the JS stack. Leave a safety margin of 4 KiB
   // to prevent overrunning the stack when pushing values.
-  return stack_limit_ + 1024;
+  return stack_limit_ + 4 * KB;
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {

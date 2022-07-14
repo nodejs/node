@@ -1,10 +1,9 @@
 #include "crypto/crypto_aes.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -30,7 +29,7 @@ namespace crypto {
 namespace {
 // Implements general AES encryption and decryption for CBC
 // The key_data must be a secret key.
-// On success, this function sets out to a new AllocatedBuffer
+// On success, this function sets out to a new ByteSource
 // instance containing the results and returns WebCryptoCipherStatus::OK.
 WebCryptoCipherStatus AES_Cipher(
     Environment* env,
@@ -90,11 +89,10 @@ WebCryptoCipherStatus AES_Cipher(
       case kWebCryptoCipherDecrypt:
         // If in decrypt mode, the auth tag must be set in the params.tag.
         CHECK(params.tag);
-        if (!EVP_CIPHER_CTX_ctrl(
-                ctx.get(),
-                EVP_CTRL_AEAD_SET_TAG,
-                params.tag.size(),
-                const_cast<char*>(params.tag.get()))) {
+        if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
+                                 EVP_CTRL_AEAD_SET_TAG,
+                                 params.tag.size(),
+                                 const_cast<char*>(params.tag.data<char>()))) {
           return WebCryptoCipherStatus::FAILED;
         }
         break;
@@ -126,9 +124,7 @@ WebCryptoCipherStatus AES_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  char* data = MallocOpenSSL<char>(buf_len);
-  ByteSource buf = ByteSource::Allocated(data, buf_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(buf_len);
 
   // In some outdated version of OpenSSL (e.g.
   // ubi81_sharedlibs_openssl111fips_x64) may be used in sharedlib mode, the
@@ -140,20 +136,19 @@ WebCryptoCipherStatus AES_Cipher(
   // Refs: https://github.com/nodejs/node/pull/38913#issuecomment-866505244
   if (in.size() == 0) {
     out_len = 0;
-  } else if (!EVP_CipherUpdate(
-          ctx.get(),
-          ptr,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size())) {
+  } else if (!EVP_CipherUpdate(ctx.get(),
+                               buf.data<unsigned char>(),
+                               &out_len,
+                               in.data<unsigned char>(),
+                               in.size())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  ptr += out_len;
   out_len = EVP_CIPHER_CTX_block_size(ctx.get());
-  if (!EVP_CipherFinal_ex(ctx.get(), ptr, &out_len)) {
+  if (!EVP_CipherFinal_ex(
+          ctx.get(), buf.data<unsigned char>() + total, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
   total += out_len;
@@ -161,15 +156,16 @@ WebCryptoCipherStatus AES_Cipher(
   // If using AES_GCM, grab the generated auth tag and append
   // it to the end of the ciphertext.
   if (cipher_mode == kWebCryptoCipherEncrypt && mode == EVP_CIPH_GCM_MODE) {
-    data += out_len;
-    if (!EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_AEAD_GET_TAG, tag_len, ptr))
+    if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
+                             EVP_CTRL_AEAD_GET_TAG,
+                             tag_len,
+                             buf.data<unsigned char>() + total))
       return WebCryptoCipherStatus::FAILED;
     total += tag_len;
   }
 
   // It's possible that we haven't used the full allocated space. Size down.
-  buf.Resize(total);
-  *out = std::move(buf);
+  *out = std::move(buf).release(total);
 
   return WebCryptoCipherStatus::OK;
 }
@@ -296,24 +292,20 @@ WebCryptoCipherStatus AES_CTR_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  // Output size is identical to the input size
-  char* data = MallocOpenSSL<char>(in.size());
-  ByteSource buf = ByteSource::Allocated(data, in.size());
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  // Output size is identical to the input size.
+  ByteSource::Builder buf(in.size());
 
   // Also just like in chromium's implementation, if we can process
   // the input without wrapping the counter, we'll do it as a single
   // call here. If we can't, we'll fallback to the a two-step approach
   if (BN_cmp(remaining_until_reset.get(), num_output.get()) >= 0) {
-    auto status = AES_CTR_Cipher2(
-        key_data,
-        cipher_mode,
-        params,
-        in,
-        params.iv.data<unsigned char>(),
-        ptr);
-    if (status == WebCryptoCipherStatus::OK)
-      *out = std::move(buf);
+    auto status = AES_CTR_Cipher2(key_data,
+                                  cipher_mode,
+                                  params,
+                                  in,
+                                  params.iv.data<unsigned char>(),
+                                  buf.data<unsigned char>());
+    if (status == WebCryptoCipherStatus::OK) *out = std::move(buf).release();
     return status;
   }
 
@@ -321,13 +313,13 @@ WebCryptoCipherStatus AES_CTR_Cipher(
   BN_ULONG input_size_part1 = blocks_part1 * kAesBlockSize;
 
   // Encrypt the first part...
-  auto status = AES_CTR_Cipher2(
-      key_data,
-      cipher_mode,
-      params,
-      ByteSource::Foreign(in.get(), input_size_part1),
-      params.iv.data<unsigned char>(),
-      ptr);
+  auto status =
+      AES_CTR_Cipher2(key_data,
+                      cipher_mode,
+                      params,
+                      ByteSource::Foreign(in.data<char>(), input_size_part1),
+                      params.iv.data<unsigned char>(),
+                      buf.data<unsigned char>());
 
   if (status != WebCryptoCipherStatus::OK)
     return status;
@@ -336,18 +328,16 @@ WebCryptoCipherStatus AES_CTR_Cipher(
   std::vector<unsigned char> new_counter_block = BlockWithZeroedCounter(params);
 
   // Encrypt the second part...
-  status = AES_CTR_Cipher2(
-      key_data,
-      cipher_mode,
-      params,
-      ByteSource::Foreign(
-          in.get() + input_size_part1,
-          in.size() - input_size_part1),
-      new_counter_block.data(),
-      ptr + input_size_part1);
+  status =
+      AES_CTR_Cipher2(key_data,
+                      cipher_mode,
+                      params,
+                      ByteSource::Foreign(in.data<char>() + input_size_part1,
+                                          in.size() - input_size_part1),
+                      new_counter_block.data(),
+                      buf.data<unsigned char>() + input_size_part1);
 
-  if (status == WebCryptoCipherStatus::OK)
-    *out = std::move(buf);
+  if (status == WebCryptoCipherStatus::OK) *out = std::move(buf).release();
 
   return status;
 }

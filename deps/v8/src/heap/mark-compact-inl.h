@@ -40,16 +40,12 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   }
 }
 
-#ifdef ENABLE_MINOR_MC
-
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
       non_atomic_marking_state_.WhiteToGrey(obj)) {
     main_thread_worklist_local_.Push(obj);
   }
 }
-
-#endif
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
@@ -199,10 +195,9 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject black_object = HeapObject::FromAddress(addr);
-        Object map_object = black_object.map(cage_base, kAcquireLoad);
-        CHECK(map_object.IsMap(cage_base));
-        map = Map::cast(map_object);
-        DCHECK(map.IsMap(cage_base));
+        map = black_object.map(cage_base, kAcquireLoad);
+        // Map might be forwarded during GC.
+        DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map));
         size = black_object.SizeFromMap(map);
         CHECK_LE(addr + size, chunk_->area_end());
         Address end = addr + size - kTaggedSize;

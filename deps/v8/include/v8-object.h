@@ -493,7 +493,7 @@ class V8_EXPORT Object : public Value {
     return object.val_->GetAlignedPointerFromInternalField(index);
   }
 
-  /** Same as above, but works for TracedGlobal. */
+  /** Same as above, but works for TracedReference. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
     return object->GetAlignedPointerFromInternalField(index);
@@ -594,7 +594,7 @@ class V8_EXPORT Object : public Value {
   /**
    * Returns the context in which the object was created.
    */
-  V8_DEPRECATE_SOON("Use MaybeLocal<Context> GetCreationContext()")
+  V8_DEPRECATED("Use MaybeLocal<Context> GetCreationContext()")
   Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
@@ -735,7 +735,7 @@ Local<Value> Object::GetInternalField(int index) {
 }
 
 void* Object::GetAlignedPointerFromInternalField(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
   A obj = *reinterpret_cast<A*>(this);
@@ -744,10 +744,10 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   auto instance_type = I::GetInstanceType(obj);
   if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     offset += I::kEmbedderDataSlotRawPayloadOffset;
 #endif
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
+    internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
     A value = I::ReadExternalPointerField(
         isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);
     return reinterpret_cast<void*>(value);

@@ -27,7 +27,7 @@ const reifyOutput = (npm, arb) => {
 
   // don't print any info in --silent mode, but we still need to
   // set the exitCode properly from the audit report, if we have one.
-  if (log.levels[log.level] > log.levels.error) {
+  if (npm.silent) {
     getAuditReport(npm, auditReport)
     return
   }
@@ -88,7 +88,7 @@ const reifyOutput = (npm, arb) => {
 // at the end if there's still stuff, because it's silly for `npm audit`
 // to tell you to run `npm audit` for details.  otherwise, use the summary
 // report.  if we get here, we know it's not quiet or json.
-// If the loglevel is set higher than 'error', then we just run the report
+// If the loglevel is silent, then we just run the report
 // to get the exitCode set appropriately.
 const printAuditReport = (npm, report) => {
   const res = getAuditReport(npm, report)
@@ -105,7 +105,7 @@ const getAuditReport = (npm, report) => {
 
   // when in silent mode, we print nothing.  the JSON output is
   // going to just JSON.stringify() the report object.
-  const reporter = log.levels[log.level] > log.levels.error ? 'quiet'
+  const reporter = npm.silent ? 'quiet'
     : npm.flatOptions.json ? 'quiet'
     : npm.command !== 'audit' ? 'install'
     : 'detail'

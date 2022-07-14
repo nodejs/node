@@ -26,6 +26,9 @@ class SnapshotData;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
+  ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+               Address area_start, Address area_end, VirtualMemory reservation);
+
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
@@ -209,27 +212,25 @@ class ReadOnlySpace : public BaseSpace {
   // to write it into the free space nodes that were already created.
   void RepairFreeSpacesAfterDeserialization();
 
-  size_t Size() override { return accounting_stats_.Size(); }
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() override;
+  size_t Size() const override { return accounting_stats_.Size(); }
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;
 
   const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
   Address limit() const { return limit_; }
   size_t Capacity() const { return capacity_; }
 
-  bool ContainsSlow(Address addr);
+  bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate);
+  void Verify(Isolate* isolate) const;
 #ifdef DEBUG
-  void VerifyCounters(Heap* heap);
+  void VerifyCounters(Heap* heap) const;
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 
   // Return size of allocatable area on a page in this space.
   int AreaSize() const { return static_cast<int>(area_size_); }
-
-  ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
 

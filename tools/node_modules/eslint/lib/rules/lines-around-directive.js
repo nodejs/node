@@ -18,7 +18,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow newlines around directives",
+            description: "Require or disallow newlines around directives",
             recommended: false,
             url: "https://eslint.org/docs/rules/lines-around-directive"
         },

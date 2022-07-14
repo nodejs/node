@@ -61,6 +61,8 @@ class Config extends BaseCommand {
     'long',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv[1] !== 'config') {
@@ -264,6 +266,9 @@ ${defData}
     if (!long) {
       msg.push(
         `; node bin location = ${process.execPath}`,
+        `; node version = ${process.version}`,
+        `; npm local prefix = ${this.npm.localPrefix}`,
+        `; npm version = ${this.npm.version}`,
         `; cwd = ${process.cwd()}`,
         `; HOME = ${process.env.HOME}`,
         '; Run `npm config ls -l` to show all defaults.'
@@ -271,7 +276,7 @@ ${defData}
       msg.push('')
     }
 
-    if (!this.npm.config.get('global')) {
+    if (!this.npm.global) {
       const pkgPath = resolve(this.npm.prefix, 'package.json')
       const pkg = await rpj(pkgPath).catch(() => ({}))
 

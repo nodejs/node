@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/bits.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -41,8 +42,8 @@ enum class MachineRepresentation : uint8_t {
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
-  // point into the virtual memory cage.
-  kCagedPointer,
+  // point into the sandbox.
+  kSandboxedPointer,
   // FP and SIMD representations must be last, and in order of increasing size.
   kFloat32,
   kFloat64,
@@ -225,8 +226,8 @@ class MachineType {
     return MachineType(MachineRepresentation::kCompressed,
                        MachineSemantic::kAny);
   }
-  constexpr static MachineType CagedPointer() {
-    return MachineType(MachineRepresentation::kCagedPointer,
+  constexpr static MachineType SandboxedPointer() {
+    return MachineType(MachineRepresentation::kSandboxedPointer,
                        MachineSemantic::kNone);
   }
   constexpr static MachineType Bool() {
@@ -267,10 +268,39 @@ class MachineType {
         return MachineType::AnyCompressed();
       case MachineRepresentation::kCompressedPointer:
         return MachineType::CompressedPointer();
-      case MachineRepresentation::kCagedPointer:
-        return MachineType::CagedPointer();
+      case MachineRepresentation::kSandboxedPointer:
+        return MachineType::SandboxedPointer();
       default:
         UNREACHABLE();
+    }
+  }
+
+  static MachineType TypeForCType(const CTypeInfo& type) {
+    switch (type.GetType()) {
+      case CTypeInfo::Type::kVoid:
+        return MachineType::AnyTagged();
+      case CTypeInfo::Type::kBool:
+        return MachineType::Bool();
+      case CTypeInfo::Type::kInt32:
+        return MachineType::Int32();
+      case CTypeInfo::Type::kUint32:
+        return MachineType::Uint32();
+      case CTypeInfo::Type::kInt64:
+        return MachineType::Int64();
+      case CTypeInfo::Type::kAny:
+        static_assert(
+            sizeof(AnyCType) == kInt64Size,
+            "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
+        return MachineType::Int64();
+      case CTypeInfo::Type::kUint64:
+        return MachineType::Uint64();
+      case CTypeInfo::Type::kFloat32:
+        return MachineType::Float32();
+      case CTypeInfo::Type::kFloat64:
+        return MachineType::Float64();
+      case CTypeInfo::Type::kV8Value:
+      case CTypeInfo::Type::kApiObject:
+        return MachineType::AnyTagged();
     }
   }
 
@@ -308,6 +338,10 @@ inline bool IsIntegral(MachineRepresentation rep) {
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;
+}
+
+inline bool IsSimd128(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kSimd128;
 }
 
 inline bool CanBeTaggedPointer(MachineRepresentation rep) {
@@ -362,7 +396,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       return kTaggedSizeLog2;
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
       return kSystemPointerSizeLog2;
     default:
       UNREACHABLE();

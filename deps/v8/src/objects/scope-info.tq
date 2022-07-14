@@ -6,7 +6,11 @@ extern macro EmptyScopeInfoConstant(): ScopeInfo;
 const kEmptyScopeInfo: ScopeInfo = EmptyScopeInfoConstant();
 
 extern enum ScopeType extends uint32 {
-  CLASS_SCOPE,  // Also used for the empty scope (for NativeContext & builtins).
+  // The empty scope info for builtins and NativeContexts is allocated
+  // in a way that it gets the first scope type in line, see
+  // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
+  // bit, so it doesn't matter what scope type it gets.
+  CLASS_SCOPE,
   EVAL_SCOPE,
   FUNCTION_SCOPE,
   MODULE_SCOPE,
@@ -53,8 +57,11 @@ bitfield struct ScopeFlags extends uint31 {
   language_mode: LanguageMode: 1 bit;
   declaration_scope: bool: 1 bit;
   receiver_variable: VariableAllocationInfo: 2 bit;
-  has_class_brand: bool: 1 bit;
-  has_saved_class_variable_index: bool: 1 bit;
+  // In class scope, this indicates whether the class has a private brand.
+  // In constructor scope, this indicates whether the constructor needs
+  // private brand initialization.
+  class_scope_has_private_brand: bool: 1 bit;
+  has_saved_class_variable: bool: 1 bit;
   has_new_target: bool: 1 bit;
   // TODO(cbruni): Combine with function variable field when only storing the
   // function name.
@@ -97,6 +104,9 @@ struct ModuleVariable {
   properties: SmiTagged<VariableProperties>;
 }
 
+const kMaxInlinedLocalNamesSize:
+    constexpr int32 generates 'kScopeInfoMaxInlinedLocalNamesSize';
+
 @generateBodyDescriptor
 extern class ScopeInfo extends HeapObject {
   const flags: SmiTagged<ScopeFlags>;
@@ -108,10 +118,17 @@ extern class ScopeInfo extends HeapObject {
   // context.
   const context_local_count: Smi;
 
-  // Contains the names of local variables and parameters that are allocated
-  // in the context. They are stored in increasing order of the context slot
-  // index starting with Context::MIN_CONTEXT_SLOTS.
-  context_local_names[context_local_count]: String;
+  // Contains the names of inlined local variables and parameters that are
+  // allocated in the context. They are stored in increasing order of the
+  // context slot index starting with Context::MIN_CONTEXT_SLOTS.
+  context_local_names[Convert<intptr>(context_local_count) < kMaxInlinedLocalNamesSize ? context_local_count : 0]:
+      String;
+
+  // Contains a hash_map from local names to context slot index.
+  // This is only used when local names are not inlined in the scope info.
+  context_local_names_hashtable?
+      [kMaxInlinedLocalNamesSize <= Convert<intptr>(context_local_count)]:
+          NameToIndexHashTable;
 
   // Contains the variable modes and initialization flags corresponding to
   // the context locals in ContextLocalNames.
@@ -119,8 +136,9 @@ extern class ScopeInfo extends HeapObject {
 
   // If the scope is a class scope and it has static private methods that
   // may be accessed directly or through eval, one slot is reserved to hold
-  // the context slot index for the class variable.
-  saved_class_variable_info?[flags.has_saved_class_variable_index]: Smi;
+  // the offset in the field storage of the hash table (or the slot index if
+  // local names are inlined) for the class variable.
+  saved_class_variable_info?[flags.has_saved_class_variable]: Smi;
 
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array
@@ -139,7 +157,9 @@ extern class ScopeInfo extends HeapObject {
       [flags.scope_type == ScopeType::FUNCTION_SCOPE ||
        flags.scope_type == ScopeType::SCRIPT_SCOPE ||
        flags.scope_type == ScopeType::EVAL_SCOPE ||
-       flags.scope_type == ScopeType::MODULE_SCOPE]: PositionInfo;
+       flags.scope_type == ScopeType::MODULE_SCOPE ||
+       (flags.is_empty ? false : flags.scope_type == ScopeType::CLASS_SCOPE)]:
+          PositionInfo;
 
   outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
 
@@ -159,11 +179,11 @@ extern class ScopeInfo extends HeapObject {
       ModuleVariable;
 }
 
-// Returns the index of the named local in a ScopeInfo.
-// Assumes that the given name is internalized; uses pointer comparisons.
-@export
-macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
-    intptr labels NotFound {
+extern macro NameToIndexHashTableLookup(
+    NameToIndexHashTable, Name): intptr labels NotFound;
+
+macro IndexOfInlinedLocalName(
+    scopeInfo: ScopeInfo, name: Name): intptr labels NotFound {
   const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
   for (let i: intptr = 0; i < count; ++i) {
     if (TaggedEqual(name, scopeInfo.context_local_names[i])) {
@@ -171,4 +191,18 @@ macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
     }
   }
   goto NotFound;
+}
+
+// Returns the index of the named local in a ScopeInfo.
+// Assumes that the given name is internalized; uses pointer comparisons.
+@export
+macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
+    intptr labels NotFound {
+  const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
+  if (count < kMaxInlinedLocalNamesSize) {
+    return IndexOfInlinedLocalName(scopeInfo, name) otherwise goto NotFound;
+  } else {
+    return NameToIndexHashTableLookup(
+        scopeInfo.context_local_names_hashtable, name) otherwise goto NotFound;
+  }
 }
