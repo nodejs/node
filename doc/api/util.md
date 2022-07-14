@@ -485,6 +485,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43576
+    description: add support for `maxArrayLength` when inspecting `Set` and `Map`.
   - version:
     - v17.3.0
     - v16.14.0
@@ -586,8 +589,9 @@ changes:
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
-    [`TypedArray`][], [`WeakMap`][], and [`WeakSet`][] elements to include when
-    formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
+    [`TypedArray`][], [`Map`][], [`Set`][], [`WeakMap`][],
+    and [`WeakSet`][] elements to include when formatting.
+    Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
     include when formatting. Set to `null` or `Infinity` to show all elements.
