@@ -316,3 +316,26 @@ describe('describe async throw fails', async () => {
   it('should not run', () => {});
   throw new Error('thrown from describe');
 });
+
+describe('timeouts', () => {
+  it('timed out async test', { timeout: 5 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+  });
+
+  it('timed out callback test', { timeout: 5 }, (done) => {
+    setTimeout(done, 1000);
+  });
+
+
+  it('large timeout async test is ok', { timeout: 30_000_000 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  });
+
+  it('large timeout callback test is ok', { timeout: 30_000_000 }, (done) => {
+    setTimeout(done, 10);
+  });
+});
