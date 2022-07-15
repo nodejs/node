@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap.h"
+#include "util.h"
 
 #include <algorithm>
 #include <sstream>
@@ -66,10 +67,11 @@ class NODE_EXTERN_PRIVATE EnabledDebugList {
     return enabled_[static_cast<int>(category)];
   }
 
-  // Uses NODE_DEBUG_NATIVE to initialize the categories. When env is not a
-  // nullptr, the environment variables set in the Environment are used.
-  // Otherwise the system environment variables are used.
-  void Parse(Environment* env);
+  // Uses NODE_DEBUG_NATIVE to initialize the categories. The env_vars variable
+  // is parsed if it is not a nullptr, otherwise the system environment
+  // variables are parsed.
+  void Parse(std::shared_ptr<KVStore> env_vars = nullptr,
+             v8::Isolate* isolate = nullptr);
 
  private:
   // Set all categories matching cats to the value of enabled.

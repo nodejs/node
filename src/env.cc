@@ -760,10 +760,7 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
-  // TODO(joyeecheung): pass Isolate* and env_vars to it instead of the entire
-  // env, when the recursive dependency inclusion in "debug-utils.h" is
-  // resolved.
-  enabled_debug_list_.Parse(this);
+  enabled_debug_list_.Parse(env_vars(), isolate);
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are

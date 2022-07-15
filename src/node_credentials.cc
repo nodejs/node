@@ -64,7 +64,10 @@ bool HasOnly(int capability) {
 // process only has the capability CAP_NET_BIND_SERVICE set. If the current
 // process does not have any capabilities set and the process is running as
 // setuid root then lookup will not be allowed.
-bool SafeGetenv(const char* key, std::string* text, Environment* env) {
+bool SafeGetenv(const char* key,
+                std::string* text,
+                std::shared_ptr<KVStore> env_vars,
+                v8::Isolate* isolate) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && per_process::linux_at_secure) ||
@@ -76,15 +79,15 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
     goto fail;
 #endif
 
-  if (env != nullptr) {
-    HandleScope handle_scope(env->isolate());
-    TryCatch ignore_errors(env->isolate());
-    MaybeLocal<String> maybe_value = env->env_vars()->Get(
-        env->isolate(),
-        String::NewFromUtf8(env->isolate(), key).ToLocalChecked());
+  if (env_vars != nullptr) {
+    DCHECK_NOT_NULL(isolate);
+    HandleScope handle_scope(isolate);
+    TryCatch ignore_errors(isolate);
+    MaybeLocal<String> maybe_value = env_vars->Get(
+        isolate, String::NewFromUtf8(isolate, key).ToLocalChecked());
     Local<String> value;
     if (!maybe_value.ToLocal(&value)) goto fail;
-    String::Utf8Value utf8_value(env->isolate(), value);
+    String::Utf8Value utf8_value(isolate, value);
     if (*utf8_value == nullptr) goto fail;
     *text = std::string(*utf8_value, utf8_value.length());
     return true;
@@ -121,7 +124,7 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env)) return;
+  if (!SafeGetenv(*strenvtag, &text, env->env_vars(), isolate)) return;
   Local<Value> result =
       ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
   args.GetReturnValue().Set(result);
