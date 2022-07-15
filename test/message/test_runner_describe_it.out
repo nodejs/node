@@ -188,6 +188,10 @@ ok 20 - immediate resolve pass
         *
         *
         *
+        *
+        *
+        *
+        *
       ...
     1..1
 not ok 21 - subtest sync throw fail
@@ -471,6 +475,9 @@ not ok 53 - custom inspect symbol that throws fail
         *
         *
         *
+        *
+        *
+        *
       ...
     # Subtest: sync throw fails at second
     not ok 2 - sync throw fails at second
@@ -480,6 +487,10 @@ not ok 53 - custom inspect symbol that throws fail
       error: 'thrown from subtest sync throw fails at second'
       code: 'ERR_TEST_FAILURE'
       stack: |-
+        *
+        *
+        *
+        *
         *
         *
         *
@@ -559,6 +570,8 @@ not ok 56 - describe async throw fails
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
       ...
     # Subtest: timed out callback test
     not ok 2 - timed out callback test
