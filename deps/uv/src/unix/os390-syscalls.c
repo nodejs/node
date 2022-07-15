@@ -284,6 +284,8 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
   nmsgsfds_t size;
   struct pollfd* pfds;
   int pollret;
+  int pollfdret;
+  int pollmsgret;
   int reventcount;
   int nevents;
   struct pollfd msg_fd;
@@ -304,24 +306,24 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
     return -1;
   }
 
-  if (lst->size > 0)
-    _SET_FDS_MSGS(size, 1, lst->size - 1);
-  else
-    _SET_FDS_MSGS(size, 0, 0);
+  assert(lst->size > 0);
+  _SET_FDS_MSGS(size, 1, lst->size - 1);
   pfds = lst->items;
   pollret = poll(pfds, size, timeout);
   if (pollret <= 0)
     return pollret;
 
-  assert(lst->size > 0);
-
-  pollret = _NFDS(pollret) + _NMSGS(pollret);
+  pollfdret = _NFDS(pollret);
+  pollmsgret = _NMSGS(pollret);
 
   reventcount = 0;
   nevents = 0;
-  msg_fd = pfds[lst->size - 1];
+  msg_fd = pfds[lst->size - 1]; /* message queue is always last entry */
+  maxevents = maxevents - pollmsgret; /* allow spot for message queue */
   for (i = 0;
-       i < lst->size && i < maxevents && reventcount < pollret; ++i) {
+       i < lst->size - 1 &&
+       nevents < maxevents &&
+       reventcount < pollfdret; ++i) {
     struct epoll_event ev;
     struct pollfd* pfd;
 
@@ -332,18 +334,18 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
     ev.fd = pfd->fd;
     ev.events = pfd->revents;
     ev.is_msg = 0;
-    if (pfd->revents & POLLIN && pfd->revents & POLLOUT)
-      reventcount += 2;
-    else if (pfd->revents & (POLLIN | POLLOUT))
-      ++reventcount;
 
-    pfd->revents = 0;
+    reventcount++;
     events[nevents++] = ev;
   }
 
-  if (msg_fd.revents != 0 && msg_fd.fd != -1)
-    if (i == lst->size)
-      events[nevents - 1].is_msg = 1;
+  if (pollmsgret > 0 && msg_fd.revents != 0 && msg_fd.fd != -1) {
+    struct epoll_event ev;
+    ev.fd = msg_fd.fd;
+    ev.events = msg_fd.revents;
+    ev.is_msg = 1;
+    events[nevents++] = ev;
+  }
 
   return nevents;
 }

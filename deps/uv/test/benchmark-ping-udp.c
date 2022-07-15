@@ -94,6 +94,9 @@ static void pinger_read_cb(uv_udp_t* udp,
   pinger_t* pinger;
   pinger = (pinger_t*)udp->data;
 
+  /* No data here means something went wrong */
+  ASSERT(nread > 0);
+
   /* Now we count the pings */
   for (i = 0; i < nread; i++) {
     ASSERT(buf->base[i] == PING[pinger->state]);
@@ -108,7 +111,8 @@ static void pinger_read_cb(uv_udp_t* udp,
     }
   }
 
-  buf_free(buf);
+  if (buf && !(flags & UV_UDP_MMSG_CHUNK))
+    buf_free(buf);
 }
 
 static void udp_pinger_new(void) {
@@ -121,6 +125,8 @@ static void udp_pinger_new(void) {
 
   /* Try to do NUM_PINGS ping-pongs (connection-less). */
   r = uv_udp_init(loop, &pinger->udp);
+  ASSERT(r == 0);
+  r = uv_udp_bind(&pinger->udp, (const struct sockaddr*) &pinger->server_addr, 0);
   ASSERT(r == 0);
 
   pinger->udp.data = pinger;

@@ -201,6 +201,7 @@ static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf) {
   for (k = 0; k < chunks; ++k) {
     iov[k].iov_base = buf->base + k * UV__UDP_DGRAM_MAXSIZE;
     iov[k].iov_len = UV__UDP_DGRAM_MAXSIZE;
+    memset(&msgs[k].msg_hdr, 0, sizeof(msgs[k].msg_hdr));
     msgs[k].msg_hdr.msg_iov = iov + k;
     msgs[k].msg_hdr.msg_iovlen = 1;
     msgs[k].msg_hdr.msg_name = peers + k;
@@ -494,7 +495,7 @@ static int uv__set_reuse(int fd) {
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
        return UV__ERR(errno);
   }
-#elif defined(SO_REUSEPORT) && !defined(__linux__)
+#elif defined(SO_REUSEPORT) && !defined(__linux__) && !defined(__GNU__)
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
     return UV__ERR(errno);
 #else
@@ -655,16 +656,16 @@ int uv__udp_connect(uv_udp_t* handle,
 }
 
 /* From https://pubs.opengroup.org/onlinepubs/9699919799/functions/connect.html
- * Any of uv supported UNIXs kernel should be standardized, but the kernel 
+ * Any of uv supported UNIXs kernel should be standardized, but the kernel
  * implementation logic not same, let's use pseudocode to explain the udp
  * disconnect behaviors:
- * 
+ *
  * Predefined stubs for pseudocode:
  *   1. sodisconnect: The function to perform the real udp disconnect
  *   2. pru_connect: The function to perform the real udp connect
  *   3. so: The kernel object match with socket fd
  *   4. addr: The sockaddr parameter from user space
- * 
+ *
  * BSDs:
  *   if(sodisconnect(so) == 0) { // udp disconnect succeed
  *     if (addr->sa_len != so->addr->sa_len) return EINVAL;
@@ -694,16 +695,25 @@ int uv__udp_disconnect(uv_udp_t* handle) {
 #endif
 
     memset(&addr, 0, sizeof(addr));
-    
+
 #if defined(__MVS__)
     addr.ss_family = AF_UNSPEC;
 #else
     addr.sa_family = AF_UNSPEC;
 #endif
-    
+
     do {
       errno = 0;
+#ifdef __PASE__
+      /* On IBMi a connectionless transport socket can be disconnected by
+       * either setting the addr parameter to NULL or setting the
+       * addr_length parameter to zero, and issuing another connect().
+       * https://www.ibm.com/docs/en/i/7.4?topic=ssw_ibm_i_74/apis/connec.htm
+       */
+      r = connect(handle->io_watcher.fd, (struct sockaddr*) NULL, 0);
+#else
       r = connect(handle->io_watcher.fd, (struct sockaddr*) &addr, sizeof(addr));
+#endif
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
@@ -927,7 +937,8 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
     !defined(__NetBSD__) &&                                         \
     !defined(__ANDROID__) &&                                        \
     !defined(__DragonFly__) &&                                      \
-    !defined(__QNX__)
+    !defined(__QNX__) &&                                            \
+    !defined(__GNU__)
 static int uv__udp_set_source_membership4(uv_udp_t* handle,
                                           const struct sockaddr_in* multicast_addr,
                                           const char* interface_addr,
@@ -1119,7 +1130,8 @@ int uv_udp_set_source_membership(uv_udp_t* handle,
     !defined(__NetBSD__) &&                                         \
     !defined(__ANDROID__) &&                                        \
     !defined(__DragonFly__) &&                                      \
-    !defined(__QNX__)
+    !defined(__QNX__) &&                                            \
+    !defined(__GNU__)
   int err;
   union uv__sockaddr mcast_addr;
   union uv__sockaddr src_addr;

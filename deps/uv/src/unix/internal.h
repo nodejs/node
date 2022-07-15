@@ -145,7 +145,8 @@ typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 
 /* loop flags */
 enum {
-  UV_LOOP_BLOCK_SIGPROF = 1
+  UV_LOOP_BLOCK_SIGPROF = 0x1,
+  UV_LOOP_REAP_CHILDREN = 0x2
 };
 
 /* flags of excluding ifaddr */
@@ -174,11 +175,9 @@ struct uv__stream_queued_fds_s {
     defined(__linux__) || \
     defined(__OpenBSD__) || \
     defined(__NetBSD__)
-#define uv__cloexec uv__cloexec_ioctl
 #define uv__nonblock uv__nonblock_ioctl
 #define UV__NONBLOCK_IS_IOCTL 1
 #else
-#define uv__cloexec uv__cloexec_fcntl
 #define uv__nonblock uv__nonblock_fcntl
 #define UV__NONBLOCK_IS_IOCTL 0
 #endif
@@ -196,8 +195,7 @@ struct uv__stream_queued_fds_s {
 #endif
 
 /* core */
-int uv__cloexec_ioctl(int fd, int set);
-int uv__cloexec_fcntl(int fd, int set);
+int uv__cloexec(int fd, int set);
 int uv__nonblock_ioctl(int fd, int set);
 int uv__nonblock_fcntl(int fd, int set);
 int uv__close(int fd); /* preserves errno */
@@ -241,14 +239,15 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 int uv__accept(int sockfd);
 int uv__dup2_cloexec(int oldfd, int newfd);
 int uv__open_cloexec(const char* path, int flags);
+int uv__slurp(const char* filename, char* buf, size_t len);
 
 /* tcp */
-int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
+int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
 int uv__tcp_nodelay(int fd, int on);
 int uv__tcp_keepalive(int fd, int on, unsigned int delay);
 
 /* pipe */
-int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
+int uv__pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
@@ -278,10 +277,10 @@ void uv__tcp_close(uv_tcp_t* handle);
 size_t uv__thread_stack_size(void);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
-uv_handle_type uv__handle_type(int fd);
 FILE* uv__open_file(const char* path);
 int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__search_path(const char* prog, char* buf, size_t* buflen);
+void uv__wait_children(uv_loop_t* loop);
 
 /* random */
 int uv__random_devurandom(void* buf, size_t buflen);
@@ -354,6 +353,16 @@ int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen);
 #if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
 size_t strnlen(const char* s, size_t maxlen);
 #endif
+#endif
+
+#if defined(__FreeBSD__)
+ssize_t
+uv__fs_copy_file_range(int fd_in,
+                       off_t* off_in,
+                       int fd_out,
+                       off_t* off_out,
+                       size_t len,
+                       unsigned int flags);
 #endif
 
 

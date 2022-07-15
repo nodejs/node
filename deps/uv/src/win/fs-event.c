@@ -33,7 +33,7 @@
 const unsigned int uv_directory_watcher_buffer_size = 4096;
 
 
-static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
+static void uv__fs_event_queue_readdirchanges(uv_loop_t* loop,
     uv_fs_event_t* handle) {
   assert(handle->dir_handle != INVALID_HANDLE_VALUE);
   assert(!handle->req_pending);
@@ -57,15 +57,15 @@ static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
                              NULL)) {
     /* Make this req pending reporting an error. */
     SET_REQ_ERROR(&handle->req, GetLastError());
-    uv_insert_pending_req(loop, (uv_req_t*)&handle->req);
+    uv__insert_pending_req(loop, (uv_req_t*)&handle->req);
   }
 
   handle->req_pending = 1;
 }
 
-static void uv_relative_path(const WCHAR* filename,
-                             const WCHAR* dir,
-                             WCHAR** relpath) {
+static void uv__relative_path(const WCHAR* filename,
+                              const WCHAR* dir,
+                              WCHAR** relpath) {
   size_t relpathlen;
   size_t filenamelen = wcslen(filename);
   size_t dirlen = wcslen(dir);
@@ -80,7 +80,7 @@ static void uv_relative_path(const WCHAR* filename,
   (*relpath)[relpathlen] = L'\0';
 }
 
-static int uv_split_path(const WCHAR* filename, WCHAR** dir,
+static int uv__split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
   size_t len, i;
   DWORD dir_len;
@@ -255,12 +255,12 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 short_path_done:
     short_path = short_path_buffer;
 
-    if (uv_split_path(pathw, &dir, &handle->filew) != 0) {
+    if (uv__split_path(pathw, &dir, &handle->filew) != 0) {
       last_error = GetLastError();
       goto error;
     }
 
-    if (uv_split_path(short_path, NULL, &handle->short_filew) != 0) {
+    if (uv__split_path(short_path, NULL, &handle->short_filew) != 0) {
       last_error = GetLastError();
       goto error;
     }
@@ -423,7 +423,7 @@ static int file_info_cmp(WCHAR* str, WCHAR* file_name, size_t file_name_len) {
 }
 
 
-void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
+void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     uv_fs_event_t* handle) {
   FILE_NOTIFY_INFORMATION* file_info;
   int err, sizew, size;
@@ -442,7 +442,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
    */
   if (!uv__is_active(handle)) {
     if (handle->flags & UV_HANDLE_CLOSING) {
-      uv_want_endgame(loop, (uv_handle_t*) handle);
+      uv__want_endgame(loop, (uv_handle_t*) handle);
     }
     return;
   }
@@ -515,9 +515,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
               if (long_filenamew) {
                 /* Get the file name out of the long path. */
-                uv_relative_path(long_filenamew,
-                                 handle->dirw,
-                                 &filenamew);
+                uv__relative_path(long_filenamew,
+                                  handle->dirw,
+                                  &filenamew);
                 uv__free(long_filenamew);
                 long_filenamew = filenamew;
                 sizew = -1;
@@ -575,26 +575,26 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   }
 
   if (handle->flags & UV_HANDLE_CLOSING) {
-    uv_want_endgame(loop, (uv_handle_t*)handle);
+    uv__want_endgame(loop, (uv_handle_t*)handle);
   } else if (uv__is_active(handle)) {
-    uv_fs_event_queue_readdirchanges(loop, handle);
+    uv__fs_event_queue_readdirchanges(loop, handle);
   }
 }
 
 
-void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
   uv_fs_event_stop(handle);
 
   uv__handle_closing(handle);
 
   if (!handle->req_pending) {
-    uv_want_endgame(loop, (uv_handle_t*)handle);
+    uv__want_endgame(loop, (uv_handle_t*)handle);
   }
 
 }
 
 
-void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
+void uv__fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
   if ((handle->flags & UV_HANDLE_CLOSING) && !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 

@@ -247,7 +247,8 @@ UV_UNUSED(static struct timeval uv__fs_to_timeval(double time)) {
 static ssize_t uv__fs_futime(uv_fs_t* req) {
 #if defined(__linux__)                                                        \
     || defined(_AIX71)                                                        \
-    || defined(__HAIKU__)
+    || defined(__HAIKU__)                                                     \
+    || defined(__GNU__)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -1074,6 +1075,17 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
      */
 
 #if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__)
+    off_t off;
+
+    off = req->off;
+    r = uv__fs_copy_file_range(in_fd, &off, out_fd, NULL, req->bufsml[0].len, 0);
+    if (r >= 0) {
+        r = off - req->off;
+        req->off = off;
+        return r;
+    }
+#endif
     len = 0;
     r = sendfile(in_fd, out_fd, req->off, req->bufsml[0].len, NULL, &len, 0);
 #elif defined(__FreeBSD_kernel__)
@@ -1168,7 +1180,9 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
 #if defined(__linux__)            ||                                           \
     defined(_AIX71)               ||                                           \
     defined(__sun)                ||                                           \
-    defined(__HAIKU__)
+    defined(__HAIKU__)            ||                                           \
+    defined(__GNU__)              ||                                           \
+    defined(__OpenBSD__)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);

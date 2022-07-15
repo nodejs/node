@@ -46,11 +46,7 @@ static void thread_main(void* arg) {
     uv_fs_req_cleanup(&req);
   } while (n > 0 || (n == -1 && uv_errno == UV_EINTR));
 
-#ifdef _WIN32
-  ASSERT(n == UV_EOF);
-#else
   ASSERT(n == 0);
-#endif
 }
 
 
@@ -106,8 +102,7 @@ TEST_IMPL(pipe_set_non_blocking) {
     ASSERT(n == UV_EAGAIN); /* E_NOTIMPL */
     ASSERT(0 == uv_write(&write_req, (uv_stream_t*) &pipe_handle, &buf, 1, write_cb));
     ASSERT_NOT_NULL(write_req.handle);
-    ASSERT(1 == uv_run(uv_default_loop(), UV_RUN_ONCE)); /* queue write_cb */
-    ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE)); /* process write_cb */
+    ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
     ASSERT_NULL(write_req.handle); /* check for signaled completion of write_cb */
     n = buf.len;
 #endif

@@ -28,7 +28,7 @@ TEST_IMPL(loop_update_time) {
 
   start = uv_now(uv_default_loop());
   while (uv_now(uv_default_loop()) - start < 1000)
-    ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_NOWAIT));
+    ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_NOWAIT));
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -43,20 +43,26 @@ TEST_IMPL(loop_backend_timeout) {
   uv_timer_t timer;
   int r;
 
-  r = uv_timer_init(loop, &timer);
-  ASSERT(r == 0);
+  /* The default loop has some internal watchers to initialize. */
+  loop->active_handles++;
+  r = uv_run(loop, UV_RUN_NOWAIT);
+  ASSERT_EQ(r, 1);
+  loop->active_handles--;
+  ASSERT_EQ(uv_loop_alive(loop), 0);
 
-  ASSERT(!uv_loop_alive(loop));
-  ASSERT(uv_backend_timeout(loop) == 0);
+  r = uv_timer_init(loop, &timer);
+  ASSERT_EQ(r, 0);
+
+  ASSERT_EQ(uv_loop_alive(loop), 0);
+  ASSERT_EQ(uv_backend_timeout(loop), 0);
 
   r = uv_timer_start(&timer, cb, 1000, 0); /* 1 sec */
-  ASSERT(r == 0);
-  ASSERT(uv_backend_timeout(loop) > 100); /* 0.1 sec */
-  ASSERT(uv_backend_timeout(loop) <= 1000); /* 1 sec */
+  ASSERT_EQ(r, 0);
+  ASSERT_EQ(uv_backend_timeout(loop), 1000);
 
   r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-  ASSERT(uv_backend_timeout(loop) == 0);
+  ASSERT_EQ(r, 0);
+  ASSERT_EQ(uv_backend_timeout(loop), 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

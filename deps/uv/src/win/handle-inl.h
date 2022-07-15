@@ -55,7 +55,7 @@
                                                                         \
     if (handle->flags & UV_HANDLE_CLOSING &&                            \
         handle->reqs_pending == 0) {                                    \
-      uv_want_endgame(loop, (uv_handle_t*)handle);                      \
+      uv__want_endgame(loop, (uv_handle_t*)handle);                     \
     }                                                                   \
   } while (0)
 
@@ -85,7 +85,7 @@
   } while (0)
 
 
-INLINE static void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle) {
+INLINE static void uv__want_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   if (!(handle->flags & UV_HANDLE_ENDGAME_QUEUED)) {
     handle->flags |= UV_HANDLE_ENDGAME_QUEUED;
 
@@ -95,7 +95,7 @@ INLINE static void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle) {
 }
 
 
-INLINE static void uv_process_endgames(uv_loop_t* loop) {
+INLINE static void uv__process_endgames(uv_loop_t* loop) {
   uv_handle_t* handle;
 
   while (loop->endgame_handles) {
@@ -106,23 +106,23 @@ INLINE static void uv_process_endgames(uv_loop_t* loop) {
 
     switch (handle->type) {
       case UV_TCP:
-        uv_tcp_endgame(loop, (uv_tcp_t*) handle);
+        uv__tcp_endgame(loop, (uv_tcp_t*) handle);
         break;
 
       case UV_NAMED_PIPE:
-        uv_pipe_endgame(loop, (uv_pipe_t*) handle);
+        uv__pipe_endgame(loop, (uv_pipe_t*) handle);
         break;
 
       case UV_TTY:
-        uv_tty_endgame(loop, (uv_tty_t*) handle);
+        uv__tty_endgame(loop, (uv_tty_t*) handle);
         break;
 
       case UV_UDP:
-        uv_udp_endgame(loop, (uv_udp_t*) handle);
+        uv__udp_endgame(loop, (uv_udp_t*) handle);
         break;
 
       case UV_POLL:
-        uv_poll_endgame(loop, (uv_poll_t*) handle);
+        uv__poll_endgame(loop, (uv_poll_t*) handle);
         break;
 
       case UV_TIMER:
@@ -133,23 +133,23 @@ INLINE static void uv_process_endgames(uv_loop_t* loop) {
       case UV_PREPARE:
       case UV_CHECK:
       case UV_IDLE:
-        uv_loop_watcher_endgame(loop, handle);
+        uv__loop_watcher_endgame(loop, handle);
         break;
 
       case UV_ASYNC:
-        uv_async_endgame(loop, (uv_async_t*) handle);
+        uv__async_endgame(loop, (uv_async_t*) handle);
         break;
 
       case UV_SIGNAL:
-        uv_signal_endgame(loop, (uv_signal_t*) handle);
+        uv__signal_endgame(loop, (uv_signal_t*) handle);
         break;
 
       case UV_PROCESS:
-        uv_process_endgame(loop, (uv_process_t*) handle);
+        uv__process_endgame(loop, (uv_process_t*) handle);
         break;
 
       case UV_FS_EVENT:
-        uv_fs_event_endgame(loop, (uv_fs_event_t*) handle);
+        uv__fs_event_endgame(loop, (uv_fs_event_t*) handle);
         break;
 
       case UV_FS_POLL:

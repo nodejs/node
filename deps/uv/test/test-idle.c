@@ -97,3 +97,29 @@ TEST_IMPL(idle_starvation) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+static void idle_stop(uv_idle_t* handle) {
+  uv_idle_stop(handle);
+}
+
+
+TEST_IMPL(idle_check) {
+  ASSERT_EQ(0, uv_idle_init(uv_default_loop(), &idle_handle));
+  ASSERT_EQ(0, uv_idle_start(&idle_handle, idle_stop));
+
+  ASSERT_EQ(0, uv_check_init(uv_default_loop(), &check_handle));
+  ASSERT_EQ(0, uv_check_start(&check_handle, check_cb));
+
+  ASSERT_EQ(1, uv_run(uv_default_loop(), UV_RUN_ONCE));
+  ASSERT_EQ(1, check_cb_called);
+
+  ASSERT_EQ(0, close_cb_called);
+  uv_close((uv_handle_t*) &idle_handle, close_cb);
+  uv_close((uv_handle_t*) &check_handle, close_cb);
+  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_ONCE));
+  ASSERT_EQ(2, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

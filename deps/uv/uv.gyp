@@ -78,6 +78,8 @@
         'src/random.c',
         'src/strscpy.c',
         'src/strscpy.h',
+        'src/strtok.c',
+        'src/strtok.h',
         'src/threadpool.c',
         'src/timer.c',
         'src/uv-data-getter-setters.c',
@@ -254,7 +256,6 @@
         }],
         [ 'OS=="android"', {
           'sources': [
-            'src/unix/android-ifaddrs.c',
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
