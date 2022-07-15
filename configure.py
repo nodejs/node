@@ -429,11 +429,6 @@ static_optgroup.add_argument('--static-zoslib-gyp',
 
 parser.add_argument_group(static_optgroup)
 
-parser.add_argument('--systemtap-includes',
-    action='store',
-    dest='systemtap_includes',
-    help='directory containing systemtap header files')
-
 parser.add_argument('--tag',
     action='store',
     dest='tag',
@@ -1316,10 +1311,6 @@ def configure_node(o):
     # Don't enable by default on linux and freebsd
     if flavor in ('linux', 'freebsd'):
       use_dtrace = options.with_dtrace
-
-    if flavor == 'linux':
-      if options.systemtap_includes:
-        o['include_dirs'] += [options.systemtap_includes]
     o['variables']['node_use_dtrace'] = b(use_dtrace)
   elif options.with_dtrace:
     raise Exception(
