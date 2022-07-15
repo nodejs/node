@@ -243,11 +243,11 @@ $ git reset --hard upstream/vN.x
 The list of patches to include should be listed in the "Next Security Release"
 issue in `nodejs-private`. Ask the security release steward if you're unsure.
 
-When landing PRs from `nodejs-private`, you will need to manually apply the
-metadata as the `git node land` tool does not work with the private
-organisation.
-
-If known, also include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
+Note that the `git node land` tool does not work with the `nodejs-private`
+organisation. To land a PR in Node.js private, use `git cherry-pick` to apply
+each commit from the PR. You will also need to manually apply the PR
+metadata (`PR-URL`, `Reviewed-by`, etc.) by amending the commit messages. If
+known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
 
 **Note**: Do not run CI on the PRs in `nodejs-private` until CI is locked down.
 You can integrate the PRs into the proposal without running full CI.
