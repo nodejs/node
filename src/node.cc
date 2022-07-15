@@ -1016,7 +1016,7 @@ InitializationResult InitializeOncePerProcess(
 
   // Initialized the enabled list for Debug() calls with system
   // environment variables.
-  per_process::enabled_debug_list.Parse(nullptr);
+  per_process::enabled_debug_list.Parse();
 
   atexit(ResetStdio);
 
