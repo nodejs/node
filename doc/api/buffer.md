@@ -1207,10 +1207,14 @@ console.log(buf);
 
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43863
+    description: The `buffer` parameter can now be an any `ArrayBufferView`.
 -->
 
-* `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`][] from
-  which to copy data.
+* `buffer` {Buffer|ArrayBufferView} An existing `Buffer`, [`TypedArray`][],
+  or [`DataView`][] from which to copy data.
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -1242,8 +1246,8 @@ console.log(buf2.toString());
 // Prints: buffer
 ```
 
-A `TypeError` will be thrown if `buffer` is not a `Buffer` or another type
-appropriate for `Buffer.from()` variants.
+A `TypeError` will be thrown if `buffer` is not an `ArrayBufferView`
+or another type appropriate for `Buffer.from()` variants.
 
 ### Static method: `Buffer.from(object[, offsetOrEncoding[, length]])`
 

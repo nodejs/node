@@ -59,22 +59,72 @@ assert.strictEqual(d.length, 0);
 }
 
 // Test creating a Buffer from a Uint32Array
-// Note: it is implicitly interpreted as Array of integers modulo 256
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer.from(ui32);
-  for (const [index, value] of e.entries()) {
-    assert.strictEqual(value, ui32[index]);
-  }
+  assert.deepStrictEqual(e, Buffer.from([
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+  ]));
 }
 // Test creating a Buffer from a Uint32Array (old constructor)
-// Note: it is implicitly interpreted as Array of integers modulo 256
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer(ui32);
-  for (const [key, value] of e.entries()) {
-    assert.strictEqual(value, ui32[key]);
-  }
+  assert.deepStrictEqual(e, Buffer.from([
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+    42, 0, 0, 0,
+  ]));
+}
+
+// Test creating a Buffer from a BigUint64Array
+{
+  const bui64 = new BigUint64Array(4).fill(42n);
+  const e = Buffer.from(bui64);
+  assert.deepStrictEqual(e, Buffer.from([
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+  ]));
+}
+// Test creating a Buffer from a BigUint64Array (old constructor)
+{
+  const bui64 = new BigUint64Array(4).fill(42n);
+  const e = Buffer(bui64);
+  assert.deepStrictEqual(e, Buffer.from([
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+    42, 0, 0, 0, 0, 0, 0, 0,
+  ]));
+}
+
+// Test creating a Buffer from a Float64Array
+{
+  const f64 = new Float64Array(4).fill(42);
+  const e = Buffer.from(f64);
+  assert.deepStrictEqual(e, Buffer.from([
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+  ]));
+}
+// Test creating a Buffer from a Float64Array (old constructor)
+{
+  const f64 = new Float64Array(4).fill(42);
+  const e = Buffer(f64);
+  assert.deepStrictEqual(e, Buffer.from([
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+    0, 0, 0, 0, 0, 0, 69, 64,
+  ]));
 }
 
 // Test invalid encoding for Buffer.toString
