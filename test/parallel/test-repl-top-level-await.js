@@ -182,6 +182,10 @@ async function ordinaryTests() {
       '3',
       'undefined',
     ]],
+    // Regression test for https://github.com/nodejs/node/issues/43777.
+    ['await Promise.resolve(123), Promise.resolve(456)', 'Promise {', { line: 0 }],
+    ['await Promise.resolve(123), await Promise.resolve(456)', '456'],
+    ['await (Promise.resolve(123), Promise.resolve(456))', '456'],
   ];
 
   for (const [input, expected = [`${input}\r`], options = {}] of testCases) {
