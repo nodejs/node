@@ -550,7 +550,7 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.request()`]: http.md#httprequestoptions-callback
 [`https.Agent`]: #class-httpsagent
 [`https.request()`]: #httpsrequestoptions-callback
-[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`net.Server`]: net.md#class-netserver
 [`new URL()`]: url.md#new-urlinput-base
 [`server.close()`]: http.md#serverclosecallback
