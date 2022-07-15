@@ -93,10 +93,10 @@ The tools are currently assigned to Tiers as follows:
 
 ## Tier 1
 
-| Tool Type | Tool/API Name     | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
-| --------- | ----------------- | ----------------------------- | ----------------------- | ----------- |
-| FFDC      | diagnostic report | Yes                           | Yes                     | 1           |
-|           |                   |                               |                         |             |
+| Tool Type | Tool/API Name         | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+| --------- | --------------------- | ----------------------------- | ----------------------- | ----------- |
+| FFDC      | [diagnostic report][] | Yes                           | Yes                     | 1           |
+|           |                       |                               |                         |             |
 
 ## Tier 2
 
@@ -112,25 +112,34 @@ The tools are currently assigned to Tiers as follows:
 | Profiling | --prof/--prof-process flags          | Yes                           | Yes                     | 1           |
 | Profiling | V8 CodeEventHandler API              | Partial (V8 Tests)            | Yes                     | 2           |
 | Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     | 2           |
-| Profiling | Linux perf                           | Yes                           | Partial                 | 2           |
-| Profiling | node-clinic                          | No                            | No                      | 3           |
-| Debugger  | Chrome Dev tools                     | No                            | No                      | 3           |
+| Profiling | [Linux perf][]                       | Yes                           | Partial                 | 2           |
+| Profiling | [node-clinic][]                      | No                            | No                      | 3           |
+| Debugger  | [Chrome Dev tools][]                 | No                            | No                      | 3           |
 
 ## Tier 4
 
-| Tool Type | Tool/API Name                                 | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
-| --------- | --------------------------------------------- | ----------------------------- | ----------------------- | ----------- |
-| Profiling | [0x](https://github.com/davidmarkclements/0x) | No                            | No                      | 3           |
+| Tool Type | Tool/API Name | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+| --------- | ------------- | ----------------------------- | ----------------------- | ----------- |
+| Profiling | [0x][]        | No                            | No                      | 3           |
 
 ## Not yet classified
 
-| Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
-| --------- | ------------------------- | ----------------------------- | ----------------------- | ----------- |
-| Memory    | V8 heap profiler          | No                            | Yes                     | 1           |
-| Memory    | V8 sampling heap profiler | No                            | Yes                     | 1           |
-| AsyncFlow | Async Hooks (API)         | ?                             | Yes                     | 1           |
-| Debugger  | V8 Debug protocol (API)   | No                            | Yes                     | 1           |
-| Debugger  | Command line Debug Client | ?                             | Yes                     | 1           |
-| Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
-| Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
-| M/T       | eBPF tracing tool         | No                            | No                      | ?           |
+| Tool Type | Tool/API Name                             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+| --------- | ----------------------------------------- | ----------------------------- | ----------------------- | ----------- |
+| Memory    | V8 heap profiler                          | No                            | Yes                     | 1           |
+| Memory    | V8 sampling heap profiler                 | No                            | Yes                     | 1           |
+| AsyncFlow | [Async Hooks (API)][]                     | ?                             | Yes                     | 1           |
+| Debugger  | V8 Debug protocol (API)                   | No                            | Yes                     | 1           |
+| Debugger  | [Command line Debug Client][]             | ?                             | Yes                     | 1           |
+| Tracing   | [trace\_events (API)][trace_events (API)] | No                            | Yes                     | 1           |
+| Tracing   | trace\_gc                                 | No                            | Yes                     | 1           |
+| M/T       | eBPF tracing tool                         | No                            | No                      | ?           |
+
+[0x]: https://github.com/davidmarkclements/0x
+[Async Hooks (API)]: https://nodejs.org/api/async_hooks.html
+[Chrome Dev Tools]: https://developer.chrome.com/docs/devtools/
+[Command line Debug Client]: https://nodejs.org/api/inspector.html
+[Linux perf]: https://perf.wiki.kernel.org/index.php/Main_Page
+[diagnostic report]: https://nodejs.org/api/report.html
+[node-clinic]: https://github.com/clinicjs/node-clinic/
+[trace_events (API)]: https://nodejs.org/api/tracing.html
