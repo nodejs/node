@@ -1,3 +1,6 @@
+const { isolateAddress } = require('v8');
+console.log('my isolate address:', isolateAddress);
+
 let arr = new Array(300_000).fill('a');
 
 for (let index = 0; index < arr.length; index++) {

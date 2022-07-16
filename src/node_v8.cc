@@ -153,6 +153,15 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void GetIsolateAddress(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  char address[64];
+  // Use %p (even though it's platform dependent) because that's what V8 uses
+  // for --trace-gc, and we want to match it.
+  snprintf(address, sizeof(address), "%p", isolate);
+  args.GetReturnValue().Set(OneByteString(isolate, address));
+}
+
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapStatistics s;
@@ -190,7 +199,6 @@ void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 #undef V
 }
 
-
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   String::Utf8Value flags(args.GetIsolate(), args[0]);
@@ -208,6 +216,9 @@ void Initialize(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
                              CachedDataVersionTag);
+
+  env->SetMethodNoSideEffect(target, "getIsolateAddress", GetIsolateAddress);
+
   env->SetMethod(
       target, "updateHeapStatisticsBuffer", UpdateHeapStatisticsBuffer);
 
@@ -253,6 +264,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CachedDataVersionTag);
+  registry->Register(GetIsolateAddress);
   registry->Register(UpdateHeapStatisticsBuffer);
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);

@@ -18,6 +18,14 @@ const fixtures = require('../common/fixtures');
   const output = childProcess.stdout.toString().trim();
   const lines = splitByLine(output);
 
+  const isolateAddressRegex = /^my isolate address: (.*)$/;
+  const isolateAddressLine = lines.find((line) => line.match(isolateAddressRegex));
+  assert(isolateAddressLine);
+  const isolateAddress = isolateAddressLine.match(isolateAddressRegex)[1];
+  assert(isolateAddress);
+
+  const traceGcLines = lines.filter((line) => line !== isolateAddressLine);
+
   const scavengeRegex = /\bScavenge\b/;
   const expectedOutput = [
     scavengeRegex,
@@ -26,8 +34,15 @@ const fixtures = require('../common/fixtures');
     scavengeRegex,
     /\bMark-sweep\b/,
   ];
-  lines.forEach((line, index) => {
+
+  assert.strictEqual(traceGcLines.length, expectedOutput.length);
+  traceGcLines.forEach((line, index) => {
     assert.match(line, expectedOutput[index]);
+  });
+
+  const traceGcPrefix = `[${childProcess.pid}:${isolateAddress}] `;
+  traceGcLines.forEach((line) => {
+    assert(line.startsWith(traceGcPrefix));
   });
 }
 
