@@ -10748,6 +10748,7 @@ const findAndReplace =
         const replace = pairs[pairIndex][1];
         let start = 0;
         const index = parent.children.indexOf(node);
+        let change = false;
         let nodes = [];
         let position;
         find.lastIndex = 0;
@@ -10763,9 +10764,7 @@ const findAndReplace =
           if (typeof value === 'string') {
             value = value.length > 0 ? {type: 'text', value} : undefined;
           }
-          if (value === false) {
-            position = undefined;
-          } else {
+          if (value !== false) {
             if (start !== position) {
               nodes.push({
                 type: 'text',
@@ -10778,19 +10777,20 @@ const findAndReplace =
               nodes.push(value);
             }
             start = position + match[0].length;
+            change = true;
           }
           if (!find.global) {
             break
           }
           match = find.exec(node.value);
         }
-        if (position === undefined) {
-          nodes = [node];
-        } else {
+        if (change) {
           if (start < node.value.length) {
             nodes.push({type: 'text', value: node.value.slice(start)});
           }
           parent.children.splice(index, 1, ...nodes);
+        } else {
+          nodes = [node];
         }
         return index + nodes.length
       }
