@@ -117,6 +117,7 @@ const customTypesMap = {
   'EventEmitter': 'events.html#class-eventemitter',
   'EventTarget': 'events.html#class-eventtarget',
   'Event': 'events.html#class-event',
+  'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
 
   'FileHandle': 'fs.html#class-filehandle',
