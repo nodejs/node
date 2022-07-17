@@ -952,6 +952,7 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
+  AliasedBufferIndex exiting;
   AliasedBufferIndex stream_base_state;
   AliasedBufferIndex should_abort_on_uncaught_toggle;
 
@@ -1152,6 +1153,11 @@ class Environment : public MemoryRetainer {
 
   inline void set_force_context_aware(bool value);
   inline bool force_context_aware() const;
+
+  // This is a pseudo-boolean that keeps track of whether the process is
+  // exiting.
+  inline void set_exiting(bool value);
+  inline AliasedUint32Array& exiting();
 
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
@@ -1549,6 +1555,8 @@ class Environment : public MemoryRetainer {
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
+
+  AliasedUint32Array exiting_;
 
   AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;

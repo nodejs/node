@@ -91,6 +91,11 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
     return MaybeLocal<Object>();
   }
 
+  // process._exitingAliasedUint32Array
+  Local<String> exiting_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_exitingAliasedUint32Array");
+  process->Set(context, exiting_string, env->exiting().GetJSArray()).FromJust();
+
   // process.version
   READONLY_PROPERTY(process,
                     "version",
