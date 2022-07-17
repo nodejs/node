@@ -416,6 +416,10 @@ This variable may appear to be global but is not. See [`module`][].
 
 ## `performance`
 
+<!-- YAML
+added: v16.0.0
+-->
+
 The [`perf_hooks.performance`][] object.
 
 ## `process`
