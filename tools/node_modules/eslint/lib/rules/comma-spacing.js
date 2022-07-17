@@ -104,38 +104,6 @@ module.exports = {
         }
 
         /**
-         * Validates the spacing around a comma token.
-         * @param {Object} tokens The tokens to be validated.
-         * @param {Token} tokens.comma The token representing the comma.
-         * @param {Token} [tokens.left] The last token before the comma.
-         * @param {Token} [tokens.right] The first token after the comma.
-         * @param {Token|ASTNode} reportItem The item to use when reporting an error.
-         * @returns {void}
-         * @private
-         */
-        function validateCommaItemSpacing(tokens, reportItem) {
-            if (tokens.left && astUtils.isTokenOnSameLine(tokens.left, tokens.comma) &&
-                    (options.before !== sourceCode.isSpaceBetweenTokens(tokens.left, tokens.comma))
-            ) {
-                report(reportItem, "before", tokens.left);
-            }
-
-            if (tokens.right && astUtils.isClosingParenToken(tokens.right)) {
-                return;
-            }
-
-            if (tokens.right && !options.after && tokens.right.type === "Line") {
-                return;
-            }
-
-            if (tokens.right && astUtils.isTokenOnSameLine(tokens.comma, tokens.right) &&
-                    (options.after !== sourceCode.isSpaceBetweenTokens(tokens.comma, tokens.right))
-            ) {
-                report(reportItem, "after", tokens.right);
-            }
-        }
-
-        /**
          * Adds null elements of the given ArrayExpression or ArrayPattern node to the ignore list.
          * @param {ASTNode} node An ArrayExpression or ArrayPattern node.
          * @returns {void}
@@ -172,18 +140,44 @@ module.exports = {
                         return;
                     }
 
-                    if (token && token.type === "JSXText") {
-                        return;
-                    }
-
                     const previousToken = tokensAndComments[i - 1];
                     const nextToken = tokensAndComments[i + 1];
 
-                    validateCommaItemSpacing({
-                        comma: token,
-                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.includes(token) ? null : previousToken,
-                        right: astUtils.isCommaToken(nextToken) ? null : nextToken
-                    }, token);
+                    if (
+                        previousToken &&
+                        !astUtils.isCommaToken(previousToken) && // ignore spacing between two commas
+
+                        /*
+                         * `commaTokensToIgnore` are ending commas of `null` elements (array holes/elisions).
+                         * In addition to spacing between two commas, this can also ignore:
+                         *
+                         *   - Spacing after `[` (controlled by array-bracket-spacing)
+                         *       Example: [ , ]
+                         *                 ^
+                         *   - Spacing after a comment (for backwards compatibility, this was possibly unintentional)
+                         *       Example: [a, /* * / ,]
+                         *                          ^
+                         */
+                        !commaTokensToIgnore.includes(token) &&
+
+                        astUtils.isTokenOnSameLine(previousToken, token) &&
+                        options.before !== sourceCode.isSpaceBetweenTokens(previousToken, token)
+                    ) {
+                        report(token, "before", previousToken);
+                    }
+
+                    if (
+                        nextToken &&
+                        !astUtils.isCommaToken(nextToken) && // ignore spacing between two commas
+                        !astUtils.isClosingParenToken(nextToken) && // controlled by space-in-parens
+                        !astUtils.isClosingBracketToken(nextToken) && // controlled by array-bracket-spacing
+                        !astUtils.isClosingBraceToken(nextToken) && // controlled by object-curly-spacing
+                        !(!options.after && nextToken.type === "Line") && // special case, allow space before line comment
+                        astUtils.isTokenOnSameLine(token, nextToken) &&
+                        options.after !== sourceCode.isSpaceBetweenTokens(token, nextToken)
+                    ) {
+                        report(token, "after", nextToken);
+                    }
                 });
             },
             ArrayExpression: addNullElementsToIgnoreList,
