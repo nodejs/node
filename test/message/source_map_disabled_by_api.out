@@ -9,10 +9,6 @@ Error: an error!
     at Module.load (node:internal/modules/cjs/loader:*)
     at Module._load (node:internal/modules/cjs/loader:*)
     at Module.require (node:internal/modules/cjs/loader:*)
-*enclosing-call-site.js:16
-      throw new Error('an error!')
-                ^
-
 Error: an error!
     at functionD (*enclosing-call-site.js:16:17)
     at functionC (*enclosing-call-site.js:10:3)
@@ -24,5 +20,3 @@ Error: an error!
     at Module.load (node:internal/modules/cjs/loader:*)
     at Module._load (node:internal/modules/cjs/loader:*)
     at Module.require (node:internal/modules/cjs/loader:*)
-
-Node.js *

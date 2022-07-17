@@ -1,6 +1,6 @@
 *icu.jsx:3
     ("********", throw Error("an error"));
-                       ^
+     ^
 
 Error: an error
     at *icu.jsx:3:23*
