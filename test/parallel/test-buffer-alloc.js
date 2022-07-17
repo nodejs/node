@@ -3,8 +3,11 @@ const common = require('../common');
 
 const assert = require('assert');
 const vm = require('vm');
+const os = require('os');
 
 const SlowBuffer = require('buffer').SlowBuffer;
+
+const isBigEnd = os.endianness() === 'BE';
 
 // Verify the maximum Uint8Array size. There is no concrete limit by spec. The
 // internal limits should be updated if this fails.
@@ -62,7 +65,12 @@ assert.strictEqual(d.length, 0);
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer.from(ui32);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+  ] : [
     42, 0, 0, 0,
     42, 0, 0, 0,
     42, 0, 0, 0,
@@ -73,7 +81,12 @@ assert.strictEqual(d.length, 0);
 {
   const ui32 = new Uint32Array(4).fill(42);
   const e = Buffer(ui32);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+    0, 0, 0, 42,
+  ] : [
     42, 0, 0, 0,
     42, 0, 0, 0,
     42, 0, 0, 0,
@@ -85,7 +98,12 @@ assert.strictEqual(d.length, 0);
 {
   const bui64 = new BigUint64Array(4).fill(42n);
   const e = Buffer.from(bui64);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+  ] : [
     42, 0, 0, 0, 0, 0, 0, 0,
     42, 0, 0, 0, 0, 0, 0, 0,
     42, 0, 0, 0, 0, 0, 0, 0,
@@ -96,7 +114,12 @@ assert.strictEqual(d.length, 0);
 {
   const bui64 = new BigUint64Array(4).fill(42n);
   const e = Buffer(bui64);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+    0, 0, 0, 0, 0, 0, 0, 42,
+  ] : [
     42, 0, 0, 0, 0, 0, 0, 0,
     42, 0, 0, 0, 0, 0, 0, 0,
     42, 0, 0, 0, 0, 0, 0, 0,
@@ -108,7 +131,12 @@ assert.strictEqual(d.length, 0);
 {
   const f64 = new Float64Array(4).fill(42);
   const e = Buffer.from(f64);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+  ] : [
     0, 0, 0, 0, 0, 0, 69, 64,
     0, 0, 0, 0, 0, 0, 69, 64,
     0, 0, 0, 0, 0, 0, 69, 64,
@@ -119,7 +147,12 @@ assert.strictEqual(d.length, 0);
 {
   const f64 = new Float64Array(4).fill(42);
   const e = Buffer(f64);
-  assert.deepStrictEqual(e, Buffer.from([
+  assert.deepStrictEqual(e, Buffer.from(isBigEnd ? [
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+    64, 69, 0, 0, 0, 0, 0, 0,
+  ] : [
     0, 0, 0, 0, 0, 0, 69, 64,
     0, 0, 0, 0, 0, 0, 69, 64,
     0, 0, 0, 0, 0, 0, 69, 64,
