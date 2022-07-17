@@ -508,18 +508,6 @@ parser.add_argument('--with-mips-float-abi',
     help='MIPS floating-point ABI ({0}) [default: %(default)s]'.format(
         ', '.join(valid_mips_float_abi)))
 
-parser.add_argument('--with-dtrace',
-    action='store_true',
-    dest='with_dtrace',
-    default=None,
-    help='build with DTrace (default is true on sunos and darwin)')
-
-parser.add_argument('--with-etw',
-    action='store_true',
-    dest='with_etw',
-    default=None,
-    help='build with ETW (default is true on Windows)')
-
 parser.add_argument('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
@@ -627,18 +615,6 @@ http2_optgroup.add_argument('--debug-nghttp2',
     help='build nghttp2 with DEBUGBUILD (default is false)')
 
 parser.add_argument_group(http2_optgroup)
-
-parser.add_argument('--without-dtrace',
-    action='store_true',
-    dest='without_dtrace',
-    default=None,
-    help='build without DTrace')
-
-parser.add_argument('--without-etw',
-    action='store_true',
-    dest='without_etw',
-    default=None,
-    help='build without ETW')
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -1306,18 +1282,6 @@ def configure_node(o):
 
   o['variables']['enable_lto'] = b(options.enable_lto)
 
-  if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
-    use_dtrace = not options.without_dtrace
-    # Don't enable by default on linux and freebsd
-    if flavor in ('linux', 'freebsd'):
-      use_dtrace = options.with_dtrace
-    o['variables']['node_use_dtrace'] = b(use_dtrace)
-  elif options.with_dtrace:
-    raise Exception(
-       'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
-  else:
-    o['variables']['node_use_dtrace'] = 'false'
-
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
          have no effect during build time. Support for mapping to large pages is
@@ -1327,14 +1291,6 @@ def configure_node(o):
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
-
-  # By default, enable ETW on Windows.
-  if flavor == 'win':
-    o['variables']['node_use_etw'] = b(not options.without_etw)
-  elif options.with_etw:
-    raise Exception('ETW is only supported on Windows.')
-  else:
-    o['variables']['node_use_etw'] = 'false'
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:

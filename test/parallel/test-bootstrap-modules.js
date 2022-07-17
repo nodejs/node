@@ -57,7 +57,6 @@ const expectedModules = new Set([
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
   'NativeModule internal/constants',
-  'NativeModule internal/dtrace',
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/event_target',
@@ -233,11 +232,6 @@ if (common.hasCrypto) {
   expectedModules.add('NativeModule internal/crypto/util');
   expectedModules.add('NativeModule internal/crypto/x509');
   expectedModules.add('NativeModule internal/streams/lazy_transform');
-}
-
-const { internalBinding } = require('internal/test/binding');
-if (internalBinding('config').hasDtrace) {
-  expectedModules.add('Internal Binding dtrace');
 }
 
 const difference = (setA, setB) => {

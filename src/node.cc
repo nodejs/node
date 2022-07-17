@@ -55,10 +55,6 @@
 #include "inspector_io.h"
 #endif
 
-#if defined HAVE_DTRACE || defined HAVE_ETW
-#include "node_dtrace.h"
-#endif
-
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
@@ -292,10 +288,6 @@ void Environment::InitializeDiagnostics() {
       env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
     }, this);
   }
-
-#if defined HAVE_DTRACE || defined HAVE_ETW
-  InitDTrace(this);
-#endif
 }
 
 MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
