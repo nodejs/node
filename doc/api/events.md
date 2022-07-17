@@ -1987,6 +1987,31 @@ added: v14.5.0
 
 Removes the `listener` from the list of handlers for event `type`.
 
+### Class: `CustomEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+* Extends: {Event}
+
+The `CustomEvent` object is an adaptation of the [`CustomEvent` Web API][].
+Instances are created internally by Node.js.
+
+#### `event.detail`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+* Type: {any} Returns custom data passed when initializing.
+
+Read-only.
+
 ### Class: `NodeEventTarget`
 
 <!-- YAML
@@ -2124,6 +2149,7 @@ to the `EventTarget`.
 
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.md#--trace-warnings
+[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`EventTarget` error handling]: #eventtarget-error-handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
