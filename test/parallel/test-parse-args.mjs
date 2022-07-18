@@ -578,3 +578,248 @@ test('strict: when long option and suspect value then throws with whole expected
   }, /To specify an option argument starting with a dash use '--with=-XYZ'/
   );
 });
+
+test('tokens: positional', () => {
+  const args = ['one'];
+  const expectedTokens = [
+    { kind: 'positional', index: 0, value: 'one' },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: -- followed by option-like', () => {
+  const args = ['--', '--foo'];
+  const expectedTokens = [
+    { kind: 'option-terminator', index: 0 },
+    { kind: 'positional', index: 1, value: '--foo' },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true boolean short', () => {
+  const args = ['-f'];
+  const options = {
+    file: { short: 'f', type: 'boolean' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '-f',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true boolean long', () => {
+  const args = ['--file'];
+  const options = {
+    file: { short: 'f', type: 'boolean' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false boolean short', () => {
+  const args = ['-f'];
+  const expectedTokens = [
+    { kind: 'option', name: 'f', rawName: '-f',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false boolean long', () => {
+  const args = ['--file'];
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false boolean option group', () => {
+  const args = ['-ab'];
+  const expectedTokens = [
+    { kind: 'option', name: 'a', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: 'b', rawName: '-b',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false boolean option group with repeated option', () => {
+  // Also positional to check index correct after grouop
+  const args = ['-aa', 'pos'];
+  const expectedTokens = [
+    { kind: 'option', name: 'a', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: 'a', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'positional', index: 1, value: 'pos' },
+  ];
+  const { tokens } = parseArgs({ strict: false, allowPositionals: true, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true string short with value after space', () => {
+  // Also positional to check index correct after out-of-line.
+  const args = ['-f', 'bar', 'ppp'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '-f',
+      index: 0, value: 'bar', inlineValue: false },
+    { kind: 'positional', index: 2, value: 'ppp' },
+  ];
+  const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true string short with value inline', () => {
+  const args = ['-fBAR'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '-f',
+      index: 0, value: 'BAR', inlineValue: true },
+  ];
+  const { tokens } = parseArgs({ strict: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false string short missing value', () => {
+  const args = ['-f'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '-f',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true string long with value after space', () => {
+  // Also positional to check index correct after out-of-line.
+  const args = ['--file', 'bar', 'ppp'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: 'bar', inlineValue: false },
+    { kind: 'positional', index: 2, value: 'ppp' },
+  ];
+  const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true string long with value inline', () => {
+  // Also positional to check index correct after out-of-line.
+  const args = ['--file=bar', 'pos'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: 'bar', inlineValue: true },
+    { kind: 'positional', index: 1, value: 'pos' },
+  ];
+  const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false string long with value inline', () => {
+  const args = ['--file=bar'];
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: 'bar', inlineValue: true },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false string long missing value', () => {
+  const args = ['--file'];
+  const options = {
+    file: { short: 'f', type: 'string' }
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: undefined, inlineValue: undefined },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true complex option group with value after space', () => {
+  // Also positional to check index correct afterwards.
+  const args = ['-ab', 'c', 'pos'];
+  const options = {
+    alpha: { short: 'a', type: 'boolean' },
+    beta: { short: 'b', type: 'string' },
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'alpha', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: 'beta', rawName: '-b',
+      index: 0, value: 'c', inlineValue: false },
+    { kind: 'positional', index: 2, value: 'pos' },
+  ];
+  const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:true complex option group with inline value', () => {
+  // Also positional to check index correct afterwards.
+  const args = ['-abc', 'pos'];
+  const options = {
+    alpha: { short: 'a', type: 'boolean' },
+    beta: { short: 'b', type: 'string' },
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'alpha', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: 'beta', rawName: '-b',
+      index: 0, value: 'c', inlineValue: true },
+    { kind: 'positional', index: 1, value: 'pos' },
+  ];
+  const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false with single dashes', () => {
+  const args = ['--file', '-', '-'];
+  const options = {
+    file: { short: 'f', type: 'string' },
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'file', rawName: '--file',
+      index: 0, value: '-', inlineValue: false },
+    { kind: 'positional', index: 2, value: '-' },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test('tokens: strict:false with -- --', () => {
+  const args = ['--', '--'];
+  const expectedTokens = [
+    { kind: 'option-terminator', index: 0 },
+    { kind: 'positional', index: 1, value: '--' },
+  ];
+  const { tokens } = parseArgs({ strict: false, args, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
