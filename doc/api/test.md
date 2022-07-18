@@ -332,7 +332,7 @@ changes:
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
   * `concurrency` {number|boolean} If a number is provided,
-  then that many tests would run in parallel.
+    then that many tests would run in parallel.
     If truthy, on top level, it would run (number of cpu cores - 1)
     tests in parallel.
     For subtests, it will be infinity tests in parallel.
