@@ -1122,7 +1122,7 @@ on [running tests from the command line][] for more details.
 added: REPLACEME
 -->
 
-Configures the test runner to run sub tests in parallel.
+Configures the test concurrently.
 
 ### `--test-only`
 
