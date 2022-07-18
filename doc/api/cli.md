@@ -1122,7 +1122,7 @@ on [running tests from the command line][] for more details.
 added: REPLACEME
 -->
 
-Configures the test concurrently.
+Configures the tests to run concurrently.
 
 ### `--test-only`
 
