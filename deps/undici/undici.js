@@ -2227,6 +2227,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           }
           const chunks = [];
           for await (const chunk of consumeBody(this[kState].body)) {
+            if (!isUint8Array(chunk)) {
+              throw new TypeError("Expected Uint8Array chunk");
+            }
             chunks.push(new Blob([chunk]));
           }
           return new Blob(chunks, { type: this.headers.get("Content-Type") || "" });
@@ -2241,6 +2244,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             const buffer2 = new Uint8Array(contentLength);
             let offset2 = 0;
             for await (const chunk of consumeBody(this[kState].body)) {
+              if (!isUint8Array(chunk)) {
+                throw new TypeError("Expected Uint8Array chunk");
+              }
               buffer2.set(chunk, offset2);
               offset2 += chunk.length;
             }
@@ -2249,6 +2255,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           const chunks = [];
           let size = 0;
           for await (const chunk of consumeBody(this[kState].body)) {
+            if (!isUint8Array(chunk)) {
+              throw new TypeError("Expected Uint8Array chunk");
+            }
             chunks.push(chunk);
             size += chunk.byteLength;
           }
@@ -2267,6 +2276,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           let result = "";
           const textDecoder = new TextDecoder();
           for await (const chunk of consumeBody(this[kState].body)) {
+            if (!isUint8Array(chunk)) {
+              throw new TypeError("Expected Uint8Array chunk");
+            }
             result += textDecoder.decode(chunk, { stream: true });
           }
           result += textDecoder.decode();
@@ -2350,6 +2362,9 @@ var require_request = __commonJS({
     } = require_errors();
     var assert = require("assert");
     var util = require_util();
+    var tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/;
+    var headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/;
+    var invalidPathRegex = /[^\u0021-\u00ff]/;
     var kHandler = Symbol("handler");
     var channels = {};
     var extractBody;
@@ -2388,9 +2403,13 @@ var require_request = __commonJS({
           throw new InvalidArgumentError("path must be a string");
         } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
+        } else if (invalidPathRegex.exec(path) !== null) {
+          throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
           throw new InvalidArgumentError("method must be a string");
+        } else if (tokenRegExp.exec(method) === null) {
+          throw new InvalidArgumentError("invalid request method");
         }
         if (upgrade && typeof upgrade !== "string") {
           throw new InvalidArgumentError("upgrade must be a string");
@@ -2562,6 +2581,10 @@ var require_request = __commonJS({
         throw new InvalidArgumentError("invalid upgrade header");
       } else if (key.length === 6 && key.toLowerCase() === "expect") {
         throw new NotSupportedError("expect header not supported");
+      } else if (tokenRegExp.exec(key) === null) {
+        throw new InvalidArgumentError("invalid header key");
+      } else if (headerCharRegex.exec(val) !== null) {
+        throw new InvalidArgumentError(`invalid ${key} header`);
       } else {
         request.headers += `${key}: ${val}\r
 `;
@@ -2685,7 +2708,7 @@ var require_redirect = __commonJS({
       }
     }
     function shouldRemoveHeader(header, removeContent, unknownOrigin) {
-      return header.length === 4 && header.toString().toLowerCase() === "host" || removeContent && header.toString().toLowerCase().indexOf("content-") === 0 || unknownOrigin && header.length === 13 && header.toString().toLowerCase() === "authorization";
+      return header.length === 4 && header.toString().toLowerCase() === "host" || removeContent && header.toString().toLowerCase().indexOf("content-") === 0 || unknownOrigin && header.length === 13 && header.toString().toLowerCase() === "authorization" || unknownOrigin && header.length === 6 && header.toString().toLowerCase() === "cookie";
     }
     function cleanRequestHeaders(headers, removeContent, unknownOrigin) {
       const ret = [];

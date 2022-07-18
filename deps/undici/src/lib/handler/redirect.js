@@ -186,7 +186,8 @@ function shouldRemoveHeader (header, removeContent, unknownOrigin) {
   return (
     (header.length === 4 && header.toString().toLowerCase() === 'host') ||
     (removeContent && header.toString().toLowerCase().indexOf('content-') === 0) ||
-    (unknownOrigin && header.length === 13 && header.toString().toLowerCase() === 'authorization')
+    (unknownOrigin && header.length === 13 && header.toString().toLowerCase() === 'authorization') ||
+    (unknownOrigin && header.length === 6 && header.toString().toLowerCase() === 'cookie')
   )
 }
 

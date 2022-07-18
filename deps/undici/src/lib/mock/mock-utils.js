@@ -8,7 +8,7 @@ const {
   kOrigin,
   kGetNetConnect
 } = require('./mock-symbols')
-const { buildURL } = require('../core/util')
+const { buildURL, nop } = require('../core/util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -288,6 +288,7 @@ function mockDispatch (opts, handler) {
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
+    handler.abort = nop
     handler.onHeaders(statusCode, responseHeaders, resume, getStatusText(statusCode))
     handler.onData(Buffer.from(responseData))
     handler.onComplete(responseTrailers)
