@@ -1116,6 +1116,14 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the inspector. See the documentation
 on [running tests from the command line][] for more details.
 
+### `--test-concurrency`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Configures the test runner to run sub tests in parallel.
+
 ### `--test-only`
 
 <!-- YAML
