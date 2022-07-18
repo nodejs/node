@@ -183,8 +183,10 @@ inline size_t base64_encode_scalar(
   return dlen;
 }
 
+// Only work for GCC for now
 #if (defined(__x86_64) || defined(__x86_64__)) &&                              \
-    (defined(__GNUC__) || defined(__GNUC))
+    defined(__GNUC__) && !defined(__llvm__) &&                                 \
+    !defined(__INTEL_COMPILER)
 #pragma GCC target("avx512vl", "avx512vbmi")
 /* Core logic is from https://github.com/WojciechMula/base64-avx512
  * Copyright 2019 Daniel Lemire, Wojciech Muła
