@@ -390,12 +390,12 @@ static const unsigned char group_modp18[] = {
   0x80, 0xdd, 0x98, 0xed, 0xd3, 0xdf, 0xff, 0xff, 0xff, 0xff,
   0xff, 0xff, 0xff, 0xff };
 
-typedef struct {
+struct modp_group {
   const char* name;
   const char* prime;
   unsigned int prime_size;
   unsigned int gen;
-} modp_group;
+};
 
 static const modp_group modp_groups[] = {
 #define V(var) reinterpret_cast<const char*>(var)
