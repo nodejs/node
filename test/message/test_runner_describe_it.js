@@ -347,18 +347,18 @@ describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
     const duration = 3000;
     const expectedEndDateTime = suiteStartDateTime + duration + extraBufferTime;
     await new Promise((resolve, reject) => {
-      setTimeout(resolve, duration)
+      setTimeout(resolve, duration);
     });
-    assert.strictEqual( expectedEndDateTime > new Date().getTime(), true)
+    assert.strictEqual(expectedEndDateTime > new Date().getTime(), true);
   });
   it('should be over by 1 second from suite start', async () => {
-      const duration = 1000;
-      const expectedEndDateTime = suiteStartDateTime + duration + extraBufferTime;
-      await new Promise((resolve, reject) => {
-        setTimeout(resolve, duration)
-      });
-      assert.strictEqual( expectedEndDateTime > new Date().getTime(), true)
+    const duration = 1000;
+    const expectedEndDateTime = suiteStartDateTime + duration + extraBufferTime;
+    await new Promise((resolve, reject) => {
+      setTimeout(resolve, duration);
     });
+    assert.strictEqual(expectedEndDateTime > new Date().getTime(), true);
+  });
 });
 
 describe('Concurrency option (boolean) = false ', { concurrency: false }, () => {
@@ -368,18 +368,18 @@ describe('Concurrency option (boolean) = false ', { concurrency: false }, () => 
     const duration = 3000;
     const expectedEndDateTime = suiteStartDateTime + duration + extraBufferTime;
     await new Promise((resolve, reject) => {
-      setTimeout(resolve, duration)
+      setTimeout(resolve, duration);
     });
-    assert.strictEqual( expectedEndDateTime > new Date().getTime(), true)
+    assert.strictEqual(expectedEndDateTime > new Date().getTime(), true);
   });
   it('should be over by 4 seconds from suite start', async () => {
-      const duration = 1000;
-      const prevTestDuration = 3000;
-      const expectedEndDateTime = 
+    const duration = 1000;
+    const prevTestDuration = 3000;
+    const expectedEndDateTime =
       suiteStartDateTime + duration + extraBufferTime + prevTestDuration;
-      await new Promise((resolve, reject) => {
-        setTimeout(resolve, duration)
-      });
-      assert.strictEqual( expectedEndDateTime > new Date().getTime(), true)
+    await new Promise((resolve, reject) => {
+      setTimeout(resolve, duration);
     });
+    assert.strictEqual(expectedEndDateTime > new Date().getTime(), true);
+  });
 });
