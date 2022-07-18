@@ -94,7 +94,8 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
   // process._exitingAliasedUint32Array
   Local<String> exiting_string =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_exitingAliasedUint32Array");
-  if (process->Set(context, exiting_string, env->exiting().GetJSArray()).IsNothing()) {
+  if (process->Set(context, exiting_string, env->exiting().GetJSArray())
+          .IsNothing()) {
     return {};
   }
 
