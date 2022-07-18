@@ -307,7 +307,7 @@ typedef AliasedBufferBase<int32_t, v8::Int32Array> AliasedInt32Array;
 typedef AliasedBufferBase<uint8_t, v8::Uint8Array> AliasedUint8Array;
 typedef AliasedBufferBase<uint32_t, v8::Uint32Array> AliasedUint32Array;
 typedef AliasedBufferBase<double, v8::Float64Array> AliasedFloat64Array;
-typedef AliasedBufferBase<uint64_t, v8::BigUint64Array> AliasedBigUint64Array;
+typedef AliasedBufferBase<int64_t, v8::BigInt64Array> AliasedBigInt64Array;
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
