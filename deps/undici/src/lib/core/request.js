@@ -7,6 +7,27 @@ const {
 const assert = require('assert')
 const util = require('./util')
 
+// tokenRegExp and headerCharRegex have been lifted from
+// https://github.com/nodejs/node/blob/main/lib/_http_common.js
+
+/**
+ * Verifies that the given val is a valid HTTP token
+ * per the rules defined in RFC 7230
+ * See https://tools.ietf.org/html/rfc7230#section-3.2.6
+ */
+const tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/
+
+/**
+ * Matches if val contains an invalid field-vchar
+ *  field-value    = *( field-content / obs-fold )
+ *  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+ *  field-vchar    = VCHAR / obs-text
+ */
+const headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/
+
+// Verifies that a given path is valid does not contain control chars \x00 to \x20
+const invalidPathRegex = /[^\u0021-\u00ff]/
+
 const kHandler = Symbol('handler')
 
 const channels = {}
@@ -54,10 +75,14 @@ class Request {
       method !== 'CONNECT'
     ) {
       throw new InvalidArgumentError('path must be an absolute URL or start with a slash')
+    } else if (invalidPathRegex.exec(path) !== null) {
+      throw new InvalidArgumentError('invalid request path')
     }
 
     if (typeof method !== 'string') {
       throw new InvalidArgumentError('method must be a string')
+    } else if (tokenRegExp.exec(method) === null) {
+      throw new InvalidArgumentError('invalid request method')
     }
 
     if (upgrade && typeof upgrade !== 'string') {
@@ -301,6 +326,10 @@ function processHeader (request, key, val) {
     key.toLowerCase() === 'expect'
   ) {
     throw new NotSupportedError('expect header not supported')
+  } else if (tokenRegExp.exec(key) === null) {
+    throw new InvalidArgumentError('invalid header key')
+  } else if (headerCharRegex.exec(val) !== null) {
+    throw new InvalidArgumentError(`invalid ${key} header`)
   } else {
     request.headers += `${key}: ${val}\r\n`
   }
