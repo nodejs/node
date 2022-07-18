@@ -280,6 +280,10 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
+Note, Accessing `Error.stack` with source maps enabled can be an expensive 
+operation. Do check out the performance implications of `--enable-source-maps` 
+at [nodejs/node#41541](https://github.com/nodejs/node/issues/41541).
+
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
