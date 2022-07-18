@@ -291,6 +291,10 @@ function bodyMixinMethods (instance) {
       const chunks = []
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         // Assemble one final large blob with Uint8Array's can exhaust memory.
         // That's why we create create multiple blob's and using references
         chunks.push(new Blob([chunk]))
@@ -314,6 +318,10 @@ function bodyMixinMethods (instance) {
         let offset = 0
 
         for await (const chunk of consumeBody(this[kState].body)) {
+          if (!isUint8Array(chunk)) {
+            throw new TypeError('Expected Uint8Array chunk')
+          }
+
           buffer.set(chunk, offset)
           offset += chunk.length
         }
@@ -331,6 +339,10 @@ function bodyMixinMethods (instance) {
       let size = 0
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         chunks.push(chunk)
         size += chunk.byteLength
       }
@@ -355,6 +367,10 @@ function bodyMixinMethods (instance) {
       const textDecoder = new TextDecoder()
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         result += textDecoder.decode(chunk, { stream: true })
       }
 
