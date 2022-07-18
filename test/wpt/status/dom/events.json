@@ -20,16 +20,12 @@
     "fail": {
       "unexpected": [
         "assert_true: expected true got false",
-        "assert_array_equals: lengths differ, expected array [\"bubbles\", \"cancelable\"] length 2, got [\"cancelable\", \"bubbles\", \"sweet\"] length 3",
-        "CustomEvent is not defined"
+        "assert_array_equals: lengths differ, expected array [\"bubbles\", \"cancelable\"] length 2, got [\"cancelable\", \"bubbles\", \"sweet\"] length 3"
       ]
     }
   },
   "EventListener-addEventListener.sub.window.js": {
     "fail": "document is not defined"
-  },
-  "EventTarget-constructible.any.js": {
-    "fail": "CustomEvent is not defined"
   },
   "relatedTarget.window.js": {
     "fail": "document is not defined"
