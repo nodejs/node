@@ -86,13 +86,22 @@ template <typename NativeT, typename V8T>
 void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
                     const uv_stat_t* s,
                     const size_t offset) {
-#define SET_FIELD_WITH_STAT(stat_offset, stat)                               \
-  fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset), \
+#define SET_FIELD_WITH_STAT(stat_offset, stat)                                 \
+  fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset),   \
                    static_cast<NativeT>(stat))
 
-#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                          \
-  /* NOLINTNEXTLINE(runtime/int) */                                          \
+// On win32, time is stored in uint64_t and starts from 1601-01-01.
+// libuv calculates tv_sec and tv_nsec from it and converts to signed long,
+// which causes Y2038 overflow. On the other platforms it is safe to treat
+// negative values as pre-epoch time.
+#ifdef _WIN32
+#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
+  /* NOLINTNEXTLINE(runtime/int) */                                            \
   SET_FIELD_WITH_STAT(stat_offset, static_cast<unsigned long>(stat))
+#else
+#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
+  SET_FIELD_WITH_STAT(stat_offset, static_cast<double>(stat))
+#endif  // _WIN32
 
   SET_FIELD_WITH_STAT(kDev, s->st_dev);
   SET_FIELD_WITH_STAT(kMode, s->st_mode);
@@ -233,7 +242,7 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
   Environment* env = binding_data->env();
   if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(binding_data, use_bigint);
+      return FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
     } else {
       return FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
     }
