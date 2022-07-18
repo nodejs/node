@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --always-opt --expose-gc
+// Flags: --allow-natives-syntax --always-turbofan --expose-gc
 
 // Test that the elements kind of the boilerplate object is sufficiently
 // checked in LFastLiteral, so that unoptimized code can transition the
-// boilerplate. The --always-opt flag makes sure that optimized code is
+// boilerplate. The --always-turbofan flag makes sure that optimized code is
 // not thrown away at deoptimization.
 
 // The switch statement in f() makes sure that f() is not inlined. If we

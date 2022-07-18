@@ -4,16 +4,13 @@
 
 #include "src/wasm/function-compiler.h"
 
-#include "src/base/platform/time.h"
-#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
-#include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/diagnostics/code-tracer.h"
+#include "src/handles/handles-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
-#include "src/utils/ostreams.h"
+#include "src/objects/code-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
@@ -34,13 +31,14 @@ ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    Counters* counters, AssemblerBufferCache* buffer_cache,
+    WasmFeatures* detected) {
   WasmCompilationResult result;
   if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
     result = ExecuteImportWrapperCompilation(env);
   } else {
-    result =
-        ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
+    result = ExecuteFunctionCompilation(env, wire_bytes_storage, counters,
+                                        buffer_cache, detected);
   }
 
   if (result.succeeded() && counters) {
@@ -70,7 +68,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    Counters* counters, AssemblerBufferCache* buffer_cache,
+    WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
@@ -120,10 +119,13 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
           debug_sidetable_ptr = &unused_debug_sidetable;
         }
         result = ExecuteLiftoffCompilation(
-            env, func_body, func_index_, for_debugging_,
+            env, func_body,
             LiftoffOptions{}
+                .set_func_index(func_index_)
+                .set_for_debugging(for_debugging_)
                 .set_counters(counters)
                 .set_detected_features(detected)
+                .set_assembler_buffer_cache(buffer_cache)
                 .set_debug_sidetable(debug_sidetable_ptr));
         if (result.succeeded()) break;
       }
@@ -132,14 +134,15 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // failed.
       if (FLAG_liftoff_only) break;
 
-      // If Liftoff failed, fall back to turbofan.
+      // If Liftoff failed, fall back to TurboFan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
       V8_FALLTHROUGH;
 
     case ExecutionTier::kTurbofan:
       result = compiler::ExecuteTurbofanWasmCompilation(
-          env, wire_bytes_storage, func_body, func_index_, counters, detected);
+          env, wire_bytes_storage, func_body, func_index_, counters,
+          buffer_cache, detected);
       result.for_debugging = for_debugging_;
       break;
   }
@@ -164,7 +167,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-      isolate->counters(), detected);
+      isolate->counters(), nullptr, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     native_module->PublishCode(
@@ -230,28 +233,26 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
+Handle<CodeT> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return FromCodeT(
-        isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper),
-        isolate_);
+    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   Handle<Code> code = job_->compilation_info()->code();
-  if (isolate_->logger()->is_listening_to_code_events() ||
+  if (isolate_->v8_file_logger()->is_listening_to_code_events() ||
       isolate_->is_profiling()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         job_->compilation_info()->GetDebugName().get());
-    PROFILE(isolate_, CodeCreateEvent(CodeEventListener::STUB_TAG,
+    PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Handle<AbstractCode>::cast(code), name));
   }
-  return code;
+  return ToCodeT(code, isolate_);
 }
 
 // static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, const WasmModule* module,
     bool is_import) {
   // Run the compilation unit synchronously.
@@ -263,7 +264,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
 }
 
 // static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, const WasmModule* module) {
   // Run the compilation unit synchronously.
   const bool is_import = false;

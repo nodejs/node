@@ -120,7 +120,7 @@ inline constexpr bool CanBeKeywordCharacter(char c) {
 }
 
 // Make sure tokens are stored as a single byte.
-STATIC_ASSERT(sizeof(Token::Value) == 1);
+static_assert(sizeof(Token::Value) == 1);
 
 // Get the shortest token that this character starts, the token may change
 // depending on subsequent characters.
@@ -261,12 +261,12 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
   bool escaped = false;
   bool can_be_keyword = true;
 
-  STATIC_ASSERT(arraysize(character_scan_flags) == kMaxAscii + 1);
+  static_assert(arraysize(character_scan_flags) == kMaxAscii + 1);
   if (V8_LIKELY(static_cast<uint32_t>(c0_) <= kMaxAscii)) {
     if (V8_LIKELY(c0_ != '\\')) {
       uint8_t scan_flags = character_scan_flags[c0_];
       DCHECK(!TerminatesLiteral(scan_flags));
-      STATIC_ASSERT(static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart) ==
+      static_assert(static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart) ==
                     static_cast<uint8_t>(ScanFlags::kCannotBeKeyword) << 1);
       scan_flags >>= 1;
       // Make sure the shifting above doesn't set IdentifierNeedsSlowPath.

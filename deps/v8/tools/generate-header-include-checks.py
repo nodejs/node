@@ -29,12 +29,17 @@ MY_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_DIR = os.path.dirname(MY_DIR)
 OUT_DIR = os.path.join(V8_DIR, 'check-header-includes')
 AUTO_EXCLUDE = [
-  # flag-definitions.h needs a mode set for being included.
-  'src/flags/flag-definitions.h',
-  # recorder.h should only be included conditionally.
-  'src/libplatform/tracing/recorder.h',
-  # trap-handler-simulator.h can only be included in simulator builds.
-  'src/trap-handler/trap-handler-simulator.h',
+    # flag-definitions.h needs a mode set for being included.
+    'src/flags/flag-definitions.h',
+    # recorder.h should only be included conditionally.
+    'src/libplatform/tracing/recorder.h',
+    # trap-handler-simulator.h can only be included in simulator builds.
+    'src/trap-handler/trap-handler-simulator.h',
+    # The src/wasm/*-impl.h coding pattern is generally at odds with the rule
+    # being enforced here: they are meant to provide possibly-incomplete
+    # templates, and their users must provide their prerequisites.
+    'src/wasm/function-body-decoder-impl.h',
+    'src/wasm/module-decoder-impl.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
     'src/base/atomicops_internals_.*',

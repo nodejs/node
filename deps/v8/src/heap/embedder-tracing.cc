@@ -16,12 +16,12 @@ namespace internal {
 
 void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
   CHECK_NULL(cpp_heap_);
-  if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
+  if (remote_tracer_) remote_tracer_->v8_isolate_ = nullptr;
 
   remote_tracer_ = tracer;
   default_embedder_roots_handler_.SetTracer(tracer);
   if (remote_tracer_)
-    remote_tracer_->isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
+    remote_tracer_->v8_isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
 }
 
 void LocalEmbedderHeapTracer::SetCppHeap(CppHeap* cpp_heap) {

@@ -77,6 +77,16 @@ class PredictablePlatform final : public Platform {
       TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
     // Do not call {platform_->PostJob} here, as this would create a job that
     // posts tasks directly to the underlying default platform.
+    std::unique_ptr<JobHandle> handle =
+        CreateJob(priority, std::move(job_task));
+    handle->NotifyConcurrencyIncrease();
+    return handle;
+  }
+
+  std::unique_ptr<JobHandle> CreateJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+    // Do not call {platform_->PostJob} here, as this would create a job that
+    // posts tasks directly to the underlying default platform.
     return platform::NewDefaultJobHandle(this, priority, std::move(job_task),
                                          NumberOfWorkerThreads());
   }
@@ -188,6 +198,11 @@ class DelayedTasksPlatform final : public Platform {
   std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
     return platform_->PostJob(priority, MakeDelayedJob(std::move(job_task)));
+  }
+
+  std::unique_ptr<JobHandle> CreateJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+    return platform_->CreateJob(priority, MakeDelayedJob(std::move(job_task)));
   }
 
   double MonotonicallyIncreasingTime() override {

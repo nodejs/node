@@ -41,7 +41,7 @@ using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
 using LanguageField = base::BitField8<LanguageMode, 0, 1>;
 using UsesSuperField = LanguageField::Next<bool, 1>;
-STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
+static_assert(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace
 

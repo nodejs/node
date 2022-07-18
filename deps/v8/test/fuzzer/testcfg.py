@@ -8,16 +8,17 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 SUB_TESTS = [
-  'inspector',
-  'json',
-  'parser',
-  'regexp',
-  'regexp_builtins',
-  'multi_return',
-  'wasm',
-  'wasm_async',
-  'wasm_code',
-  'wasm_compile',
+    'inspector',
+    'json',
+    'parser',
+    'regexp',
+    'regexp_builtins',
+    'multi_return',
+    'wasm',
+    'wasm_async',
+    'wasm_code',
+    'wasm_compile',
+    'wasm_streaming',
 ]
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -64,7 +65,3 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     group, _ = self.path.split(os.path.sep, 1)
     return 'v8_simple_%s_fuzzer' % group
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

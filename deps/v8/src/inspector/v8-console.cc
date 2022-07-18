@@ -1011,7 +1011,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
-  v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
+  auto isolate = m_context->GetIsolate();
+  if (isolate->IsExecutionTerminating()) return;
+  v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   *static_cast<CommandLineAPIScope**>(
       m_thisReference->GetBackingStore()->Data()) = nullptr;

@@ -200,6 +200,10 @@ struct SliceIterator<T: type, Reference: type> {
     return *this.NextReference() otherwise NoMore;
   }
 
+  macro NextNotEmpty(): T {
+    return *this.NextReferenceNotEmpty();
+  }
+
   macro NextReference(): Reference labels NoMore {
     if (this.Empty()) {
       goto NoMore;
@@ -208,6 +212,13 @@ struct SliceIterator<T: type, Reference: type> {
       this.start += %SizeOf<T>();
       return result;
     }
+  }
+
+  macro NextReferenceNotEmpty(): Reference {
+    dcheck(!this.Empty());
+    const result = unsafe::NewReference<T>(this.object, this.start);
+    this.start += %SizeOf<T>();
+    return result;
   }
 
   object: HeapObject|TaggedZeroPattern;

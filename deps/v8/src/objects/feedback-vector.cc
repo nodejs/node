@@ -192,10 +192,9 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "InstanceOf";
     case FeedbackSlotKind::kCloneObject:
       return "CloneObject";
-    case FeedbackSlotKind::kKindsNumber:
-      break;
+    case FeedbackSlotKind::kJumpLoop:
+      return "JumpLoop";
   }
-  UNREACHABLE();
 }
 
 bool FeedbackMetadata::HasTypeProfileSlot() const {
@@ -282,6 +281,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
+      case FeedbackSlotKind::kJumpLoop:
         vector->Set(slot, HeapObjectReference::ClearedValue(isolate),
                     SKIP_WRITE_BARRIER);
         break;
@@ -315,7 +315,6 @@ Handle<FeedbackVector> FeedbackVector::New(
         break;
 
       case FeedbackSlotKind::kInvalid:
-      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
     }
     for (int j = 1; j < entry_size; j++) {
@@ -386,19 +385,23 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
   if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
-void FeedbackVector::SetOptimizedCode(Handle<CodeT> code) {
-  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
+void FeedbackVector::SetOptimizedCode(CodeT code) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   // We should set optimized code only when there is no valid optimized code.
+  // TODO(v8:7700): Update this check once optimized code can be promoted to a
+  // higher tier (in particular, maglev to turbofan).
   DCHECK(!has_optimized_code() ||
          optimized_code().marked_for_deoptimization() ||
          FLAG_stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized state here either from
-  // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
+  // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
-  set_maybe_optimized_code(HeapObjectReference::Weak(*code), kReleaseStore);
+  set_maybe_optimized_code(HeapObjectReference::Weak(code), kReleaseStore);
   int32_t state = flags();
+  // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
+  // the callers doing so.
   state = TieringStateBits::update(state, TieringState::kNone);
   state = MaybeHasOptimizedCodeBit::update(state, true);
   set_flags(state);
@@ -410,6 +413,13 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
                            kReleaseStore);
   set_maybe_has_optimized_code(false);
+}
+
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+  DCHECK(!slot.IsInvalid());
+  Set(slot, HeapObjectReference::Weak(code));
+  set_maybe_has_optimized_osr_code(true);
 }
 
 void FeedbackVector::reset_tiering_state() {
@@ -424,8 +434,9 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
+            MaybeHasOptimizedCodeBit::encode(false) |
             OsrTieringStateBit::encode(TieringState::kNone) |
-            MaybeHasOptimizedCodeBit::encode(false));
+            MaybeHasOptimizedOsrCodeBit::encode(false));
 }
 
 TieringState FeedbackVector::osr_tiering_state() {
@@ -434,8 +445,8 @@ TieringState FeedbackVector::osr_tiering_state() {
 
 void FeedbackVector::set_osr_tiering_state(TieringState marker) {
   DCHECK(marker == TieringState::kNone || marker == TieringState::kInProgress);
-  STATIC_ASSERT(TieringState::kNone <= OsrTieringStateBit::kMax);
-  STATIC_ASSERT(TieringState::kInProgress <= OsrTieringStateBit::kMax);
+  static_assert(TieringState::kNone <= OsrTieringStateBit::kMax);
+  static_assert(TieringState::kInProgress <= OsrTieringStateBit::kMax);
   int32_t state = flags();
   state = OsrTieringStateBit::update(state, marker);
   set_flags(state);
@@ -550,22 +561,19 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       SetFeedback(HeapObjectReference::ClearedValue(isolate),
                   SKIP_WRITE_BARRIER, UninitializedSentinel(),
                   SKIP_WRITE_BARRIER);
       break;
-    }
     case FeedbackSlotKind::kCloneObject:
-    case FeedbackSlotKind::kCall: {
+    case FeedbackSlotKind::kCall:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER, Smi::zero(),
                   SKIP_WRITE_BARRIER);
       break;
-    }
-    case FeedbackSlotKind::kInstanceOf: {
+    case FeedbackSlotKind::kInstanceOf:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
-    }
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kSetKeyedSloppy:
@@ -576,11 +584,14 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral: {
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER,
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
-    }
+    case FeedbackSlotKind::kJumpLoop:
+      SetFeedback(HeapObjectReference::ClearedValue(isolate),
+                  SKIP_WRITE_BARRIER);
+      break;
     default:
       UNREACHABLE();
   }
@@ -623,6 +634,7 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kCloneObject:
+    case FeedbackSlotKind::kJumpLoop:
       if (!IsCleared()) {
         ConfigureUninitialized();
         feedback_updated = true;
@@ -630,7 +642,6 @@ bool FeedbackNexus::Clear() {
       break;
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
   return feedback_updated;
@@ -692,7 +703,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kJumpLoop: {
       if (feedback->IsSmi()) return InlineCacheState::MONOMORPHIC;
 
       DCHECK(feedback->IsWeakOrCleared());
@@ -834,7 +846,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
     }
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
   return InlineCacheState::UNINITIALIZED;
@@ -1076,6 +1087,20 @@ int FeedbackNexus::ExtractMapsAndFeedback(
   }
 
   return found;
+}
+
+MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
+  DCHECK(ic_state() == InlineCacheState::MEGADOM);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  MaybeObject maybe_handler = pair.second;
+  if (!maybe_handler->IsCleared()) {
+    MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectHandle();
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(

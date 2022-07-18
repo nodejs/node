@@ -62,7 +62,7 @@ class CommonFrameConstants : public AllStatic {
   static constexpr int kFixedSlotCountAboveFp =
       kFixedFrameSizeAboveFp / kSystemPointerSize;
   static constexpr int kCPSlotSize =
-      FLAG_enable_embedded_constant_pool ? kSystemPointerSize : 0;
+      FLAG_enable_embedded_constant_pool.value() ? kSystemPointerSize : 0;
   static constexpr int kCPSlotCount = kCPSlotSize / kSystemPointerSize;
   static constexpr int kConstantPoolOffset =
       kCPSlotSize ? -1 * kSystemPointerSize : 0;

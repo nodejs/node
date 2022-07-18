@@ -1560,7 +1560,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       //  { PAGE: [[metric_name, ...], [...], ]}
       // Also, make sure we don't have the versioned array-style:
       // { VERSION: { PAGE: [[metric_name, ...], [...], ]}, ...}
-      const innerArray = firstProperty(maybeMetrics);
+      const innerArray = firstProperty(maybeMetric);
       if (Array.isArray(maybeMetric) && !Array.isArray(innerArray)) {
         return {
           [getFileName()]: json

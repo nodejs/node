@@ -27,15 +27,16 @@ class WeakMemberTag;
 class UntracedMemberTag;
 
 struct DijkstraWriteBarrierPolicy {
-  static void InitializingBarrier(const void*, const void*) {
+  V8_INLINE static void InitializingBarrier(const void*, const void*) {
     // Since in initializing writes the source object is always white, having no
     // barrier doesn't break the tri-color invariant.
   }
-  static void AssigningBarrier(const void* slot, const void* value) {
+  V8_INLINE static void AssigningBarrier(const void* slot, const void* value) {
     WriteBarrier::Params params;
     switch (WriteBarrier::GetWriteBarrierType(slot, value, params)) {
       case WriteBarrier::Type::kGenerational:
-        WriteBarrier::GenerationalBarrier(params, slot);
+        WriteBarrier::GenerationalBarrier<
+            WriteBarrier::GenerationalBarrierType::kPreciseSlot>(params, slot);
         break;
       case WriteBarrier::Type::kMarking:
         WriteBarrier::DijkstraMarkingBarrier(params, value);
@@ -47,8 +48,8 @@ struct DijkstraWriteBarrierPolicy {
 };
 
 struct NoWriteBarrierPolicy {
-  static void InitializingBarrier(const void*, const void*) {}
-  static void AssigningBarrier(const void*, const void*) {}
+  V8_INLINE static void InitializingBarrier(const void*, const void*) {}
+  V8_INLINE static void AssigningBarrier(const void*, const void*) {}
 };
 
 class V8_EXPORT SameThreadEnabledCheckingPolicyBase {
@@ -89,7 +90,7 @@ class V8_EXPORT SameThreadEnabledCheckingPolicy
 
 class DisabledCheckingPolicy {
  protected:
-  void CheckPointer(const void*) {}
+  V8_INLINE void CheckPointer(const void*) {}
 };
 
 #ifdef DEBUG

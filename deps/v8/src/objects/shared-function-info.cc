@@ -108,8 +108,13 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsWasmCapiFunctionData()) {
     return wasm_capi_function_data().wrapper_code();
   }
-  if (data.IsWasmOnFulfilledData()) {
-    return isolate->builtins()->code(Builtin::kWasmResume);
+  if (data.IsWasmResumeData()) {
+    if (static_cast<wasm::OnResume>(wasm_resume_data().on_resume()) ==
+        wasm::OnResume::kContinue) {
+      return isolate->builtins()->code(Builtin::kWasmResume);
+    } else {
+      return isolate->builtins()->code(Builtin::kWasmReject);
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (data.IsUncompiledData()) {
@@ -146,6 +151,11 @@ WasmJSFunctionData SharedFunctionInfo::wasm_js_function_data() const {
 WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
   DCHECK(HasWasmCapiFunctionData());
   return WasmCapiFunctionData::cast(function_data(kAcquireLoad));
+}
+
+WasmResumeData SharedFunctionInfo::wasm_resume_data() const {
+  DCHECK(HasWasmResumeData());
+  return WasmResumeData::cast(function_data(kAcquireLoad));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -600,7 +610,7 @@ void SharedFunctionInfo::UpdateExpectedNofPropertiesFromEstimate(
     FunctionLiteral* literal) {
   // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
-  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  static_assert(JSObject::kMaxInObjectProperties <= kMaxUInt8);
   int estimate = get_property_estimate_from_literal(literal);
   set_expected_nof_properties(std::min(estimate, kMaxUInt8));
 }
@@ -619,7 +629,7 @@ void SharedFunctionInfo::UpdateAndFinalizeExpectedNofPropertiesFromEstimate(
 
   // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
-  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  static_assert(JSObject::kMaxInObjectProperties <= kMaxUInt8);
   estimate = std::min(estimate, kMaxUInt8);
 
   set_expected_nof_properties(estimate);
@@ -725,6 +735,8 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
       FATAL("Failed to compile shared info that was already compiled before");
     }
     DCHECK(shared_info->GetBytecodeArray(isolate).HasSourcePositionTable());
+  } else {
+    *is_compiled_scope = shared_info->is_compiled_scope(isolate);
   }
 }
 

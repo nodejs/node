@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-escape --allow-natives-syntax --no-always-opt
-// Flags: --opt --turbo-filter=* --no-force-slow-path
+// Flags: --turbo-escape --allow-natives-syntax --no-always-turbofan
+// Flags: --turbofan --turbo-filter=* --no-force-slow-path
 
 "use strict";
 

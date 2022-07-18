@@ -69,6 +69,7 @@ class TestWithPlatform : public ::testing::Test {
 class TestWithHeap : public TestWithPlatform {
  public:
   TestWithHeap();
+  ~TestWithHeap() override;
 
   void PreciseGC() {
     heap_->ForceGarbageCollectionSlow(

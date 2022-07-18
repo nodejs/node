@@ -44,8 +44,6 @@ class MarkingBarrier {
   inline bool MarkValue(HeapObject host, HeapObject value);
 
  private:
-  using MarkingState = MarkCompactCollector::MarkingState;
-
   inline bool WhiteToGreyAndPush(HeapObject value);
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);

@@ -146,6 +146,16 @@ v8::Maybe<v8::debug::PropertyDescriptor> DebugPropertyIterator::descriptor() {
   if (did_get_descriptor.IsNothing()) {
     return Nothing<v8::debug::PropertyDescriptor>();
   }
+  if (!did_get_descriptor.FromJust()) {
+    return Just(v8::debug::PropertyDescriptor{
+        false, false,           /* enumerable */
+        false, false,           /* configurable */
+        false, false,           /* writable */
+        v8::Local<v8::Value>(), /* value */
+        v8::Local<v8::Value>(), /* get */
+        v8::Local<v8::Value>(), /* set */
+    });
+  }
   DCHECK(did_get_descriptor.FromJust());
   return Just(v8::debug::PropertyDescriptor{
       descriptor.enumerable(), descriptor.has_enumerable(),
@@ -184,8 +194,9 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   }
   PropertyFilter filter =
       stage_ == kEnumerableStrings ? ENUMERABLE_STRINGS : ALL_PROPERTIES;
-  if (KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, filter,
-                              GetKeysConversion::kConvertToString, false,
+  if (KeyAccumulator::GetKeys(isolate_, receiver, KeyCollectionMode::kOwnOnly,
+                              filter, GetKeysConversion::kConvertToString,
+                              false,
                               skip_indices_ || receiver->IsJSTypedArray())
           .ToHandle(&current_keys_)) {
     current_keys_length_ = current_keys_->length();
@@ -212,16 +223,19 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
   Handle<Object> structure = it.GetAccessors();
   if (!structure->IsAccessorInfo()) return debug::NativeAccessorType::None;
   base::Flags<debug::NativeAccessorType, int> result;
+  if (*structure == *isolate->factory()->value_unavailable_accessor()) {
+    return debug::NativeAccessorType::IsValueUnavailable;
+  }
 #define IS_BUILTIN_ACCESSOR(_, name, ...)                   \
   if (*structure == *isolate->factory()->name##_accessor()) \
     return debug::NativeAccessorType::None;
   ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACCESSOR, /* not used */)
 #undef IS_BUILTIN_ACCESSOR
   Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
-  if (accessor_info->getter() != Object()) {
+  if (accessor_info->has_getter()) {
     result |= debug::NativeAccessorType::HasGetter;
   }
-  if (accessor_info->setter() != Object()) {
+  if (accessor_info->has_setter()) {
     result |= debug::NativeAccessorType::HasSetter;
   }
   return result;

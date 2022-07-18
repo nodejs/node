@@ -115,6 +115,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   // any integer for JSTypedArrays).
   inline bool IsElement(JSReceiver object) const;
 
+  inline bool IsPrivateName() const;
+
   bool IsFound() const { return state_ != NOT_FOUND; }
   void Next();
   void NotFound() {

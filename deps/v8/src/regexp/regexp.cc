@@ -402,7 +402,7 @@ Handle<Object> RegExpImpl::AtomExec(Isolate* isolate, Handle<JSRegExp> re,
                                     Handle<String> subject, int index,
                                     Handle<RegExpMatchInfo> last_match_info) {
   static const int kNumRegisters = 2;
-  STATIC_ASSERT(kNumRegisters <= Isolate::kJSRegexpStaticOffsetsVectorSize);
+  static_assert(kNumRegisters <= Isolate::kJSRegexpStaticOffsetsVectorSize);
   int32_t* output_registers = isolate->jsregexp_static_offsets_vector();
 
   int res =
@@ -677,11 +677,11 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
       if (res != NativeRegExpMacroAssembler::RETRY) {
         DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
                isolate->has_pending_exception());
-        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) ==
+        static_assert(static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) ==
                       RegExp::RE_SUCCESS);
-        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::FAILURE) ==
+        static_assert(static_cast<int>(NativeRegExpMacroAssembler::FAILURE) ==
                       RegExp::RE_FAILURE);
-        STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::EXCEPTION) ==
+        static_assert(static_cast<int>(NativeRegExpMacroAssembler::EXCEPTION) ==
                       RegExp::RE_EXCEPTION);
         return res;
       }
@@ -962,8 +962,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
       backtrack_limit = FLAG_regexp_backtracks_before_fallback;
     } else {
-      backtrack_limit =
-          std::min(backtrack_limit, FLAG_regexp_backtracks_before_fallback);
+      backtrack_limit = std::min(
+          backtrack_limit, FLAG_regexp_backtracks_before_fallback.value());
     }
     macro_assembler->set_backtrack_limit(backtrack_limit);
     macro_assembler->set_can_fallback(true);

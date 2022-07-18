@@ -39,6 +39,13 @@ static constexpr RegList kAllocatableGeneralRegisters = {
     ALLOCATABLE_GENERAL_REGISTERS(LIST_REG) Register::no_reg()};
 #undef LIST_REG
 
+static constexpr DoubleRegList kEmptyDoubleRegList = {};
+
+#define LIST_REG(V) V,
+static constexpr DoubleRegList kAllocatableDoubleRegisters = {
+    ALLOCATABLE_DOUBLE_REGISTERS(LIST_REG) DoubleRegister::no_reg()};
+#undef LIST_REG
+
 }  // namespace internal
 }  // namespace v8
 

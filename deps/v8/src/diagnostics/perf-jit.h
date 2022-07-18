@@ -30,7 +30,7 @@
 
 #include "include/v8config.h"
 
-// {PerfJitLogger} is only implemented on Linux.
+// {LinuxPerfJitLogger} is only implemented on Linux.
 #if V8_OS_LINUX
 
 #include "src/logging/log.h"
@@ -39,10 +39,10 @@ namespace v8 {
 namespace internal {
 
 // Linux perf tool logging support.
-class PerfJitLogger : public CodeEventLogger {
+class LinuxPerfJitLogger : public CodeEventLogger {
  public:
-  explicit PerfJitLogger(Isolate* isolate);
-  ~PerfJitLogger() override;
+  explicit LinuxPerfJitLogger(Isolate* isolate);
+  ~LinuxPerfJitLogger() override;
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,

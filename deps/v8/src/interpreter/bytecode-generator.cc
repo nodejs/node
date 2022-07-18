@@ -29,10 +29,8 @@
 #include "src/logging/log.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/debug-objects.h"
-#include "src/objects/literal-objects-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/template-objects-inl.h"
+#include "src/objects/template-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 #include "src/utils/ostreams.h"
@@ -200,7 +198,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
     // There's always a rethrow path.
     // TODO(leszeks): We could decouple deferred_ index and token to allow us
     // to still push this lazily.
-    STATIC_ASSERT(kRethrowToken == 0);
+    static_assert(kRethrowToken == 0);
     deferred_.push_back({CMD_RETHROW, nullptr, kRethrowToken});
   }
 
@@ -2016,6 +2014,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   VisitForAccumulatorValue(stmt->tag());
 
   if (use_jump_table) {
+    // Release temps so that they can be reused in clauses.
+    RegisterAllocationScope allocation_scope(this);
     // This also fills empty slots in jump table.
     Register r2 = register_allocator()->NewRegister();
 
@@ -2095,6 +2095,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
                                         case_compare_ctr++);
       }
     }
+    register_allocator()->ReleaseRegister(tag_holder);
   }
 
   // For fall-throughs after comparisons (or out-of-range/non-Smi's for jump
@@ -2246,7 +2247,8 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
   if (stmt->cond()->ToBooleanIsFalse()) {
     // Since we know that the condition is false, we don't create a loop.
     // Therefore, we don't create a LoopScope (and thus we don't create a header
@@ -2268,7 +2270,8 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
 
   if (stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is false there is no need to generate the loop.
@@ -2291,7 +2294,8 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     Visit(stmt->init());
   }
 
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is known to be false there is no need to generate
     // body, next or condition blocks. Init block should be generated.
@@ -2343,7 +2347,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The loop
   {
-    LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+    LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                             feedback_spec());
     LoopScope loop_scope(this, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->each());
     builder()->ForInContinue(index, cache_length);
@@ -2414,39 +2419,43 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   BuildTryFinally(
       // Try block.
       [&]() {
-        Register next_result = register_allocator()->NewRegister();
-
-        LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+        LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                                 feedback_spec());
         LoopScope loop_scope(this, &loop_builder);
 
         builder()->LoadTrue().StoreAccumulatorInRegister(done);
 
-        // Call the iterator's .next() method. Break from the loop if the `done`
-        // property is truthy, otherwise load the value from the iterator result
-        // and append the argument.
-        builder()->SetExpressionAsStatementPosition(stmt->each());
-        BuildIteratorNext(iterator, next_result);
-        builder()->LoadNamedProperty(
-            next_result, ast_string_constants()->done_string(),
-            feedback_index(feedback_spec()->AddLoadICSlot()));
-        loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+        {
+          RegisterAllocationScope allocation_scope(this);
+          Register next_result = register_allocator()->NewRegister();
 
-        builder()
-            // value = value.value
-            ->LoadNamedProperty(
-                next_result, ast_string_constants()->value_string(),
-                feedback_index(feedback_spec()->AddLoadICSlot()));
-        // done = false, before the assignment to each happens, so that done is
-        // false if the assignment throws.
-        builder()
-            ->StoreAccumulatorInRegister(next_result)
-            .LoadFalse()
-            .StoreAccumulatorInRegister(done);
+          // Call the iterator's .next() method. Break from the loop if the
+          // `done` property is truthy, otherwise load the value from the
+          // iterator result and append the argument.
+          builder()->SetExpressionAsStatementPosition(stmt->each());
+          BuildIteratorNext(iterator, next_result);
+          builder()->LoadNamedProperty(
+              next_result, ast_string_constants()->done_string(),
+              feedback_index(feedback_spec()->AddLoadICSlot()));
+          loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
-        // Assign to the 'each' target.
-        AssignmentLhsData lhs_data = PrepareAssignmentLhs(stmt->each());
-        builder()->LoadAccumulatorWithRegister(next_result);
-        BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+          builder()
+              // value = value.value
+              ->LoadNamedProperty(
+                  next_result, ast_string_constants()->value_string(),
+                  feedback_index(feedback_spec()->AddLoadICSlot()));
+          // done = false, before the assignment to each happens, so that done
+          // is false if the assignment throws.
+          builder()
+              ->StoreAccumulatorInRegister(next_result)
+              .LoadFalse()
+              .StoreAccumulatorInRegister(done);
+
+          // Assign to the 'each' target.
+          AssignmentLhsData lhs_data = PrepareAssignmentLhs(stmt->each());
+          builder()->LoadAccumulatorWithRegister(next_result);
+          BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+        }
 
         VisitIterationBody(stmt, &loop_builder);
       },
@@ -2515,7 +2524,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->flags().might_always_opt());
+      info()->flags().might_always_turbofan());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
@@ -2578,6 +2587,8 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         ->LoadLiteral(class_name)
         .StoreAccumulatorInRegister(brand)
         .CallRuntime(Runtime::kCreatePrivateBrandSymbol, brand);
+    register_allocator()->ReleaseRegister(brand);
+
     BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
                             HoleCheckMode::kElided);
   }
@@ -2700,8 +2711,6 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
 
     builder()->CallRuntime(Runtime::kDefineClass, args);
   }
-  Register prototype = register_allocator()->NewRegister();
-  builder()->StoreAccumulatorInRegister(prototype);
 
   // Assign to the home object variable. Accumulator already contains the
   // prototype.
@@ -3322,7 +3331,7 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
   DCHECK(index.is_valid());
   DCHECK(value.is_valid());
 
-  LoopBuilder loop_builder(builder(), nullptr, nullptr);
+  LoopBuilder loop_builder(builder(), nullptr, nullptr, feedback_spec());
   LoopScope loop_scope(this, &loop_builder);
 
   // Call the iterator's .next() method. Break from the loop if the `done`
@@ -4719,7 +4728,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
       Runtime::kInlineGeneratorGetResumeMode, generator_object());
 
   // Now dispatch on resume mode.
-  STATIC_ASSERT(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
+  static_assert(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
   BytecodeJumpTable* jump_table =
       builder()->AllocateJumpTable(2, JSGeneratorObject::kNext);
 
@@ -4853,7 +4862,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       //   - One for awaiting the iterator result yielded by the delegated
       //     iterator
 
-      LoopBuilder loop_builder(builder(), nullptr, nullptr);
+      LoopBuilder loop_builder(builder(), nullptr, nullptr, feedback_spec());
       LoopScope loop_scope(this, &loop_builder);
 
       {
@@ -4868,7 +4877,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         // Fallthrough to default case.
         // TODO(ignition): Add debug code to check that {resume_mode} really is
         // {JSGeneratorObject::kNext} in this case.
-        STATIC_ASSERT(JSGeneratorObject::kNext == 0);
+        static_assert(JSGeneratorObject::kNext == 0);
         {
           FeedbackSlot slot = feedback_spec()->AddCallICSlot();
           builder()->CallProperty(iterator.next(), iterator_and_input,
@@ -4876,7 +4885,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           builder()->Jump(after_switch.New());
         }
 
-        STATIC_ASSERT(JSGeneratorObject::kReturn == 1);
+        static_assert(JSGeneratorObject::kReturn == 1);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kReturn);
         {
           const AstRawString* return_string =
@@ -4897,7 +4906,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           }
         }
 
-        STATIC_ASSERT(JSGeneratorObject::kThrow == 2);
+        static_assert(JSGeneratorObject::kThrow == 2);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kThrow);
         {
           const AstRawString* throw_string =
@@ -6157,6 +6166,14 @@ void BytecodeGenerator::BuildLiteralCompareNil(
   }
 }
 
+void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
+  DCHECK(literal->IsBooleanLiteral());
+  Register result = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(result);
+  builder()->LoadBoolean(literal->AsBooleanLiteral());
+  builder()->CompareReference(result);
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6172,6 +6189,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
+    DCHECK(expr->op() == Token::EQ_STRICT);
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralStrictCompareBoolean(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
@@ -6182,7 +6204,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kNullValue);
   } else {
     if (expr->op() == Token::IN && expr->left()->IsPrivateName()) {
-      DCHECK(FLAG_harmony_private_brand_checks);
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());
@@ -6337,16 +6358,11 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
           feedback_index(feedback_spec()->AddCallICSlot());
 
       // Let method be GetMethod(obj, @@iterator) and
-      // iterator be Call(method, obj).
+      // iterator be Call(method, obj). If iterator is
+      // not JSReceiver, then throw TypeError.
       builder()->StoreAccumulatorInRegister(obj).GetIterator(
           obj, load_feedback_index, call_feedback_index);
     }
-
-    // If Type(iterator) is not Object, throw a TypeError exception.
-    BytecodeLabel no_type_error;
-    builder()->JumpIfJSReceiver(&no_type_error);
-    builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
-    builder()->Bind(&no_type_error);
   }
 }
 
@@ -6852,6 +6868,7 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
     Register arg = register_allocator()->NewRegister();
     builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
         Runtime::kNewFunctionContext, arg);
+    register_allocator()->ReleaseRegister(arg);
   }
 }
 
@@ -6895,6 +6912,8 @@ void BytecodeGenerator::BuildNewLocalWithContext(Scope* scope) {
 
   builder()->ToObject(extension_object);
   builder()->CreateWithContext(extension_object, scope);
+
+  register_allocator()->ReleaseRegister(extension_object);
 }
 
 void BytecodeGenerator::BuildNewLocalCatchContext(Scope* scope) {
@@ -6904,6 +6923,7 @@ void BytecodeGenerator::BuildNewLocalCatchContext(Scope* scope) {
   Register exception = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(exception);
   builder()->CreateCatchContext(exception, scope);
+  register_allocator()->ReleaseRegister(exception);
 }
 
 void BytecodeGenerator::VisitLiteralAccessor(LiteralProperty* property,

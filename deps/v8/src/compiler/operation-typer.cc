@@ -9,9 +9,8 @@
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
-
-#include "src/objects/objects-inl.h"
+#include "src/heap/factory-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -93,7 +92,7 @@ Type OperationTyper::WeakenRange(Type previous_range, Type current_range) {
                                             140737488355327.0,
                                             281474976710655.0,
                                             562949953421311.0};
-  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+  static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   double current_min = current_range.Min();
   double new_min = current_min;

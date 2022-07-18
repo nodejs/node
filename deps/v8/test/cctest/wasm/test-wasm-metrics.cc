@@ -34,6 +34,14 @@ class MockPlatform final : public TestPlatform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
+    auto job_handle = CreateJob(priority, std::move(job_task));
+    job_handle->NotifyConcurrencyIncrease();
+    return job_handle;
+  }
+
+  std::unique_ptr<v8::JobHandle> CreateJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
     auto orig_job_handle = v8::platform::NewDefaultJobHandle(
         this, priority, std::move(job_task), 1);
     auto job_handle =
@@ -234,7 +242,6 @@ class MetricsRecorder : public v8::metrics::Recorder {
   std::vector<v8::metrics::WasmModuleDecoded> module_decoded_;
   std::vector<v8::metrics::WasmModuleCompiled> module_compiled_;
   std::vector<v8::metrics::WasmModuleInstantiated> module_instantiated_;
-  std::vector<v8::metrics::WasmModuleTieredUp> module_tiered_up_;
 
   void AddMainThreadEvent(const v8::metrics::WasmModuleDecoded& event,
                           v8::metrics::Recorder::ContextId id) override {
@@ -250,11 +257,6 @@ class MetricsRecorder : public v8::metrics::Recorder {
                           v8::metrics::Recorder::ContextId id) override {
     CHECK(!id.IsEmpty());
     module_instantiated_.emplace_back(event);
-  }
-  void AddMainThreadEvent(const v8::metrics::WasmModuleTieredUp& event,
-                          v8::metrics::Recorder::ContextId id) override {
-    CHECK(!id.IsEmpty());
-    module_tiered_up_.emplace_back(event);
   }
 };
 
@@ -342,24 +344,6 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK(!recorder->module_instantiated_.back().async);
   CHECK_EQ(0, recorder->module_instantiated_.back().imported_function_count);
   CHECK_LE(0, recorder->module_instantiated_.back().wall_clock_duration_in_us);
-
-  CHECK_EQ(1, recorder->module_tiered_up_.size());
-  CHECK(!recorder->module_tiered_up_.back().lazy);
-  CHECK_LT(0, recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->turbofan_code_size(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->generated_code_size(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->committed_code_space(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_duration_in_us);
-  CHECK_EQ(native_module->tier_up_cpu_duration(),
-           recorder->module_tiered_up_.back().cpu_duration_in_us);
-  CHECK_IMPLIES(
-      v8::base::ThreadTicks::IsSupported() && i::FLAG_wasm_tier_up &&
-          i::FLAG_liftoff &&
-          recorder->module_compiled_.back().liftoff_bailout_count == 0,
-      recorder->module_tiered_up_.back().cpu_duration_in_us > 0);
 }
 
 }  // namespace wasm

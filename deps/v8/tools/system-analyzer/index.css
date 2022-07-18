@@ -1,5 +1,6 @@
 :root {
   --code-font: Consolas, Monaco, Menlo, monospace;
+  --code-font-size: 12px;
   --background-color: #000000;
   --surface-color-rgb: 18, 18, 18;
   --surface-color: rgb(var(--surface-color-rgb));
@@ -21,6 +22,7 @@
   --blue: #6e77dc;
   --orange: #dc9b6e;
   --violet: #d26edc;
+  --selection-color: rgba(133, 68, 163, 0.5);
   --border-color-rgb: 128, 128, 128;
   --border-color: rgba(var(--border-color-rgb), 0.2);
   scrollbar-color:  rgba(128, 128, 128, 0.5)  rgba(0, 0, 0, 0.0);
@@ -72,6 +74,10 @@ kbd {
 
 kbd, code, pre {
   font-family: var(--code-font);
+}
+code {
+  font-size: var(--code-font-size);
+  white-space: pre;
 }
 
 a {

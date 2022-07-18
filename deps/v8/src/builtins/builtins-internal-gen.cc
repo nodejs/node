@@ -23,13 +23,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Stack checks.
-
-void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kStackGuard);
-}
-
-// -----------------------------------------------------------------------------
 // TurboFan support builtins.
 
 TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
@@ -245,7 +238,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                         TruncateIntPtrToInt32(new_cell_value));
   }
 
-  void GenerationalWriteBarrier(SaveFPRegsMode fp_mode) {
+  void WriteBarrier(SaveFPRegsMode fp_mode) {
     Label incremental_wb(this), test_old_to_young_flags(this),
         remembered_set_only(this), remembered_set_and_incremental_wb(this),
         next(this);
@@ -347,20 +340,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     BIND(&next);
   }
 
-  void GenerateRecordWrite(RememberedSetAction rs_mode,
-                           SaveFPRegsMode fp_mode) {
+  void GenerateRecordWrite(SaveFPRegsMode fp_mode) {
     if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
       Return(TrueConstant());
       return;
     }
-    switch (rs_mode) {
-      case RememberedSetAction::kEmit:
-        GenerationalWriteBarrier(fp_mode);
-        break;
-      case RememberedSetAction::kOmit:
-        IncrementalWriteBarrier(fp_mode);
-        break;
-    }
+
+    WriteBarrier(fp_mode);
     IncrementCounter(isolate()->counters()->write_barriers(), 1);
     Return(TrueConstant());
   }
@@ -390,22 +376,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 };
 
-TF_BUILTIN(RecordWriteEmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kSave);
+TF_BUILTIN(RecordWriteSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(SaveFPRegsMode::kSave);
 }
 
-TF_BUILTIN(RecordWriteOmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kSave);
-}
-
-TF_BUILTIN(RecordWriteEmitRememberedSetIgnoreFP,
-           WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kIgnore);
-}
-
-TF_BUILTIN(RecordWriteOmitRememberedSetIgnoreFP,
-           WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kIgnore);
+TF_BUILTIN(RecordWriteIgnoreFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(SaveFPRegsMode::kIgnore);
 }
 
 TF_BUILTIN(EphemeronKeyBarrierSaveFP, WriteBarrierCodeStubAssembler) {
@@ -724,7 +700,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dont_delete);
     {
-      STATIC_ASSERT(LanguageModeSize == 2);
+      static_assert(LanguageModeSize == 2);
       GotoIf(SmiNotEqual(language_mode, SmiConstant(LanguageMode::kSloppy)),
              &slow);
       Return(FalseConstant());
@@ -1085,6 +1061,11 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
                SmiFromInt32(argc),  // additional stack argument 2
                target,              // additional stack argument 3
                new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
+  auto val = UncheckedParameter<Float64T>(Descriptor::kValue);
+  Return(ChangeFloat64ToTagged(val));
 }
 
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {

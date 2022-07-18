@@ -196,11 +196,8 @@ BUILTIN(Trace) {
   }
 
 #if defined(V8_USE_PERFETTO)
+  // TODO(skyostil): Use interned names to reduce trace size.
   auto trace_args = [&](perfetto::EventContext ctx) {
-    // TODO(skyostil): Use interned names to reduce trace size.
-    if (phase != TRACE_EVENT_PHASE_END) {
-      ctx.event()->set_name(*name);
-    }
     if (num_args) {
       MaybeUtf8 arg_contents(isolate, Handle<String>::cast(arg_json));
       auto annotation = ctx.event()->add_debug_annotations();
@@ -215,13 +212,15 @@ BUILTIN(Trace) {
 
   switch (phase) {
     case TRACE_EVENT_PHASE_BEGIN:
-      TRACE_EVENT_BEGIN(dynamic_category, nullptr, trace_args);
+      TRACE_EVENT_BEGIN(dynamic_category, perfetto::DynamicString(*name),
+                        trace_args);
       break;
     case TRACE_EVENT_PHASE_END:
       TRACE_EVENT_END(dynamic_category, trace_args);
       break;
     case TRACE_EVENT_PHASE_INSTANT:
-      TRACE_EVENT_INSTANT(dynamic_category, nullptr, trace_args);
+      TRACE_EVENT_INSTANT(dynamic_category, perfetto::DynamicString(*name),
+                          trace_args);
       break;
     default:
       THROW_NEW_ERROR_RETURN_FAILURE(

@@ -57,6 +57,8 @@ class ConservativeTracingVisitor {
   virtual void VisitInConstructionConservatively(HeapObjectHeader&,
                                                  TraceConservativelyCallback) {}
 
+  void V8_EXPORT_PRIVATE TryTracePointerConservatively(Address address);
+
   HeapBase& heap_;
   PageBackend& page_backend_;
   cppgc::Visitor& visitor_;

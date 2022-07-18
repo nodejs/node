@@ -48,13 +48,15 @@ uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
 
 int32_t SignedMulHigh32(int32_t lhs, int32_t rhs) {
   int64_t const value = static_cast<int64_t>(lhs) * static_cast<int64_t>(rhs);
-  return bit_cast<int32_t, uint32_t>(bit_cast<uint64_t>(value) >> 32u);
+  return base::bit_cast<int32_t, uint32_t>(base::bit_cast<uint64_t>(value) >>
+                                           32u);
 }
 
 
 int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc) {
-  return bit_cast<int32_t>(bit_cast<uint32_t>(acc) +
-                           bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
+  return base::bit_cast<int32_t>(
+      base::bit_cast<uint32_t>(acc) +
+      base::bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
 }
 
 

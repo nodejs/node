@@ -29,8 +29,7 @@ bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
   AllocationResult result =
       lab->AllocateRawAligned(static_cast<int>(size_in_bytes), alignment);
   if (result.To(&obj)) {
-    heap->CreateFillerObjectAt(obj.address(), static_cast<int>(size_in_bytes),
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), static_cast<int>(size_in_bytes));
     return true;
   }
   return false;

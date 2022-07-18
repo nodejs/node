@@ -5,15 +5,14 @@
 #include "src/compiler/bytecode-graph-builder.h"
 
 #include "src/ast/ast.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/assert-scope.h"
-#include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-type-hint-lowering.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-observer.h"
@@ -23,11 +22,9 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/smi.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -2019,9 +2016,9 @@ void BytecodeGraphBuilder::VisitGetKeyedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0);
-    STATIC_ASSERT(JSLoadPropertyNode::KeyIndex() == 1);
-    STATIC_ASSERT(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+    static_assert(JSLoadPropertyNode::ObjectIndex() == 0);
+    static_assert(JSLoadPropertyNode::KeyIndex() == 1);
+    static_assert(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, feedback_vector_node());
   }
@@ -2095,10 +2092,10 @@ void BytecodeGraphBuilder::VisitSetKeyedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    STATIC_ASSERT(JSSetKeyedPropertyNode::ObjectIndex() == 0);
-    STATIC_ASSERT(JSSetKeyedPropertyNode::KeyIndex() == 1);
-    STATIC_ASSERT(JSSetKeyedPropertyNode::ValueIndex() == 2);
-    STATIC_ASSERT(JSSetKeyedPropertyNode::FeedbackVectorIndex() == 3);
+    static_assert(JSSetKeyedPropertyNode::ObjectIndex() == 0);
+    static_assert(JSSetKeyedPropertyNode::KeyIndex() == 1);
+    static_assert(JSSetKeyedPropertyNode::ValueIndex() == 2);
+    static_assert(JSSetKeyedPropertyNode::FeedbackVectorIndex() == 3);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, value, feedback_vector_node());
   }
@@ -2130,10 +2127,10 @@ void BytecodeGraphBuilder::VisitDefineKeyedOwnProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
-    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::KeyIndex() == 1);
-    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::ValueIndex() == 2);
-    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::FeedbackVectorIndex() == 3);
+    static_assert(JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
+    static_assert(JSDefineKeyedOwnPropertyNode::KeyIndex() == 1);
+    static_assert(JSDefineKeyedOwnPropertyNode::ValueIndex() == 2);
+    static_assert(JSDefineKeyedOwnPropertyNode::FeedbackVectorIndex() == 3);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, value, feedback_vector_node());
   }
@@ -2257,7 +2254,7 @@ void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
   int const slot_id = bytecode_iterator().GetIndexOperand(1);
   FeedbackSource pair = CreateFeedbackSource(slot_id);
   int literal_flags = bytecode_iterator().GetFlagOperand(2);
-  STATIC_ASSERT(JSCreateLiteralRegExpNode::FeedbackVectorIndex() == 0);
+  static_assert(JSCreateLiteralRegExpNode::FeedbackVectorIndex() == 0);
   const Operator* op =
       javascript()->CreateLiteralRegExp(constant_pattern, pair, literal_flags);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
@@ -2280,7 +2277,7 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   literal_flags |= ArrayLiteral::kDisableMementos;
   int number_of_elements =
       array_boilerplate_description.constants_elements_length();
-  STATIC_ASSERT(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
+  static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
   const Operator* op = javascript()->CreateLiteralArray(
       array_boilerplate_description, pair, literal_flags, number_of_elements);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
@@ -2312,7 +2309,7 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   int number_of_properties = constant_properties.size();
-  STATIC_ASSERT(JSCreateLiteralObjectNode::FeedbackVectorIndex() == 0);
+  static_assert(JSCreateLiteralObjectNode::FeedbackVectorIndex() == 0);
   const Operator* op = javascript()->CreateLiteralObject(
       constant_properties, pair, literal_flags, number_of_properties);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
@@ -2333,8 +2330,8 @@ void BytecodeGraphBuilder::VisitCloneObject() {
   int slot = bytecode_iterator().GetIndexOperand(2);
   const Operator* op =
       javascript()->CloneObject(CreateFeedbackSource(slot), flags);
-  STATIC_ASSERT(JSCloneObjectNode::SourceIndex() == 0);
-  STATIC_ASSERT(JSCloneObjectNode::FeedbackVectorIndex() == 1);
+  static_assert(JSCloneObjectNode::SourceIndex() == 0);
+  static_assert(JSCloneObjectNode::FeedbackVectorIndex() == 1);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* value = NewNode(op, source, feedback_vector_node());
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
@@ -2345,7 +2342,7 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   TemplateObjectDescriptionRef description =
       MakeRefForConstantForIndexOperand<TemplateObjectDescription>(0);
-  STATIC_ASSERT(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
+  static_assert(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
   const Operator* op =
       javascript()->GetTemplateObject(description, shared_info(), source);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
@@ -2360,10 +2357,10 @@ Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
   int cursor = 0;
 
-  STATIC_ASSERT(JSCallNode::TargetIndex() == 0);
-  STATIC_ASSERT(JSCallNode::ReceiverIndex() == 1);
-  STATIC_ASSERT(JSCallNode::FirstArgumentIndex() == 2);
-  STATIC_ASSERT(JSCallNode::kFeedbackVectorIsLastInput);
+  static_assert(JSCallNode::TargetIndex() == 0);
+  static_assert(JSCallNode::ReceiverIndex() == 1);
+  static_assert(JSCallNode::FirstArgumentIndex() == 2);
+  static_assert(JSCallNode::kFeedbackVectorIsLastInput);
 
   all[cursor++] = callee;
   all[cursor++] = receiver;
@@ -2653,10 +2650,10 @@ Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
   int cursor = 0;
 
-  STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
-  STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
-  STATIC_ASSERT(JSConstructNode::FirstArgumentIndex() == 2);
-  STATIC_ASSERT(JSConstructNode::kFeedbackVectorIsLastInput);
+  static_assert(JSConstructNode::TargetIndex() == 0);
+  static_assert(JSConstructNode::NewTargetIndex() == 1);
+  static_assert(JSConstructNode::FirstArgumentIndex() == 2);
+  static_assert(JSConstructNode::kFeedbackVectorIsLastInput);
 
   all[cursor++] = target;
   all[cursor++] = new_target;
@@ -3267,9 +3264,9 @@ void BytecodeGraphBuilder::VisitTestIn() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   FeedbackSource feedback =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
-  STATIC_ASSERT(JSHasPropertyNode::ObjectIndex() == 0);
-  STATIC_ASSERT(JSHasPropertyNode::KeyIndex() == 1);
-  STATIC_ASSERT(JSHasPropertyNode::FeedbackVectorIndex() == 2);
+  static_assert(JSHasPropertyNode::ObjectIndex() == 0);
+  static_assert(JSHasPropertyNode::KeyIndex() == 1);
+  static_assert(JSHasPropertyNode::FeedbackVectorIndex() == 2);
   const Operator* op = javascript()->HasProperty(feedback);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* node = NewNode(op, object, key, feedback_vector_node());
@@ -3648,8 +3645,8 @@ void BytecodeGraphBuilder::VisitGetIterator() {
   if (lowering.IsExit()) return;
 
   DCHECK(!lowering.Changed());
-  STATIC_ASSERT(JSGetIteratorNode::ReceiverIndex() == 0);
-  STATIC_ASSERT(JSGetIteratorNode::FeedbackVectorIndex() == 1);
+  static_assert(JSGetIteratorNode::ReceiverIndex() == 0);
+  static_assert(JSGetIteratorNode::FeedbackVectorIndex() == 1);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* iterator = NewNode(op, receiver, feedback_vector_node());
   environment()->BindAccumulator(iterator, Environment::kAttachFrameState);

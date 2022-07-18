@@ -15,7 +15,6 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -677,7 +676,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     uint32_t limit = std::min(length, kInterruptLength);
     const uint32_t kMaxAllowedFastPackedLength =
         std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    STATIC_ASSERT(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+    static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
     switch (object->GetElementsKind(cage_base)) {
       case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(
@@ -869,7 +868,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+        KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                 ENUMERABLE_STRINGS,
                                 GetKeysConversion::kConvertToString),
         EXCEPTION);

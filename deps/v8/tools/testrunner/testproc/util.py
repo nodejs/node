@@ -6,7 +6,6 @@
 import heapq
 import os
 import platform
-import random
 import signal
 import subprocess
 

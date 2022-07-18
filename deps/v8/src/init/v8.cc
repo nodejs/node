@@ -38,7 +38,10 @@
 namespace v8 {
 namespace internal {
 
+// static
 v8::Platform* V8::platform_ = nullptr;
+const OOMDetails V8::kNoOOMDetails{false, nullptr};
+const OOMDetails V8::kHeapOOM{true, nullptr};
 
 namespace {
 enum class V8StartupState {
@@ -100,17 +103,14 @@ void V8::InitializePlatform(v8::Platform* platform) {
     v8::internal::ETWJITInterface::Register();
   }
 #endif
+
+  // Initialization needs to happen on platform-level, as this sets up some
+  // cppgc internals that are needed to allow gracefully failing during cppgc
+  // platform setup.
+  CppHeap::InitializeOncePerProcess();
+
   AdvanceStartupState(V8StartupState::kPlatformInitialized);
 }
-
-#ifdef V8_SANDBOX
-bool V8::InitializeSandbox() {
-  // Platform must have been initialized already.
-  CHECK(platform_);
-  v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  return GetProcessWideSandbox()->Initialize(vas);
-}
-#endif  // V8_SANDBOX
 
 #define DISABLE_FLAG(flag)                                                    \
   if (FLAG_##flag) {                                                          \
@@ -123,26 +123,17 @@ void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
 
-#ifdef V8_SANDBOX
-  if (!GetProcessWideSandbox()->is_initialized()) {
-    // For now, we still allow the cage to be disabled even if V8 was compiled
-    // with V8_SANDBOX. This will eventually be forbidden.
-    CHECK(kAllowBackingStoresOutsideSandbox);
-    GetProcessWideSandbox()->Disable();
-  }
-#endif
-
   // Update logging information before enforcing flag implications.
-  bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
-                           &FLAG_log_all,
-                           &FLAG_log_code,
-                           &FLAG_log_code_disassemble,
-                           &FLAG_log_source_code,
-                           &FLAG_log_function_events,
-                           &FLAG_log_internal_timer_events,
-                           &FLAG_log_deopt,
-                           &FLAG_log_ic,
-                           &FLAG_log_maps};
+  FlagValue<bool>* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
+                                      &FLAG_log_all,
+                                      &FLAG_log_code,
+                                      &FLAG_log_code_disassemble,
+                                      &FLAG_log_source_code,
+                                      &FLAG_log_function_events,
+                                      &FLAG_log_internal_timer_events,
+                                      &FLAG_log_deopt,
+                                      &FLAG_log_ic,
+                                      &FLAG_log_maps};
   if (FLAG_log_all) {
     // Enable all logging flags
     for (auto* flag : log_all_flags) {
@@ -157,11 +148,10 @@ void V8::Initialize() {
       break;
     }
     // Profiling flags depend on logging.
-    FLAG_log |= FLAG_perf_prof || FLAG_perf_basic_prof || FLAG_ll_prof ||
-                FLAG_prof || FLAG_prof_cpp;
-    FLAG_log |= FLAG_gdbjit;
+    FLAG_log = FLAG_log || FLAG_perf_prof || FLAG_perf_basic_prof ||
+               FLAG_ll_prof || FLAG_prof || FLAG_prof_cpp || FLAG_gdbjit;
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    FLAG_log |= FLAG_enable_system_instrumentation;
+    FLAG_log = FLAG_log || FLAG_enable_system_instrumentation;
 #endif
   }
 
@@ -227,12 +217,26 @@ void V8::Initialize() {
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
 
-  if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
+  if (FLAG_random_seed) {
+    GetPlatformPageAllocator()->SetRandomMmapSeed(FLAG_random_seed);
+    GetPlatformVirtualAddressSpace()->SetRandomSeed(FLAG_random_seed);
+  }
 
   if (FLAG_print_flag_values) FlagList::PrintValues();
 
-  // Initialize the default FlagList::Hash
+  // Initialize the default FlagList::Hash.
   FlagList::Hash();
+
+  // Before initializing internals, freeze the flags such that further changes
+  // are not allowed. Global initialization of the Isolate or the WasmEngine
+  // already reads flags, so they should not be changed afterwards.
+  if (FLAG_freeze_flags_after_init) FlagList::FreezeFlags();
+
+#if defined(V8_ENABLE_SANDBOX)
+  // If enabled, the sandbox must be initialized first.
+  GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
+  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+#endif
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
@@ -271,7 +275,7 @@ void V8::Dispose() {
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   Isolate::DisposeOncePerProcess();
-  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
+  FlagList::ReleaseDynamicAllocations();
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }
 
@@ -286,11 +290,11 @@ void V8::DisposePlatform() {
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   // TODO(chromium:1218005) alternatively, this could move to its own
   // public TearDownSandbox function.
   GetProcessWideSandbox()->TearDown();
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;
   AdvanceStartupState(V8StartupState::kPlatformDisposed);

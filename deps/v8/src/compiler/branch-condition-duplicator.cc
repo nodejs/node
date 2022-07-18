@@ -4,7 +4,6 @@
 
 #include "src/compiler/branch-condition-duplicator.h"
 
-#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"

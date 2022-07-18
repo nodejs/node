@@ -49,6 +49,9 @@
 #define crc32 Cr_z_crc32
 #define crc32_combine Cr_z_crc32_combine
 #define crc32_combine64 Cr_z_crc32_combine64
+#define crc32_combine_gen64 Cr_z_crc32_combine_gen64
+#define crc32_combine_gen Cr_z_crc32_combine_gen
+#define crc32_combine_op Cr_z_crc32_combine_op
 #define crc32_z Cr_z_crc32_z
 #define deflate Cr_z_deflate
 #define deflateBound Cr_z_deflateBound

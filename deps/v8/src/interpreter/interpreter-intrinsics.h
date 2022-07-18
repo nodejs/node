@@ -42,7 +42,7 @@ class IntrinsicsHelper {
 #undef DECLARE_INTRINSIC_ID
         kIdCount
   };
-  STATIC_ASSERT(static_cast<uint32_t>(IntrinsicId::kIdCount) <= kMaxUInt8);
+  static_assert(static_cast<uint32_t>(IntrinsicId::kIdCount) <= kMaxUInt8);
 
   V8_EXPORT_PRIVATE static bool IsSupported(Runtime::FunctionId function_id);
   static IntrinsicId FromRuntimeId(Runtime::FunctionId function_id);

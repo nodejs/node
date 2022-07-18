@@ -8,6 +8,7 @@
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/ia32/register-ia32.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/objects/feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -376,6 +377,32 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        Register value) {
   DCHECK(!AreAliased(target, value));
   __ mov(FieldOperand(target, offset), value);
+}
+
+void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                                Register feedback_vector,
+                                                FeedbackSlot slot,
+                                                Label* on_result,
+                                                Label::Distance distance) {
+  Label fallthrough;
+  LoadTaggedPointerField(scratch_and_result, feedback_vector,
+                         FeedbackVector::OffsetOfElementAt(slot.ToInt()));
+  __ LoadWeakValue(scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    ScratchRegisterScope temps(this);
+    Register scratch2 = temps.AcquireScratch();
+    DCHECK(!AreAliased(scratch_and_result, scratch2));
+    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result, scratch2);
+    __ j(equal, on_result, distance);
+    __ mov(FieldOperand(feedback_vector,
+                        FeedbackVector::OffsetOfElementAt(slot.ToInt())),
+           __ ClearedValue());
+  }
+
+  __ bind(&fallthrough);
+  __ Move(scratch_and_result, 0);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(

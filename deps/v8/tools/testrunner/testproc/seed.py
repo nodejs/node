@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import random
 from collections import defaultdict
 
 from . import base
@@ -19,6 +18,7 @@ class SeedProc(base.TestProcProducer):
       parallel_subtests: How many subtest of each test to run at the same time.
     """
     super(SeedProc, self).__init__('Seed')
+    self._requirement = base.DROP_RESULT
     self._count = count
     self._seed = seed
     self._last_idx = defaultdict(int)
@@ -26,12 +26,6 @@ class SeedProc(base.TestProcProducer):
     self._parallel_subtests = parallel_subtests
     if count:
       self._parallel_subtests = min(self._parallel_subtests, count)
-
-  def setup(self, requirement=base.DROP_RESULT):
-    super(SeedProc, self).setup(requirement)
-
-    # SeedProc is optimized for dropping the result
-    assert requirement == base.DROP_RESULT
 
   def _next_test(self, test):
     is_loaded = False

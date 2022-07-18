@@ -147,6 +147,7 @@ class IsolateSafepoint final {
 
   friend class GlobalSafepoint;
   friend class GlobalSafepointScope;
+  friend class Isolate;
   friend class LocalHeap;
   friend class SafepointScope;
 };

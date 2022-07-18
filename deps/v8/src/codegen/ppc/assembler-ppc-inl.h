@@ -37,9 +37,9 @@
 #ifndef V8_CODEGEN_PPC_ASSEMBLER_PPC_INL_H_
 #define V8_CODEGEN_PPC_ASSEMBLER_PPC_INL_H_
 
-#include "src/codegen/ppc/assembler-ppc.h"
-
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/ppc/assembler-ppc.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 

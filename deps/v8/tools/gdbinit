@@ -158,7 +158,15 @@ try:
 except gdb.error:
   pass
 end
-set disable-randomization off
+
+# Configuring ASLR may not be possible on some platforms, such running via the
+# `rr` debuggger.
+python
+try:
+  gdb.execute("set disable-randomization off")
+except gdb.error:
+  pass
+end
 
 # Install a handler whenever the debugger stops due to a signal. It walks up the
 # stack looking for V8_Dcheck / V8_Fatal / OS::DebugBreak frame and moves the

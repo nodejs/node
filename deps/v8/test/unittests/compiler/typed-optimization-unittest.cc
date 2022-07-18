@@ -103,6 +103,26 @@ TEST_F(TypedOptimizationTest, ToBooleanWithAny) {
   ASSERT_FALSE(r.Changed());
 }
 
+// -----------------------------------------------------------------------------
+// ReferenceEqual
+TEST_F(TypedOptimizationTest, ReferenceEqualWithBooleanTrueConstant) {
+  Node* left = Parameter(Type::Boolean(), 0);
+  Node* right = TrueConstant();
+  Reduction r =
+      Reduce(graph()->NewNode(simplified()->ReferenceEqual(), left, right));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), left);
+}
+
+TEST_F(TypedOptimizationTest, ReferenceEqualWithBooleanFalseConstant) {
+  Node* left = Parameter(Type::Boolean(), 0);
+  Node* right = FalseConstant();
+  Reduction r =
+      Reduce(graph()->NewNode(simplified()->ReferenceEqual(), left, right));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(left));
+}
+
 }  // namespace typed_optimization_unittest
 }  // namespace compiler
 }  // namespace internal

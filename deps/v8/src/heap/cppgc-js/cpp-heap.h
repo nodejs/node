@@ -101,6 +101,8 @@ class V8_EXPORT_PRIVATE CppHeap final
         pause_scope_;
   };
 
+  static void InitializeOncePerProcess();
+
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
   }
@@ -165,6 +167,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
  private:
+  void UpdateSupportedGCTypesFromFlags();
+
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
     // For unified heap, CppHeap shouldn't finalize independently (i.e.

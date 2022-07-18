@@ -26,7 +26,7 @@ namespace internal {
 
 class Heap;
 class Isolate;
-class MajorNonAtomicMarkingState;
+class NonAtomicMarkingState;
 class MemoryChunk;
 class WeakObjects;
 
@@ -53,11 +53,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     const bool resume_on_exit_;
   };
 
-  // TODO(gab): The only thing that prevents this being above 7 is
-  // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
-  // task 0, reserved for the main thread).
-  static constexpr int kMaxTasks = 7;
-
   ConcurrentMarking(Heap* heap, MarkingWorklists* marking_worklists,
                     WeakObjects* weak_objects);
 
@@ -74,13 +69,13 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   // Schedules asynchronous job to perform concurrent marking at |priority| if
   // not already running, otherwise adjusts the number of workers running job
-  // and the priority if diffrent from the default kUserVisible.
+  // and the priority if different from the default kUserVisible.
   void RescheduleJobIfNeeded(
       TaskPriority priority = TaskPriority::kUserVisible);
   // Flushes native context sizes to the given table of the main thread.
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data using the given marking state.
-  void FlushMemoryChunkData(MajorNonAtomicMarkingState* marking_state);
+  void FlushMemoryChunkData(NonAtomicMarkingState* marking_state);
   // This function is called for a new space page that was cleared after
   // scavenge and is going to be re-used.
   void ClearMemoryChunkData(MemoryChunk* chunk);
@@ -114,7 +109,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   Heap* const heap_;
   MarkingWorklists* const marking_worklists_;
   WeakObjects* const weak_objects_;
-  TaskState task_state_[kMaxTasks + 1];
+  std::vector<std::unique_ptr<TaskState>> task_state_;
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
 };

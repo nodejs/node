@@ -21,9 +21,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
-#include "src/strings/string-hasher.h"
-#include "src/utils/allocation.h"
-#include "src/utils/utils.h"
+#include "src/heap/parked-scope.h"
 
 namespace v8 {
 
@@ -48,7 +46,7 @@ class Counter {
   void Bind(const char* name, bool histogram);
   // TODO(12482): Return pointer to an atomic.
   int* ptr() {
-    STATIC_ASSERT(sizeof(int) == sizeof(count_));
+    static_assert(sizeof(int) == sizeof(count_));
     return reinterpret_cast<int*>(&count_);
   }
   int count() const { return count_.load(std::memory_order_relaxed); }
@@ -107,8 +105,8 @@ class SourceGroup {
   bool Execute(Isolate* isolate);
 
   void StartExecuteInThread();
-  void WaitForThread();
-  void JoinThread();
+  void WaitForThread(const i::ParkedScope& parked);
+  void JoinThread(const i::ParkedScope& parked);
 
  private:
   class IsolateThread : public base::Thread {
@@ -123,8 +121,8 @@ class SourceGroup {
 
   void ExecuteInThread();
 
-  base::Semaphore next_semaphore_;
-  base::Semaphore done_semaphore_;
+  i::ParkingSemaphore next_semaphore_;
+  i::ParkingSemaphore done_semaphore_;
   base::Thread* thread_;
 
   void ExitShell(int exit_code);
@@ -199,17 +197,18 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
-  std::unique_ptr<SerializationData> GetMessage();
+  std::unique_ptr<SerializationData> GetMessage(Isolate* requester);
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
   void Terminate();
   // Terminate and join the thread.
   // This function can be called by any thread.
-  void TerminateAndWaitForThread();
+  void TerminateAndWaitForThread(const i::ParkedScope& parked);
 
   // Start running the given worker in another thread.
-  static bool StartWorkerThread(std::shared_ptr<Worker> worker);
+  static bool StartWorkerThread(Isolate* requester,
+                                std::shared_ptr<Worker> worker);
 
  private:
   friend class ProcessMessageTask;
@@ -242,14 +241,14 @@ class Worker : public std::enable_shared_from_this<Worker> {
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  base::Semaphore out_semaphore_{0};
+  i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
   base::Thread* thread_ = nullptr;
   char* script_;
   std::atomic<State> state_;
   bool is_joined_ = false;
   // For signalling that the worker has started.
-  base::Semaphore started_semaphore_{0};
+  i::ParkingSemaphore started_semaphore_{0};
 
   // For posting tasks to the worker
   std::shared_ptr<TaskRunner> task_runner_;
@@ -324,6 +323,9 @@ class PerIsolateData {
   Local<FunctionTemplate> GetSnapshotObjectCtor() const;
   void SetSnapshotObjectCtor(Local<FunctionTemplate> ctor);
 
+  Local<FunctionTemplate> GetDomNodeCtor() const;
+  void SetDomNodeCtor(Local<FunctionTemplate> ctor);
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -344,6 +346,7 @@ class PerIsolateData {
 #endif
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> snapshot_object_ctor_;
+  Global<FunctionTemplate> dom_node_ctor_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
@@ -475,6 +478,14 @@ class ShellOptions {
   DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowReassignment<bool> expose_fast_api = {"expose-fast-api", false};
+#if V8_ENABLE_SANDBOX
+  DisallowReassignment<bool> enable_sandbox_crash_filter = {
+      "enable-sandbox-crash-filter", false};
+#endif  // V8_ENABLE_SANDBOX
+  DisallowReassignment<bool> throw_on_failed_access_check = {
+      "throw-on-failed-access-check", false};
+  DisallowReassignment<bool> noop_on_failed_access_check = {
+      "noop-on-failed-access-check", false};
 };
 
 class Shell : public i::AllStatic {
@@ -495,6 +506,7 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
+  static bool TakeWebSnapshot(Isolate* isolate);
   static bool ExecuteWebSnapshot(Isolate* isolate, const char* file_name);
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
@@ -568,6 +580,11 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void SerializerSerialize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SerializerDeserialize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -687,7 +704,7 @@ class Shell : public i::AllStatic {
   }
   static bool is_valid_fuzz_script() { return valid_fuzz_script_.load(); }
 
-  static void WaitForRunningWorkers();
+  static void WaitForRunningWorkers(const i::ParkedScope& parked);
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
   static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
 
@@ -735,7 +752,9 @@ class Shell : public i::AllStatic {
 
   static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static Local<FunctionTemplate> CreateNodeTemplates(Isolate* isolate);
+  static Local<FunctionTemplate> CreateEventTargetTemplate(Isolate* isolate);
+  static Local<FunctionTemplate> CreateNodeTemplates(
+      Isolate* isolate, Local<FunctionTemplate> event_target);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);

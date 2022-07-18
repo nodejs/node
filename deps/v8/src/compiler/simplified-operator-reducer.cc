@@ -12,7 +12,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {

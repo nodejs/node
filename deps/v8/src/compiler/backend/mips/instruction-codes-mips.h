@@ -206,8 +206,6 @@ namespace compiler {
   V(MipsF32x4Abs)                  \
   V(MipsF32x4Neg)                  \
   V(MipsF32x4Sqrt)                 \
-  V(MipsF32x4RecipApprox)          \
-  V(MipsF32x4RecipSqrtApprox)      \
   V(MipsF32x4Add)                  \
   V(MipsF32x4Sub)                  \
   V(MipsF32x4Mul)                  \

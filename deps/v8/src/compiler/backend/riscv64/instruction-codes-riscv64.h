@@ -235,8 +235,6 @@ namespace compiler {
   V(RiscvF32x4Abs)                          \
   V(RiscvF32x4Neg)                          \
   V(RiscvF32x4Sqrt)                         \
-  V(RiscvF32x4RecipApprox)                  \
-  V(RiscvF32x4RecipSqrtApprox)              \
   V(RiscvF32x4Qfma)                         \
   V(RiscvF32x4Qfms)                         \
   V(RiscvF64x2Qfma)                         \

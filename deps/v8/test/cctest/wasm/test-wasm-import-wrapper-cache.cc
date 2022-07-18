@@ -9,7 +9,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
-
+#include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/test-signatures.h"
 

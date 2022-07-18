@@ -72,7 +72,7 @@ macro SetCallFeedbackContent(implicit context: Context)(
     callFeedbackContent: constexpr CallFeedbackContent): void {
   // Load the call count field from the feecback vector.
   const callCount: intptr = SmiUntag(Cast<Smi>(LoadFeedbackVectorSlot(
-      feedbackVector, slotId, kTaggedSize)) otherwise return );
+      feedbackVector, slotId, kTaggedSize)) otherwise return);
   // The second lowest bits of the call count are used to state whether the
   // feedback collected is a target or a receiver. Change that bit based on the
   // callFeedbackContent input.

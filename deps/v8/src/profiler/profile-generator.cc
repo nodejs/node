@@ -91,7 +91,7 @@ const char* const CodeEntry::kRootEntryName = "(root)";
 // static
 CodeEntry* CodeEntry::program_entry() {
   static base::LeakyObject<CodeEntry> kProgramEntry(
-      CodeEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kProgramEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -101,7 +101,7 @@ CodeEntry* CodeEntry::program_entry() {
 // static
 CodeEntry* CodeEntry::idle_entry() {
   static base::LeakyObject<CodeEntry> kIdleEntry(
-      CodeEventListener::FUNCTION_TAG, CodeEntry::kIdleEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kIdleEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -111,8 +111,9 @@ CodeEntry* CodeEntry::idle_entry() {
 // static
 CodeEntry* CodeEntry::gc_entry() {
   static base::LeakyObject<CodeEntry> kGcEntry(
-      CodeEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
-      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      LogEventListener::CodeTag::kBuiltin,
+      CodeEntry::kGarbageCollectorEntryName, CodeEntry::kEmptyResourceName,
+      v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
   return kGcEntry.get();
@@ -121,7 +122,7 @@ CodeEntry* CodeEntry::gc_entry() {
 // static
 CodeEntry* CodeEntry::unresolved_entry() {
   static base::LeakyObject<CodeEntry> kUnresolvedEntry(
-      CodeEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kUnresolvedFunctionName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -131,7 +132,7 @@ CodeEntry* CodeEntry::unresolved_entry() {
 // static
 CodeEntry* CodeEntry::root_entry() {
   static base::LeakyObject<CodeEntry> kRootEntry(
-      CodeEventListener::FUNCTION_TAG, CodeEntry::kRootEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kRootEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -163,7 +164,8 @@ bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
 }
 
 void CodeEntry::SetBuiltinId(Builtin id) {
-  bit_field_ = TagField::update(bit_field_, CodeEventListener::BUILTIN_TAG);
+  bit_field_ =
+      CodeTagField::update(bit_field_, LogEventListener::CodeTag::kBuiltin);
   bit_field_ = BuiltinField::update(bit_field_, id);
 }
 
@@ -339,34 +341,26 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
     return CpuProfileNode::kUnresolved;
 
   // Otherwise, resolve based on logger tag.
-  switch (entry_->tag()) {
-    case CodeEventListener::EVAL_TAG:
-    case CodeEventListener::SCRIPT_TAG:
-    case CodeEventListener::LAZY_COMPILE_TAG:
-    case CodeEventListener::FUNCTION_TAG:
+  switch (entry_->code_tag()) {
+    case LogEventListener::CodeTag::kEval:
+    case LogEventListener::CodeTag::kScript:
+    case LogEventListener::CodeTag::kFunction:
       return CpuProfileNode::kScript;
-    case CodeEventListener::BUILTIN_TAG:
-    case CodeEventListener::HANDLER_TAG:
-    case CodeEventListener::BYTECODE_HANDLER_TAG:
-    case CodeEventListener::NATIVE_FUNCTION_TAG:
-    case CodeEventListener::NATIVE_SCRIPT_TAG:
-    case CodeEventListener::NATIVE_LAZY_COMPILE_TAG:
+    case LogEventListener::CodeTag::kBuiltin:
+    case LogEventListener::CodeTag::kHandler:
+    case LogEventListener::CodeTag::kBytecodeHandler:
+    case LogEventListener::CodeTag::kNativeFunction:
+    case LogEventListener::CodeTag::kNativeScript:
       return CpuProfileNode::kBuiltin;
-    case CodeEventListener::CALLBACK_TAG:
+    case LogEventListener::CodeTag::kCallback:
       return CpuProfileNode::kCallback;
-    case CodeEventListener::REG_EXP_TAG:
-    case CodeEventListener::STUB_TAG:
-    case CodeEventListener::CODE_CREATION_EVENT:
-    case CodeEventListener::CODE_DISABLE_OPT_EVENT:
-    case CodeEventListener::CODE_MOVE_EVENT:
-    case CodeEventListener::CODE_DELETE_EVENT:
-    case CodeEventListener::CODE_MOVING_GC:
-    case CodeEventListener::SHARED_FUNC_MOVE_EVENT:
-    case CodeEventListener::SNAPSHOT_CODE_NAME_EVENT:
-    case CodeEventListener::TICK_EVENT:
-    case CodeEventListener::NUMBER_OF_LOG_EVENTS:
+    case LogEventListener::CodeTag::kRegExp:
+    case LogEventListener::CodeTag::kStub:
+    case LogEventListener::CodeTag::kLength:
       return CpuProfileNode::kInternal;
   }
+  return CpuProfileNode::kInternal;
+  UNREACHABLE();
 }
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
@@ -576,7 +570,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
                        CpuProfilingOptions options,
                        std::unique_ptr<DiscardedSamplesDelegate> delegate)
     : title_(title),
-      options_(options),
+      options_(std::move(options)),
       delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::Now()),
       top_down_(profiler->isolate(), profiler->code_entries()),
@@ -906,7 +900,8 @@ CpuProfilingResult CpuProfilesCollection::StartProfilingForTesting(
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
     const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  return StartProfiling(++last_id_, title, options, std::move(delegate));
+  return StartProfiling(++last_id_, title, std::move(options),
+                        std::move(delegate));
 }
 
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
@@ -936,8 +931,8 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
     }
   }
 
-  CpuProfile* profile =
-      new CpuProfile(profiler_, id, title, options, std::move(delegate));
+  CpuProfile* profile = new CpuProfile(profiler_, id, title, std::move(options),
+                                       std::move(delegate));
   current_profiles_.emplace_back(profile);
   current_profiles_semaphore_.Signal();
 

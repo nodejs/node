@@ -78,13 +78,6 @@ Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                            alignment);
 }
 
-void LocalHeap::CreateFillerObjectAt(Address addr, int size,
-                                     ClearRecordedSlots clear_slots_mode) {
-  DCHECK_EQ(clear_slots_mode, ClearRecordedSlots::kNo);
-  heap()->CreateFillerObjectAtBackground(
-      addr, size, ClearFreedMemoryMode::kDontClearFreedMemory);
-}
-
 }  // namespace internal
 }  // namespace v8
 

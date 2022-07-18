@@ -505,6 +505,10 @@ void BytecodeRegisterOptimizer::RegisterListFreeEvent(RegisterList reg_list) {
   }
 }
 
+void BytecodeRegisterOptimizer::RegisterFreeEvent(Register reg) {
+  GetRegisterInfo(reg)->set_allocated(false);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

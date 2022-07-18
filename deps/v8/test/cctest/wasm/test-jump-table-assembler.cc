@@ -55,17 +55,6 @@ constexpr uint32_t kAvailableBufferSlots = 0;
 constexpr uint32_t kBufferSlotStartOffset = 0;
 #endif
 
-void EnsureThreadHasWritePermissions() {
-#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
-// Ignoring this warning is considered better than relying on
-// __builtin_available.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
-  pthread_jit_write_protect_np(0);
-#pragma clang diagnostic pop
-#endif
-}
-
 Address AllocateJumpTableThunk(
     Address jump_target, byte* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
@@ -214,7 +203,7 @@ class JumpTablePatcher : public v8::base::Thread {
 
   void Run() override {
     TRACE("Patcher %p is starting ...\n", this);
-    EnsureThreadHasWritePermissions();
+    RwxMemoryWriteScopeForTesting rwx_write_scope;
     Address slot_address =
         slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
     // First, emit code to the two thunks.
@@ -258,18 +247,18 @@ TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfRunnerThreads = 5;
   constexpr int kNumberOfPatcherThreads = 3;
 
-  STATIC_ASSERT(kAssemblerBufferSize >= kJumpTableSize);
+  static_assert(kAssemblerBufferSize >= kJumpTableSize);
   auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
-                                        VirtualMemory::kMapAsJittable);
+                                        JitPermission::kMapAsJittable);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();
+  RwxMemoryWriteScopeForTesting rwx_write_scope;
 
   // Iterate through jump-table slots to hammer at different alignments within
   // the jump-table, thereby increasing stress for variable-length ISAs.
   Address slot_start = reinterpret_cast<Address>(buffer->start());
-  EnsureThreadHasWritePermissions();
   for (int slot = 0; slot < kJumpTableSlotCount; ++slot) {
     TRACE("Hammering on jump table slot #%d ...\n", slot);
     uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot);

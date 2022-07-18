@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GraphView } from "../src/graph-view";
-import { ScheduleView } from "../src/schedule-view";
-import { SequenceView } from "../src/sequence-view";
-import { SourceResolver } from "../src/source-resolver";
-import { SelectionBroker } from "../src/selection-broker";
-import { View, PhaseView } from "../src/view";
-import { GNode } from "./node";
-
-const multiviewID = "multiview";
+import * as C from "./common/constants";
+import { GraphView } from "./views/graph-view";
+import { ScheduleView } from "./views/schedule-view";
+import { SequenceView } from "./views/sequence-view";
+import { GenericPhase, SourceResolver } from "./source-resolver";
+import { SelectionBroker } from "./selection/selection-broker";
+import { PhaseView, View } from "./views/view";
+import { GraphPhase } from "./phases/graph-phase/graph-phase";
+import { GraphNode } from "./phases/graph-phase/graph-node";
+import { storageGetItem, storageSetItem } from "./common/util";
+import { PhaseType } from "./phases/phase";
+import { TurboshaftGraphView } from "./views/turboshaft-graph-view";
 
 const toolboxHTML = `
 <div class="graph-toolbox">
@@ -26,23 +29,11 @@ export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
   selectionBroker: SelectionBroker;
   graph: GraphView;
+  turboshaftGraph: TurboshaftGraphView;
   schedule: ScheduleView;
   sequence: SequenceView;
   selectMenu: HTMLSelectElement;
   currentPhaseView: PhaseView;
-
-  createViewElement() {
-    const pane = document.createElement("div");
-    pane.setAttribute("id", multiviewID);
-    pane.setAttribute("tabindex", "1");
-    pane.className = "viewpane";
-    return pane;
-  }
-
-  hide() {
-    this.hideCurrentPhase();
-    super.hide();
-  }
 
   constructor(id, selectionBroker, sourceResolver) {
     super(id);
@@ -55,9 +46,8 @@ export class GraphMultiView extends View {
     view.divNode.appendChild(toolbox);
     const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;
     const onlyVisibleCheckbox = toolbox.querySelector("#search-only-visible") as HTMLInputElement;
-    searchInput.addEventListener("keyup", e => {
-      if (!view.currentPhaseView) return;
-      view.currentPhaseView.searchInputAction(searchInput, e, onlyVisibleCheckbox.checked);
+    searchInput.addEventListener("keyup", (e: KeyboardEvent) => {
+      view.currentPhaseView?.searchInputAction(searchInput, e, onlyVisibleCheckbox.checked);
     });
     view.divNode.addEventListener("keyup", (e: KeyboardEvent) => {
       if (e.keyCode == 191) { // keyCode == '/'
@@ -68,73 +58,77 @@ export class GraphMultiView extends View {
         view.displayPreviousGraphPhase();
       }
     });
-    searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
+    searchInput.setAttribute("value", storageGetItem("lastSearch", "", false));
     this.graph = new GraphView(this.divNode, selectionBroker, view.displayPhaseByName.bind(this),
       toolbox.querySelector(".graph-toolbox"));
+    this.turboshaftGraph = new TurboshaftGraphView(this.divNode, selectionBroker,
+      view.displayPhaseByName.bind(this), toolbox.querySelector(".graph-toolbox"));
     this.schedule = new ScheduleView(this.divNode, selectionBroker);
     this.sequence = new SequenceView(this.divNode, selectionBroker);
     this.selectMenu = toolbox.querySelector("#phase-select") as HTMLSelectElement;
   }
 
-  initializeSelect() {
-    const view = this;
-    view.selectMenu.innerHTML = "";
-    view.sourceResolver.forEachPhase(phase => {
-      const optionElement = document.createElement("option");
-      let maxNodeId = "";
-      if (phase.type == "graph" && phase.highestNodeId != 0) {
-        maxNodeId = ` ${phase.highestNodeId}`;
-      }
-      optionElement.text = `${phase.name}${maxNodeId}`;
-      view.selectMenu.add(optionElement);
-    });
-    this.selectMenu.onchange = function (this: HTMLSelectElement) {
-      const phaseIndex = this.selectedIndex;
-      window.sessionStorage.setItem("lastSelectedPhase", phaseIndex.toString());
-      view.displayPhase(view.sourceResolver.getPhase(phaseIndex));
-    };
+  public createViewElement(): HTMLDivElement {
+    const pane = document.createElement("div");
+    pane.setAttribute("id", C.MULTIVIEW_ID);
+    pane.setAttribute("tabindex", "1");
+    pane.className = "viewpane";
+    return pane;
   }
 
-  show() {
+  public hide(): void {
+    this.container.className = "";
+    this.hideCurrentPhase();
+    super.hide();
+  }
+
+  public show(): void {
     // Insert before is used so that the display is inserted before the
     // resizer for the RangeView.
     this.container.insertBefore(this.divNode, this.container.firstChild);
     this.initializeSelect();
-    const lastPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");
+    const lastPhaseIndex = storageGetItem("lastSelectedPhase");
     const initialPhaseIndex = this.sourceResolver.repairPhaseId(lastPhaseIndex);
     this.selectMenu.selectedIndex = initialPhaseIndex;
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
 
-  displayPhase(phase, selection?: Map<string, GNode>) {
-    if (phase.type == "graph") {
+  public onresize(): void {
+    this.currentPhaseView?.onresize();
+  }
+
+  private displayPhase(phase: GenericPhase, selection?: Map<string, GraphNode>): void {
+    if (phase.type == PhaseType.Graph) {
       this.displayPhaseView(this.graph, phase, selection);
-    } else if (phase.type == "schedule") {
+    } else if (phase.type == PhaseType.TurboshaftGraph) {
+      this.displayPhaseView(this.turboshaftGraph, phase, selection);
+    } else if (phase.type == PhaseType.Schedule) {
       this.displayPhaseView(this.schedule, phase, selection);
-    } else if (phase.type == "sequence") {
+    } else if (phase.type == PhaseType.Sequence) {
       this.displayPhaseView(this.sequence, phase, selection);
     }
   }
 
-  displayPhaseView(view: PhaseView, data, selection?: Map<string, GNode>) {
+  private displayPhaseView(view: PhaseView, data: GenericPhase, selection?: Map<string, GraphNode>):
+    void {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
     this.currentPhaseView = view;
   }
 
-  displayPhaseByName(phaseName, selection?: Map<string, GNode>) {
+  private displayPhaseByName(phaseName: string, selection?: Map<string, GraphNode>): void {
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
     this.selectMenu.selectedIndex = phaseId;
     this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
   }
 
-  displayNextGraphPhase() {
+  private displayNextGraphPhase(): void {
     let nextPhaseIndex = this.selectMenu.selectedIndex + 1;
     while (nextPhaseIndex < this.sourceResolver.phases.length) {
       const nextPhase = this.sourceResolver.getPhase(nextPhaseIndex);
-      if (nextPhase.type == "graph") {
+      if (nextPhase.isGraph()) {
         this.selectMenu.selectedIndex = nextPhaseIndex;
-        window.sessionStorage.setItem("lastSelectedPhase", nextPhaseIndex.toString());
+        storageSetItem("lastSelectedPhase", nextPhaseIndex);
         this.displayPhase(nextPhase);
         break;
       }
@@ -142,13 +136,13 @@ export class GraphMultiView extends View {
     }
   }
 
-  displayPreviousGraphPhase() {
+  private displayPreviousGraphPhase(): void {
     let previousPhaseIndex = this.selectMenu.selectedIndex - 1;
     while (previousPhaseIndex >= 0) {
       const previousPhase = this.sourceResolver.getPhase(previousPhaseIndex);
-      if (previousPhase.type == "graph") {
+      if (previousPhase.isGraph()) {
         this.selectMenu.selectedIndex = previousPhaseIndex;
-        window.sessionStorage.setItem("lastSelectedPhase", previousPhaseIndex.toString());
+        storageSetItem("lastSelectedPhase", previousPhaseIndex);
         this.displayPhase(previousPhase);
         break;
       }
@@ -156,7 +150,26 @@ export class GraphMultiView extends View {
     }
   }
 
-  hideCurrentPhase() {
+  private initializeSelect(): void {
+    const view = this;
+    view.selectMenu.innerHTML = "";
+    for (const phase of view.sourceResolver.phases) {
+      const optionElement = document.createElement("option");
+      let maxNodeId = "";
+      if (phase instanceof GraphPhase && phase.highestNodeId != 0) {
+        maxNodeId = ` ${phase.highestNodeId}`;
+      }
+      optionElement.text = `${phase.name}${maxNodeId}`;
+      view.selectMenu.add(optionElement);
+    }
+    this.selectMenu.onchange = function (this: HTMLSelectElement) {
+      const phaseIndex = this.selectedIndex;
+      storageSetItem("lastSelectedPhase", phaseIndex);
+      view.displayPhase(view.sourceResolver.getPhase(phaseIndex));
+    };
+  }
+
+  private hideCurrentPhase(): Map<string, GraphNode> {
     let rememberedSelection = null;
     if (this.currentPhaseView != null) {
       rememberedSelection = this.currentPhaseView.detachSelection();
@@ -164,13 +177,5 @@ export class GraphMultiView extends View {
       this.currentPhaseView = null;
     }
     return rememberedSelection;
-  }
-
-  onresize() {
-    if (this.currentPhaseView) this.currentPhaseView.onresize();
-  }
-
-  detachSelection() {
-    return null;
   }
 }

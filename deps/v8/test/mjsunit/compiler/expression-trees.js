@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --always-opt --nocompilation-cache
+// Flags: --always-turbofan --nocompilation-cache
 
 // Given a binary operation string and an ordered array of leaf
 // strings, return an array of all binary tree strings with the leaves

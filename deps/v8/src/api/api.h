@@ -13,7 +13,6 @@
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-collection.h"
@@ -28,7 +27,6 @@
 
 namespace v8 {
 
-class AccessorSignature;
 class Extension;
 class Signature;
 class Template;
@@ -99,7 +97,6 @@ class RegisteredExtension {
   V(FunctionTemplate, FunctionTemplateInfo)    \
   V(ObjectTemplate, ObjectTemplateInfo)        \
   V(Signature, FunctionTemplateInfo)           \
-  V(AccessorSignature, FunctionTemplateInfo)   \
   V(Data, Object)                              \
   V(RegExp, JSRegExp)                          \
   V(Object, JSReceiver)                        \
@@ -156,7 +153,7 @@ class Utils {
     return condition;
   }
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
-                               const char* location, bool is_heap_oom);
+                               const char* location, const OOMDetails& details);
 
   static inline Local<debug::AccessorPair> ToLocal(
       v8::internal::Handle<v8::internal::AccessorPair> obj);
@@ -244,8 +241,6 @@ class Utils {
       v8::internal::Handle<v8::internal::ObjectTemplateInfo> obj);
   static inline Local<Signature> SignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<AccessorSignature> AccessorSignatureToLocal(
-      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Function> CallableToLocal(
@@ -270,9 +265,9 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-  template <class T, class M>
+  template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-      const v8::Persistent<T, M>& persistent) {
+      const v8::PersistentBase<T>& persistent) {
     return v8::internal::Handle<v8::internal::Object>(
         reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
@@ -425,7 +420,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
+  std::unique_ptr<PersistentHandles> DetachPersistent(Address* first_block);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
+#include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
 #include "src/zone/zone-containers.h"
@@ -78,6 +79,15 @@ class SourceTextModule
 
   static constexpr unsigned kFirstAsyncEvaluatingOrdinal = 2;
 
+  enum ExecuteAsyncModuleContextSlots {
+    kModule = Context::MIN_CONTEXT_SLOTS,
+    kContextLength,
+  };
+
+  V8_EXPORT_PRIVATE
+  std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+  GetStalledTopLevelAwaitMessage(Isolate* isolate);
+
  private:
   friend class Factory;
   friend class Module;
@@ -127,9 +137,9 @@ class SourceTextModule
   // If 0, this module is not async or has not been async evaluated.
   static constexpr unsigned kNotAsyncEvaluated = 0;
   static constexpr unsigned kAsyncEvaluateDidFinish = 1;
-  STATIC_ASSERT(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
-  STATIC_ASSERT(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
-  STATIC_ASSERT(kMaxModuleAsyncEvaluatingOrdinal ==
+  static_assert(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
+  static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
+  static_assert(kMaxModuleAsyncEvaluatingOrdinal ==
                 AsyncEvaluatingOrdinalBits::kMax);
   DECL_PRIMITIVE_ACCESSORS(async_evaluating_ordinal, unsigned)
 
@@ -208,6 +218,10 @@ class SourceTextModule
       Isolate* isolate, Handle<SourceTextModule> module);
 
   static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
+
+  V8_EXPORT_PRIVATE void InnerGetStalledTopLevelAwaitModule(
+      Isolate* isolate, UnorderedModuleSet* visited,
+      std::vector<Handle<SourceTextModule>>* result);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModule)
 };

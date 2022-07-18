@@ -8,6 +8,12 @@ from . import base
 
 
 class TimeoutProc(base.TestProcObserver):
+  @staticmethod
+  def create(options):
+    if not options.total_timeout_sec:
+      return None
+    return TimeoutProc(options.total_timeout_sec)
+
   def __init__(self, duration_sec):
     super(TimeoutProc, self).__init__()
     self._duration_sec = duration_sec

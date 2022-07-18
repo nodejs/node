@@ -367,6 +367,11 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   return ns;
 }
 
+bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
+  Handle<Object> object(module().exports().Lookup(name), isolate);
+  return !object->IsTheHole(isolate);
+}
+
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
                                                  Handle<String> name) {
   Handle<Object> object(module().exports().Lookup(name), isolate);

@@ -178,6 +178,12 @@ EmulatedVirtualAddressSubspace::AllocateSubspace(
   UNREACHABLE();
 }
 
+bool EmulatedVirtualAddressSubspace::RecommitPages(
+    Address address, size_t size, PagePermissions permissions) {
+  DCHECK(Contains(address, size));
+  return parent_space_->RecommitPages(address, size, permissions);
+}
+
 bool EmulatedVirtualAddressSubspace::DiscardSystemPages(Address address,
                                                         size_t size) {
   DCHECK(Contains(address, size));

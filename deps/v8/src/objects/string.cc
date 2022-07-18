@@ -4,7 +4,6 @@
 
 #include "src/objects/string.h"
 
-#include "src/base/platform/yield-processor.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -62,6 +61,14 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
         isolate->factory()
             ->NewRawOneByteString(length, allocation)
             .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+                    !cons->IsConsString())) {
+      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+      return String::Flatten(isolate, cons, allocation);
+    }
     DisallowGarbageCollection no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
@@ -70,6 +77,14 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
         isolate->factory()
             ->NewRawTwoByteString(length, allocation)
             .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+                    !cons->IsConsString())) {
+      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+      return String::Flatten(isolate, cons, allocation);
+    }
     DisallowGarbageCollection no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
@@ -164,136 +179,6 @@ Map ComputeThinStringMap(IsolateT* isolate, StringShape from_string_shape,
   return one_byte ? roots.thin_one_byte_string_map() : roots.thin_string_map();
 }
 
-enum class StringMigrationResult {
-  kThisThreadMigrated,
-  kAnotherThreadMigrated
-};
-
-// This function must be used when migrating strings whose
-// StringShape::CanMigrateInParallel() is true. It encapsulates the
-// synchronization needed for parallel migrations from multiple threads. The
-// user passes a lambda to perform to update the representation.
-//
-// Returns whether this thread successfully migrated the string or another
-// thread did so.
-//
-// The locking algorithm to migrate a String uses its map word as a migration
-// lock:
-//
-//   map = string.map(kAcquireLoad);
-//   if (map != SENTINEL_MAP &&
-//       string.compare_and_swap_map(map, SENTINEL_MAP)) {
-//     // Lock acquired, i.e. the string's map is SENTINEL_MAP.
-//   } else {
-//     // Lock not acquired. Another thread set the sentinel. Spin until the
-//     // map is no longer the sentinel, i.e. until the other thread
-//     // releases the lock.
-//     Map reloaded_map;
-//     do {
-//       reloaded_map = string.map(kAcquireLoad);
-//     } while (reloaded_map == SENTINEL_MAP);
-//   }
-//
-// Some notes on usage:
-// - The initial map must be loaded with kAcquireLoad for synchronization.
-// - Avoid loading the map multiple times. Load the map once and branch
-//   on that.
-// - The lambda is passed the string and its initial (pre-migration)
-//   StringShape.
-// - The lambda may be executed under a spinlock, so it should be as short
-//   as possible.
-// - Currently only SeqString -> ThinString migrations can happen in
-//   parallel. If kAnotherThreadMigrated is returned, then the caller doesn't
-//   need to do any other work. In the future, if additional migrations can
-//   happen in parallel, then restarts may be needed if the parallel migration
-//   was to a different type (e.g. SeqString -> External).
-//
-// Example:
-//
-//   DisallowGarbageCollection no_gc;
-//   Map initial_map = string.map(kAcquireLoad);
-//   switch (MigrateStringMapUnderLockIfNeeded(
-//     isolate, string, initial_map, target_map,
-//     [](Isolate* isolate, String string, StringShape initial_shape) {
-//       auto t = TargetStringType::unchecked_cast(string);
-//       t.set_field(foo);
-//       t.set_another_field(bar);
-//     }, no_gc);
-//
-template <typename IsolateT, typename Callback>
-StringMigrationResult MigrateStringMapUnderLockIfNeeded(
-    IsolateT* isolate, String string, Map initial_map, Map target_map,
-    Callback update_representation, const DisallowGarbageCollection& no_gc) {
-  USE(no_gc);
-
-  InstanceType initial_type = initial_map.instance_type();
-  StringShape initial_shape(initial_type);
-
-  if (initial_shape.CanMigrateInParallel()) {
-    // A string whose map is a sentinel map means that it is in the critical
-    // section for being migrated to a different map. There are multiple
-    // sentinel maps: one for each InstanceType that may be migrated from.
-    Map sentinel_map =
-        *isolate->factory()->GetStringMigrationSentinelMap(initial_type);
-
-    // Try to acquire the migration lock by setting the string's map to the
-    // sentinel map. Note that it's possible that we've already witnessed a
-    // sentinel map.
-    if (initial_map == sentinel_map ||
-        !string.release_compare_and_swap_map_word(
-            MapWord::FromMap(initial_map), MapWord::FromMap(sentinel_map))) {
-      // If the lock couldn't be acquired, another thread must be migrating this
-      // string. The string's map will be the sentinel map until the migration
-      // is finished. Spin until the map is no longer the sentinel map.
-      //
-      // TODO(v8:12007): Replace this spin lock with a ParkingLot-like
-      // primitive.
-      Map reloaded_map = string.map(kAcquireLoad);
-      while (reloaded_map == sentinel_map) {
-        YIELD_PROCESSOR;
-        reloaded_map = string.map(kAcquireLoad);
-      }
-
-      // Another thread must have migrated once the map is no longer the
-      // sentinel map.
-      //
-      // TODO(v8:12007): At time of writing there is only a single kind of
-      // migration that can happen in parallel: SeqString -> ThinString. If
-      // other parallel migrations are added, this DCHECK will fail, and users
-      // of MigrateStringMapUnderLockIfNeeded would need to restart if the
-      // string was migrated to a different map than target_map.
-      DCHECK_EQ(reloaded_map, target_map);
-      return StringMigrationResult::kAnotherThreadMigrated;
-    }
-  }
-
-  // With the lock held for cases where it's needed, do the work to update the
-  // representation before storing the map word. In addition to parallel
-  // migrations, this also ensures that the concurrent marker will read the
-  // updated representation when visiting migrated strings.
-  update_representation(isolate, string, initial_shape);
-
-  // Do the store on the map word.
-  //
-  // In debug mode, do a compare-and-swap that is checked to succeed, to check
-  // that all string map migrations are using this function, since to be in the
-  // migration critical section, the string's current map must be the sentinel
-  // map.
-  //
-  // Otherwise do a normal release store.
-  if (DEBUG_BOOL && initial_shape.CanMigrateInParallel()) {
-    DCHECK_NE(initial_map, target_map);
-    Map sentinel_map =
-        *isolate->factory()->GetStringMigrationSentinelMap(initial_type);
-    CHECK(string.release_compare_and_swap_map_word(
-        MapWord::FromMap(sentinel_map), MapWord::FromMap(target_map)));
-  } else {
-    string.set_map_safe_transition(target_map, kReleaseStore);
-  }
-
-  return StringMigrationResult::kThisThreadMigrated;
-}
-
 }  // namespace
 
 template <typename IsolateT>
@@ -302,53 +187,42 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
 
-  // Load the map once at the beginning and use it to query for the shape of the
-  // string to avoid reloading the map in case of parallel migrations. See
-  // comment above for MigrateStringMapUnderLockIfNeeded.
-  Map initial_map = this->map(kAcquireLoad);
+  Map initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
-  // TODO(v8:12007): Support shared ThinStrings.
-  //
-  // Currently in-place migrations to ThinStrings are disabled for shared
-  // strings to unblock prototyping.
-  if (initial_shape.IsShared()) return;
   DCHECK(!initial_shape.IsThin());
 
+  // Check that shared strings cannot transition to ThinStrings directly without
+  // having a forwarding index. If the string is transitioned during
+  // deserialization, the string hasn't escaped the thread yet so the direct
+  // transition is OK.
+  DCHECK_IMPLIES(
+      initial_shape.IsShared() && !isolate->has_active_deserializer(),
+      HasForwardingIndex());
+
   bool has_pointers = initial_shape.IsIndirect();
-  int old_size = this->SizeFromMap(initial_map);
+  int old_size = SizeFromMap(initial_map);
   Map target_map = ComputeThinStringMap(isolate, initial_shape,
                                         internalized.IsOneByteRepresentation());
-  switch (MigrateStringMapUnderLockIfNeeded(
-      isolate, *this, initial_map, target_map,
-      [=](IsolateT* isolate, String string, StringShape initial_shape) {
-        if (initial_shape.IsExternal()) {
-          // TODO(v8:12007): Support external strings.
-          DCHECK(!initial_shape.IsShared());
-          MigrateExternalString(isolate->AsIsolate(), string, internalized);
-        }
-
-        ThinString::unchecked_cast(string).set_actual(internalized);
-        DCHECK_GE(old_size, ThinString::kSize);
-      },
-      no_gc)) {
-    case StringMigrationResult::kThisThreadMigrated:
-      // Overwrite character data with the filler below.
-      break;
-    case StringMigrationResult::kAnotherThreadMigrated:
-      // Nothing to do.
-      //
-      // TODO(v8:12007): Support shared ThinStrings.
-      UNREACHABLE();
+  if (initial_shape.IsExternal()) {
+    // TODO(v8:12007): Support external strings.
+    DCHECK(!initial_shape.IsShared());
+    MigrateExternalString(isolate->AsIsolate(), *this, internalized);
   }
 
-  ThinString thin = ThinString::cast(*this);
-  Address thin_end = thin.address() + ThinString::kSize;
+  // Update actual first and then do release store on the map word. This ensures
+  // that the concurrent marker will read the pointer when visiting a
+  // ThinString.
+  ThinString thin = ThinString::unchecked_cast(*this);
+  thin.set_actual(internalized);
+  set_map_safe_transition(target_map, kReleaseStore);
+
+  DCHECK_GE(old_size, ThinString::kSize);
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     if (!Heap::IsLargeObject(thin)) {
-      isolate->heap()->CreateFillerObjectAt(
-          thin_end, size_delta,
+      isolate->heap()->NotifyObjectSizeChange(
+          thin, old_size, ThinString::kSize,
           has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
     } else {
       // We don't need special handling for the combination IsLargeObject &&
@@ -391,11 +265,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
-  if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
-                                              InvalidateRecordedSlots::kYes);
-  }
-
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
       isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
@@ -419,9 +288,15 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
+
+  if (has_pointers) {
+    isolate->heap()->NotifyObjectLayoutChange(
+        *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+  }
+
   if (!isolate->heap()->IsLargeObject(*this)) {
-    isolate->heap()->CreateFillerObjectAt(
-        this->address() + new_size, size - new_size,
+    isolate->heap()->NotifyObjectSizeChange(
+        *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
@@ -475,11 +350,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
-  if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
-                                              InvalidateRecordedSlots::kYes);
-  }
-
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
       isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
@@ -504,8 +374,13 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     // Byte size of the external String object.
     int new_size = this->SizeFromMap(new_map);
 
-    isolate->heap()->CreateFillerObjectAt(
-        this->address() + new_size, size - new_size,
+    if (has_pointers) {
+      isolate->heap()->NotifyObjectLayoutChange(
+          *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+    }
+
+    isolate->heap()->NotifyObjectSizeChange(
+        *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
@@ -734,7 +609,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
         subject->EnsureHash();  // Force hash calculation.
         DCHECK_EQ(subject->raw_hash_field(), raw_hash_field);
 #endif
-        subject->set_raw_hash_field(raw_hash_field);
+        subject->set_raw_hash_field_if_empty(raw_hash_field);
       }
       return handle(Smi::FromInt(d), isolate);
     }
@@ -1035,10 +910,12 @@ bool String::SlowEquals(
 
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
-  if (HasHashCode() && other.HasHashCode()) {
+  uint32_t this_hash;
+  uint32_t other_hash;
+  if (TryGetHash(&this_hash) && other.TryGetHash(&other_hash)) {
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
-      if (hash() != other.hash()) {
+      if (this_hash != other_hash) {
         bool found_difference = false;
         for (int i = 0; i < len; i++) {
           if (Get(i) != other.Get(i)) {
@@ -1050,7 +927,7 @@ bool String::SlowEquals(
       }
     }
 #endif
-    if (hash() != other.hash()) return false;
+    if (this_hash != other_hash) return false;
   }
 
   // We know the strings are both non-empty. Compare the first chars
@@ -1093,10 +970,12 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
 
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
-  if (one->HasHashCode() && two->HasHashCode()) {
+  uint32_t one_hash;
+  uint32_t two_hash;
+  if (one->TryGetHash(&one_hash) && two->TryGetHash(&two_hash)) {
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
-      if (one->hash() != two->hash()) {
+      if (one_hash != two_hash) {
         bool found_difference = false;
         for (int i = 0; i < one_length; i++) {
           if (one->Get(i) != two->Get(i)) {
@@ -1108,7 +987,7 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
       }
     }
 #endif
-    if (one->hash() != two->hash()) return false;
+    if (one_hash != two_hash) return false;
   }
 
   // We know the strings are both non-empty. Compare the first chars
@@ -1631,6 +1510,18 @@ uint32_t String::ComputeAndSetHash(
   // same. The raw hash field is stored with relaxed ordering.
   DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
+  uint32_t field = raw_hash_field(kAcquireLoad);
+  if (Name::IsForwardingIndex(field)) {
+    // Get the real hash from the forwarded string.
+    Isolate* isolate = GetIsolateFromWritableObject(*this);
+    const int forward_index = Name::HashBits::decode(field);
+    String internalized = isolate->string_forwarding_table()->GetForwardString(
+        isolate, forward_index);
+    uint32_t hash = internalized.raw_hash_field();
+    DCHECK(IsHashFieldComputed(hash));
+    return HashBits::decode(hash);
+  }
+
   // Store the hash code in the object.
   uint64_t seed = HashSeed(GetReadOnlyRoots());
   size_t start = 0;
@@ -1661,10 +1552,11 @@ uint32_t String::ComputeAndSetHash(
                                 access_guard)
           : HashString<uint16_t>(string, start, length(), seed, cage_base,
                                  access_guard);
-  set_raw_hash_field(raw_hash_field);
+  set_raw_hash_field_if_empty(raw_hash_field);
 
-  // Check the hash code is there.
-  DCHECK(HasHashCode());
+  // Check the hash code is there (or a forwarding index if the string was
+  // internalized in parallel).
+  DCHECK(HasHashCode() || HasForwardingIndex());
   uint32_t result = HashBits::decode(raw_hash_field);
   DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
   return result;
@@ -1731,18 +1623,18 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
     new_size = SeqTwoByteString::SizeFor(new_length);
   }
 
-  int delta = old_size - new_size;
-
+#if DEBUG
   Address start_of_string = string->address();
   DCHECK(IsAligned(start_of_string, kObjectAlignment));
   DCHECK(IsAligned(start_of_string + new_size, kObjectAlignment));
+#endif
 
   Heap* heap = Heap::FromWritableHeapObject(*string);
   if (!heap->IsLargeObject(*string)) {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
-    heap->CreateFillerObjectAt(start_of_string + new_size, delta,
-                               ClearRecordedSlots::kNo);
+    heap->NotifyObjectSizeChange(*string, old_size, new_size,
+                                 ClearRecordedSlots::kNo);
   }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
@@ -1751,16 +1643,25 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   return string;
 }
 
-void SeqOneByteString::clear_padding() {
-  int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0,
-         SizeFor(length()) - data_size);
+SeqString::DataAndPaddingSizes SeqString::GetDataAndPaddingSizes() const {
+  if (IsSeqOneByteString()) {
+    return SeqOneByteString::cast(*this).GetDataAndPaddingSizes();
+  }
+  return SeqTwoByteString::cast(*this).GetDataAndPaddingSizes();
 }
 
-void SeqTwoByteString::clear_padding() {
+SeqString::DataAndPaddingSizes SeqOneByteString::GetDataAndPaddingSizes()
+    const {
+  int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
+  int padding_size = SizeFor(length()) - data_size;
+  return DataAndPaddingSizes{data_size, padding_size};
+}
+
+SeqString::DataAndPaddingSizes SeqTwoByteString::GetDataAndPaddingSizes()
+    const {
   int data_size = SeqString::kHeaderSize + length() * base::kUC16Size;
-  memset(reinterpret_cast<void*>(address() + data_size), 0,
-         SizeFor(length()) - data_size);
+  int padding_size = SizeFor(length()) - data_size;
+  return DataAndPaddingSizes{data_size, padding_size};
 }
 
 uint16_t ConsString::Get(
@@ -2023,18 +1924,18 @@ namespace {
 
 DEFINE_TORQUE_GENERATED_STRING_INSTANCE_TYPE()
 
-STATIC_ASSERT(kStringRepresentationMask == RepresentationBits::kMask);
+static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 
-STATIC_ASSERT(kStringEncodingMask == IsOneByteBit::kMask);
-STATIC_ASSERT(kTwoByteStringTag == IsOneByteBit::encode(false));
-STATIC_ASSERT(kOneByteStringTag == IsOneByteBit::encode(true));
+static_assert(kStringEncodingMask == IsOneByteBit::kMask);
+static_assert(kTwoByteStringTag == IsOneByteBit::encode(false));
+static_assert(kOneByteStringTag == IsOneByteBit::encode(true));
 
-STATIC_ASSERT(kUncachedExternalStringMask == IsUncachedBit::kMask);
-STATIC_ASSERT(kUncachedExternalStringTag == IsUncachedBit::encode(true));
+static_assert(kUncachedExternalStringMask == IsUncachedBit::kMask);
+static_assert(kUncachedExternalStringTag == IsUncachedBit::encode(true));
 
-STATIC_ASSERT(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
-STATIC_ASSERT(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
-STATIC_ASSERT(kInternalizedTag == IsNotInternalizedBit::encode(false));
+static_assert(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
+static_assert(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
+static_assert(kInternalizedTag == IsNotInternalizedBit::encode(false));
 }  // namespace
 
 }  // namespace internal

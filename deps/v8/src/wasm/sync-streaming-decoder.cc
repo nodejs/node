@@ -68,9 +68,6 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
       return;
     }
     Handle<WasmModuleObject> module = module_object.ToHandleChecked();
-    if (module_compiled_callback_) {
-      module_compiled_callback_(module->shared_native_module());
-    }
     resolver_->OnCompilationSucceeded(module);
   }
 

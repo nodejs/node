@@ -30,6 +30,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
   bool Cancel();
 
   void NotifyIncrementalMutatorStepCompleted();
+  void NotifyOfWorkIfNeeded(cppgc::TaskPriority priority);
 
   bool IsActive() const;
 

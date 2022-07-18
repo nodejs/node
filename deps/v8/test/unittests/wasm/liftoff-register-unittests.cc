@@ -33,10 +33,10 @@ namespace wasm {
 
 // The registers used by Liftoff and the registers spilled by the
 // WasmDebugBreak builtin should match.
-STATIC_ASSERT(kLiftoffAssemblerGpCacheRegs ==
+static_assert(kLiftoffAssemblerGpCacheRegs ==
               WasmDebugBreakFrameConstants::kPushedGpRegs);
 
-STATIC_ASSERT(kLiftoffAssemblerFpCacheRegs ==
+static_assert(kLiftoffAssemblerFpCacheRegs ==
               WasmDebugBreakFrameConstants::kPushedFpRegs);
 }  // namespace wasm
 }  // namespace internal

@@ -81,7 +81,7 @@ constexpr DeoptimizeReason kFirstDeoptimizeReason =
     DeoptimizeReason::kArrayBufferWasDetached;
 constexpr DeoptimizeReason kLastDeoptimizeReason =
     DeoptimizeReason::kArrayLengthChanged;
-STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeReason) == 0);
+static_assert(static_cast<int>(kFirstDeoptimizeReason) == 0);
 constexpr int kDeoptimizeReasonCount =
     static_cast<int>(kLastDeoptimizeReason) + 1;
 

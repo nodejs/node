@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-// Record code statisitcs.
+// Record code statistics.
 void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
                                                      Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
@@ -29,7 +29,7 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
       isolate->set_external_script_source_size(size);
     }
   } else if (object.IsAbstractCode(cage_base)) {
-    // Record code+metadata statisitcs.
+    // Record code+metadata statistics.
     AbstractCode abstract_code = AbstractCode::cast(object);
     int size = abstract_code.SizeIncludingMetadata();
     if (abstract_code.IsCode(cage_base)) {
@@ -96,7 +96,7 @@ void CodeStatistics::ReportCodeStatistics(Isolate* isolate) {
   }
   PrintF("\n");
 
-  // Report code and metadata statisitcs
+  // Report code and metadata statistics
   if (isolate->code_and_metadata_size() > 0) {
     PrintF("Code size including metadata    : %10d bytes\n",
            isolate->code_and_metadata_size());

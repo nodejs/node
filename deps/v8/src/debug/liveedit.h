@@ -63,6 +63,7 @@ class V8_EXPORT_PRIVATE LiveEdit : AllStatic {
                                int position);
   static void PatchScript(Isolate* isolate, Handle<Script> script,
                           Handle<String> source, bool preview,
+                          bool allow_top_frame_live_editing,
                           debug::LiveEditResult* result);
 };
 }  // namespace internal

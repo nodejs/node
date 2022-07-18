@@ -181,8 +181,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2PromoteLowF32x4:
     case kArm64F32x4SConvertI32x4:
     case kArm64F32x4UConvertI32x4:
-    case kArm64F32x4RecipApprox:
-    case kArm64F32x4RecipSqrtApprox:
     case kArm64F32x4Qfma:
     case kArm64F32x4Qfms:
     case kArm64F32x4Pmin:
@@ -227,6 +225,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64IGeU:
     case kArm64I32x4BitMask:
     case kArm64I32x4DotI16x8S:
+    case kArm64I16x8DotI8x16S:
+    case kArm64I32x4DotI8x16AddS:
     case kArm64I32x4TruncSatF64x2SZero:
     case kArm64I32x4TruncSatF64x2UZero:
     case kArm64IExtractLaneU:

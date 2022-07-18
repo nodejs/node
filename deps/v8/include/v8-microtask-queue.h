@@ -142,7 +142,7 @@ class V8_EXPORT V8_NODISCARD MicrotasksScope {
   MicrotasksScope& operator=(const MicrotasksScope&) = delete;
 
  private:
-  internal::Isolate* const isolate_;
+  internal::Isolate* const i_isolate_;
   internal::MicrotaskQueue* const microtask_queue_;
   bool run_;
 };

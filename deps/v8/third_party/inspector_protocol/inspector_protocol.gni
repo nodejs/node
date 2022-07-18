@@ -25,22 +25,14 @@ template("inspector_protocol_generate") {
   assert(defined(invoker.outputs))
   assert(defined(invoker.inspector_protocol_dir))
   inspector_protocol_dir = invoker.inspector_protocol_dir
-
+  use_embedder_types =
+      defined(invoker.use_embedder_types) && invoker.use_embedder_types
   action(target_name) {
     script = "$inspector_protocol_dir/code_generator.py"
 
     inputs = [
       invoker.config_file,
-      "$inspector_protocol_dir/lib/base_string_adapter_cc.template",
-      "$inspector_protocol_dir/lib/base_string_adapter_h.template",
       "$inspector_protocol_dir/lib/Forward_h.template",
-      "$inspector_protocol_dir/lib/Object_cpp.template",
-      "$inspector_protocol_dir/lib/Object_h.template",
-      "$inspector_protocol_dir/lib/Protocol_cpp.template",
-      "$inspector_protocol_dir/lib/ValueConversions_cpp.template",
-      "$inspector_protocol_dir/lib/ValueConversions_h.template",
-      "$inspector_protocol_dir/lib/Values_cpp.template",
-      "$inspector_protocol_dir/lib/Values_h.template",
       "$inspector_protocol_dir/templates/Exported_h.template",
       "$inspector_protocol_dir/templates/Imported_h.template",
       "$inspector_protocol_dir/templates/TypeBuilder_cpp.template",
@@ -49,12 +41,21 @@ template("inspector_protocol_generate") {
     if (defined(invoker.inputs)) {
       inputs += invoker.inputs
     }
+    if (!use_embedder_types) {
+      inputs += [
+        "$inspector_protocol_dir/lib/ValueConversions_cpp.template",
+        "$inspector_protocol_dir/lib/ValueConversions_h.template",
+        "$inspector_protocol_dir/lib/Values_cpp.template",
+        "$inspector_protocol_dir/lib/Values_h.template",
+        "$inspector_protocol_dir/lib/Object_cpp.template",
+        "$inspector_protocol_dir/lib/Object_h.template",
+      ]
+    }
 
     args = [
       "--jinja_dir",
       rebase_path("//third_party/", root_build_dir),  # jinja is in chromium's
                                                       # third_party
-
       "--output_base",
       rebase_path(invoker.out_dir, root_build_dir),
       "--config",
@@ -62,7 +63,12 @@ template("inspector_protocol_generate") {
       "--inspector_protocol_dir",
       "$inspector_protocol_dir",
     ]
-
+    if (use_embedder_types) {
+      args += [
+        "--config_value",
+        "use_embedder_types=true",
+      ]
+    }
     if (defined(invoker.config_values)) {
       foreach(value, invoker.config_values) {
         args += [

@@ -1,0 +1,15 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class JSAtomicsMutex extends JSObject {
+  // owner_thread_id must come first to ensure that the state field is
+  // uintptr-aligned.
+  @if(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
+  owner_thread_id: intptr;
+  @ifnot(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
+  owner_thread_id: int32;
+
+  @if(V8_SANDBOXED_EXTERNAL_POINTERS) state: uint32;
+  @ifnot(V8_SANDBOXED_EXTERNAL_POINTERS) state: uintptr;
+}

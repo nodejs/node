@@ -4,16 +4,12 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/regexp/regexp-utils.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/strings/string-search.h"
 
 namespace v8 {
 namespace internal {
@@ -154,7 +150,6 @@ RUNTIME_FUNCTION(Runtime_StringSubstring) {
   DCHECK_LE(0, start);
   DCHECK_LE(start, end);
   DCHECK_LE(end, string->length());
-  isolate->counters()->sub_string_runtime()->Increment();
   return *isolate->factory()->NewSubString(string, start, end);
 }
 
@@ -163,7 +158,6 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
   DCHECK_EQ(2, args.length());
   Handle<String> str1 = args.at<String>(0);
   Handle<String> str2 = args.at<String>(1);
-  isolate->counters()->string_add_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }

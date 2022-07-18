@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --wasm-dynamic-tiering --liftoff
+// Flags: --allow-natives-syntax --wasm-dynamic-tiering --liftoff
+// Flags: --no-wasm-native-module-cache-enabled
 // Make the test faster:
 // Flags: --wasm-tiering-budget=1000
 
@@ -41,11 +42,6 @@ function serializeModule() {
 };
 
 const serialized_module = serializeModule();
-// Do some GCs to make sure the first module got collected and removed from the
-// module cache.
-gc();
-gc();
-gc();
 
 (function testSerializedModule() {
   print(arguments.callee.name);

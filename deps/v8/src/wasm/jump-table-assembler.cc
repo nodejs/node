@@ -4,7 +4,6 @@
 
 #include "src/wasm/jump-table-assembler.h"
 
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 
 namespace v8 {
@@ -113,8 +112,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   // after the currently executing one.
   ldr_pcrel(pc, -kInstrSize);  // 1 instruction
   dd(target);                  // 4 bytes (== 1 instruction)
-  STATIC_ASSERT(kInstrSize == kInt32Size);
-  STATIC_ASSERT(kFarJumpTableSlotSize == 2 * kInstrSize);
+  static_assert(kInstrSize == kInt32Size);
+  static_assert(kFarJumpTableSlotSize == 2 * kInstrSize);
 }
 
 // static
@@ -171,9 +170,9 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   nop();       // To keep the target below aligned to kSystemPointerSize.
 #endif
   dq(target);  // 8 bytes (== 2 instructions)
-  STATIC_ASSERT(2 * kInstrSize == kSystemPointerSize);
+  static_assert(2 * kInstrSize == kSystemPointerSize);
   const int kSlotCount = ENABLE_CONTROL_FLOW_INTEGRITY_BOOL ? 6 : 4;
-  STATIC_ASSERT(kFarJumpTableSlotSize == kSlotCount * kInstrSize);
+  static_assert(kFarJumpTableSlotSize == kSlotCount * kInstrSize);
 }
 
 // static

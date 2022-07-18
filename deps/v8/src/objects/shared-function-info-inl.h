@@ -261,6 +261,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, is_sparkplug_compiling,
+                    SharedFunctionInfo::IsSparkplugCompilingBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
                     SharedFunctionInfo::MaglevCompilationFailedBit)
 
@@ -305,24 +308,13 @@ BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
 }
 
-OSRCodeCacheStateOfSFI SharedFunctionInfo::osr_code_cache_state() const {
-  return OsrCodeCacheStateBits::decode(flags(kRelaxedLoad));
-}
-
-void SharedFunctionInfo::set_osr_code_cache_state(
-    OSRCodeCacheStateOfSFI state) {
-  int hints = flags(kRelaxedLoad);
-  hints = OsrCodeCacheStateBits::update(hints, state);
-  set_flags(hints, kRelaxedStore);
-}
-
 LanguageMode SharedFunctionInfo::language_mode() const {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(flags(kRelaxedLoad)));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
@@ -333,7 +325,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
-  STATIC_ASSERT(FunctionKindBits::kSize == kFunctionKindBitSize);
+  static_assert(FunctionKindBits::kSize == kFunctionKindBitSize);
   return FunctionKindBits::decode(flags(kRelaxedLoad));
 }
 
@@ -378,7 +370,7 @@ int SharedFunctionInfo::function_map_index() const {
 }
 
 void SharedFunctionInfo::set_function_map_index(int index) {
-  STATIC_ASSERT(Context::LAST_FUNCTION_MAP_INDEX <=
+  static_assert(Context::LAST_FUNCTION_MAP_INDEX <=
                 Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::kMax);
   DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -719,8 +711,8 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
 }
 
-bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
-  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
+bool SharedFunctionInfo::HasWasmResumeData() const {
+  return function_data(kAcquireLoad).IsWasmResumeData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
@@ -825,21 +817,22 @@ void SharedFunctionInfo::ClearPreparseData() {
   DisallowGarbageCollection no_gc;
   Heap* heap = GetHeapFromWritableObject(data);
 
-  // Swap the map.
-  heap->NotifyObjectLayoutChange(data, no_gc);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
+  // We are basically trimming that object to its supertype, so recorded slots
+  // within the object don't need to be invalidated.
+  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo);
+  static_assert(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
+  static_assert(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kHeaderSize);
+
+  // Fill the remaining space with filler and clear slots in the trimmed area.
+  heap->NotifyObjectSizeChange(data, UncompiledDataWithPreparseData::kSize,
+                               UncompiledDataWithoutPreparseData::kSize,
+                               ClearRecordedSlots::kYes);
+
+  // Swap the map.
   data.set_map(GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
                kReleaseStore);
-
-  // Fill the remaining space with filler.
-  heap->CreateFillerObjectAt(
-      data.address() + UncompiledDataWithoutPreparseData::kSize,
-      UncompiledDataWithPreparseData::kSize -
-          UncompiledDataWithoutPreparseData::kSize,
-      ClearRecordedSlots::kYes);
 
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());

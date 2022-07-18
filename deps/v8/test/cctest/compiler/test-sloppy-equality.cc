@@ -58,7 +58,7 @@ class TestSloppyEqualityFactory {
 
 TEST(TestSloppyEquality) {
   FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
-  FlagScope<bool> always_opt(&i::FLAG_always_opt, false);
+  FlagScope<bool> always_turbofan(&i::FLAG_always_turbofan, false);
   HandleAndZoneScope handle_and_zone_scope;
   Isolate* isolate = handle_and_zone_scope.main_isolate();
   Zone zone(isolate->allocator(), ZONE_NAME);

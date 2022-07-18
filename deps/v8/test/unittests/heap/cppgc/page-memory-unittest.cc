@@ -269,7 +269,7 @@ TEST(NormalPageMemoryPool, AddTakeNotFoundDifferentBucket) {
 TEST(PageBackendTest, AllocateNormalUsesPool) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
-  PageBackend backend(allocator, oom_handler);
+  PageBackend backend(allocator, allocator, oom_handler);
   constexpr size_t kBucket = 0;
   Address writeable_base1 = backend.AllocateNormalPageMemory(kBucket);
   EXPECT_NE(nullptr, writeable_base1);
@@ -282,7 +282,7 @@ TEST(PageBackendTest, AllocateNormalUsesPool) {
 TEST(PageBackendTest, AllocateLarge) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
-  PageBackend backend(allocator, oom_handler);
+  PageBackend backend(allocator, allocator, oom_handler);
   Address writeable_base1 = backend.AllocateLargePageMemory(13731);
   EXPECT_NE(nullptr, writeable_base1);
   Address writeable_base2 = backend.AllocateLargePageMemory(9478);
@@ -295,7 +295,7 @@ TEST(PageBackendTest, AllocateLarge) {
 TEST(PageBackendTest, LookupNormal) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
-  PageBackend backend(allocator, oom_handler);
+  PageBackend backend(allocator, allocator, oom_handler);
   constexpr size_t kBucket = 0;
   Address writeable_base = backend.AllocateNormalPageMemory(kBucket);
   if (kGuardPageSize) {
@@ -316,7 +316,7 @@ TEST(PageBackendTest, LookupNormal) {
 TEST(PageBackendTest, LookupLarge) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
-  PageBackend backend(allocator, oom_handler);
+  PageBackend backend(allocator, allocator, oom_handler);
   constexpr size_t kSize = 7934;
   Address writeable_base = backend.AllocateLargePageMemory(kSize);
   if (kGuardPageSize) {
@@ -332,7 +332,7 @@ TEST(PageBackendDeathTest, DestructingBackendDestroysPageMemory) {
   FatalOutOfMemoryHandler oom_handler;
   Address base;
   {
-    PageBackend backend(allocator, oom_handler);
+    PageBackend backend(allocator, allocator, oom_handler);
     constexpr size_t kBucket = 0;
     base = backend.AllocateNormalPageMemory(kBucket);
   }

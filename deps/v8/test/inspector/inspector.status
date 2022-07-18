@@ -217,6 +217,7 @@
   'regress/regress-crbug-1197392': [SKIP],
   'debugger/command-line-api-with-arrow-function': [SKIP],
   'regress/regress-crbug-1199919': [SKIP],
+  'console/clear-async-stack-on-context-reset': [SKIP],
   'console/destroy-context-during-log': [SKIP],
   'console/scoped-variables': [SKIP],
   'cpu-profiler/console-profile': [SKIP],
@@ -325,7 +326,15 @@
   'debugger/regression-424142': [SKIP],
   'debugger/remove-breakpoint-at-breakpoint': [SKIP],
   'debugger/resource-name-to-url': [SKIP],
-  'debugger/restart-frame': [SKIP],
+  'debugger/restart-frame/fails-for-non-existant-index': [SKIP],
+  'debugger/restart-frame/fails-for-resumables': [SKIP],
+  'debugger/restart-frame/fails-with-embedder-frames': [SKIP],
+  'debugger/restart-frame/fails-without-mode-param': [SKIP],
+  'debugger/restart-frame/restart-inlined-frame': [SKIP],
+  'debugger/restart-frame/restart-top-frame-debugger-stmt': [SKIP],
+  'debugger/restart-frame/restart-top-frame-local-variables': [SKIP],
+  'debugger/restart-frame/restart-top-frame-with-breakpoint': [SKIP],
+  'debugger/restart-frame/restart-various-frames': [SKIP],
   'debugger/restore-breakpoint': [SKIP],
   'debugger/return-break-locations': [SKIP],
   'debugger/scope-skip-variables-with-empty-name': [SKIP],
@@ -423,6 +432,7 @@
   'print-method-not-found': [SKIP],
   'regress/regress-crbug-1147552': [SKIP],
   'regress/regress-crbug-1183664': [SKIP],
+  'regress/regress-crbug-1328453': [SKIP],
   'runtime/add-binding': [SKIP],
   'runtime/await-promise': [SKIP],
   'runtime/call-function-on-async': [SKIP],
@@ -527,5 +537,12 @@
 ['no_i18n == True', {
   'runtime/evaluate-without-side-effects-i18n': [SKIP],
 }],  # no_i18n == True
+
+##############################################################################
+['lite_mode or variant in (nooptimization, jitless, assert_types)', {
+  # Test relies on TurboFan being enabled.
+  'debugger/restart-frame/restart-inlined-frame': [SKIP],
+  'debugger/value-unavailable-scopes': [SKIP],
+}], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
 ]

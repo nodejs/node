@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
 // expected (e.g. in a %DeoptimizeNow call), then remove

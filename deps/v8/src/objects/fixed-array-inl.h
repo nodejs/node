@@ -83,7 +83,6 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
-#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -91,7 +90,6 @@ void FixedArray::set(int index, Smi value) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
-#endif
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
@@ -140,6 +138,30 @@ void FixedArray::set(int index, Object value, RelaxedStoreTag,
 }
 
 void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
+  DCHECK(Object(value).IsSmi());
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+Object FixedArray::get(int index, SeqCstAccessTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
+}
+
+Object FixedArray::get(PtrComprCageBase cage_base, int index,
+                       SeqCstAccessTag) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return SEQ_CST_READ_FIELD(*this, OffsetOfElementAt(index));
+}
+
+void FixedArray::set(int index, Object value, SeqCstAccessTag,
+                     WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  SEQ_CST_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+}
+
+void FixedArray::set(int index, Smi value, SeqCstAccessTag tag) {
   DCHECK(Object(value).IsSmi());
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
@@ -200,6 +222,21 @@ void FixedArray::set_the_hole(Isolate* isolate, int index) {
 
 void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
   FixedArray::NoWriteBarrierSet(*this, index, ro_roots.the_hole_value());
+}
+
+Object FixedArray::swap(int index, Object value, SeqCstAccessTag,
+                        WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  Object previous_value =
+      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  return previous_value;
+}
+
+Object FixedArray::swap(int index, Smi value, SeqCstAccessTag tag) {
+  DCHECK(Object(value).IsSmi());
+  return swap(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 void FixedArray::FillWithHoles(int from, int to) {

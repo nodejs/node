@@ -1071,7 +1071,7 @@ constexpr uint8_t kCollationWeightsL3[256] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
 };
 constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
-STATIC_ASSERT(kCollationWeightsLength == arraysize(kCollationWeightsL3));
+static_assert(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
 
 // Normalize a comparison delta (usually `lhs - rhs`) to UCollationResult
@@ -1488,6 +1488,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  StackLimitCheck stack_check(isolate);
+  // New<JSNumberFormat>() requires a lot of stack space.
+  const int kStackSpaceRequiredForNewJSNumberFormat = 16 * KB;
+  if (stack_check.JsHasOverflowed(kStackSpaceRequiredForNewJSNumberFormat)) {
+    isolate->StackOverflow();
+    return MaybeHandle<String>();
+  }
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
@@ -2737,6 +2744,9 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
     case UNUM_MEASURE_UNIT_FIELD:
       return isolate->factory()->unit_string();
 
+    case UNUM_APPROXIMATELY_SIGN_FIELD:
+      return isolate->factory()->approximatelySign_string();
+
     default:
       UNREACHABLE();
   }
@@ -2861,18 +2871,16 @@ std::string Intl::TimeZoneIdFromIndex(int32_t index) {
   return id;
 }
 
-Maybe<bool> Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier,
-                                   int32_t* index) {
+int32_t Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier) {
   if (identifier->Equals(*isolate->factory()->UTC_string())) {
-    *index = 0;
-    return Just(true);
+    return 0;
   }
 
   std::string identifier_str(identifier->ToCString().get());
   std::unique_ptr<icu::TimeZone> tz(
       icu::TimeZone::createTimeZone(identifier_str.c_str()));
   if (!IsValidTimeZoneName(*tz)) {
-    return Just(false);
+    return -1;
   }
 
   std::unique_ptr<icu::StringEnumeration> enumeration(
@@ -2883,37 +2891,14 @@ Maybe<bool> Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier,
   UErrorCode status = U_ZERO_ERROR;
   while (U_SUCCESS(status) &&
          (id = enumeration->next(nullptr, status)) != nullptr) {
-    if (identifier_str == id) {
-      *index = curr + 1;
-      return Just(true);
-    }
     curr++;
+    if (identifier_str == id) {
+      return curr;
+    }
   }
   CHECK(U_SUCCESS(status));
   // We should not reach here, the !IsValidTimeZoneName should return earlier
   UNREACHABLE();
-}
-
-// #sec-tointlmathematicalvalue
-MaybeHandle<Object> Intl::ToIntlMathematicalValueAsNumberBigIntOrString(
-    Isolate* isolate, Handle<Object> input) {
-  if (input->IsNumber() || input->IsBigInt()) return input;  // Shortcut.
-  // TODO(ftang) revisit the following after the resolution of
-  // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
-  if (input->IsOddball()) {
-    return Oddball::ToNumber(isolate, Handle<Oddball>::cast(input));
-  }
-  if (input->IsSymbol()) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
-                    Object);
-  }
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, input,
-      JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
-                              ToPrimitiveHint::kNumber),
-      Object);
-  if (input->IsString()) UNIMPLEMENTED();
-  return input;
 }
 
 Intl::FormatRangeSourceTracker::FormatRangeSourceTracker() {

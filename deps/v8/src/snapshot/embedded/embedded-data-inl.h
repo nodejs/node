@@ -131,12 +131,18 @@ uint32_t EmbeddedData::UnwindingInfoSizeOf(Builtin builtin) const {
   return desc.metadata_length - desc.unwinding_info_offset_offset;
 }
 
+uint32_t EmbeddedData::StackSlotsOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  return desc.stack_slots;
+}
+
 Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
   return InstructionStartOfBuiltin(Builtin::kFirstBytecodeHandler);
 }
 
 Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
-  STATIC_ASSERT(static_cast<int>(Builtin::kFirstBytecodeHandler) +
+  static_assert(static_cast<int>(Builtin::kFirstBytecodeHandler) +
                     kNumberOfBytecodeHandlers +
                     2 * kNumberOfWideBytecodeHandlers ==
                 Builtins::kBuiltinCount);

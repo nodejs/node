@@ -4,15 +4,12 @@
 
 #include "src/wasm/wasm-serialization.h"
 
-#include "src/base/platform/wrappers.h"
+#include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/external-reference-table.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
+#include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/code-serializer.h"
+#include "src/snapshot/snapshot-data.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/utils.h"
 #include "src/utils/version.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/function-compiler.h"
@@ -588,9 +585,10 @@ class DeserializeCodeTask : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     CodeSpaceWriteScope code_space_write_scope(deserializer_->native_module_);
-    do {
+    bool finished = false;
+    while (!finished) {
       // Repeatedly publish everything that was copied already.
-      TryPublishing(delegate);
+      finished = TryPublishing(delegate);
 
       auto batch = reloc_queue_->Pop();
       if (batch.empty()) break;
@@ -599,7 +597,7 @@ class DeserializeCodeTask : public JobTask {
       }
       publish_queue_.Add(std::move(batch));
       delegate->NotifyConcurrencyIncrease();
-    } while (!delegate->ShouldYield());
+    }
   }
 
   size_t GetMaxConcurrency(size_t /* worker_count */) const override {
@@ -611,9 +609,9 @@ class DeserializeCodeTask : public JobTask {
   }
 
  private:
-  void TryPublishing(JobDelegate* delegate) {
+  bool TryPublishing(JobDelegate* delegate) {
     // Publishing is sequential, so only start publishing if no one else is.
-    if (publishing_.exchange(true, std::memory_order_relaxed)) return;
+    if (publishing_.exchange(true, std::memory_order_relaxed)) return false;
 
     WasmCodeRefScope code_scope;
     while (true) {
@@ -625,13 +623,14 @@ class DeserializeCodeTask : public JobTask {
         yield = delegate->ShouldYield();
       }
       publishing_.store(false, std::memory_order_relaxed);
-      if (yield) break;
+      if (yield) return true;
       // After finishing publishing, check again if new work arrived in the mean
       // time. If so, continue publishing.
       if (publish_queue_.NumBatches() == 0) break;
       if (publishing_.exchange(true, std::memory_order_relaxed)) break;
       // We successfully reset {publishing_} from {false} to {true}.
     }
+    return false;
   }
 
   NativeModuleDeserializer* const deserializer_;
@@ -868,13 +867,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
-    DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
-                                         ? DynamicTiering::kEnabled
-                                         : DynamicTiering::kDisabled;
-    const bool kIncludeLiftoff = dynamic_tiering == DynamicTiering::kDisabled;
+    const bool dynamic_tiering = FLAG_wasm_dynamic_tiering;
+    const bool include_liftoff = !dynamic_tiering;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-            module.get(), kIncludeLiftoff, dynamic_tiering);
+            module.get(), include_liftoff, DynamicTiering{dynamic_tiering});
     shared_native_module = wasm_engine->NewNativeModule(
         isolate, enabled_features, std::move(module), code_size_estimate);
     // We have to assign a compilation ID here, as it is required for a

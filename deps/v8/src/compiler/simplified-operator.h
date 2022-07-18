@@ -21,7 +21,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/objects/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -36,9 +35,10 @@ class Zone;
 namespace compiler {
 
 // Forward declarations.
+class CallDescriptor;
 class Operator;
 struct SimplifiedOperatorGlobalCache;
-class CallDescriptor;
+struct WasmTypeCheckConfig;
 
 enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
@@ -81,9 +81,7 @@ struct FieldAccess {
   ConstFieldInfo const_field_info;      // the constness of this access, and the
                                     // field owner map, if the access is const
   bool is_store_in_literal;  // originates from a kStoreInLiteral access
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
-#endif
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
                                                    // allocated object or part
@@ -104,9 +102,7 @@ struct FieldAccess {
               WriteBarrierKind write_barrier_kind,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
-#endif
               bool maybe_initializing_or_transitioning_store = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
@@ -117,9 +113,7 @@ struct FieldAccess {
         write_barrier_kind(write_barrier_kind),
         const_field_info(const_field_info),
         is_store_in_literal(is_store_in_literal),
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
         external_pointer_tag(external_pointer_tag),
-#endif
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store) {
     DCHECK_GE(offset, 0);
@@ -837,8 +831,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
 
-  const Operator* FindOrderedHashMapEntry();
   const Operator* FindOrderedHashMapEntryForInt32Key();
+  const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
                                       const FeedbackSource& feedback);
@@ -1060,7 +1054,22 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // SimplifiedLowering.
   const Operator* VerifyType();
 
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* AssertNotNull();
+  const Operator* IsNull();
+  const Operator* IsNotNull();
+  const Operator* Null();
+  const Operator* RttCanon(int index);
+  const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
+  const Operator* WasmTypeCast(WasmTypeCheckConfig config);
+#endif
+
   const Operator* DateNow();
+  // Unsigned32Divide is a special operator to express the division of two
+  // Unsigned32 inputs and truncating the result to Unsigned32. It's semantics
+  // is equivalent to NumberFloor(NumberDivide(x:Unsigned32, y:Unsigned32)) but
+  // is required to allow consistent typing of the graph.
+  const Operator* Unsigned32Divide();
 
   // Represents the inputs necessary to construct a fast and a slow API call.
   const Operator* FastApiCall(
@@ -1140,7 +1149,6 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
   static constexpr int kHolderInputCount = 1;
   static constexpr int kContextAndFrameStateInputCount = 2;
   static constexpr int kEffectAndControlInputCount = 2;
-  int FastCallExtraInputCount() const;
   static constexpr int kSlowCallExtraInputCount =
       kSlowTargetInputCount + kArityInputCount + kNewTargetInputCount +
       kSlowReceiverInputCount + kHolderInputCount +

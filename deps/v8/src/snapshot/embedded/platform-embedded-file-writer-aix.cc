@@ -32,10 +32,6 @@ void PlatformEmbeddedFileWriterAIX::SectionText() {
   fprintf(fp_, ".csect [GL], 6\n");
 }
 
-void PlatformEmbeddedFileWriterAIX::SectionData() {
-  fprintf(fp_, ".csect .data[RW]\n");
-}
-
 void PlatformEmbeddedFileWriterAIX::SectionRoData() {
   fprintf(fp_, ".csect[RO]\n");
 }
@@ -50,14 +46,6 @@ void PlatformEmbeddedFileWriterAIX::DeclareUint32(const char* name,
   Newline();
 }
 
-void PlatformEmbeddedFileWriterAIX::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  AlignToCodeAlignment();
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s\n", DirectiveAsString(PointerSizeDirective()), target);
-  Newline();
-}
-
 void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
   // These symbols are not visible outside of the final binary, this allows for
   // reduced binary size, and less work for the dynamic linker.
@@ -67,21 +55,21 @@ void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
 void PlatformEmbeddedFileWriterAIX::AlignToCodeAlignment() {
 #if V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  STATIC_ASSERT((1 << 6) >= kCodeAlignment);
+  static_assert((1 << 6) >= kCodeAlignment);
   fprintf(fp_, ".align 6\n");
 #elif V8_TARGET_ARCH_PPC64
   // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
   // don't cross 64-byte boundaries.
-  STATIC_ASSERT((1 << 6) >= kCodeAlignment);
+  static_assert((1 << 6) >= kCodeAlignment);
   fprintf(fp_, ".align 6\n");
 #else
-  STATIC_ASSERT((1 << 5) >= kCodeAlignment);
+  static_assert((1 << 5) >= kCodeAlignment);
   fprintf(fp_, ".align 5\n");
 #endif
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToDataAlignment() {
-  STATIC_ASSERT((1 << 3) >= Code::kMetadataAlignment);
+  static_assert((1 << 3) >= Code::kMetadataAlignment);
   fprintf(fp_, ".align 3\n");
 }
 

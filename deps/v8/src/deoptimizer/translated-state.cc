@@ -13,6 +13,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments.h"
 #include "src/objects/heap-number-inl.h"
@@ -112,7 +113,7 @@ void TranslationArrayPrintSingleFrame(
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      case TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME: {
+      case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
         int shared_info_id = iterator.Next();
         Object shared_info = literal_array.get(shared_info_id);
@@ -629,9 +630,9 @@ TranslatedFrame TranslatedFrame::UnoptimizedFrame(
   return frame;
 }
 
-TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
+TranslatedFrame TranslatedFrame::InlinedExtraArguments(
     SharedFunctionInfo shared_info, int height) {
-  return TranslatedFrame(kArgumentsAdaptor, shared_info, height);
+  return TranslatedFrame(kInlinedExtraArguments, shared_info, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
@@ -693,7 +694,7 @@ int TranslatedFrame::GetValueCount() {
              kTheAccumulator;
     }
 
-    case kArgumentsAdaptor:
+    case kInlinedExtraArguments:
       return height() + kTheFunction;
 
     case kConstructStub:
@@ -752,7 +753,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
                                                return_value_count);
     }
 
-    case TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME: {
+    case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -761,7 +762,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
-      return TranslatedFrame::ArgumentsAdaptorFrame(shared_info, height);
+      return TranslatedFrame::InlinedExtraArguments(shared_info, height);
     }
 
     case TranslationOpcode::CONSTRUCT_STUB_FRAME: {
@@ -970,7 +971,7 @@ int TranslatedState::CreateNextTranslatedValue(
   switch (opcode) {
     case TranslationOpcode::BEGIN:
     case TranslationOpcode::INTERPRETED_FRAME:
-    case TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME:
+    case TranslationOpcode::INLINED_EXTRA_ARGUMENTS:
     case TranslationOpcode::CONSTRUCT_STUB_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
@@ -1849,8 +1850,18 @@ void TranslatedState::InitializeJSObjectAt(
   // The object should have at least a map and some payload.
   CHECK_GE(children_count, 2);
 
+#if DEBUG
+  // No need to invalidate slots in object because no slot was recorded yet.
+  // Verify this here.
+  Address object_start = object_storage->address();
+  Address object_end = object_start + children_count * kTaggedSize;
+  isolate()->heap()->VerifySlotRangeHasNoRecordedSlots(object_start,
+                                                       object_end);
+#endif  // DEBUG
+
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
+                                              InvalidateRecordedSlots::kNo);
 
   // Fill the property array field.
   {
@@ -1901,8 +1912,18 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     return;
   }
 
+#if DEBUG
+  // No need to invalidate slots in object because no slot was recorded yet.
+  // Verify this here.
+  Address object_start = object_storage->address();
+  Address object_end = object_start + children_count * kTaggedSize;
+  isolate()->heap()->VerifySlotRangeHasNoRecordedSlots(object_start,
+                                                       object_end);
+#endif  // DEBUG
+
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
+                                              InvalidateRecordedSlots::kNo);
 
   // Write the fields to the object.
   for (int i = 1; i < children_count; i++) {
@@ -1962,7 +1983,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         // We have the JS function frame, now check if it has arguments
         // adaptor.
         if (i > 0 &&
-            frames_[i - 1].kind() == TranslatedFrame::kArgumentsAdaptor) {
+            frames_[i - 1].kind() == TranslatedFrame::kInlinedExtraArguments) {
           *args_count = frames_[i - 1].height();
           return &(frames_[i - 1]);
         }

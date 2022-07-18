@@ -205,8 +205,7 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode, MaybeHandle<Object> prev_validity_cell) {
-  Handle<Object> code =
-      MakeCodeHandler(isolate, ElementsTransitionAndStoreBuiltin(store_mode));
+  Handle<Object> code = ElementsTransitionAndStoreBuiltin(isolate, store_mode);
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
@@ -514,7 +513,10 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     int raw_handler = handler.ToSmi().value();
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
-    os << ")" << std::endl;
+    os << ")";
+  } else if (handler.IsCodeT()) {
+    os << "LoadHandler(Code)("
+       << Builtins::name(CodeT::cast(handler).builtin_id()) << ")";
   } else {
     LoadHandler load_handler = LoadHandler::cast(handler);
     int raw_handler = load_handler.smi_handler().ToSmi().value();
@@ -536,7 +538,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     }
     os << ", validity cell = ";
     load_handler.validity_cell().ShortPrint(os);
-    os << ")" << std::endl;
+    os << ")";
   }
 }
 

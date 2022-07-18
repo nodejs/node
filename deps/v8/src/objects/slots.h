@@ -7,6 +7,7 @@
 
 #include "src/base/memory.h"
 #include "src/common/globals.h"
+#include "src/sandbox/external-pointer-table.h"
 
 namespace v8 {
 namespace internal {
@@ -276,6 +277,42 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
 
   using FullObjectSlot::Relaxed_Load;
   inline Object Relaxed_Load() const = delete;
+};
+
+// An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
+// field ("slot") holding a pointer to objects located outside the V8 heap and
+// V8 sandbox (think: ExternalPointer_t).
+// It's basically an ExternalPointer_t* but abstracting away the fact that the
+// pointer might not be kExternalPointerSlotSize-aligned in certain
+// configurations. Its address() is the address of the slot.
+class ExternalPointerSlot
+    : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
+                      kTaggedSize /* slot alignment */> {
+ public:
+  ExternalPointerSlot() : SlotBase(kNullAddress) {}
+  explicit ExternalPointerSlot(Address ptr) : SlotBase(ptr) {}
+
+  inline void init(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+#ifdef V8_ENABLE_SANDBOX
+  // When the external pointer is sandboxed, its slot stores a handle to an
+  // entry in an ExternalPointerTable. These methods allow access to the
+  // underlying handle while the load/store methods below resolve the handle to
+  // the real pointer.
+  inline ExternalPointerHandle load_handle() const;
+  inline void store_handle(ExternalPointerHandle handle) const;
+#endif  // V8_ENABLE_SANDBOX
+
+  inline Address load(const Isolate* isolate, ExternalPointerTag tag);
+  inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+ private:
+#ifdef V8_ENABLE_SANDBOX
+  inline const ExternalPointerTable& GetExternalPointerTableForTag(
+      const Isolate* isolate, ExternalPointerTag tag);
+  inline ExternalPointerTable& GetExternalPointerTableForTag(
+      Isolate* isolate, ExternalPointerTag tag);
+#endif  // V8_ENABLE_SANDBOX
 };
 
 }  // namespace internal

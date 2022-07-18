@@ -1,0 +1,227 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array {
+const kBuiltinNameToSpliced: constexpr string =
+    '%TypedArray%.prototype.toSpliced';
+
+transitioning macro SlowTypedArrayToSplicedContinuation(
+    implicit context: Context)(
+    accessor: TypedArrayAccessor, array: JSTypedArray, arrayLength: uintptr,
+    copy: JSTypedArray, newLen: uintptr, actualStart: uintptr,
+    actualDeleteCount: uintptr, insertCount: uintptr): void {
+  // 17. Let i be 0.
+  let i: uintptr = 0;
+
+  // 18. Let r be actualStart + actualDeleteCount.
+  let r: uintptr = actualStart + actualDeleteCount;
+
+  // 19. Repeat, while i < actualStart,
+  while (i < actualStart) {
+    // a. Let Pi be ! ToString(𝔽(i)).
+    // b. Let iValue be ! Get(O, Pi).
+    let iValue: JSAny;
+    if (i < arrayLength) {
+      iValue = accessor.LoadNumeric(array, i);
+    } else {
+      iValue = Undefined;
+    }
+
+    // c. Perform ! Set(target, Pi, iValue, true).
+    accessor.StoreJSAny(context, copy, i, iValue) otherwise unreachable;
+
+    // d. Set i to i + 1.
+    ++i;
+  }
+
+  // 20. For each element E of convertedItems, do
+  //   a. Let Pi be ! ToString(𝔽(i)).
+  //   b. Perform ! Set(A, Pi, E, true).
+  //   c. Set i to i + 1.
+  //
+  // Copying already done, just increment i.
+  i += insertCount;
+
+  // 21. Repeat, while i < newLen,
+  while (i < newLen) {
+    // a. Let Pi be ! ToString(𝔽(i)).
+    // b. Let from be ! ToString(𝔽(r)).
+    // c. Let fromValue be ! Get(O, from).
+    let fromValue: JSAny;
+    if (r < arrayLength) {
+      fromValue = accessor.LoadNumeric(array, r);
+    } else {
+      fromValue = Undefined;
+    }
+
+    // d. Perform ! Set(A, Pi, fromValue, true).
+    accessor.StoreJSAny(context, copy, i, fromValue) otherwise unreachable;
+
+    // e. Set i to i + 1.
+    ++i;
+
+    // f. Set r to r + 1.
+    ++r;
+  }
+}
+
+// https://tc39.es/proposal-change-array-by-copy/#sec-%typedarray%.prototype.toSpliced
+transitioning javascript builtin TypedArrayPrototypeToSpliced(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    const start = arguments[0];
+    const deleteCount = arguments[1];
+
+    // 1. Let O be the this value.
+    // 2. Perform ? ValidateTypedArray(O).
+    // 3. Let getBufferByteLength be
+    //    MakeIdempotentArrayBufferByteLengthGetter(SeqCst).
+    // 4. Let len be IntegerIndexedObjectLength(O, getBufferByteLength).
+    const array: JSTypedArray =
+        Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
+    let attachedArrayAndLength = EnsureAttachedAndReadLength(array)
+        otherwise IsDetachedOrOutOfBounds;
+    const originalLength = attachedArrayAndLength.length;
+
+    // 5. Let relativeStart be ? ToIntegerOrInfinity(start).
+    const relativeStart: Number = ToInteger_Inline(start);
+
+    // 6. If relativeStart is -∞, let actualStart be 0.
+    // 7. Else if relativeStart < 0, let actualStart be
+    //    max(len + relativeStart, 0).
+    // 8. Else, let actualStart be min(relativeStart, len).
+    const actualStart =
+        ConvertAndClampRelativeIndex(relativeStart, originalLength);
+
+    // 9. Let insertCount be the number of elements in items.
+    let insertCount: uintptr;
+
+    let actualDeleteCount: uintptr;
+    if (arguments.length == 0) {
+      // 10. If start is not present, then
+      //   a. Let actualDeleteCount be 0.
+      actualDeleteCount = 0;
+      insertCount = 0;
+    } else if (arguments.length == 1) {
+      // 11. Else if deleteCount is not present, then
+      //   a. Let actualDeleteCount be len - actualStart.
+      actualDeleteCount = originalLength - actualStart;
+      insertCount = 0;
+    } else {
+      // 12. Else,
+      //   a. Let dc be ? ToIntegerOrInfinity(deleteCount).
+      //   b. Let actualDeleteCount be the result of clamping dc between 0 and
+      //      len - actualStart.
+      actualDeleteCount = ConvertAndClampRelativeIndex(
+          deleteCount, originalLength - actualStart);
+      insertCount = Convert<uintptr>(arguments.length - 2);
+    }
+
+    // 13. Let convertedItems be a new empty List.
+    const accessor: TypedArrayAccessor =
+        GetTypedArrayAccessor(array.elements_kind);
+
+    // (Step 14 done below, because use of an intermediate list is
+    // unobservable).
+
+    // 15. Let newLen be len + insertCount - actualDeleteCount.
+    const newLen = originalLength + insertCount - actualDeleteCount;
+
+    // 16. Let A be ? TypedArrayCreateSameType(O, « 𝔽(newLen) »).
+    const copy = TypedArrayCreateSameType(array, newLen);
+
+    // 14. For each element E of items, do
+    for (let k: uintptr = 0; k < insertCount; k++) {
+      // a. If O.[[ContentType]] is BigInt, let convertedValue be ? ToBigInt(E).
+      // b. Else, let convertedValue be ? ToNumber(E).
+      // c. Append convertedValue as the last element of convertedItems.
+      accessor.StoreJSAny(
+          context, copy, actualStart + k, arguments[Convert<intptr>(k + 2)])
+          otherwise unreachable;
+    }
+
+    // 17. Let i be 0.
+    // 18. Let r be actualStart + actualDeleteCount.
+    // 19. Repeat, while i < actualStart,
+    //   a. Let Pi be ! ToString(𝔽(i)).
+    //   b. Let iValue be ! Get(O, Pi).
+    //   c. Perform ! Set(target, Pi, iValue, true).
+    //   d. Set i to i + 1.
+    // 20. For each element E of convertedItems, do
+    //   a. Let Pi be ! ToString(𝔽(i)).
+    //   b. Perform ! Set(A, Pi, E, true).
+    //   c. Set i to i + 1.
+    // 21. Repeat, while i < newLen,
+    //   a. Let Pi be ! ToString(𝔽(i)).
+    //   b. Let from be ! ToString(𝔽(r)).
+    //   c. Let fromValue be ! Get(O, from).
+    //   d. Perform ! Set(A, Pi, fromValue, true).
+    //   e. Set i to i + 1.
+    //   f. Set r to r + 1.
+    //
+    // Step 20 is performed as part of step 13 above.
+    //
+    // Steps 17-21 (excluding 20) are implemented by memmove'ing 2 parts: the
+    // first part before the inserted items, the second part after the inserted
+    // items.
+    try {
+      // If the array shrunk or was detached due to parameter conversion, we go
+      // to a slow path that implements the spec algorithm naively. While it's
+      // possible to do partial memmoves, computation of the indices and length
+      // for the partial moves are harder to reason about, and miscomputation is
+      // likely a security issue.
+      attachedArrayAndLength =
+          EnsureAttachedAndReadLength(array) otherwise goto Slow(0);
+      const reloadedLength = attachedArrayAndLength.length;
+      if (reloadedLength < originalLength) goto Slow(reloadedLength);
+
+      const info = GetTypedArrayElementsInfo(copy);
+
+      const firstPartLength = actualStart;
+      if (firstPartLength != 0) {
+        const firstPartCountBytes: uintptr =
+            info.CalculateByteLength(firstPartLength) otherwise unreachable;
+        if (IsSharedArrayBuffer(array.buffer)) {
+          CallCRelaxedMemmove(
+              copy.data_ptr, array.data_ptr, firstPartCountBytes);
+        } else {
+          CallCMemmove(copy.data_ptr, array.data_ptr, firstPartCountBytes);
+        }
+      }
+
+      const secondPartStartInSrc = actualStart + actualDeleteCount;
+      const secondPartStartInCopy = actualStart + insertCount;
+      const secondPartLength = newLen - secondPartStartInCopy;
+      dcheck(secondPartLength == originalLength - secondPartStartInSrc);
+      if (secondPartLength != 0) {
+        const secondPartCountBytes: uintptr =
+            info.CalculateByteLength(secondPartLength) otherwise unreachable;
+        const secondPartDstPtr: RawPtr = info.GetDataPointerOffsetByLength(
+            copy, secondPartStartInCopy) otherwise unreachable;
+        const secondPartSrcPtr: RawPtr = info.GetDataPointerOffsetByLength(
+            array, secondPartStartInSrc) otherwise unreachable;
+
+        if (IsSharedArrayBuffer(array.buffer)) {
+          CallCRelaxedMemmove(
+              secondPartDstPtr, secondPartSrcPtr, secondPartCountBytes);
+        } else {
+          CallCMemmove(
+              secondPartDstPtr, secondPartSrcPtr, secondPartCountBytes);
+        }
+      }
+    } label Slow(reloadedLength: uintptr) deferred {
+      SlowTypedArrayToSplicedContinuation(
+          accessor, array, reloadedLength, copy, newLen, actualStart,
+          actualDeleteCount, insertCount);
+    }
+
+    // 22. Return A.
+    return copy;
+  } label NotTypedArray deferred {
+    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameToSpliced);
+  } label IsDetachedOrOutOfBounds deferred {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameToSpliced);
+  }
+}
+}

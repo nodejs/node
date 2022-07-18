@@ -19,12 +19,29 @@ class InnerPointerToCodeCache {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    Code code;
-    SafepointEntry safepoint_entry;
+    CodeLookupResult code;
+    union {
+      SafepointEntry safepoint_entry;
+      MaglevSafepointEntry maglev_safepoint_entry;
+    };
+    InnerPointerToCodeCacheEntry() : safepoint_entry() {}
   };
+
+  static void FlushCallback(v8::Isolate* isolate, v8::GCType type,
+                            v8::GCCallbackFlags flags, void* data) {
+    InnerPointerToCodeCache* cache =
+        static_cast<InnerPointerToCodeCache*>(data);
+    cache->Flush();
+  }
 
   explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
     Flush();
+    isolate_->heap()->AddGCEpilogueCallback(FlushCallback,
+                                            kGCTypeMarkSweepCompact, this);
+  }
+
+  ~InnerPointerToCodeCache() {
+    isolate_->heap()->RemoveGCEpilogueCallback(FlushCallback, this);
   }
 
   InnerPointerToCodeCache(const InnerPointerToCodeCache&) = delete;
@@ -218,6 +235,12 @@ inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
 
 inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
     : UnoptimizedFrame(iterator) {}
+
+inline MaglevFrame::MaglevFrame(StackFrameIteratorBase* iterator)
+    : OptimizedFrame(iterator) {}
+
+inline TurbofanFrame::TurbofanFrame(StackFrameIteratorBase* iterator)
+    : OptimizedFrame(iterator) {}
 
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}

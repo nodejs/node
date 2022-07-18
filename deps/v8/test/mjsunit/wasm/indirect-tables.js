@@ -50,7 +50,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   builder.setTableBounds(10, 10);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g],
                                   [f.mul.index, f.add.index, f.sub.index, d]);
   builder.addExportOfKind("table", kExternalTable, 0);
 
@@ -109,7 +109,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let f = AddFunctions(builder);
   builder.setTableBounds(kTableSize, kTableSize);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g],
                                   [f.mul.index, f.add.index, f.sub.index, d]);
   builder.addExportOfKind("table", kExternalTable, 0);
 
@@ -179,7 +179,7 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addImportedTable("q", "table", kTableSize, kTableSize);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
   let f = AddFunctions(builder);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g],
                                   [f.mul.index, f.add.index, f.sub.index, d]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
@@ -256,7 +256,7 @@ function js_div(a, b) { return (a / b) | 0; }
       kExprLocalGet, 0,
       kExprCallIndirect, sig_index, kTableZero])  // --
     .exportAs("main");
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g), [f.index]);
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g], [f.index]);
 
   let module = new WebAssembly.Module(builder.toBuffer());
 
@@ -297,7 +297,7 @@ function js_div(a, b) { return (a / b) | 0; }
     .exportAs("main");
 
   builder.setTableBounds(kTableSize, kTableSize);
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [f1.index]);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [f1.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
 
   var m1 = new WebAssembly.Module(builder.toBuffer());
@@ -316,7 +316,7 @@ function js_div(a, b) { return (a / b) | 0; }
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(1), [f2.index]);
+  builder.addActiveElementSegment(0, wasmI32Const(1), [f2.index]);
 
   var m2 = new WebAssembly.Module(builder.toBuffer());
 
@@ -411,7 +411,7 @@ function js_div(a, b) { return (a / b) | 0; }
       kExprLocalGet, 0,
       kExprCallIndirect, sig_index, kTableZero])  // --
     .exportAs("main");
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g), [g]);
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g], [g]);
   let module = new WebAssembly.Module(builder.toBuffer());
 
   var instances = [];
@@ -542,7 +542,7 @@ function js_div(a, b) { return (a / b) | 0; }
       let offset = i + 1;
       let len = i + 2;
       let index = indexes[i];
-      builder.addActiveElementSegment(0, WasmInitExpr.I32Const(offset),
+      builder.addActiveElementSegment(0, wasmI32Const(offset),
                                       new Array(len).fill(index));
     }
 
@@ -587,7 +587,7 @@ function js_div(a, b) { return (a / b) | 0; }
   builder1.setName('module_1');
   builder1.addFunction('f', kSig_i_i).addBody([kExprLocalGet, 0]);
   builder1.addImportedTable('z', 'table');
-  builder1.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0]);
+  builder1.addActiveElementSegment(0, wasmI32Const(0), [0]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
   let instance1 =
       new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});
@@ -626,7 +626,7 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction('main', kSig_i_v)
          .addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0]);
   builder.addImportedTable('', 'table');
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0]);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [0]);
   builder.addImportedMemory('', 'memory', 1);
 
 
@@ -734,7 +734,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   builder.setTableBounds(10, 10);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g), [j, w]);
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g], [j, w]);
 
   let module = new WebAssembly.Module(builder.toBuffer());
   for (var i = 0; i < 5; i++) {
@@ -783,7 +783,7 @@ function js_div(a, b) { return (a / b) | 0; }
     .exportAs("main");
 
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g), [j, w]);
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g], [j, w]);
 
   let module = new WebAssembly.Module(builder.toBuffer());
   for (var i = 0; i < 5; i++) {
@@ -824,7 +824,7 @@ function js_div(a, b) { return (a / b) | 0; }
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();
-    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 1, 1, 0]);
+    builder.addActiveElementSegment(0, wasmI32Const(0), [0, 1, 1, 0]);
 
     return builder.instantiate({q: {f2: i1.exports.f2, f1: i1.exports.f1}});
   })();
@@ -887,7 +887,7 @@ function js_div(a, b) { return (a / b) | 0; }
       ])
       .exportFunc();
     builder.exportMemoryAs("memory");
-    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 1, 2, 3]);
+    builder.addActiveElementSegment(0, wasmI32Const(0), [0, 1, 2, 3]);
     var instance = builder.instantiate({q: {f1: f100, f2: f200, f3: f300}});
     setMemI32(instance, 0, 5000000);
     setMemI32(instance, 4, 6000000);
@@ -905,14 +905,14 @@ function js_div(a, b) { return (a / b) | 0; }
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let global = builder.addGlobal(kWasmFuncRef, false,
-                                 WasmInitExpr.RefNull(kWasmFuncRef));
+                                 [kExprRefNull, kFuncRefCode]);
   let table = builder.addTable(kWasmFuncRef, 10, 10);
   builder.addActiveElementSegment(
-      table.index, WasmInitExpr.I32Const(0),
-      [WasmInitExpr.GlobalGet(global.index)], kWasmFuncRef);
+      table.index, wasmI32Const(0),
+      [[kExprGlobalGet, global.index]], kWasmFuncRef);
   builder.addExportOfKind("table", kExternalTable, table.index);
 
   assertThrows(
     () => builder.instantiate(), WebAssembly.CompileError,
-    /non-imported globals cannot be used in initializer expressions/);
+    /non-imported globals cannot be used in constant expressions/);
 })();

@@ -544,7 +544,7 @@ struct FastApiCallbackOptions {
    * returned instance may be filled with mock data.
    */
   static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
-    return {false, {0}};
+    return {false, {0}, nullptr};
   }
 
   /**
@@ -568,6 +568,11 @@ struct FastApiCallbackOptions {
     uintptr_t data_ptr;
     v8::Value data;
   };
+
+  /**
+   * When called from WebAssembly, a view of the calling module's memory.
+   */
+  FastApiTypedArray<uint8_t>* const wasm_memory;
 };
 
 namespace internal {
@@ -802,6 +807,16 @@ class CFunctionBuilderWithFunction {
         std::make_index_sequence<sizeof...(ArgBuilders)>());
   }
 
+  // Provided for testing purposes.
+  template <typename Ret, typename... Args>
+  auto Patch(Ret (*patching_func)(Args...)) {
+    static_assert(
+        sizeof...(Args) == sizeof...(ArgBuilders),
+        "The patching function must have the same number of arguments.");
+    fn_ = reinterpret_cast<void*>(patching_func);
+    return *this;
+  }
+
   auto Build() {
     static CFunctionInfoImpl<RetBuilder, ArgBuilders...> instance;
     return CFunction(fn_, &instance);
@@ -881,31 +896,6 @@ static constexpr CTypeInfo kTypeInfoFloat64 =
  * to the requested destination type, is considered unsupported. The operation
  * returns true on success. `type_info` will be used for conversions.
  */
-template <const CTypeInfo* type_info, typename T>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-bool V8_EXPORT V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
-                                      uint32_t max_length);
-
-template <>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-inline bool V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
-        Local<Array> src, int32_t* dst, uint32_t max_length) {
-  return false;
-}
-
-template <>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-inline bool V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
-        Local<Array> src, double* dst, uint32_t max_length) {
-  return false;
-}
-
 template <CTypeInfo::Identifier type_info_id, typename T>
 bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer(
     Local<Array> src, T* dst, uint32_t max_length);

@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <stack>
+#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
@@ -122,8 +123,8 @@ class PossiblyEmptyBuckets {
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
 };
 
-STATIC_ASSERT(std::is_standard_layout<PossiblyEmptyBuckets>::value);
-STATIC_ASSERT(sizeof(PossiblyEmptyBuckets) == kSystemPointerSize);
+static_assert(std::is_standard_layout<PossiblyEmptyBuckets>::value);
+static_assert(sizeof(PossiblyEmptyBuckets) == kSystemPointerSize);
 
 // Data structure for maintaining a set of slots in a standard (non-large)
 // page.
@@ -599,8 +600,8 @@ class SlotSet {
 #endif
 };
 
-STATIC_ASSERT(std::is_standard_layout<SlotSet>::value);
-STATIC_ASSERT(std::is_standard_layout<SlotSet::Bucket>::value);
+static_assert(std::is_standard_layout<SlotSet>::value);
+static_assert(std::is_standard_layout<SlotSet::Bucket>::value);
 
 enum class SlotType : uint8_t {
   // Full pointer sized slot storing an object start address.
@@ -699,7 +700,7 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
   // This can run concurrently to ClearInvalidSlots().
   template <typename Callback>
   int Iterate(Callback callback, IterationMode mode) {
-    STATIC_ASSERT(static_cast<uint8_t>(SlotType::kLast) < 8);
+    static_assert(static_cast<uint8_t>(SlotType::kLast) < 8);
     Chunk* chunk = head_;
     Chunk* previous = nullptr;
     int new_count = 0;

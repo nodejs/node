@@ -30,6 +30,7 @@ class JSMap;
 class JSPrimitiveWrapper;
 class JSRegExp;
 class JSSet;
+class JSSharedArray;
 class JSSharedStruct;
 class Object;
 class Oddball;
@@ -84,6 +85,7 @@ class ValueSerializer {
   void WriteUint64(uint64_t value);
   void WriteRawBytes(const void* source, size_t length);
   void WriteDouble(double value);
+  void WriteByte(uint8_t value);
 
   /*
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -132,6 +134,8 @@ class ValueSerializer {
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
   Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSSharedArray(Handle<JSSharedArray> shared_array)
+      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSharedStruct(Handle<JSSharedStruct> shared_struct)
       V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
@@ -239,6 +243,7 @@ class ValueDeserializer {
   bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
+  bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
   friend class WebSnapshotDeserializer;
@@ -295,6 +300,9 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
+  bool ValidateAndSetJSArrayBufferViewFlags(
+      JSArrayBufferView view, JSArrayBuffer buffer,
+      uint32_t serialized_flags) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;

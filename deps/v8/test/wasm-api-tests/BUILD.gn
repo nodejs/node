@@ -36,6 +36,7 @@ v8_executable("wasm_api_tests") {
     "memory.cc",
     "multi-return.cc",
     "reflect.cc",
+    "regressions.cc",
     "run-all-wasm-api-tests.cc",
     "serialize.cc",
     "startup-errors.cc",

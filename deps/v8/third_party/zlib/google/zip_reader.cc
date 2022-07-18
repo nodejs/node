@@ -328,7 +328,21 @@ void ZipReader::Normalize(base::StringPiece16 in) {
   DCHECK(!entry_.path.IsAbsolute()) << entry_.path;
 }
 
+void ZipReader::ReportProgress(ListenerCallback listener_callback,
+                               uint64_t bytes) const {
+  delta_bytes_read_ += bytes;
+
+  const base::TimeTicks now = base::TimeTicks::Now();
+  if (next_progress_report_time_ > now)
+    return;
+
+  next_progress_report_time_ = now + progress_period_;
+  listener_callback.Run(delta_bytes_read_);
+  delta_bytes_read_ = 0;
+}
+
 bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
+                                    ListenerCallback listener_callback,
                                     uint64_t num_bytes_to_extract) const {
   DCHECK(zip_file_);
   DCHECK_LT(0, next_index_);
@@ -369,6 +383,10 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
       break;
     }
 
+    if (listener_callback) {
+      ReportProgress(listener_callback, num_bytes_read);
+    }
+
     DCHECK_LT(0, num_bytes_read);
     CHECK_LE(num_bytes_read, internal::kZipBufSize);
 
@@ -404,7 +422,24 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
     delegate->OnError();
   }
 
+  if (listener_callback) {
+    listener_callback.Run(delta_bytes_read_);
+    delta_bytes_read_ = 0;
+  }
+
   return entire_file_extracted;
+}
+
+bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
+                                    uint64_t num_bytes_to_extract) const {
+  return ExtractCurrentEntry(delegate, ListenerCallback(),
+                             num_bytes_to_extract);
+}
+
+bool ZipReader::ExtractCurrentEntryWithListener(
+    WriterDelegate* delegate,
+    ListenerCallback listener_callback) const {
+  return ExtractCurrentEntry(delegate, listener_callback);
 }
 
 void ZipReader::ExtractCurrentEntryToFilePathAsync(
@@ -518,6 +553,7 @@ void ZipReader::Reset() {
   next_index_ = 0;
   reached_end_ = true;
   ok_ = false;
+  delta_bytes_read_ = 0;
   entry_ = {};
 }
 

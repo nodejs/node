@@ -37,13 +37,13 @@ class BaseTimedHistogramScope {
   }
 
   V8_INLINE void LogStart(Isolate* isolate) {
-    Logger::CallEventLogger(isolate, histogram_->name(),
-                            v8::LogEventStatus::kStart, true);
+    V8FileLogger::CallEventLogger(isolate, histogram_->name(),
+                                  v8::LogEventStatus::kStart, true);
   }
 
   V8_INLINE void LogEnd(Isolate* isolate) {
-    Logger::CallEventLogger(isolate, histogram_->name(),
-                            v8::LogEventStatus::kEnd, true);
+    V8FileLogger::CallEventLogger(isolate, histogram_->name(),
+                                  v8::LogEventStatus::kEnd, true);
   }
 
   base::ElapsedTimer timer_;

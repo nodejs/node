@@ -12,7 +12,6 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -95,7 +94,7 @@ class ReplacementStringBuilder {
 
   void IncrementCharacterCount(int by) {
     if (character_count_ > String::kMaxLength - by) {
-      STATIC_ASSERT(String::kMaxLength < kMaxInt);
+      static_assert(String::kMaxLength < kMaxInt);
       character_count_ = kMaxInt;
     } else {
       character_count_ += by;
@@ -134,7 +133,7 @@ class IncrementalStringBuilder {
   V8_INLINE void AppendCStringLiteral(const char (&literal)[N]) {
     // Note that the literal contains the zero char.
     const int length = N - 1;
-    STATIC_ASSERT(length > 0);
+    static_assert(length > 0);
     if (length == 1) return AppendCharacter(literal[0]);
     if (encoding_ == String::ONE_BYTE_ENCODING && CurrentPartCanFit(N)) {
       const uint8_t* chars = reinterpret_cast<const uint8_t*>(literal);
@@ -182,7 +181,7 @@ class IncrementalStringBuilder {
   // is a more pessimistic estimate, but faster to calculate.
   V8_INLINE int EscapedLengthIfCurrentPartFits(int length) {
     if (length > kMaxPartLength) return 0;
-    STATIC_ASSERT((kMaxPartLength << 3) <= String::kMaxLength);
+    static_assert((kMaxPartLength << 3) <= String::kMaxLength);
     // This shift will not overflow because length is already less than the
     // maximum part length.
     int worst_case_length = length << 3;

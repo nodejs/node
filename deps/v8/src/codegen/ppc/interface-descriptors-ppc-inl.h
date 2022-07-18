@@ -15,7 +15,7 @@ namespace internal {
 
 constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   auto registers = RegisterArray(r3, r4, r5, r6, r7);
-  STATIC_ASSERT(registers.size() == kMaxBuiltinRegisterParams);
+  static_assert(registers.size() == kMaxBuiltinRegisterParams);
   return registers;
 }
 
@@ -114,14 +114,10 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return r6; }
 
 // static
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
-  // TODO(v8:11421): Implement on this platform.
   return r6;
 }
 // static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  return r7;
-}
+constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return r7; }
 
 // static
 // static
@@ -233,8 +229,7 @@ constexpr auto ConstructStubDescriptor::registers() {
   // r3 : number of arguments
   // r4 : the target to call
   // r6 : the new target
-  // r5 : allocation site or undefined
-  return RegisterArray(r4, r6, r3, r5);
+  return RegisterArray(r4, r6, r3);
 }
 
 // static
@@ -245,8 +240,7 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(r4, r3); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r4, r3, r5);
 }
 
 // static
@@ -254,14 +248,12 @@ constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r4, r3); }
 
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r4, r3, r5);
 }
 
 // static
 constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r3, r4, r5);
 }
 
 // static

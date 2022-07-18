@@ -214,7 +214,7 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     auto ref =
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
@@ -234,7 +234,7 @@ TEST_F(TracedReferenceTest, WriteBarrierOnHeapReset) {
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     auto ref = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref->Reset(v8_isolate(), local);
     EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
@@ -254,7 +254,7 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackReset) {
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     v8::TracedReference<v8::Object> ref;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref.Reset(v8_isolate(), local);
     EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
@@ -274,7 +274,7 @@ TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
@@ -297,7 +297,7 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackCopy) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
@@ -318,7 +318,7 @@ TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());
@@ -341,7 +341,7 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackMove) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());

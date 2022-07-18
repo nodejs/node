@@ -5,7 +5,6 @@
 #ifndef V8_BASE_NUMBERS_CACHED_POWERS_H_
 #define V8_BASE_NUMBERS_CACHED_POWERS_H_
 
-#include "src/base/logging.h"
 #include "src/base/numbers/diy-fp.h"
 
 namespace v8 {

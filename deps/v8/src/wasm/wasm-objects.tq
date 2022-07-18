@@ -21,7 +21,10 @@ extern class WasmApiFunctionRef extends HeapObject {
   isolate_root: RawPtr;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
-  suspender: WasmSuspenderObject|Undefined;
+  // Present when compiling JSFastApiCall wrappers, needed
+  // to load memory start/size fields.
+  instance: WasmInstanceObject|Undefined;
+  suspend: Smi;  // Boolean.
 }
 
 // This is the representation that is used internally by wasm to represent
@@ -66,7 +69,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   packed_args_size: Smi;
   // Functions returned by suspender.returnPromiseOnSuspend() have this field
   // set to the host suspender object.
-  suspender: WasmSuspenderObject|Undefined;
+  suspend: Smi;  // Boolean.
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
@@ -80,8 +83,9 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-extern class WasmOnFulfilledData extends HeapObject {
+extern class WasmResumeData extends HeapObject {
   suspender: WasmSuspenderObject;
+  on_resume: Smi;  // See wasm::OnResume enum.
 }
 
 extern class WasmIndirectFunctionTable extends Struct {
@@ -103,7 +107,8 @@ extern class WasmContinuationObject extends Struct {
 extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
   parent: WasmSuspenderObject|Undefined;
-  resume: JSObject;
+  resume: JSObject|Undefined;
+  reject: JSObject|Undefined;
   state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 
@@ -113,6 +118,8 @@ extern class WasmExceptionTag extends Struct {
   // least one field, hence this also serves as a padding field for now.
   index: Smi;
 }
+
+extern class WasmExceptionPackage extends JSObject;
 
 extern class WasmModuleObject extends JSObject {
   managed_native_module: ManagedWasmNativeModule;
@@ -170,10 +177,6 @@ extern class AsmWasmData extends Struct {
 }
 
 extern class WasmTypeInfo extends Foreign {
-  supertypes: FixedArray;
-  subtypes: ArrayList;
-  // In bytes, used for struct allocation.
-  instance_size: Smi;
   // We must make sure that the StructType/ArrayType, which is allocated in
   // the WasmModule's "signature_zone", stays around as long as there are
   // HeapObjects referring to it. Short term, we simply keep a reference to
@@ -183,6 +186,8 @@ extern class WasmTypeInfo extends Foreign {
   // and introduce a new link from here to just that zone using a Managed<...>.
   // Details: https://bit.ly/2UxD4hW
   instance: WasmInstanceObject;
+  const supertypes_length: Smi;
+  supertypes[supertypes_length]: Object;
 }
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
@@ -200,4 +205,9 @@ extern class WasmArray extends WasmObject {
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}
+
+class WasmStringViewIter extends HeapObject {
+  string: String;
+  offset: uint32;  // Index into string.
 }

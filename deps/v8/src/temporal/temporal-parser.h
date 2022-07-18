@@ -5,6 +5,7 @@
 #ifndef V8_TEMPORAL_TEMPORAL_PARSER_H_
 #define V8_TEMPORAL_TEMPORAL_PARSER_H_
 
+#include "src/base/optional.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -42,6 +43,10 @@ struct ParsedISO8601Result {
   int32_t calendar_name_start;  // Starting offset of CalendarName production in
                                 // the input string.
   int32_t calendar_name_length;  // Length of CalendarName production.
+  int32_t offset_string_start;   // Starting offset of TimeZoneNumericUTCOffset
+                                 // in the input string.
+  int32_t
+      offset_string_length;  // Length of TimeZoneNumericUTCOffset production
 
   ParsedISO8601Result()
       : date_year(kMinInt31),
@@ -60,7 +65,9 @@ struct ParsedISO8601Result {
         tzi_name_start(0),
         tzi_name_length(0),
         calendar_name_start(0),
-        calendar_name_length(0) {}
+        calendar_name_length(0),
+        offset_string_start(0),
+        offset_string_length(0) {}
 
   bool date_year_is_undefined() const { return date_year == kMinInt31; }
   bool date_month_is_undefined() const { return date_month == kMinInt31; }
@@ -84,6 +91,8 @@ struct ParsedISO8601Result {
  * ParsedISO8601Duration contains the parsed result of ISO 8601 grammar
  * documented in #prod-TemporalDurationString
  * for TemporalDurationString.
+ * A special value kEmpty is used to represent the
+ * field is "undefined" after parsing for all fields except sign.
  */
 struct ParsedISO8601Duration {
   int64_t sign;              // Sign production
@@ -99,18 +108,19 @@ struct ParsedISO8601Duration {
   int64_t seconds_fraction;  // DurationSecondFraction, in unit of nanosecond (
                              // 1e-9 seconds).
 
+  static constexpr int64_t kEmpty = -1;
   ParsedISO8601Duration()
       : sign(1),
-        years(0),
-        months(0),
-        weeks(0),
-        days(0),
-        whole_hours(0),
-        hours_fraction(0),
-        whole_minutes(0),
-        minutes_fraction(0),
-        whole_seconds(0),
-        seconds_fraction(0) {}
+        years(kEmpty),
+        months(kEmpty),
+        weeks(kEmpty),
+        days(kEmpty),
+        whole_hours(kEmpty),
+        hours_fraction(kEmpty),
+        whole_minutes(kEmpty),
+        minutes_fraction(kEmpty),
+        whole_seconds(kEmpty),
+        seconds_fraction(kEmpty) {}
 };
 
 /**
@@ -123,9 +133,9 @@ struct ParsedISO8601Duration {
  */
 class V8_EXPORT_PRIVATE TemporalParser {
  public:
-#define DEFINE_PARSE_METHOD(R, NAME)                                  \
-  V8_WARN_UNUSED_RESULT static Maybe<R> Parse##NAME(Isolate* isolate, \
-                                                    Handle<String> iso_string)
+#define DEFINE_PARSE_METHOD(R, NAME)                          \
+  V8_WARN_UNUSED_RESULT static base::Optional<R> Parse##NAME( \
+      Isolate* isolate, Handle<String> iso_string)
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalTimeString);

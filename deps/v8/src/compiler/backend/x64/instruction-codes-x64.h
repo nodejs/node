@@ -48,7 +48,15 @@ namespace compiler {
   V(X64S128Load8x8S)                                       \
   V(X64S128Load8x8U)                                       \
   V(X64S128Store32Lane)                                    \
-  V(X64S128Store64Lane)
+  V(X64S128Store64Lane)                                    \
+  V(X64Word64AtomicStoreWord64)                            \
+  V(X64Word64AtomicAddUint64)                              \
+  V(X64Word64AtomicSubUint64)                              \
+  V(X64Word64AtomicAndUint64)                              \
+  V(X64Word64AtomicOrUint64)                               \
+  V(X64Word64AtomicXorUint64)                              \
+  V(X64Word64AtomicExchangeUint64)                         \
+  V(X64Word64AtomicCompareExchangeUint64)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -211,8 +219,6 @@ namespace compiler {
   V(X64F32x4Abs)                                     \
   V(X64F32x4Neg)                                     \
   V(X64F32x4Sqrt)                                    \
-  V(X64F32x4RecipApprox)                             \
-  V(X64F32x4RecipSqrtApprox)                         \
   V(X64F32x4Add)                                     \
   V(X64F32x4Sub)                                     \
   V(X64F32x4Mul)                                     \
@@ -288,6 +294,7 @@ namespace compiler {
   V(X64I32x4ExtAddPairwiseI16x8U)                    \
   V(X64I32x4TruncSatF64x2SZero)                      \
   V(X64I32x4TruncSatF64x2UZero)                      \
+  V(X64I32X4ShiftZeroExtendI8x16)                    \
   V(X64I16x8Splat)                                   \
   V(X64I16x8ExtractLaneS)                            \
   V(X64I16x8SConvertI8x16Low)                        \
@@ -399,14 +406,7 @@ namespace compiler {
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
   V(X64Pblendvb)                                     \
-  V(X64Word64AtomicAddUint64)                        \
-  V(X64Word64AtomicSubUint64)                        \
-  V(X64Word64AtomicAndUint64)                        \
-  V(X64Word64AtomicOrUint64)                         \
-  V(X64Word64AtomicXorUint64)                        \
-  V(X64Word64AtomicStoreWord64)                      \
-  V(X64Word64AtomicExchangeUint64)                   \
-  V(X64Word64AtomicCompareExchangeUint64)
+  V(X64TraceInstruction)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

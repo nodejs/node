@@ -140,6 +140,7 @@ class BasicMarkingState : public MarkingStateBase {
     MarkingStateBase::Publish();
     previously_not_fully_constructed_worklist_.Publish();
     weak_callback_worklist_.Publish();
+    parallel_weak_callback_worklist_.Publish();
     write_barrier_worklist_.Publish();
     concurrent_marking_bailout_worklist_.Publish();
     discovered_ephemeron_pairs_worklist_.Publish();
@@ -153,6 +154,10 @@ class BasicMarkingState : public MarkingStateBase {
   }
   MarkingWorklists::WeakCallbackWorklist::Local& weak_callback_worklist() {
     return weak_callback_worklist_;
+  }
+  MarkingWorklists::WeakCallbackWorklist::Local&
+  parallel_weak_callback_worklist() {
+    return parallel_weak_callback_worklist_;
   }
   MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist() {
     return write_barrier_worklist_;
@@ -202,6 +207,8 @@ class BasicMarkingState : public MarkingStateBase {
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
+  MarkingWorklists::WeakCallbackWorklist::Local
+      parallel_weak_callback_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
   MarkingWorklists::ConcurrentMarkingBailoutWorklist::Local
       concurrent_marking_bailout_worklist_;
@@ -230,6 +237,8 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
       previously_not_fully_constructed_worklist_(
           marking_worklists.previously_not_fully_constructed_worklist()),
       weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
+      parallel_weak_callback_worklist_(
+          marking_worklists.parallel_weak_callback_worklist()),
       write_barrier_worklist_(marking_worklists.write_barrier_worklist()),
       concurrent_marking_bailout_worklist_(
           marking_worklists.concurrent_marking_bailout_worklist()),
@@ -258,7 +267,7 @@ void BasicMarkingState::RegisterWeakReferenceIfNeeded(
   if (!header.IsInConstruction<AccessMode::kAtomic>() &&
       header.IsMarked<AccessMode::kAtomic>())
     return;
-  RegisterWeakCallback(weak_callback, parameter);
+  parallel_weak_callback_worklist_.Push({weak_callback, parameter});
 }
 
 void BasicMarkingState::RegisterWeakCallback(WeakCallback callback,

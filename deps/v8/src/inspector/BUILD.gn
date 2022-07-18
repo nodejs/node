@@ -42,7 +42,6 @@ action("protocol_compatibility") {
 }
 
 inspector_protocol_generate("protocol_generated_sources") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
   deps = [ ":protocol_compatibility" ]
 
   inspector_protocol_dir = _inspector_protocol

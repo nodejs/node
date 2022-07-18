@@ -161,6 +161,15 @@ std::unique_ptr<v8::VirtualAddressSpace> VirtualAddressSpace::AllocateSubspace(
       new VirtualAddressSubspace(*reservation, this, max_page_permissions));
 }
 
+bool VirtualAddressSpace::RecommitPages(Address address, size_t size,
+                                        PagePermissions permissions) {
+  DCHECK(IsAligned(address, page_size()));
+  DCHECK(IsAligned(size, page_size()));
+
+  return OS::RecommitPages(reinterpret_cast<void*>(address), size,
+                           static_cast<OS::MemoryPermission>(permissions));
+}
+
 bool VirtualAddressSpace::DiscardSystemPages(Address address, size_t size) {
   DCHECK(IsAligned(address, page_size()));
   DCHECK(IsAligned(size, page_size()));
@@ -348,6 +357,17 @@ VirtualAddressSubspace::AllocateSubspace(Address hint, size_t size,
   }
   return std::unique_ptr<v8::VirtualAddressSpace>(
       new VirtualAddressSubspace(*reservation, this, max_page_permissions));
+}
+
+bool VirtualAddressSubspace::RecommitPages(Address address, size_t size,
+                                           PagePermissions permissions) {
+  DCHECK(IsAligned(address, page_size()));
+  DCHECK(IsAligned(size, page_size()));
+  DCHECK(IsSubset(permissions, max_page_permissions()));
+
+  return reservation_.RecommitPages(
+      reinterpret_cast<void*>(address), size,
+      static_cast<OS::MemoryPermission>(permissions));
 }
 
 bool VirtualAddressSubspace::DiscardSystemPages(Address address, size_t size) {

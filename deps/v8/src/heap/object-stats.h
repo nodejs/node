@@ -107,10 +107,9 @@ class ObjectStats {
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
-  enum {
-    FIRST_VIRTUAL_TYPE = LAST_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
-  };
+  static constexpr int FIRST_VIRTUAL_TYPE = LAST_TYPE + 1;
+  static constexpr int OBJECT_STATS_COUNT =
+      FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1;
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 

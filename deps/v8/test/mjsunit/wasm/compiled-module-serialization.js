@@ -220,7 +220,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .exportAs("main");
 
     builder.setTableBounds(kTableSize, kTableSize);
-    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [f1.index]);
+    builder.addActiveElementSegment(0, wasmI32Const(0), [f1.index]);
     builder.addExportOfKind("table", kExternalTable, 0);
 
     return new WebAssembly.Module(builder.toBuffer());
@@ -241,7 +241,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(1), [f2.index]);
+  builder.addActiveElementSegment(0, wasmI32Const(1), [f2.index]);
   var m2_bytes = builder.toBuffer();
   var m2 = new WebAssembly.Module(m2_bytes);
 

@@ -666,6 +666,12 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
                 "code section can only appear once");
 }
 
+TEST_F(WasmStreamingDecoderTest, InvalidSectionCode) {
+  uint8_t kInvalidSectionCode = 61;
+  const uint8_t data[] = {WASM_MODULE_HEADER, SECTION(Invalid)};
+  ExpectFailure(base::ArrayVector(data), 8, "invalid section code");
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

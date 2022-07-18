@@ -15,10 +15,12 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
 class BitVector;  // forward declaration
 
 namespace wasm {
@@ -103,10 +105,10 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
       ptr_ += OpcodeLength(ptr_, end_);
       return *this;
     }
-    bool operator==(const iterator_base& that) {
+    bool operator==(const iterator_base& that) const {
       return this->ptr_ == that.ptr_;
     }
-    bool operator!=(const iterator_base& that) {
+    bool operator!=(const iterator_base& that) const {
       return this->ptr_ != that.ptr_;
     }
 

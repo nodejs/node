@@ -22,6 +22,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/flags/flags.h"
 #include "src/init/v8.h"
 
 namespace v8 {
@@ -371,7 +372,7 @@ Assembler::Assembler(const AssemblerOptions& options,
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create Code objects (mostly in tests), add another Align
@@ -408,6 +409,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
           : safepoint_table_builder->safepoint_table_offset();
+
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -1068,14 +1070,6 @@ void Assembler::cdq() {
 }
 
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
-  if (cc == always) {
-    movq(dst, src);
-  } else if (cc == never) {
-    return;
-  }
-  // No need to check CpuInfo for CMOV support, it's a required part of the
-  // 64-bit architecture.
-  DCHECK_GE(cc, 0);  // Use mov for unconditional moves.
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1085,12 +1079,6 @@ void Assembler::cmovq(Condition cc, Register dst, Register src) {
 }
 
 void Assembler::cmovq(Condition cc, Register dst, Operand src) {
-  if (cc == always) {
-    movq(dst, src);
-  } else if (cc == never) {
-    return;
-  }
-  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1100,12 +1088,6 @@ void Assembler::cmovq(Condition cc, Register dst, Operand src) {
 }
 
 void Assembler::cmovl(Condition cc, Register dst, Register src) {
-  if (cc == always) {
-    movl(dst, src);
-  } else if (cc == never) {
-    return;
-  }
-  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);
@@ -1115,12 +1097,6 @@ void Assembler::cmovl(Condition cc, Register dst, Register src) {
 }
 
 void Assembler::cmovl(Condition cc, Register dst, Operand src) {
-  if (cc == always) {
-    movl(dst, src);
-  } else if (cc == never) {
-    return;
-  }
-  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);
@@ -1358,12 +1334,6 @@ void Assembler::int3() {
 }
 
 void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
-  if (cc == always) {
-    jmp(L, distance);
-    return;
-  } else if (cc == never) {
-    return;
-  }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   if (L->is_bound()) {
@@ -1443,12 +1413,6 @@ void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
 }
 
 void Assembler::j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode) {
-  if (cc == always) {
-    jmp(target, rmode);
-    return;
-  } else if (cc == never) {
-    return;
-  }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   // 0000 1111 1000 tttn #32-bit disp.
@@ -2059,6 +2023,42 @@ void Assembler::Nop(int n) {
   } while (n);
 }
 
+void Assembler::emit_trace_instruction(Immediate markid) {
+  EnsureSpace ensure_space(this);
+  if (FLAG_wasm_trace_native != nullptr &&
+      !strcmp(FLAG_wasm_trace_native, "cpuid")) {
+    // This is the optionally selected cpuid sequence which computes a magic
+    // number based upon the markid. The low 16 bits of the magic number are
+    // 0x4711 and the high 16 bits are the low 16 bits of the markid. This
+    // magic number gets moved into the eax register.
+    uint32_t magic_num = 0x4711 | (static_cast<uint32_t>(markid.value_) << 16);
+
+    pushq(rax);
+    pushq(rbx);
+    pushq(rcx);
+    pushq(rdx);
+    movl(rax, Immediate(magic_num));
+    cpuid();
+    popq(rdx);
+    popq(rcx);
+    popq(rbx);
+    popq(rax);
+  } else {
+    // This is the default triple-nop sequence, an sscmark. The markid is moved
+    // into the ebx register and then the triple-nop sequence is executed. The
+    // three nops are prefixed by prefix.64 and prefix.67. The entire sequence
+    // becomes "prefix.64 prefix.67 nop nop nop".
+    pushq(rbx);
+    movl(rbx, markid);
+    emit(0x64);
+    emit(0x67);
+    nop();
+    nop();
+    nop();
+    popq(rbx);
+  }
+}
+
 void Assembler::popq(Register dst) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
@@ -2146,10 +2146,6 @@ void Assembler::ud2() {
 }
 
 void Assembler::setcc(Condition cc, Register reg) {
-  if (cc > last_condition) {
-    movb(reg, Immediate(cc == always ? 1 : 0));
-    return;
-  }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   if (!reg.is_byte_register()) {
@@ -3807,26 +3803,27 @@ void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1,
   emit(imm8);
 }
 
-#define VPD(SIMDRegister, length)                                   \
-  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
-                      SIMDRegister src2) {                          \
-    DCHECK(IsEnabled(AVX));                                         \
-    EnsureSpace ensure_space(this);                                 \
-    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
-    emit(op);                                                       \
-    emit_sse_operand(dst, src2);                                    \
-  }                                                                 \
-                                                                    \
-  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
-                      Operand src2) {                               \
-    DCHECK(IsEnabled(AVX));                                         \
-    EnsureSpace ensure_space(this);                                 \
-    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
-    emit(op);                                                       \
-    emit_sse_operand(dst, src2);                                    \
+#define VPD(DSTRegister, SRCRegister, length)                     \
+  void Assembler::vpd(byte op, DSTRegister dst, SRCRegister src1, \
+                      SRCRegister src2) {                         \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);  \
+    emit(op);                                                     \
+    emit_sse_operand(dst, src2);                                  \
+  }                                                               \
+                                                                  \
+  void Assembler::vpd(byte op, DSTRegister dst, SRCRegister src1, \
+                      Operand src2) {                             \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);  \
+    emit(op);                                                     \
+    emit_sse_operand(dst, src2);                                  \
   }
-VPD(XMMRegister, L128)
-VPD(YMMRegister, L256)
+VPD(XMMRegister, XMMRegister, L128)
+VPD(XMMRegister, YMMRegister, L256)
+VPD(YMMRegister, YMMRegister, L256)
 #undef VPD
 
 void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {

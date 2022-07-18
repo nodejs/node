@@ -1,0 +1,13 @@
+Clear the async stack on navigations
+---------- console.trace: 0 ----------
+bar (test.js:7:10)
+(anonymous) (test.js:12:0)
+-- foo --
+foo (test.js:2:17)
+(anonymous) (test.js:12:4)
+---------- console.trace: 1 ----------
+bar (test.js:7:10)
+(anonymous) (test.js:12:0)
+-- foo --
+foo (test.js:2:17)
+(anonymous) (test.js:12:4)

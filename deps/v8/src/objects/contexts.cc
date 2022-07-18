@@ -430,7 +430,7 @@ void NativeContext::AddOptimizedCode(CodeT code) {
   DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(OptimizedCodeListHead());
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+  set(OPTIMIZED_CODE_LIST, code, UPDATE_WRITE_BARRIER, kReleaseStore);
 }
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
@@ -439,6 +439,14 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   if (!result->IsUndefined(isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
+}
+
+Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
+  Isolate* isolate = GetIsolate();
+  Handle<Object> result(error_message_for_wasm_code_gen(), isolate);
+  if (!result->IsUndefined(isolate)) return result;
+  return isolate->factory()->NewStringFromStaticChars(
+      "Wasm code generation disallowed by embedder");
 }
 
 #define COMPARE_NAME(index, type, name) \
@@ -532,22 +540,22 @@ void NativeContext::IncrementErrorsThrown() {
 
 int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
-STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);
-STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
-STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
+static_assert(Context::MIN_CONTEXT_SLOTS == 2);
+static_assert(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
+static_assert(NativeContext::kScopeInfoOffset ==
               Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
-STATIC_ASSERT(NativeContext::kPreviousOffset ==
+static_assert(NativeContext::kPreviousOffset ==
               Context::OffsetOfElementAt(NativeContext::PREVIOUS_INDEX));
-STATIC_ASSERT(NativeContext::kExtensionOffset ==
+static_assert(NativeContext::kExtensionOffset ==
               Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
 
-STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
+static_assert(NativeContext::kStartOfStrongFieldsOffset ==
               Context::OffsetOfElementAt(-1));
-STATIC_ASSERT(NativeContext::kStartOfWeakFieldsOffset ==
+static_assert(NativeContext::kStartOfWeakFieldsOffset ==
               Context::OffsetOfElementAt(NativeContext::FIRST_WEAK_SLOT));
-STATIC_ASSERT(NativeContext::kMicrotaskQueueOffset ==
+static_assert(NativeContext::kMicrotaskQueueOffset ==
               Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS));
-STATIC_ASSERT(NativeContext::kSize ==
+static_assert(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
 

@@ -11,7 +11,6 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
-#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

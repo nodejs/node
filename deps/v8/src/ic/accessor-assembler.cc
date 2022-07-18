@@ -30,7 +30,7 @@ namespace internal {
 //////////////////// Private helpers.
 
 #define LOAD_KIND(kind) \
-  IntPtrConstant(static_cast<intptr_t>(LoadHandler::Kind::kind))
+  Int32Constant(static_cast<intptr_t>(LoadHandler::Kind::kind))
 #define STORE_KIND(kind) \
   Int32Constant(static_cast<intptr_t>(StoreHandler::Kind::kind))
 
@@ -234,10 +234,10 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
 void AccessorAssembler::HandleLoadCallbackProperty(
     const LazyLoadICParameters* p, TNode<JSObject> holder,
-    TNode<WordT> handler_word, ExitPoint* exit_point) {
+    TNode<Word32T> handler_word, ExitPoint* exit_point) {
   Comment("native_data_property_load");
   TNode<IntPtrT> descriptor =
-      Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
+      Signed(DecodeWordFromWord32<LoadHandler::DescriptorBits>(handler_word));
 
   Callable callable = CodeFactory::ApiGetter(isolate());
   TNode<AccessorInfo> accessor_info =
@@ -249,13 +249,13 @@ void AccessorAssembler::HandleLoadCallbackProperty(
 
 void AccessorAssembler::HandleLoadAccessor(
     const LazyLoadICParameters* p, TNode<CallHandlerInfo> call_handler_info,
-    TNode<WordT> handler_word, TNode<DataHandler> handler,
-    TNode<IntPtrT> handler_kind, ExitPoint* exit_point) {
+    TNode<Word32T> handler_word, TNode<DataHandler> handler,
+    TNode<Uint32T> handler_kind, ExitPoint* exit_point) {
   Comment("api_getter");
   // Context is stored either in data2 or data3 field depending on whether
   // the access check is enabled for this handler or not.
   TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-      IsSetWord<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
+      IsSetWord32<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
           handler_word),
       [=] { return LoadHandlerDataField(handler, 3); },
       [=] { return LoadHandlerDataField(handler, 2); });
@@ -264,18 +264,16 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  TNode<Foreign> foreign = LoadObjectField<Foreign>(
-      call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-  TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
+  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
   TNode<Object> data =
       LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
   TVARIABLE(HeapObject, api_holder, CAST(p->lookup_start_object()));
   Label load(this);
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &load);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &load);
 
   CSA_DCHECK(this,
-             WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)));
+             Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)));
 
   api_holder = LoadMapPrototype(LoadMap(CAST(p->lookup_start_object())));
   Goto(&load);
@@ -287,23 +285,23 @@ void AccessorAssembler::HandleLoadAccessor(
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
-                                        TNode<WordT> handler_word,
+                                        TNode<Word32T> handler_word,
                                         TVariable<Float64T>* var_double_value,
                                         Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
   Comment("LoadField");
   TNode<IntPtrT> index =
-      Signed(DecodeWord<LoadHandler::FieldIndexBits>(handler_word));
+      Signed(DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
   TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
 
   Label inobject(this), out_of_object(this);
-  Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
+  Branch(IsSetWord32<LoadHandler::IsInobjectBits>(handler_word), &inobject,
          &out_of_object);
 
   BIND(&inobject);
   {
     Label is_double(this);
-    GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
     exit_point->Return(LoadObjectField(holder, offset));
 
     BIND(&is_double);
@@ -322,7 +320,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
     Label is_double(this);
     TNode<HeapObject> properties = LoadFastProperties(holder);
     TNode<Object> value = LoadObjectField(properties, offset);
-    GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
     exit_point->Return(value);
 
     BIND(&is_double);
@@ -358,7 +356,7 @@ void AccessorAssembler::HandleLoadWasmField(
       static_cast<int32_t>(WasmValueType::kF32),
       static_cast<int32_t>(WasmValueType::kF64),
       static_cast<int32_t>(WasmValueType::kRef),
-      static_cast<int32_t>(WasmValueType::kOptRef),
+      static_cast<int32_t>(WasmValueType::kRefNull),
       // TODO(v8:11804): support the following value types.
       static_cast<int32_t>(WasmValueType::kS128)};
   const size_t kWasmValueTypeCount =
@@ -432,15 +430,14 @@ void AccessorAssembler::HandleLoadWasmField(
 }
 
 void AccessorAssembler::HandleLoadWasmField(
-    TNode<WasmObject> holder, TNode<WordT> handler_word,
+    TNode<WasmObject> holder, TNode<Word32T> handler_word,
     TVariable<Float64T>* var_double_value, Label* rebox_double,
     ExitPoint* exit_point) {
   Comment("LoadWasmField");
   TNode<Int32T> wasm_value_type =
-      Signed(DecodeWord32<LoadHandler::WasmFieldTypeBits>(
-          TruncateWordToInt32(handler_word)));
-  TNode<IntPtrT> field_offset =
-      Signed(DecodeWord<LoadHandler::WasmFieldOffsetBits>(handler_word));
+      Signed(DecodeWord32<LoadHandler::WasmFieldTypeBits>(handler_word));
+  TNode<IntPtrT> field_offset = Signed(
+      DecodeWordFromWord32<LoadHandler::WasmFieldOffsetBits>(handler_word));
 
   HandleLoadWasmField(holder, wasm_value_type, field_offset, var_double_value,
                       rebox_double, exit_point);
@@ -467,9 +464,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   TVARIABLE(Float64T, var_double_value);
   Label rebox_double(this, &var_double_value);
 
-  TNode<IntPtrT> handler_word = SmiUntag(smi_handler);
-  TNode<IntPtrT> handler_kind =
-      Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
+  TNode<Int32T> handler_word = SmiToInt32(smi_handler);
+  TNode<Uint32T> handler_kind =
+      DecodeWord32<LoadHandler::KindBits>(handler_word);
 
   if (support_elements == kSupportElements) {
     Label if_element(this), if_indexed_string(this), if_property(this),
@@ -477,13 +474,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         if_oob(this, Label::kDeferred), try_string_to_array_index(this),
         emit_element_load(this);
     TVARIABLE(IntPtrT, var_intptr_index);
-    GotoIf(WordEqual(handler_kind, LOAD_KIND(kElement)), &if_element);
+    GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElement)), &if_element);
 
     if (access_mode == LoadAccessMode::kHas) {
-      CSA_DCHECK(this, WordNotEqual(handler_kind, LOAD_KIND(kIndexedString)));
+      CSA_DCHECK(this, Word32NotEqual(handler_kind, LOAD_KIND(kIndexedString)));
       Goto(&if_property);
     } else {
-      Branch(WordEqual(handler_kind, LOAD_KIND(kIndexedString)),
+      Branch(Word32Equal(handler_kind, LOAD_KIND(kIndexedString)),
              &if_indexed_string, &if_property);
     }
 
@@ -491,7 +488,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     {
       Comment("element_load");
       // TODO(ishell): implement
-      CSA_DCHECK(this, IsClearWord<LoadHandler::IsWasmArrayBits>(handler_word));
+      CSA_DCHECK(this,
+                 IsClearWord32<LoadHandler::IsWasmArrayBits>(handler_word));
       TVARIABLE(Int32T, var_instance_type);
       TNode<IntPtrT> intptr_index = TryToIntptr(
           p->name(), &try_string_to_array_index, &var_instance_type);
@@ -517,9 +515,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       BIND(&emit_element_load);
       {
         TNode<BoolT> is_jsarray_condition =
-            IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
+            IsSetWord32<LoadHandler::IsJsArrayBits>(handler_word);
         TNode<Uint32T> elements_kind =
-            DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
+            DecodeWord32<LoadHandler::ElementsKindBits>(handler_word);
         EmitElementLoad(CAST(holder), elements_kind, var_intptr_index.value(),
                         is_jsarray_condition, &if_hole, &rebox_double,
                         &var_double_value, &unimplemented_elements_kind,
@@ -542,7 +540,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
       // Check if we're allowed to handle OOB accesses.
       TNode<BoolT> allow_out_of_bounds =
-          IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
+          IsSetWord32<LoadHandler::AllowOutOfBoundsBits>(handler_word);
       GotoIfNot(allow_out_of_bounds, miss);
 
       // Negative indices aren't valid array indices (according to
@@ -576,7 +574,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     {
       Comment("convert hole");
 
-      GotoIfNot(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
+      GotoIfNot(IsSetWord32<LoadHandler::ConvertHoleBits>(handler_word), miss);
       GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       exit_point->Return(access_mode == LoadAccessMode::kHas
                              ? FalseConstant()
@@ -609,7 +607,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
           GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), miss);
         }
         TNode<BoolT> allow_out_of_bounds =
-            IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
+            IsSetWord32<LoadHandler::AllowOutOfBoundsBits>(handler_word);
         GotoIfNot(allow_out_of_bounds, miss);
         GotoIf(IsNoElementsProtectorCellInvalid(), miss);
         Return(UndefinedConstant());
@@ -632,10 +630,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
 void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     const LazyLoadICParameters* p, TNode<Object> holder,
-    TNode<IntPtrT> handler_kind, TNode<WordT> handler_word, Label* rebox_double,
-    TVariable<Float64T>* var_double_value, TNode<Object> handler, Label* miss,
-    ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
-    ElementSupport support_elements) {
+    TNode<Uint32T> handler_kind, TNode<Word32T> handler_word,
+    Label* rebox_double, TVariable<Float64T>* var_double_value,
+    TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
+    OnNonExistent on_nonexistent, ElementSupport support_elements) {
   Label constant(this), field(this), normal(this, Label::kDeferred),
       slow(this, Label::kDeferred), interceptor(this, Label::kDeferred),
       nonexistent(this), accessor(this, Label::kDeferred),
@@ -644,41 +642,43 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       native_data_property(this, Label::kDeferred),
       api_getter(this, Label::kDeferred);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kField)), &field);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kField)), &field);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kConstantFromPrototype)), &constant);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kConstantFromPrototype)),
+         &constant);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNonExistent)), &nonexistent);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNonExistent)), &nonexistent);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNormal)), &normal);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNormal)), &normal);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kAccessor)), &accessor);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessor)), &accessor);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNativeDataProperty)),
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNativeDataProperty)),
          &native_data_property);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &api_getter);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &api_getter);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
          &api_getter);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kGlobal)), &global);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kGlobal)), &global);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kSlow)), &slow);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kSlow)), &slow);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kProxy)), &proxy);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kProxy)), &proxy);
 
-  Branch(WordEqual(handler_kind, LOAD_KIND(kModuleExport)), &module_export,
+  Branch(Word32Equal(handler_kind, LOAD_KIND(kModuleExport)), &module_export,
          &interceptor);
 
   BIND(&field);
   {
 #if V8_ENABLE_WEBASSEMBLY
     Label is_wasm_field(this);
-    GotoIf(IsSetWord<LoadHandler::IsWasmStructBits>(handler_word),
+    GotoIf(IsSetWord32<LoadHandler::IsWasmStructBits>(handler_word),
            &is_wasm_field);
 #else
-    CSA_DCHECK(this, IsClearWord<LoadHandler::IsWasmStructBits>(handler_word));
+    CSA_DCHECK(this,
+               IsClearWord32<LoadHandler::IsWasmStructBits>(handler_word));
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     HandleLoadField(CAST(holder), handler_word, var_double_value, rebox_double,
@@ -733,7 +733,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   {
     Comment("accessor_load");
     TNode<IntPtrT> descriptor =
-        Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
+        Signed(DecodeWordFromWord32<LoadHandler::DescriptorBits>(handler_word));
     TNode<AccessorPair> accessor_pair =
         CAST(LoadDescriptorValue(LoadMap(CAST(holder)), descriptor));
     TNode<Object> getter =
@@ -849,7 +849,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   {
     Comment("module export");
     TNode<UintPtrT> index =
-        DecodeWord<LoadHandler::ExportsIndexBits>(handler_word);
+        DecodeWordFromWord32<LoadHandler::ExportsIndexBits>(handler_word);
     TNode<Module> module =
         LoadObjectField<Module>(CAST(holder), JSModuleNamespace::kModuleOffset);
     TNode<ObjectHashTable> exports =
@@ -875,32 +875,34 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
 void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
     const LazyLoadICParameters* p, TNode<Object> holder,
-    TNode<IntPtrT> handler_kind, Label* miss, ExitPoint* exit_point,
+    TNode<Uint32T> handler_kind, Label* miss, ExitPoint* exit_point,
     ICMode ic_mode) {
   Label return_true(this), return_false(this), return_lookup(this),
       normal(this), global(this), slow(this);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kField)), &return_true);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kField)), &return_true);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kConstantFromPrototype)),
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kConstantFromPrototype)),
          &return_true);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNonExistent)), &return_false);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNonExistent)), &return_false);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNormal)), &normal);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNormal)), &normal);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kAccessor)), &return_true);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessor)), &return_true);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNativeDataProperty)), &return_true);
-
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &return_true);
-
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNativeDataProperty)),
          &return_true);
 
-  GotoIf(WordEqual(handler_kind, LOAD_KIND(kSlow)), &slow);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &return_true);
 
-  Branch(WordEqual(handler_kind, LOAD_KIND(kGlobal)), &global, &return_lookup);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
+         &return_true);
+
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kSlow)), &slow);
+
+  Branch(Word32Equal(handler_kind, LOAD_KIND(kGlobal)), &global,
+         &return_lookup);
 
   BIND(&return_true);
   exit_point->Return(TrueConstant());
@@ -910,11 +912,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
 
   BIND(&return_lookup);
   {
-    CSA_DCHECK(
-        this,
-        Word32Or(WordEqual(handler_kind, LOAD_KIND(kInterceptor)),
-                 Word32Or(WordEqual(handler_kind, LOAD_KIND(kProxy)),
-                          WordEqual(handler_kind, LOAD_KIND(kModuleExport)))));
+    CSA_DCHECK(this,
+               Word32Or(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)),
+                        Word32Or(Word32Equal(handler_kind, LOAD_KIND(kProxy)),
+                                 Word32Equal(handler_kind,
+                                             LOAD_KIND(kModuleExport)))));
     exit_point->ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtin::kHasProperty), p->context(),
         p->receiver(), p->name());
@@ -1113,9 +1115,9 @@ void AccessorAssembler::HandleLoadICProtoHandler(
   {
     // If the "maybe_holder_or_constant" in the handler is a smi, then it's
     // guaranteed that it's not a holder object, but a constant value.
-    CSA_DCHECK(this, WordEqual(Signed(DecodeWord<LoadHandler::KindBits>(
-                                   SmiUntag(smi_handler))),
-                               LOAD_KIND(kConstantFromPrototype)));
+    CSA_DCHECK(this, Word32Equal(DecodeWord32<LoadHandler::KindBits>(
+                                     SmiToInt32(smi_handler)),
+                                 LOAD_KIND(kConstantFromPrototype)));
     if (access_mode == LoadAccessMode::kHas) {
       exit_point->Return(TrueConstant());
     } else {
@@ -1152,6 +1154,7 @@ void AccessorAssembler::EmitAccessCheck(TNode<Context> expected_native_context,
   TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIf(TaggedEqual(expected_native_context, native_context), can_access);
   // If the receiver is not a JSGlobalProxy then we miss.
+  GotoIf(TaggedIsSmi(receiver), miss);
   GotoIfNot(IsJSGlobalProxy(CAST(receiver)), miss);
   // For JSGlobalProxy receiver try to compare security tokens of current
   // and expected native contexts.
@@ -1243,7 +1246,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         if_slow(this);
 
 #define ASSERT_CONSECUTIVE(a, b)                                    \
-  STATIC_ASSERT(static_cast<intptr_t>(StoreHandler::Kind::a) + 1 == \
+  static_assert(static_cast<intptr_t>(StoreHandler::Kind::a) + 1 == \
                 static_cast<intptr_t>(StoreHandler::Kind::b));
     ASSERT_CONSECUTIVE(kGlobalProxy, kNormal)
     ASSERT_CONSECUTIVE(kNormal, kInterceptor)
@@ -1282,7 +1285,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         const int kTypeAndReadOnlyMask =
             PropertyDetails::KindField::kMask |
             PropertyDetails::kAttributesReadOnlyMask;
-        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+        static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
         if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
@@ -1460,7 +1463,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
         PropertyDetails::KindField::kMask |
         PropertyDetails::kAttributesDontDeleteMask |
         PropertyDetails::kAttributesReadOnlyMask;
-    STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+    static_assert(static_cast<int>(PropertyKind::kData) == 0);
     // Both DontDelete and ReadOnly attributes must not be set and it has to be
     // a kData property.
     GotoIf(IsSetWord32(details, kKindAndAttributesDontDeleteReadOnlyMask),
@@ -1836,7 +1839,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         const int kTypeAndReadOnlyMask =
             PropertyDetails::KindField::kMask |
             PropertyDetails::kAttributesReadOnlyMask;
-        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+        static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
         StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
@@ -1943,9 +1946,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           IsCleared(maybe_context), [=] { return SmiConstant(0); },
           [=] { return GetHeapObjectAssumeWeak(maybe_context); });
 
-      TNode<Foreign> foreign = LoadObjectField<Foreign>(
-          call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-      TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
+      TNode<RawPtrT> callback =
+          LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
       TNode<Object> data =
           LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
@@ -2326,7 +2328,7 @@ void AccessorAssembler::EmitElementLoad(
     int32_t kinds[] = {
         // Handled by if_fast_packed.
         PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
-        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
+        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS, SHARED_ARRAY_ELEMENTS,
         // Handled by if_fast_holey.
         HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
         HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
@@ -2336,7 +2338,7 @@ void AccessorAssembler::EmitElementLoad(
         HOLEY_DOUBLE_ELEMENTS};
     Label* labels[] = {// FAST_{SMI,}_ELEMENTS
                        &if_fast_packed, &if_fast_packed, &if_fast_packed,
-                       &if_fast_packed, &if_fast_packed,
+                       &if_fast_packed, &if_fast_packed, &if_fast_packed,
                        // FAST_HOLEY_{SMI,}_ELEMENTS
                        &if_fast_holey, &if_fast_holey, &if_fast_holey,
                        &if_fast_holey, &if_fast_holey,
@@ -2398,7 +2400,7 @@ void AccessorAssembler::EmitElementLoad(
         int16_elements(this), uint32_elements(this), int32_elements(this),
         float32_elements(this), float64_elements(this), bigint64_elements(this),
         biguint64_elements(this);
-    STATIC_ASSERT(LAST_ELEMENTS_KIND ==
+    static_assert(LAST_ELEMENTS_KIND ==
                   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
@@ -2632,7 +2634,6 @@ void AccessorAssembler::GenericElementLoad(
 
   // Unimplemented elements kinds fall back to a runtime call.
   Label* unimplemented_elements_kind = slow;
-  IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
   EmitElementLoad(lookup_start_object, elements_kind, index,
                   is_jsarray_condition, &if_element_hole, &rebox_double,
                   &var_double_value, unimplemented_elements_kind, &if_oob, slow,
@@ -2673,7 +2674,6 @@ void AccessorAssembler::GenericElementLoad(
     Comment("load string character");
     TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(lookup_start_object));
     GotoIfNot(UintPtrLessThan(index, length), slow);
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
     TailCallBuiltin(Builtin::kStringCharAt, NoContextConstant(),
                     lookup_start_object, index);
   }
@@ -2788,7 +2788,6 @@ void AccessorAssembler::GenericPropertyLoad(
     TNode<Object> value = CallGetterIfAccessor(
         var_value.value(), lookup_start_object, var_details.value(),
         p->context(), p->receiver(), p->name(), slow);
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
   }
 
@@ -2961,10 +2960,26 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
   Counters* counters = isolate()->counters();
   IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
 
-  // Check that the {lookup_start_object} isn't a smi.
-  GotoIf(TaggedIsSmi(lookup_start_object), &miss);
+  Label smi(this), non_smi(this), do_lookup(this);
+  TVARIABLE(Map, map_var);
+  Branch(TaggedIsSmi(lookup_start_object), &smi, &non_smi);
 
-  TNode<Map> lookup_start_object_map = LoadMap(CAST(lookup_start_object));
+  BIND(&smi);
+  {
+    // Also for smis the HeapNumberMap is used to identify number feedback.
+    map_var = HeapNumberMapConstant();
+    Goto(&do_lookup);
+  }
+
+  BIND(&non_smi);
+  {
+    map_var = LoadMap(CAST(lookup_start_object));
+    Goto(&do_lookup);
+  }
+
+  BIND(&do_lookup);
+
+  TNode<Map> lookup_start_object_map = map_var.value();
 
   // Probe the primary table.
   TNode<IntPtrT> primary_offset =
@@ -3139,8 +3154,7 @@ void AccessorAssembler::LoadSuperIC(const LoadICParameters* p) {
 
   // The lookup start object cannot be a SMI, since it's the home object's
   // prototype, and it's not possible to set SMIs as prototypes.
-  TNode<Map> lookup_start_object_map =
-      LoadReceiverMap(p->lookup_start_object());
+  TNode<Map> lookup_start_object_map = LoadMap(CAST(p->lookup_start_object()));
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
   TNode<MaybeObject> feedback =
@@ -3640,7 +3654,6 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   BIND(&if_runtime);
   {
     Comment("KeyedLoadGeneric_slow");
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
     TailCallRuntime(Runtime::kGetProperty, p->context(),
                     p->receiver_and_lookup_start_object(), var_name.value());

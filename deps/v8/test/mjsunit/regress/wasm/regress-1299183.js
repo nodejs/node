@@ -9,26 +9,70 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 builder.addStruct([]);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
-builder.addType(makeSig([kWasmAnyRef, kWasmFuncRef, kWasmExternRef], [wasmRefType(0)]));
-builder.addType(makeSig([kWasmI64, kWasmF32, kWasmS128, kWasmI32], [wasmRefType(1), wasmOptRefType(2), kWasmI64, wasmOptRefType(2), kWasmI64]));
-builder.addType(makeSig([], [wasmOptRefType(2), wasmOptRefType(2), kWasmF64, wasmOptRefType(2), kWasmI32, wasmOptRefType(2), kWasmI32, kWasmI32, wasmOptRefType(2), kWasmI32, kWasmI32, kWasmI64, kWasmI32, kWasmS128, wasmOptRefType(2)]));
+builder.addType(makeSig([kWasmAnyRef, kWasmFuncRef, kWasmExternRef],
+                        [wasmRefType(0)]));
+builder.addType(
+  makeSig([kWasmI64, kWasmF32, kWasmS128, kWasmI32],
+          [wasmRefType(1), wasmRefNullType(2), kWasmI64, wasmRefNullType(2),
+           kWasmI64]));
+builder.addType(
+  makeSig([],
+          [wasmRefNullType(2), wasmRefNullType(2), kWasmF64, wasmRefNullType(2),
+           kWasmI32, wasmRefNullType(2), kWasmI32, kWasmI32, wasmRefNullType(2),
+           kWasmI32, kWasmI32, kWasmI64, kWasmI32, kWasmS128,
+           wasmRefNullType(2)]));
 builder.addType(makeSig([], []));
-builder.addType(makeSig([wasmRefType(kWasmAnyRef)], [kWasmI32, kWasmI32, wasmRefType(1), wasmRefType(kWasmAnyRef), kWasmI32, wasmRefType(1), kWasmI64, wasmOptRefType(4), kWasmI32, wasmRefType(kWasmAnyRef), wasmOptRefType(4), kWasmI64, kWasmI64, wasmRefType(kWasmEqRef), kWasmI32]));
-builder.addType(makeSig([wasmRefType(kWasmEqRef), kWasmAnyRef, kWasmI32, kWasmI32], [wasmRefType(1), kWasmI64, wasmOptRefType(4), kWasmI32, wasmRefType(kWasmAnyRef), wasmOptRefType(4), kWasmI64, kWasmI64, wasmRefType(kWasmEqRef), kWasmI32]));
-builder.addType(makeSig([kWasmI32, kWasmI32, wasmRefType(1), wasmRefType(kWasmAnyRef), kWasmI32, wasmRefType(1), kWasmI64, wasmOptRefType(4), kWasmI32, wasmRefType(kWasmAnyRef), wasmOptRefType(4), kWasmI64, kWasmI64, wasmRefType(kWasmEqRef), kWasmI32], [kWasmI32]));
+builder.addType(
+  makeSig([wasmRefType(kWasmAnyRef)],
+          [kWasmI32, kWasmI32, wasmRefType(1), wasmRefType(kWasmAnyRef),
+           kWasmI32, wasmRefType(1), kWasmI64, wasmRefNullType(4), kWasmI32,
+           wasmRefType(kWasmAnyRef), wasmRefNullType(4), kWasmI64, kWasmI64,
+           wasmRefType(kWasmEqRef), kWasmI32]));
+builder.addType(
+  makeSig([wasmRefType(kWasmEqRef), kWasmAnyRef, kWasmI32, kWasmI32],
+          [wasmRefType(1), kWasmI64, wasmRefNullType(4), kWasmI32,
+           wasmRefType(kWasmAnyRef), wasmRefNullType(4), kWasmI64, kWasmI64,
+           wasmRefType(kWasmEqRef), kWasmI32]));
+builder.addType(
+  makeSig([kWasmI32, kWasmI32, wasmRefType(1), wasmRefType(kWasmAnyRef),
+           kWasmI32, wasmRefType(1), kWasmI64, wasmRefNullType(4), kWasmI32,
+           wasmRefType(kWasmAnyRef), wasmRefNullType(4), kWasmI64, kWasmI64,
+           wasmRefType(kWasmEqRef), kWasmI32],
+          [kWasmI32]));
 builder.addMemory(16, 32, false);
 builder.addTable(kWasmFuncRef, 4, 5, undefined)
 builder.addTable(kWasmFuncRef, 15, 25, undefined)
 builder.addTable(kWasmFuncRef, 1, 1, undefined)
 builder.addTable(kWasmFuncRef, 16, 17, undefined)
-builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3)], kWasmFuncRef);
-builder.addActiveElementSegment(1, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2)], kWasmFuncRef);
-builder.addActiveElementSegment(2, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0)], kWasmFuncRef);
-builder.addActiveElementSegment(3, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3)], kWasmFuncRef);
+builder.addActiveElementSegment(
+  0, wasmI32Const(0),
+  [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3]],
+  kWasmFuncRef);
+builder.addActiveElementSegment(
+  1, wasmI32Const(0),
+  [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2]],
+  kWasmFuncRef);
+builder.addActiveElementSegment(
+  2, wasmI32Const(0), [[kExprRefFunc, 0]], kWasmFuncRef);
+builder.addActiveElementSegment(
+  3, wasmI32Const(0),
+  [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3],
+   [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3]],
+  kWasmFuncRef);
 builder.addTag(makeSig([], []));
 // Generate function 1 (out of 4).
 builder.addFunction(undefined, 1 /* sig */)
-  .addLocals(kWasmI64, 1).addLocals(wasmOptRefType(4), 1).addLocals(kWasmI32, 2).addLocals(kWasmI64, 1).addLocals(wasmOptRefType(4), 1).addLocals(kWasmI32, 1).addLocals(kWasmI64, 3).addLocals(kWasmI32, 1).addLocals(kWasmI64, 1).addLocals(kWasmI32, 1).addLocals(kWasmI64, 1).addLocals(wasmOptRefType(4), 1).addLocals(kWasmI64, 1)
+  .addLocals(kWasmI64, 1).addLocals(wasmRefNullType(4), 1)
+  .addLocals(kWasmI32, 2).addLocals(kWasmI64, 1)
+  .addLocals(wasmRefNullType(4), 1).addLocals(kWasmI32, 1)
+  .addLocals(kWasmI64, 3).addLocals(kWasmI32, 1).addLocals(kWasmI64, 1)
+  .addLocals(kWasmI32, 1).addLocals(kWasmI64, 1)
+  .addLocals(wasmRefNullType(4), 1).addLocals(kWasmI64, 1)
   .addBodyWithEnd([
 // signature: i_iii
 // body:

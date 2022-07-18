@@ -5,12 +5,13 @@
 #ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
 #define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
 
+#include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "test/cctest/compiler/function-tester.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 LocalFactory::LocalFactory(Isolate* isolate)
     : roots_(isolate), isolate_for_sandbox_(isolate) {}
 #else

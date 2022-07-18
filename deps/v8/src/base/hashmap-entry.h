@@ -23,7 +23,7 @@ struct NoHashMapValue {};
 // should use NoHashMapValue.
 template <typename Key, typename Value>
 struct TemplateHashMapEntry {
-  STATIC_ASSERT((!std::is_same<Value, NoHashMapValue>::value));
+  static_assert((!std::is_same<Value, NoHashMapValue>::value));
 
   Key key;
   Value value;
@@ -43,7 +43,7 @@ struct TemplateHashMapEntry {
 // Specialization for pointer-valued keys
 template <typename Key, typename Value>
 struct TemplateHashMapEntry<Key*, Value> {
-  STATIC_ASSERT((!std::is_same<Value, NoHashMapValue>::value));
+  static_assert((!std::is_same<Value, NoHashMapValue>::value));
 
   Key* key;
   Value value;

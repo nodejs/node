@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan --no-lazy-feedback-allocation
 
 // Lazy feedback allocation is disabled to guard against the case that a
 // second-level function like assertTrue gets its feedback vector allocated

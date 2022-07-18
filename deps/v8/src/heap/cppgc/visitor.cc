@@ -5,13 +5,16 @@
 #include "src/heap/cppgc/visitor.h"
 
 #include "src/base/sanitizer/msan.h"
-#include "src/heap/cppgc/caged-heap.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
+
+#if defined(CPPGC_CAGED_HEAP)
+#include "src/heap/cppgc/caged-heap.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 namespace cppgc {
 
@@ -32,44 +35,81 @@ namespace {
 
 void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+  using PointerType = uint32_t;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+  using PointerType = uintptr_t;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+
   const auto object_view = ObjectView<>(header);
-  Address* object = reinterpret_cast<Address*>(object_view.Start());
-  for (size_t i = 0; i < (object_view.Size() / sizeof(Address)); ++i) {
-    Address maybe_ptr = object[i];
+  PointerType* object = reinterpret_cast<PointerType*>(object_view.Start());
+  for (size_t i = 0; i < (object_view.Size() / sizeof(PointerType)); ++i) {
+    PointerType maybe_ptr = object[i];
 #if defined(MEMORY_SANITIZER)
     // |object| may be uninitialized by design or just contain padding bytes.
     // Copy into a local variable that is not poisoned for conservative marking.
     // Copy into a temporary variable to maintain the original MSAN state.
     MSAN_MEMORY_IS_INITIALIZED(&maybe_ptr, sizeof(maybe_ptr));
 #endif
-    if (maybe_ptr) {
-      conservative_visitor->TraceConservativelyIfNeeded(maybe_ptr);
+    if (maybe_ptr > SentinelPointer::kSentinelValue) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+      // We know that all on-heap pointers are compressed, so don't check full
+      // pointers.
+      Address decompressed_ptr =
+          static_cast<Address>(CompressedPointer::Decompress(maybe_ptr));
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+      Address decompressed_ptr = reinterpret_cast<Address>(maybe_ptr);
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+      conservative_visitor->TraceConservativelyIfNeeded(decompressed_ptr);
     }
   }
 }
 
 }  // namespace
 
-void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
-    const void* address) {
+void ConservativeTracingVisitor::TryTracePointerConservatively(
+    Address pointer) {
 #if defined(CPPGC_CAGED_HEAP)
   // TODO(chromium:1056170): Add support for SIMD in stack scanning.
-  if (V8_LIKELY(!heap_.caged_heap().IsOnHeap(address))) return;
-#endif
+  if (V8_LIKELY(!CagedHeapBase::IsWithinCage(pointer))) return;
+#endif  // defined(CPPGC_CAGED_HEAP)
 
   const BasePage* page = reinterpret_cast<const BasePage*>(
-      page_backend_.Lookup(static_cast<ConstAddress>(address)));
+      page_backend_.Lookup(const_cast<ConstAddress>(pointer)));
 
   if (!page) return;
 
   DCHECK_EQ(&heap_, &page->heap());
 
-  auto* header = page->TryObjectHeaderFromInnerAddress(
-      const_cast<Address>(reinterpret_cast<ConstAddress>(address)));
+  auto* header = page->TryObjectHeaderFromInnerAddress(pointer);
 
   if (!header) return;
 
   TraceConservativelyIfNeeded(*header);
+}
+
+void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
+    const void* address) {
+  auto pointer = reinterpret_cast<Address>(const_cast<void*>(address));
+  TryTracePointerConservatively(pointer);
+#if defined(CPPGC_POINTER_COMPRESSION)
+  // If pointer compression enabled, we may have random compressed pointers on
+  // stack (e.g. due to inlined collections). Extract, decompress and trace both
+  // halfwords.
+  auto decompressed_low =
+      reinterpret_cast<Address>(CompressedPointer::Decompress(
+          static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pointer))));
+  if (decompressed_low >
+      reinterpret_cast<void*>(SentinelPointer::kSentinelValue))
+    TryTracePointerConservatively(decompressed_low);
+  auto decompressed_high =
+      reinterpret_cast<Address>(CompressedPointer::Decompress(
+          static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pointer) >>
+                                (sizeof(uint32_t) * CHAR_BIT))));
+  if (decompressed_high >
+      reinterpret_cast<void*>(SentinelPointer::kSentinelValue))
+    TryTracePointerConservatively(decompressed_high);
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
 }
 
 void ConservativeTracingVisitor::TraceConservativelyIfNeeded(

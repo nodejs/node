@@ -72,7 +72,7 @@ TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
 namespace {
 
 const void* ConservativeGCReturningObject(cppgc::Heap* heap,
-                                          const void* volatile object) {
+                                          const void* object) {
   internal::Heap::From(heap)->CollectGarbage(
       Heap::Config::ConservativeAtomicConfig());
   return object;

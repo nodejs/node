@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/member.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
@@ -75,7 +76,6 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);
-
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
   ConcurrentMarkingState concurrent_marking_state(
@@ -234,6 +234,13 @@ void ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
     // Notifies the scheduler that max concurrency might have increased.
     // This will adjust the number of markers if necessary.
     IncreaseMarkingPriorityIfNeeded();
+    concurrent_marking_handle_->NotifyConcurrencyIncrease();
+  }
+}
+
+void ConcurrentMarkerBase::NotifyOfWorkIfNeeded(cppgc::TaskPriority priority) {
+  if (HasWorkForConcurrentMarking(marking_worklists_)) {
+    concurrent_marking_handle_->UpdatePriority(priority);
     concurrent_marking_handle_->NotifyConcurrencyIncrease();
   }
 }

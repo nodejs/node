@@ -36,7 +36,7 @@ class Loong64OperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(Node* node) {
     if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
         (IsFloatConstant(node) &&
-         (bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
+         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
       return UseImmediate(node);
     }
     return UseRegister(node);
@@ -469,8 +469,9 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kNone:
-    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kNone:               // Fall through.
+    case MachineRepresentation::kSimd128:            // Fall through.
+    case MachineRepresentation::kSimd256:
       UNREACHABLE();
   }
 
@@ -548,8 +549,9 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kNone:
-      case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kNone:               // Fall through.
+      case MachineRepresentation::kSimd128:            // Fall through.
+      case MachineRepresentation::kSimd256:
         UNREACHABLE();
     }
 
@@ -1351,6 +1353,38 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   Emit(kLoong64Float64ToUint64, output_count, outputs, 1, inputs);
 }
 
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+  Loong64OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kLoong64Float64ToInt32, output_count, outputs, 1, inputs, 1, temps);
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
+  Loong64OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kLoong64Float64ToUint32, output_count, outputs, 1, inputs, 1, temps);
+}
+
 void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
   UNIMPLEMENTED();
 }
@@ -1664,6 +1698,23 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int32_t index) {
+  OperandGenerator g(this);
+  int count = linkage()->GetParameterLocation(index).GetLocation();
+  InstructionOperand out_op = g.TempRegister(-count);
+  Emit(kArchNop, out_op);
+  Emit(kLoong64BitcastLD, g.DefineAsRegister(node), out_op);
+}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {
+  OperandGenerator g(this);
+  int count = location.GetLocation();
+  InstructionOperand new_op = g.TempRegister(-count);
+  Emit(kLoong64BitcastDL, new_op, *op);
+  *op = new_op;
+}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -1671,8 +1722,10 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
+    int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
+    int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
+    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
+             FPParamField::encode(fp_param_count),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -2650,8 +2703,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Abs, kLoong64F32x4Abs)                               \
   V(F32x4Neg, kLoong64F32x4Neg)                               \
   V(F32x4Sqrt, kLoong64F32x4Sqrt)                             \
-  V(F32x4RecipApprox, kLoong64F32x4RecipApprox)               \
-  V(F32x4RecipSqrtApprox, kLoong64F32x4RecipSqrtApprox)       \
   V(F32x4Ceil, kLoong64F32x4Ceil)                             \
   V(F32x4Floor, kLoong64F32x4Floor)                           \
   V(F32x4Trunc, kLoong64F32x4Trunc)                           \

@@ -32,11 +32,10 @@ using protocol::Response;
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
-  static std::unique_ptr<V8InspectorSessionImpl> create(V8InspectorImpl*,
-                                                        int contextGroupId,
-                                                        int sessionId,
-                                                        V8Inspector::Channel*,
-                                                        StringView state);
+  static std::unique_ptr<V8InspectorSessionImpl> create(
+      V8InspectorImpl*, int contextGroupId, int sessionId,
+      V8Inspector::Channel*, StringView state,
+      v8_inspector::V8Inspector::ClientTrustLevel);
   ~V8InspectorSessionImpl() override;
   V8InspectorSessionImpl(const V8InspectorSessionImpl&) = delete;
   V8InspectorSessionImpl& operator=(const V8InspectorSessionImpl&) = delete;
@@ -99,10 +98,14 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   static const unsigned kInspectedObjectBufferSize = 5;
 
   void triggerPreciseCoverageDeltaUpdate(StringView occasion) override;
+  V8Inspector::ClientTrustLevel clientTrustLevel() {
+    return m_clientTrustLevel;
+  }
 
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
-                         V8Inspector::Channel*, StringView state);
+                         V8Inspector::Channel*, StringView state,
+                         V8Inspector::ClientTrustLevel);
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.
@@ -134,6 +137,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   std::vector<std::unique_ptr<V8InspectorSession::Inspectable>>
       m_inspectedObjects;
   bool use_binary_protocol_ = false;
+  V8Inspector::ClientTrustLevel m_clientTrustLevel = V8Inspector::kUntrusted;
 };
 
 }  // namespace v8_inspector

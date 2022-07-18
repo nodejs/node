@@ -34,7 +34,7 @@ class LinearAllocationArea final {
 
   void ResetStart() { start_ = top_; }
 
-  V8_INLINE bool CanIncrementTop(size_t bytes) {
+  V8_INLINE bool CanIncrementTop(size_t bytes) const {
     Verify();
     return (top_ + bytes) <= limit_;
   }

@@ -108,8 +108,8 @@ class MemoryLowering final : public Reducer {
                                            Node* value,
                                            AllocationState const* state,
                                            WriteBarrierKind);
-  Node* DecodeExternalPointer(Node* encoded_pointer, ExternalPointerTag tag);
-  Reduction ReduceLoadMap(Node* encoded_pointer);
+  Reduction ReduceLoadExternalPointerField(Node* node);
+  Reduction ReduceLoadMap(Node* node);
   Node* ComputeIndex(ElementAccess const& access, Node* node);
   void EnsureAllocateOperator();
   Node* GetWasmInstanceNode();

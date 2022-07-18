@@ -23,6 +23,7 @@
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-chunk-list.h"
@@ -2063,8 +2064,10 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
-        Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
-        is_function = CodeKindIsOptimizedJSFunction(code.kind());
+        CodeLookupResult lookup_result =
+            isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
+        CHECK(lookup_result.IsFound());
+        is_function = CodeKindIsOptimizedJSFunction(lookup_result.kind());
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
               isolate, is_function);

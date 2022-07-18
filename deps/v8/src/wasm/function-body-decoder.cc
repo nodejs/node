@@ -4,10 +4,6 @@
 
 #include "src/wasm/function-body-decoder.h"
 
-#include "src/codegen/assembler-inl.h"
-#include "src/flags/flags.h"
-#include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -221,7 +217,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     os << RawOpcodeName(opcode) << ",";
 
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
-        opcode == kExprTry || opcode == kExprLet) {
+        opcode == kExprTry) {
       if (i.pc()[1] & 0x80) {
         uint32_t temp_length;
         ValueType type =
@@ -259,8 +255,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprLoop:
       case kExprIf:
       case kExprBlock:
-      case kExprTry:
-      case kExprLet: {
+      case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(), &i,
                                                        i.pc() + 1, module);
         os << " @" << i.pc_offset();

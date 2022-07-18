@@ -168,9 +168,6 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
 // -----------------------------------------------------------------------------
 // Loads and stores
 
-
-namespace {
-
 struct MemoryAccess {
   MachineType type;
   ArchOpcode load_opcode;
@@ -192,8 +189,6 @@ static const MemoryAccess kMemoryAccesses[] = {
     {MachineType::Uint32(), kIA32Movl, kIA32Movl},
     {MachineType::Float32(), kIA32Movss, kIA32Movss},
     {MachineType::Float64(), kIA32Movsd, kIA32Movsd}};
-
-}  // namespace
 
 using InstructionSelectorMemoryAccessTest =
     InstructionSelectorTestWithParam<MemoryAccess>;
@@ -475,9 +470,6 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MI) {
 // -----------------------------------------------------------------------------
 // Multiplication.
 
-
-namespace {
-
 struct MultParam {
   int value;
   bool lea_expected;
@@ -503,8 +495,6 @@ const MultParam kMultParams[] = {{-1, false, kMode_None},
                                  {9, true, kMode_MR8},
                                  {10, false, kMode_None},
                                  {11, false, kMode_None}};
-
-}  // namespace
 
 using InstructionSelectorMultTest = InstructionSelectorTestWithParam<MultParam>;
 

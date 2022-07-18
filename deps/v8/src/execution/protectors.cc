@@ -38,7 +38,7 @@ void TraceProtectorInvalidation(const char* protector_name) {
 // strictly needed but clarifies the intent of the static assert.
 constexpr bool IsDefined(v8::Isolate::UseCounterFeature) { return true; }
 #define V(Name, ...) \
-  STATIC_ASSERT(IsDefined(v8::Isolate::kInvalidated##Name##Protector));
+  static_assert(IsDefined(v8::Isolate::kInvalidated##Name##Protector));
 
 DECLARED_PROTECTORS_ON_ISOLATE(V)
 #undef V

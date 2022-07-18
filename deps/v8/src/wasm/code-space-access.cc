@@ -4,12 +4,26 @@
 
 #include "src/wasm/code-space-access.h"
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+namespace {
+// For PKU and if MAP_JIT is available, the CodeSpaceWriteScope does not
+// actually make use of the supplied {NativeModule}. In fact, there are
+// situations where we can't provide a specific {NativeModule} to the scope. For
+// those situations, we use this dummy pointer instead.
+NativeModule* GetDummyNativeModule() {
+  static struct alignas(NativeModule) DummyNativeModule {
+    char content;
+  } dummy_native_module;
+  return reinterpret_cast<NativeModule*>(&dummy_native_module);
+}
+}  // namespace
 
 thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
     nullptr;
@@ -18,7 +32,13 @@ thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
 // writable mode; only the main thread has to switch back and forth.
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : previous_native_module_(current_native_module_) {
-  DCHECK_NOT_NULL(native_module);
+  if (!native_module) {
+    // Passing in a {nullptr} is OK if we don't use that pointer anyway.
+    // Internally, we need a non-nullptr though to know whether a scope is
+    // already open from looking at {current_native_module_}.
+    DCHECK(!SwitchingPerNativeModule());
+    native_module = GetDummyNativeModule();
+  }
   if (previous_native_module_ == native_module) return;
   current_native_module_ = native_module;
   if (previous_native_module_ == nullptr || SwitchingPerNativeModule()) {
@@ -36,20 +56,13 @@ CodeSpaceWriteScope::~CodeSpaceWriteScope() {
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
-// Ignoring this warning is considered better than relying on
-// __builtin_available.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
 // static
-void CodeSpaceWriteScope::SetWritable() {
-  pthread_jit_write_protect_np(0);
-}
+void CodeSpaceWriteScope::SetWritable() { RwxMemoryWriteScope::SetWritable(); }
 
 // static
 void CodeSpaceWriteScope::SetExecutable() {
-  pthread_jit_write_protect_np(1);
+  RwxMemoryWriteScope::SetExecutable();
 }
-#pragma clang diagnostic pop
 
 // static
 bool CodeSpaceWriteScope::SwitchingPerNativeModule() { return false; }

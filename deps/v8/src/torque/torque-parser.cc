@@ -67,6 +67,11 @@ class BuildFlags : public ContextualClass<BuildFlags> {
 #else
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
 #endif
+    build_flags_["V8_ENABLE_SANDBOX"] = V8_ENABLE_SANDBOX_BOOL;
+    build_flags_["V8_SANDBOXED_EXTERNAL_POINTERS"] =
+        V8_SANDBOXED_EXTERNAL_POINTERS_BOOL;
+    build_flags_["V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES"] =
+        !V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && TAGGED_SIZE_8_BYTES;
     build_flags_["DEBUG"] = DEBUG_BOOL;
   }
   static bool GetFlag(const std::string& name, const char* production) {

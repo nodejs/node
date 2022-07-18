@@ -7,6 +7,7 @@
 #if V8_TARGET_ARCH_LOONG64
 
 #include "src/base/cpu.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/safepoint-table.h"
@@ -167,7 +168,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_({t7, t6}) {
+      scratch_register_list_({t7, t6}),
+      scratch_fpregister_list_({f31}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -2353,10 +2355,13 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : available_(assembler->GetScratchRegisterList()),
-      old_available_(*available_) {}
+      availablefp_(assembler->GetScratchFPRegisterList()),
+      old_available_(*available_),
+      old_availablefp_(*availablefp_) {}
 
 UseScratchRegisterScope::~UseScratchRegisterScope() {
   *available_ = old_available_;
+  *availablefp_ = old_availablefp_;
 }
 
 Register UseScratchRegisterScope::Acquire() {
@@ -2364,8 +2369,17 @@ Register UseScratchRegisterScope::Acquire() {
   return available_->PopFirst();
 }
 
+DoubleRegister UseScratchRegisterScope::AcquireFp() {
+  DCHECK_NOT_NULL(availablefp_);
+  return availablefp_->PopFirst();
+}
+
 bool UseScratchRegisterScope::hasAvailable() const {
   return !available_->is_empty();
+}
+
+bool UseScratchRegisterScope::hasAvailableFp() const {
+  return !availablefp_->is_empty();
 }
 
 }  // namespace internal

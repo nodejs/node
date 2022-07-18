@@ -4,12 +4,10 @@
 
 #include "src/compiler/js-type-hint-lowering.h"
 
-#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects/feedback-vector.h"
 #include "src/objects/type-hints.h"
 
 namespace v8 {

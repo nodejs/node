@@ -1726,11 +1726,13 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     if (item.property == "timeZoneName") {
       // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
       // 3, *undefined*). The *undefined* is represented by value 0 here.
-      Maybe<int> maybe_fsd = GetNumberOption(
-          isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
-      MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
+      int fsd;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, fsd,
+          GetNumberOption(isolate, options,
+                          factory->fractionalSecondDigits_string(), 1, 3, 0),
+          Handle<JSDateTimeFormat>());
       // Convert fractionalSecondDigits to skeleton.
-      int fsd = maybe_fsd.FromJust();
       for (int i = 0; i < fsd; i++) {
         skeleton += "S";
       }

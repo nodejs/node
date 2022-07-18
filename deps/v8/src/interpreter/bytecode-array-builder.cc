@@ -378,8 +378,8 @@ BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
 
 void BytecodeArrayBuilder::OutputJumpLoop(BytecodeLoopHeader* loop_header,
-                                          int loop_depth) {
-  BytecodeNode node(CreateJumpLoopNode(0, loop_depth));
+                                          int loop_depth, int feedback_slot) {
+  BytecodeNode node(CreateJumpLoopNode(0, loop_depth, feedback_slot));
   WriteJumpLoop(&node, loop_header);
 }
 
@@ -1257,7 +1257,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(
-    BytecodeLoopHeader* loop_header, int loop_depth, int position) {
+    BytecodeLoopHeader* loop_header, int loop_depth, int position,
+    int feedback_slot) {
   if (position != kNoSourcePosition) {
     // We need to attach a non-breakable source position to JumpLoop for its
     // implicit stack check, so we simply add it as expression position. There
@@ -1270,7 +1271,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(
     // expression position which eliminates the empty statement's position.
     latest_source_info_.ForceExpressionPosition(position);
   }
-  OutputJumpLoop(loop_header, loop_depth);
+  OutputJumpLoop(loop_header, loop_depth, feedback_slot);
   return *this;
 }
 

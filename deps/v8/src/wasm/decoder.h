@@ -17,11 +17,10 @@
 #include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/codegen/signature.h"
 #include "src/flags/flags.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -136,6 +135,16 @@ class Decoder {
     return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
   }
 
+  template <ValidateFlag validate>
+  WasmOpcode read_two_byte_opcode(const byte* pc, uint32_t* length,
+                                  const char* name = "prefixed opcode") {
+    DCHECK(*pc == kGCPrefix);
+    uint32_t index = read_u8<validate>(pc + 1, name);
+    index |= kGCPrefix << 8;
+    *length = 2;
+    return static_cast<WasmOpcode>(index);
+  }
+
   // Convenient overload for callers who don't care about length.
   template <ValidateFlag validate>
   WasmOpcode read_prefixed_opcode(const byte* pc) {
@@ -149,19 +158,25 @@ class Decoder {
   template <ValidateFlag validate>
   WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
                                   const char* name = "prefixed opcode") {
+    if (*pc == kGCPrefix) {
+      return read_two_byte_opcode<validate>(pc, length, name);
+    }
+
     uint32_t index;
 
     // Prefixed opcodes all use LEB128 encoding.
     index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
     *length += 1;  // Prefix byte.
-    // Only support opcodes that go up to 0xFF (when decoded). Anything
-    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-    if (validate && V8_UNLIKELY(index > 0xff)) {
+    // Only support opcodes that go up to 0xFFF (when decoded). Anything
+    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xfff)) {
       errorf(pc, "Invalid prefixed opcode %d", index);
       // If size validation fails.
       index = 0;
       *length = 0;
     }
+
+    if (index > 0xff) return static_cast<WasmOpcode>((*pc) << 12 | index);
 
     return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
@@ -182,7 +197,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(const char* name = nullptr) {
+  uint32_t consume_u32v(const char* name = "var_uint32") {
     uint32_t length = 0;
     uint32_t result =
         read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -191,7 +206,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
-  int32_t consume_i32v(const char* name = nullptr) {
+  int32_t consume_i32v(const char* name = "var_int32") {
     uint32_t length = 0;
     int32_t result =
         read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -200,7 +215,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
-  uint64_t consume_u64v(const char* name = nullptr) {
+  uint64_t consume_u64v(const char* name = "var_uint64") {
     uint32_t length = 0;
     uint64_t result =
         read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -209,7 +224,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length signed 64-bit integer and advances {pc_}.
-  int64_t consume_i64v(const char* name = nullptr) {
+  int64_t consume_i64v(const char* name = "var_int64") {
     uint32_t length = 0;
     int64_t result =
         read_leb<int64_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -295,13 +310,13 @@ class Decoder {
   }
 
   // Converts the given value to a {Result}, copying the error if necessary.
-  template <typename T, typename U = typename std::remove_reference<T>::type>
-  Result<U> toResult(T&& val) {
+  template <typename T>
+  Result<T> toResult(T&& val) {
     if (failed()) {
       TRACE("Result error: %s\n", error_.message().c_str());
-      return Result<U>{error_};
+      return Result<T>(error_);
     }
-    return Result<U>{std::forward<T>(val)};
+    return Result<T>(std::move(val));
   }
 
   // Resets the boundaries of this decoder.

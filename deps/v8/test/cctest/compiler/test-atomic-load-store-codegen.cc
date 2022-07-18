@@ -5,7 +5,7 @@
 #include "src/base/bits.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/test-codegen.h"
 #include "test/cctest/compiler/value-helper.h"
 
 namespace v8 {
@@ -254,7 +254,7 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
   uintptr_t zap_data[] = {kZapValue, kZapValue};
   TaggedT zap_value;
 
-  STATIC_ASSERT(sizeof(TaggedT) <= sizeof(zap_data));
+  static_assert(sizeof(TaggedT) <= sizeof(zap_data));
   MemCopy(&zap_value, &zap_data, sizeof(TaggedT));
   InitBuffer(in_buffer, kNumElems, type);
 

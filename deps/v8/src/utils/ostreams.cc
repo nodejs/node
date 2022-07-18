@@ -7,7 +7,6 @@
 #include <cinttypes>
 
 #include "src/base/lazy-instance.h"
-#include "src/objects/objects.h"
 #include "src/objects/string.h"
 
 #if V8_OS_WIN

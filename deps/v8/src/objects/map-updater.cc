@@ -366,7 +366,7 @@ base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate, Map old_map,
     info = DetectIntegrityLevelTransitions(old_map, isolate, &no_gc, cmode);
     // Bail out if there were some private symbol transitions mixed up
     // with the integrity level transitions.
-    if (!info.has_integrity_level_transition) return Map();
+    if (!info.has_integrity_level_transition) return {};
     // Make sure to replay the original elements kind transitions, before
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
@@ -1222,8 +1222,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
     dep_groups |= DependentCode::kFieldRepresentationGroup;
   }
 
-  field_owner->dependent_code().DeoptimizeDependentCodeGroup(isolate,
-                                                             dep_groups);
+  DependentCode::DeoptimizeDependencyGroups(isolate, *field_owner, dep_groups);
 
   if (FLAG_trace_generalization) {
     PrintGeneralization(

@@ -28,9 +28,6 @@ namespace internal {
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name, interface descriptor
 
-// TODO(jgruber): Remove DummyDescriptor once all ASM builtins have been
-// properly associated with their descriptor.
-
 // Builtins are additionally split into tiers, where the tier determines the
 // distance of the builtins table from the root register within IsolateData.
 //
@@ -46,14 +43,10 @@ namespace internal {
   /* Deoptimization entries. */                               \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
-  /* Replaces "Soft" for ABI compatibility. */                \
-  ASM(DeoptimizationEntry_Unused, DeoptimizationEntry)        \
                                                               \
   /* GC write barrier. */                                     \
-  TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
-  TFC(RecordWriteOmitRememberedSetSaveFP, WriteBarrier)       \
-  TFC(RecordWriteEmitRememberedSetIgnoreFP, WriteBarrier)     \
-  TFC(RecordWriteOmitRememberedSetIgnoreFP, WriteBarrier)     \
+  TFC(RecordWriteSaveFP, WriteBarrier)                        \
+  TFC(RecordWriteIgnoreFP, WriteBarrier)                      \
   TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                \
   TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)              \
                                                               \
@@ -148,16 +141,16 @@ namespace internal {
   ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
   TFC(Construct_Baseline, Construct_Baseline)                                  \
   TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
-  ASM(JSConstructStubGeneric, Dummy)                                           \
-  ASM(JSBuiltinsConstructStub, Dummy)                                          \
+  ASM(JSConstructStubGeneric, ConstructStub)                                   \
+  ASM(JSBuiltinsConstructStub, ConstructStub)                                  \
   TFC(FastNewObject, FastNewObject)                                            \
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, JSTrampoline)                                            \
                                                                                \
   /* Apply and entries */                                                      \
-  ASM(JSEntry, Dummy)                                                          \
-  ASM(JSConstructEntry, Dummy)                                                 \
+  ASM(JSEntry, JSEntry)                                                        \
+  ASM(JSConstructEntry, JSEntry)                                               \
   ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
   /* Call a JSValue. */                                                        \
   ASM(JSEntryTrampoline, JSTrampoline)                                         \
@@ -189,13 +182,13 @@ namespace internal {
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \
       InterpreterPushArgsThenConstruct)                                        \
-  ASM(InterpreterEnterAtBytecode, Dummy)                                       \
-  ASM(InterpreterEnterAtNextBytecode, Dummy)                                   \
-  ASM(InterpreterOnStackReplacement, ContextOnly)                              \
+  ASM(InterpreterEnterAtBytecode, Void)                                        \
+  ASM(InterpreterEnterAtNextBytecode, Void)                                    \
+  ASM(InterpreterOnStackReplacement, InterpreterOnStackReplacement)            \
                                                                                \
   /* Baseline Compiler */                                                      \
   ASM(BaselineOutOfLinePrologue, BaselineOutOfLinePrologue)                    \
-  ASM(BaselineOnStackReplacement, Void)                                        \
+  ASM(BaselineOnStackReplacement, BaselineOnStackReplacement)                  \
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
   ASM(BaselineOrInterpreterEnterAtBytecode, Void)                              \
   ASM(BaselineOrInterpreterEnterAtNextBytecode, Void)                          \
@@ -205,7 +198,7 @@ namespace internal {
   TFC(CompileLazy, JSTrampoline)                                               \
   TFC(CompileLazyDeoptimizedCode, JSTrampoline)                                \
   TFC(InstantiateAsmJs, JSTrampoline)                                          \
-  ASM(NotifyDeoptimized, Dummy)                                                \
+  ASM(NotifyDeoptimized, Void)                                                 \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \
   /* to continue in a JavaScript builtin to finish the functionality of a   */ \
@@ -227,10 +220,10 @@ namespace internal {
   /* stack parameter to the JavaScript builtin by the "WithResult"          */ \
   /* trampoline variant. The plain variant is used in EAGER deopt contexts  */ \
   /* and has no such special handling. */                                      \
-  ASM(ContinueToCodeStubBuiltin, Dummy)                                        \
-  ASM(ContinueToCodeStubBuiltinWithResult, Dummy)                              \
-  ASM(ContinueToJavaScriptBuiltin, Dummy)                                      \
-  ASM(ContinueToJavaScriptBuiltinWithResult, Dummy)                            \
+  ASM(ContinueToCodeStubBuiltin, ContinueToBuiltin)                            \
+  ASM(ContinueToCodeStubBuiltinWithResult, ContinueToBuiltin)                  \
+  ASM(ContinueToJavaScriptBuiltin, ContinueToBuiltin)                          \
+  ASM(ContinueToJavaScriptBuiltinWithResult, ContinueToBuiltin)                \
                                                                                \
   /* API callback handling */                                                  \
   ASM(CallApiCallback, ApiCallback)                                            \
@@ -245,6 +238,8 @@ namespace internal {
   TFC(AllocateInOldGeneration, Allocate)                                       \
   TFC(AllocateRegularInOldGeneration, Allocate)                                \
                                                                                \
+  TFC(NewHeapNumber, NewHeapNumber)                                            \
+                                                                               \
   /* TurboFan support builtins */                                              \
   TFS(CopyFastSmiOrObjectElements, kObject)                                    \
   TFC(GrowFastDoubleElements, GrowArrayElements)                               \
@@ -252,6 +247,7 @@ namespace internal {
                                                                                \
   /* Debugger */                                                               \
   TFJ(DebugBreakTrampoline, kDontAdaptArgumentsSentinel)                       \
+  ASM(RestartFrameTrampoline, RestartFrameTrampoline)                          \
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
@@ -366,6 +362,7 @@ namespace internal {
   /* ES6 #sec-array.prototype.fill */                                          \
   CPP(ArrayPrototypeFill)                                                      \
   /* ES7 #sec-array.prototype.includes */                                      \
+  TFS(ArrayIncludesSmi, kElements, kSearchElement, kLength, kFromIndex)        \
   TFS(ArrayIncludesSmiOrObject, kElements, kSearchElement, kLength,            \
       kFromIndex)                                                              \
   TFS(ArrayIncludesPackedDoubles, kElements, kSearchElement, kLength,          \
@@ -374,6 +371,7 @@ namespace internal {
       kFromIndex)                                                              \
   TFJ(ArrayIncludes, kDontAdaptArgumentsSentinel)                              \
   /* ES6 #sec-array.prototype.indexof */                                       \
+  TFS(ArrayIndexOfSmi, kElements, kSearchElement, kLength, kFromIndex)         \
   TFS(ArrayIndexOfSmiOrObject, kElements, kSearchElement, kLength, kFromIndex) \
   TFS(ArrayIndexOfPackedDoubles, kElements, kSearchElement, kLength,           \
       kFromIndex)                                                              \
@@ -383,9 +381,9 @@ namespace internal {
   /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop)                                                                \
   TFJ(ArrayPrototypePop, kDontAdaptArgumentsSentinel)                          \
-  /* ES6 #sec-array.prototype.groupby */                                       \
-  CPP(ArrayPrototypeGroupBy)                                                   \
-  CPP(ArrayPrototypeGroupByToMap)                                              \
+  /* ES6 #sec-array.prototype.group */                                         \
+  CPP(ArrayPrototypeGroup)                                                     \
+  CPP(ArrayPrototypeGroupToMap)                                                \
   /* ES6 #sec-array.prototype.push */                                          \
   CPP(ArrayPush)                                                               \
   TFJ(ArrayPrototypePush, kDontAdaptArgumentsSentinel)                         \
@@ -421,6 +419,8 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
   /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(ArrayBufferPrototypeResize)                                              \
+  /* proposal-resizablearraybuffer/#sec-arraybuffer.prototype.transfer */      \
+  CPP(ArrayBufferPrototypeTransfer)                                            \
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
@@ -454,6 +454,7 @@ namespace internal {
   CPP(CallSitePrototypeGetMethodName)                                          \
   CPP(CallSitePrototypeGetPosition)                                            \
   CPP(CallSitePrototypeGetPromiseIndex)                                        \
+  CPP(CallSitePrototypeGetScriptHash)                                          \
   CPP(CallSitePrototypeGetScriptNameOrSourceURL)                               \
   CPP(CallSitePrototypeGetThis)                                                \
   CPP(CallSitePrototypeGetTypeName)                                            \
@@ -595,6 +596,7 @@ namespace internal {
                                                                                \
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
+  TFC(CallIteratorWithFeedbackLazyDeoptContinuation, SingleParameterOnStack)   \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI)                                                         \
@@ -612,6 +614,10 @@ namespace internal {
   /* JSON */                                                                   \
   CPP(JsonParse)                                                               \
   CPP(JsonStringify)                                                           \
+                                                                               \
+  /* Web snapshots */                                                          \
+  CPP(WebSnapshotSerialize)                                                    \
+  CPP(WebSnapshotDeserialize)                                                  \
                                                                                \
   /* ICs */                                                                    \
   TFH(LoadIC, LoadWithVector)                                                  \
@@ -851,6 +857,7 @@ namespace internal {
   ASM(RegExpExperimentalTrampoline, CCall)                                     \
                                                                                \
   /* Set */                                                                    \
+  TFS(FindOrderedHashSetEntry, kTable, kKey)                                   \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   TFJ(SetPrototypeAdd, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
@@ -872,7 +879,11 @@ namespace internal {
   CPP(ShadowRealmConstructor)                                                  \
   TFS(ShadowRealmGetWrappedValue, kCreationContext, kTargetContext, kValue)    \
   CPP(ShadowRealmPrototypeEvaluate)                                            \
-  CPP(ShadowRealmPrototypeImportValue)                                         \
+  TFJ(ShadowRealmPrototypeImportValue, kJSArgcReceiverSlots + 2, kReceiver,    \
+      kSpecifier, kExportName)                                                 \
+  TFJ(ShadowRealmImportValueFulfilled, kJSArgcReceiverSlots + 1, kReceiver,    \
+      kExports)                                                                \
+  TFJ(ShadowRealmImportValueRejected, kDontAdaptArgumentsSentinel)             \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
@@ -880,12 +891,12 @@ namespace internal {
   /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(SharedArrayBufferPrototypeGrow)                                          \
                                                                                \
-  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedStruct,  \
+  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedObject,  \
       kIndexOrFieldName)                                                       \
-  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedStruct, \
+  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedObject, \
       kIndexOrFieldName, kValue)                                               \
   TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
-      kArrayOrSharedStruct, kIndexOrFieldName, kValue)                         \
+      kArrayOrSharedObject, kIndexOrFieldName, kValue)                         \
   TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
       kIndex, kOldValue, kNewValue)                                            \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
@@ -954,13 +965,14 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* Wasm */                                                                   \
-  IF_WASM(ASM, GenericJSToWasmWrapper, Dummy)                                  \
-  IF_WASM(ASM, WasmReturnPromiseOnSuspend, Dummy)                              \
+  IF_WASM(ASM, GenericJSToWasmWrapper, WasmDummy)                              \
+  IF_WASM(ASM, WasmReturnPromiseOnSuspend, WasmDummy)                          \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
-  IF_WASM(ASM, WasmResume, Dummy)                                              \
-  IF_WASM(ASM, WasmCompileLazy, Dummy)                                         \
-  IF_WASM(ASM, WasmDebugBreak, Dummy)                                          \
-  IF_WASM(ASM, WasmOnStackReplace, Dummy)                                      \
+  IF_WASM(ASM, WasmResume, WasmDummy)                                          \
+  IF_WASM(ASM, WasmReject, WasmDummy)                                          \
+  IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
+  IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
+  IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
   IF_WASM(TFC, WasmI32AtomicWait32, WasmI32AtomicWait32)                       \
@@ -985,9 +997,13 @@ namespace internal {
   TFS(WeakCollectionDelete, kCollection, kKey)                                 \
   TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
                                                                                \
-  /* JS Structs */                                                             \
+  /* JS Structs and friends */                                                 \
   CPP(SharedStructTypeConstructor)                                             \
   CPP(SharedStructConstructor)                                                 \
+  CPP(SharedArrayConstructor)                                                  \
+  CPP(AtomicsMutexConstructor)                                                 \
+  CPP(AtomicsMutexLock)                                                        \
+  CPP(AtomicsMutexTryLock)                                                     \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
@@ -1041,25 +1057,25 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
   /* CEntry */                                                                 \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
-  ASM(DirectCEntry, Dummy)                                                     \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit,                   \
+      CEntry1ArgvOnStack)                                                      \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)      \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
+  ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
-  ASM(StackCheck, Dummy)                                                       \
-  ASM(DoubleToI, Dummy)                                                        \
+  ASM(DoubleToI, Void)                                                         \
   TFC(GetProperty, GetProperty)                                                \
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
@@ -1164,6 +1180,8 @@ namespace internal {
   CPP(TemporalPlainDatePrototypeToString)                                      \
   /* Temporal #sec-temporal.plaindate.prototype.tojson */                      \
   CPP(TemporalPlainDatePrototypeToJSON)                                        \
+  /* Temporal #sec-temporal.plaindate.prototype.tolocalestring */              \
+  CPP(TemporalPlainDatePrototypeToLocaleString)                                \
   /* Temporal #sec-temporal.plaindate.prototype.valueof */                     \
   CPP(TemporalPlainDatePrototypeValueOf)                                       \
                                                                                \
@@ -1212,6 +1230,8 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeToString)                                      \
   /* Temporal #sec-temporal.plaindtimeprototype.tojson */                      \
   CPP(TemporalPlainTimePrototypeToJSON)                                        \
+  /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */              \
+  CPP(TemporalPlainTimePrototypeToLocaleString)                                \
   /* Temporal #sec-temporal.plaintime.prototype.valueof */                     \
   CPP(TemporalPlainTimePrototypeValueOf)                                       \
                                                                                \
@@ -1284,6 +1304,8 @@ namespace internal {
   CPP(TemporalPlainDateTimePrototypeToString)                                  \
   /* Temporal #sec-temporal.plainddatetimeprototype.tojson */                  \
   CPP(TemporalPlainDateTimePrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */          \
+  CPP(TemporalPlainDateTimePrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.plaindatetime.prototype.valueof */                 \
   CPP(TemporalPlainDateTimePrototypeValueOf)                                   \
   /* Temporal #sec-temporal.plaindatetime.prototype.tozoneddatetime */         \
@@ -1386,6 +1408,8 @@ namespace internal {
   CPP(TemporalZonedDateTimePrototypeToString)                                  \
   /* Temporal #sec-temporal.zonedddatetimeprototype.tojson */                  \
   CPP(TemporalZonedDateTimePrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */          \
+  CPP(TemporalZonedDateTimePrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.zoneddatetime.prototype.valueof */                 \
   CPP(TemporalZonedDateTimePrototypeValueOf)                                   \
   /* Temporal #sec-temporal.zoneddatetime.prototype.startofday */              \
@@ -1454,6 +1478,8 @@ namespace internal {
   CPP(TemporalDurationPrototypeToString)                                       \
   /* Temporal #sec-temporal.duration.tojson */                                 \
   CPP(TemporalDurationPrototypeToJSON)                                         \
+  /* Temporal #sec-temporal.duration.prototype.tolocalestring */               \
+  CPP(TemporalDurationPrototypeToLocaleString)                                 \
   /* Temporal #sec-temporal.duration.prototype.valueof */                      \
   CPP(TemporalDurationPrototypeValueOf)                                        \
                                                                                \
@@ -1496,6 +1522,8 @@ namespace internal {
   CPP(TemporalInstantPrototypeToString)                                        \
   /* Temporal #sec-temporal.instant.tojson */                                  \
   CPP(TemporalInstantPrototypeToJSON)                                          \
+  /* Temporal #sec-temporal.instant.prototype.tolocalestring */                \
+  CPP(TemporalInstantPrototypeToLocaleString)                                  \
   /* Temporal #sec-temporal.instant.prototype.valueof */                       \
   CPP(TemporalInstantPrototypeValueOf)                                         \
   /* Temporal #sec-temporal.instant.prototype.tozoneddatetime */               \
@@ -1542,6 +1570,8 @@ namespace internal {
   CPP(TemporalPlainYearMonthPrototypeToString)                                 \
   /* Temporal #sec-temporal.plainyearmonth.tojson */                           \
   CPP(TemporalPlainYearMonthPrototypeToJSON)                                   \
+  /* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */         \
+  CPP(TemporalPlainYearMonthPrototypeToLocaleString)                           \
   /* Temporal #sec-temporal.plainyearmonth.prototype.valueof */                \
   CPP(TemporalPlainYearMonthPrototypeValueOf)                                  \
   /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */            \
@@ -1570,6 +1600,8 @@ namespace internal {
   CPP(TemporalPlainMonthDayPrototypeToString)                                  \
   /* Temporal #sec-temporal.plainmonthday.tojson */                            \
   CPP(TemporalPlainMonthDayPrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */          \
+  CPP(TemporalPlainMonthDayPrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.plainmonthday.prototype.valueof */                 \
   CPP(TemporalPlainMonthDayPrototypeValueOf)                                   \
   /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */             \
@@ -1645,13 +1677,15 @@ namespace internal {
   /* Temporal #sec-temporal.calendar.prototype.inleapyear */                   \
   CPP(TemporalCalendarPrototypeInLeapYear)                                     \
   /* Temporal #sec-temporal.calendar.prototype.fields */                       \
-  CPP(TemporalCalendarPrototypeFields)                                         \
+  TFJ(TemporalCalendarPrototypeFields, kJSArgcReceiverSlots, kIterable)        \
   /* Temporal #sec-temporal.calendar.prototype.mergefields */                  \
   CPP(TemporalCalendarPrototypeMergeFields)                                    \
   /* Temporal #sec-temporal.calendar.prototype.tostring */                     \
   CPP(TemporalCalendarPrototypeToString)                                       \
   /* Temporal #sec-temporal.calendar.prototype.tojson */                       \
   CPP(TemporalCalendarPrototypeToJSON)                                         \
+  /* Temporal #sec-date.prototype.totemporalinstant */                         \
+  CPP(DatePrototypeToTemporalInstant)                                          \
                                                                                \
   /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
   TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)           \
@@ -1826,38 +1860,22 @@ namespace internal {
   CPP(TemporalCalendarPrototypeEra)                                    \
   /* Temporal #sec-temporal.calendar.prototype.erayear */              \
   CPP(TemporalCalendarPrototypeEraYear)                                \
-  /* Temporal #sec-temporal.duration.prototype.tolocalestring */       \
-  CPP(TemporalDurationPrototypeToLocaleString)                         \
-  /* Temporal #sec-temporal.instant.prototype.tolocalestring */        \
-  CPP(TemporalInstantPrototypeToLocaleString)                          \
   /* Temporal #sec-get-temporal.plaindate.prototype.era */             \
   CPP(TemporalPlainDatePrototypeEra)                                   \
   /* Temporal #sec-get-temporal.plaindate.prototype.erayear */         \
   CPP(TemporalPlainDatePrototypeEraYear)                               \
-  /* Temporal #sec-temporal.plaindate.prototype.tolocalestring */      \
-  CPP(TemporalPlainDatePrototypeToLocaleString)                        \
   /* Temporal #sec-get-temporal.plaindatetime.prototype.era */         \
   CPP(TemporalPlainDateTimePrototypeEra)                               \
   /* Temporal #sec-get-temporal.plaindatetime.prototype.erayear */     \
   CPP(TemporalPlainDateTimePrototypeEraYear)                           \
-  /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */  \
-  CPP(TemporalPlainDateTimePrototypeToLocaleString)                    \
-  /* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */  \
-  CPP(TemporalPlainMonthDayPrototypeToLocaleString)                    \
-  /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */      \
-  CPP(TemporalPlainTimePrototypeToLocaleString)                        \
   /* Temporal #sec-get-temporal.plainyearmonth.prototype.era */        \
   CPP(TemporalPlainYearMonthPrototypeEra)                              \
   /* Temporal #sec-get-temporal.plainyearmonth.prototype.erayear */    \
   CPP(TemporalPlainYearMonthPrototypeEraYear)                          \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */ \
-  CPP(TemporalPlainYearMonthPrototypeToLocaleString)                   \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */         \
   CPP(TemporalZonedDateTimePrototypeEra)                               \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */     \
   CPP(TemporalZonedDateTimePrototypeEraYear)                           \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */  \
-  CPP(TemporalZonedDateTimePrototypeToLocaleString)                    \
                                                                        \
   CPP(V8BreakIteratorConstructor)                                      \
   CPP(V8BreakIteratorInternalAdoptText)                                \

@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
+
 namespace compiler {  // external declarations from compiler.
 class NodeOriginTable;
 class WasmGraphBuilder;

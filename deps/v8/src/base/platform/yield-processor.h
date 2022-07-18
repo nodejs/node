@@ -11,6 +11,16 @@
 // other hyper-thread on this core. See the following for context:
 // https://software.intel.com/en-us/articles/benefitting-power-and-performance-sleep-loops
 
+#if defined(THREAD_SANITIZER)
+#include "src/base/platform/platform.h"
+// TSAN intercepts atomic accesses and uses locking. Since YIELD_PROCESSOR is
+// used in spinlock loops in conjunction with atomic accesses, such spinlock
+// loops can exhibit starvation in TSAN. To work around the problem, have
+// YIELD_PROCESSOR sleep the process for 1ms.
+#define YIELD_PROCESSOR base::OS::Sleep(base::TimeDelta::FromMilliseconds(1))
+
+#else  // !THREAD_SANITIZER
+
 #if defined(V8_CC_MSVC)
 // MSVC does not support inline assembly via __asm__ and provides compiler
 // intrinsics instead. Check if there is a usable intrinsic.
@@ -47,6 +57,8 @@
 #endif  // V8_HOST_ARCH
 
 #endif  // V8_CC_MSVC
+
+#endif  // THREAD_SANITIZER
 
 #ifndef YIELD_PROCESSOR
 #define YIELD_PROCESSOR ((void)0)

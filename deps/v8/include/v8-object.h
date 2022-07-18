@@ -594,8 +594,6 @@ class V8_EXPORT Object : public Value {
   /**
    * Returns the context in which the object was created.
    */
-  V8_DEPRECATED("Use MaybeLocal<Context> GetCreationContext()")
-  Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
   /**
@@ -604,10 +602,6 @@ class V8_EXPORT Object : public Value {
   Local<Context> GetCreationContextChecked();
 
   /** Same as above, but works for Persistents */
-  V8_DEPRECATED(
-      "Use MaybeLocal<Context> GetCreationContext(const "
-      "PersistentBase<Object>& object)")
-  static Local<Context> CreationContext(const PersistentBase<Object>& object);
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
       const PersistentBase<Object>& object) {
     return object.val_->GetCreationContext();
@@ -717,7 +711,7 @@ Local<Value> Object::GetInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
-  if (v8::internal::CanHaveInternalField(instance_type)) {
+  if (I::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
@@ -742,14 +736,13 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
-  if (v8::internal::CanHaveInternalField(instance_type)) {
-    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    offset += I::kEmbedderDataSlotRawPayloadOffset;
-#endif
-    internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
-    A value = I::ReadExternalPointerField(
-        isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);
+  if (I::CanHaveInternalField(instance_type)) {
+    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index) +
+                 I::kEmbedderDataSlotExternalPointerOffset;
+    Isolate* isolate = I::GetIsolateForSandbox(obj);
+    A value =
+        I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+            isolate, obj, offset);
     return reinterpret_cast<void*>(value);
   }
 #endif

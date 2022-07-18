@@ -27,13 +27,15 @@ class StructBodyDescriptor;
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
+class AccessorInfo
+    : public TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject> {
  public:
   // This directly points at a foreign C function to be used from the runtime.
-  DECL_ACCESSORS(getter, Object)
+  DECL_EXTERNAL_POINTER_ACCESSORS(getter, Address)
   inline bool has_getter();
-  DECL_ACCESSORS(setter, Object)
+  DECL_EXTERNAL_POINTER_ACCESSORS(setter, Address)
   inline bool has_setter();
+  DECL_EXTERNAL_POINTER_ACCESSORS(js_getter, Address)
 
   static Address redirect(Address address, AccessorComponent component);
   Address redirected_getter() const;
@@ -68,10 +70,14 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
 
   DECL_PRINTER(AccessorInfo)
 
-  using BodyDescriptor = StructBodyDescriptor;
+  inline void clear_padding();
+
+  class BodyDescriptor;
 
  private:
-  inline bool HasExpectedReceiverType();
+  friend class Factory;
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
@@ -106,7 +112,7 @@ class InterceptorInfo
 };
 
 class CallHandlerInfo
-    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, Struct> {
+    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, HeapObject> {
  public:
   inline bool IsSideEffectFreeCallHandlerInfo() const;
   inline bool IsSideEffectCallHandlerInfo() const;
@@ -119,9 +125,22 @@ class CallHandlerInfo
   DECL_PRINTER(CallHandlerInfo)
   DECL_VERIFIER(CallHandlerInfo)
 
+  // [callback]: the address of the callback function.
+  DECL_EXTERNAL_POINTER_ACCESSORS(callback, Address)
+
+  // [js_callback]: either the address of the callback function as above,
+  // or a trampoline in case we are running with the simulator.
+  // Use this entry from generated code.
+  DECL_EXTERNAL_POINTER_ACCESSORS(js_callback, Address)
+
   Address redirected_callback() const;
 
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
+
+ private:
+  friend class Factory;
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };

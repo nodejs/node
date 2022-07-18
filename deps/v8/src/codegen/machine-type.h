@@ -6,6 +6,7 @@
 #define V8_CODEGEN_MACHINE_TYPE_H_
 
 #include <iosfwd>
+#include <limits>
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/bits.h"
@@ -48,8 +49,9 @@ enum class MachineRepresentation : uint8_t {
   kFloat32,
   kFloat64,
   kSimd128,
+  kSimd256,
   kFirstFPRepresentation = kFloat32,
-  kLastRepresentation = kSimd128
+  kLastRepresentation = kSimd256
 };
 
 bool IsSubtype(MachineRepresentation rep1, MachineRepresentation rep2);
@@ -64,10 +66,11 @@ ASSERT_CONSECUTIVE(Word16, Word32)
 ASSERT_CONSECUTIVE(Word32, Word64)
 ASSERT_CONSECUTIVE(Float32, Float64)
 ASSERT_CONSECUTIVE(Float64, Simd128)
+ASSERT_CONSECUTIVE(Simd128, Simd256)
 #undef ASSERT_CONSECUTIVE
 
 static_assert(MachineRepresentation::kLastRepresentation ==
-                  MachineRepresentation::kSimd128,
+                  MachineRepresentation::kSimd256,
               "FP and SIMD representations must be last.");
 
 static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
@@ -201,6 +204,9 @@ class MachineType {
   constexpr static MachineType Simd128() {
     return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
   }
+  constexpr static MachineType Simd256() {
+    return MachineType(MachineRepresentation::kSimd256, MachineSemantic::kNone);
+  }
   constexpr static MachineType Pointer() {
     return MachineType(PointerRepresentation(), MachineSemantic::kNone);
   }
@@ -258,6 +264,8 @@ class MachineType {
         return MachineType::Float64();
       case MachineRepresentation::kSimd128:
         return MachineType::Simd128();
+      case MachineRepresentation::kSimd256:
+        return MachineType::Simd256();
       case MachineRepresentation::kTagged:
         return MachineType::AnyTagged();
       case MachineRepresentation::kTaggedSigned:
@@ -389,6 +397,8 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
       return 3;
     case MachineRepresentation::kSimd128:
       return 4;
+    case MachineRepresentation::kSimd256:
+      return 5;
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
@@ -407,14 +417,33 @@ constexpr int kMaximumReprSizeLog2 =
     ElementSizeLog2Of(MachineRepresentation::kSimd128);
 constexpr int kMaximumReprSizeInBytes = 1 << kTaggedSizeLog2;
 
-STATIC_ASSERT(kMaximumReprSizeLog2 >=
+static_assert(kMaximumReprSizeLog2 >=
               ElementSizeLog2Of(MachineRepresentation::kTagged));
-STATIC_ASSERT(kMaximumReprSizeLog2 >=
+static_assert(kMaximumReprSizeLog2 >=
               ElementSizeLog2Of(MachineRepresentation::kWord64));
 
 V8_EXPORT_PRIVATE inline constexpr int ElementSizeInBytes(
     MachineRepresentation rep) {
   return 1 << ElementSizeLog2Of(rep);
+}
+
+inline constexpr int ElementSizeInBits(MachineRepresentation rep) {
+  return 8 * ElementSizeInBytes(rep);
+}
+
+inline constexpr uint64_t MaxUnsignedValue(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      return std::numeric_limits<uint8_t>::max();
+    case MachineRepresentation::kWord16:
+      return std::numeric_limits<uint16_t>::max();
+    case MachineRepresentation::kWord32:
+      return std::numeric_limits<uint32_t>::max();
+    case MachineRepresentation::kWord64:
+      return std::numeric_limits<uint64_t>::max();
+    default:
+      UNREACHABLE();
+  }
 }
 
 V8_EXPORT_PRIVATE inline constexpr int ElementSizeInPointers(

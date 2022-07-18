@@ -10,11 +10,9 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
-#include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -313,7 +311,7 @@ void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
   constexpr int short_star_to_operand =
       Register(0).ToOperand() - static_cast<int>(Bytecode::kStar0);
   // Make sure the values count in the right direction.
-  STATIC_ASSERT(short_star_to_operand ==
+  static_assert(short_star_to_operand ==
                 Register(1).ToOperand() - static_cast<int>(Bytecode::kStar1));
 
   TNode<IntPtrT> offset =
@@ -683,9 +681,12 @@ InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
   return SmiUntag(CAST(LoadConstantPoolEntryAtOperandIndex(operand_index)));
 }
 
+TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
+  return CAST(LoadRegister(Register::function_closure()));
+}
+
 TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  return CodeStubAssembler::LoadFeedbackVector(function);
+  return CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure());
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -1173,9 +1174,9 @@ void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
   // opcodes are never deliberately written, so we can use a one-sided check.
   // This is no less secure than the normal-length Star handler, which performs
   // no validation on its operand.
-  STATIC_ASSERT(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
+  static_assert(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
                 static_cast<int>(Bytecode::kIllegal));
-  STATIC_ASSERT(Bytecode::kIllegal == Bytecode::kLast);
+  static_assert(Bytecode::kIllegal == Bytecode::kLast);
   TNode<Int32T> first_short_star_bytecode =
       Int32Constant(static_cast<int>(Bytecode::kFirstShortStar));
   TNode<BoolT> is_star = Uint32GreaterThanOrEqual(
@@ -1313,12 +1314,12 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-TNode<Int16T> InterpreterAssembler::LoadOsrUrgencyAndInstallTarget() {
-  // We're loading a 16-bit field, mask it.
-  return UncheckedCast<Int16T>(Word32And(
-      LoadObjectField<Int16T>(BytecodeArrayTaggedPointer(),
-                              BytecodeArray::kOsrUrgencyAndInstallTargetOffset),
-      0xFFFF));
+TNode<Int8T> InterpreterAssembler::LoadOsrState(
+    TNode<FeedbackVector> feedback_vector) {
+  // We're loading an 8-bit field, mask it.
+  return UncheckedCast<Int8T>(Word32And(
+      LoadObjectField<Int8T>(feedback_vector, FeedbackVector::kOsrStateOffset),
+      0xFF));
 }
 
 void InterpreterAssembler::Abort(AbortReason abort_reason) {
@@ -1339,23 +1340,69 @@ void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
   BIND(&ok);
 }
 
-void InterpreterAssembler::OnStackReplacement(TNode<Context> context,
-                                              TNode<IntPtrT> relative_jump) {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  TNode<HeapObject> shared_info = LoadJSFunctionSharedFunctionInfo(function);
-  TNode<Object> sfi_data =
-      LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
-  TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+void InterpreterAssembler::OnStackReplacement(
+    TNode<Context> context, TNode<FeedbackVector> feedback_vector,
+    TNode<IntPtrT> relative_jump, TNode<Int32T> loop_depth,
+    TNode<IntPtrT> feedback_slot, TNode<Int8T> osr_state,
+    OnStackReplacementParams params) {
+  // Three cases may cause us to attempt OSR, in the following order:
+  //
+  // 1) Presence of cached OSR Turbofan code.
+  // 2) Presence of cached OSR Sparkplug code.
+  // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
+  //    a Turbofan OSR compilation.
+  TVARIABLE(Object, maybe_target_code, SmiConstant(0));
+  Label osr_to_turbofan(this), osr_to_sparkplug(this);
 
-  Label baseline(this);
-  GotoIf(InstanceTypeEqual(data_type, CODET_TYPE), &baseline);
+  // Case 1).
+  {
+    Label next(this);
+    TNode<MaybeObject> maybe_cached_osr_code =
+        LoadFeedbackVectorSlot(feedback_vector, feedback_slot);
+    GotoIf(IsCleared(maybe_cached_osr_code), &next);
+    maybe_target_code = GetHeapObjectAssumeWeak(maybe_cached_osr_code);
+
+    // Is it marked_for_deoptimization? If yes, clear the slot.
+    GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
+              &osr_to_turbofan);
+    StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
+                            ClearedValue(), UNSAFE_SKIP_WRITE_BARRIER);
+    maybe_target_code = SmiConstant(0);
+
+    Goto(&next);
+    BIND(&next);
+  }
+
+  // Case 2).
+  if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
+    Goto(&osr_to_sparkplug);
+  } else {
+    DCHECK_EQ(params, OnStackReplacementParams::kDefault);
+    TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+        LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+    TNode<HeapObject> sfi_data = LoadObjectField<HeapObject>(
+        sfi, SharedFunctionInfo::kFunctionDataOffset);
+    GotoIf(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
+           &osr_to_sparkplug);
+
+    // Case 3).
+    {
+      static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
+      TNode<Int32T> osr_urgency = Word32And(
+          osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
+      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_turbofan);
+      JumpBackward(relative_jump);
+    }
+  }
+
+  BIND(&osr_to_turbofan);
   {
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    CallStub(callable, context);
+    CallStub(callable, context, maybe_target_code.value());
     JumpBackward(relative_jump);
   }
 
-  BIND(&baseline);
+  BIND(&osr_to_sparkplug);
   {
     Callable callable =
         CodeFactory::InterpreterOnStackReplacement_ToBaseline(isolate());

@@ -46,6 +46,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/codegen/riscv64/register-riscv64.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 
@@ -532,86 +533,86 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void flw(FPURegister rd, Register rs1, int16_t imm12);
   void fsw(FPURegister source, Register base, int16_t imm12);
   void fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-               FPURegister rs3, RoundingMode frm = RNE);
+               FPURegister rs3, FPURoundingMode frm = RNE);
   void fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-               FPURegister rs3, RoundingMode frm = RNE);
+               FPURegister rs3, FPURoundingMode frm = RNE);
   void fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                FPURegister rs3, RoundingMode frm = RNE);
+                FPURegister rs3, FPURoundingMode frm = RNE);
   void fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                FPURegister rs3, RoundingMode frm = RNE);
+                FPURegister rs3, FPURoundingMode frm = RNE);
   void fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
-  void fsqrt_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
+  void fsqrt_s(FPURegister rd, FPURegister rs1, FPURoundingMode frm = RNE);
   void fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void fcvt_w_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_wu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_w_s(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_wu_s(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
   void fmv_x_w(Register rd, FPURegister rs1);
   void feq_s(Register rd, FPURegister rs1, FPURegister rs2);
   void flt_s(Register rd, FPURegister rs1, FPURegister rs2);
   void fle_s(Register rd, FPURegister rs1, FPURegister rs2);
   void fclass_s(Register rd, FPURegister rs1);
-  void fcvt_s_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void fcvt_s_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_s_w(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
+  void fcvt_s_wu(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
   void fmv_w_x(FPURegister rd, Register rs1);
 
   // RV64F Standard Extension (in addition to RV32F)
-  void fcvt_l_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_lu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_s_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void fcvt_s_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_l_s(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_lu_s(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_s_l(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
+  void fcvt_s_lu(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
 
   // RV32D Standard Extension
   void fld(FPURegister rd, Register rs1, int16_t imm12);
   void fsd(FPURegister source, Register base, int16_t imm12);
   void fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-               FPURegister rs3, RoundingMode frm = RNE);
+               FPURegister rs3, FPURoundingMode frm = RNE);
   void fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-               FPURegister rs3, RoundingMode frm = RNE);
+               FPURegister rs3, FPURoundingMode frm = RNE);
   void fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                FPURegister rs3, RoundingMode frm = RNE);
+                FPURegister rs3, FPURoundingMode frm = RNE);
   void fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                FPURegister rs3, RoundingMode frm = RNE);
+                FPURegister rs3, FPURoundingMode frm = RNE);
   void fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
   void fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-              RoundingMode frm = RNE);
-  void fsqrt_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+              FPURoundingMode frm = RNE);
+  void fsqrt_d(FPURegister rd, FPURegister rs1, FPURoundingMode frm = RNE);
   void fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void fcvt_s_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_d_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_s_d(FPURegister rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_d_s(FPURegister rd, FPURegister rs1, FPURoundingMode frm = RNE);
   void feq_d(Register rd, FPURegister rs1, FPURegister rs2);
   void flt_d(Register rd, FPURegister rs1, FPURegister rs2);
   void fle_d(Register rd, FPURegister rs1, FPURegister rs2);
   void fclass_d(Register rd, FPURegister rs1);
-  void fcvt_w_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_wu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_d_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void fcvt_d_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_w_d(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_wu_d(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_d_w(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
+  void fcvt_d_wu(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
 
   // RV64D Standard Extension (in addition to RV32D)
-  void fcvt_l_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void fcvt_lu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_l_d(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
+  void fcvt_lu_d(Register rd, FPURegister rs1, FPURoundingMode frm = RNE);
   void fmv_x_d(Register rd, FPURegister rs1);
-  void fcvt_d_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void fcvt_d_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_d_l(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
+  void fcvt_d_lu(FPURegister rd, Register rs1, FPURoundingMode frm = RNE);
   void fmv_d_x(FPURegister rd, Register rs1);
 
   // RV64C Standard Extension
@@ -1350,7 +1351,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       set(rd, VSew(sew), Vlmul(lmul));
     }
 
-    void set(RoundingMode mode) {
+    void set(FPURoundingMode mode) {
       if (mode_ != mode) {
         assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
         assm_->fscsr(kScratchReg);
@@ -1379,7 +1380,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     Vlmul lmul_ = m1;
     int32_t vl = 0;
     Assembler* assm_;
-    RoundingMode mode_ = RNE;
+    FPURoundingMode mode_ = RNE;
   };
 
   VectorUnit VU;
@@ -1503,7 +1504,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 64;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
@@ -1561,14 +1562,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
                  FPURegister rs1, FPURegister rs2);
   void GenInstrR4(uint8_t funct2, Opcode opcode, Register rd, Register rs1,
-                  Register rs2, Register rs3, RoundingMode frm);
+                  Register rs2, Register rs3, FPURoundingMode frm);
   void GenInstrR4(uint8_t funct2, Opcode opcode, FPURegister rd,
                   FPURegister rs1, FPURegister rs2, FPURegister rs3,
-                  RoundingMode frm);
+                  FPURoundingMode frm);
   void GenInstrRAtomic(uint8_t funct5, bool aq, bool rl, uint8_t funct3,
                        Register rd, Register rs1, Register rs2);
   void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
-                    Register rs2, RoundingMode frm);
+                    Register rs2, FPURoundingMode frm);
   void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
                  int16_t imm12);
   void GenInstrI(uint8_t funct3, Opcode opcode, FPURegister rd, Register rs1,

@@ -345,6 +345,7 @@ header = '''
 #include "src/objects/data-handler.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
+#include "src/objects/megadom-handler.h"
 
 namespace v8 {
 namespace internal {

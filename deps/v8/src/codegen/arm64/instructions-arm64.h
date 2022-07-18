@@ -187,7 +187,7 @@ class Instruction {
     uint32_t bit5_to_0 = bits & 0x3f;
     uint32_t result = (bit7 << 31) | ((32 - bit6) << 25) | (bit5_to_0 << 19);
 
-    return bit_cast<float>(result);
+    return base::bit_cast<float>(result);
   }
 
   static double Imm8ToFP64(uint32_t imm8) {
@@ -201,7 +201,7 @@ class Instruction {
     uint64_t bit5_to_0 = bits & 0x3f;
     uint64_t result = (bit7 << 63) | ((256 - bit6) << 54) | (bit5_to_0 << 48);
 
-    return bit_cast<double>(result);
+    return base::bit_cast<double>(result);
   }
 
   bool IsLdrLiteral() const {

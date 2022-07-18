@@ -45,7 +45,10 @@ enum BoundsCheckStrategy : int8_t {
   kNoBoundsChecks
 };
 
-enum class DynamicTiering { kEnabled, kDisabled };
+enum DynamicTiering : bool {
+  kDynamicTiering = true,
+  kNoDynamicTiering = false
+};
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
@@ -108,14 +111,12 @@ class WireBytesStorage {
   virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
-// Callbacks will receive either {kFailedCompilation} or both
-// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
-// order. If tier up is off, both events are delivered right after each other.
+// Callbacks will receive either {kFailedCompilation} or
+// {kFinishedBaselineCompilation}.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedExportWrappers,
   kFinishedCompilationChunk,
-  kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation
 };
@@ -126,14 +127,17 @@ class V8_EXPORT_PRIVATE CompilationEventCallback {
 
   virtual void call(CompilationEvent event) = 0;
 
-  enum class ReleaseAfterFinalEvent { kRelease, kKeep };
+  enum ReleaseAfterFinalEvent : bool {
+    kReleaseAfterFinalEvent = true,
+    kKeepAfterFinalEvent = false
+  };
 
   // Tells the module compiler whether to keep or to release a callback when the
   // compilation state finishes all compilation units. Most callbacks should be
   // released, that's why there is a default implementation, but the callback
   // for code caching with dynamic tiering has to stay alive.
   virtual ReleaseAfterFinalEvent release_after_final_event() {
-    return ReleaseAfterFinalEvent::kRelease;
+    return kReleaseAfterFinalEvent;
   }
 };
 
@@ -161,15 +165,11 @@ class V8_EXPORT_PRIVATE CompilationState {
       base::Vector<const int> lazy_functions,
       base::Vector<const int> liftoff_functions);
 
-  // Wait until top tier compilation finished, or compilation failed.
-  void WaitForTopTierFinished();
-
   // Set a higher priority for the compilation job.
   void SetHighPriority();
 
   bool failed() const;
   bool baseline_compilation_finished() const;
-  bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
 
   void set_compilation_id(int compilation_id);

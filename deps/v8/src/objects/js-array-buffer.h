@@ -259,8 +259,8 @@ class JSArrayBufferView
 
   static constexpr int kEndOfTaggedFieldsOffset = kByteOffsetOffset;
 
-  STATIC_ASSERT(IsAligned(kByteOffsetOffset, kUIntptrSize));
-  STATIC_ASSERT(IsAligned(kByteLengthOffset, kUIntptrSize));
+  static_assert(IsAligned(kByteOffsetOffset, kUIntptrSize));
+  static_assert(IsAligned(kByteLengthOffset, kUIntptrSize));
 
   TQ_OBJECT_CONSTRUCTORS(JSArrayBufferView)
 };
@@ -310,6 +310,10 @@ class JSTypedArray
   inline bool IsOutOfBounds() const;
   inline bool IsDetachedOrOutOfBounds() const;
 
+  static inline void ForFixedTypedArray(ExternalArrayType array_type,
+                                        size_t* element_size,
+                                        ElementsKind* element_kind);
+
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);
 
@@ -353,8 +357,8 @@ class JSTypedArray
   DECL_VERIFIER(JSTypedArray)
 
   // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
-  // STATIC_ASSERT(IsAligned(kLengthOffset, kTaggedSize));
-  // STATIC_ASSERT(IsAligned(kExternalPointerOffset, kTaggedSize));
+  // static_assert(IsAligned(kLengthOffset, kTaggedSize));
+  // static_assert(IsAligned(kExternalPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -372,6 +376,7 @@ class JSTypedArray
   template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
+  friend class WebSnapshotDeserializer;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
   // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
@@ -400,7 +405,7 @@ class JSDataView
   DECL_VERIFIER(JSDataView)
 
   // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
-  // STATIC_ASSERT(IsAligned(kDataPointerOffset, kTaggedSize));
+  // static_assert(IsAligned(kDataPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +

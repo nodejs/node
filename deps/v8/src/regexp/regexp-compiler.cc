@@ -175,16 +175,16 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 namespace {
 
 constexpr base::uc32 MaxCodeUnit(const bool one_byte) {
-  STATIC_ASSERT(String::kMaxOneByteCharCodeU <=
+  static_assert(String::kMaxOneByteCharCodeU <=
                 std::numeric_limits<uint16_t>::max());
-  STATIC_ASSERT(String::kMaxUtf16CodeUnitU <=
+  static_assert(String::kMaxUtf16CodeUnitU <=
                 std::numeric_limits<uint16_t>::max());
   return one_byte ? String::kMaxOneByteCharCodeU : String::kMaxUtf16CodeUnitU;
 }
 
 constexpr uint32_t CharMask(const bool one_byte) {
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(String::kMaxOneByteCharCodeU + 1));
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(String::kMaxUtf16CodeUnitU + 1));
+  static_assert(base::bits::IsPowerOfTwo(String::kMaxOneByteCharCodeU + 1));
+  static_assert(base::bits::IsPowerOfTwo(String::kMaxUtf16CodeUnitU + 1));
   return MaxCodeUnit(one_byte);
 }
 
@@ -740,7 +740,7 @@ namespace {
 
 #ifdef DEBUG
 bool ContainsOnlyUtf16CodeUnits(unibrow::uchar* chars, int length) {
-  STATIC_ASSERT(sizeof(unibrow::uchar) == 4);
+  static_assert(sizeof(unibrow::uchar) == 4);
   for (int i = 0; i < length; i++) {
     if (chars[i] > String::kMaxUtf16CodeUnit) return false;
   }
@@ -2723,7 +2723,7 @@ ContainedInLattice AddRange(ContainedInLattice containment, const int* ranges,
 }
 
 int BitsetFirstSetBit(BoyerMoorePositionInfo::Bitset bitset) {
-  STATIC_ASSERT(BoyerMoorePositionInfo::kMapSize ==
+  static_assert(BoyerMoorePositionInfo::kMapSize ==
                 2 * kInt64Size * kBitsPerByte);
 
   // Slight fiddling is needed here, since the bitset is of length 128 while
@@ -2734,7 +2734,7 @@ int BitsetFirstSetBit(BoyerMoorePositionInfo::Bitset bitset) {
   {
     static constexpr BoyerMoorePositionInfo::Bitset mask(~uint64_t{0});
     BoyerMoorePositionInfo::Bitset masked_bitset = bitset & mask;
-    STATIC_ASSERT(kInt64Size >= sizeof(decltype(masked_bitset.to_ullong())));
+    static_assert(kInt64Size >= sizeof(decltype(masked_bitset.to_ullong())));
     uint64_t lsb = masked_bitset.to_ullong();
     if (lsb != 0) return base::bits::CountTrailingZeros(lsb);
   }
@@ -3805,7 +3805,7 @@ void BackReferenceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   SaveBMInfo(bm, not_at_start, offset);
 }
 
-STATIC_ASSERT(BoyerMoorePositionInfo::kMapSize ==
+static_assert(BoyerMoorePositionInfo::kMapSize ==
               RegExpMacroAssembler::kTableSize);
 
 void ChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -3952,7 +3952,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
 
 void RegExpCompiler::ToNodeCheckForStackOverflow() {
   if (StackLimitCheck{isolate()}.HasOverflowed()) {
-    FatalProcessOutOfMemory(isolate(), "RegExpCompiler");
+    V8::FatalProcessOutOfMemory(isolate(), "RegExpCompiler");
   }
 }
 

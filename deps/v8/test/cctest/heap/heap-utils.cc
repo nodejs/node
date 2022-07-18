@@ -5,6 +5,7 @@
 #include "test/cctest/heap/heap-utils.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -110,12 +111,10 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
           heap->CreateFillerObjectAt(
-              *heap->old_space()->allocation_top_address(), free_memory,
-              ClearRecordedSlots::kNo);
+              *heap->old_space()->allocation_top_address(), free_memory);
         } else {
           heap->CreateFillerObjectAt(
-              *heap->new_space()->allocation_top_address(), free_memory,
-              ClearRecordedSlots::kNo);
+              *heap->new_space()->allocation_top_address(), free_memory);
         }
         break;
       }
@@ -136,6 +135,18 @@ bool FillCurrentPage(v8::internal::NewSpace* space,
   return heap::FillCurrentPageButNBytes(space, 0, out_handles);
 }
 
+namespace {
+int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
+  Address top = space->top();
+  if ((top & kPageAlignmentMask) == 0) {
+    // `top` points to the start of a page signifies that there is not room in
+    // the current page.
+    return 0;
+  }
+  return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
+}
+}  // namespace
+
 bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
                               std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
@@ -144,8 +155,7 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // the current allocation pointer.
   DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
-  int space_remaining =
-      static_cast<int>(space->to_space().page_high() - space->top());
+  int space_remaining = GetSpaceRemainingOnCurrentPage(space);
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return false;
@@ -185,15 +195,14 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   CHECK(marking->IsMarking() || marking->IsComplete());
   if (!force_completion) return;
 
+  SafepointScope scope(heap);
+  MarkingBarrier::PublishAll(heap);
+  marking->MarkRootsForTesting();
+
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+    marking->Step(kStepSizeInMs,
+                  i::IncrementalMarking::CompletionAction::kGCViaTask,
                   i::StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
-      MarkingBarrier::PublishAll(heap);
-      marking->MarkRootsForTesting();
-      marking->FinalizeIncrementally();
-    }
   }
   CHECK(marking->IsComplete());
 }
@@ -203,7 +212,7 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // FLAG_stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!FLAG_stress_concurrent_allocation);
-  CodePageCollectionMemoryModificationScope modification_scope(space->heap());
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted(
@@ -239,8 +248,7 @@ void ForceEvacuationCandidate(Page* page) {
   if (top < limit && Page::FromAllocationAreaAddress(top) == page) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining = static_cast<int>(limit - top);
-    space->heap()->CreateFillerObjectAt(top, remaining,
-                                        ClearRecordedSlots::kNo);
+    space->heap()->CreateFillerObjectAt(top, remaining);
     base::MutexGuard guard(space->mutex());
     space->FreeLinearAllocationArea();
   }

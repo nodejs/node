@@ -64,4 +64,8 @@ extern class Script extends Struct {
   // Used to make sure we are backwards compatible with node to gaurantee
   // the same lifetime for ScriptOrModule as the Script they originated.
   @if(V8_SCRIPTORMODULE_LEGACY_LIFETIME) script_or_modules: ArrayList;
+
+  // [source_hash]: Calculated once per file if the source text is available,
+  // represents the SHA-256 of the content
+  source_hash: String|Undefined;
 }

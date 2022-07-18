@@ -8,7 +8,6 @@
 #include <map>
 #include <vector>
 
-#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

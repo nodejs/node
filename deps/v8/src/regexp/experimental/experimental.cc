@@ -47,7 +47,7 @@ bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
 
 template <class T>
 Handle<ByteArray> VectorToByteArray(Isolate* isolate, base::Vector<T> data) {
-  STATIC_ASSERT(std::is_trivial<T>::value);
+  static_assert(std::is_trivial<T>::value);
 
   int byte_length = sizeof(T) * data.length();
   Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(byte_length);

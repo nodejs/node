@@ -10,14 +10,14 @@
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
 
@@ -252,7 +252,7 @@ void Serializer::PutRoot(RootIndex root) {
 
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
-  STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
+  static_assert(static_cast<int>(RootIndex::kArgumentsMarker) ==
                 kRootArrayConstantsCount - 1);
 
   // TODO(ulan): Check that it works with young large objects.
@@ -270,8 +270,8 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   // Serializing a smi root in compressed pointer builds will serialize the
   // full object slot (of kSystemPointerSize) to avoid complications during
   // deserialization (endianness or smi sequences).
-  STATIC_ASSERT(decltype(slot)::kSlotDataSize == sizeof(Address));
-  STATIC_ASSERT(decltype(slot)::kSlotDataSize == kSystemPointerSize);
+  static_assert(decltype(slot)::kSlotDataSize == sizeof(Address));
+  static_assert(decltype(slot)::kSlotDataSize == kSystemPointerSize);
   static constexpr int bytes_to_output = decltype(slot)::kSlotDataSize;
   static constexpr int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
   sink_.Put(FixedRawDataWithSize::Encode(size_in_tagged), "Smi");
@@ -513,13 +513,14 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
     if (typed_array.is_on_heap()) {
       typed_array.RemoveExternalPointerCompensationForSerialization(isolate());
     } else {
-      if (!typed_array.WasDetached()) {
+      if (!typed_array.IsDetachedOrOutOfBounds()) {
         // Explicitly serialize the backing store now.
         JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
         // We cannot store byte_length or max_byte_length larger than int32
         // range in the snapshot.
-        CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
-        int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
+        size_t byte_length_size = buffer.GetByteLength();
+        CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
+        int32_t byte_length = static_cast<int32_t>(byte_length_size);
         Maybe<int32_t> max_byte_length = Nothing<int32_t>();
         if (buffer.is_resizable()) {
           CHECK_LE(buffer.max_byte_length(),
@@ -686,8 +687,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
 
   ~UnlinkWeakNextScope() {
     if (next_ == Smi::zero()) return;
-    AllocationSite::cast(object_).set_weak_next(next_,
-                                                UPDATE_WEAK_WRITE_BARRIER);
+    AllocationSite::cast(object_).set_weak_next(next_, UPDATE_WRITE_BARRIER);
   }
 
  private:
@@ -732,24 +732,16 @@ void Serializer::ObjectSerializer::Serialize() {
   if (InstanceTypeChecker::IsExternalString(instance_type)) {
     SerializeExternalString();
     return;
-  } else if (!ReadOnlyHeap::Contains(*object_)) {
-    // Only clear padding for strings outside the read-only heap. Read-only heap
-    // should have been cleared elsewhere.
-    if (object_->IsSeqOneByteString(cage_base)) {
-      // Clear padding bytes at the end. Done here to avoid having to do this
-      // at allocation sites in generated code.
-      Handle<SeqOneByteString>::cast(object_)->clear_padding();
-    } else if (object_->IsSeqTwoByteString(cage_base)) {
-      Handle<SeqTwoByteString>::cast(object_)->clear_padding();
-    }
   }
   if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     SerializeJSTypedArray();
     return;
-  } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
+  }
+  if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     SerializeJSArrayBuffer();
     return;
-  } else if (InstanceTypeChecker::IsScript(instance_type)) {
+  }
+  if (InstanceTypeChecker::IsScript(instance_type)) {
     // Clear cached line ends.
     Oddball undefined = ReadOnlyRoots(isolate()).undefined_value();
     Handle<Script>::cast(object_)->set_line_ends(undefined);
@@ -961,6 +953,7 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
 void Serializer::ObjectSerializer::OutputExternalReference(
     Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
+  DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
   DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
@@ -981,36 +974,38 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     CHECK(serializer_->allow_unknown_external_references_for_testing());
     CHECK(IsAligned(target_size, kTaggedSize));
     CHECK_LE(target_size, kFixedRawDataCount * kTaggedSize);
-    int size_in_tagged = target_size >> kTaggedSizeLog2;
-    sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
-    sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
+    if (sandboxify) {
+      CHECK_EQ(target_size, kSystemPointerSize);
+      sink_->Put(kSandboxedRawExternalReference, "SandboxedRawReference");
+      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+                    "raw pointer");
+    } else {
+      // Encode as FixedRawData instead of RawExternalReference as the target
+      // may be less than kSystemPointerSize large.
+      int size_in_tagged = target_size >> kTaggedSizeLog2;
+      sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
+      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+                    "raw pointer");
+    }
   } else if (encoded_reference.is_from_api()) {
-    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    if (sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
     } else {
       sink_->Put(kApiReference, "ApiRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   } else {
-    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    if (sandboxify) {
       sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
     } else {
       sink_->Put(kExternalReference, "ExternalRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   }
-  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+  if (sandboxify) {
     sink_->PutInt(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
                   "external pointer tag");
   }
-}
-
-void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
-                                                          Address* p) {
-  // "Sandboxify" external reference.
-  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true,
-                          kForeignForeignAddressTag);
-  bytes_processed_so_far_ += kExternalPointerSize;
 }
 
 class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
@@ -1067,31 +1062,6 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                           kExternalPointerNullTag);
 }
 
-void Serializer::ObjectSerializer::VisitExternalPointer(HeapObject host,
-                                                        ExternalPointer_t ptr) {
-  // TODO(v8:12700) handle other external references here as well. This should
-  // allow removing some of the other Visit* methods, should unify the sandbox
-  // vs no-sandbox implementation, and should allow removing various
-  // XYZForSerialization methods throughout the codebase.
-  if (host.IsJSExternalObject()) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    // TODO(saelo) maybe add a helper method for this conversion if also needed
-    // in other places? This might require a ExternalPointerTable::Get variant
-    // that drops the pointer tag completely.
-    uint32_t index = ptr >> kExternalPointerIndexShift;
-    Address value =
-        isolate()->external_pointer_table().Get(index, kExternalObjectValueTag);
-#else
-    Address value = ptr;
-#endif
-    // TODO(v8:12700) should we specify here whether we expect the references to
-    // be internal or external (or either)?
-    OutputExternalReference(value, kSystemPointerSize, true,
-                            kExternalObjectValueTag);
-    bytes_processed_so_far_ += kExternalPointerSize;
-  }
-}
-
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
   Address entry = Handle<Code>::cast(object_)->entry();
@@ -1100,10 +1070,50 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
-  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  static_assert(Code::kOnHeapBodyIsContiguous);
   DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_body_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
+}
+
+void Serializer::ObjectSerializer::VisitExternalPointer(
+    HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+  PtrComprCageBase cage_base(isolate());
+  InstanceType instance_type = object_->map(cage_base).instance_type();
+  if (InstanceTypeChecker::IsForeign(instance_type) ||
+      InstanceTypeChecker::IsJSExternalObject(instance_type) ||
+      InstanceTypeChecker::IsAccessorInfo(instance_type) ||
+      InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
+    // Output raw data payload, if any.
+    OutputRawData(slot.address());
+    Address value = slot.load(isolate(), tag);
+    const bool sandboxify =
+        V8_ENABLE_SANDBOX_BOOL && tag != kExternalPointerNullTag;
+    OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
+    bytes_processed_so_far_ += kExternalPointerSlotSize;
+
+  } else {
+    // Serialization of external references in other objects is handled
+    // elsewhere or not supported.
+    DCHECK(
+        // Serialization of external pointers stored in EmbedderDataArray
+        // is not supported yet, mostly because it's not used.
+        InstanceTypeChecker::IsEmbedderDataArray(instance_type) ||
+        // See ObjectSerializer::SerializeJSTypedArray().
+        InstanceTypeChecker::IsJSTypedArray(instance_type) ||
+        // See ObjectSerializer::SerializeJSArrayBuffer().
+        InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
+        // See ObjectSerializer::SerializeExternalString().
+        InstanceTypeChecker::IsExternalString(instance_type) ||
+        // See ObjectSerializer::SanitizeNativeContextScope.
+        InstanceTypeChecker::IsNativeContext(instance_type) ||
+        // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
+        (InstanceTypeChecker::IsJSObject(instance_type) &&
+         JSObject::cast(host).GetEmbedderFieldCount() > 0) ||
+        // See ObjectSerializer::OutputRawData().
+        (V8_EXTERNAL_CODE_SPACE_BOOL &&
+         InstanceTypeChecker::IsCodeDataContainer(instance_type)));
+  }
 }
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
@@ -1114,7 +1124,7 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
-  STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
+  static_assert(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
 
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
@@ -1183,14 +1193,21 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     }
 #ifdef MEMORY_SANITIZER
     // Check that we do not serialize uninitialized memory.
+    int msan_bytes_to_output = bytes_to_output;
+    if (object_->IsSeqString()) {
+      // SeqStrings may have uninitialized padding bytes. These padding
+      // bytes are never read and serialized as 0s.
+      msan_bytes_to_output -=
+          SeqString::cast(*object_).GetDataAndPaddingSizes().padding_size;
+    }
     __msan_check_mem_is_initialized(
-        reinterpret_cast<void*>(object_start + base), bytes_to_output);
+        reinterpret_cast<void*>(object_start + base), msan_bytes_to_output);
 #endif  // MEMORY_SANITIZER
     PtrComprCageBase cage_base(isolate_);
     if (object_->IsBytecodeArray(cage_base)) {
       // The bytecode age field can be changed by GC concurrently.
       static_assert(BytecodeArray::kBytecodeAgeSize == kUInt16Size);
-      uint16_t field_value = BytecodeArray::kNoAgeBytecodeAge;
+      uint16_t field_value = 0;
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                BytecodeArray::kBytecodeAgeOffset,
                                sizeof(field_value),
@@ -1210,11 +1227,21 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // snapshot deterministic.
       CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
                CodeDataContainer::kCodeEntryPointOffset);
-      static byte field_value[kTaggedSize + kExternalPointerSize] = {0};
+      static byte field_value[kTaggedSize + kExternalPointerSlotSize] = {0};
       OutputRawWithCustomField(
           sink_, object_start, base, bytes_to_output,
           CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
           sizeof(field_value), field_value);
+    } else if (object_->IsSeqString()) {
+      // SeqStrings may contain padding. Serialize the padding bytes as 0s to
+      // make the snapshot content deterministic.
+      SeqString::DataAndPaddingSizes sizes =
+          SeqString::cast(*object_).GetDataAndPaddingSizes();
+      DCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
+      int data_bytes_to_output = sizes.data_size - base;
+      sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+                    data_bytes_to_output, "SeqStringData");
+      sink_->PutN(sizes.padding_size, 0, "SeqStringPadding");
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");

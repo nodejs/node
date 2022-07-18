@@ -11,10 +11,10 @@ import sys
 import threading
 import time
 
-from ..local.android import (
-    android_driver, CommandFailedException, TimeoutException)
-from ..local import utils
+from ..local.android import (Driver, CommandFailedException, TimeoutException)
 from ..objects import output
+from ..local.pool import DefaultExecutionPool, AbortException,\
+  taskkill_windows
 
 BASE_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..' , '..', '..'))
@@ -29,12 +29,6 @@ def setup_testing():
   in the main thread, so we disable it for testing.
   """
   signal.signal = lambda *_: None
-
-
-class AbortException(Exception):
-  """Indicates early abort on SIGINT, SIGTERM or internal hard timeout."""
-  pass
-
 
 @contextmanager
 def handle_sigterm(process, abort_fun, enabled):
@@ -209,22 +203,6 @@ class PosixCommand(BaseCommand):
     os.killpg(process.pid, signal.SIGKILL)
 
 
-def taskkill_windows(process, verbose=False, force=True):
-  force_flag = ' /F' if force else ''
-  tk = subprocess.Popen(
-      'taskkill /T%s /PID %d' % (force_flag, process.pid),
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE,
-  )
-  stdout, stderr = tk.communicate()
-  if verbose:
-    print('Taskkill results for %d' % process.pid)
-    print(stdout)
-    print(stderr)
-    print('Return code: %d' % tk.returncode)
-    sys.stdout.flush()
-
-
 class WindowsCommand(BaseCommand):
   def _start_process(self, **kwargs):
     # Try to change the error mode to avoid dialogs on fatal errors. Don't
@@ -326,19 +304,67 @@ class AndroidCommand(BaseCommand):
         duration,
     )
 
-
 Command = None
+
+
+class DefaultOSContext():
+
+  def __init__(self, command, pool=None):
+    self.command = command
+    self.pool = pool or DefaultExecutionPool()
+
+  @contextmanager
+  def context(self, options):
+    yield
+
+
+class AndroidOSContext(DefaultOSContext):
+
+  def __init__(self):
+    super(AndroidOSContext, self).__init__(AndroidCommand)
+
+  @contextmanager
+  def context(self, options):
+    try:
+      AndroidCommand.driver = Driver.instance(options.device)
+      yield
+    finally:
+      AndroidCommand.driver.tear_down()
+
+
+# TODO(liviurau): Add documentation with diagrams to describe how context and
+# its components gets initialized and eventually teared down and how does it
+# interact with both tests and underlying platform specific concerns.
+def find_os_context_factory(target_os):
+  registry = dict(
+      android=AndroidOSContext,
+      windows=lambda: DefaultOSContext(WindowsCommand))
+  default = lambda: DefaultOSContext(PosixCommand)
+  return registry.get(target_os, default)
+
+
+@contextmanager
+def os_context(target_os, options):
+  factory = find_os_context_factory(target_os)
+  context = factory()
+  with context.context(options):
+    yield context
+
+
+# Deprecated : use os_context
 def setup(target_os, device):
   """Set the Command class to the OS-specific version."""
   global Command
   if target_os == 'android':
-    AndroidCommand.driver = android_driver(device)
+    AndroidCommand.driver = Driver.instance(device)
     Command = AndroidCommand
   elif target_os == 'windows':
     Command = WindowsCommand
   else:
     Command = PosixCommand
 
+
+# Deprecated : use os_context
 def tear_down():
   """Clean up after using commands."""
   if Command == AndroidCommand:

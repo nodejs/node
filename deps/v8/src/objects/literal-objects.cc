@@ -125,7 +125,7 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 template <typename Dictionary>
 void DictionaryUpdateMaxNumberKey(Handle<Dictionary> dictionary,
                                   Handle<Name> name) {
-  STATIC_ASSERT((std::is_same<Dictionary, SwissNameDictionary>::value ||
+  static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   // No-op for (ordered) name dictionaries.
 }
@@ -160,7 +160,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
 
   const bool is_elements_dictionary =
       std::is_same<Dictionary, NumberDictionary>::value;
-  STATIC_ASSERT(is_elements_dictionary !=
+  static_assert(is_elements_dictionary !=
                 (std::is_same<Dictionary, NameDictionary>::value ||
                  std::is_same<Dictionary, SwissNameDictionary>::value));
 
@@ -215,7 +215,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         int existing_setter_index =
             GetExistingValueIndex(current_pair.setter());
         // At least one of the accessors must already be defined.
-        STATIC_ASSERT(kAccessorNotDefined < 0);
+        static_assert(kAccessorNotDefined < 0);
         DCHECK(existing_getter_index >= 0 || existing_setter_index >= 0);
         if (existing_getter_index < key_index &&
             existing_setter_index < key_index) {
@@ -621,7 +621,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   // Initialize class object template.
   //
   static_desc.CreateTemplates(isolate);
-  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
+  static_assert(JSFunction::kLengthDescriptorIndex == 0);
   {
     // Add length_accessor.
     PropertyAttributes attribs =
@@ -747,11 +747,11 @@ void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
 
 void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   // Note: keep boilerplate layout synced with JSRegExp layout.
-  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
-  STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+  static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+  static_assert(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
+  static_assert(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
-  STATIC_ASSERT(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
   os << " " << Brief(data()) << ", " << Brief(source()) << ", " << flags();
 }
 

@@ -51,27 +51,27 @@ namespace {
 
 /* Get two 32 bit ints from a double.  */
 
-#define EXTRACT_WORDS(ix0, ix1, d)         \
-  do {                                     \
-    uint64_t bits = bit_cast<uint64_t>(d); \
-    (ix0) = bits >> 32;                    \
-    (ix1) = bits & 0xFFFFFFFFu;            \
+#define EXTRACT_WORDS(ix0, ix1, d)               \
+  do {                                           \
+    uint64_t bits = base::bit_cast<uint64_t>(d); \
+    (ix0) = bits >> 32;                          \
+    (ix1) = bits & 0xFFFFFFFFu;                  \
   } while (false)
 
 /* Get the more significant 32 bit int from a double.  */
 
-#define GET_HIGH_WORD(i, d)                \
-  do {                                     \
-    uint64_t bits = bit_cast<uint64_t>(d); \
-    (i) = bits >> 32;                      \
+#define GET_HIGH_WORD(i, d)                      \
+  do {                                           \
+    uint64_t bits = base::bit_cast<uint64_t>(d); \
+    (i) = bits >> 32;                            \
   } while (false)
 
 /* Get the less significant 32 bit int from a double.  */
 
-#define GET_LOW_WORD(i, d)                 \
-  do {                                     \
-    uint64_t bits = bit_cast<uint64_t>(d); \
-    (i) = bits & 0xFFFFFFFFu;              \
+#define GET_LOW_WORD(i, d)                       \
+  do {                                           \
+    uint64_t bits = base::bit_cast<uint64_t>(d); \
+    (i) = bits & 0xFFFFFFFFu;                    \
   } while (false)
 
 /* Set a double from two 32 bit ints.  */
@@ -81,27 +81,27 @@ namespace {
     uint64_t bits = 0;                        \
     bits |= static_cast<uint64_t>(ix0) << 32; \
     bits |= static_cast<uint32_t>(ix1);       \
-    (d) = bit_cast<double>(bits);             \
+    (d) = base::bit_cast<double>(bits);       \
   } while (false)
 
 /* Set the more significant 32 bits of a double from an int.  */
 
-#define SET_HIGH_WORD(d, v)                 \
-  do {                                      \
-    uint64_t bits = bit_cast<uint64_t>(d);  \
-    bits &= 0x0000'0000'FFFF'FFFF;          \
-    bits |= static_cast<uint64_t>(v) << 32; \
-    (d) = bit_cast<double>(bits);           \
+#define SET_HIGH_WORD(d, v)                      \
+  do {                                           \
+    uint64_t bits = base::bit_cast<uint64_t>(d); \
+    bits &= 0x0000'0000'FFFF'FFFF;               \
+    bits |= static_cast<uint64_t>(v) << 32;      \
+    (d) = base::bit_cast<double>(bits);          \
   } while (false)
 
 /* Set the less significant 32 bits of a double from an int.  */
 
-#define SET_LOW_WORD(d, v)                 \
-  do {                                     \
-    uint64_t bits = bit_cast<uint64_t>(d); \
-    bits &= 0xFFFF'FFFF'0000'0000;         \
-    bits |= static_cast<uint32_t>(v);      \
-    (d) = bit_cast<double>(bits);          \
+#define SET_LOW_WORD(d, v)                       \
+  do {                                           \
+    uint64_t bits = base::bit_cast<uint64_t>(d); \
+    bits &= 0xFFFF'FFFF'0000'0000;               \
+    bits |= static_cast<uint32_t>(v);            \
+    (d) = base::bit_cast<double>(bits);          \
   } while (false)
 
 int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
@@ -2396,9 +2396,9 @@ double cbrt(double x) {
    * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
    * before the final error is larger than 0.667 ulps.
    */
-  uint64_t bits = bit_cast<uint64_t>(t);
+  uint64_t bits = base::bit_cast<uint64_t>(t);
   bits = (bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
-  t = bit_cast<double>(bits);
+  t = base::bit_cast<double>(bits);
 
   /* one step Newton iteration to 53 bits with error < 0.667 ulps */
   s = t * t;             /* t*t is exact */

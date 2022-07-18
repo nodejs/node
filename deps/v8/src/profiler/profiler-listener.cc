@@ -40,8 +40,7 @@ ProfilerListener::ProfilerListener(Isolate* isolate,
 
 ProfilerListener::~ProfilerListener() = default;
 
-void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
-                                       Handle<AbstractCode> code,
+void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                        const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -55,8 +54,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
-                                       Handle<AbstractCode> code,
+void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                        Handle<Name> name) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -70,8 +68,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
-                                       Handle<AbstractCode> code,
+void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
@@ -106,7 +103,7 @@ CodeEntry* GetOrInsertCachedEntry(
 
 }  // namespace
 
-void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
+void ProfilerListener::CodeCreateEvent(CodeTag tag,
                                        Handle<AbstractCode> abstract_code,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name, int line,
@@ -230,8 +227,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
-                                       const wasm::WasmCode* code,
+void ProfilerListener::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                        wasm::WasmName name,
                                        const char* source_url, int code_offset,
                                        int script_id) {
@@ -252,8 +248,8 @@ void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry =
-      code_entries_.Create(CodeEventListener::CALLBACK_TAG, GetName(*name));
+  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
+                                    GetName(*name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -263,7 +259,7 @@ void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
                                     GetConsName("get ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
@@ -274,7 +270,7 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kCallback,
                                     GetConsName("set ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
@@ -286,7 +282,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry = code_entries_.Create(
-      CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
+      LogEventListener::CodeTag::kRegExp, GetConsName("RegExp: ", *source),
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();

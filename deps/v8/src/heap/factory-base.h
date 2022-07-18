@@ -194,7 +194,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
                                           int32_t end_position,
                                           Handle<PreparseData>);
 
-  // Allocates a FeedbackMedata object and zeroes the data section.
+  // Allocates a FeedbackMetadata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
       int slot_count, int create_closure_slot_count,
       AllocationType allocation = AllocationType::kOld);
@@ -212,6 +212,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SeqOneByteString> NewOneByteInternalizedString(
       const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
+      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+  Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
       const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
@@ -267,8 +269,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
   MaybeHandle<Map> GetInPlaceInternalizedStringMap(Map from_string_map);
-
-  Handle<Map> GetStringMigrationSentinelMap(InstanceType from_string_type);
 
   AllocationType RefineAllocationTypeForInPlaceInternalizableString(
       AllocationType allocation, Map string_map);

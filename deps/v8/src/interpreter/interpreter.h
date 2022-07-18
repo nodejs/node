@@ -13,11 +13,11 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
 class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;

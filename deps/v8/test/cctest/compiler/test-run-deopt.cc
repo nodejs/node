@@ -14,7 +14,7 @@ namespace compiler {
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
   JavaScriptFrame* frame = it.frame();
-  return args.GetReturnValue().Set(frame->is_optimized());
+  return args.GetReturnValue().Set(frame->is_turbofan());
 }
 
 

@@ -55,7 +55,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
   if (object->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
 
-    if (typed_array->WasDetached()) {
+    if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
           isolate,
           NewTypeError(
@@ -99,7 +99,7 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
       Nothing<size_t>());
 
   size_t access_index;
-  size_t typed_array_length = typed_array->length();
+  size_t typed_array_length = typed_array->GetLength();
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
       access_index >= typed_array_length) {
     isolate->Throw(*isolate->factory()->NewRangeError(

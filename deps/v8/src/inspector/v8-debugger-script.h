@@ -82,6 +82,7 @@ class V8DebuggerScript {
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
   virtual void setSource(const String16& source, bool preview,
+                         bool allowTopFrameLiveEditing,
                          v8::debug::LiveEditResult* result) = 0;
 
   virtual bool getPossibleBreakpoints(
@@ -90,8 +91,7 @@ class V8DebuggerScript {
       std::vector<v8::debug::BreakLocation>* locations) = 0;
   virtual void resetBlackboxedStateCache() = 0;
 
-  static const int kNoOffset = -1;
-  virtual int offset(int lineNumber, int columnNumber) const = 0;
+  virtual v8::Maybe<int> offset(int lineNumber, int columnNumber) const = 0;
   virtual v8::debug::Location location(int offset) const = 0;
 
   virtual bool setBreakpoint(const String16& condition,

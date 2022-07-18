@@ -1401,6 +1401,10 @@ class WasmInterpreterInternals {
     CommitPc(pc);
   }
 
+  void DoTrap(MessageTemplate message, pc_t pc) {
+    DoTrap(WasmOpcodes::MessageIdToTrapReason(message), pc);
+  }
+
   // Check if there is room for a function's activation.
   void EnsureStackSpaceForCall(InterpreterCode* code) {
     EnsureStackSpace(code->side_table->max_stack_height_ +
@@ -1436,7 +1440,7 @@ class WasmInterpreterInternals {
     break;
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-        case kOptRef: {
+        case kRefNull: {
           val = WasmValue(isolate_->factory()->null_value(), p);
           break;
         }
@@ -1897,11 +1901,16 @@ class WasmInterpreterInternals {
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
         HandleScope scope(isolate_);  // Avoid leaking handles.
-        bool ok = WasmInstanceObject::InitTableEntries(
-            instance_object_->GetIsolate(), instance_object_, imm.table.index,
-            imm.element_segment.index, dst, src, size);
-        if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
-        return ok;
+        base::Optional<MessageTemplate> opt_error =
+            WasmInstanceObject::InitTableEntries(
+                instance_object_->GetIsolate(), instance_object_,
+                imm.table.index, imm.element_segment.index, dst, src, size);
+        if (opt_error.has_value()) {
+          DoTrap(opt_error.value(), pc);
+          return false;
+        }
+
+        return true;
       }
       case kExprElemDrop: {
         IndexImmediate<Decoder::kNoValidation> imm(decoder, code->at(pc + *len),
@@ -2394,6 +2403,8 @@ class WasmInterpreterInternals {
                  RoundingAverageUnsigned<uint16_t>(a, b))
       BINOP_CASE(I16x8Q15MulRSatS, i16x8, int8, 8,
                  SaturateRoundingQMul<int16_t>(a, b))
+      BINOP_CASE(I16x8RelaxedQ15MulRS, i16x8, int8, 8,
+                 SaturateRoundingQMul<int16_t>(a, b))
       BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
       BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
@@ -2437,8 +2448,6 @@ class WasmInterpreterInternals {
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
       UNOP_CASE(F32x4Sqrt, f32x4, float4, 4, std::sqrt(a))
-      UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
-      UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
       UNOP_CASE(F32x4Ceil, f32x4, float4, 4,
                 (AixFpOpWorkaround<float, &ceilf>(a)))
       UNOP_CASE(F32x4Floor, f32x4, float4, 4,
@@ -2780,6 +2789,39 @@ class WasmInterpreterInternals {
         }
         Push(WasmValue(Simd128(res)));
         *len += 16;
+        return true;
+      }
+      case kExprI16x8DotI8x16I7x16S: {
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int8 res;
+        for (size_t i = 0; i < 8; i++) {
+          int16_t lo = (v1.val[LANE(i * 2, v1)] * v2.val[LANE(i * 2, v2)]);
+          int16_t hi =
+              (v1.val[LANE(i * 2 + 1, v1)] * v2.val[LANE(i * 2 + 1, v2)]);
+          res.val[LANE(i, res)] = base::AddWithWraparound(lo, hi);
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
+      case kExprI32x4DotI8x16I7x16AddS: {
+        int4 v3 = Pop().to_s128().to_i32x4();
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int4 res;
+        for (size_t i = 0; i < 4; i++) {
+          int32_t a = (v1.val[LANE(i * 4, v1)] * v2.val[LANE(i * 4, v2)]);
+          int32_t b =
+              (v1.val[LANE(i * 4 + 1, v1)] * v2.val[LANE(i * 4 + 1, v2)]);
+          int32_t c =
+              (v1.val[LANE(i * 4 + 2, v1)] * v2.val[LANE(i * 4 + 2, v2)]);
+          int32_t d =
+              (v1.val[LANE(i * 4 + 3, v1)] * v2.val[LANE(i * 4 + 3, v2)]);
+          int32_t acc = v3.val[LANE(i, v3)];
+          // a + b + c + d should not wrap
+          res.val[LANE(i, res)] = base::AddWithWraparound(a + b + c + d, acc);
+        }
+        Push(WasmValue(Simd128(res)));
         return true;
       }
       case kExprI8x16RelaxedSwizzle:
@@ -3163,7 +3205,7 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
+        case kRefNull:
         case kRtt:
           encoded_values->set(encoded_index++, *value.to_ref());
           break;
@@ -3250,7 +3292,7 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
+        case kRefNull:
         case kRtt: {
           Handle<Object> ref(encoded_values->get(encoded_index++), isolate_);
           value = WasmValue(ref, sig->GetParam(i));
@@ -3478,7 +3520,7 @@ class WasmInterpreterInternals {
               WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
           Push(WasmValue(isolate_->factory()->null_value(),
-                         ValueType::Ref(imm.type, kNullable)));
+                         ValueType::RefNull(imm.type)));
           break;
         }
         case kExprRefFunc: {
@@ -3626,7 +3668,7 @@ class WasmInterpreterInternals {
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
             case kRef:
-            case kOptRef:
+            case kRefNull:
             case kRtt: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
@@ -4036,7 +4078,7 @@ class WasmInterpreterInternals {
         case kVoid:
           PrintF("void");
           break;
-        case kOptRef:
+        case kRefNull:
           if (val.to_ref()->IsNull()) {
             PrintF("ref:null");
             break;

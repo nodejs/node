@@ -18,6 +18,11 @@
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
                                                                                \
+  /* Instruction Tracing tool convention (early prototype, might change) */    \
+  /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
+  /* V8 side owner: jabraham */                                                \
+  V(instruction_tracing, "instruction tracing section", false)                 \
+                                                                               \
   /* GC proposal (early prototype, might change dramatically) */               \
   /* Official proposal: https://github.com/WebAssembly/gc */                   \
   /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
@@ -36,6 +41,7 @@
     "assume ref.cast always succeeds and skip the related type check "         \
     "(unsafe)",                                                                \
     false)                                                                     \
+  V(ref_cast_nop, "enable unsafe ref.cast_nop instruction", false)             \
   V(skip_null_checks,                                                          \
     "skip null checks for call.ref and array and struct operations (unsafe)",  \
     false)                                                                     \
@@ -69,7 +75,12 @@
   /* Extended Constant Expressions Proposal. */                                \
   /* https://github.com/WebAssembly/extended-const */                          \
   /* V8 side owner: manoskouk */                                               \
-  V(extended_const, "extended constant expressions", false)
+  V(extended_const, "extended constant expressions", false)                    \
+                                                                               \
+  /* Reference-Typed Strings Proposal. */                                      \
+  /* https://github.com/WebAssembly/stringref */                               \
+  /* V8 side owner: jkummerow */                                               \
+  V(stringref, "reference-typed strings", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

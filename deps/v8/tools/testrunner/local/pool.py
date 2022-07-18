@@ -3,19 +3,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from contextlib import contextmanager
-from multiprocessing import Process, Queue
+import collections
 import os
 import signal
-import time
+import subprocess
 import traceback
 
-try:
-  from queue import Empty  # Python 3
-except ImportError:
-  from Queue import Empty  # Python 2
-
-from . import command
+from contextlib import contextmanager
+from multiprocessing import Process, Queue
+from queue import Empty
 from . import utils
 
 
@@ -27,17 +23,34 @@ def setup_testing():
   global Process
   del Queue
   del Process
-  try:
-    from queue import Queue  # Python 3
-  except ImportError:
-    from Queue import Queue  # Python 2
-
+  from queue import Queue
   from threading import Thread as Process
   # Monkeypatch threading Queue to look like multiprocessing Queue.
   Queue.cancel_join_thread = lambda self: None
   # Monkeypatch os.kill and add fake pid property on Thread.
   os.kill = lambda *args: None
   Process.pid = property(lambda self: None)
+
+
+def taskkill_windows(process, verbose=False, force=True):
+  force_flag = ' /F' if force else ''
+  tk = subprocess.Popen(
+      'taskkill /T%s /PID %d' % (force_flag, process.pid),
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+  )
+  stdout, stderr = tk.communicate()
+  if verbose:
+    print('Taskkill results for %d' % process.pid)
+    print(stdout)
+    print(stderr)
+    print('Return code: %d' % tk.returncode)
+    sys.stdout.flush()
+
+
+class AbortException(Exception):
+  """Indicates early abort on SIGINT, SIGTERM or internal hard timeout."""
+  pass
 
 
 class NormalResult():
@@ -76,7 +89,7 @@ def Worker(fn, work_queue, done_queue,
     for args in iter(work_queue.get, "STOP"):
       try:
         done_queue.put(NormalResult(fn(*args, **kwargs)))
-      except command.AbortException:
+      except AbortException:
         # SIGINT, SIGTERM or internal hard timeout.
         break
       except Exception as e:
@@ -244,7 +257,7 @@ class Pool():
   def _terminate_processes(self):
     for p in self.processes:
       if utils.IsWindows():
-        command.taskkill_windows(p, verbose=True, force=False)
+        taskkill_windows(p, verbose=True, force=False)
       else:
         os.kill(p.pid, signal.SIGTERM)
 
@@ -308,3 +321,32 @@ class Pool():
         return MaybeResult.create_result(result.result)
       except Empty:
         return MaybeResult.create_heartbeat()
+
+
+# Global function for multiprocessing, because pickling a static method doesn't
+# work on Windows.
+def run_job(job, process_context):
+  return job.run(process_context)
+
+
+ProcessContext = collections.namedtuple('ProcessContext', ['result_reduction'])
+
+
+class DefaultExecutionPool():
+
+  def init(self, jobs, notify_fun):
+    self._pool = Pool(jobs, notify_fun=notify_fun)
+
+  def add_jobs(self, jobs):
+    self._pool.add(jobs)
+
+  def results(self, requirement):
+    return self._pool.imap_unordered(
+        fn=run_job,
+        gen=[],
+        process_context_fn=ProcessContext,
+        process_context_args=[requirement],
+    )
+
+  def abort(self):
+    self._pool.abort()

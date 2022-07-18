@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/debug/wasm/gdb-server/gdb-server-thread.h"
+
 #include "src/debug/wasm/gdb-server/gdb-server.h"
 #include "src/debug/wasm/gdb-server/session.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {

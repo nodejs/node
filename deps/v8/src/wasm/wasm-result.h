@@ -66,25 +66,17 @@ class V8_EXPORT_PRIVATE WasmError {
 template <typename T>
 class Result {
  public:
+  static_assert(!std::is_same<T, WasmError>::value);
+
   Result() = default;
   Result(const Result&) = delete;
-  Result& operator=(const Result&) = delete;
+  Result& operator=(const Result<T>&) = delete;
+  Result(Result<T>&&) = default;
+  Result& operator=(Result<T>&&) = default;
 
-  template <typename S>
-  explicit Result(S&& value) : value_(std::forward<S>(value)) {}
-
-  template <typename S>
-  Result(Result<S>&& other) V8_NOEXCEPT : value_(std::move(other.value_)),
-                                          error_(std::move(other.error_)) {}
+  explicit Result(T&& value) : value_(std::forward<T>(value)) {}
 
   explicit Result(WasmError error) : error_(std::move(error)) {}
-
-  template <typename S>
-  Result& operator=(Result<S>&& other) V8_NOEXCEPT {
-    value_ = std::move(other.value_);
-    error_ = std::move(other.error_);
-    return *this;
-  }
 
   bool ok() const { return error_.empty(); }
   bool failed() const { return error_.has_error(); }
@@ -105,9 +97,6 @@ class Result {
   }
 
  private:
-  template <typename S>
-  friend class Result;
-
   T value_ = T{};
   WasmError error_;
 };

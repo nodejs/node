@@ -17,17 +17,17 @@
 namespace v8_fuzzer {
 
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
-  v8::internal::FLAG_expose_gc = true;
+  i::FLAG_expose_gc = true;
+
+  // Allow changing flags in fuzzers.
+  // TODO(12887): Refactor fuzzers to not change flags after initialization.
+  i::FLAG_freeze_flags_after_init = false;
+
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
   v8::V8::InitializeICUDefaultLocation((*argv)[0]);
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_SANDBOX
-  if (!v8::V8::InitializeSandbox()) {
-    FATAL("Could not initialize the sandbox");
-  }
-#endif
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();

@@ -155,7 +155,7 @@
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \
   V8_INLINE static Type unchecked_cast(Object object) { \
-    return bit_cast<Type>(object);                      \
+    return base::bit_cast<Type>(object);                \
   }
 
 #define CAST_ACCESSOR(Type) \
@@ -398,6 +398,33 @@
                 kRelaxedStore);                                      \
   }
 
+#define DECL_EXTERNAL_POINTER_ACCESSORS(name, type)        \
+  inline type name() const;                                \
+  inline type name(i::Isolate* isolate_for_sandbox) const; \
+  inline void set_##name(i::Isolate* isolate, type value);
+
+#define EXTERNAL_POINTER_ACCESSORS(holder, name, type, offset, tag)         \
+  type holder::name() const {                                               \
+    i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);          \
+    return holder::name(isolate_for_sandbox);                               \
+  }                                                                         \
+  type holder::name(i::Isolate* isolate_for_sandbox) const {                \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address result =                                                        \
+        Object::ReadExternalPointerField<tag>(offset, isolate_for_sandbox); \
+    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
+  }                                                                         \
+  void holder::set_##name(i::Isolate* isolate, type value) {                \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address the_value =                                                     \
+        reinterpret_cast<Address>(reinterpret_cast<C2440*>(value));         \
+    Object::WriteExternalPointerField<tag>(offset, isolate, the_value);     \
+  }
+
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
     return BitField::decode(get_field());                                  \
@@ -446,25 +473,28 @@
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
   TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
 
+#define SEQ_CST_SWAP_FIELD(p, offset, value) \
+  TaggedField<Object>::SeqCst_Swap(p, offset, value)
+
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                         \
-  do {                                                               \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
-    WriteBarrier::Marking(object, (object).RawField(offset), value); \
-    GenerationalBarrier(object, (object).RawField(offset), value);   \
+#define WRITE_BARRIER(object, offset, value)                       \
+  do {                                                             \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));            \
+    CombinedWriteBarrier(object, (object).RawField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                    \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                             \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset), value); \
-    GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value);   \
+#define WEAK_WRITE_BARRIER(object, offset, value)                           \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                             \
   } while (false)
 #endif
 
@@ -474,12 +504,12 @@
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                    \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    EphemeronHashTable table = EphemeronHashTable::cast(object);              \
-    WriteBarrier::Marking(object, (object).RawField(offset), value);          \
-    GenerationalEphemeronKeyBarrier(table, (object).RawField(offset), value); \
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)          \
+  do {                                                              \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
+    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object), \
+                                  (object).RawField(offset), value, \
+                                  UPDATE_WRITE_BARRIER);            \
   } while (false)
 #endif
 
@@ -489,18 +519,10 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)           \
-  do {                                                                   \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                  \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                 \
-    if (mode != SKIP_WRITE_BARRIER) {                                    \
-      if (mode == UPDATE_WRITE_BARRIER) {                                \
-        WriteBarrier::Marking(object, (object).RawField(offset), value); \
-      }                                                                  \
-      GenerationalBarrier(object, (object).RawField(offset), value);     \
-    } else {                                                             \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));             \
-    }                                                                    \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)            \
+  do {                                                                    \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
+    CombinedWriteBarrier(object, (object).RawField(offset), value, mode); \
   } while (false)
 #endif
 
@@ -510,19 +532,11 @@
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)           \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                      \
-    if (mode != SKIP_WRITE_BARRIER) {                                         \
-      if (mode == UPDATE_WRITE_BARRIER) {                                     \
-        WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset),     \
-                              value);                                         \
-      }                                                                       \
-      GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
-    } else {                                                                  \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                  \
-    }                                                                         \
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)         \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
+                         mode);                                             \
   } while (false)
 #endif
 
@@ -532,17 +546,8 @@
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                     \
-    EphemeronHashTable table = EphemeronHashTable::cast(object);             \
-    if (mode != SKIP_WRITE_BARRIER) {                                        \
-      if (mode == UPDATE_WRITE_BARRIER) {                                    \
-        WriteBarrier::Marking(object, (object).RawField(offset), value);     \
-      }                                                                      \
-      GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
-                                      value);                                \
-    } else {                                                                 \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                 \
-    }                                                                        \
+    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),          \
+                                  (object).RawField(offset), value, mode);   \
   } while (false)
 #endif
 

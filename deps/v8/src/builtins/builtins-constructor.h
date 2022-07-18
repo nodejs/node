@@ -37,7 +37,7 @@ class ConstructorBuiltins {
 
   // FastNewFunctionContext can only allocate closures which fit in the
   // new space.
-  STATIC_ASSERT(Context::SizeFor(kMaximumSlots + Context::MIN_CONTEXT_SLOTS) <
+  static_assert(Context::SizeFor(kMaximumSlots + Context::MIN_CONTEXT_SLOTS) <
                 kMaxRegularHeapObjectSize);
 };
 

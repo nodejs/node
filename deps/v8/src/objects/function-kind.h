@@ -66,7 +66,7 @@ enum class FunctionKind : uint8_t {
 };
 
 constexpr int kFunctionKindBitSize = 5;
-STATIC_ASSERT(static_cast<int>(FunctionKind::kLastFunctionKind) <
+static_assert(static_cast<int>(FunctionKind::kLastFunctionKind) <
               (1 << kFunctionKindBitSize));
 
 inline bool IsArrowFunction(FunctionKind kind) {

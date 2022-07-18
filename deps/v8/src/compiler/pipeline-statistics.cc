@@ -9,7 +9,6 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -47,9 +46,10 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
-PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
-                                       CompilationStatistics* compilation_stats,
-                                       ZoneStats* zone_stats)
+PipelineStatistics::PipelineStatistics(
+    OptimizedCompilationInfo* info,
+    std::shared_ptr<CompilationStatistics> compilation_stats,
+    ZoneStats* zone_stats)
     : outer_zone_(info->zone()),
       zone_stats_(zone_stats),
       compilation_stats_(compilation_stats),

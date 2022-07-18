@@ -6,7 +6,6 @@
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/objects/objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -89,6 +88,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();
+  bool DependOnMegaDOMProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
@@ -116,6 +116,12 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
       ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
       base::Optional<JSObjectRef> last_prototype =
           base::Optional<JSObjectRef>());
+
+  // For the given map, depend on the stability of (the maps of) all prototypes
+  // up to (and including) the {last_prototype}.
+  void DependOnStablePrototypeChain(MapRef receiver_maps, WhereToStart start,
+                                    base::Optional<JSObjectRef> last_prototype =
+                                        base::Optional<JSObjectRef>());
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);

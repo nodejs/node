@@ -6,9 +6,7 @@
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
 #include "src/compiler/js-operator.h"
-#include "src/compiler/js-type-hint-lowering.h"
 #include "src/compiler/node-observer.h"
-#include "src/handles/handles.h"
 #include "src/objects/code-kind.h"
 #include "src/utils/utils.h"
 

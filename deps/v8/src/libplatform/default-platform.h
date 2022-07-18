@@ -13,9 +13,7 @@
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
-#include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
@@ -62,6 +60,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
                                  double delay_in_seconds) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
   std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
+  std::unique_ptr<JobHandle> CreateJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;

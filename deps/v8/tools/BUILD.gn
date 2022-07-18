@@ -18,6 +18,10 @@ group("gn_all") {
   if (is_win) {
     data_deps += [ "v8windbg" ]
   }
+
+  if (v8_enable_webassembly) {
+    data_deps += [ "wasm:wami" ]
+  }
 }
 
 group("v8_check_static_initializers") {

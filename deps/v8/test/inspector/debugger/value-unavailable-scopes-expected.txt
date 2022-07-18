@@ -1,0 +1,7 @@
+Test scopes with unavailable values
+
+Running test: testTemporalDeadZone
+variable y correctly reported as <value_unavailable>
+
+Running test: testOptimizedOut
+variable y correctly reported as <value_unavailable>

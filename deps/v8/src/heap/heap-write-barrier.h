@@ -33,27 +33,33 @@ void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value);
 void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value);
 void WriteBarrierForCode(Code host);
 
+void CombinedWriteBarrier(HeapObject object, ObjectSlot slot, Object value,
+                          WriteBarrierMode mode);
+void CombinedWriteBarrier(HeapObject object, MaybeObjectSlot slot,
+                          MaybeObject value, WriteBarrierMode mode);
+
+void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
+                                   Object value, WriteBarrierMode mode);
+
 // Generational write barrier.
-void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
-void GenerationalBarrier(HeapObject object, ObjectSlot slot, Code value);
-void GenerationalBarrier(HeapObject object, ObjectSlot slot, HeapObject value);
-void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
-                         MaybeObject value);
-void GenerationalEphemeronKeyBarrier(EphemeronHashTable table, ObjectSlot slot,
-                                     Object value);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
+
+// Shared heap write barrier.
+void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
 inline bool IsReadOnlyHeapObject(HeapObject object);
 
 class V8_EXPORT_PRIVATE WriteBarrier {
  public:
   static inline void Marking(HeapObject host, ObjectSlot, Object value);
+  static inline void Marking(HeapObject host, ObjectSlot, Code value);
   static inline void Marking(HeapObject host, HeapObjectSlot, HeapObject value);
   static inline void Marking(HeapObject host, MaybeObjectSlot,
                              MaybeObject value);
   static inline void Marking(Code host, RelocInfo*, HeapObject value);
   static inline void Marking(JSArrayBuffer host, ArrayBufferExtension*);
   static inline void Marking(DescriptorArray, int number_of_own_descriptors);
+
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
   // Invoked from global handles where no host object is available.
@@ -71,11 +77,12 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static bool IsImmortalImmovableHeapObject(HeapObject object);
 #endif
 
+  static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,
+                          HeapObject value);
+
  private:
   static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
 
-  static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,
-                          HeapObject value);
   static void MarkingSlow(Heap* heap, Code host, RelocInfo*, HeapObject value);
   static void MarkingSlow(Heap* heap, JSArrayBuffer host,
                           ArrayBufferExtension*);

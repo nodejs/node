@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
-#include "src/compiler/globals.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
@@ -20,10 +19,8 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
@@ -466,9 +463,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   int boilerplate_migration_mutex_depth_ = 0;
 
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
   static constexpr uint32_t kInitialRefsBucketCount = 1024;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 
 class V8_NODISCARD TraceScope {

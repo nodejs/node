@@ -32,6 +32,7 @@ class JSGeneratorObject
   // For suspended generators: the source position at which the generator
   // is suspended.
   int source_position() const;
+  int code_offset() const;
 
   // Dispatched behavior.
   DECL_PRINTER(JSGeneratorObject)

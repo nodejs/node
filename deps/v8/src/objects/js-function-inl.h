@@ -71,6 +71,7 @@ int JSFunction::length() { return shared().length(); }
 
 ACCESSORS_RELAXED(JSFunction, code, CodeT, kCodeOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, CodeT, kCodeOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {

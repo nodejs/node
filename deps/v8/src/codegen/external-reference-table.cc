@@ -294,7 +294,7 @@ Address ExternalReferenceTable::GetStatsCounterAddress(StatsCounter* counter) {
     return reinterpret_cast<Address>(&dummy_stats_counter_);
   }
   std::atomic<int>* address = counter->GetInternalPointer();
-  STATIC_ASSERT(sizeof(address) == sizeof(Address));
+  static_assert(sizeof(address) == sizeof(Address));
   return reinterpret_cast<Address>(address);
 }
 

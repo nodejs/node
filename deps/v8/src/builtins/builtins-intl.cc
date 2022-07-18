@@ -85,15 +85,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    Handle<Object> value = args.at(1);
-    if (FLAG_harmony_intl_number_format_v3) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, x,
-          Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                         Object::ToNumeric(isolate, value));
-    }
+    x = args.at(1);
   } else {
     x = isolate->factory()->nan_value();
   }
@@ -505,25 +497,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 3. If value is not provided, let value be undefined.
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  // 4. Let x be ? ToNumeric(value).
-  Handle<Object> numeric_obj;
-  if (FLAG_harmony_intl_number_format_v3) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, numeric_obj,
-        Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
-                                       Object::ToNumeric(isolate, value));
-  }
-
-  icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
-      number_format->icu_number_formatter().raw();
-  CHECK_NOT_NULL(icu_localized_number_formatter);
-
-  // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSNumberFormat::FormatNumeric(
-                   isolate, *icu_localized_number_formatter, numeric_obj));
+  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::NumberFormatFunction(
+                                        isolate, number_format, value));
 }
 
 // Common code for NumberFormatPrototypeFormtRange(|ToParts)
@@ -553,19 +528,7 @@ V8_WARN_UNUSED_RESULT Object NumberFormatRange(BuiltinArguments args,
                               factory->NewStringFromStaticChars("end"), end));
   }
 
-  // 4. Let x be ? ToIntlMathematicalValue(start).
-  Handle<Object> x;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, x,
-      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, start));
-
-  // 5. Let y be ? ToIntlMathematicalValue(end).
-  Handle<Object> y;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, y,
-      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, end));
-
-  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, nf, x, y));
+  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, nf, start, end));
 }
 
 BUILTIN(NumberFormatPrototypeFormatRange) {

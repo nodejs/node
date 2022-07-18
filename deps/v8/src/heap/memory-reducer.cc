@@ -58,7 +58,7 @@ void MemoryReducer::TimerTask::RunInternal() {
       low_allocation_rate || optimize_for_memory;
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
-      (heap->incremental_marking()->CanBeActivated() || optimize_for_memory);
+      (heap->incremental_marking()->CanBeStarted() || optimize_for_memory);
   event.committed_memory = heap->CommittedOldGenerationMemory();
   memory_reducer_->NotifyTimer(event);
 }
@@ -88,7 +88,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceWithDeadline(
-          deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+          deadline, IncrementalMarking::CompletionAction::kGCViaTask,
           StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
           GarbageCollectionReason::kFinalizeMarkingViaTask);
@@ -156,17 +156,14 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                 state.committed_memory_at_last_run + kCommittedMemoryDelta)) {
           return state;
         } else {
-          return State(kWait, 0, event.time_ms + kLongDelayMs,
-                       event.type == kMarkCompact ? event.time_ms
-                                                  : state.last_gc_time_ms,
+          return State(kWait, 0, event.time_ms + kLongDelayMs, event.time_ms,
                        0);
         }
       } else {
         DCHECK_EQ(kPossibleGarbage, event.type);
-        return State(
-            kWait, 0, event.time_ms + kLongDelayMs,
-            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms,
-            0);
+        return State(kWait, 0,
+                     event.time_ms + FLAG_gc_memory_reducer_start_delay_ms,
+                     state.last_gc_time_ms, 0);
       }
     case kWait:
       switch (event.type) {

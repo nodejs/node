@@ -25,7 +25,12 @@ class SharedStringAccessGuardIfNeeded;
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
+  // Note: Use TryGetHash() whenever you want to use the hash, instead of a
+  // combination of HashHashCode() and hash() for thread-safety.
   inline bool HasHashCode() const;
+  // Tells whether the name contains a forwarding index pointing to a row
+  // in the string forwarding table.
+  inline bool HasForwardingIndex() const;
 
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.
@@ -39,13 +44,28 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
     return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
   }
 
+  inline uint32_t raw_hash_field(AcquireLoadTag) const {
+    return ACQUIRE_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
+  }
+
   inline void set_raw_hash_field(uint32_t hash) {
     RELAXED_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
   }
 
+  inline void set_raw_hash_field(uint32_t hash, ReleaseStoreTag) {
+    RELEASE_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
+  }
+
+  // Sets the hash field only if it is empty. Otherwise does nothing.
+  inline void set_raw_hash_field_if_empty(uint32_t hash);
+
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
   inline uint32_t hash() const;
+
+  // Returns true if the hash has been computed, and sets the computed hash
+  // as out-parameter.
+  inline bool TryGetHash(uint32_t* hash) const;
 
   // Equality operations.
   inline bool Equals(Name other);
@@ -110,8 +130,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
       HashFieldTypeBits::encode(HashFieldType::kEmpty);
 
   // Empty hash and forwarding indices can not be used as hash.
-  STATIC_ASSERT((kEmptyHashField & kHashNotComputedMask) != 0);
-  STATIC_ASSERT((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
                  kHashNotComputedMask) != 0);
 
   // Array index strings this short can keep their index in the hash field.
@@ -135,8 +155,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
-  STATIC_ASSERT(kArrayIndexLengthBits > 0);
-  STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
+  static_assert(kArrayIndexLengthBits > 0);
+  static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
       HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
@@ -151,7 +171,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.
-  STATIC_ASSERT(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
+  static_assert(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |

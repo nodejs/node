@@ -180,8 +180,8 @@ bool positionComparator(const std::pair<int, int>& a,
 
 String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
                         int columnNumber) {
-  int offset = script.offset(lineNumber, columnNumber);
-  if (offset == V8DebuggerScript::kNoOffset) return String16();
+  int offset;
+  if (!script.offset(lineNumber, columnNumber).To(&offset)) return String16();
   String16 hint =
       script.source(offset, kBreakpointHintMaxLength).stripWhiteSpace();
   for (size_t i = 0; i < hint.length(); ++i) {
@@ -206,8 +206,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
   }
 
   if (hint.isEmpty()) return;
-  intptr_t sourceOffset = script.offset(*lineNumber, *columnNumber);
-  if (sourceOffset == V8DebuggerScript::kNoOffset) return;
+  int sourceOffset;
+  if (!script.offset(*lineNumber, *columnNumber).To(&sourceOffset)) return;
 
   intptr_t searchRegionOffset = std::max(
       sourceOffset - kBreakpointHintMaxSearchOffset, static_cast<intptr_t>(0));
@@ -948,16 +948,6 @@ V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
   ScriptsMap::iterator scriptIterator = m_scripts.find(scriptId);
   if (scriptIterator == m_scripts.end()) return nullptr;
   V8DebuggerScript* script = scriptIterator->second.get();
-  if (lineNumber < script->startLine() || script->endLine() < lineNumber) {
-    return nullptr;
-  }
-  if (lineNumber == script->startLine() &&
-      columnNumber < script->startColumn()) {
-    return nullptr;
-  }
-  if (lineNumber == script->endLine() && script->endColumn() < columnNumber) {
-    return nullptr;
-  }
 
   v8::debug::BreakpointId debuggerBreakpointId;
   v8::debug::Location location(lineNumber, columnNumber);
@@ -1012,12 +1002,30 @@ Response V8DebuggerAgentImpl::searchInContent(
   return Response::Success();
 }
 
+namespace {
+const char* buildStatus(v8::debug::LiveEditResult::Status status) {
+  switch (status) {
+    case v8::debug::LiveEditResult::OK:
+      return protocol::Debugger::SetScriptSource::StatusEnum::Ok;
+    case v8::debug::LiveEditResult::COMPILE_ERROR:
+      return protocol::Debugger::SetScriptSource::StatusEnum::CompileError;
+    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
+      return protocol::Debugger::SetScriptSource::StatusEnum::
+          BlockedByActiveFunction;
+    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
+      return protocol::Debugger::SetScriptSource::StatusEnum::
+          BlockedByActiveGenerator;
+  }
+}
+}  // namespace
+
 Response V8DebuggerAgentImpl::setScriptSource(
     const String16& scriptId, const String16& newContent, Maybe<bool> dryRun,
+    Maybe<bool> allowTopFrameEditing,
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId,
+    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId, String16* status,
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
 
@@ -1033,10 +1041,13 @@ Response V8DebuggerAgentImpl::setScriptSource(
   v8::HandleScope handleScope(m_isolate);
   v8::Local<v8::Context> context = inspected->context();
   v8::Context::Scope contextScope(context);
+  const bool allowTopFrameLiveEditing = allowTopFrameEditing.fromMaybe(false);
 
   v8::debug::LiveEditResult result;
-  it->second->setSource(newContent, dryRun.fromMaybe(false), &result);
-  if (result.status != v8::debug::LiveEditResult::OK) {
+  it->second->setSource(newContent, dryRun.fromMaybe(false),
+                        allowTopFrameLiveEditing, &result);
+  *status = buildStatus(result.status);
+  if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
     *optOutCompileError =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
@@ -1047,24 +1058,45 @@ Response V8DebuggerAgentImpl::setScriptSource(
                                                         : 0)
             .build();
     return Response::Success();
-  } else {
-    *stackChanged = result.stack_changed;
   }
-  std::unique_ptr<Array<CallFrame>> callFrames;
-  Response response = currentCallFrames(&callFrames);
-  if (!response.IsSuccess()) return response;
-  *newCallFrames = std::move(callFrames);
-  *asyncStackTrace = currentAsyncStackTrace();
-  *asyncStackTraceId = currentExternalStackTrace();
+
+  if (result.restart_top_frame_required) {
+    CHECK(allowTopFrameLiveEditing);
+    // Nothing could have happened to the JS stack since the live edit so
+    // restarting the top frame is guaranteed to be successful.
+    CHECK(m_debugger->restartFrame(m_session->contextGroupId(),
+                                   /* callFrameOrdinal */ 0));
+    m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  }
+
   return Response::Success();
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
-    const String16& callFrameId,
+    const String16& callFrameId, Maybe<String16> mode,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
     Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
-  return Response::ServerError("Frame restarting not supported");
+  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  if (!mode.isJust()) {
+    return Response::ServerError(
+        "Restarting frame without 'mode' not supported");
+  }
+  CHECK_EQ(mode.fromJust(),
+           protocol::Debugger::RestartFrame::ModeEnum::StepInto);
+
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+  int callFrameOrdinal = static_cast<int>(scope.frameOrdinal());
+
+  if (!m_debugger->restartFrame(m_session->contextGroupId(),
+                                callFrameOrdinal)) {
+    return Response::ServerError("Restarting frame failed");
+  }
+  m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  *newCallFrames = std::make_unique<Array<CallFrame>>();
+  return Response::Success();
 }
 
 Response V8DebuggerAgentImpl::getScriptSource(
@@ -1288,7 +1320,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
   return scope.injectedScript()->wrapEvaluateResult(
       maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-      result, exceptionDetails);
+      throwOnSideEffect.fromMaybe(false), result, exceptionDetails);
 }
 
 Response V8DebuggerAgentImpl::setVariableValue(
@@ -1491,6 +1523,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                      .setUrl(String16())
                      .setScopeChain(std::move(scopes))
                      .setThis(std::move(protocolReceiver))
+                     .setCanBeRestarted(iterator->CanBeRestarted())
                      .build();
 
     v8::Local<v8::Function> func = iterator->GetFunction();
@@ -1953,6 +1986,7 @@ void V8DebuggerAgentImpl::reset() {
   m_scripts.clear();
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
+  m_debugger->allAsyncTasksCanceled();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {

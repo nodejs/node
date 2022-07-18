@@ -26,35 +26,25 @@ namespace internal {
 
 namespace {
 
-void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
+void MarkRangeAsYoung(BasePage& page, Address begin, Address end) {
 #if defined(CPPGC_YOUNG_GENERATION)
   DCHECK_LT(begin, end);
 
-  static constexpr auto kEntrySize = AgeTable::kCardSizeInBytes;
+  if (!page.heap().generational_gc_supported()) return;
 
-  const uintptr_t offset_begin = CagedHeap::OffsetFromAddress(begin);
-  const uintptr_t offset_end = CagedHeap::OffsetFromAddress(end);
+  // Then, if the page is newly allocated, force the first and last cards to be
+  // marked as young.
+  const bool new_page =
+      (begin == page.PayloadStart()) && (end == page.PayloadEnd());
 
-  const uintptr_t young_offset_begin = (begin == page->PayloadStart())
-                                           ? RoundDown(offset_begin, kEntrySize)
-                                           : RoundUp(offset_begin, kEntrySize);
-  const uintptr_t young_offset_end = (end == page->PayloadEnd())
-                                         ? RoundUp(offset_end, kEntrySize)
-                                         : RoundDown(offset_end, kEntrySize);
-
-  auto& age_table = page->heap().caged_heap().local_data().age_table;
-  for (auto offset = young_offset_begin; offset < young_offset_end;
-       offset += AgeTable::kCardSizeInBytes) {
-    age_table.SetAge(offset, AgeTable::Age::kYoung);
-  }
-
-  // Set to kUnknown the first and the last regions of the newly allocated
-  // linear buffer.
-  if (begin != page->PayloadStart() && !IsAligned(offset_begin, kEntrySize))
-    age_table.SetAge(offset_begin, AgeTable::Age::kMixed);
-  if (end != page->PayloadEnd() && !IsAligned(offset_end, kEntrySize))
-    age_table.SetAge(offset_end, AgeTable::Age::kMixed);
-#endif
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  age_table.SetAgeForRange(CagedHeap::OffsetFromAddress(begin),
+                           CagedHeap::OffsetFromAddress(end),
+                           AgeTable::Age::kYoung,
+                           new_page ? AgeTable::AdjacentCardsPolicy::kIgnore
+                                    : AgeTable::AdjacentCardsPolicy::kConsider);
+  page.set_as_containing_young_objects(true);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void AddToFreeList(NormalPageSpace& space, Address start, size_t size) {
@@ -85,7 +75,7 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace& space,
     // Concurrent marking may be running while the LAB is set up next to a live
     // object sharing the same cell in the bitmap.
     page->object_start_bitmap().ClearBit<AccessMode::kAtomic>(new_buffer);
-    MarkRangeAsYoung(page, new_buffer, new_buffer + new_size);
+    MarkRangeAsYoung(*page, new_buffer, new_buffer + new_size);
   }
 }
 
@@ -99,7 +89,7 @@ void* AllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
       HeapObjectHeader(HeapObjectHeader::kLargeObjectSizeInHeader, gcinfo);
 
   stats_collector.NotifyAllocation(size);
-  MarkRangeAsYoung(page, page->PayloadStart(), page->PayloadEnd());
+  MarkRangeAsYoung(*page, page->PayloadStart(), page->PayloadEnd());
 
   return header->ObjectStart();
 }
@@ -179,7 +169,7 @@ void ObjectAllocator::RefillLinearAllocationBuffer(NormalPageSpace& space,
   // allocation or we finish sweeping all pages of this heap.
   Sweeper& sweeper = raw_heap_.heap()->sweeper();
   // TODO(chromium:1056170): Investigate whether this should be a loop which
-  // would result in more agressive re-use of memory at the expense of
+  // would result in more aggressive re-use of memory at the expense of
   // potentially larger allocation time.
   if (sweeper.SweepForAllocationIfRunning(&space, size)) {
     // Sweeper found a block of at least `size` bytes. Allocation from the

@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   CpuFeatures& operator=(const CpuFeatures&) = delete;
 
   static void Probe(bool cross_compile) {
-    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
+    static_assert(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
     if (initialized_) return;
     initialized_ = true;
     ProbeImpl(cross_compile);

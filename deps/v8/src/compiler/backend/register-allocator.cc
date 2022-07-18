@@ -1885,23 +1885,23 @@ LiveRangeBuilder::LiveRangeBuilder(TopTierRegisterAllocationData* data,
                                    Zone* local_zone)
     : data_(data), phi_hints_(local_zone) {}
 
-BitVector* LiveRangeBuilder::ComputeLiveOut(
+SparseBitVector* LiveRangeBuilder::ComputeLiveOut(
     const InstructionBlock* block, TopTierRegisterAllocationData* data) {
   size_t block_index = block->rpo_number().ToSize();
-  BitVector* live_out = data->live_out_sets()[block_index];
+  SparseBitVector* live_out = data->live_out_sets()[block_index];
   if (live_out == nullptr) {
     // Compute live out for the given block, except not including backward
     // successor edges.
     Zone* zone = data->allocation_zone();
     const InstructionSequence* code = data->code();
 
-    live_out = zone->New<BitVector>(code->VirtualRegisterCount(), zone);
+    live_out = zone->New<SparseBitVector>(zone);
 
     // Process all successor blocks.
     for (const RpoNumber& succ : block->successors()) {
       // Add values live on entry to the successor.
       if (succ <= block->rpo_number()) continue;
-      BitVector* live_in = data->live_in_sets()[succ.ToSize()];
+      SparseBitVector* live_in = data->live_in_sets()[succ.ToSize()];
       if (live_in != nullptr) live_out->Union(*live_in);
 
       // All phi input operands corresponding to this successor edge are live
@@ -1919,7 +1919,7 @@ BitVector* LiveRangeBuilder::ComputeLiveOut(
 }
 
 void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
-                                           BitVector* live_out) {
+                                           SparseBitVector* live_out) {
   // Add an interval that includes the entire block to the live range for
   // each live_out value.
   LifetimePosition start = LifetimePosition::GapFromInstructionIndex(
@@ -2114,7 +2114,7 @@ UsePosition* LiveRangeBuilder::Use(LifetimePosition block_start,
 }
 
 void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
-                                           BitVector* live) {
+                                           SparseBitVector* live) {
   int block_start = block->first_instruction_index();
   LifetimePosition block_start_position =
       LifetimePosition::GapFromInstructionIndex(block_start);
@@ -2348,7 +2348,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
 }
 
 void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
-                                   BitVector* live) {
+                                   SparseBitVector* live) {
   for (PhiInstruction* phi : block->phis()) {
     // The live range interval already ends at the first instruction of the
     // block.
@@ -2470,7 +2470,7 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
 }
 
 void LiveRangeBuilder::ProcessLoopHeader(const InstructionBlock* block,
-                                         BitVector* live) {
+                                         SparseBitVector* live) {
   DCHECK(block->IsLoopHeader());
   // Add a live range stretching from the first loop instruction to the last
   // for each value live on entry to the header.
@@ -2498,7 +2498,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
     data_->tick_counter()->TickAndMaybeEnterSafepoint();
     InstructionBlock* block =
         code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
-    BitVector* live = ComputeLiveOut(block, data());
+    SparseBitVector* live = ComputeLiveOut(block, data());
     // Initially consider all live_out values live for the entire block. We
     // will shorten these intervals if necessary.
     AddInitialIntervals(block, live);
@@ -4877,10 +4877,10 @@ bool LiveRangeConnector::CanEagerlyResolveControlFlow(
 void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
   // Lazily linearize live ranges in memory for fast lookup.
   LiveRangeFinder finder(data(), local_zone);
-  ZoneVector<BitVector*>& live_in_sets = data()->live_in_sets();
+  ZoneVector<SparseBitVector*>& live_in_sets = data()->live_in_sets();
   for (const InstructionBlock* block : code()->instruction_blocks()) {
     if (CanEagerlyResolveControlFlow(block)) continue;
-    BitVector* live = live_in_sets[block->rpo_number().ToInt()];
+    SparseBitVector* live = live_in_sets[block->rpo_number().ToInt()];
     auto it = live->begin();
     auto end = live->end();
     while (it != end) {
@@ -5133,9 +5133,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
   ZoneSet<std::pair<RpoNumber, int>> done_moves(temp_zone);
   // Seek the deferred blocks that dominate locations requiring spill operands,
   // and spill there. We only need to spill at the start of such blocks.
-  BitVector done_blocks(
-      range->GetListOfBlocksRequiringSpillOperands(data())->length(),
-      temp_zone);
+  SparseBitVector done_blocks(temp_zone);
   while (!worklist.empty()) {
     int block_id = worklist.front();
     worklist.pop();

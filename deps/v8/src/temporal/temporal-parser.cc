@@ -5,6 +5,7 @@
 #include "src/temporal/temporal-parser.h"
 
 #include "src/base/bounds.h"
+#include "src/base/optional.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 
@@ -283,6 +284,10 @@ int32_t ScanDateExtendedYear(base::Vector<Char> str, int32_t s, int32_t* out) {
     *out = sign * (ToInt(str[s + 1]) * 100000 + ToInt(str[s + 2]) * 10000 +
                    ToInt(str[s + 3]) * 1000 + ToInt(str[s + 4]) * 100 +
                    ToInt(str[s + 5]) * 10 + ToInt(str[s + 6]));
+    // In the end of #sec-temporal-iso8601grammar
+    // It is a Syntax Error if DateExtendedYear is "-000000" or "−000000"
+    // (U+2212 MINUS SIGN followed by 000000).
+    if (sign == -1 && *out == 0) return 0;
     return 7;
   }
   return 0;
@@ -413,6 +418,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
     // TZUOSign TZUOHour
     r->tzuo_sign = sign;
     r->tzuo_hour = hour;
+    r->offset_string_start = s;
+    r->offset_string_length = cur - s;
     return cur - s;
   }
   if (str[cur] == ':') {
@@ -424,6 +431,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur++;
@@ -433,6 +442,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       // TZUOSign TZUOHour
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur += len;
@@ -441,6 +452,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
   }
@@ -451,6 +464,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
   r->tzuo_minute = minute;
   r->tzuo_second = second;
   if (len > 0) r->tzuo_nanosecond = nanosecond;
+  r->offset_string_start = s;
+  r->offset_string_length = cur + len - s;
   return cur + len - s;
 }
 
@@ -603,6 +618,9 @@ int32_t ScanTimeZoneBracketedName(base::Vector<Char> str, int32_t s,
     r->tzi_name_start = s;
     r->tzi_name_length = len;
     return len;
+  } else {
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
   }
   return ScanTimeZoneUTCOffsetName(str, s);
 }
@@ -615,6 +633,9 @@ int32_t ScanTimeZoneBracketedAnnotation(base::Vector<Char> str, int32_t s,
   int32_t cur = s + 1;
   cur += ScanTimeZoneBracketedName(str, cur, r);
   if ((cur - s == 1) || str.length() < (cur + 1) || (str[cur++] != ']')) {
+    // Reset value setted by ScanTimeZoneBracketedName
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
     return 0;
   }
   return cur - s;
@@ -1020,10 +1041,10 @@ SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int64_t)
   int32_t ScanDurationWhole##Name##FractionDesignator(                    \
       base::Vector<Char> str, int32_t s, ParsedISO8601Duration* r) {      \
     int32_t cur = s;                                                      \
-    int64_t whole = 0;                                                    \
+    int64_t whole = ParsedISO8601Duration::kEmpty;                        \
     cur += ScanDurationWhole##Name(str, cur, &whole);                     \
     if (cur == s) return 0;                                               \
-    int64_t fraction = 0;                                                 \
+    int64_t fraction = ParsedISO8601Duration::kEmpty;                     \
     int32_t len = ScanDuration##Name##Fraction(str, cur, &fraction);      \
     cur += len;                                                           \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) \
@@ -1186,23 +1207,23 @@ SATISIFY(TemporalDurationString, ParsedISO8601Duration)
 
 }  // namespace
 
-#define IMPL_PARSE_METHOD(R, NAME)                                         \
-  Maybe<R> TemporalParser::Parse##NAME(Isolate* isolate,                   \
-                                       Handle<String> iso_string) {        \
-    bool valid;                                                            \
-    R parsed;                                                              \
-    iso_string = String::Flatten(isolate, iso_string);                     \
-    {                                                                      \
-      DisallowGarbageCollection no_gc;                                     \
-      String::FlatContent str_content = iso_string->GetFlatContent(no_gc); \
-      if (str_content.IsOneByte()) {                                       \
-        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);     \
-      } else {                                                             \
-        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);        \
-      }                                                                    \
-    }                                                                      \
-    if (valid) return Just(parsed);                                        \
-    return Nothing<R>();                                                   \
+#define IMPL_PARSE_METHOD(R, NAME)                                           \
+  base::Optional<R> TemporalParser::Parse##NAME(Isolate* isolate,            \
+                                                Handle<String> iso_string) { \
+    bool valid;                                                              \
+    R parsed;                                                                \
+    iso_string = String::Flatten(isolate, iso_string);                       \
+    {                                                                        \
+      DisallowGarbageCollection no_gc;                                       \
+      String::FlatContent str_content = iso_string->GetFlatContent(no_gc);   \
+      if (str_content.IsOneByte()) {                                         \
+        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);       \
+      } else {                                                               \
+        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);          \
+      }                                                                      \
+    }                                                                        \
+    if (valid) return parsed;                                                \
+    return base::nullopt;                                                    \
   }
 
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString)

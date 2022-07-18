@@ -138,7 +138,7 @@ class FreeList {
   // and the size should be a non-zero multiple of the word size.
   virtual size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
-  // Allocates a free space node frome the free list of at least size_in_bytes
+  // Allocates a free space node from the free list of at least size_in_bytes
   // bytes. Returns the actual node size in node_size which can be bigger than
   // size_in_bytes. This method returns null if the allocation request cannot be
   // handled by the free list.
@@ -448,8 +448,8 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPath : public FreeListManyCached {
   // Objects in the 15th category are at least 256 bytes
   static const FreeListCategoryType kFastPathFallBackTiny = 15;
 
-  STATIC_ASSERT(categories_min[kFastPathFirstCategory] == kFastPathStart);
-  STATIC_ASSERT(categories_min[kFastPathFallBackTiny] ==
+  static_assert(categories_min[kFastPathFirstCategory] == kFastPathStart);
+  static_assert(categories_min[kFastPathFallBackTiny] ==
                 kTinyObjectMaxSize * 2);
 
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
@@ -473,7 +473,7 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPath : public FreeListManyCached {
 };
 
 // Uses FreeListManyCached if in the GC; FreeListManyCachedFastPath otherwise.
-// The reasonning behind this FreeList is the following: the GC runs in
+// The reasoning behind this FreeList is the following: the GC runs in
 // parallel, and therefore, more expensive allocations there are less
 // noticeable. On the other hand, the generated code and runtime need to be very
 // fast. Therefore, the strategy for the former is one that is not very

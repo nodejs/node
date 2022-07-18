@@ -5,7 +5,7 @@
 #include "src/libplatform/default-foreground-task-runner.h"
 
 #include "src/base/platform/mutex.h"
-#include "src/libplatform/default-platform.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {

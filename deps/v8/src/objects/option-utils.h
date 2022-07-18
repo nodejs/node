@@ -156,6 +156,11 @@ V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<int> GetNumberOption(
     Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
     int min, int max, int fallback);
 
+// #sec-getoption while type is "number"
+V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<double> GetNumberOptionAsDouble(
+    Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
+    double default_value);
+
 // ecma402/#sec-defaultnumberoption
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<int> DefaultNumberOption(
     Isolate* isolate, Handle<Object> value, int min, int max, int fallback,

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_INL_H_
 #define V8_OBJECTS_FIELD_INDEX_INL_H_
 
+#include "src/ic/handler-configuration.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
 #include "src/objects/map-inl.h"
@@ -18,6 +19,23 @@ FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
   DCHECK_IMPLIES(encoding == kTagged, IsAligned(offset, kTaggedSize));
   DCHECK_IMPLIES(encoding == kDouble, IsAligned(offset, kDoubleSize));
   return FieldIndex(true, offset, encoding, 0, 0);
+}
+
+FieldIndex FieldIndex::ForSmiLoadHandler(Map map, int32_t handler) {
+  DCHECK_EQ(LoadHandler::KindBits::decode(handler), LoadHandler::Kind::kField);
+
+  bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+  int inobject_properties = map.GetInObjectProperties();
+  int first_inobject_offset;
+  if (is_inobject) {
+    first_inobject_offset = map.GetInObjectPropertyOffset(0);
+  } else {
+    first_inobject_offset = FixedArray::kHeaderSize;
+  }
+  return FieldIndex(
+      is_inobject, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize,
+      LoadHandler::IsDoubleBits::decode(handler) ? kDouble : kTagged,
+      inobject_properties, first_inobject_offset);
 }
 
 FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,

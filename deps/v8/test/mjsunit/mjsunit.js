@@ -193,10 +193,10 @@ var V8OptimizationStatus = {
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
 var isNeverOptimizeLiteMode;
 
-// Returns true if --no-opt mode is on.
+// Returns true if --no-turbofan mode is on.
 var isNeverOptimize;
 
-// Returns true if --always-opt mode is on.
+// Returns true if --always-turbofan mode is on.
 var isAlwaysOptimize;
 
 // Returns true if given function in interpreted.
@@ -699,10 +699,10 @@ var prettyPrinted;
   assertUnoptimized = function assertUnoptimized(
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
-    // Tests that use assertUnoptimized() do not make sense if --always-opt
-    // option is provided. Such tests must add --no-always-opt to flags comment.
+    // Tests that use assertUnoptimized() do not make sense if --always-turbofan
+    // option is provided. Such tests must add --no-always-turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
-                "test does not make sense with --always-opt");
+                "test does not make sense with --always-turbofan");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
     if (skip_if_maybe_deopted &&
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
@@ -724,10 +724,10 @@ var prettyPrinted;
       print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
       testRunner.quit(0);
     }
-    // Tests that use assertOptimized() do not make sense if --no-opt
-    // option is provided. Such tests must add --opt to flags comment.
+    // Tests that use assertOptimized() do not make sense if --no-turbofan
+    // option is provided. Such tests must add --turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
-                "test does not make sense with --no-opt");
+                "test does not make sense with --no-turbofan");
     assertTrue(
         (opt_status & V8OptimizationStatus.kIsFunction) !== 0,
         'should be a function: ' + name_opt);

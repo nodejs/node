@@ -29,24 +29,23 @@ class Simd128;
 // Format: kind, log2Size, code, machineType, shortName, typeName
 //
 // Some of these types are from proposals that are not standardized yet:
-// - "ref"/"optref" (a.k.a. "ref null") per
-//   https://github.com/WebAssembly/function-references
-// - "rtt" per https://github.com/WebAssembly/gc
+// - "ref"/"ref null" https://github.com/WebAssembly/function-references
+// - "rtt", "i8" and "i16" per https://github.com/WebAssembly/gc
 #define FOREACH_NUMERIC_VALUE_TYPE(V)    \
   V(I32, 2, I32, Int32, 'i', "i32")      \
   V(I64, 3, I64, Int64, 'l', "i64")      \
   V(F32, 2, F32, Float32, 'f', "f32")    \
   V(F64, 3, F64, Float64, 'd', "f64")    \
-  V(S128, 4, S128, Simd128, 's', "s128") \
+  V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")
 
-#define FOREACH_VALUE_TYPE(V)                                    \
-  V(Void, -1, Void, None, 'v', "<void>")                         \
-  FOREACH_NUMERIC_VALUE_TYPE(V)                                  \
-  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")        \
-  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")            \
-  V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null") \
+#define FOREACH_VALUE_TYPE(V)                                      \
+  V(Void, -1, Void, None, 'v', "<void>")                           \
+  FOREACH_NUMERIC_VALUE_TYPE(V)                                    \
+  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")          \
+  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")              \
+  V(RefNull, kTaggedSizeLog2, RefNull, AnyTagged, 'n', "ref null") \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 constexpr int kMaxValueTypeSize = 16;  // bytes
@@ -66,6 +65,11 @@ class HeapType {
     kData,                    // shorthand: o
     kArray,                   // shorthand: g
     kAny,                     // shorthand: a. Aka kExtern.
+    kString,                  // shorthand: w.
+    kStringViewWtf8,          // shorthand: x.
+    kStringViewWtf16,         // shorthand: y.
+    kStringViewIter,          // shorthand: z.
+    kNone,                    //
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type. It has to be last in this list.
     kBottom
@@ -86,6 +90,16 @@ class HeapType {
         return HeapType(kData);
       case ValueTypeCode::kArrayRefCode:
         return HeapType(kArray);
+      case ValueTypeCode::kStringRefCode:
+        return HeapType(kString);
+      case ValueTypeCode::kStringViewWtf8Code:
+        return HeapType(kStringViewWtf8);
+      case ValueTypeCode::kStringViewWtf16Code:
+        return HeapType(kStringViewWtf16);
+      case ValueTypeCode::kStringViewIterCode:
+        return HeapType(kStringViewIter);
+      case ValueTypeCode::kNoneCode:
+        return HeapType(kNone);
       default:
         return HeapType(kBottom);
     }
@@ -140,6 +154,16 @@ class HeapType {
         return std::string("array");
       case kAny:
         return std::string(FLAG_experimental_wasm_gc ? "any" : "extern");
+      case kString:
+        return std::string("string");
+      case kStringViewWtf8:
+        return std::string("stringview_wtf8");
+      case kStringViewWtf16:
+        return std::string("stringview_wtf16");
+      case kStringViewIter:
+        return std::string("stringview_iter");
+      case kNone:
+        return std::string("none");
       default:
         return std::to_string(representation_);
     }
@@ -163,6 +187,16 @@ class HeapType {
         return mask | kArrayRefCode;
       case kAny:
         return mask | kAnyRefCode;
+      case kString:
+        return mask | kStringRefCode;
+      case kStringViewWtf8:
+        return mask | kStringViewWtf8Code;
+      case kStringViewWtf16:
+        return mask | kStringViewWtf16Code;
+      case kStringViewIter:
+        return mask | kStringViewIterCode;
+      case kNone:
+        return mask | kNoneCode;
       default:
         return static_cast<int32_t>(representation_);
     }
@@ -201,11 +235,11 @@ constexpr bool is_numeric(ValueKind kind) {
 }
 
 constexpr bool is_reference(ValueKind kind) {
-  return kind == kRef || kind == kOptRef || kind == kRtt;
+  return kind == kRef || kind == kRefNull || kind == kRtt;
 }
 
 constexpr bool is_object_reference(ValueKind kind) {
-  return kind == kRef || kind == kOptRef;
+  return kind == kRef || kind == kRefNull;
 }
 
 constexpr int value_kind_size_log2(ValueKind kind) {
@@ -303,14 +337,32 @@ class ValueType {
     DCHECK(kind == kBottom || kind <= kI16);
     return ValueType(KindField::encode(kind));
   }
-  static constexpr ValueType Ref(uint32_t heap_type, Nullability nullability) {
+  static constexpr ValueType Ref(uint32_t heap_type) {
+    DCHECK(HeapType(heap_type).is_valid());
+    return ValueType(KindField::encode(kRef) |
+                     HeapTypeField::encode(heap_type));
+  }
+  static constexpr ValueType Ref(HeapType heap_type) {
+    return Ref(heap_type.representation());
+  }
+  static constexpr ValueType RefNull(uint32_t heap_type) {
+    DCHECK(HeapType(heap_type).is_valid());
+    return ValueType(KindField::encode(kRefNull) |
+                     HeapTypeField::encode(heap_type));
+  }
+  static constexpr ValueType RefNull(HeapType heap_type) {
+    return RefNull(heap_type.representation());
+  }
+  static constexpr ValueType RefMaybeNull(uint32_t heap_type,
+                                          Nullability nullability) {
     DCHECK(HeapType(heap_type).is_valid());
     return ValueType(
-        KindField::encode(nullability == kNullable ? kOptRef : kRef) |
+        KindField::encode(nullability == kNullable ? kRefNull : kRef) |
         HeapTypeField::encode(heap_type));
   }
-  static constexpr ValueType Ref(HeapType heap_type, Nullability nullability) {
-    return Ref(heap_type.representation(), nullability);
+  static constexpr ValueType RefMaybeNull(HeapType heap_type,
+                                          Nullability nullability) {
+    return RefMaybeNull(heap_type.representation(), nullability);
   }
 
   static constexpr ValueType Rtt(uint32_t type_index) {
@@ -320,7 +372,7 @@ class ValueType {
   }
 
   static constexpr ValueType FromIndex(ValueKind kind, uint32_t index) {
-    DCHECK(kind == kOptRef || kind == kRef || kind == kRtt);
+    DCHECK(kind == kRefNull || kind == kRef || kind == kRtt);
     return ValueType(KindField::encode(kind) | HeapTypeField::encode(index));
   }
 
@@ -338,10 +390,11 @@ class ValueType {
     return wasm::is_object_reference(kind());
   }
 
-  constexpr bool is_nullable() const { return kind() == kOptRef; }
+  constexpr bool is_nullable() const { return kind() == kRefNull; }
+  constexpr bool is_non_nullable() const { return kind() == kRef; }
 
   constexpr bool is_reference_to(uint32_t htype) const {
-    return (kind() == kRef || kind() == kOptRef) &&
+    return (kind() == kRef || kind() == kRefNull) &&
            heap_representation() == htype;
   }
 
@@ -361,11 +414,18 @@ class ValueType {
     return is_packed() ? Primitive(kI32) : *this;
   }
 
-  // Returns the version of this type that does not allow null values. Handles
-  // bottom.
+  // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
-    DCHECK(is_object_reference() || is_bottom());
-    return is_nullable() ? Ref(heap_type(), kNonNullable) : *this;
+    if (is_reference_to(HeapType::kNone)) {
+      // Non-null none type is not a valid type.
+      return ValueType::Primitive(kBottom);
+    }
+    return is_nullable() ? Ref(heap_type()) : *this;
+  }
+
+  // If {this} is (ref $t), returns (ref null $t). Otherwise, returns {this}.
+  constexpr ValueType AsNullable() const {
+    return is_non_nullable() ? RefNull(heap_type()) : *this;
   }
 
   /***************************** Field Accessors ******************************/
@@ -385,7 +445,7 @@ class ValueType {
   }
   constexpr Nullability nullability() const {
     DCHECK(is_object_reference());
-    return kind() == kOptRef ? kNullable : kNonNullable;
+    return kind() == kRefNull ? kNullable : kNonNullable;
   }
 
   // Useful when serializing this type to store it into a runtime object.
@@ -437,7 +497,7 @@ class ValueType {
       case MachineRepresentation::kFloat64:
         return Primitive(kF64);
       case MachineRepresentation::kTaggedPointer:
-        return Ref(HeapType::kAny, kNullable);
+        return RefNull(HeapType::kAny);
       case MachineRepresentation::kSimd128:
         return Primitive(kS128);
       default:
@@ -452,11 +512,11 @@ class ValueType {
   // For compatibility with the reftypes and exception-handling proposals, this
   // function prioritizes shorthand encodings
   // (e.g., Ref(HeapType::kFunc, kNullable).value_type_code will return
-  // kFuncrefCode and not kOptRefCode).
+  // kFuncrefCode and not kRefNullCode).
   constexpr ValueTypeCode value_type_code() const {
     DCHECK_NE(kBottom, kind());
     switch (kind()) {
-      case kOptRef:
+      case kRefNull:
         switch (heap_representation()) {
           case HeapType::kFunc:
             return kFuncRefCode;
@@ -464,8 +524,18 @@ class ValueType {
             return kEqRefCode;
           case HeapType::kAny:
             return kAnyRefCode;
+          case HeapType::kString:
+            return kStringRefCode;
+          case HeapType::kStringViewWtf8:
+            return kStringViewWtf8Code;
+          case HeapType::kStringViewWtf16:
+            return kStringViewWtf16Code;
+          case HeapType::kStringViewIter:
+            return kStringViewIterCode;
+          case HeapType::kNone:
+            return kNoneCode;
           default:
-            return kOptRefCode;
+            return kRefNullCode;
         }
       case kRef:
         switch (heap_representation()) {
@@ -501,10 +571,14 @@ class ValueType {
         return heap_representation() != HeapType::kI31 &&
                heap_representation() != HeapType::kArray &&
                heap_representation() != HeapType::kData;
-      case kOptRef:
+      case kRefNull:
         return heap_representation() != HeapType::kFunc &&
                heap_representation() != HeapType::kEq &&
-               heap_representation() != HeapType::kAny;
+               heap_representation() != HeapType::kAny &&
+               heap_representation() != HeapType::kString &&
+               heap_representation() != HeapType::kStringViewWtf8 &&
+               heap_representation() != HeapType::kStringViewWtf16 &&
+               heap_representation() != HeapType::kStringViewIter;
       default:
         return false;
     }
@@ -517,9 +591,9 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
-      case kOptRef:
+      case kRefNull:
         if (encoding_needs_heap_type()) {
-          buf << "(ref " << (kind() == kOptRef ? "null " : "")
+          buf << "(ref " << (kind() == kRefNull ? "null " : "")
               << heap_type().name() << ")";
         } else {
           buf << heap_type().name() << "ref";
@@ -550,6 +624,8 @@ class ValueType {
   static constexpr int kKindBits = 5;
   static constexpr int kHeapTypeBits = 20;
 
+  static const intptr_t kBitFieldOffset;
+
  private:
   // {hash_value} directly reads {bit_field_}.
   friend size_t hash_value(ValueType type);
@@ -575,6 +651,9 @@ class ValueType {
 
   uint32_t bit_field_;
 };
+
+inline constexpr intptr_t ValueType::kBitFieldOffset =
+    offsetof(ValueType, bit_field_);
 
 static_assert(sizeof(ValueType) <= kUInt32Size,
               "ValueType is small and can be passed by value");
@@ -602,21 +681,26 @@ constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
 constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type and wasm-gc proposal shorthands.
-constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
-constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
-constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
-constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
-constexpr ValueType kWasmDataRef =
-    ValueType::Ref(HeapType::kData, kNonNullable);
-constexpr ValueType kWasmArrayRef =
-    ValueType::Ref(HeapType::kArray, kNonNullable);
+constexpr ValueType kWasmFuncRef = ValueType::RefNull(HeapType::kFunc);
+constexpr ValueType kWasmAnyRef = ValueType::RefNull(HeapType::kAny);
+constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
+constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31);
+constexpr ValueType kWasmDataRef = ValueType::Ref(HeapType::kData);
+constexpr ValueType kWasmArrayRef = ValueType::Ref(HeapType::kArray);
+constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
+constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
+constexpr ValueType kWasmStringViewWtf8 =
+    ValueType::RefNull(HeapType::kStringViewWtf8);
+constexpr ValueType kWasmStringViewWtf16 =
+    ValueType::RefNull(HeapType::kStringViewWtf16);
+constexpr ValueType kWasmStringViewIter =
+    ValueType::RefNull(HeapType::kStringViewIter);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 
 // This is used in wasm.tq.
-constexpr ValueType kWasmAnyNonNullableRef =
-    ValueType::Ref(HeapType::kAny, kNonNullable);
+constexpr ValueType kWasmAnyNonNullableRef = ValueType::Ref(HeapType::kAny);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

@@ -41,7 +41,8 @@ void BaselineCompiler::PrologueFillFrame() {
     DCHECK_LE(new_target_index, register_count);
     __ masm()->Add64(sp, sp, Operand(-(kPointerSize * new_target_index)));
     for (int i = 0; i < new_target_index; i++) {
-      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
+      __ masm()->Sd(kInterpreterAccumulatorRegister,
+                    MemOperand(sp, i * kSystemPointerSize));
     }
     // Push new_target_or_generator.
     __ Push(kJavaScriptCallNewTargetRegister);
@@ -51,12 +52,14 @@ void BaselineCompiler::PrologueFillFrame() {
     // If the frame is small enough, just unroll the frame fill completely.
     __ masm()->Add64(sp, sp, Operand(-(kPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
-      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
+      __ masm()->Sd(kInterpreterAccumulatorRegister,
+                    MemOperand(sp, i * kSystemPointerSize));
     }
   } else {
     __ masm()->Add64(sp, sp, Operand(-(kPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
-      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
+      __ masm()->Sd(kInterpreterAccumulatorRegister,
+                    MemOperand(sp, i * kSystemPointerSize));
     }
   }
 }

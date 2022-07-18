@@ -88,7 +88,9 @@ macro NewSloppyArgumentsElements<Iterator: type>(
   SloppyArgumentsElements{length, context, arguments, mapped_entries: ...it};
 }
 
-extern class AliasedArgumentsEntry extends Struct { aliased_context_slot: Smi; }
+extern class AliasedArgumentsEntry extends Struct {
+  aliased_context_slot: Smi;
+}
 
 // TODO(danno): This should be a namespace {} once supported
 namespace arguments {

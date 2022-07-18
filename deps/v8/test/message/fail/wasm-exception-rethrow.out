@@ -1,4 +1,1 @@
-wasm-function[0]:0x32: WebAssembly.Exception: wasm exception
-WebAssembly.Exception: wasm exception
-    at rethrow0 (wasm://wasm/f019909a:wasm-function[0]:0x32)
-    at *%(basename)s:21:18
+undefined:0: [object WebAssembly.Exception]

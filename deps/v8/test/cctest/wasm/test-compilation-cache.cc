@@ -63,10 +63,6 @@ class StreamTester {
 
   void FinishStream() { stream_->Finish(); }
 
-  void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
-  }
-
  private:
   i::HandleScope internal_scope_;
   std::shared_ptr<StreamingDecoder> stream_;

@@ -478,6 +478,21 @@ export class Profile {
   }
 
   /**
+   * Registers dynamic (JIT-compiled) code entry or entries that overlap with
+   * static entries (like builtins).
+   *
+   * @param {string} type Code entry type.
+   * @param {string} name Code entry name.
+   * @param {number} start Starting address.
+   * @param {number} size Code entry size.
+   */
+  addAnyCode(type, name, timestamp, start, size) {
+    const entry = new DynamicCodeEntry(size, type, name);
+    this.codeMap_.addAnyCode(start, entry);
+    return entry;
+  }
+
+  /**
    * Registers dynamic (JIT-compiled) code entry.
    *
    * @param {string} type Code entry type.
@@ -633,7 +648,7 @@ export class Profile {
    * Records a tick event. Stack must contain a sequence of
    * addresses starting with the program counter value.
    *
-   * @param {Array<number>} stack Stack sample.
+   * @param {number[]} stack Stack sample.
    */
   recordTick(time_ns, vmState, stack) {
     const {nameStack, entryStack} = this.resolveAndFilterFuncs_(stack);
@@ -647,7 +662,7 @@ export class Profile {
    * Translates addresses into function names and filters unneeded
    * functions.
    *
-   * @param {Array<number>} stack Stack sample.
+   * @param {number[]} stack Stack sample.
    */
   resolveAndFilterFuncs_(stack) {
     const nameStack = [];
@@ -937,6 +952,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
 class FunctionEntry extends CodeEntry {
 
   // Contains the list of generated code for this function.
+  /** @type {Set<DynamicCodeEntry>} */
   _codeEntries = new Set();
 
   constructor(name) {
@@ -1000,7 +1016,7 @@ class CallTree {
   /**
    * Adds the specified call path, constructing nodes as necessary.
    *
-   * @param {Array<string>} path Call path.
+   * @param {string[]} path Call path.
    */
   addPath(path) {
     if (path.length == 0) return;
@@ -1208,7 +1224,7 @@ class CallTreeNode {
   /**
    * Tries to find a node with the specified path.
    *
-   * @param {Array<string>} labels The path.
+   * @param {string[]} labels The path.
    * @param {function(CallTreeNode)} opt_f Visitor function.
    */
   descendToChild(labels, opt_f) {

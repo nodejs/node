@@ -69,7 +69,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void UpdateAllocationTimeout();
+  // See `allocation_timeout_`.
   void SetAllocationTimeout(int allocation_timeout);
+
+  static void SetAllocationGcInterval(int allocation_gc_interval);
+  static void InitializeOncePerProcess();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
@@ -107,10 +111,16 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   ConcurrentAllocator* shared_map_allocator_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  // If the --gc-interval flag is set to a positive value, this variable
-  // holds the value indicating the number of allocations remain until the
-  // next failure and garbage collection.
+  // Specifies how many allocations should be performed until returning
+  // allocation failure (which will eventually lead to garbage collection).
+  // Allocation will fail for any values <=0. See `UpdateAllocationTimeout()`
+  // for how the new timeout is computed.
   int allocation_timeout_ = 0;
+
+  // The configured GC interval, initialized from --gc-interval during
+  // `InitializeOncePerProcess` and potentially dynamically updated by
+  // `%SetAllocationTimeout()`.
+  static std::atomic<int> allocation_gc_interval_;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 

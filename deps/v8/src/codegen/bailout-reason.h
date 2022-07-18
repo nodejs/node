@@ -96,15 +96,12 @@ namespace internal {
                                                                             \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change") \
   V(kCodeGenerationFailed, "Code generation failed")                        \
-  V(kCyclicObjectStateDetectedInEscapeAnalysis,                             \
-    "Cyclic object state detected by escape analysis")                      \
   V(kFunctionBeingDebugged, "Function is being debugged")                   \
   V(kGraphBuildingFailed, "Optimized graph construction failed")            \
   V(kFunctionTooBig, "Function is too big to be optimized")                 \
+  V(kTooManyArguments, "Function contains a call with too many arguments")  \
   V(kLiveEdit, "LiveEdit")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                      \
-  V(kNotEnoughVirtualRegistersRegalloc,                                     \
-    "Not enough virtual registers (regalloc)")                              \
   V(kOptimizationDisabled, "Optimization disabled")                         \
   V(kNeverOptimize, "Optimization is always disabled")
 

@@ -25,6 +25,17 @@ class Result(ResultBase):
     self.output = output
     self.cmd = cmd
 
+  def status(self):
+    if self.has_unexpected_output:
+      if not hasattr(self.output, "HasCrashed"):
+        raise Exception(type(self))
+      if self.output.HasCrashed():
+        return 'CRASH'
+      else:
+        return 'FAIL'
+    else:
+      return 'PASS'
+
 
 class GroupedResult(ResultBase):
   """Result consisting of multiple results. It can be used by processors that
@@ -95,3 +106,6 @@ class RerunResult(Result):
   @property
   def is_rerun(self):
     return True
+
+  def status(self):
+    return ' '.join(r.status() for r in self.results)

@@ -135,16 +135,9 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
 // static
 Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
                                          JSRegExp::Flags flags) {
-  static constexpr int kStringTerminator = 1;
-  int cursor = 0;
-  char buffer[kFlagCount + kStringTerminator];
-#define V(Lower, Camel, LowerCamel, Char, Bit) \
-  if (flags & JSRegExp::k##Camel) buffer[cursor++] = Char;
-  REGEXP_FLAG_LIST(V)
-#undef V
-  buffer[cursor++] = '\0';
-  DCHECK_LE(cursor, kFlagCount + kStringTerminator);
-  return isolate->factory()->NewStringFromAsciiChecked(buffer);
+  FlagsBuffer buffer;
+  return isolate->factory()->NewStringFromAsciiChecked(
+      FlagsToString(flags, &buffer));
 }
 
 // static

@@ -268,8 +268,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (reusable_preparser_ == nullptr) {
       reusable_preparser_ = new PreParser(
           &preparser_zone_, &scanner_, stack_limit_, ast_value_factory(),
-          pending_error_handler(), runtime_call_stats_, logger_, flags(),
-          parsing_on_main_thread_);
+          pending_error_handler(), runtime_call_stats_, v8_file_logger_,
+          flags(), parsing_on_main_thread_);
       reusable_preparser_->set_allow_eval_cache(allow_eval_cache());
       preparse_data_buffer_.reserve(128);
     }
@@ -789,6 +789,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         DoubleToCString(double_value, base::ArrayVector(array));
     return ast_value_factory()->GetOneByteString(string);
   }
+
+  const AstRawString* GetBigIntAsSymbol();
 
   class ThisExpression* ThisExpression() {
     UseThis();

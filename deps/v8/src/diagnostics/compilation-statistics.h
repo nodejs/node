@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/utils/allocation.h"
 

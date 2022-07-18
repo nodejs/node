@@ -52,7 +52,7 @@ let instance = (() => {
   };
 
   for (key in test_types) {
-    let type = wasmOptRefType(test_types[key]);
+    let type = wasmRefNullType(test_types[key]);
     builder.addFunction(key + '_id', makeSig([type], [type]))
         .addBody([kExprLocalGet, 0])
         .exportFunc();

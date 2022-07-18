@@ -214,7 +214,7 @@ void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
   if (result) {
     LiveEdit::PatchScript(
         i_isolate, i_script_a,
-        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false,
+        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, false,
         result);
     if (result->status == v8::debug::LiveEditResult::COMPILE_ERROR) {
       result->message = scope.Escape(result->message);
@@ -223,7 +223,8 @@ void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
     v8::debug::LiveEditResult r;
     LiveEdit::PatchScript(
         i_isolate, i_script_a,
-        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, &r);
+        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, false,
+        &r);
     CHECK_EQ(r.status, v8::debug::LiveEditResult::OK);
   }
 }
@@ -549,7 +550,7 @@ TEST(LiveEditFunctionExpression) {
   LiveEdit::PatchScript(
       i_isolate, i_script,
       i_isolate->factory()->NewStringFromAsciiChecked(updated_source), false,
-      &result);
+      false, &result);
   CHECK_EQ(result.status, debug::LiveEditResult::OK);
   {
     v8::Local<v8::String> result_str =

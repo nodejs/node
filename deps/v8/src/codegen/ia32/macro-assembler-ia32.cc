@@ -299,21 +299,11 @@ void TurboAssembler::LoadAddress(Register destination,
   mov(destination, Immediate(source));
 }
 
-static constexpr Register saved_regs[] = {eax, ecx, edx};
-
-static constexpr int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
-
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
-                                                    Register exclusion1,
-                                                    Register exclusion2,
-                                                    Register exclusion3) const {
+                                                    Register exclusion) const {
   int bytes = 0;
-  for (int i = 0; i < kNumberOfSavedRegs; i++) {
-    Register reg = saved_regs[i];
-    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
-      bytes += kSystemPointerSize;
-    }
-  }
+  RegList saved_regs = kCallerSaved - exclusion;
+  bytes += kSystemPointerSize * saved_regs.Count();
 
   if (fp_mode == SaveFPRegsMode::kSave) {
     // Count all XMM registers except XMM0.
@@ -323,19 +313,17 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   return bytes;
 }
 
-int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                    Register exclusion2, Register exclusion3) {
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                    Register exclusion) {
   ASM_CODE_COMMENT(this);
   // We don't allow a GC in a write barrier slow path so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
   int bytes = 0;
-  for (int i = 0; i < kNumberOfSavedRegs; i++) {
-    Register reg = saved_regs[i];
-    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
-      push(reg);
-      bytes += kSystemPointerSize;
-    }
+  RegList saved_regs = kCallerSaved - exclusion;
+  for (Register reg : saved_regs) {
+    push(reg);
+    bytes += kSystemPointerSize;
   }
 
   if (fp_mode == SaveFPRegsMode::kSave) {
@@ -356,8 +344,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                   Register exclusion2, Register exclusion3) {
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
@@ -375,12 +362,10 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     bytes += delta;
   }
 
-  for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
-    Register reg = saved_regs[i];
-    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
-      pop(reg);
-      bytes += kSystemPointerSize;
-    }
+  RegList saved_regs = kCallerSaved - exclusion;
+  for (Register reg : base::Reversed(saved_regs)) {
+    pop(reg);
+    bytes += kSystemPointerSize;
   }
 
   return bytes;
@@ -389,7 +374,6 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       SaveFPRegsMode save_fp,
-                                      RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
   ASM_CODE_COMMENT(this);
   // First, check if a write barrier is even needed. The tests below
@@ -414,16 +398,15 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     bind(&ok);
   }
 
-  RecordWrite(object, slot_address, value, save_fp, remembered_set_action,
-              SmiCheck::kOmit);
+  RecordWrite(object, slot_address, value, save_fp, SmiCheck::kOmit);
 
   bind(&done);
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -464,10 +447,10 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStubSaveRegisters(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStubSaveRegisters(Register object,
+                                                      Register slot_address,
+                                                      SaveFPRegsMode fp_mode,
+                                                      StubCallMode mode) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
@@ -483,16 +466,14 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(
   pop(slot_address_parameter);
   pop(object_parameter);
 
-  CallRecordWriteStub(object_parameter, slot_address_parameter,
-                      remembered_set_action, fp_mode, mode);
+  CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode, mode);
 
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStub(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
+                                         SaveFPRegsMode fp_mode,
+                                         StubCallMode mode) {
   ASM_CODE_COMMENT(this);
   // Use CallRecordWriteStubSaveRegisters if the object and slot registers
   // need to be caller saved.
@@ -501,15 +482,13 @@ void TurboAssembler::CallRecordWriteStub(
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {wasm_call} for direct Wasm call within a module.
-    auto wasm_target =
-        wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
     wasm_call(wasm_target, RelocInfo::WASM_STUB_CALL);
 #else
   if (false) {
 #endif
   } else {
-    Builtin builtin =
-        Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
+    Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
     if (options().inline_offheap_trampolines) {
       CallBuiltin(builtin);
     } else {
@@ -521,15 +500,12 @@ void TurboAssembler::CallRecordWriteStub(
 
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
-                                 RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, value, slot_address));
   AssertNotSmi(object);
 
-  if ((remembered_set_action == RememberedSetAction::kOmit &&
-       !FLAG_incremental_marking) ||
-      FLAG_disable_write_barriers) {
+  if (FLAG_disable_write_barriers) {
     return;
   }
 
@@ -561,7 +537,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                 Label::kNear);
   RecordComment("CheckPageFlag]");
 
-  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
+  CallRecordWriteStub(object, slot_address, fp_mode);
 
   bind(&done);
 
@@ -569,8 +545,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Clobber slot_address and value");
-    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -733,6 +709,18 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  mov(scratch, FieldOperand(codet, Code::kCodeDataContainerOffset));
+  test(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+       Immediate(1 << Code::kMarkedForDeoptimizationBit));
+}
+
+Immediate MacroAssembler::ClearedValue() const {
+  return Immediate(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
@@ -877,7 +865,7 @@ void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
       break;
     }
     case kCountIsSmi: {
-      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
       // SMIs are stored shifted left by 1 byte with the tag being 0.
       // This is equivalent to multiplying by 2. To convert SMIs to bytes we
       // can therefore just multiply the stored value by half the system pointer
@@ -1007,8 +995,8 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
 
-  STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
-  STATIC_ASSERT(esi == kContextRegister);
+  static_assert(edx == kRuntimeCallFunctionRegister);
+  static_assert(esi == kContextRegister);
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address =
@@ -1129,8 +1117,8 @@ void MacroAssembler::LeaveApiExitFrame() {
 void MacroAssembler::PushStackHandler(Register scratch) {
   ASM_CODE_COMMENT(this);
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  static_assert(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
+  static_assert(StackHandlerConstants::kNextOffset == 0);
 
   push(Immediate(0));  // Padding.
 
@@ -1145,7 +1133,7 @@ void MacroAssembler::PushStackHandler(Register scratch) {
 
 void MacroAssembler::PopStackHandler(Register scratch) {
   ASM_CODE_COMMENT(this);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  static_assert(StackHandlerConstants::kNextOffset == 0);
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   pop(ExternalReferenceAsOperand(handler_address, scratch));
@@ -1876,10 +1864,10 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   ASM_CODE_COMMENT(this);
-  STATIC_ASSERT(kSystemPointerSize == 4);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSystemPointerSize == 4);
+  static_assert(kSmiShiftSize == 0);
+  static_assert(kSmiTagSize == 1);
+  static_assert(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below (we use

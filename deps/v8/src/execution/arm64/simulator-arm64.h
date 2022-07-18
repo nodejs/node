@@ -761,7 +761,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Simulation helpers.
   template <typename T>
   void set_pc(T new_pc) {
-    STATIC_ASSERT(sizeof(T) == sizeof(pc_));
+    static_assert(sizeof(T) == sizeof(pc_));
     memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
@@ -1114,7 +1114,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // As above, but don't automatically log the register update.
   template <typename T>
   void set_vreg_no_log(unsigned code, T value) {
-    STATIC_ASSERT((sizeof(value) == kBRegSize) ||
+    static_assert((sizeof(value) == kBRegSize) ||
                   (sizeof(value) == kHRegSize) ||
                   (sizeof(value) == kSRegSize) ||
                   (sizeof(value) == kDRegSize) || (sizeof(value) == kQRegSize));
@@ -1518,7 +1518,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   template <typename T, typename A>
   T MemoryRead(A address) {
     T value;
-    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+    static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
                   (sizeof(value) == 4) || (sizeof(value) == 8) ||
                   (sizeof(value) == 16));
     memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
@@ -1528,7 +1528,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Memory write helpers.
   template <typename T, typename A>
   void MemoryWrite(A address, T value) {
-    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+    static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
                   (sizeof(value) == 4) || (sizeof(value) == 8) ||
                   (sizeof(value) == 16));
     memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));

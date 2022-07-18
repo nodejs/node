@@ -65,7 +65,7 @@ class CodeEntry {
 
   // CodeEntry may reference strings (|name|, |resource_name|) managed by a
   // StringsStorage instance. These must be freed via ReleaseStrings.
-  inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
+  inline CodeEntry(LogEventListener::CodeTag tag, const char* name,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
@@ -164,8 +164,12 @@ class CodeEntry {
   const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
       int pc_offset) const;
 
-  CodeEventListener::LogEventsAndTags tag() const {
-    return TagField::decode(bit_field_);
+  LogEventListener::Event event() const {
+    return EventField::decode(bit_field_);
+  }
+
+  LogEventListener::CodeTag code_tag() const {
+    return CodeTagField::decode(bit_field_);
   }
 
   V8_EXPORT_PRIVATE static const char* const kEmptyResourceName;
@@ -227,7 +231,8 @@ class CodeEntry {
     return ref_count_;
   }
 
-  using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
+  using EventField = base::BitField<LogEventListener::Event, 0, 4>;
+  using CodeTagField = base::BitField<LogEventListener::CodeTag, 0, 4>;
   using BuiltinField = base::BitField<Builtin, 8, 20>;
   static_assert(Builtins::kBuiltinCount <= BuiltinField::kNumValues,
                 "builtin_count exceeds size of bitfield");

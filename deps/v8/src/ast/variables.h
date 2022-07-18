@@ -8,7 +8,6 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

@@ -6,7 +6,6 @@
 #define V8_COMPILER_TYPED_OPTIMIZATION_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {

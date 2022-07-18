@@ -691,7 +691,7 @@ assertTrue(setDesc.configurable);
 
 // 'WebAssembly.Table.prototype.set' method
 let set = setDesc.value;
-assertEq(set.length, 2);
+assertEq(set.length, 1);
 assertFalse(isConstructor(set));
 assertThrows(
     () => set.call(), TypeError, /Receiver is not a WebAssembly.Table/);

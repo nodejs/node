@@ -205,10 +205,10 @@ class V8_EXPORT EmbedderHeapTracer {
    * Returns the v8::Isolate this tracer is attached too and |nullptr| if it
    * is not attached to any v8::Isolate.
    */
-  v8::Isolate* isolate() const { return isolate_; }
+  v8::Isolate* isolate() const { return v8_isolate_; }
 
  protected:
-  v8::Isolate* isolate_ = nullptr;
+  v8::Isolate* v8_isolate_ = nullptr;
 
   friend class internal::LocalEmbedderHeapTracer;
 };

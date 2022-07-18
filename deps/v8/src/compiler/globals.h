@@ -25,7 +25,7 @@ inline bool CollectFeedbackInGenericLowering() {
   return FLAG_turbo_collect_feedback_in_generic_lowering;
 }
 
-enum class StackCheckKind {
+enum class StackCheckKind : uint8_t {
   kJSFunctionEntry = 0,
   kJSIterationBody,
   kCodeStubAssembler,
@@ -72,7 +72,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "CallFeedbackRelation::kUnrelated";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Maximum depth and total number of elements and properties for literal
@@ -93,7 +92,8 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 // (using FP stack). As support is added to more platforms, please make sure
 // to list them here in order to enable tests of this functionality.
 // Make sure to sync the following with src/d8/d8-test.cc.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 

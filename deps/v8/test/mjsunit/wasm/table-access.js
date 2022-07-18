@@ -117,9 +117,9 @@ const dummy_func = exports.set_table_func1;
 
   const offset1 = 3;
   const offset2 = 9;
-  builder.addActiveElementSegment(t1, WasmInitExpr.I32Const(offset1),
+  builder.addActiveElementSegment(t1, wasmI32Const(offset1),
                                   [f1.index, f2.index]);
-  builder.addActiveElementSegment(t2, WasmInitExpr.I32Const(offset2),
+  builder.addActiveElementSegment(t2, wasmI32Const(offset2),
                                   [f3.index, f1.index]);
 
   const instance = builder.instantiate();

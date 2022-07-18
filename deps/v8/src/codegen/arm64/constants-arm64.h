@@ -9,15 +9,15 @@
 #include "src/common/globals.h"
 
 // Assert that this is an LP64 system, or LLP64 on Windows.
-STATIC_ASSERT(sizeof(int) == sizeof(int32_t));
+static_assert(sizeof(int) == sizeof(int32_t));
 #if defined(V8_OS_WIN)
-STATIC_ASSERT(sizeof(1L) == sizeof(int32_t));
+static_assert(sizeof(1L) == sizeof(int32_t));
 #else
-STATIC_ASSERT(sizeof(long) == sizeof(int64_t));  // NOLINT(runtime/int)
-STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
+static_assert(sizeof(long) == sizeof(int64_t));  // NOLINT(runtime/int)
+static_assert(sizeof(1L) == sizeof(int64_t));
 #endif
-STATIC_ASSERT(sizeof(void*) == sizeof(int64_t));
-STATIC_ASSERT(sizeof(1) == sizeof(int32_t));
+static_assert(sizeof(void*) == sizeof(int64_t));
+static_assert(sizeof(1) == sizeof(int32_t));
 
 // Get the standard printf format macros for C99 stdint types.
 #ifndef __STDC_FORMAT_MACROS

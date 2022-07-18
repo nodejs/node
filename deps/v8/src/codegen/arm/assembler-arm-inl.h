@@ -38,8 +38,8 @@
 #define V8_CODEGEN_ARM_ASSEMBLER_ARM_INL_H_
 
 #include "src/codegen/arm/assembler-arm.h"
-
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"

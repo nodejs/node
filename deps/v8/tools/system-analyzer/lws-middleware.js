@@ -23,8 +23,11 @@ class Symbolizer {
     return async (ctx, next) => {
       if (ctx.path == '/v8/loadVMSymbols') {
         await this.parseVMSymbols(ctx)
+      } else if (ctx.path == '/v8/info/platform') {
+        ctx.response.type = 'text';
+        ctx.response.body = process.platform;
       }
-      await next()
+      await next();
     }
   }
 

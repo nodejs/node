@@ -12,8 +12,12 @@ namespace v8 {
 namespace base {
 
 // We assume that doubles and uint64_t have the same endianness.
-inline uint64_t double_to_uint64(double d) { return bit_cast<uint64_t>(d); }
-inline double uint64_to_double(uint64_t d64) { return bit_cast<double>(d64); }
+inline uint64_t double_to_uint64(double d) {
+  return base::bit_cast<uint64_t>(d);
+}
+inline double uint64_to_double(uint64_t d64) {
+  return base::bit_cast<double>(d64);
+}
 
 // Helper functions for doubles.
 class Double {

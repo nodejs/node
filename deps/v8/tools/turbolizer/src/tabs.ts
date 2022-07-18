@@ -1,32 +1,19 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 export class Tabs {
   private container: HTMLElement;
   private tabBar: HTMLElement;
   private nextTabId: number;
 
-  private mkTabBar(container: HTMLElement) {
-    container.classList.add("nav-tabs-container");
-    this.tabBar = document.createElement("ul");
-    this.tabBar.id = `tab-bar-${container.id}`;
-    this.tabBar.className = "nav-tabs";
-    this.tabBar.ondrop = this.tabBarOnDrop.bind(this);
-    this.tabBar.ondragover = this.tabBarOnDragover.bind(this);
-    this.tabBar.onclick = this.tabBarOnClick.bind(this);
-
-    const defaultDiv = document.createElement("div");
-    defaultDiv.className = "tab-content tab-default";
-    defaultDiv.id = `tab-content-${container.id}-default`;
-    container.insertBefore(defaultDiv, container.firstChild);
-    container.insertBefore(this.tabBar, container.firstChild);
-  }
-
   constructor(container: HTMLElement) {
     this.container = container;
     this.nextTabId = 0;
-    this.mkTabBar(container);
+    this.makeTabBar(container);
   }
 
-  activateTab(tab: HTMLLIElement) {
+  public activateTab(tab: HTMLLIElement): void {
     if (typeof tab.dataset.divid !== "string") return;
     for (const li of this.tabBar.querySelectorAll<HTMLLIElement>("li.active")) {
       li.classList.remove("active");
@@ -36,28 +23,14 @@ export class Tabs {
     this.showTab(tab, true);
   }
 
-  clearTabsAndContent() {
+  public clearTabsAndContent(): void {
     for (const tab of this.tabBar.querySelectorAll(".nav-tabs > li")) {
-        if (!(tab instanceof HTMLLIElement)) continue;
-        if (tab.classList.contains("persistent-tab")) continue;
-        const tabDiv = document.getElementById(tab.dataset.divid);
-        tabDiv.parentNode.removeChild(tabDiv);
-        tab.parentNode.removeChild(tab);
+      if (!(tab instanceof HTMLLIElement)) continue;
+      if (tab.classList.contains("persistent-tab")) continue;
+      const tabDiv = document.getElementById(tab.dataset.divid);
+      tabDiv.parentNode.removeChild(tabDiv);
+      tab.parentNode.removeChild(tab);
     }
-  }
-
-  private showTab(li: HTMLElement, show: boolean = true) {
-    const tabDiv = document.getElementById(li.dataset.divid);
-    tabDiv.style.display = show ? "block" : "none";
-  }
-
-  public addTab(caption: string): HTMLLIElement {
-    const newTab = document.createElement("li");
-    newTab.innerHTML = caption;
-    newTab.id = `tab-header-${this.container.id}-${this.nextTabId++}`;
-    const lastTab = this.tabBar.querySelector("li.last-tab");
-    this.tabBar.insertBefore(newTab, lastTab);
-    return newTab;
   }
 
   public addTabAndContent(caption: string): [HTMLLIElement, HTMLDivElement] {
@@ -76,14 +49,44 @@ export class Tabs {
     return [newTab, contentDiv];
   }
 
-  private moveTabDiv(tab: HTMLLIElement) {
+  public addTab(caption: string): HTMLLIElement {
+    const newTab = document.createElement("li");
+    newTab.innerHTML = caption;
+    newTab.id = `tab-header-${this.container.id}-${this.nextTabId++}`;
+    const lastTab = this.tabBar.querySelector("li.last-tab");
+    this.tabBar.insertBefore(newTab, lastTab);
+    return newTab;
+  }
+
+  private makeTabBar(container: HTMLElement): void {
+    container.classList.add("nav-tabs-container");
+    this.tabBar = document.createElement("ul");
+    this.tabBar.id = `tab-bar-${container.id}`;
+    this.tabBar.className = "nav-tabs";
+    this.tabBar.ondrop = this.tabBarOnDrop.bind(this);
+    this.tabBar.ondragover = this.tabBarOnDragover.bind(this);
+    this.tabBar.onclick = this.tabBarOnClick.bind(this);
+
+    const defaultDiv = document.createElement("div");
+    defaultDiv.className = "tab-content tab-default";
+    defaultDiv.id = `tab-content-${container.id}-default`;
+    container.insertBefore(defaultDiv, container.firstChild);
+    container.insertBefore(this.tabBar, container.firstChild);
+  }
+
+  private showTab(li: HTMLElement, show: boolean = true) {
+    const tabDiv = document.getElementById(li.dataset.divid);
+    tabDiv.style.display = show ? "block" : "none";
+  }
+
+  private moveTabDiv(tab: HTMLLIElement): void {
     const tabDiv = document.getElementById(tab.dataset.divid);
     tabDiv.style.display = "none";
     tab.classList.remove("active");
     this.tabBar.parentNode.appendChild(tabDiv);
   }
 
-  private tabBarOnDrop(e: DragEvent) {
+  private tabBarOnDrop(e: DragEvent): void {
     if (!(e.target instanceof HTMLElement)) return;
     e.preventDefault();
     const tabId = e.dataTransfer.getData("text");
@@ -91,23 +94,23 @@ export class Tabs {
     if (tab.parentNode != this.tabBar) {
       this.moveTabDiv(tab);
     }
-    const dropTab =
-      e.target.parentNode == this.tabBar
-        ? e.target : this.tabBar.querySelector("li.last-tab");
+    const dropTab = e.target.parentNode == this.tabBar
+      ? e.target
+      : this.tabBar.querySelector("li.last-tab");
     this.tabBar.insertBefore(tab, dropTab);
     this.activateTab(tab);
   }
 
-  private tabBarOnDragover(e) {
+  private tabBarOnDragover(e: DragEvent): void {
     e.preventDefault();
   }
 
-  private tabOnDragStart(e: DragEvent) {
+  private tabOnDragStart(e: DragEvent): void {
     if (!(e.target instanceof HTMLElement)) return;
     e.dataTransfer.setData("text", e.target.id);
   }
 
-  private tabBarOnClick(e: MouseEvent) {
+  private tabBarOnClick(e: MouseEvent): void {
     const li = e.target as HTMLLIElement;
     this.activateTab(li);
   }

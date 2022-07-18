@@ -275,7 +275,7 @@ class RememberedSet : public AllStatic {
 
   // Clear all old to old slots from the remembered set.
   static void ClearAll(Heap* heap) {
-    STATIC_ASSERT(type == OLD_TO_OLD || type == OLD_TO_CODE);
+    static_assert(type == OLD_TO_OLD || type == OLD_TO_CODE);
     OldGenerationMemoryChunkIterator it(heap);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {

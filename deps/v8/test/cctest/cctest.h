@@ -731,6 +731,9 @@ class TestPlatform : public v8::Platform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override;
+  std::unique_ptr<v8::JobHandle> CreateJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;

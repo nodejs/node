@@ -7,7 +7,6 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
-#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/utils/identity-map.h"
 
@@ -98,7 +97,7 @@ class SerializerReference {
 };
 
 // SerializerReference has to fit in an IdentityMap value field.
-STATIC_ASSERT(sizeof(SerializerReference) <= sizeof(void*));
+static_assert(sizeof(SerializerReference) <= sizeof(void*));
 
 class SerializerReferenceMap {
  public:

@@ -297,8 +297,8 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
 
   // Put the current PC inside of the created code object.
   AbstractCode abstract_code = foo->abstract_code(i_isolate);
-  // We don't produce optimized code when run with --no-opt.
-  if (!abstract_code.IsCode() && FLAG_opt == false) return;
+  // We don't produce optimized code when run with --no-turbofan.
+  if (!abstract_code.IsCode() && !FLAG_turbofan) return;
   CHECK(abstract_code.IsCode());
 
   Code code = abstract_code.GetCode();

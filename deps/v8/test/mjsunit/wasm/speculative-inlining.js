@@ -23,7 +23,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
   let global = builder.addGlobal(wasmRefType(0), false,
-                                 WasmInitExpr.RefFunc(callee.index));
+                                 [kExprRefFunc, callee.index]);
 
   // g(x) = f(5) + x
   builder.addFunction("main", kSig_i_i)
@@ -55,9 +55,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
   let global0 = builder.addGlobal(wasmRefType(sig_index), false,
-                                  WasmInitExpr.RefFunc(callee0.index));
+                                  [kExprRefFunc, callee0.index]);
   let global1 = builder.addGlobal(wasmRefType(sig_index), false,
-                                  WasmInitExpr.RefFunc(callee1.index));
+                                  [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(5) + x } else { f(7) + x }
   builder.addFunction("main", kSig_i_ii)
@@ -95,7 +95,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
   let global = builder.addGlobal(wasmRefType(0), false,
-                                 WasmInitExpr.RefFunc(callee.index));
+                                 [kExprRefFunc, callee.index]);
 
   // g(x) = f(5 + x)
   builder.addFunction("main", kSig_i_i)
@@ -127,9 +127,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
   let global0 = builder.addGlobal(wasmRefType(sig_index), false,
-                                 WasmInitExpr.RefFunc(callee0.index));
+                                 [kExprRefFunc, callee0.index]);
   let global1 = builder.addGlobal(wasmRefType(sig_index), false,
-                                 WasmInitExpr.RefFunc(callee1.index));
+                                 [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(x) } else { f(x) }
   builder.addFunction("main", kSig_i_ii)

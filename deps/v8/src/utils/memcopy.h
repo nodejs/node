@@ -184,7 +184,7 @@ inline void CopyWords(Address dst, const Address src, size_t num_words) {
 // Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
 inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
-  STATIC_ASSERT(sizeof(T) == 1);
+  static_assert(sizeof(T) == 1);
   if (num_bytes == 0) return;
   CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
@@ -269,8 +269,8 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
 
 template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
-  STATIC_ASSERT(std::is_integral<SrcType>::value);
-  STATIC_ASSERT(std::is_integral<DstType>::value);
+  static_assert(std::is_integral<SrcType>::value);
+  static_assert(std::is_integral<DstType>::value);
   using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
   using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
 

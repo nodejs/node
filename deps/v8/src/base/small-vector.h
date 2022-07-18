@@ -11,6 +11,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace base {
@@ -22,14 +23,15 @@ class SmallVector {
   // Currently only support trivially copyable and trivially destructible data
   // types, as it uses memcpy to copy elements and never calls destructors.
   ASSERT_TRIVIALLY_COPYABLE(T);
-  STATIC_ASSERT(std::is_trivially_destructible<T>::value);
+  static_assert(std::is_trivially_destructible<T>::value);
 
  public:
   static constexpr size_t kInlineSize = kSize;
 
   explicit SmallVector(const Allocator& allocator = Allocator())
       : allocator_(allocator) {}
-  explicit SmallVector(size_t size, const Allocator& allocator = Allocator())
+  explicit V8_INLINE SmallVector(size_t size,
+                                 const Allocator& allocator = Allocator())
       : allocator_(allocator) {
     resize_no_init(size);
   }
@@ -43,10 +45,14 @@ class SmallVector {
       : allocator_(allocator) {
     *this = std::move(other);
   }
-  SmallVector(std::initializer_list<T> init,
-              const Allocator& allocator = Allocator())
-      : allocator_(allocator) {
-    resize_no_init(init.size());
+  V8_INLINE SmallVector(std::initializer_list<T> init,
+                        const Allocator& allocator = Allocator())
+      : SmallVector(init.size(), allocator) {
+    memcpy(begin_, init.begin(), sizeof(T) * init.size());
+  }
+  explicit V8_INLINE SmallVector(base::Vector<const T> init,
+                                 const Allocator& allocator = Allocator())
+      : SmallVector(init.size(), allocator) {
     memcpy(begin_, init.begin(), sizeof(T) * init.size());
   }
 
@@ -126,6 +132,8 @@ class SmallVector {
     new (end) T(std::forward<Args>(args)...);
     end_ = end + 1;
   }
+
+  void push_back(T x) { emplace_back(std::move(x)); }
 
   void pop_back(size_t count = 1) {
     DCHECK_GE(size(), count);

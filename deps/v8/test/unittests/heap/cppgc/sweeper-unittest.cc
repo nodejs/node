@@ -261,13 +261,13 @@ TEST_F(SweeperTest, UnmarkObjects) {
 
   Sweep();
 
-#if !defined(CPPGC_YOUNG_GENERATION)
-  EXPECT_FALSE(normal_object_header.IsMarked());
-  EXPECT_FALSE(large_object_header.IsMarked());
-#else
-  EXPECT_TRUE(normal_object_header.IsMarked());
-  EXPECT_TRUE(large_object_header.IsMarked());
-#endif
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    EXPECT_TRUE(normal_object_header.IsMarked());
+    EXPECT_TRUE(large_object_header.IsMarked());
+  } else {
+    EXPECT_FALSE(normal_object_header.IsMarked());
+    EXPECT_FALSE(large_object_header.IsMarked());
+  }
 }
 
 TEST_F(SweeperTest, LazySweepingDuringAllocation) {

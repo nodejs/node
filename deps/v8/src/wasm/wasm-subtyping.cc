@@ -4,10 +4,8 @@
 
 #include "src/wasm/wasm-subtyping.h"
 
-#include "src/base/platform/mutex.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -143,7 +141,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                sub_module, super_module);
     case kRef:
-    case kOptRef:
+    case kRefNull:
       break;
   }
 
@@ -161,6 +159,12 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
 
+  return IsHeapSubtypeOfImpl(sub_heap, super_heap, sub_module, super_module);
+}
+
+V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
+    HeapType sub_heap, HeapType super_heap, const WasmModule* sub_module,
+    const WasmModule* super_module) {
   switch (sub_heap.representation()) {
     case HeapType::kFunc:
       // funcref is a subtype of anyref (aka externref) under wasm-gc.
@@ -177,8 +181,18 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kArray:
       return super_heap == HeapType::kArray || super_heap == HeapType::kData ||
              super_heap == HeapType::kEq || super_heap == HeapType::kAny;
+    case HeapType::kString:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+      // stringref is a subtype of anyref (aka externref) under wasm-gc.
+      return sub_heap == super_heap ||
+             (FLAG_experimental_wasm_gc && super_heap == HeapType::kAny);
     case HeapType::kBottom:
       UNREACHABLE();
+    case HeapType::kNone:
+      // none is a subtype of every compatible reference type under wasm-gc.
+      return true;
     default:
       break;
   }
@@ -199,8 +213,16 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       return false;
     case HeapType::kAny:
       return true;
+    case HeapType::kString:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+      return false;
     case HeapType::kBottom:
       UNREACHABLE();
+    case HeapType::kNone:
+      // None is not a supertype for any index type.
+      return false;
     default:
       break;
   }
@@ -230,17 +252,201 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
                                  const WasmModule* module1,
                                  const WasmModule* module2) {
   if (type1 == type2 && module1 == module2) return true;
-  if (!type1.has_index()) return type1 == type2;
+  if (!type1.has_index() || !type2.has_index()) return type1 == type2;
   if (type1.kind() != type2.kind()) return false;
 
-  DCHECK(type1.has_index() && type2.has_index() &&
-         (type1 != type2 || module1 != module2));
-
+  DCHECK(type1 != type2 || module1 != module2);
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&
          type2.has_index() && module2->has_type(type2.ref_index()));
 
   return EquivalentIndices(type1.ref_index(), type2.ref_index(), module1,
                            module2);
+}
+
+namespace {
+// Returns the least common ancestor of two type indices, as a type index in
+// {module1}.
+HeapType::Representation CommonAncestor(uint32_t type_index1,
+                                        uint32_t type_index2,
+                                        const WasmModule* module1,
+                                        const WasmModule* module2) {
+  TypeDefinition::Kind kind1 = module1->types[type_index1].kind;
+  TypeDefinition::Kind kind2 = module2->types[type_index2].kind;
+  {
+    int depth1 = GetSubtypingDepth(module1, type_index1);
+    int depth2 = GetSubtypingDepth(module2, type_index2);
+    while (depth1 > depth2) {
+      type_index1 = module1->supertype(type_index1);
+      depth1--;
+    }
+    while (depth2 > depth1) {
+      type_index2 = module2->supertype(type_index2);
+      depth2--;
+    }
+  }
+  DCHECK_NE(type_index1, kNoSuperType);
+  DCHECK_NE(type_index2, kNoSuperType);
+  while (type_index1 != kNoSuperType &&
+         !(type_index1 == type_index2 && module1 == module2) &&
+         !EquivalentIndices(type_index1, type_index2, module1, module2)) {
+    type_index1 = module1->supertype(type_index1);
+    type_index2 = module2->supertype(type_index2);
+  }
+  DCHECK_EQ(type_index1 == kNoSuperType, type_index2 == kNoSuperType);
+  if (type_index1 != kNoSuperType) {
+    return static_cast<HeapType::Representation>(type_index1);
+  }
+  switch (kind1) {
+    case TypeDefinition::kFunction:
+      return kind2 == TypeDefinition::kFunction ? HeapType::kFunc
+                                                : HeapType::kAny;
+    case TypeDefinition::kStruct:
+      return kind2 == TypeDefinition::kFunction ? HeapType::kAny
+                                                : HeapType::kData;
+    case TypeDefinition::kArray:
+      switch (kind2) {
+        case TypeDefinition::kFunction:
+          return HeapType::kAny;
+        case TypeDefinition::kStruct:
+          return HeapType::kData;
+        case TypeDefinition::kArray:
+          return HeapType::kArray;
+      }
+  }
+}
+
+// Returns the least common ancestor of a generic HeapType {heap1}, and
+// another HeapType {heap2}.
+HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
+                                                   HeapType heap2,
+                                                   const WasmModule* module2) {
+  DCHECK(heap1.is_generic());
+  switch (heap1.representation()) {
+    case HeapType::kFunc:
+    case HeapType::kEq: {
+      return IsHeapSubtypeOf(heap2, heap1, module2, module2)
+                 ? heap1.representation()
+                 : HeapType::kAny;
+    }
+    case HeapType::kI31:
+      switch (heap2.representation()) {
+        case HeapType::kI31:
+        case HeapType::kNone:
+          return HeapType::kI31;
+        case HeapType::kEq:
+        case HeapType::kData:
+        case HeapType::kArray:
+          return HeapType::kEq;
+        case HeapType::kAny:
+        case HeapType::kFunc:
+          return HeapType::kAny;
+        default:
+          return module2->has_signature(heap2.ref_index()) ? HeapType::kAny
+                                                           : HeapType::kEq;
+      }
+    case HeapType::kData:
+      switch (heap2.representation()) {
+        case HeapType::kData:
+        case HeapType::kArray:
+        case HeapType::kNone:
+          return HeapType::kData;
+        case HeapType::kI31:
+        case HeapType::kEq:
+          return HeapType::kEq;
+        case HeapType::kAny:
+        case HeapType::kFunc:
+          return HeapType::kAny;
+        default:
+          return module2->has_signature(heap2.ref_index()) ? HeapType::kAny
+                                                           : HeapType::kData;
+      }
+    case HeapType::kArray:
+      switch (heap2.representation()) {
+        case HeapType::kArray:
+        case HeapType::kNone:
+          return HeapType::kArray;
+        case HeapType::kData:
+          return HeapType::kData;
+        case HeapType::kI31:
+        case HeapType::kEq:
+          return HeapType::kEq;
+        case HeapType::kAny:
+        case HeapType::kFunc:
+          return HeapType::kAny;
+        default:
+          return module2->has_array(heap2.ref_index())    ? HeapType::kArray
+                 : module2->has_struct(heap2.ref_index()) ? HeapType::kData
+                                                          : HeapType::kAny;
+      }
+    case HeapType::kAny:
+      return HeapType::kAny;
+    case HeapType::kBottom:
+      return HeapType::kBottom;
+    case HeapType::kNone:
+      return heap2.representation();
+    default:
+      UNREACHABLE();
+  }
+}
+}  // namespace
+
+V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
+                                     const WasmModule* module1,
+                                     const WasmModule* module2) {
+  if (!type1.is_object_reference() || !type2.is_object_reference()) {
+    return {
+        EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmBottom,
+        module1};
+  }
+  Nullability nullability =
+      type1.is_nullable() || type2.is_nullable() ? kNullable : kNonNullable;
+  HeapType heap1 = type1.heap_type();
+  HeapType heap2 = type2.heap_type();
+  if (heap1 == heap2 && module1 == module2) {
+    return {ValueType::RefMaybeNull(heap1, nullability), module1};
+  }
+  if (heap1.is_generic()) {
+    return {ValueType::RefMaybeNull(
+                CommonAncestorWithGeneric(heap1, heap2, module2), nullability),
+            module1};
+  } else if (heap2.is_generic()) {
+    return {ValueType::RefMaybeNull(
+                CommonAncestorWithGeneric(heap2, heap1, module1), nullability),
+            module1};
+  } else {
+    return {ValueType::RefMaybeNull(
+                CommonAncestor(heap1.ref_index(), heap2.ref_index(), module1,
+                               module2),
+                nullability),
+            module1};
+  }
+}
+
+TypeInModule Intersection(ValueType type1, ValueType type2,
+                          const WasmModule* module1,
+                          const WasmModule* module2) {
+  if (!type1.is_object_reference() || !type2.is_object_reference()) {
+    return {
+        EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmBottom,
+        module1};
+  }
+  Nullability nullability =
+      type1.is_nullable() && type2.is_nullable() ? kNullable : kNonNullable;
+  // non-nullable none is not a valid type.
+  if (nullability == kNonNullable &&
+      (type1 == kWasmNullRef || type2 == kWasmNullRef)) {
+    return {kWasmBottom, module1};
+  }
+  if (IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module1, module2)) {
+    return TypeInModule{ValueType::RefMaybeNull(type1.heap_type(), nullability),
+                        module1};
+  }
+  if (IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module2, module1)) {
+    return TypeInModule{ValueType::RefMaybeNull(type2.heap_type(), nullability),
+                        module2};
+  }
+  ValueType type = nullability == kNullable ? kWasmNullRef : kWasmBottom;
+  return TypeInModule{type, module1};
 }
 
 }  // namespace wasm

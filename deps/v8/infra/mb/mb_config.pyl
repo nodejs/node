@@ -67,7 +67,6 @@
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - debug builder': 'debug_x64',
-      'V8 Linux64 - dict tracking - debug - builder': 'debug_x64_dict_tracking_trybot',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
@@ -91,6 +90,7 @@
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
       'V8 Mac64 - debug builder': 'debug_x64',
+      'V8 Mac64 - builder (reclient)': 'release_x64_reclient',
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',
@@ -104,8 +104,6 @@
       'V8 Linux64 TSAN - no-concurrent-marking - builder': 'release_x64_tsan_no_cm',
       'V8 Linux - arm64 - sim - CFI - builder': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
-      # Misc.
-      'V8 Linux gcc - builder': 'release_x86_gcc',
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
@@ -118,7 +116,9 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
+      'V8 Linux64 gcc - builder': 'release_x64_gcc',
       'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
+      'V8 Linux64 gcc light - debug builder': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi - builder': 'release_x64_cfi',
@@ -166,6 +166,8 @@
       'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
       'V8 Clusterfuzz Linux64 UBSan - release builder':
           'release_x64_ubsan_recover',
+      'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
+          'release_x64_asan_sandbox_testing',
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
@@ -173,6 +175,7 @@
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
       'V8 Linux64 - builder - perf': 'official_x64',
+      'V8 Mac Arm64 - builder - perf': 'official_mac_arm64',
     },
     'client.v8.ports': {
       # Arm.
@@ -197,6 +200,7 @@
       'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
+      'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       # Loongson
       'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
@@ -216,8 +220,6 @@
       'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg_ng': 'debug_x86_trybot',
-      'v8_linux_gcc_compile_rel': 'release_x86_gcc_minimal_symbols',
-      'v8_linux_gcc_rel_ng': 'release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
       'v8_linux64_arm64_pointer_compression_rel_ng':
@@ -229,6 +231,9 @@
       'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
+      'v8_linux64_gcc_light_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_gcc_rel_ng': 'release_x64_gcc',
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox',
@@ -247,6 +252,7 @@
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_loong64_rel_ng': 'release_simulate_loong64',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux_riscv32_rel_ng': 'release_simulate_riscv32',
       'v8_linux64_riscv64_rel_ng': 'release_simulate_riscv64',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_no_cm_rel_ng': 'release_x64_tsan_no_cm',
@@ -437,6 +443,8 @@
       'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
+    'release_simulate_riscv32': [
+      'release_bot', 'simulate_riscv32'],
     'release_simulate_riscv64': [
       'release_bot', 'simulate_riscv64'],
     'release_simulate_s390x': [
@@ -475,6 +483,8 @@
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
+    'official_mac_arm64': [
+      'release_bot', 'arm64', 'official', 'disable_pgo'],
 
     # Release configs for x64.
     'release_x64': [
@@ -512,6 +522,8 @@
       'release_bot', 'x64', 'fuchsia'],
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
+    'release_x64_gcc': [
+      'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x64_gcc_coverage': [
       'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'lld',
       'no_custom_libcxx', 'no_sysroot'],
@@ -551,6 +563,9 @@
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
     'release_x64_webassembly_disabled': [
       'release_bot', 'x64', 'webassembly_disabled'],
+    'release_x64_asan_sandbox_testing': [
+      'release_bot', 'x64', 'asan', 'symbolized', 'v8_enable_sandbox_future',
+      'v8_expose_memory_corruption_api'],
 
     # Official configs for x64.
     'official_x64': [
@@ -571,14 +586,13 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
-      'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
-      'debug_bot', 'x64', 'v8_enable_sandbox_future'],
+      'debug_bot', 'x64', 'v8_enable_sandbox_future', 'v8_expose_memory_corruption_api'],
     'debug_x64_heap_sandbox_arm64_sim': [
-      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future'],
+      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future', 'v8_expose_memory_corruption_api'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -616,12 +630,6 @@
     'release_x86_asan_symbolized_verify_heap': [
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
-    'release_x86_gcc': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
-      'v8_check_header_includes'],
-    'release_x86_gcc_minimal_symbols': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
-      'minimal_symbols', 'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -723,8 +731,7 @@
       # atomic marking state enabled because that is needed for the concurrent
       # write-barrier used by background compilation.
       'gn_args': 'v8_enable_concurrent_marking=false '
-                 'v8_enable_atomic_object_field_writes=false '
-                 'v8_enable_atomic_marking_state=true ',
+                 'v8_enable_atomic_object_field_writes=false ',
     },
 
     'disable_pgo': {
@@ -812,7 +819,7 @@
     },
 
     'reclient': {
-      'gn_args': 'use_rbe=true use_remoteexec=true',
+      'gn_args': 'use_remoteexec=true',
     },
 
     'release': {
@@ -866,6 +873,10 @@
 
     'simulate_ppc64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
+    },
+
+    'simulate_riscv32': {
+      'gn_args': 'target_cpu="x86" v8_target_cpu="riscv32"',
     },
 
     'simulate_riscv64': {
@@ -923,6 +934,10 @@
 
     'v8_enable_sandbox_future': {
       'gn_args': 'v8_enable_sandbox_future=true',
+    },
+
+    'v8_expose_memory_corruption_api': {
+      'gn_args': 'v8_expose_memory_corruption_api=true',
     },
 
     'v8_enable_lite_mode': {

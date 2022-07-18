@@ -142,7 +142,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, RAStatus ra_status,
                                       SaveFPRegsMode save_fp,
-                                      RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
@@ -171,7 +170,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, Operand(offset - kHeapObjectTag), value, ra_status,
-              save_fp, remembered_set_action, SmiCheck::kOmit);
+              save_fp, SmiCheck::kOmit);
 
   bind(&done);
 }
@@ -209,10 +208,10 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStubSaveRegisters(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStubSaveRegisters(Register object,
+                                                      Register slot_address,
+                                                      SaveFPRegsMode fp_mode,
+                                                      StubCallMode mode) {
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
@@ -227,26 +226,23 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  CallRecordWriteStub(object_parameter, slot_address_parameter,
-                      remembered_set_action, fp_mode, mode);
+  CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode, mode);
 
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStub(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
+                                         SaveFPRegsMode fp_mode,
+                                         StubCallMode mode) {
   // Use CallRecordWriteStubSaveRegisters if the object and slot registers
   // need to be caller saved.
   DCHECK_EQ(WriteBarrierDescriptor::ObjectRegister(), object);
   DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
-    auto wasm_target =
-        wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
   } else {
-    auto builtin = Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto builtin = Builtins::GetRecordWriteStub(fp_mode);
     if (options().inline_offheap_trampolines) {
       // Inline the trampoline. //qj
       RecordCommentForOffHeapTrampoline(builtin);
@@ -269,9 +265,7 @@ void TurboAssembler::CallRecordWriteStub(
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, RAStatus ra_status,
-                                 SaveFPRegsMode fp_mode,
-                                 RememberedSetAction remembered_set_action,
-                                 SmiCheck smi_check) {
+                                 SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
 
   if (FLAG_debug_code) {
@@ -284,9 +278,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
            Operand(value));
   }
 
-  if ((remembered_set_action == RememberedSetAction::kOmit &&
-       !FLAG_incremental_marking) ||
-      FLAG_disable_write_barriers) {
+  if (FLAG_disable_write_barriers) {
     return;
   }
 
@@ -325,7 +317,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   // TODO(cbruni): Turn offset into int.
   DCHECK(offset.IsImmediate());
   Add64(slot_address, object, offset);
-  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
+  CallRecordWriteStub(object, slot_address, fp_mode);
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
@@ -400,7 +392,7 @@ void TurboAssembler::Add64(Register rd, Register rs, const Operand& rt) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       add(rd, rs, scratch);
     }
   }
@@ -485,13 +477,13 @@ void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
       DCHECK(rt.immediate() != std::numeric_limits<int32_t>::min());
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, -rt.immediate());
+      li(scratch, Operand(-rt.immediate()));
       add(rd, rs, scratch);
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       sub(rd, rs, scratch);
     }
   }
@@ -1986,7 +1978,7 @@ void TurboAssembler::Floor_w_d(Register rd, FPURegister fs, Register result) {
 // handling is needed by NaN, +/-Infinity, +/-0
 template <typename F>
 void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
-                                 FPURegister fpu_scratch, RoundingMode frm) {
+                                 FPURegister fpu_scratch, FPURoundingMode frm) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch2 = temps.Acquire();
@@ -2106,7 +2098,7 @@ void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
 // handling is needed by NaN, +/-Infinity, +/-0
 template <typename F>
 void TurboAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
-                                 VRegister v_scratch, RoundingMode frm) {
+                                 VRegister v_scratch, FPURoundingMode frm) {
   VU.set(scratch, std::is_same<F, float>::value ? E32 : E64, m1);
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
@@ -2414,43 +2406,55 @@ void TurboAssembler::InsertLowWordF64(FPURegister dst, Register src_low) {
 }
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
+  ASM_CODE_COMMENT(this);
   // Handle special values first.
-  if (src == bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
+  if (src == base::bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_s(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint32_t>(-0.0f) && has_single_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint32_t>(-0.0f) &&
+             has_single_zero_reg_set_) {
     Neg_s(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint32_t>(0.0f));
-      fmv_w_x(dst, zero_reg);
+      DCHECK(src == base::bit_cast<uint32_t>(0.0f));
+      fcvt_s_w(dst, zero_reg);
       has_single_zero_reg_set_ = true;
       has_double_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(static_cast<int32_t>(src)));
-      fmv_w_x(dst, scratch);
+      if (src == base::bit_cast<uint32_t>(0.0f)) {
+        fcvt_s_w(dst, zero_reg);
+      } else {
+        li(scratch, Operand(static_cast<int32_t>(src)));
+        fmv_w_x(dst, scratch);
+      }
     }
   }
 }
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
+  ASM_CODE_COMMENT(this);
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint64_t>(0.0));
-      fmv_d_x(dst, zero_reg);
+      DCHECK(src == base::bit_cast<uint64_t>(0.0));
+      fcvt_d_l(dst, zero_reg);
       has_double_zero_reg_set_ = true;
       has_single_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(src));
-      fmv_d_x(dst, scratch);
+      if (src == base::bit_cast<uint64_t>(0.0)) {
+        fcvt_d_l(dst, zero_reg);
+      } else {
+        li(scratch, Operand(src));
+        fmv_d_x(dst, scratch);
+      }
     }
   }
 }
@@ -3264,8 +3268,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
              target_is_isolate_independent_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin);
-    li(t6, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Jump(t6, cond, rs, rt);
+    Jump(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET, cond, rs, rt);
     RecordComment("]");
     return;
   }
@@ -3344,8 +3347,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
              target_is_isolate_independent_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin);
-    li(t6, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Call(t6, cond, rs, rt);
+    Call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET, cond, rs, rt);
     RecordComment("]");
     return;
   }
@@ -3357,9 +3359,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
-  STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSystemPointerSize == 8);
+  static_assert(kSmiTagSize == 1);
+  static_assert(kSmiTag == 0);
 
   // The builtin register contains the builtin index as a Smi.
   SmiUntag(builtin, builtin);
@@ -3596,8 +3598,8 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize);
+  static_assert(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize);
 
   Push(Smi::zero());  // Padding.
 
@@ -3615,7 +3617,7 @@ void MacroAssembler::PushStackHandler() {
 }
 
 void MacroAssembler::PopStackHandler() {
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  static_assert(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Add64(sp, sp,
         Operand(static_cast<int64_t>(StackHandlerConstants::kSize -
@@ -3632,7 +3634,12 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
   // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
   // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
-  fsub_d(dst, src, kDoubleRegZero);
+  if (IsDoubleZeroRegSet()) {
+    fsub_d(dst, src, kDoubleRegZero);
+  } else {
+    LoadFPRImmediate(kDoubleRegZero, 0.0);
+    fsub_d(dst, src, kDoubleRegZero);
+  }
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
@@ -4355,10 +4362,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
          frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the frame structure on the stack.
-  STATIC_ASSERT(2 * kSystemPointerSize ==
+  static_assert(2 * kSystemPointerSize ==
                 ExitFrameConstants::kCallerSPDisplacement);
-  STATIC_ASSERT(1 * kSystemPointerSize == ExitFrameConstants::kCallerPCOffset);
-  STATIC_ASSERT(0 * kSystemPointerSize == ExitFrameConstants::kCallerFPOffset);
+  static_assert(1 * kSystemPointerSize == ExitFrameConstants::kCallerPCOffset);
+  static_assert(0 * kSystemPointerSize == ExitFrameConstants::kCallerFPOffset);
 
   // This is how the stack will look:
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
@@ -4564,6 +4571,21 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   Branch(smi_label, eq, scratch, Operand(zero_reg));
 }
 
+void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
+    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+  LoadTaggedPointerField(
+      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Lw(scratch,
+     FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(if_marked_for_deoptimization, ne, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
@@ -4576,7 +4598,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
     Check(ne, reason, kScratchReg, Operand(zero_reg));
@@ -4586,7 +4608,7 @@ void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
     Check(eq, reason, kScratchReg, Operand(zero_reg));
@@ -4598,7 +4620,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     ASM_CODE_COMMENT(this);
     DCHECK(object != kScratchReg);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, kScratchReg,
           Operand(zero_reg));
@@ -4615,7 +4637,7 @@ void MacroAssembler::AssertFunction(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, kScratchReg,
@@ -4634,7 +4656,7 @@ void MacroAssembler::AssertFunction(Register object) {
 void MacroAssembler::AssertCallableFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSmiTag == 0);
   AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
   push(object);
   LoadMap(object, object);
@@ -4651,7 +4673,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, kScratchReg,
@@ -4666,7 +4688,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSmiTag == 0);
   DCHECK(object != kScratchReg);
   SmiTst(object, kScratchReg);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, kScratchReg,
@@ -5132,7 +5154,7 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       break;
     }
     case kCountIsSmi: {
-      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
       DCHECK_NE(scratch, no_reg);
       SmiScale(scratch, count, kPointerSizeLog2);
       Add64(sp, sp, scratch);

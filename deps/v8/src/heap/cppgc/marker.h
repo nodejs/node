@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/cppgc/heap.h"
+#include "include/cppgc/platform.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
@@ -112,6 +113,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   void ProcessWeakness();
 
   bool JoinConcurrentMarkingIfNeeded();
+  void NotifyConcurrentMarkingOfWorkIfNeeded(cppgc::TaskPriority);
 
   inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
 

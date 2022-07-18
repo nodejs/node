@@ -65,7 +65,7 @@ V8_INLINE constexpr bool IsHeapObject(InstanceType instance_type) {
 }
 
 V8_INLINE constexpr bool IsInternalizedString(InstanceType instance_type) {
-  STATIC_ASSERT(kNotInternalizedTag != 0);
+  static_assert(kNotInternalizedTag != 0);
   return (instance_type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
          (kStringTag | kInternalizedTag);
 }

@@ -106,9 +106,9 @@ class ReadOnlyHeap {
       Isolate* isolate, std::shared_ptr<ReadOnlyArtifacts> artifacts);
   // Runs the read-only deserializer and calls InitFromIsolate to complete
   // read-only heap initialization.
-  void DeseralizeIntoIsolate(Isolate* isolate,
-                             SnapshotData* read_only_snapshot_data,
-                             bool can_rehash);
+  void DeserializeIntoIsolate(Isolate* isolate,
+                              SnapshotData* read_only_snapshot_data,
+                              bool can_rehash);
   // Initializes read-only heap from an already set-up isolate, copying
   // read-only roots from the isolate. This then seals the space off from
   // further writes, marks it as read-only and detaches it from the heap

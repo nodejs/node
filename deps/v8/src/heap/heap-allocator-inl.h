@@ -15,6 +15,10 @@
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
 
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+#include "src/heap/object-start-bitmap-inl.h"
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
 namespace v8 {
 namespace internal {
 
@@ -59,7 +63,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
 
-  if (FLAG_single_generation && type == AllocationType::kYoung) {
+  if (FLAG_single_generation.value() && type == AllocationType::kYoung) {
     return AllocateRaw(size_in_bytes, AllocationType::kOld, origin, alignment);
   }
 
@@ -105,11 +109,13 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
         case AllocationType::kCode:
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
-          allocation = code_space()->AllocateRawUnaligned(size_in_bytes);
+          allocation = code_space()->AllocateRaw(
+              size_in_bytes, AllocationAlignment::kTaggedAligned);
           break;
         case AllocationType::kMap:
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-          allocation = space_for_maps()->AllocateRawUnaligned(size_in_bytes);
+          allocation = space_for_maps()->AllocateRaw(
+              size_in_bytes, AllocationAlignment::kTaggedAligned);
           break;
         case AllocationType::kReadOnly:
           DCHECK(read_only_space()->writable());
@@ -142,13 +148,13 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
       }
     }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     if (AllocationType::kReadOnly != type) {
       DCHECK_TAG_ALIGNED(object.address());
       Page::FromHeapObject(object)->object_start_bitmap()->SetBit(
           object.address());
     }
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
     for (auto& tracker : heap_->allocation_trackers_) {
       tracker->AllocationEvent(object.address(), size_in_bytes);

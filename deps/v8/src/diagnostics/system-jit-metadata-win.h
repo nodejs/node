@@ -40,6 +40,8 @@ constexpr uint64_t kJScriptRuntimeKeyword = 1;
 constexpr uint16_t kSourceLoadEventID = 41;
 constexpr uint16_t kMethodLoadEventID = 9;
 
+constexpr unsigned char kTraceLevel = TRACE_LEVEL_INFORMATION;
+
 // Structure to treat a string literal, or char[], as a constexpr byte sequence
 template <size_t count>
 struct str_bytes {
@@ -141,9 +143,9 @@ constexpr auto EventMetadata(uint16_t id, uint64_t keywords) {
   return EVENT_DESCRIPTOR{id,
                           0,  // Version
                           kManifestFreeChannel,
-                          TRACE_LEVEL_INFORMATION,  // Level
-                          EVENT_TRACE_TYPE_START,   // Opcode
-                          0,                        // Task
+                          kTraceLevel,             // Level
+                          EVENT_TRACE_TYPE_START,  // Opcode
+                          0,                       // Task
                           keywords};
 }
 

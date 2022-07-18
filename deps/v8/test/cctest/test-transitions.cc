@@ -205,7 +205,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   CHECK(map0->raw_transitions()->IsSmi());
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
-  STATIC_ASSERT(ATTRS_COUNT == 8);
+  static_assert(ATTRS_COUNT == 8);
   Handle<Map> attr_maps[ATTRS_COUNT];
   Handle<String> name = factory->InternalizeUtf8String("foo");
 
@@ -268,7 +268,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   }
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
-  STATIC_ASSERT(ATTRS_COUNT == 8);
+  static_assert(ATTRS_COUNT == 8);
   Handle<Map> attr_maps[ATTRS_COUNT];
   Handle<String> name = factory->InternalizeUtf8String("foo");
 

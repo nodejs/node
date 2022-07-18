@@ -275,7 +275,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
         }
         for (int i = 0; i < DwVfpRegister::SupportedRegisterCount(); i++) {
           dvalue = GetVFPDoubleRegisterValue(i);
-          uint64_t as_words = bit_cast<uint64_t>(dvalue);
+          uint64_t as_words = base::bit_cast<uint64_t>(dvalue);
           PrintF("%3s: %f 0x%08x %08x\n", VFPRegisters::Name(i, true), dvalue,
                  static_cast<uint32_t>(as_words >> 32),
                  static_cast<uint32_t>(as_words & 0xFFFFFFFF));
@@ -284,10 +284,10 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
         if (GetValue(arg1, &value)) {
           PrintF("%s: 0x%08x %d \n", arg1, value, value);
         } else if (GetVFPSingleValue(arg1, &svalue)) {
-          uint32_t as_word = bit_cast<uint32_t>(svalue);
+          uint32_t as_word = base::bit_cast<uint32_t>(svalue);
           PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
         } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-          uint64_t as_words = bit_cast<uint64_t>(dvalue);
+          uint64_t as_words = base::bit_cast<uint64_t>(dvalue);
           PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                  static_cast<uint32_t>(as_words >> 32),
                  static_cast<uint32_t>(as_words & 0xFFFFFFFF));
@@ -1683,7 +1683,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t arg17 = stack_pointer[13];
       int32_t arg18 = stack_pointer[14];
       int32_t arg19 = stack_pointer[15];
-      STATIC_ASSERT(kMaxCParameters == 20);
+      static_assert(kMaxCParameters == 20);
 
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -1929,7 +1929,7 @@ float Simulator::canonicalizeNaN(float value) {
   // choices" of the ARM Reference Manual.
   constexpr uint32_t kDefaultNaN = 0x7FC00000u;
   if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
-    value = bit_cast<float>(kDefaultNaN);
+    value = base::bit_cast<float>(kDefaultNaN);
   }
   return value;
 }
@@ -1946,7 +1946,7 @@ double Simulator::canonicalizeNaN(double value) {
   // choices" of the ARM Reference Manual.
   constexpr uint64_t kDefaultNaN = uint64_t{0x7FF8000000000000};
   if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
-    value = bit_cast<double>(kDefaultNaN);
+    value = base::bit_cast<double>(kDefaultNaN);
   }
   return value;
 }
@@ -3005,8 +3005,9 @@ void Simulator::DecodeType3(Instruction* instr) {
           int32_t ret_val = 0;
           // udiv
           if (instr->Bit(21) == 0x1) {
-            ret_val = bit_cast<int32_t>(base::bits::UnsignedDiv32(
-                bit_cast<uint32_t>(rm_val), bit_cast<uint32_t>(rs_val)));
+            ret_val = base::bit_cast<int32_t>(
+                base::bits::UnsignedDiv32(base::bit_cast<uint32_t>(rm_val),
+                                          base::bit_cast<uint32_t>(rs_val)));
           } else {
             ret_val = base::bits::SignedDiv32(rm_val, rs_val);
           }
@@ -4851,18 +4852,18 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       get_neon_register(Vm, src);
       if (instr->Bit(7) == 0) {
         for (int i = 0; i < 4; i++) {
-          float denom = bit_cast<float>(src[i]);
+          float denom = base::bit_cast<float>(src[i]);
           div_zero_vfp_flag_ = (denom == 0);
           float result = 1.0f / denom;
           result = canonicalizeNaN(result);
-          src[i] = bit_cast<uint32_t>(result);
+          src[i] = base::bit_cast<uint32_t>(result);
         }
       } else {
         for (int i = 0; i < 4; i++) {
-          float radicand = bit_cast<float>(src[i]);
+          float radicand = base::bit_cast<float>(src[i]);
           float result = 1.0f / std::sqrt(radicand);
           result = canonicalizeNaN(result);
-          src[i] = bit_cast<uint32_t>(result);
+          src[i] = base::bit_cast<uint32_t>(result);
         }
       }
       set_neon_register(Vd, src);
@@ -4877,23 +4878,23 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
         switch (op) {
           case 0:
             // f32 <- s32, round towards nearest.
-            q_data[i] = bit_cast<uint32_t>(
-                std::round(static_cast<float>(bit_cast<int32_t>(q_data[i]))));
+            q_data[i] = base::bit_cast<uint32_t>(std::round(
+                static_cast<float>(base::bit_cast<int32_t>(q_data[i]))));
             break;
           case 1:
             // f32 <- u32, round towards nearest.
-            q_data[i] =
-                bit_cast<uint32_t>(std::round(static_cast<float>(q_data[i])));
+            q_data[i] = base::bit_cast<uint32_t>(
+                std::round(static_cast<float>(q_data[i])));
             break;
           case 2:
             // s32 <- f32, round to zero.
-            q_data[i] = static_cast<uint32_t>(
-                ConvertDoubleToInt(bit_cast<float>(q_data[i]), false, RZ));
+            q_data[i] = static_cast<uint32_t>(ConvertDoubleToInt(
+                base::bit_cast<float>(q_data[i]), false, RZ));
             break;
           case 3:
             // u32 <- f32, round to zero.
             q_data[i] = static_cast<uint32_t>(
-                ConvertDoubleToInt(bit_cast<float>(q_data[i]), true, RZ));
+                ConvertDoubleToInt(base::bit_cast<float>(q_data[i]), true, RZ));
             break;
         }
       }
@@ -5924,7 +5925,7 @@ void Simulator::DecodeAdvancedSIMDLoadStoreSingleStructureToOneLane(
         DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
         int i = instr->Bit(7) * 32;
         dreg = (dreg >> i) & 0xffffffff;
-        WriteW(address, bit_cast<int>(static_cast<uint32_t>(dreg)));
+        WriteW(address, base::bit_cast<int>(static_cast<uint32_t>(dreg)));
         break;
       }
       case Neon64: {

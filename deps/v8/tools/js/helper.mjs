@@ -66,3 +66,12 @@ export function defer() {
   p.reject = reject_func;
   return p;
 }
+
+const kSimpleHtmlEscapeRegexp = /[\&\n><]/g;
+function escaperFn(char) {
+  return `&#${char.charCodeAt(0)};`;
+}
+
+export function simpleHtmlEscape(string) {
+  return string.replace(kSimpleHtmlEscapeRegexp, escaperFn);
+}

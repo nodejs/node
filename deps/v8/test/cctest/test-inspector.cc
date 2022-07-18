@@ -12,8 +12,11 @@
 #include "src/inspector/v8-inspector-impl.h"
 #include "test/cctest/cctest.h"
 
+using v8_inspector::String16;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
+using v8_inspector::toString16;
+using v8_inspector::toStringView;
 using v8_inspector::V8ContextInfo;
 using v8_inspector::V8Inspector;
 using v8_inspector::V8InspectorSession;
@@ -56,8 +59,8 @@ TEST(WrapInsideWrapOnInterrupt) {
   NoopChannel channel;
   const char* state = "{}";
   StringView state_view(reinterpret_cast<const uint8_t*>(state), strlen(state));
-  std::unique_ptr<V8InspectorSession> session =
-      inspector->connect(1, &channel, state_view);
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, state_view, v8_inspector::V8Inspector::kFullyTrusted);
 
   const char* object_group = "";
   StringView object_group_view(reinterpret_cast<const uint8_t*>(object_group),
@@ -204,4 +207,51 @@ TEST(NoInterruptOnGetAssociatedData) {
 
   CompileRun("0");
   CHECK(recorder.WasInvoked);
+}
+
+TEST(NoConsoleAPIForUntrustedClient) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(env.local(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  class TestChannel : public V8Inspector::Channel {
+   public:
+    ~TestChannel() override = default;
+    void sendResponse(int callId,
+                      std::unique_ptr<StringBuffer> message) override {
+      CHECK_EQ(callId, 1);
+      CHECK_NE(toString16(message->string()).find(expected_response_matcher_),
+               String16::kNotFound);
+    }
+    void sendNotification(std::unique_ptr<StringBuffer> message) override {}
+    void flushProtocolNotifications() override {}
+    v8_inspector::String16 expected_response_matcher_;
+  };
+
+  TestChannel channel;
+  const char kCommand[] = R"({
+    "id": 1,
+    "method": "Runtime.evaluate",
+    "params": {
+      "expression": "$0 || 42",
+      "contextId": 1,
+      "includeCommandLineAPI": true
+    }
+  })";
+  std::unique_ptr<V8InspectorSession> trusted_session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+  channel.expected_response_matcher_ = R"("value":42)";
+  trusted_session->dispatchProtocolMessage(toStringView(kCommand));
+
+  std::unique_ptr<V8InspectorSession> untrusted_session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kUntrusted);
+  channel.expected_response_matcher_ = R"("className":"ReferenceError")";
+  untrusted_session->dispatchProtocolMessage(toStringView(kCommand));
 }

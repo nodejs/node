@@ -257,8 +257,10 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     out << "    ;; external reference (" << reference_name << ")";
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out << "    ;; code:";
-    Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
-        relocinfo->target_address());
+    CodeT code =
+        isolate->heap()
+            ->GcSafeFindCodeForInnerPointer(relocinfo->target_address())
+            .ToCodeT();
     CodeKind kind = code.kind();
     if (code.is_builtin()) {
       out << " Builtin::" << Builtins::name(code.builtin_id());
@@ -303,7 +305,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   // Relocation exists if we either have no isolate (wasm code),
   // or we have an isolate and it is not an off-heap instruction stream.
   if (!isolate || !OffHeapInstructionStream::PcIsOffHeap(
-                      isolate, bit_cast<Address>(begin))) {
+                      isolate, base::bit_cast<Address>(begin))) {
     it = new RelocIterator(code);
   } else {
     // No relocation information when printing code stubs.

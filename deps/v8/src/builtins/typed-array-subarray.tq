@@ -35,15 +35,16 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   // srcLength).
   const arg0 = arguments[0];
   const begin: uintptr =
-      arg0 != Undefined ? ConvertToRelativeIndex(arg0, srcLength) : 0;
+      arg0 != Undefined ? ConvertAndClampRelativeIndex(arg0, srcLength) : 0;
 
   // 10. If end is undefined, let relativeEnd be srcLength;
   //      else, let relativeEnd be ? ToInteger(end).
   // 11. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd),
   // 0); else let endIndex be min(relativeEnd, srcLength).
   const arg1 = arguments[1];
-  const end: uintptr =
-      arg1 != Undefined ? ConvertToRelativeIndex(arg1, srcLength) : srcLength;
+  const end: uintptr = arg1 != Undefined ?
+      ConvertAndClampRelativeIndex(arg1, srcLength) :
+      srcLength;
 
   // 12. Let newLength be max(endIndex - beginIndex, 0).
   const newLength: uintptr = Unsigned(IntPtrMax(Signed(end - begin), 0));

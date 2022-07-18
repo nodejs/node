@@ -9,12 +9,14 @@ namespace base {
 
 BoundedPageAllocator::BoundedPageAllocator(
     v8::PageAllocator* page_allocator, Address start, size_t size,
-    size_t allocate_page_size, PageInitializationMode page_initialization_mode)
+    size_t allocate_page_size, PageInitializationMode page_initialization_mode,
+    PageFreeingMode page_freeing_mode)
     : allocate_page_size_(allocate_page_size),
       commit_page_size_(page_allocator->CommitPageSize()),
       page_allocator_(page_allocator),
       region_allocator_(start, size, allocate_page_size_),
-      page_initialization_mode_(page_initialization_mode) {
+      page_initialization_mode_(page_initialization_mode),
+      page_freeing_mode_(page_freeing_mode) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(allocate_page_size, page_allocator->AllocatePageSize()));
   DCHECK(IsAligned(allocate_page_size_, commit_page_size_));
@@ -57,10 +59,15 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   }
 
   void* ptr = reinterpret_cast<void*>(address);
-  if (!page_allocator_->SetPermissions(ptr, size, access)) {
-    // This most likely means that we ran out of memory.
-    CHECK_EQ(region_allocator_.FreeRegion(address), size);
-    return nullptr;
+  // It's assumed that free regions are in kNoAccess/kNoAccessWillJitLater
+  // state.
+  if (access != PageAllocator::kNoAccess &&
+      access != PageAllocator::kNoAccessWillJitLater) {
+    if (!page_allocator_->SetPermissions(ptr, size, access)) {
+      // This most likely means that we ran out of memory.
+      CHECK_EQ(region_allocator_.FreeRegion(address), size);
+      return nullptr;
+    }
   }
 
   return ptr;
@@ -121,14 +128,20 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
+    DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);
     // When we are required to return zero-initialized pages, we decommit the
     // pages here, which will cause any wired pages to be removed by the OS.
     CHECK(page_allocator_->DecommitPages(raw_address, size));
   } else {
     DCHECK_EQ(page_initialization_mode_,
               PageInitializationMode::kAllocatedPagesCanBeUninitialized);
-    CHECK(page_allocator_->SetPermissions(raw_address, size,
-                                          PageAllocator::kNoAccess));
+    if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+      CHECK(page_allocator_->SetPermissions(raw_address, size,
+                                            PageAllocator::kNoAccess));
+    } else {
+      CHECK_EQ(page_freeing_mode_, PageFreeingMode::kDiscard);
+      CHECK(page_allocator_->DiscardSystemPages(raw_address, size));
+    }
   }
   return true;
 }
@@ -161,18 +174,23 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
   }
 
   // Keep the region in "used" state just uncommit some pages.
-  Address free_address = address + new_size;
+  void* free_address = reinterpret_cast<void*>(address + new_size);
   size_t free_size = size - new_size;
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
+    DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);
     // See comment in FreePages().
-    CHECK(page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
-                                         free_size));
+    CHECK(page_allocator_->DecommitPages(free_address, free_size));
   } else {
     DCHECK_EQ(page_initialization_mode_,
               PageInitializationMode::kAllocatedPagesCanBeUninitialized);
-    CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(free_address),
-                                          free_size, PageAllocator::kNoAccess));
+    if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+      CHECK(page_allocator_->SetPermissions(free_address, free_size,
+                                            PageAllocator::kNoAccess));
+    } else {
+      CHECK_EQ(page_freeing_mode_, PageFreeingMode::kDiscard);
+      CHECK(page_allocator_->DiscardSystemPages(free_address, free_size));
+    }
   }
   return true;
 }
@@ -183,6 +201,14 @@ bool BoundedPageAllocator::SetPermissions(void* address, size_t size,
   DCHECK(IsAligned(size, commit_page_size_));
   DCHECK(region_allocator_.contains(reinterpret_cast<Address>(address), size));
   return page_allocator_->SetPermissions(address, size, access);
+}
+
+bool BoundedPageAllocator::RecommitPages(void* address, size_t size,
+                                         PageAllocator::Permission access) {
+  DCHECK(IsAligned(reinterpret_cast<Address>(address), commit_page_size_));
+  DCHECK(IsAligned(size, commit_page_size_));
+  DCHECK(region_allocator_.contains(reinterpret_cast<Address>(address), size));
+  return page_allocator_->RecommitPages(address, size, access);
 }
 
 bool BoundedPageAllocator::DiscardSystemPages(void* address, size_t size) {

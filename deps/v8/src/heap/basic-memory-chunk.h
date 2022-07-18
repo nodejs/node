@@ -367,18 +367,16 @@ class BasicMemoryChunk {
 
   friend class BasicMemoryChunkValidator;
   friend class ConcurrentMarkingState;
-  friend class MajorMarkingState;
-  friend class MajorAtomicMarkingState;
-  friend class MajorNonAtomicMarkingState;
+  friend class MarkingState;
+  friend class AtomicMarkingState;
+  friend class NonAtomicMarkingState;
   friend class MemoryAllocator;
-  friend class MinorMarkingState;
-  friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 
-STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);
+static_assert(std::is_standard_layout<BasicMemoryChunk>::value);
 
 }  // namespace internal
 }  // namespace v8

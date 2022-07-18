@@ -82,7 +82,8 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
     AddSample(static_cast<int>(sample));
   }
   if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd, true);
+    V8FileLogger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd,
+                                  true);
   }
 }
 

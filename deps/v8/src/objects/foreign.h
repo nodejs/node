@@ -31,9 +31,9 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   // kForeignAddressOffset is only kTaggedSize aligned but we can keep using
   // unaligned access since both x64 and arm64 architectures (where pointer
   // compression is supported) allow unaligned access to full words.
-  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kTaggedSize));
+  static_assert(IsAligned(kForeignAddressOffset, kTaggedSize));
 #else
-  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kExternalPointerSize));
+  static_assert(IsAligned(kForeignAddressOffset, kExternalPointerSlotSize));
 #endif
 
   class BodyDescriptor;

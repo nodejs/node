@@ -9,8 +9,8 @@
 
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
+#include "src/execution/isolate.h"
 #include "src/objects/function-kind.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

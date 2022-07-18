@@ -5,8 +5,6 @@
 #include "src/compiler/js-graph.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/compiler/node-properties.h"
-#include "src/compiler/typer.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -76,8 +74,10 @@ Node* JSGraph::Constant(const ObjectRef& ref) {
 }
 
 Node* JSGraph::Constant(double value) {
-  if (bit_cast<int64_t>(value) == bit_cast<int64_t>(0.0)) return ZeroConstant();
-  if (bit_cast<int64_t>(value) == bit_cast<int64_t>(1.0)) return OneConstant();
+  if (base::bit_cast<int64_t>(value) == base::bit_cast<int64_t>(0.0))
+    return ZeroConstant();
+  if (base::bit_cast<int64_t>(value) == base::bit_cast<int64_t>(1.0))
+    return OneConstant();
   return NumberConstant(value);
 }
 

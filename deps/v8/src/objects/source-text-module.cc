@@ -924,30 +924,35 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   // 4. Let capability be ! NewPromiseCapability(%Promise%).
   Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
 
+  Handle<Context> execute_async_module_context =
+      isolate->factory()->NewBuiltinContext(
+          isolate->native_context(),
+          ExecuteAsyncModuleContextSlots::kContextLength);
+  execute_async_module_context->set(ExecuteAsyncModuleContextSlots::kModule,
+                                    *module);
+
   // 5. Let stepsFulfilled be the steps of a CallAsyncModuleFulfilled
-  Handle<JSFunction> steps_fulfilled(
-      isolate->native_context()->call_async_module_fulfilled(), isolate);
-
-  base::ScopedVector<Handle<Object>> empty_argv(0);
-
   // 6. Let onFulfilled be CreateBuiltinFunction(stepsFulfilled,
   //                                             «[[Module]]»).
   // 7. Set onFulfilled.[[Module]] to module.
-  Handle<JSBoundFunction> on_fulfilled =
-      isolate->factory()
-          ->NewJSBoundFunction(steps_fulfilled, module, empty_argv)
-          .ToHandleChecked();
+  Handle<JSFunction> on_fulfilled =
+      Factory::JSFunctionBuilder{
+          isolate,
+          isolate->factory()
+              ->source_text_module_execute_async_module_fulfilled_sfi(),
+          execute_async_module_context}
+          .Build();
 
   // 8. Let stepsRejected be the steps of a CallAsyncModuleRejected.
-  Handle<JSFunction> steps_rejected(
-      isolate->native_context()->call_async_module_rejected(), isolate);
-
   // 9. Let onRejected be CreateBuiltinFunction(stepsRejected, «[[Module]]»).
   // 10. Set onRejected.[[Module]] to module.
-  Handle<JSBoundFunction> on_rejected =
-      isolate->factory()
-          ->NewJSBoundFunction(steps_rejected, module, empty_argv)
-          .ToHandleChecked();
+  Handle<JSFunction> on_rejected =
+      Factory::JSFunctionBuilder{
+          isolate,
+          isolate->factory()
+              ->source_text_module_execute_async_module_rejected_sfi(),
+          execute_async_module_context}
+          .Build();
 
   // 11. Perform ! PerformPromiseThen(capability.[[Promise]],
   //                                  onFulfilled, onRejected).
@@ -965,9 +970,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   if (ret.is_null()) {
     // The evaluation of async module can not throwing a JavaScript observable
     // exception.
-    DCHECK(isolate->has_pending_exception());
-    DCHECK_EQ(isolate->pending_exception(),
-              ReadOnlyRoots(isolate).termination_exception());
+    DCHECK(isolate->is_execution_termination_pending());
     return Nothing<bool>();
   }
 
@@ -1196,6 +1199,60 @@ void SourceTextModule::Reset(Isolate* isolate,
   module->set_requested_modules(*requested_modules);
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
+}
+
+std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+SourceTextModule::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  UnorderedModuleSet visited(&zone);
+  std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+      result;
+  std::vector<Handle<SourceTextModule>> stalled_modules;
+  InnerGetStalledTopLevelAwaitModule(isolate, &visited, &stalled_modules);
+  size_t stalled_modules_size = stalled_modules.size();
+  if (stalled_modules_size == 0) return result;
+
+  result.reserve(stalled_modules_size);
+  for (size_t i = 0; i < stalled_modules_size; ++i) {
+    Handle<SourceTextModule> found = stalled_modules[i];
+    CHECK(found->code().IsJSGeneratorObject());
+    Handle<JSGeneratorObject> code(JSGeneratorObject::cast(found->code()),
+                                   isolate);
+    Handle<SharedFunctionInfo> shared(found->GetSharedFunctionInfo(), isolate);
+    Handle<Object> script(shared->script(), isolate);
+    MessageLocation location = MessageLocation(Handle<Script>::cast(script),
+                                               shared, code->code_offset());
+    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+        isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
+        isolate->factory()->null_value(), Handle<FixedArray>());
+    result.push_back(std::make_tuple(found, message));
+  }
+  return result;
+}
+
+void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
+    Isolate* isolate, UnorderedModuleSet* visited,
+    std::vector<Handle<SourceTextModule>>* result) {
+  DisallowGarbageCollection no_gc;
+  // If it's a module that is waiting for no other modules but itself,
+  // it's what we are looking for. Add it to the results.
+  if (!HasPendingAsyncDependencies() && IsAsyncEvaluating()) {
+    result->push_back(handle(*this, isolate));
+    return;
+  }
+  // The module isn't what we are looking for, continue looking in the graph.
+  FixedArray requested = requested_modules();
+  int length = requested.length();
+  for (int i = 0; i < length; ++i) {
+    Module requested_module = Module::cast(requested.get(i));
+    if (requested_module.IsSourceTextModule() &&
+        visited->insert(handle(requested_module, isolate)).second) {
+      SourceTextModule source_text_module =
+          SourceTextModule::cast(requested_module);
+      source_text_module.InnerGetStalledTopLevelAwaitModule(isolate, visited,
+                                                            result);
+    }
+  }
 }
 
 }  // namespace internal

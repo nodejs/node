@@ -16,3 +16,9 @@ Local modifications:
   bit mask for the incoming byte.
 - The caller must now zero out the code point buffer after successful or
   unsuccessful state transitions.
+- Specifically for generalized-utf8-decoder.h: we adapt the original
+  decoder to decode and validate "generalized UTF-8", a variant of UTF-8
+  used in WTF-8 that can encode surrogates.  See
+  https://simonsapin.github.io/wtf-8/#generalized-utf8.  There is one
+  fewer state and so the transition table is smaller by one in both
+  dimensions.

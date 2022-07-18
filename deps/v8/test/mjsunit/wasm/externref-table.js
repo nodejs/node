@@ -34,14 +34,17 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", 3, 10, kWasmExternRef);
+  const table_index = builder.addImportedTable(
+      "imp", "table", 3, 10, kWasmExternRef);
   builder.addFunction('get', kSig_r_v)
   .addBody([kExprI32Const, 0, kExprTableGet, table_index]);
 
-  let table_ref = new WebAssembly.Table({element: "externref", initial: 3, maximum: 10});
+  let table_ref = new WebAssembly.Table(
+      { element: "externref", initial: 3, maximum: 10 });
   builder.instantiate({imp:{table: table_ref}});
 
-  let table_func = new WebAssembly.Table({ element: "anyfunc", initial: 3, maximum: 10 });
+  let table_func = new WebAssembly.Table(
+      { element: "anyfunc", initial: 3, maximum: 10 });
   assertThrows(() => builder.instantiate({ imp: { table: table_func } }),
     WebAssembly.LinkError, /imported table does not match the expected type/);
 })();
@@ -50,7 +53,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+  builder.addDeclarativeElementSegment([[kExprRefNull, kFuncRefCode]],
                                         kWasmFuncRef);
   builder.addFunction('drop', kSig_v_v)
       .addBody([kNumericPrefix, kExprElemDrop, 0])
@@ -67,7 +70,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   const table = builder.addTable(kWasmAnyFunc, 10);
-  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+  builder.addDeclarativeElementSegment([[kExprRefNull, kFuncRefCode]],
                                        kWasmFuncRef);
   builder.addFunction('init', kSig_v_v)
       .addBody([
@@ -77,7 +80,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .exportFunc();
   const instance = builder.instantiate();
 
-  assertTraps(kTrapTableOutOfBounds, () => instance.exports.init());
+  assertTraps(kTrapElementSegmentOutOfBounds, () => instance.exports.init());
 })();
 
 
@@ -155,7 +158,7 @@ function getDummy(val) {
   let imported_global = builder.addImportedGlobal('m', 'n', extern_type, false);
   let global = builder.addGlobal(kWasmExternRef, true).exportAs('global');
   let table = builder.addTable(extern_type, 2, 10,
-                               WasmInitExpr.GlobalGet(imported_global))
+                               [kExprGlobalGet, imported_global])
   builder.addFunction(
       'setup', makeSig([extern_type, extern_type], []))
     .addBody([

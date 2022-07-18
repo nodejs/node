@@ -18,26 +18,14 @@
 #include "src/base/optional.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
-#include "src/codegen/code-factory.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
 #include "src/codegen/tnode.h"
 #include "src/heap/heap.h"
-#include "src/objects/arguments.h"
-#include "src/objects/data-handler.h"
-#include "src/objects/heap-number.h"
-#include "src/objects/js-array-buffer.h"
-#include "src/objects/js-collection.h"
-#include "src/objects/js-proxy.h"
-#include "src/objects/map.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects.h"
-#include "src/objects/oddball.h"
-#include "src/objects/smi.h"
-#include "src/objects/tagged-index.h"
 #include "src/runtime/runtime.h"
-#include "src/utils/allocation.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -523,18 +511,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
-    return Unsigned(Int64Constant(bit_cast<int64_t>(value)));
+    return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
   TNode<Uint32T> Uint32Constant(uint32_t value) {
-    return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
+    return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
   }
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
-    return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
+    return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
-    return ReinterpretCast<RawPtrT>(IntPtrConstant(bit_cast<intptr_t>(value)));
+    return ReinterpretCast<RawPtrT>(
+        IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi value);
@@ -542,7 +531,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
   TNode<Smi> SmiConstant(E value) {
-    STATIC_ASSERT(sizeof(E) <= sizeof(int));
+    static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
   }
   TNode<HeapObject> UntypedHeapConstant(Handle<HeapObject> object);

@@ -25,13 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from os.path import exists
 from os.path import isdir
 from os.path import join
 import os
 import platform
 import re
-import urllib
 
 
 ### Exit codes and their meaning.

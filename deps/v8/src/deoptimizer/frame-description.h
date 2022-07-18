@@ -57,14 +57,16 @@ class RegisterValues {
 
 class FrameDescription {
  public:
-  FrameDescription(uint32_t frame_size, int parameter_count)
+  FrameDescription(uint32_t frame_size, int parameter_count, Isolate* isolate)
       : frame_size_(frame_size),
         parameter_count_(parameter_count),
         top_(kZapUint32),
         pc_(kZapUint32),
         fp_(kZapUint32),
         context_(kZapUint32),
-        constant_pool_(kZapUint32) {
+        constant_pool_(kZapUint32),
+        isolate_(isolate) {
+    USE(isolate_);
     // Zap all the registers.
     for (int r = 0; r < Register::kNumRegisters; r++) {
       // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
@@ -210,6 +212,8 @@ class FrameDescription {
   intptr_t fp_;
   intptr_t context_;
   intptr_t constant_pool_;
+
+  Isolate* isolate_;
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.

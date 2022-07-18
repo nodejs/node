@@ -35,98 +35,117 @@
  * TODO(verwaest): Remove calls form API methods to DO_NOT_USE macros.
  */
 
-#define API_RCS_SCOPE(isolate, class_name, function_name) \
-  RCS_SCOPE(isolate,                                      \
+#define API_RCS_SCOPE(i_isolate, class_name, function_name) \
+  RCS_SCOPE(i_isolate,                                      \
             i::RuntimeCallCounterId::kAPI_##class_name##_##function_name);
 
-#define ENTER_V8_DO_NOT_USE(isolate) i::VMState<v8::OTHER> __state__((isolate))
+#define ENTER_V8_BASIC(i_isolate)                            \
+  /* Embedders should never enter V8 after terminating it */ \
+  DCHECK(!i_isolate->is_execution_terminating());            \
+  i::VMState<v8::OTHER> __state__((i_isolate))
 
-#define ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name,  \
-                                   function_name, bailout_value,  \
-                                   HandleScopeClass, do_callback) \
-  if (IsExecutionTerminatingCheck(isolate)) {                     \
-    return bailout_value;                                         \
-  }                                                               \
-  HandleScopeClass handle_scope(isolate);                         \
-  CallDepthScope<do_callback> call_depth_scope(isolate, context); \
-  API_RCS_SCOPE(isolate, class_name, function_name);              \
-  i::VMState<v8::OTHER> __state__((isolate));                     \
+#define ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name,    \
+                                 function_name, bailout_value,      \
+                                 HandleScopeClass, do_callback)     \
+  if (i_isolate->is_execution_terminating()) {                      \
+    return bailout_value;                                           \
+  }                                                                 \
+  HandleScopeClass handle_scope(i_isolate);                         \
+  CallDepthScope<do_callback> call_depth_scope(i_isolate, context); \
+  API_RCS_SCOPE(i_isolate, class_name, function_name);              \
+  i::VMState<v8::OTHER> __state__((i_isolate));                     \
   bool has_pending_exception = false
 
-#define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, T)       \
-  if (IsExecutionTerminatingCheck(isolate)) {                                \
-    return MaybeLocal<T>();                                                  \
-  }                                                                          \
-  InternalEscapableScope handle_scope(isolate);                              \
-  CallDepthScope<false> call_depth_scope(isolate, v8::Local<v8::Context>()); \
-  i::VMState<v8::OTHER> __state__((isolate));                                \
+#define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, T)       \
+  if (i_isolate->is_execution_terminating()) {                                 \
+    return MaybeLocal<T>();                                                    \
+  }                                                                            \
+  InternalEscapableScope handle_scope(i_isolate);                              \
+  CallDepthScope<false> call_depth_scope(i_isolate, v8::Local<v8::Context>()); \
+  i::VMState<v8::OTHER> __state__((i_isolate));                                \
   bool has_pending_exception = false
 
 #define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
                                            bailout_value, HandleScopeClass,    \
                                            do_callback)                        \
-  auto isolate = context.IsEmpty()                                             \
-                     ? i::Isolate::Current()                                   \
-                     : reinterpret_cast<i::Isolate*>(context->GetIsolate());   \
-  ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name,      \
-                             bailout_value, HandleScopeClass, do_callback);
+  auto i_isolate = context.IsEmpty()                                           \
+                       ? i::Isolate::Current()                                 \
+                       : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
+  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name,      \
+                           bailout_value, HandleScopeClass, do_callback);
 
 #define PREPARE_FOR_EXECUTION(context, class_name, function_name, T)          \
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name,      \
                                      MaybeLocal<T>(), InternalEscapableScope, \
                                      false)
 
-#define ENTER_V8(isolate, context, class_name, function_name, bailout_value, \
-                 HandleScopeClass)                                           \
-  ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name,    \
-                             bailout_value, HandleScopeClass, true)
+#define ENTER_V8(i_isolate, context, class_name, function_name, bailout_value, \
+                 HandleScopeClass)                                             \
+  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name,      \
+                           bailout_value, HandleScopeClass, true)
 
 #ifdef DEBUG
-#define ENTER_V8_NO_SCRIPT(isolate, context, class_name, function_name,   \
+#define ENTER_V8_NO_SCRIPT(i_isolate, context, class_name, function_name, \
                            bailout_value, HandleScopeClass)               \
-  ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name, \
-                             bailout_value, HandleScopeClass, false);     \
-  i::DisallowJavascriptExecutionDebugOnly __no_script__((isolate))
+  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name, \
+                           bailout_value, HandleScopeClass, false);       \
+  i::DisallowJavascriptExecutionDebugOnly __no_script__((i_isolate))
+
+#define DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)       \
+  i::DisallowJavascriptExecutionDebugOnly __no_script__((i_isolate)); \
+  i::DisallowExceptions __no_exceptions__((i_isolate))
 
 // Lightweight version for APIs that don't require an active context.
-#define ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate)                      \
-  i::DisallowJavascriptExecutionDebugOnly __no_script__((isolate)); \
-  i::DisallowExceptions __no_exceptions__((isolate))
+#define DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)             \
+  /* Embedders should never enter V8 after terminating it */ \
+  DCHECK(!i_isolate->is_execution_terminating());            \
+  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
 
-#define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate) \
-  i::VMState<v8::OTHER> __state__((isolate));    \
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate)
+#define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate) \
+  i::VMState<v8::OTHER> __state__((i_isolate));    \
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)
 
-#define ENTER_V8_FOR_NEW_CONTEXT(isolate)     \
-  i::VMState<v8::OTHER> __state__((isolate)); \
-  i::DisallowExceptions __no_exceptions__((isolate))
-#else
-#define ENTER_V8_NO_SCRIPT(isolate, context, class_name, function_name,   \
+// Used instead of ENTER_V8_NO_SCRIPT_NO_EXCEPTION where the V8 Api is entered
+// during termination sequences.
+#define ENTER_V8_MAYBE_TEARDOWN(i_isolate)      \
+  i::VMState<v8::OTHER> __state__((i_isolate)); \
+  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
+
+#define ENTER_V8_FOR_NEW_CONTEXT(i_isolate)         \
+  DCHECK(!(i_isolate)->is_execution_terminating()); \
+  i::VMState<v8::OTHER> __state__((i_isolate));     \
+  i::DisallowExceptions __no_exceptions__((i_isolate))
+#else  // DEBUG
+#define ENTER_V8_NO_SCRIPT(i_isolate, context, class_name, function_name, \
                            bailout_value, HandleScopeClass)               \
-  ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name, \
-                             bailout_value, HandleScopeClass, false)
+  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name, \
+                           bailout_value, HandleScopeClass, false)
 
-#define ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate)
+#define DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)
+#define DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
 
-#define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate) \
-  i::VMState<v8::OTHER> __state__((isolate));
+#define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate) \
+  i::VMState<v8::OTHER> __state__((i_isolate));
 
-#define ENTER_V8_FOR_NEW_CONTEXT(isolate) \
-  i::VMState<v8::OTHER> __state__((isolate));
+#define ENTER_V8_MAYBE_TEARDOWN(i_isolate) \
+  i::VMState<v8::OTHER> __state__((i_isolate));
+
+#define ENTER_V8_FOR_NEW_CONTEXT(i_isolate) \
+  i::VMState<v8::OTHER> __state__((i_isolate));
 #endif  // DEBUG
 
-#define EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, value) \
-  do {                                                            \
-    if (has_pending_exception) {                                  \
-      call_depth_scope.Escape();                                  \
-      return value;                                               \
-    }                                                             \
+#define EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, value) \
+  do {                                                              \
+    if (has_pending_exception) {                                    \
+      call_depth_scope.Escape();                                    \
+      return value;                                                 \
+    }                                                               \
   } while (false)
 
 #define RETURN_ON_FAILED_EXECUTION(T) \
-  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, MaybeLocal<T>())
+  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, MaybeLocal<T>())
 
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
-  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
+  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, Nothing<T>())
 
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);

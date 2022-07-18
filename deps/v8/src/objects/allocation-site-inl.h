@@ -239,8 +239,9 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         }
         CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
         JSObject::TransitionElementsKind(boilerplate, to_kind);
-        site->dependent_code().DeoptimizeDependentCodeGroup(
-            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+        DependentCode::DeoptimizeDependencyGroups(
+            isolate, *site,
+            DependentCode::kAllocationSiteTransitionChangedGroup);
         result = true;
       }
     }
@@ -259,8 +260,8 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
                ElementsKindToString(to_kind));
       }
       site->SetElementsKind(to_kind);
-      site->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+      DependentCode::DeoptimizeDependencyGroups(
+          isolate, *site, DependentCode::kAllocationSiteTransitionChangedGroup);
       result = true;
     }
   }

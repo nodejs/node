@@ -11,17 +11,6 @@
 namespace v8 {
 namespace internal {
 
-void TickCounter::TickAndMaybeEnterSafepoint() {
-  ++ticks_;
-  // Magical number to detect performance bugs or compiler divergence.
-  // Selected as being roughly 10x of what's needed frequently.
-  constexpr size_t kMaxTicks = 100000000;
-  USE(kMaxTicks);
-  DCHECK_LT(ticks_, kMaxTicks);
-
-  if (local_heap_) local_heap_->Safepoint();
-}
-
 void TickCounter::AttachLocalHeap(LocalHeap* local_heap) {
   DCHECK_NULL(local_heap_);
   local_heap_ = local_heap;

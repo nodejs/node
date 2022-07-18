@@ -368,6 +368,133 @@ WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
   CHECK_EQ(1, r.Call());
 }
 
+WASM_EXEC_TEST(I32AtomicLoad_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                                MachineRepresentation::kWord32));
+  CHECK_TRAP(r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicLoad_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                                MachineRepresentation::kWord64));
+  CHECK_TRAP64(r.Call());
+}
+
+WASM_EXEC_TEST(I32AtomicStore_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r,
+        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_I32V_3(kWasmPageSize),
+                              WASM_ZERO, MachineRepresentation::kWord32),
+        WASM_ZERO);
+  CHECK_TRAP(r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicStore_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r,
+        WASM_ATOMICS_STORE_OP(kExprI64AtomicStore, WASM_I32V_3(kWasmPageSize),
+                              WASM_ZERO64, MachineRepresentation::kWord64),
+        WASM_ZERO);
+  CHECK_TRAP(r.Call());
+}
+
+WASM_EXEC_TEST(I32AtomicLoad_NotOptOut) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r, WASM_I32_AND(
+    WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                              MachineRepresentation::kWord32),
+    WASM_ZERO));
+  CHECK_TRAP(r.Call());
+}
+
+void RunU32BinOp_OOB(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemory(kWasmPageSize);
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize),
+        WASM_ZERO, MachineRepresentation::kWord32));
+
+  CHECK_TRAP(r.Call());
+}
+
+#define TEST_OPERATION(Name)                               \
+  WASM_EXEC_TEST(OOB_I32Atomic##Name) {                    \
+    RunU32BinOp_OOB(execution_tier, kExprI32Atomic##Name); \
+  }
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
+
+void RunU64BinOp_OOB(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_tier);
+  r.builder().AddMemory(kWasmPageSize);
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize),
+        WASM_ZERO64, MachineRepresentation::kWord32));
+
+  CHECK_TRAP64(r.Call());
+}
+
+#define TEST_OPERATION(Name)                               \
+  WASM_EXEC_TEST(OOB_I64Atomic##Name) {                    \
+    RunU64BinOp_OOB(execution_tier, kExprI64Atomic##Name); \
+  }
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
+
+WASM_EXEC_TEST(I32AtomicCompareExchange_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint32_t* memory =
+      r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI32AtomicCompareExchange, WASM_I32V_3(kWasmPageSize),
+               WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+               MachineRepresentation::kWord32));
+
+  FOR_UINT32_INPUTS(i) {
+    uint32_t initial = i;
+    FOR_UINT32_INPUTS(j) {
+      r.builder().WriteMemory(&memory[0], initial);
+      CHECK_TRAP(r.Call(i, j));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchange_trap) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange, WASM_I32V_3(kWasmPageSize),
+               WASM_ZERO64, WASM_ZERO64,
+               MachineRepresentation::kWord64));
+
+  CHECK_TRAP64(r.Call());
+}
+
 }  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal

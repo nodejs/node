@@ -5,11 +5,8 @@
 #include "src/compiler/access-builder.h"
 
 #include "src/compiler/type-cache.h"
-#include "src/execution/frames.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
 #include "src/objects/arguments.h"
-#include "src/objects/cell.h"
 #include "src/objects/contexts.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"
@@ -761,9 +758,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       kExternalStringResourceDataTag,
-#endif
   };
   return access;
 }
@@ -854,7 +849,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
   constexpr int offset = JSStrictArgumentsObject::kLengthOffset;
-  STATIC_ASSERT(offset == JSSloppyArgumentsObject::kLengthOffset);
+  static_assert(offset == JSSloppyArgumentsObject::kLengthOffset);
   FieldAccess access = {kTaggedBase,         offset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::NonInternal(), MachineType::AnyTagged(),
@@ -1093,6 +1088,16 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
 }
 
 // static
+ElementAccess AccessBuilder::ForJSForInCacheArrayElement(ForInMode mode) {
+  ElementAccess access = {
+      kTaggedBase, FixedArray::kHeaderSize,
+      (mode == ForInMode::kGeneric ? Type::String()
+                                   : Type::InternalizedString()),
+      MachineType::AnyTagged(), kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForHashTableBaseNumberOfElements() {
   FieldAccess access = {
       kTaggedBase,
@@ -1135,7 +1140,7 @@ FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNextTable() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NextTableOffset() ==
+  static_assert(OrderedHashMap::NextTableOffset() ==
                 OrderedHashSet::NextTableOffset());
   FieldAccess const access = {
       kTaggedBase,         OrderedHashMap::NextTableOffset(),
@@ -1149,7 +1154,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNextTable() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfBucketsOffset() ==
+  static_assert(OrderedHashMap::NumberOfBucketsOffset() ==
                 OrderedHashSet::NumberOfBucketsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfBucketsOffset(),
@@ -1165,7 +1170,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfDeletedElements() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfDeletedElementsOffset() ==
+  static_assert(OrderedHashMap::NumberOfDeletedElementsOffset() ==
                 OrderedHashSet::NumberOfDeletedElementsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfDeletedElementsOffset(),
@@ -1181,7 +1186,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfDeletedElements() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfElements() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfElementsOffset() ==
+  static_assert(OrderedHashMap::NumberOfElementsOffset() ==
                 OrderedHashSet::NumberOfElementsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfElementsOffset(),
@@ -1257,7 +1262,7 @@ FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {
 FieldAccess AccessBuilder::ForFeedbackVectorFlags() {
   FieldAccess access = {
       kTaggedBase,        FeedbackVector::kFlagsOffset, Handle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get()->kUint32,    MachineType::Uint32(),
+      MaybeHandle<Map>(), TypeCache::Get()->kUint16,    MachineType::Uint16(),
       kNoWriteBarrier};
   return access;
 }

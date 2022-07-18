@@ -5,7 +5,6 @@
 #include "src/compiler/machine-graph.h"
 
 #include "src/codegen/external-reference.h"
-#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {

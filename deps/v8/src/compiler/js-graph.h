@@ -10,7 +10,6 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
-#include "src/compiler/node-properties.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {

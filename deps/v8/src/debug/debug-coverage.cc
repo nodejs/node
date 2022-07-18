@@ -5,7 +5,6 @@
 #include "src/debug/debug-coverage.h"
 
 #include "src/ast/ast-source-ranges.h"
-#include "src/ast/ast.h"
 #include "src/base/hashmap.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -13,7 +12,6 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
-#include "src/objects/debug-objects-inl.h"
 #include "src/objects/objects.h"
 
 namespace v8 {

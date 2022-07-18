@@ -4,17 +4,17 @@
 
 // Flags: --harmony-array-grouping
 
-assertEquals(Array.prototype[Symbol.unscopables].groupBy, true);
+assertEquals(Array.prototype[Symbol.unscopables].group, true);
 
 var array = [-0, 1, 0, 2];
-var groupBy = () => {
-  let result = array.groupBy(v => v > 0);
+var group = () => {
+  let result = array.group(v => v > 0);
   result = Array.from(Object.entries(result));
   return result;
 }
 
 // entry order matters
-assertEquals(groupBy(), [
+assertEquals(group(), [
   ['false', [-0, 0]],
   ['true', [1, 2]],
 ]);
@@ -25,7 +25,7 @@ Object.defineProperty(array, 4, {
   writable: true,
   value: 3,
 });
-assertEquals(groupBy(), [
+assertEquals(group(), [
   ['false', [-0, 0]],
   ['true', [1, 2, 3]],
 ]);
@@ -35,7 +35,7 @@ Object.defineProperty(array, 5, {
   configurable: true,
   get: () => 4,
 });
-var result = groupBy();
+var result = group();
 assertEquals(result, [
   ['false', [-0, 0]],
   ['true', [1, 2, 3, 4]],
@@ -49,12 +49,12 @@ var array = new Array(length);
 for (var idx = 0; idx < length; idx++) {
   array[idx] = idx;
 }
-var groupBy = () => {
-  let result = array.groupBy(v => v % 2);
+var group = () => {
+  let result = array.group(v => v % 2);
   result = Array.from(Object.entries(result));
   return result;
 }
-var result = groupBy();
+var result = group();
 assertEquals(result, [
   ['0', array.filter(v => v % 2 === 0)],
   ['1', array.filter(v => v % 2 === 1)],
@@ -62,8 +62,8 @@ assertEquals(result, [
 
 // check array changed by callbackfn
 var array = [-0, 0, 1, 2];
-groupBy = () => {
-  let result = array.groupBy((v, idx) => {
+group = () => {
+  let result = array.group((v, idx) => {
     if (idx === 1) {
       array[2] = {a: 'b'};
     }
@@ -73,7 +73,7 @@ groupBy = () => {
   return result;
 }
 
-assertEquals(groupBy(), [
+assertEquals(group(), [
   ['false', [-0, 0, {a: 'b'}]],
   ['true', [2]],
 ]);
@@ -81,8 +81,8 @@ assertEquals(groupBy(), [
 
 // check array with holes
 var array = [1, , 2, , 3, , 4];
-var groupBy = () => {
-  let result = array.groupBy(v => v % 2 === 0 ? 'even' : 'not_even');
+var group = () => {
+  let result = array.group(v => v % 2 === 0 ? 'even' : 'not_even');
   result = Array.from(Object.entries(result));
   return result;
 };
@@ -91,7 +91,7 @@ function checkNoHoles(arr) {
     assertTrue(Object.getOwnPropertyDescriptor(arr, idx) !== undefined);
   }
 }
-var result = groupBy();
+var result = group();
 assertEquals(result, [
   ['not_even', [1, undefined, undefined, 3, undefined]],
   ['even', [2, 4]],
@@ -100,7 +100,7 @@ checkNoHoles(result[0][1]);
 checkNoHoles(result[1][1]);
 
 var array = [1, undefined, 2, undefined, 3, undefined, 4];
-result = groupBy();
+result = group();
 assertEquals(result, [
   ['not_even', [1, undefined, undefined, 3, undefined]],
   ['even', [2, 4]],
@@ -120,13 +120,13 @@ var arrayLikeObjects = [
   Int8Array.from([-1, 1, 2]),
   Float32Array.from([-1, 1, 2]),
 ];
-var groupBy = () => {
-  let result = Array.prototype.groupBy.call(array, v => v > 0);
+var group = () => {
+  let result = Array.prototype.group.call(array, v => v > 0);
   result = Array.from(Object.entries(result));
   return result;
 };
 for (var array of arrayLikeObjects) {
-  assertEquals(groupBy(), [
+  assertEquals(group(), [
     ['false', [-1]],
     ['true', [1, 2]],
   ]);
@@ -135,18 +135,18 @@ for (var array of arrayLikeObjects) {
 
 // check proto elements
 var array = [,];
-var groupBy = () => {
-  let result = array.groupBy(v => v);
+var group = () => {
+  let result = array.group(v => v);
   result = Array.from(Object.entries(result));
   return result;
 }
 
-assertEquals(groupBy(), [
+assertEquals(group(), [
   ['undefined', [,]],
 ]);
 
 array.__proto__.push(6);
-assertEquals(groupBy(), [
+assertEquals(group(), [
   ['6', [6]],
 ]);
 
@@ -154,7 +154,7 @@ assertEquals(groupBy(), [
 // callbackfn throws
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.groupBy(() => { throw new Error('foobar'); }),
+  () => array.group(() => { throw new Error('foobar'); }),
   Error,
   'foobar'
 );
@@ -163,7 +163,7 @@ assertThrows(
 // ToPropertyKey throws
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.groupBy(() => {
+  () => array.group(() => {
     return {
       toString() {
         throw new Error('foobar');
@@ -178,6 +178,6 @@ assertThrows(
 // callbackfn is not callable
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.groupBy('foobar'),
+  () => array.group('foobar'),
   TypeError,
 );

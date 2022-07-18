@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "src/ast/scopes.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -13,11 +12,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
 #include "src/objects/arguments-inl.h"
-#include "src/objects/heap-object-inl.h"
-#include "src/objects/module-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
 

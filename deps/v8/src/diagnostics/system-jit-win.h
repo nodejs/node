@@ -7,13 +7,17 @@
 
 namespace v8 {
 
+class Isolate;
 struct JitCodeEvent;
 
 namespace internal {
 namespace ETWJITInterface {
 void Register();
 void Unregister();
+void AddIsolate(Isolate* isolate);
+void RemoveIsolate(Isolate* isolate);
 void EventHandler(const v8::JitCodeEvent* event);
+void MaybeSetHandlerNow(Isolate* isolate);
 }  // namespace ETWJITInterface
 }  // namespace internal
 }  // namespace v8

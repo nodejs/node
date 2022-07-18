@@ -10,7 +10,7 @@
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -42,8 +42,8 @@ void ExternalPointerTable::Init(Isolate* isolate) {
 
   // Set up the special null entry. This entry must contain nullptr so that
   // empty EmbedderDataSlots represent nullptr.
-  STATIC_ASSERT(kNullExternalPointer == 0);
-  store(kNullExternalPointer, kNullAddress);
+  static_assert(kNullExternalPointerHandle == 0);
+  store(kNullExternalPointerHandle, kNullAddress);
 }
 
 void ExternalPointerTable::TearDown() {
@@ -59,8 +59,9 @@ void ExternalPointerTable::TearDown() {
   mutex_ = nullptr;
 }
 
-Address ExternalPointerTable::Get(uint32_t index,
+Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTag tag) const {
+  uint32_t index = handle >> kExternalPointerIndexShift;
   DCHECK_LT(index, capacity_);
 
   Address entry = load_atomic(index);
@@ -69,21 +70,34 @@ Address ExternalPointerTable::Get(uint32_t index,
   return entry & ~tag;
 }
 
-void ExternalPointerTable::Set(uint32_t index, Address value,
+void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
-  DCHECK_LT(index, capacity_);
-  DCHECK_NE(kNullExternalPointer, index);
+  DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   DCHECK(is_marked(tag));
+
+  uint32_t index = handle >> kExternalPointerIndexShift;
+  DCHECK_LT(index, capacity_);
 
   store_atomic(index, value | tag);
 }
 
-uint32_t ExternalPointerTable::Allocate() {
-  DCHECK(is_initialized());
+Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
+                                       Address value, ExternalPointerTag tag) {
+  DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK_EQ(0, value & kExternalPointerTagMask);
+  DCHECK(is_marked(tag));
 
-  base::Atomic32* freelist_head_ptr =
-      reinterpret_cast<base::Atomic32*>(&freelist_head_);
+  uint32_t index = handle >> kExternalPointerIndexShift;
+  DCHECK_LT(index, capacity_);
+
+  Address entry = exchange_atomic(index, value | tag);
+  DCHECK(!is_free(entry));
+  return entry & ~tag;
+}
+
+ExternalPointerHandle ExternalPointerTable::Allocate() {
+  DCHECK(is_initialized());
 
   uint32_t index;
   bool success = false;
@@ -93,14 +107,14 @@ uint32_t ExternalPointerTable::Allocate() {
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
-    uint32_t freelist_head = base::Acquire_Load(freelist_head_ptr);
+    uint32_t freelist_head = base::Acquire_Load(&freelist_head_);
     if (!freelist_head) {
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
       base::MutexGuard guard(mutex_);
 
       // Reload freelist head in case another thread already grew the table.
-      freelist_head = base::Relaxed_Load(freelist_head_ptr);
+      freelist_head = base::Relaxed_Load(&freelist_head_);
 
       if (!freelist_head) {
         // Freelist is (still) empty so grow the table.
@@ -109,6 +123,7 @@ uint32_t ExternalPointerTable::Allocate() {
     }
 
     DCHECK(freelist_head);
+    DCHECK_NE(freelist_head, kTableIsCurrentlySweepingMarker);
     DCHECK_LT(freelist_head, capacity_);
     index = freelist_head;
 
@@ -116,16 +131,18 @@ uint32_t ExternalPointerTable::Allocate() {
     uint32_t new_freelist_head = static_cast<uint32_t>(load_atomic(index));
 
     uint32_t old_val = base::Relaxed_CompareAndSwap(
-        freelist_head_ptr, freelist_head, new_freelist_head);
+        &freelist_head_, freelist_head, new_freelist_head);
     success = old_val == freelist_head;
   }
 
-  return index;
+  return index << kExternalPointerIndexShift;
 }
 
-void ExternalPointerTable::Mark(uint32_t index) {
+void ExternalPointerTable::Mark(ExternalPointerHandle handle) {
+  static_assert(sizeof(base::Atomic64) == sizeof(Address));
+
+  uint32_t index = handle >> kExternalPointerIndexShift;
   DCHECK_LT(index, capacity_);
-  STATIC_ASSERT(sizeof(base::Atomic64) == sizeof(Address));
 
   base::Atomic64 old_val = load_atomic(index);
   DCHECK(!is_free(old_val));
@@ -144,6 +161,6 @@ void ExternalPointerTable::Mark(uint32_t index) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_

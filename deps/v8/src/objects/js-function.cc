@@ -87,7 +87,7 @@ V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
                                          CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
   // Higher tiers > lower tiers.
-  STATIC_ASSERT(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
+  static_assert(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
   if (kinds == 0) return false;
   const int highest_tier_log2 =
       31 - base::bits::CountLeadingZeros(static_cast<uint32_t>(kinds));
@@ -603,7 +603,7 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !FLAG_lazy_feedback_allocation || FLAG_always_opt ||
+      !FLAG_lazy_feedback_allocation || FLAG_always_turbofan ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       FLAG_log_function_events || !isolate->is_best_effort_code_coverage() ||
@@ -647,8 +647,8 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     }
 
     // Deoptimize all code that embeds the previous initial map.
-    initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kInitialMapChangedGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -1043,11 +1043,11 @@ namespace {
 // Assert that the computations in TypedArrayElementsKindToConstructorIndex and
 // TypedArrayElementsKindToRabGsabCtorIndex are sound.
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                         \
-  STATIC_ASSERT(Context::TYPE##_ARRAY_FUN_INDEX ==                        \
+  static_assert(Context::TYPE##_ARRAY_FUN_INDEX ==                        \
                 Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX +              \
                     ElementsKind::TYPE##_ELEMENTS -                       \
                     ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND); \
-  STATIC_ASSERT(Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX ==             \
+  static_assert(Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX ==             \
                 Context::FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX +           \
                     ElementsKind::TYPE##_ELEMENTS -                       \
                     ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);

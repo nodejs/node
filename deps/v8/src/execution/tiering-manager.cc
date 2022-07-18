@@ -94,7 +94,7 @@ class OptimizationDecision {
         concurrency_mode(concurrency_mode) {}
 };
 // Since we pass by value:
-STATIC_ASSERT(sizeof(OptimizationDecision) <= kInt32Size);
+static_assert(sizeof(OptimizationDecision) <= kInt32Size);
 
 namespace {
 
@@ -139,37 +139,11 @@ void TraceManualRecompile(JSFunction function, CodeKind code_kind,
   }
 }
 
-void TieringManager::Optimize(JSFunction function, CodeKind code_kind,
-                              OptimizationDecision d) {
+void TieringManager::Optimize(JSFunction function, OptimizationDecision d) {
   DCHECK(d.should_optimize());
   TraceRecompile(isolate_, function, d);
   function.MarkForOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
-
-namespace {
-
-bool HaveCachedOSRCodeForCurrentBytecodeOffset(UnoptimizedFrame* frame,
-                                               int* osr_urgency_out) {
-  JSFunction function = frame->function();
-  const int current_offset = frame->GetBytecodeOffset();
-  OSROptimizedCodeCache cache = function.native_context().osr_code_cache();
-  interpreter::BytecodeArrayIterator iterator(
-      handle(frame->GetBytecodeArray(), frame->isolate()));
-  for (BytecodeOffset osr_offset : cache.OsrOffsetsFor(function.shared())) {
-    DCHECK(!osr_offset.IsNone());
-    iterator.SetOffset(osr_offset.ToInt());
-    if (base::IsInRange(current_offset, iterator.GetJumpTargetOffset(),
-                        osr_offset.ToInt())) {
-      int loop_depth = iterator.GetImmediateOperand(1);
-      // `+ 1` because osr_urgency is an exclusive upper limit on the depth.
-      *osr_urgency_out = loop_depth + 1;
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
 
 namespace {
 
@@ -216,43 +190,35 @@ bool SmallEnoughForOSR(Isolate* isolate, JSFunction function) {
 
 void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
   SharedFunctionInfo shared = function.shared();
+  // Guaranteed since we've got a feedback vector.
+  DCHECK(shared.IsUserJavaScript());
 
   if (V8_UNLIKELY(!FLAG_use_osr)) return;
-  if (V8_UNLIKELY(!shared.IsUserJavaScript())) return;
   if (V8_UNLIKELY(shared.optimization_disabled())) return;
 
   // We've passed all checks - bump the OSR urgency.
 
-  BytecodeArray bytecode = shared.GetBytecodeArray(isolate);
+  FeedbackVector fv = function.feedback_vector();
   if (V8_UNLIKELY(FLAG_trace_osr)) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(),
            "[OSR - setting osr urgency. function: %s, old urgency: %d, new "
            "urgency: %d]\n",
-           function.DebugNameCStr().get(), bytecode.osr_urgency(), osr_urgency);
+           function.DebugNameCStr().get(), fv.osr_urgency(), osr_urgency);
   }
 
-  DCHECK_GE(osr_urgency, bytecode.osr_urgency());  // Never lower urgency here.
-  bytecode.set_osr_urgency(osr_urgency);
+  DCHECK_GE(osr_urgency, fv.osr_urgency());  // Never lower urgency here.
+  fv.set_osr_urgency(osr_urgency);
 }
 
 void TryIncrementOsrUrgency(Isolate* isolate, JSFunction function) {
-  int old_urgency = function.shared().GetBytecodeArray(isolate).osr_urgency();
-  int new_urgency = std::min(old_urgency + 1, BytecodeArray::kMaxOsrUrgency);
+  int old_urgency = function.feedback_vector().osr_urgency();
+  int new_urgency = std::min(old_urgency + 1, FeedbackVector::kMaxOsrUrgency);
   TrySetOsrUrgency(isolate, function, new_urgency);
 }
 
 void TryRequestOsrAtNextOpportunity(Isolate* isolate, JSFunction function) {
-  TrySetOsrUrgency(isolate, function, BytecodeArray::kMaxOsrUrgency);
-}
-
-void TryRequestOsrForCachedOsrCode(Isolate* isolate, JSFunction function,
-                                   int osr_urgency_for_cached_osr_code) {
-  DCHECK_LE(osr_urgency_for_cached_osr_code, BytecodeArray::kMaxOsrUrgency);
-  int old_urgency = function.shared().GetBytecodeArray(isolate).osr_urgency();
-  // Make sure not to decrease the existing urgency.
-  int new_urgency = std::max(old_urgency, osr_urgency_for_cached_osr_code);
-  TrySetOsrUrgency(isolate, function, new_urgency);
+  TrySetOsrUrgency(isolate, function, FeedbackVector::kMaxOsrUrgency);
 }
 
 bool ShouldOptimizeAsSmallFunction(int bytecode_size, bool any_ic_changed) {
@@ -268,7 +234,6 @@ void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
 }
 
 void TieringManager::MaybeOptimizeFrame(JSFunction function,
-                                        UnoptimizedFrame* frame,
                                         CodeKind code_kind) {
   const TieringState tiering_state = function.feedback_vector().tiering_state();
   const TieringState osr_tiering_state =
@@ -296,14 +261,6 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
     // Continue below and do a normal optimized compile as well.
   }
 
-  // If we have matching cached OSR'd code, request OSR at the next opportunity.
-  int osr_urgency_for_cached_osr_code;
-  if (HaveCachedOSRCodeForCurrentBytecodeOffset(
-          frame, &osr_urgency_for_cached_osr_code)) {
-    TryRequestOsrForCachedOsrCode(isolate_, function,
-                                  osr_urgency_for_cached_osr_code);
-  }
-
   const bool is_marked_for_any_optimization =
       (static_cast<uint32_t>(tiering_state) & kNoneOrInProgressMask) != 0;
   if (is_marked_for_any_optimization || function.HasAvailableOptimizedCode()) {
@@ -320,20 +277,24 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
   DCHECK(!is_marked_for_any_optimization &&
          !function.HasAvailableOptimizedCode());
-  OptimizationDecision d = ShouldOptimize(function, code_kind, frame);
-  if (d.should_optimize()) Optimize(function, code_kind, d);
+  OptimizationDecision d = ShouldOptimize(function, code_kind);
+  if (d.should_optimize()) Optimize(function, d);
 }
 
 OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
-                                                    CodeKind code_kind,
-                                                    JavaScriptFrame* frame) {
+                                                    CodeKind code_kind) {
   DCHECK_EQ(code_kind, function.GetActiveTier().value());
 
   if (TiersUpToMaglev(code_kind) &&
+      function.shared().PassesFilter(FLAG_maglev_filter) &&
       !function.shared(isolate_).maglev_compilation_failed()) {
     return OptimizationDecision::Maglev();
   } else if (code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
+    return OptimizationDecision::DoNotOptimize();
+  }
+
+  if (!FLAG_turbofan || !function.shared().PassesFilter(FLAG_turbo_filter)) {
     return OptimizationDecision::DoNotOptimize();
   }
 
@@ -356,7 +317,7 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             bytecode.length(), FLAG_max_bytecode_size_for_early_opt);
+             bytecode.length(), FLAG_max_bytecode_size_for_early_opt.value());
     }
   }
 
@@ -437,10 +398,8 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
 
   function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
-  JavaScriptFrameIterator it(isolate_);
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   const CodeKind code_kind = function_obj.GetActiveTier().value();
-  MaybeOptimizeFrame(function_obj, frame, code_kind);
+  MaybeOptimizeFrame(function_obj, code_kind);
 }
 
 }  // namespace internal

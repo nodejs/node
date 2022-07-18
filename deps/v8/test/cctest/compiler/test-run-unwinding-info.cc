@@ -17,7 +17,7 @@ namespace internal {
 namespace compiler {
 
 TEST(RunUnwindingInfo) {
-  FLAG_always_opt = true;
+  FLAG_always_turbofan = true;
   FLAG_perf_prof_unwinding_info = true;
 
   FunctionTester tester(

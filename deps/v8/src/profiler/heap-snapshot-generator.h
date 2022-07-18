@@ -118,7 +118,8 @@ class HeapEntry {
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
     kSymbol = v8::HeapGraphNode::kSymbol,
-    kBigInt = v8::HeapGraphNode::kBigInt
+    kBigInt = v8::HeapGraphNode::kBigInt,
+    kObjectShape = v8::HeapGraphNode::kObjectShape,
   };
 
   HeapEntry(HeapSnapshot* snapshot, int index, Type type, const char* name,
@@ -216,8 +217,9 @@ class HeapEntry {
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
-  explicit HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots,
-                        bool capture_numeric_value);
+  HeapSnapshot(HeapProfiler* profiler,
+               v8::HeapProfiler::HeapSnapshotMode snapshot_mode,
+               v8::HeapProfiler::NumericsMode numerics_mode);
   HeapSnapshot(const HeapSnapshot&) = delete;
   HeapSnapshot& operator=(const HeapSnapshot&) = delete;
   void Delete();
@@ -239,10 +241,14 @@ class HeapSnapshot {
     return max_snapshot_js_object_id_;
   }
   bool is_complete() const { return !children_.empty(); }
-  bool treat_global_objects_as_roots() const {
-    return treat_global_objects_as_roots_;
+  bool capture_numeric_value() const {
+    return numerics_mode_ ==
+           v8::HeapProfiler::NumericsMode::kExposeNumericValues;
   }
-  bool capture_numeric_value() const { return capture_numeric_value_; }
+  bool expose_internals() const {
+    return snapshot_mode_ ==
+           v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  }
 
   void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
@@ -274,8 +280,8 @@ class HeapSnapshot {
   std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
   std::vector<SourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
-  bool treat_global_objects_as_roots_;
-  bool capture_numeric_value_;
+  v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
+  v8::HeapProfiler::NumericsMode numerics_mode_;
 };
 
 
@@ -431,6 +437,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFeedbackCellReferences(HeapEntry* entry,
                                      FeedbackCell feedback_cell);
   void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell cell);
+  void ExtractPrototypeInfoReferences(HeapEntry* entry, PrototypeInfo info);
   void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite site);
   void ExtractArrayBoilerplateDescriptionReferences(
       HeapEntry* entry, ArrayBoilerplateDescription value);
@@ -448,6 +455,9 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                        FeedbackVector feedback_vector);
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
                                         DescriptorArray array);
+  void ExtractEnumCacheReferences(HeapEntry* entry, EnumCache cache);
+  void ExtractTransitionArrayReferences(HeapEntry* entry,
+                                        TransitionArray transitions);
   template <typename T>
   void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T array);
   void ExtractPropertyReferences(JSObject js_obj, HeapEntry* entry);

@@ -11,7 +11,6 @@
 
 #include <unordered_map>
 
-#include "src/base/lazy-instance.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {

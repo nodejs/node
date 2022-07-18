@@ -22,11 +22,11 @@ namespace base {
 template <class T, int shift, int size, class U = uint32_t>
 class BitField final {
  public:
-  STATIC_ASSERT(std::is_unsigned<U>::value);
-  STATIC_ASSERT(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
-  STATIC_ASSERT(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
-  STATIC_ASSERT(shift + size <= 8 * sizeof(U));
-  STATIC_ASSERT(size > 0);
+  static_assert(std::is_unsigned<U>::value);
+  static_assert(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
+  static_assert(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
+  static_assert(shift + size <= 8 * sizeof(U));
+  static_assert(size > 0);
 
   using FieldType = T;
 

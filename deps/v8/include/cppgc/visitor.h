@@ -255,6 +255,7 @@ class V8_EXPORT Visitor {
    * compactable space. Such references maybe be arbitrarily moved by the GC.
    *
    * \param slot location of reference to object that might be moved by the GC.
+   * The slot must contain an uncompressed pointer.
    */
   template <typename T>
   void RegisterMovableReference(const T** slot) {

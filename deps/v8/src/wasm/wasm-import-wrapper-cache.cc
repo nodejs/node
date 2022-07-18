@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "src/logging/counters.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {

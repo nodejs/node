@@ -130,7 +130,12 @@ FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
 base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
     Isolate* isolate, Object getter) {
   DisallowGarbageCollection no_gc;
-  if (!getter.IsFunctionTemplateInfo()) return {};
+  if (!getter.IsFunctionTemplateInfo()) {
+    if (!getter.IsJSFunction()) return {};
+    SharedFunctionInfo info = JSFunction::cast(getter).shared();
+    if (!info.IsApiFunction()) return {};
+    getter = info.get_api_func_data();
+  }
   // Check if the accessor uses a cached property.
   Object maybe_name = FunctionTemplateInfo::cast(getter).cached_property_name();
   if (maybe_name.IsTheHole(isolate)) return {};

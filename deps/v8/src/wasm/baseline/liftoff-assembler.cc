@@ -626,6 +626,11 @@ LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
                                                  LiftoffRegList pinned) {
   if (slot.is_reg()) return slot.reg();
   LiftoffRegister reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
+  return LoadToRegister(slot, reg);
+}
+
+LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
+                                                 LiftoffRegister reg) {
   if (slot.is_const()) {
     LoadConstant(reg, slot.constant());
   } else {
@@ -712,18 +717,36 @@ void LiftoffAssembler::PrepareLoopArgs(int num) {
   }
 }
 
-void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
-  // Materialize constants on top of the stack ({arity} many), and locals.
+void LiftoffAssembler::PrepareForBranch(uint32_t arity, LiftoffRegList pinned) {
   VarState* stack_base = cache_state_.stack_state.data();
   for (auto slots :
        {base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
                        arity),
         base::VectorOf(stack_base, num_locals())}) {
     for (VarState& slot : slots) {
+      if (slot.is_reg()) {
+        // Registers used more than once can't be used for merges.
+        if (cache_state_.get_use_count(slot.reg()) > 1) {
+          RegClass rc = reg_class_for(slot.kind());
+          if (cache_state_.has_unused_register(rc, pinned)) {
+            LiftoffRegister dst_reg = cache_state_.unused_register(rc, pinned);
+            Move(dst_reg, slot.reg(), slot.kind());
+            cache_state_.inc_used(dst_reg);
+            cache_state_.dec_used(slot.reg());
+            slot.MakeRegister(dst_reg);
+          } else {
+            Spill(slot.offset(), slot.reg(), slot.kind());
+            cache_state_.dec_used(slot.reg());
+            slot.MakeStack();
+          }
+        }
+        continue;
+      }
+      // Materialize constants.
       if (!slot.is_const()) continue;
       RegClass rc = reg_class_for(slot.kind());
-      if (cache_state_.has_unused_register(rc)) {
-        LiftoffRegister reg = cache_state_.unused_register(rc);
+      if (cache_state_.has_unused_register(rc, pinned)) {
+        LiftoffRegister reg = cache_state_.unused_register(rc, pinned);
         LoadConstant(reg, slot.constant());
         cache_state_.inc_used(reg);
         slot.MakeRegister(reg);
@@ -1184,6 +1207,10 @@ void LiftoffAssembler::MoveToReturnLocations(
   // original state in case it is needed after the current instruction
   // (conditional branch).
   CacheState saved_state;
+#if DEBUG
+  uint32_t saved_state_frozenness = cache_state_.frozen;
+  cache_state_.frozen = 0;
+#endif
   saved_state.Split(*cache_state());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
@@ -1236,6 +1263,9 @@ void LiftoffAssembler::MoveToReturnLocations(
     }
   }
   cache_state()->Steal(saved_state);
+#if DEBUG
+  cache_state_.frozen = saved_state_frozenness;
+#endif
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -1332,6 +1362,7 @@ LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
 }
 
 void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
+  DCHECK(!cache_state_.frozen);
   int remaining_uses = cache_state_.get_use_count(reg);
   DCHECK_LT(0, remaining_uses);
   for (uint32_t idx = cache_state_.stack_height() - 1;; --idx) {
@@ -1382,7 +1413,7 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
   if (is_object_reference(a)) {
     // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
     // edges), we only care that pointer types stay amongst pointer types.
-    // It's fine if ref/optref overwrite each other.
+    // It's fine if ref/ref null overwrite each other.
     DCHECK(is_object_reference(b));
   } else if (is_rtt(a)) {
     // Same for rtt/rtt_with_depth.

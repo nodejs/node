@@ -35,6 +35,9 @@
 #define POWER_10 0x40000
 #endif
 #endif
+#if V8_OS_DARWIN
+#include <sys/sysctl.h>  // sysctlbyname
+#endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
 #endif
@@ -786,8 +789,19 @@ CPU::CPU()
     delete[] features;
   }
 #elif V8_OS_DARWIN
+#if V8_OS_IOS
+  int64_t feat_jscvt = 0;
+  size_t feat_jscvt_size = sizeof(feat_jscvt);
+  if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &feat_jscvt, &feat_jscvt_size,
+                   nullptr, 0) == -1) {
+    has_jscvt_ = false;
+  } else {
+    has_jscvt_ = feat_jscvt;
+  }
+#else
   // ARM64 Macs always have JSCVT.
   has_jscvt_ = true;
+#endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64

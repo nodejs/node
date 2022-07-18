@@ -26,16 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import fnmatch
 import imp
 import itertools
 import os
 from contextlib import contextmanager
 
-from . import command
 from . import statusfile
 from . import utils
-from ..objects.testcase import TestCase
 from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 
@@ -84,7 +81,8 @@ class TestLoader(object):
   """Base class for loading TestSuite tests after applying test suite
   transformations."""
 
-  def __init__(self, suite, test_class, test_config, test_root):
+  def __init__(self, ctx, suite, test_class, test_config, test_root):
+    self.ctx = ctx
     self.suite = suite
     self.test_class = test_class
     self.test_config = test_config
@@ -249,12 +247,12 @@ def _load_testsuite_module(name, root):
 
 class TestSuite(object):
   @staticmethod
-  def Load(root, test_config, framework_name):
+  def Load(ctx, root, test_config, framework_name):
     name = root.split(os.path.sep)[-1]
     with _load_testsuite_module(name, root) as module:
-      return module.GetSuite(name, root, test_config, framework_name)
+      return module.TestSuite(ctx, name, root, test_config, framework_name)
 
-  def __init__(self, name, root, test_config, framework_name):
+  def __init__(self, ctx, name, root, test_config, framework_name):
     self.name = name  # string
     self.root = root  # string containing path
     self.test_config = test_config
@@ -262,8 +260,8 @@ class TestSuite(object):
     self.tests = None  # list of TestCase objects
     self.statusfile = None
 
-    self._test_loader = self._test_loader_class()(
-      self, self._test_class(), self.test_config, self.root)
+    self._test_loader = self._test_loader_class()(ctx, self, self._test_class(),
+                                                  self.test_config, self.root)
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)

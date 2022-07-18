@@ -166,6 +166,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   State state_;
   unsigned int js_calls_counter_;
   double js_calls_sample_time_ms_;
+  int start_delay_ms_ = false;
 
   // Used in cctest.
   friend class heap::HeapTester;

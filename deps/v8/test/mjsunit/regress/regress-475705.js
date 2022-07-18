@@ -5,7 +5,7 @@
 // Crankshaft changes the stack usage and messes up the binary search for the
 // stack depth that causes a stack overflow.  The issue only arises without
 // regexp optimization, which can happen on pages that create a lot of regexps.
-// Flags: --noopt --noregexp-optimization
+// Flags: --noturbofan --noregexp-optimization
 
 // Should not crash with a stack overflow in the regexp compiler, even when the
 // JS has used most of the stack.

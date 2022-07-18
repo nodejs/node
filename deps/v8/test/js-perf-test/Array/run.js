@@ -141,6 +141,7 @@ d8.file.execute('join.js');
 d8.file.execute('to-string.js');
 d8.file.execute('slice.js');
 d8.file.execute('copy-within.js');
+d8.file.execute('at.js');
 
 var success = true;
 

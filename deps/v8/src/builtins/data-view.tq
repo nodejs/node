@@ -7,9 +7,9 @@
 namespace data_view {
 
 const kBuiltinNameByteLength: constexpr string =
-    'DateView.prototype.byteLength';
+    'DataView.prototype.byteLength';
 const kBuiltinNameByteOffset: constexpr string =
-    'DateView.prototype.byteOffset';
+    'DataView.prototype.byteOffset';
 
 macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
   if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
@@ -536,7 +536,6 @@ transitioning javascript builtin DataViewPrototypeGetBigInt64(
 }
 
 extern macro ToNumber(Context, JSAny): Number;
-extern macro ToBigInt(Context, JSAny): BigInt;
 extern macro TruncateFloat64ToWord32(float64): uint32;
 
 extern macro DataViewBuiltinsAssembler::StoreWord8(

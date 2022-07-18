@@ -25,6 +25,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
@@ -63,6 +64,17 @@ namespace internal {
 static const uint32_t kLatestVersion = 15;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
+
+namespace {
+// For serializing JSArrayBufferView flags. Instead of serializing /
+// deserializing the flags directly, we serialize them bit by bit. This is for
+// ensuring backwards compatilibity in the case where the representation
+// changes. Note that the ValueSerializer data can be stored on disk.
+using JSArrayBufferViewIsLengthTracking = base::BitField<bool, 0, 1>;
+using JSArrayBufferViewIsBackedByRab =
+    JSArrayBufferViewIsLengthTracking::Next<bool, 1>;
+
+}  // namespace
 
 template <typename T>
 static size_t BytesNeededForVarint(T value) {
@@ -384,6 +396,13 @@ Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
   }
 }
 
+void ValueSerializer::WriteByte(uint8_t value) {
+  uint8_t* dest;
+  if (ReserveRawBytes(sizeof(uint8_t)).To(&dest)) {
+    *dest = value;
+  }
+}
+
 void ValueSerializer::WriteUint32(uint32_t value) {
   WriteVarint<uint32_t>(value);
 }
@@ -591,8 +610,12 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
+    case JS_SHARED_ARRAY_TYPE:
+      return WriteJSSharedArray(Handle<JSSharedArray>::cast(receiver));
     case JS_SHARED_STRUCT_TYPE:
       return WriteJSSharedStruct(Handle<JSSharedStruct>::cast(receiver));
+    case JS_ATOMICS_MUTEX_TYPE:
+      return WriteSharedObject(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
@@ -663,7 +686,7 @@ Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
   uint32_t properties_written = 0;
-  if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+  if (!KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
            .ToHandle(&keys) ||
       !WriteJSObjectPropertiesSlow(object, keys).To(&properties_written)) {
@@ -756,7 +779,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     }
 
     Handle<FixedArray> keys;
-    if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
+    if (!KeyAccumulator::GetKeys(isolate_, array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS,
                                  GetKeysConversion::kKeepNumbers, false, true)
              .ToHandle(&keys)) {
@@ -775,7 +798,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteVarint<uint32_t>(length);
     Handle<FixedArray> keys;
     uint32_t properties_written = 0;
-    if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
+    if (!KeyAccumulator::GetKeys(isolate_, array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
              .ToHandle(&keys) ||
         !WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
@@ -922,6 +945,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
+  // TODO(v8:11111): Support RAB / GSAB. The wire version will need to be
+  // bumped.
   WriteTag(SerializationTag::kArrayBuffer);
   WriteVarint<uint32_t>(byte_length);
   WriteRawBytes(array_buffer->backing_store(), byte_length);
@@ -950,7 +975,10 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(static_cast<uint32_t>(view.byte_offset()));
   WriteVarint(static_cast<uint32_t>(view.byte_length()));
-  WriteVarint(static_cast<uint32_t>(view.bit_field()));
+  uint32_t flags =
+      JSArrayBufferViewIsLengthTracking::encode(view.is_length_tracking()) |
+      JSArrayBufferViewIsBackedByRab::encode(view.is_backed_by_rab());
+  WriteVarint(flags);
   return ThrowIfOutOfMemory();
 }
 
@@ -1028,6 +1056,11 @@ Maybe<bool> ValueSerializer::WriteJSSharedStruct(
     Handle<JSSharedStruct> shared_struct) {
   // TODO(v8:12547): Support copying serialization for shared structs as well.
   return WriteSharedObject(shared_struct);
+}
+
+Maybe<bool> ValueSerializer::WriteJSSharedArray(
+    Handle<JSSharedArray> shared_array) {
+  return WriteSharedObject(shared_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1333,6 +1366,13 @@ Maybe<base::Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(
   const uint8_t* start = position_;
   position_ += size;
   return Just(base::Vector<const uint8_t>(start, size));
+}
+
+bool ValueDeserializer::ReadByte(uint8_t* value) {
+  if (static_cast<size_t>(end_ - position_) < sizeof(uint8_t)) return false;
+  *value = *position_;
+  position_++;
+  return true;
 }
 
 bool ValueDeserializer::ReadUint32(uint32_t* value) {
@@ -1979,7 +2019,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     Handle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->byte_length());
+  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->GetByteLength());
   uint8_t tag = 0;
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
@@ -2004,7 +2044,9 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       Handle<JSDataView> data_view =
           isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
       AddObjectWithID(id, data_view);
-      data_view->set_bit_field(flags);
+      if (!ValidateAndSetJSArrayBufferViewFlags(*data_view, *buffer, flags)) {
+        return MaybeHandle<JSArrayBufferView>();
+      }
       return data_view;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -2021,9 +2063,37 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   }
   Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
       external_array_type, buffer, byte_offset, byte_length / element_size);
-  typed_array->set_bit_field(flags);
+  if (!ValidateAndSetJSArrayBufferViewFlags(*typed_array, *buffer, flags)) {
+    return MaybeHandle<JSArrayBufferView>();
+  }
   AddObjectWithID(id, typed_array);
   return typed_array;
+}
+
+bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
+    JSArrayBufferView view, JSArrayBuffer buffer, uint32_t serialized_flags) {
+  bool is_length_tracking =
+      JSArrayBufferViewIsLengthTracking::decode(serialized_flags);
+  bool is_backed_by_rab =
+      JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
+
+  // TODO(marja): When the version number is bumped the next time, check that
+  // serialized_flags doesn't contain spurious 1-bits.
+
+  if (is_backed_by_rab || is_length_tracking) {
+    if (!FLAG_harmony_rab_gsab) {
+      return false;
+    }
+    if (!buffer.is_resizable()) {
+      return false;
+    }
+    if (is_backed_by_rab && buffer.is_shared()) {
+      return false;
+    }
+  }
+  view.set_is_length_tracking(is_length_tracking);
+  view.set_is_backed_by_rab(is_backed_by_rab);
+  return true;
 }
 
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {

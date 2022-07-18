@@ -28,8 +28,9 @@ class TestLoader(testsuite.JSTestLoader):
   pass
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
     self.test_root = os.path.join(self.root, "tests")
     self._test_loader.test_root = self.test_root
 
@@ -48,7 +49,3 @@ class TestCase(testcase.D8TestCase):
       if os.sep.join(['proposals', proposal['name']]) in self.path:
         return proposal['flags']
     return []
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

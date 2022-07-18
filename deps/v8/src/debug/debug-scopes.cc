@@ -11,13 +11,11 @@
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/string-set-inl.h"
+#include "src/objects/string-set.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/rewriter.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -254,6 +252,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
           ? UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info)
           : UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script)
                 .set_is_eager(true);
+  flags.set_is_reparse(true);
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
@@ -562,14 +561,31 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
-    if (value->IsTheHole(isolate_)) {
-      // Reflect variables under TDZ as undefined in scope object.
+    if (value->IsOptimizedOut(isolate_)) {
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect optimized out variables as undefined in scope object.
+      value = isolate_->factory()->undefined_value();
+    } else if (value->IsTheHole(isolate_)) {
       if (scope_type == ScopeTypeScript &&
           JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
         // We also use the hole to represent overridden let-declarations via
         // REPL mode in a script context. Catch this case.
         return false;
       }
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect variables under TDZ as undefined in scope object.
       value = isolate_->factory()->undefined_value();
     }
     // Overwrite properties. Sometimes names in the same scope can collide, e.g.
@@ -649,7 +665,9 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 }
 
 bool ScopeIterator::ClosureScopeHasThisReference() const {
-  return !closure_scope_->has_this_declaration() &&
+  // closure_scope_ can be nullptr if parsing failed. See the TODO in
+  // TryParseAndRetrieveScopes.
+  return closure_scope_ && !closure_scope_->has_this_declaration() &&
          closure_scope_->HasThisReference();
 }
 
@@ -801,12 +819,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     Handle<Object> receiver =
         this_var->location() == VariableLocation::CONTEXT
             ? handle(context_->get(this_var->index()), isolate_)
-            : frame_inspector_ == nullptr
-                  ? handle(generator_->receiver(), isolate_)
-                  : frame_inspector_->GetReceiver();
-    if (receiver->IsOptimizedOut(isolate_)) {
-      receiver = isolate_->factory()->undefined_value();
-    }
+        : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
+                                      : frame_inspector_->GetReceiver();
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
       return true;
   }
@@ -847,10 +861,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = handle(parameters_and_registers.get(index), isolate_);
         } else {
           value = frame_inspector_->GetParameter(index);
-
-          if (value->IsOptimizedOut(isolate_)) {
-            value = isolate_->factory()->undefined_value();
-          }
         }
         break;
       }
@@ -874,7 +884,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
-            value = isolate_->factory()->undefined_value();
           }
         }
         break;
@@ -956,8 +965,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
     if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
-        KeyAccumulator::GetKeys(extension, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS)
+        KeyAccumulator::GetKeys(isolate_, extension,
+                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS)
             .ToHandleChecked();
 
     for (int i = 0; i < keys->length(); i++) {
@@ -1001,7 +1010,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
             parameters_and_registers->set(index, *new_value);
           } else {
             JavaScriptFrame* frame = GetFrame();
-            if (frame->is_optimized()) return false;
+            if (!frame->is_unoptimized()) return false;
 
             frame->SetParameterValue(index, *new_value);
           }
@@ -1022,7 +1031,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
           } else {
             // Set the variable on the stack.
             JavaScriptFrame* frame = GetFrame();
-            if (frame->is_optimized()) return false;
+            if (!frame->is_unoptimized()) return false;
 
             frame->SetExpression(index, *new_value);
           }

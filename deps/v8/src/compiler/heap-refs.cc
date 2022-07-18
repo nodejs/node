@@ -9,10 +9,7 @@
 #endif
 
 #include "src/api/api-inl.h"
-#include "src/ast/modules.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/protectors-inl.h"
@@ -1061,6 +1058,7 @@ bool MapRef::CanInlineElementAccess() const {
   if (has_indexed_interceptor()) return false;
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
+  if (IsSharedArrayElementsKind(kind)) return true;
   if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
       kind != BIGINT64_ELEMENTS) {
     return true;
@@ -1350,7 +1348,7 @@ base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
 }
 
 Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
-  STATIC_ASSERT(ref_traits<FixedDoubleArray>::ref_serialization_kind ==
+  static_assert(ref_traits<FixedDoubleArray>::ref_serialization_kind ==
                 RefSerializationKind::kNeverSerialized);
   CHECK(data_->should_access_heap());
   return Float64::FromBits(object()->get_representation(i));
@@ -1508,6 +1506,10 @@ bool FunctionTemplateInfoRef::is_signature_undefined() const {
 }
 
 HEAP_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
+HEAP_ACCESSOR_C(FunctionTemplateInfo, int16_t,
+                allowed_receiver_instance_type_range_start)
+HEAP_ACCESSOR_C(FunctionTemplateInfo, int16_t,
+                allowed_receiver_instance_type_range_end)
 
 HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     MapRef receiver_map) {
@@ -1640,7 +1642,7 @@ void* JSTypedArrayRef::data_ptr() const {
   // is_on_heap release/acquire semantics (external_pointer store happens-before
   // base_pointer store, and this external_pointer load happens-after
   // base_pointer load).
-  STATIC_ASSERT(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
+  static_assert(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
   return object()->DataPtr();
 }
 
@@ -1674,9 +1676,7 @@ bool StringRef::IsExternalString() const {
   return object()->IsExternalString();
 }
 
-Address CallHandlerInfoRef::callback() const {
-  return v8::ToCData<Address>(object()->callback());
-}
+Address CallHandlerInfoRef::callback() const { return object()->callback(); }
 
 ZoneVector<Address> FunctionTemplateInfoRef::c_functions() const {
   return GetCFunctions(FixedArray::cast(object()->GetCFunctionOverloads()),
@@ -2106,7 +2106,7 @@ Handle<T> TinyRef<T>::object() const {
 #define V(Name)                                  \
   template class TinyRef<Name>;                  \
   /* TinyRef should contain only one pointer. */ \
-  STATIC_ASSERT(sizeof(TinyRef<Name>) == kSystemPointerSize);
+  static_assert(sizeof(TinyRef<Name>) == kSystemPointerSize);
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 

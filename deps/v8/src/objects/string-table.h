@@ -82,7 +82,6 @@ class V8_EXPORT_PRIVATE StringTable {
   void NotifyElementsRemoved(int count);
 
   void VerifyIfOwnedBy(Isolate* isolate);
-  void UpdateCountersIfOwnedBy(Isolate* isolate);
 
  private:
   class Data;
@@ -94,6 +93,65 @@ class V8_EXPORT_PRIVATE StringTable {
   // NumberOfElements) are allowed to lock it while staying const.
   mutable base::Mutex write_mutex_;
   Isolate* isolate_;
+};
+
+// Mapping from forwarding indices (stored in a string's hash field) to
+// internalized strings.
+// The table is organised in "blocks". As writes only append new entries, the
+// organisation in blocks allows lock-free writes. We need a lock only for
+// growing the table (adding more blocks). When the vector holding the blocks
+// needs to grow, we keep a copy of the old vector alive to allow concurrent
+// reads while the vector is relocated.
+class StringForwardingTable {
+ public:
+  // Capacity for the first block.
+  static constexpr int kInitialBlockSize = 16;
+  static_assert(base::bits::IsPowerOfTwo(kInitialBlockSize));
+  static constexpr int kInitialBlockSizeHighestBit =
+      kBitsPerInt - base::bits::CountLeadingZeros32(kInitialBlockSize) - 1;
+  // Initial capacity in the block vector.
+  static constexpr int kInitialBlockVectorCapacity = 4;
+  static constexpr Smi deleted_element() { return Smi::FromInt(0); }
+
+  explicit StringForwardingTable(Isolate* isolate);
+  ~StringForwardingTable();
+
+  inline int Size() const;
+  // Returns the index of the added string pair.
+  int Add(Isolate* isolate, String string, String forward_to);
+  String GetForwardString(Isolate* isolate, int index) const;
+  static Address GetForwardStringAddress(Isolate* isolate, int index);
+  void IterateElements(RootVisitor* visitor);
+  void Reset();
+  void UpdateAfterEvacuation();
+
+ private:
+  class Block;
+  class BlockVector;
+
+  // Returns the block for a given index and sets the index within this block
+  // as out parameter.
+  static inline uint32_t BlockForIndex(int index, uint32_t* index_in_block_out);
+  static inline uint32_t IndexInBlock(int index, uint32_t block);
+  static inline uint32_t CapacityForBlock(uint32_t block);
+
+  void InitializeBlockVector();
+  // Ensure that |block| exists in the BlockVector already. If not, a new block
+  // is created (with capacity double the capacity of the last block) and
+  // inserted into the BlockVector. The BlockVector itself might grow (to double
+  // the capacity).
+  BlockVector* EnsureCapacity(uint32_t block);
+
+  Isolate* isolate_;
+  std::atomic<BlockVector*> blocks_;
+  // We need a vector of BlockVectors to keep old BlockVectors alive when we
+  // grow the table, due to concurrent reads that may still hold a pointer to
+  // them. |block_vector_sotrage_| is only accessed while we grow with the mutex
+  // held. All regular access go through |block_|, which holds a pointer to the
+  // current BlockVector.
+  std::vector<std::unique_ptr<BlockVector>> block_vector_storage_;
+  std::atomic<int> next_free_index_;
+  base::Mutex grow_mutex_;
 };
 
 }  // namespace internal

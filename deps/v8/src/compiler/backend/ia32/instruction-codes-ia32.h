@@ -161,8 +161,6 @@ namespace compiler {
   V(IA32F32x4SConvertI32x4)        \
   V(IA32F32x4UConvertI32x4)        \
   V(IA32F32x4Sqrt)                 \
-  V(IA32F32x4RecipApprox)          \
-  V(IA32F32x4RecipSqrtApprox)      \
   V(IA32F32x4Add)                  \
   V(IA32F32x4Sub)                  \
   V(IA32F32x4Mul)                  \

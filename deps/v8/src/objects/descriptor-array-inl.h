@@ -71,6 +71,25 @@ InternalIndex DescriptorArray::Search(Name name, Map map,
   return Search(name, number_of_own_descriptors, concurrent_search);
 }
 
+InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
+  for (int desc_index = field_index; desc_index < valid_descriptors;
+       ++desc_index) {
+    PropertyDetails details = GetDetails(InternalIndex(desc_index));
+    if (details.location() != PropertyLocation::kField) continue;
+    if (field_index == details.field_index()) {
+      return InternalIndex(desc_index);
+    }
+    DCHECK_LT(details.field_index(), field_index);
+  }
+  return InternalIndex::NotFound();
+}
+
+InternalIndex DescriptorArray::Search(int field_index, Map map) {
+  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
+  return Search(field_index, number_of_own_descriptors);
+}
+
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
                                                Map map) {
   DCHECK(name.IsUniqueName());

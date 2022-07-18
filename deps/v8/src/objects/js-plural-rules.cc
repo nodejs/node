@@ -146,10 +146,6 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
 
   icu::number::LocalizedNumberFormatter icu_number_formatter =
       settings.locale(icu_locale);
-  icu::number::LocalizedNumberRangeFormatter icu_number_range_formatter =
-      icu::number::UnlocalizedNumberRangeFormatter()
-          .numberFormatterBoth(settings)
-          .locale(icu_locale);
 
   Handle<Managed<icu::PluralRules>> managed_plural_rules =
       Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,
@@ -160,12 +156,6 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
           Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
               isolate, 0,
               new icu::number::LocalizedNumberFormatter(icu_number_formatter));
-  Handle<Managed<icu::number::LocalizedNumberRangeFormatter>>
-      managed_number_range_formatter =
-          Managed<icu::number::LocalizedNumberRangeFormatter>::FromRawPtr(
-              isolate, 0,
-              new icu::number::LocalizedNumberRangeFormatter(
-                  icu_number_range_formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSPluralRules> plural_rules = Handle<JSPluralRules>::cast(
@@ -181,7 +171,6 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
 
   plural_rules->set_icu_plural_rules(*managed_plural_rules);
   plural_rules->set_icu_number_formatter(*managed_number_formatter);
-  plural_rules->set_icu_number_range_formatter(*managed_number_range_formatter);
 
   // 13. Return pluralRules.
   return plural_rules;
@@ -213,12 +202,17 @@ MaybeHandle<String> JSPluralRules::ResolvePluralRange(
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
   DCHECK_NOT_NULL(icu_plural_rules);
 
-  icu::number::LocalizedNumberRangeFormatter* fmt =
-      plural_rules->icu_number_range_formatter().raw();
-  DCHECK_NOT_NULL(fmt);
+  Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
+      JSNumberFormat::GetRangeFormatter(
+          isolate, plural_rules->locale(),
+          *plural_rules->icu_number_formatter().raw());
+  MAYBE_RETURN(maybe_range_formatter, MaybeHandle<String>());
+
+  icu::number::LocalizedNumberRangeFormatter nrfmt =
+      maybe_range_formatter.FromJust();
 
   UErrorCode status = U_ZERO_ERROR;
-  icu::number::FormattedNumberRange formatted = fmt->formatFormattableRange(
+  icu::number::FormattedNumberRange formatted = nrfmt.formatFormattableRange(
       icu::Formattable(x), icu::Formattable(y), status);
 
   DCHECK(U_SUCCESS(status));

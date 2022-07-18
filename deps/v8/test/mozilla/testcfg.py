@@ -75,8 +75,9 @@ class TestLoader(testsuite.JSTestLoader):
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
     self.test_root = os.path.join(self.root, "data")
     self._test_loader.test_root = self.test_root
 
@@ -117,7 +118,3 @@ class TestCase(testcase.D8TestCase):
     if self.path.endswith('-n'):
       return mozilla.NegOutProc(self.expected_outcomes)
     return mozilla.OutProc(self.expected_outcomes)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

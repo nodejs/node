@@ -246,7 +246,7 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              AstValueFactory* ast_value_factory,
              PendingCompilationErrorHandler* pending_error_handler,
-             RuntimeCallStats* runtime_call_stats, Logger* logger,
+             RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
              UnoptimizedCompileFlags flags, bool parsing_on_main_thread)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -255,7 +255,7 @@ class ParserBase {
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
-        logger_(logger),
+        v8_file_logger_(v8_file_logger),
         parsing_on_main_thread_(parsing_on_main_thread),
         stack_limit_(stack_limit),
         pending_error_handler_(pending_error_handler),
@@ -1562,7 +1562,7 @@ class ParserBase {
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
   RuntimeCallStats* runtime_call_stats_;
-  internal::Logger* logger_;
+  internal::V8FileLogger* v8_file_logger_;
   bool parsing_on_main_thread_;
   uintptr_t stack_limit_;
   PendingCompilationErrorHandler* pending_error_handler_;
@@ -1948,6 +1948,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::THIS: {
       Consume(Token::THIS);
+      // Not necessary for this.x, this.x(), this?.x and this?.x() to
+      // store the source position for ThisExpression.
+      if (peek() == Token::PERIOD || peek() == Token::QUESTION_PERIOD) {
+        return impl()->ThisExpression();
+      }
       return impl()->NewThisExpression(beg_pos);
     }
 
@@ -2288,7 +2293,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
     case Token::BIGINT: {
       Consume(Token::BIGINT);
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetBigIntAsSymbol();
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
     }
@@ -3236,8 +3241,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
 
   // "#foo in ShiftExpression" needs to be parsed separately, since private
   // identifiers are not valid PrimaryExpressions.
-  if (V8_UNLIKELY(FLAG_harmony_private_brand_checks &&
-                  peek() == Token::PRIVATE_NAME)) {
+  if (V8_UNLIKELY(peek() == Token::PRIVATE_NAME)) {
     ExpressionT x = ParsePropertyOrPrivatePropertyName();
     int prec1 = Token::Precedence(peek(), accept_IN_);
     if (peek() != Token::IN || prec1 < prec) {
@@ -4656,9 +4660,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     const char* event_name =
         is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
     const char* name = "arrow function";
-    logger_->FunctionEvent(event_name, flags().script_id(), ms,
-                           scope->start_position(), scope->end_position(), name,
-                           strlen(name));
+    v8_file_logger_->FunctionEvent(event_name, flags().script_id(), ms,
+                                   scope->start_position(),
+                                   scope->end_position(), name, strlen(name));
   }
 
   return function_literal;

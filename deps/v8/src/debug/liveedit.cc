@@ -13,13 +13,11 @@
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/debug-stack-trace-iterator.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
-#include "src/init/v8.h"
 #include "src/logging/log.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
@@ -210,7 +208,7 @@ class Differencer {
   // This method only holds static assert statement (unfortunately you cannot
   // place one in class scope).
   void StaticAssertHolder() {
-    STATIC_ASSERT(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
+    static_assert(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
   }
 
   class ResultWriter {
@@ -797,7 +795,7 @@ struct FunctionData {
   // In case of multiple functions with different stack position, the latest
   // one (in the order below) is used, since it is the most restrictive.
   // This is important only for functions to be restarted.
-  enum StackPosition { NOT_ON_STACK, ON_STACK };
+  enum StackPosition { NOT_ON_STACK, ON_TOP_ONLY, ON_STACK };
   StackPosition stack_position;
 };
 
@@ -850,7 +848,7 @@ class FunctionDataMap : public ThreadVisitor {
     }
 
     // Visit the current thread stack.
-    VisitThread(isolate, isolate->thread_local_top());
+    VisitCurrentThread(isolate);
 
     // Visit the stacks of all archived threads.
     isolate->thread_manager()->IterateArchivedThreads(this);
@@ -904,12 +902,33 @@ class FunctionDataMap : public ThreadVisitor {
     }
   }
 
+  void VisitCurrentThread(Isolate* isolate) {
+    // We allow live editing the function that's currently top-of-stack. But
+    // only if no activation of that function is anywhere else on the stack.
+    bool is_top = true;
+    for (DebugStackTraceIterator it(isolate, /* index */ 0); !it.Done();
+         it.Advance(), is_top = false) {
+      auto sfi = it.GetSharedFunctionInfo();
+      if (sfi.is_null()) continue;
+      FunctionData* data = nullptr;
+      if (!Lookup(*sfi, &data)) continue;
+
+      // ON_TOP_ONLY will only be set on the first iteration (and if the frame
+      // can be restarted). Further activations will change the ON_TOP_ONLY to
+      // ON_STACK and prevent the live edit from happening.
+      data->stack_position = is_top && it.CanBeRestarted()
+                                 ? FunctionData::ON_TOP_ONLY
+                                 : FunctionData::ON_STACK;
+    }
+  }
+
   std::map<FuncId, FunctionData> map_;
 };
 
 bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
                     Handle<Script> new_script,
                     FunctionDataMap& function_data_map,
+                    bool allow_top_frame_live_editing,
                     debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
@@ -925,6 +944,12 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
     } else if (!data->running_generators.empty()) {
       result->status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
       return false;
+    } else if (data->stack_position == FunctionData::ON_TOP_ONLY) {
+      if (!allow_top_frame_live_editing) {
+        result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
+        return false;
+      }
+      result->restart_top_frame_required = true;
     }
   }
   return true;
@@ -974,6 +999,7 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
 
 void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                            Handle<String> new_source, bool preview,
+                           bool allow_top_frame_live_editing_param,
                            debug::LiveEditResult* result) {
   std::vector<SourceChangeRange> diffs;
   LiveEdit::CompareStrings(isolate,
@@ -990,6 +1016,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_eager(true);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   std::vector<FunctionLiteral*> literals;
   if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
@@ -1026,7 +1053,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   }
   function_data_map.Fill(isolate);
 
-  if (!CanPatchScript(changed, script, new_script, function_data_map, result)) {
+  const bool allow_top_frame_live_editing =
+      allow_top_frame_live_editing_param && FLAG_live_edit_top_frame;
+  if (!CanPatchScript(changed, script, new_script, function_data_map,
+                      allow_top_frame_live_editing, result)) {
     return;
   }
 
@@ -1107,7 +1137,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     if (!function_data_map.Lookup(new_script, mapping.second, &data)) continue;
-    Handle<SharedFunctionInfo> new_sfi = data->shared.ToHandleChecked();
+    Handle<SharedFunctionInfo> new_sfi;
+    // In most cases the new FunctionLiteral should also have an SFI, but there
+    // are some exceptions. E.g the compiler doesn't create SFIs for
+    // inner functions that are never referenced.
+    if (!data->shared.ToHandle(&new_sfi)) continue;
     DCHECK_EQ(new_sfi->script(), *new_script);
 
     if (!function_data_map.Lookup(script, mapping.first, &data)) continue;

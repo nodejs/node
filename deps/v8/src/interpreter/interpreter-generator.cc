@@ -8,10 +8,7 @@
 #include <tuple>
 
 #include "src/builtins/builtins-constructor-gen.h"
-#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/profile-data-reader.h"
-#include "src/codegen/code-factory.h"
-#include "src/debug/debug.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 #include "src/ic/ic.h"
@@ -2169,48 +2166,52 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 // performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  TNode<Int32T> loop_depth = BytecodeOperandImm(1);
-  TNode<Int16T> osr_urgency_and_install_target =
-      LoadOsrUrgencyAndInstallTarget();
-  TNode<Context> context = GetContext();
 
-  // OSR requests can be triggered either through urgency (when > the current
-  // loop depth), or an explicit install target (= the lower bits of the
-  // targeted bytecode offset).
-  Label ok(this), maybe_osr(this, Label::kDeferred);
-  Branch(Int32GreaterThanOrEqual(loop_depth, osr_urgency_and_install_target),
-         &ok, &maybe_osr);
+  Label ok(this);
+  TNode<FeedbackVector> feedback_vector =
+      CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure(), &ok);
+  TNode<Int8T> osr_state = LoadOsrState(feedback_vector);
+  TNode<Int32T> loop_depth = BytecodeOperandImm(1);
+
+  Label maybe_osr_because_baseline(this),
+      maybe_osr_because_osr_state(this, Label::kDeferred);
+  // The quick initial OSR check. If it passes, we proceed on to more expensive
+  // OSR logic.
+  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  GotoIfNot(Uint32GreaterThanOrEqual(loop_depth, osr_state),
+            &maybe_osr_because_osr_state);
+
+  // Perhaps we've got cached baseline code?
+  TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+      LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+  TNode<HeapObject> sfi_data =
+      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
+         &maybe_osr_because_baseline, &ok);
 
   BIND(&ok);
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
   JumpBackward(relative_jump);
 
-  BIND(&maybe_osr);
-  Label osr(this);
-  // OSR based on urgency, i.e. is the OSR urgency greater than the current
-  // loop depth?
-  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
-  TNode<Word32T> osr_urgency = Word32And(osr_urgency_and_install_target,
-                                         BytecodeArray::OsrUrgencyBits::kMask);
-  GotoIf(Int32GreaterThan(osr_urgency, loop_depth), &osr);
+  BIND(&maybe_osr_because_baseline);
+  {
+    TNode<Context> context = GetContext();
+    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(2));
+    OnStackReplacement(context, feedback_vector, relative_jump, loop_depth,
+                       slot_index, osr_state,
+                       OnStackReplacementParams::kBaselineCodeIsCached);
+  }
 
-  // OSR based on the install target offset, i.e. does the current bytecode
-  // offset match the install target offset?
-  //
-  //  if (((offset << kShift) & kMask) == (target & kMask)) { ... }
-  static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
-  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
-  // Note: We OR in 1 to avoid 0 offsets, see Code::OsrInstallTargetFor.
-  TNode<Word32T> actual = Word32Or(
-      Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
-      Int32Constant(1));
-  actual = Word32And(Word32Shl(UncheckedCast<Int32T>(actual), kShift), kMask);
-  TNode<Word32T> expected = Word32And(osr_urgency_and_install_target, kMask);
-  Branch(Word32Equal(actual, expected), &osr, &ok);
-
-  BIND(&osr);
-  OnStackReplacement(context, relative_jump);
+  BIND(&maybe_osr_because_osr_state);
+  {
+    TNode<Context> context = GetContext();
+    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(2));
+    OnStackReplacement(context, feedback_vector, relative_jump, loop_depth,
+                       slot_index, osr_state,
+                       OnStackReplacementParams::kDefault);
+  }
 }
 
 // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
@@ -2953,10 +2954,8 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
 // GetIterator <object>
 //
 // Retrieves the object[Symbol.iterator] method, calls it and stores
-// the result in the accumulator
-// TODO(swapnilgaikwad): Extend the functionality of the bytecode to
-// check if the result is a JSReceiver else throw SymbolIteratorInvalid
-// runtime exception
+// the result in the accumulator. If the result is not JSReceiver,
+// throw SymbolIteratorInvalid runtime exception.
 IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<Context> context = GetContext();

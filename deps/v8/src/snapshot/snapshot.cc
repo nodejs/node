@@ -6,22 +6,17 @@
 
 #include "src/snapshot/snapshot.h"
 
-#include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
-#include "src/execution/isolate-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/objects/code-kind.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
-#include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/read-only-serializer.h"
-#include "src/snapshot/shared-heap-deserializer.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-utils.h"
-#include "src/snapshot/startup-deserializer.h"
 #include "src/snapshot/startup-serializer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
@@ -100,7 +95,7 @@ class SnapshotImpl : public AllStatic {
 
   static base::Vector<const byte> ChecksummedContent(
       const v8::StartupData* data) {
-    STATIC_ASSERT(kVersionStringOffset == kChecksumOffset + kUInt32Size);
+    static_assert(kVersionStringOffset == kChecksumOffset + kUInt32Size);
     const uint32_t kChecksumStart = kVersionStringOffset;
     return base::Vector<const byte>(
         reinterpret_cast<const byte*>(data->data + kChecksumStart),
@@ -167,7 +162,10 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
-  if (FLAG_verify_snapshot_checksum) CHECK(VerifyChecksum(blob));
+  if (Snapshot::ShouldVerifyChecksum(blob)) {
+    CHECK(VerifyChecksum(blob));
+  }
+
   base::Vector<const byte> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
   base::Vector<const byte> read_only_data =
@@ -352,6 +350,10 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
+  // The shared heap is verified on Heap teardown, which performs a global
+  // safepoint. Both isolate and new_isolate are running in the same thread, so
+  // park isolate before deleting new_isolate to avoid deadlock.
+  ParkedScope parked(isolate->main_thread_local_isolate());
   Isolate::Delete(new_isolate);
 }
 
@@ -596,12 +598,18 @@ uint32_t SnapshotImpl::ExtractNumContexts(const v8::StartupData* data) {
   return num_contexts;
 }
 
+uint32_t Snapshot::GetExpectedChecksum(const v8::StartupData* data) {
+  return SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
+}
+uint32_t Snapshot::CalculateChecksum(const v8::StartupData* data) {
+  return Checksum(SnapshotImpl::ChecksummedContent(data));
+}
+
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
-  uint32_t expected =
-      SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
-  uint32_t result = Checksum(SnapshotImpl::ChecksummedContent(data));
+  uint32_t expected = GetExpectedChecksum(data);
+  uint32_t result = CalculateChecksum(data);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);

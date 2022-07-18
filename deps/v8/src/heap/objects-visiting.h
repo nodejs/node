@@ -14,10 +14,12 @@ namespace v8 {
 namespace internal {
 
 #define TYPED_VISITOR_ID_LIST(V)        \
+  V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \
+  V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(Code)                               \
   V(CodeDataContainer)                  \
@@ -65,7 +67,7 @@ namespace internal {
   IF_WASM(V, WasmJSFunctionData)        \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmOnFulfilledData)       \
+  IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmTypeInfo)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
@@ -105,7 +107,7 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   // Guard predicate for visiting the objects map pointer separately.
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // If this predicate returns false, then the heap visitor will fail
-  // in default Visit implemention for subclasses of JSObject.
+  // in default Visit implementation for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
 #define VISIT(TypeName) \

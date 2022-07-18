@@ -143,10 +143,10 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
   // double-world alignment (8 bytes on 32bit and 16 bytes on 64bit
   // architectures). This is enforced on the public API via static_asserts
   // against alignof(T).
-  STATIC_ASSERT(2 * kAllocationGranularity ==
+  static_assert(2 * kAllocationGranularity ==
                 api_constants::kMaxSupportedAlignment);
-  STATIC_ASSERT(kAllocationGranularity == sizeof(HeapObjectHeader));
-  STATIC_ASSERT(kAllocationGranularity ==
+  static_assert(kAllocationGranularity == sizeof(HeapObjectHeader));
+  static_assert(kAllocationGranularity ==
                 api_constants::kAllocationGranularity);
   DCHECK_EQ(2 * sizeof(HeapObjectHeader), static_cast<size_t>(alignment));
   constexpr size_t kAlignment = 2 * kAllocationGranularity;

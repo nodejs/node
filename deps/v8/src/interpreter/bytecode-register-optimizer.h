@@ -8,6 +8,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -120,6 +122,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   void RegisterAllocateEvent(Register reg) override;
   void RegisterListAllocateEvent(RegisterList reg_list) override;
   void RegisterListFreeEvent(RegisterList reg) override;
+  void RegisterFreeEvent(Register reg) override;
 
   // Update internal state for register transfer from |input| to |output|
   void RegisterTransfer(RegisterInfo* input, RegisterInfo* output);

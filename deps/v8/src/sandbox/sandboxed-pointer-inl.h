@@ -6,8 +6,8 @@
 #define V8_SANDBOX_SANDBOXED_POINTER_INL_H_
 
 #include "include/v8-internal.h"
-#include "src/common/ptr-compr.h"
-#include "src/execution/isolate.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/sandbox/sandbox.h"
 #include "src/sandbox/sandboxed-pointer.h"
 
 namespace v8 {

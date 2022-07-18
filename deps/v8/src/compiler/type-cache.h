@@ -7,7 +7,6 @@
 
 #include "src/compiler/types.h"
 #include "src/date/date.h"
-#include "src/objects/code.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"
 

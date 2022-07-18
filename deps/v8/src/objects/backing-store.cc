@@ -55,21 +55,6 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
-// Attempts to allocate memory inside the sandbox currently fall back to
-// allocating memory outside of the sandbox if necessary. Once this fallback is
-// no longer allowed/possible, these cases will become allocation failures
-// instead. To track the frequency of such events, the outcome of memory
-// allocation attempts inside the sandbox is reported to UMA.
-//
-// See caged_memory_allocation_outcome in counters-definitions.h
-// This class and the entry in counters-definitions.h use the term "cage"
-// instead of "sandbox" for historical reasons.
-enum class CagedMemoryAllocationOutcome {
-  kSuccess,      // Allocation succeeded inside the cage
-  kOutsideCage,  // Allocation failed inside the cage but succeeded outside
-  kFailure,      // Allocation failed inside and outside of the cage
-};
-
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
                                       void* buffer_start,
                                       size_t byte_capacity) {
@@ -107,28 +92,6 @@ size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
 void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
       static_cast<int>(status));
-}
-
-// When the sandbox is active, this function records the outcome of attempts to
-// allocate memory inside the sandbox which fall back to allocating memory
-// outside of the sandbox. Passing a value of nullptr for the result indicates
-// that the memory could not be allocated at all.
-void RecordSandboxMemoryAllocationResult(Isolate* isolate, void* result) {
-  // This metric is only meaningful when the sandbox is active.
-#ifdef V8_SANDBOX
-  if (GetProcessWideSandbox()->is_initialized()) {
-    CagedMemoryAllocationOutcome outcome;
-    if (result) {
-      bool allocation_in_cage = GetProcessWideSandbox()->Contains(result);
-      outcome = allocation_in_cage ? CagedMemoryAllocationOutcome::kSuccess
-                                   : CagedMemoryAllocationOutcome::kOutsideCage;
-    } else {
-      outcome = CagedMemoryAllocationOutcome::kFailure;
-    }
-    isolate->counters()->caged_memory_allocation_outcome()->AddSample(
-        static_cast<int>(outcome));
-  }
-#endif
 }
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
@@ -207,17 +170,7 @@ BackingStore::~BackingStore() {
     return;
   }
 
-  PageAllocator* page_allocator = GetPlatformPageAllocator();
-  // TODO(saelo) here and elsewhere in this file, replace with
-  // GetArrayBufferPageAllocator once the fallback to the platform page
-  // allocator is no longer allowed.
-#ifdef V8_SANDBOX
-  if (GetProcessWideSandbox()->Contains(buffer_start_)) {
-    page_allocator = GetSandboxPageAllocator();
-  } else {
-    DCHECK(kAllowBackingStoresOutsideSandbox);
-  }
-#endif
+  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
@@ -424,22 +377,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // Allocate pages (inaccessible by default).
   //--------------------------------------------------------------------------
   void* allocation_base = nullptr;
-  PageAllocator* page_allocator = GetPlatformPageAllocator();
+  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
   auto allocate_pages = [&] {
-#ifdef V8_SANDBOX
-    page_allocator = GetSandboxPageAllocator();
-    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
-                                    page_size, PageAllocator::kNoAccess);
-    if (allocation_base) return true;
-    // We currently still allow falling back to the platform page allocator if
-    // the sandbox page allocator fails. This will eventually be removed.
-    // TODO(chromium:1218005) once we forbid the fallback, we should have a
-    // single API, e.g. GetArrayBufferPageAllocator(), that returns the correct
-    // page allocator to use here depending on whether the sandbox is enabled
-    // or not.
-    if (!kAllowBackingStoresOutsideSandbox) return false;
-    page_allocator = GetPlatformPageAllocator();
-#endif
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
     return allocation_base != nullptr;
@@ -447,7 +386,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   if (!gc_retry(allocate_pages)) {
     // Page allocator could not reserve enough pages.
     RecordStatus(isolate, AllocationStatus::kOtherFailure);
-    RecordSandboxMemoryAllocationResult(isolate, nullptr);
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
@@ -484,7 +422,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
                                   : AllocationStatus::kSuccess);
-  RecordSandboxMemoryAllocationResult(isolate, allocation_base);
 
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
@@ -666,18 +603,46 @@ void BackingStore::UpdateSharedWasmMemoryObjects(Isolate* isolate) {
 
 // Commit already reserved memory (for RAB backing stores (not shared)).
 BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
-    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
+    Isolate* isolate, size_t new_byte_length) {
+  size_t page_size = AllocatePageSize();
+  size_t new_committed_pages;
+  bool round_return_value =
+      RoundUpToPageSize(new_byte_length, page_size,
+                        JSArrayBuffer::kMaxByteLength, &new_committed_pages);
+  CHECK(round_return_value);
+
+  size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(!is_shared());
 
   if (new_byte_length < byte_length_) {
-    // TOOO(v8:11111): Figure out a strategy for shrinking - when do we
-    // un-commit the memory?
-
     // Zero the memory so that in case the buffer is grown later, we have
-    // zeroed the contents already.
+    // zeroed the contents already. This is especially needed for the portion of
+    // the memory we're not going to decommit below (since it belongs to a
+    // committed page). In addition, we don't rely on all platforms always
+    // zeroing decommitted-then-recommitted memory, but zero the memory
+    // explicitly here.
     memset(reinterpret_cast<byte*>(buffer_start_) + new_byte_length, 0,
            byte_length_ - new_byte_length);
+
+    // Check if we can un-commit some pages.
+    size_t old_committed_pages;
+    round_return_value =
+        RoundUpToPageSize(byte_length_, page_size,
+                          JSArrayBuffer::kMaxByteLength, &old_committed_pages);
+    CHECK(round_return_value);
+    DCHECK_LE(new_committed_pages, old_committed_pages);
+
+    if (new_committed_pages < old_committed_pages) {
+      size_t old_committed_length = old_committed_pages * page_size;
+      if (!i::SetPermissions(
+              GetPlatformPageAllocator(),
+              reinterpret_cast<byte*>(buffer_start_) + new_committed_length,
+              old_committed_length - new_committed_length,
+              PageAllocator::kNoAccess)) {
+        return kFailure;
+      }
+    }
 
     // Changing the byte length wouldn't strictly speaking be needed, since
     // the JSArrayBuffer already stores the updated length. This is to keep
@@ -707,7 +672,15 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
 
 // Commit already reserved memory (for GSAB backing stores (shared)).
 BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
-    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
+    Isolate* isolate, size_t new_byte_length) {
+  size_t page_size = AllocatePageSize();
+  size_t new_committed_pages;
+  bool round_return_value =
+      RoundUpToPageSize(new_byte_length, page_size,
+                        JSArrayBuffer::kMaxByteLength, &new_committed_pages);
+  CHECK(round_return_value);
+
+  size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(is_shared());
   // See comment in GrowWasmMemoryInPlace.
@@ -807,8 +780,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
 }
 
 bool BackingStore::Reallocate(Isolate* isolate, size_t new_byte_length) {
-  CHECK(!is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
-        free_on_destruct_ && !is_resizable_);
+  CHECK(CanReallocate());
   auto allocator = get_v8_api_array_buffer_allocator();
   CHECK_EQ(isolate->array_buffer_allocator(), allocator);
   CHECK_EQ(byte_length_, byte_capacity_);

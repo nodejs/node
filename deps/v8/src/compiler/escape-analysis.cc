@@ -6,13 +6,11 @@
 
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/handles/handles-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/objects/map-inl.h"
 
 #ifdef DEBUG
@@ -77,6 +75,8 @@ class ReduceScope {
   using Reduction = EffectGraphReducer::Reduction;
   explicit ReduceScope(Node* node, Reduction* reduction)
       : current_node_(node), reduction_(reduction) {}
+
+  void SetValueChanged() { reduction()->set_value_changed(); }
 
  protected:
   Node* current_node() const { return current_node_; }
@@ -170,6 +170,7 @@ class EscapeAnalysisTracker : public ZoneObject {
                         Zone* zone)
       : virtual_objects_(zone),
         replacements_(zone),
+        framestate_might_lazy_deopt_(zone),
         variable_states_(jsgraph, reducer, zone),
         jsgraph_(jsgraph),
         zone_(zone) {}
@@ -246,6 +247,31 @@ class EscapeAnalysisTracker : public ZoneObject {
 
     void MarkForDeletion() { SetReplacement(tracker_->jsgraph_->Dead()); }
 
+    bool FrameStateMightLazyDeopt(Node* framestate) {
+      DCHECK_EQ(IrOpcode::kFrameState, framestate->opcode());
+      if (auto it = tracker_->framestate_might_lazy_deopt_.find(framestate);
+          it != tracker_->framestate_might_lazy_deopt_.end()) {
+        return it->second;
+      }
+      for (Node* use : framestate->uses()) {
+        switch (use->opcode()) {
+          case IrOpcode::kCheckpoint:
+          case IrOpcode::kDeoptimize:
+          case IrOpcode::kDeoptimizeIf:
+          case IrOpcode::kDeoptimizeUnless:
+            // These nodes only cause eager deopts.
+            break;
+          default:
+            if (use->opcode() == IrOpcode::kFrameState &&
+                !FrameStateMightLazyDeopt(use)) {
+              break;
+            }
+            return tracker_->framestate_might_lazy_deopt_[framestate] = true;
+        }
+      }
+      return tracker_->framestate_might_lazy_deopt_[framestate] = false;
+    }
+
     ~Scope() {
       if (replacement_ != tracker_->replacements_[current_node()] ||
           vobject_ != tracker_->virtual_objects_.Get(current_node())) {
@@ -282,6 +308,7 @@ class EscapeAnalysisTracker : public ZoneObject {
 
   SparseSidetable<VirtualObject*> virtual_objects_;
   Sidetable<Node*> replacements_;
+  ZoneUnorderedMap<Node*, bool> framestate_might_lazy_deopt_;
   VariableTracker variable_states_;
   VirtualObject::Id next_object_id_ = 0;
   JSGraph* const jsgraph_;
@@ -806,15 +833,26 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kStateValues:
-      // These uses are always safe.
+      // We visit StateValue nodes through their correpsonding FrameState node,
+      // so we need to make sure we revisit the FrameState.
+      current->SetValueChanged();
       break;
     case IrOpcode::kFrameState: {
       // We mark the receiver as escaping due to the non-standard `.getThis`
       // API.
       FrameState frame_state{current->CurrentNode()};
-      if (frame_state.frame_state_info().type() !=
-          FrameStateType::kUnoptimizedFunction)
+      FrameStateType type = frame_state.frame_state_info().type();
+      // This needs to be kept in sync with the frame types supported in
+      // `OptimizedFrame::Summarize`.
+      if (type != FrameStateType::kUnoptimizedFunction &&
+          type != FrameStateType::kJavaScriptBuiltinContinuation &&
+          type != FrameStateType::kJavaScriptBuiltinContinuationWithCatch) {
         break;
+      }
+      if (!current->FrameStateMightLazyDeopt(current->CurrentNode())) {
+        // Only lazy deopt frame states are used to generate stack traces.
+        break;
+      }
       StateValuesAccess::iterator it =
           StateValuesAccess(frame_state.parameters()).begin();
       if (!it.done()) {

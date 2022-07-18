@@ -190,6 +190,14 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetRegisterParameter(int i) {
 }
 
 // static
+template <typename DerivedDescriptor>
+constexpr DoubleRegister
+StaticCallInterfaceDescriptor<DerivedDescriptor>::GetDoubleRegisterParameter(
+    int i) {
+  return DoubleRegister::from_code(DerivedDescriptor::registers()[i].code());
+}
+
+// static
 constexpr Register FastNewObjectDescriptor::TargetRegister() {
   return kJSFunctionRegister;
 }
@@ -260,7 +268,7 @@ constexpr Register LoadNoFeedbackDescriptor::ICKindRegister() {
 // need to choose a new register here.
 // static
 constexpr Register LoadGlobalWithVectorDescriptor::VectorRegister() {
-  STATIC_ASSERT(!LoadWithVectorDescriptor::VectorRegister().is_valid());
+  static_assert(!LoadWithVectorDescriptor::VectorRegister().is_valid());
   return LoadDescriptor::ReceiverRegister();
 }
 #else
@@ -334,7 +342,7 @@ constexpr auto BaselineOutOfLinePrologueDescriptor::registers() {
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister,
       kInterpreterBytecodeArrayRegister);
 #elif V8_TARGET_ARCH_IA32
-  STATIC_ASSERT(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
+  static_assert(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
   return RegisterArray(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister);
@@ -354,6 +362,32 @@ constexpr auto BaselineLeaveFrameDescriptor::registers() {
 #else
   return DefaultRegisterArray();
 #endif
+}
+
+// static
+constexpr auto BaselineOnStackReplacementDescriptor::registers() {
+  return DefaultRegisterArray();
+}
+
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::MaybeTargetCodeRegister() {
+  // Picking the first register on purpose because it's convenient that this
+  // register is the same as the platform's return-value register.
+  return registers()[0];
+}
+
+// static
+constexpr auto InterpreterOnStackReplacementDescriptor::registers() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::registers();
+}
+
+// static
+constexpr Register
+InterpreterOnStackReplacementDescriptor::MaybeTargetCodeRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::MaybeTargetCodeRegister();
 }
 
 // static

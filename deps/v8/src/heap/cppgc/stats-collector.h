@@ -60,7 +60,8 @@ namespace internal {
 
 #define CPPGC_FOR_ALL_HISTOGRAM_CONCURRENT_SCOPES(V) \
   V(ConcurrentMark)                                  \
-  V(ConcurrentSweep)
+  V(ConcurrentSweep)                                 \
+  V(ConcurrentWeakCallback)
 
 #define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V) V(ConcurrentMarkProcessEphemerons)
 

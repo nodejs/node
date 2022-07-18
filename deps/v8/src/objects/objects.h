@@ -95,6 +95,7 @@
 //         - JSSegments            // If V8_INTL_SUPPORT enabled.
 //         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
 //         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
+//         - WasmExceptionPackage
 //         - WasmTagObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject
@@ -218,13 +219,10 @@ class PropertyDescriptorObject;
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
 // the MemoryOptimizer
-// UPDATE_WEAK_WRITE_BARRIER skips the marking part of the write barrier and
-// only performs the generational part.
 // UPDATE_WRITE_BARRIER is doing the full barrier, marking and generational.
 enum WriteBarrierMode {
   SKIP_WRITE_BARRIER,
   UNSAFE_SKIP_WRITE_BARRIER,
-  UPDATE_WEAK_WRITE_BARRIER,
   UPDATE_EPHEMERON_KEY_WRITE_BARRIER,
   UPDATE_WRITE_BARRIER
 };
@@ -733,14 +731,17 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // ExternalPointer_t field accessors.
   //
+  template <ExternalPointerTag tag>
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  template <ExternalPointerTag tag>
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       ExternalPointerTag tag);
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value, ExternalPointerTag tag);
-  inline Address ReadExternalPointerField(size_t offset, Isolate* isolate,
-                                          ExternalPointerTag tag) const;
+                                       Address value);
+  template <ExternalPointerTag tag>
+  inline Address ReadExternalPointerField(size_t offset,
+                                          Isolate* isolate) const;
+  template <ExternalPointerTag tag>
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                        Address value, ExternalPointerTag tag);
+                                        Address value);
 
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
@@ -758,6 +759,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // - HeapNumbers in the shared old space
   // - Strings for which String::IsShared() is true
   // - JSSharedStructs
+  // - JSSharedArrays
   inline bool IsShared() const;
 
   // Returns an equivalent value that's safe to share across Isolates if

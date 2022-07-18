@@ -15,7 +15,7 @@ let subtype = builder.addStruct(
 let unused_type = builder.addStruct(
     [makeField(kWasmI32, true), makeField(kWasmF64, true)], supertype);
 
-let sig = makeSig([wasmOptRefType(supertype)], [kWasmI32]);
+let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 
 let callee1 = builder.addFunction('callee1', sig).addBody([
     kExprBlock, kWasmRef, subtype,

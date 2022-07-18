@@ -45,46 +45,6 @@ CollectionEpoch next_epoch() {
 }
 }  // namespace
 
-#if DEBUG
-void GCTracer::Scope::AssertMainThread() {
-  Isolate* isolate = tracer_->heap_->isolate();
-  Isolate* shared_isolate = isolate->shared_isolate();
-  ThreadId thread_id = ThreadId::Current();
-
-  // Either run on isolate's main thread or on the current main thread of the
-  // shared isolate during shared GCs.
-  DCHECK(isolate->thread_id() == thread_id ||
-         (shared_isolate && shared_isolate->thread_id() == thread_id));
-}
-#endif  // DEBUG
-
-const char* GCTracer::Scope::Name(ScopeId id) {
-#define CASE(scope)  \
-  case Scope::scope: \
-    return "V8.GC_" #scope;
-  switch (id) {
-    TRACER_SCOPES(CASE)
-    TRACER_BACKGROUND_SCOPES(CASE)
-    case Scope::NUMBER_OF_SCOPES:
-      break;
-  }
-#undef CASE
-  UNREACHABLE();
-}
-
-bool GCTracer::Scope::NeedsYoungEpoch(ScopeId id) {
-#define CASE(scope)  \
-  case Scope::scope: \
-    return true;
-  switch (id) {
-    TRACER_YOUNG_EPOCH_SCOPES(CASE)
-    default:
-      return false;
-  }
-#undef CASE
-  UNREACHABLE();
-}
-
 GCTracer::Event::Event(Type type, State state,
                        GarbageCollectionReason gc_reason,
                        const char* collector_reason)
@@ -127,37 +87,49 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
 
 GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
                                                  GarbageCollector collector) {
-  Counters* counters = heap->isolate()->counters();
-  const bool in_background = heap->isolate()->IsIsolateInBackground();
   if (Heap::IsYoungGenerationCollector(collector)) {
-    mode = Mode::Scavenger;
-    type_timer = type_priority_timer = nullptr;
+    type_timer_ = nullptr;
+    type_priority_timer_ = nullptr;
+    if (!FLAG_minor_mc) {
+      mode_ = Mode::Scavenger;
+      trace_event_name_ = "V8.GCScavenger";
+    } else {
+      mode_ = Mode::None;
+      trace_event_name_ = "V8.GCMinorMC";
+    }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+    Counters* counters = heap->isolate()->counters();
+    const bool in_background = heap->isolate()->IsIsolateInBackground();
     if (heap->incremental_marking()->IsStopped()) {
-      mode = Mode::None;
-      type_timer = counters->gc_compactor();
-      type_priority_timer = in_background ? counters->gc_compactor_background()
-                                          : counters->gc_compactor_foreground();
+      mode_ = Mode::None;
+      type_timer_ = counters->gc_compactor();
+      type_priority_timer_ = in_background
+                                 ? counters->gc_compactor_background()
+                                 : counters->gc_compactor_foreground();
+      trace_event_name_ = "V8.GCCompactor";
     } else if (heap->ShouldReduceMemory()) {
-      mode = Mode::None;
-      type_timer = counters->gc_finalize_reduce_memory();
-      type_priority_timer =
+      mode_ = Mode::None;
+      type_timer_ = counters->gc_finalize_reduce_memory();
+      type_priority_timer_ =
           in_background ? counters->gc_finalize_reduce_memory_background()
                         : counters->gc_finalize_reduce_memory_foreground();
+      trace_event_name_ = "V8.GCFinalizeMCReduceMemory";
     } else {
       if (heap->incremental_marking()->IsMarking() &&
           heap->incremental_marking()
               ->local_marking_worklists()
               ->IsPerContextMode()) {
-        mode = Mode::None;
-        type_timer = counters->gc_finalize_measure_memory();
+        mode_ = Mode::None;
+        type_timer_ = counters->gc_finalize_measure_memory();
+        trace_event_name_ = "V8.GCFinalizeMCMeasureMemory";
       } else {
-        mode = Mode::Finalize;
-        type_timer = counters->gc_finalize();
+        mode_ = Mode::Finalize;
+        type_timer_ = counters->gc_finalize();
+        trace_event_name_ = "V8.GCFinalizeMC";
       }
-      type_priority_timer = in_background ? counters->gc_finalize_background()
-                                          : counters->gc_finalize_foreground();
+      type_priority_timer_ = in_background ? counters->gc_finalize_background()
+                                           : counters->gc_finalize_foreground();
     }
   }
 }
@@ -187,14 +159,28 @@ GCTracer::GCTracer(Heap* heap)
       previous_mark_compact_end_time_(0) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
-  STATIC_ASSERT(0 == Scope::FIRST_INCREMENTAL_SCOPE);
+  static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
-  STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
+  static_assert(0 == Scope::MC_INCREMENTAL);
   current_.end_time = MonotonicallyIncreasingTimeInMs();
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
+  // Check that the trace event names used in metrics code coincide with the
+  // names of the respective counters, when applicable.
+  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_compactor()->name(),
+                      "V8.GCCompactor"));
+  DCHECK_EQ(
+      0,
+      strcmp(heap->isolate()->counters()->gc_finalize_reduce_memory()->name(),
+             "V8.GCFinalizeMCReduceMemory"));
+  DCHECK_EQ(
+      0,
+      strcmp(heap->isolate()->counters()->gc_finalize_measure_memory()->name(),
+             "V8.GCFinalizeMCMeasureMemory"));
+  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_finalize()->name(),
+                      "V8.GCFinalizeMC"));
 }
 
 void GCTracer::ResetForTesting() {
@@ -824,7 +810,6 @@ void GCTracer::PrintNVP() const {
           "gc=%s "
           "reduce_memory=%d "
           "minor_mc=%.2f "
-          "finish_sweeping=%.2f "
           "time_to_safepoint=%.2f "
           "mark=%.2f "
           "mark.seed=%.2f "
@@ -848,7 +833,6 @@ void GCTracer::PrintNVP() const {
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_scope(Scope::MINOR_MC),
-          current_scope(Scope::MINOR_MC_SWEEPING),
           current_scope(Scope::TIME_TO_SAFEPOINT),
           current_scope(Scope::MINOR_MC_MARK),
           current_scope(Scope::MINOR_MC_MARK_SEED),
@@ -887,13 +871,16 @@ void GCTracer::PrintNVP() const {
           "heap.external.epilogue=%.1f "
           "heap.external.weak_global_handles=%.1f "
           "clear=%1.f "
+          "clear.external_string_table=%.1f "
+          "clear.string_forwarding_table=%.1f "
+          "clear.weak_global_handles=%.1f "
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
-          "clear.string_table=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
+          "clear.join_job=%.1f "
           "complete.sweep_array_buffers=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
@@ -912,14 +899,10 @@ void GCTracer::PrintNVP() const {
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
           "mark.roots=%.1f "
-          "mark.main=%.1f "
-          "mark.weak_closure=%.1f "
-          "mark.weak_closure.ephemeron=%.1f "
-          "mark.weak_closure.ephemeron.marking=%.1f "
-          "mark.weak_closure.ephemeron.linear=%.1f "
-          "mark.weak_closure.weak_handles=%.1f "
-          "mark.weak_closure.weak_roots=%.1f "
-          "mark.weak_closure.harmony=%.1f "
+          "mark.full_closure_parallel=%.1f "
+          "mark.full_closure=%.1f "
+          "mark.ephemeron.marking=%.1f "
+          "mark.ephemeron.linear=%.1f "
           "mark.embedder_prologue=%.1f "
           "mark.embedder_tracing=%.1f "
           "prologue=%.1f "
@@ -929,7 +912,6 @@ void GCTracer::PrintNVP() const {
           "sweep.old=%.1f "
           "incremental=%.1f "
           "incremental.finalize=%.1f "
-          "incremental.finalize.body=%.1f "
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
@@ -938,8 +920,6 @@ void GCTracer::PrintNVP() const {
           "incremental.embedder_prologue=%.1f "
           "incremental.embedder_tracing=%.1f "
           "incremental_wrapper_tracing_longest_step=%.1f "
-          "incremental_finalize_longest_step=%.1f "
-          "incremental_finalize_steps_count=%d "
           "incremental_longest_step=%.1f "
           "incremental_steps_count=%d "
           "incremental_marking_throughput=%.f "
@@ -977,13 +957,16 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR),
+          current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE),
+          current_scope(Scope::MC_CLEAR_STRING_FORWARDING_TABLE),
+          current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
           current_scope(Scope::MC_CLEAR_MAPS),
           current_scope(Scope::MC_CLEAR_SLOTS_BUFFER),
-          current_scope(Scope::MC_CLEAR_STRING_TABLE),
           current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS),
           current_scope(Scope::MC_CLEAR_WEAK_LISTS),
           current_scope(Scope::MC_CLEAR_WEAK_REFERENCES),
+          current_scope(Scope::MC_CLEAR_JOIN_JOB),
           current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),
           current_scope(Scope::MC_EVACUATE_CANDIDATES),
@@ -1001,14 +984,10 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_MARK),
           current_scope(Scope::MC_MARK_FINISH_INCREMENTAL),
           current_scope(Scope::MC_MARK_ROOTS),
-          current_scope(Scope::MC_MARK_MAIN),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON),
+          current_scope(Scope::MC_MARK_FULL_CLOSURE_PARALLEL),
+          current_scope(Scope::MC_MARK_FULL_CLOSURE),
           current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING),
           current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_HARMONY),
           current_scope(Scope::MC_MARK_EMBEDDER_PROLOGUE),
           current_scope(Scope::MC_MARK_EMBEDDER_TRACING),
           current_scope(Scope::MC_PROLOGUE), current_scope(Scope::MC_SWEEP),
@@ -1017,7 +996,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_SWEEP_OLD),
           current_scope(Scope::MC_INCREMENTAL),
           current_scope(Scope::MC_INCREMENTAL_FINALIZE),
-          current_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE),
           current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
@@ -1027,8 +1005,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING),
           incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
               .longest_step,
-          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).longest_step,
-          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).steps,
           incremental_scope(Scope::MC_INCREMENTAL).longest_step,
           incremental_scope(Scope::MC_INCREMENTAL).steps,
           IncrementalMarkingSpeedInBytesPerMillisecond(),
@@ -1676,7 +1652,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
-  if (cpp_heap) {
+  if (cpp_heap && cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
     const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event = metric_recorder->ExtractLastYoungGcEvent();

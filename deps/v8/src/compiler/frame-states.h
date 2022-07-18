@@ -68,7 +68,7 @@ class OutputFrameStateCombine {
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
   kUnoptimizedFunction,            // Represents an UnoptimizedFrame.
-  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
+  kInlinedExtraArguments,          // Represents inlined extra arguments.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
 #if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only
@@ -153,6 +153,9 @@ class FrameStateInfo final {
   }
   int local_count() const {
     return info_ == nullptr ? 0 : info_->local_count();
+  }
+  int stack_count() const {
+    return type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;
   }
   const FrameStateFunctionInfo* function_info() const { return info_; }
 

@@ -89,7 +89,7 @@ class FixedArrayBase
   // which is necessary for being able to create a free space filler for the
   // whole array of kMaxSize.
   static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
-  STATIC_ASSERT(Smi::IsValid(kMaxSize));
+  static_assert(Smi::IsValid(kMaxSize));
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
@@ -121,6 +121,14 @@ class FixedArray
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set(int index, Smi value, RelaxedStoreTag);
 
+  // SeqCst accessors.
+  inline Object get(int index, SeqCstAccessTag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    SeqCstAccessTag) const;
+  inline void set(int index, Object value, SeqCstAccessTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, SeqCstAccessTag);
+
   // Acquire/release accessors.
   inline Object get(int index, AcquireLoadTag) const;
   inline Object get(PtrComprCageBase cage_base, int index,
@@ -134,22 +142,15 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
   inline void set(int index, Smi value);
-#else
-  inline void set(int index, Smi value) {
-#if !defined(_WIN32)
-    DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-#endif
-    DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-    DCHECK(Object(value).IsSmi());
-    int offset = OffsetOfElementAt(index);
-    RELAXED_WRITE_FIELD(*this, offset, value);
-  }
-#endif
-
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
+
+  // Atomic swap that doesn't need write barrier.
+  inline Object swap(int index, Smi value, SeqCstAccessTag);
+  // Atomic swap with explicit barrier mode.
+  inline Object swap(int index, Object value, SeqCstAccessTag,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
@@ -195,7 +196,7 @@ class FixedArray
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
-    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
   }
 
@@ -208,7 +209,7 @@ class FixedArray
                 "FixedArray maxLength not a Smi");
 
   // Maximally allowed length for regular (non large object space) object.
-  STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
+  static_assert(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
       (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
@@ -229,7 +230,7 @@ class FixedArray
                                        Object value);
 
  private:
-  STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
+  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(FixedArray)
 };
@@ -328,7 +329,7 @@ class WeakFixedArray
   int AllocatedSize();
 
   static int OffsetOfElementAt(int index) {
-    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
   }
 
@@ -496,7 +497,7 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
 
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
-  STATIC_ASSERT(kHeaderFields == kFirstIndex);
+  static_assert(kHeaderFields == kFirstIndex);
 
   DECL_VERIFIER(ArrayList)
 

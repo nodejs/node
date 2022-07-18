@@ -6,7 +6,6 @@
 
 #include "include/v8-function.h"
 #include "include/v8-template.h"
-#include "src/common/allow-deprecated.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
@@ -263,8 +262,6 @@ v8::Local<v8::Object> ConstructTraceableJSApiObject(
   return scope.Escape(instance);
 }
 
-START_ALLOW_USE_DEPRECATED()
-
 enum class TracePrologueBehavior { kNoop, kCallV8WriteBarrier };
 
 class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
@@ -401,47 +398,6 @@ TEST_F(EmbedderTracingTest, EmbedderRegisteringV8Reference) {
   i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
                                       GarbageCollectionReason::kTesting);
   EXPECT_FALSE(handle->IsEmpty());
-}
-
-namespace {
-
-void ResurrectingFinalizer(
-    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->ClearWeak();
-}
-
-}  // namespace
-
-TEST_F(EmbedderTracingTest, TracingInRevivedSubgraph) {
-  // Tests that wrappers are traced when they are contained with in a subgraph
-  // that is revived by a finalizer.
-  ManualGCScope manual_gc(i_isolate());
-  TestEmbedderHeapTracer tracer;
-  heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  v8::Global<v8::Object> g;
-  void* first_and_second_field = reinterpret_cast<void*>(0x4);
-  {
-    v8::HandleScope inner_scope(v8_isolate());
-    v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
-        context, first_and_second_field, first_and_second_field);
-    EXPECT_FALSE(api_object.IsEmpty());
-    v8::Local<v8::Object> o =
-        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    o->Set(context,
-           v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), "link")
-               .ToLocalChecked(),
-           api_object)
-        .FromJust();
-    g.Reset(v8_isolate(), o);
-    g.SetWeak(&g, ResurrectingFinalizer, v8::WeakCallbackType::kFinalizer);
-  }
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      GarbageCollectionReason::kTesting);
-  EXPECT_TRUE(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
 TEST_F(EmbedderTracingTest, TracingInEphemerons) {
@@ -1230,8 +1186,6 @@ TEST_F(EmbedderTracingTest, NotifyEmptyStack) {
   tracer.SetStackStart(&manual_gc);
   TracedReferenceNotifyEmptyStackTest(v8_isolate(), &tracer);
 }
-
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace heap
 }  // namespace internal

@@ -186,9 +186,12 @@ std::pair<NormalPageMemoryRegion*, Address> NormalPageMemoryPool::Take(
   return pair;
 }
 
-PageBackend::PageBackend(PageAllocator& allocator,
+PageBackend::PageBackend(PageAllocator& normal_page_allocator,
+                         PageAllocator& large_page_allocator,
                          FatalOutOfMemoryHandler& oom_handler)
-    : allocator_(allocator), oom_handler_(oom_handler) {}
+    : normal_page_allocator_(normal_page_allocator),
+      large_page_allocator_(large_page_allocator),
+      oom_handler_(oom_handler) {}
 
 PageBackend::~PageBackend() = default;
 
@@ -196,8 +199,8 @@ Address PageBackend::AllocateNormalPageMemory(size_t bucket) {
   v8::base::MutexGuard guard(&mutex_);
   std::pair<NormalPageMemoryRegion*, Address> result = page_pool_.Take(bucket);
   if (!result.first) {
-    auto pmr =
-        std::make_unique<NormalPageMemoryRegion>(allocator_, oom_handler_);
+    auto pmr = std::make_unique<NormalPageMemoryRegion>(normal_page_allocator_,
+                                                        oom_handler_);
     for (size_t i = 0; i < NormalPageMemoryRegion::kNumPageRegions; ++i) {
       page_pool_.Add(bucket, pmr.get(),
                      pmr->GetPageMemory(i).writeable_region().base());
@@ -221,10 +224,10 @@ void PageBackend::FreeNormalPageMemory(size_t bucket, Address writeable_base) {
 
 Address PageBackend::AllocateLargePageMemory(size_t size) {
   v8::base::MutexGuard guard(&mutex_);
-  auto pmr =
-      std::make_unique<LargePageMemoryRegion>(allocator_, oom_handler_, size);
+  auto pmr = std::make_unique<LargePageMemoryRegion>(large_page_allocator_,
+                                                     oom_handler_, size);
   const PageMemory pm = pmr->GetPageMemory();
-  Unprotect(allocator_, oom_handler_, pm);
+  Unprotect(large_page_allocator_, oom_handler_, pm);
   page_memory_region_tree_.Add(pmr.get());
   large_page_memory_regions_.insert(std::make_pair(pmr.get(), std::move(pmr)));
   return pm.writeable_region().base();

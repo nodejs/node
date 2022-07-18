@@ -56,9 +56,6 @@ namespace internal {
 class SafepointTableBuilder;
 
 enum Condition {
-  // any value < 0 is considered no_condition
-  no_condition = -1,
-
   overflow = 0,
   no_overflow = 1,
   below = 2,
@@ -86,9 +83,6 @@ enum Condition {
 };
 
 // Returns the equivalent of !cc.
-// Negation of the default no_condition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
@@ -154,7 +148,7 @@ class Immediate {
 
   ExternalReference external_reference() const {
     DCHECK(is_external_reference());
-    return bit_cast<ExternalReference>(immediate());
+    return base::bit_cast<ExternalReference>(immediate());
   }
 
   bool is_zero() const {
@@ -372,7 +366,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
   // Create an assembler. Instructions and relocation information are emitted

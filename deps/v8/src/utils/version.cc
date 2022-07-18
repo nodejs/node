@@ -7,7 +7,6 @@
 #include "include/v8-version-string.h"
 #include "include/v8-version.h"
 #include "src/base/strings.h"
-#include "src/utils/utils.h"
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version

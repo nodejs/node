@@ -4,7 +4,6 @@
 
 #include "src/tasks/cancelable-task.h"
 
-#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {

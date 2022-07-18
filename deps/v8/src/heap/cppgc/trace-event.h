@@ -70,10 +70,14 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_API_ADD_TRACE_EVENT cppgc::internal::AddTraceEventImpl
 
 // Defines atomic operations used internally by the tracing system.
+// Acquire/release barriers are important here: crbug.com/1330114#c8.
 #define TRACE_EVENT_API_ATOMIC_WORD v8::base::AtomicWord
-#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Relaxed_Load(&(var))
+#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Acquire_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
-  v8::base::Relaxed_Store(&(var), (value))
+  v8::base::Release_Store(&(var), (value))
+// This load can be Relaxed because it's reading the state of
+// `category_group_enabled` and not inferring other variable's state from the
+// result.
 #define TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED()                \
   v8::base::Relaxed_Load(reinterpret_cast<const v8::base::Atomic8*>( \
       INTERNAL_TRACE_EVENT_UID(category_group_enabled)))
@@ -177,7 +181,7 @@ SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
                                       uint64_t* value) {                    \
     *type = value_type_id;                                                  \
     *value = 0;                                                             \
-    STATIC_ASSERT(sizeof(arg) <= sizeof(*value));                           \
+    static_assert(sizeof(arg) <= sizeof(*value));                           \
     memcpy(value, &arg, sizeof(arg));                                       \
   }
 INTERNAL_DECLARE_SET_TRACE_VALUE(double, TRACE_VALUE_TYPE_DOUBLE)

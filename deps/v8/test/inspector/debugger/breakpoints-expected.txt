@@ -63,4 +63,4 @@ Adding breakpoint
 evaluating foo1(0):
   hit expected breakpoint
 evaluating foo2(0):
-  not paused
+  hit expected breakpoint

@@ -119,6 +119,8 @@ const int kDoubleToCStringMinBufferSize = 100;
 V8_EXPORT_PRIVATE const char* DoubleToCString(double value,
                                               base::Vector<char> buffer);
 
+V8_EXPORT_PRIVATE std::unique_ptr<char[]> BigIntLiteralToDecimal(
+    LocalIsolate* isolate, base::Vector<const uint8_t> literal);
 // Convert an int to a null-terminated string. The returned string is
 // located inside the buffer, but not necessarily at the start.
 V8_EXPORT_PRIVATE const char* IntToCString(int n, base::Vector<char> buffer);
@@ -131,7 +133,7 @@ char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
 
 static inline bool IsMinusZero(double value) {
-  return bit_cast<int64_t>(value) == bit_cast<int64_t>(-0.0);
+  return base::bit_cast<int64_t>(value) == base::bit_cast<int64_t>(-0.0);
 }
 
 // Returns true if value can be converted to a SMI, and returns the resulting

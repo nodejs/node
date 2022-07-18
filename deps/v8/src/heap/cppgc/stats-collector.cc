@@ -160,6 +160,10 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 namespace {
 
 int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
+  DCHECK_LE(0, phases.mark_duration_us);
+  DCHECK_LE(0, phases.weak_duration_us);
+  DCHECK_LE(0, phases.compact_duration_us);
+  DCHECK_LE(0, phases.sweep_duration_us);
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
@@ -215,11 +219,22 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
       static_cast<double>(event.objects.after_bytes) /
       event.objects.before_bytes;
   // Efficiency:
-  event.efficiency_in_bytes_per_us =
-      static_cast<double>(event.objects.freed_bytes) / SumPhases(event.total);
-  event.main_thread_efficiency_in_bytes_per_us =
-      static_cast<double>(event.objects.freed_bytes) /
-      SumPhases(event.main_thread);
+  if (event.objects.freed_bytes == 0) {
+    event.efficiency_in_bytes_per_us = 0;
+    event.main_thread_efficiency_in_bytes_per_us = 0;
+  } else {
+    // Here, SumPhases(event.main_thread) or even SumPhases(event.total) can be
+    // zero if the clock resolution is not small enough and the entire GC was
+    // very short, so the timed value was zero. This appears to happen on
+    // Windows, see crbug.com/1338256 and crbug.com/1339180. In this case, we
+    // are only here if the number of freed bytes is nonzero and the division
+    // below produces an infinite value.
+    event.efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.freed_bytes) / SumPhases(event.total);
+    event.main_thread_efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.freed_bytes) /
+        SumPhases(event.main_thread);
+  }
   return event;
 }
 

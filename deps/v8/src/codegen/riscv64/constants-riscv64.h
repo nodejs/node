@@ -176,7 +176,7 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxWatchpointCode = 31;
 const uint32_t kMaxStopCode = 127;
-STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+static_assert(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
 // RISCV constants
@@ -1115,8 +1115,7 @@ enum Opcode : uint32_t {
 // The 'U' prefix is used to specify unsigned comparisons.
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
-enum Condition {  // Any value < 0 is considered no_condition.
-  kNoCondition = -1,
+enum Condition {
   overflow = 0,
   no_overflow = 1,
   Uless = 2,
@@ -1146,9 +1145,6 @@ enum Condition {  // Any value < 0 is considered no_condition.
 };
 
 // Returns the equivalent of !cc.
-// Negation of the default kNoCondition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
   DCHECK(cc != cc_always);
   return static_cast<Condition>(cc ^ 1);
@@ -1223,7 +1219,7 @@ enum FFlagsMask {
   kInexact = 0b1                // NX:  Inexact
 };
 
-enum RoundingMode {
+enum FPURoundingMode {
   RNE = 0b000,  // Round to Nearest, ties to Even
   RTZ = 0b001,  // Round towards Zero
   RDN = 0b010,  // Round Down (towards -infinity)

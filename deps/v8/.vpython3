@@ -69,3 +69,8 @@ wheel: <
   name: "infra/python/wheels/numpy/${vpython_platform}"
   version: "version:1.2x.supported.1"
 >
+
+wheel: <
+  name: "infra/python/wheels/protobuf-py3"
+  version: "version:3.19.3"
+>

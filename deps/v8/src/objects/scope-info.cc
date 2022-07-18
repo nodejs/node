@@ -164,7 +164,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
 // Make sure the Fields enum agrees with Torque-generated offsets.
 #define ASSERT_MATCHED_FIELD(name) \
-  STATIC_ASSERT(OffsetOfElementAt(k##name) == k##name##Offset);
+  static_assert(OffsetOfElementAt(k##name) == k##name##Offset);
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
 #undef ASSERT_MATCHED_FIELD
 

@@ -196,6 +196,8 @@ void Worklist<EntryType, SegmentSize>::Merge(
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Swap(
     Worklist<EntryType, SegmentSize>* other) {
+  v8::base::MutexGuard guard1(&lock_);
+  v8::base::MutexGuard guard2(&other->lock_);
   Segment* top = top_;
   set_top(other->top_);
   other->set_top(top);

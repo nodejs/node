@@ -58,6 +58,27 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                 allocation);
 }
 
+Handle<JSObject> Factory::NewJSObjectFromMap(
+    Handle<Map> map, AllocationType allocation,
+    Handle<AllocationSite> allocation_site) {
+  return NewJSObjectFromMapInternal(map, allocation, allocation_site,
+                                    kTaggedAligned);
+}
+
+Handle<JSObject> Factory::NewSystemPointerAlignedJSObjectFromMap(
+    Handle<Map> map, AllocationType allocation,
+    Handle<AllocationSite> allocation_site) {
+  AllocationAlignment alignment;
+  if (kTaggedSize == kSystemPointerSize) {
+    alignment = kTaggedAligned;
+  } else {
+    DCHECK_EQ(kDoubleSize, kSystemPointerSize);
+    alignment = kDoubleAligned;
+  }
+  return NewJSObjectFromMapInternal(map, allocation, allocation_site,
+                                    alignment);
+}
+
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
     Handle<Map> map, int number_of_slow_properties, AllocationType allocation,
     Handle<AllocationSite> allocation_site) {

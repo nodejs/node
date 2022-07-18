@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "src/snapshot/snapshot-source-sink.h"
+
+#include <vector>
 
 #include "src/base/logging.h"
 #include "src/handles/handles-inl.h"
@@ -11,6 +12,11 @@
 
 namespace v8 {
 namespace internal {
+
+void SnapshotByteSink::PutN(int number_of_bytes, const byte v,
+                            const char* description) {
+  data_.insert(data_.end(), number_of_bytes, v);
+}
 
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   DCHECK_LT(integer, 1 << 30);

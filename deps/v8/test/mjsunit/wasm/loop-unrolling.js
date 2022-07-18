@@ -13,6 +13,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 // Test that lowering a ror operator with int64-lowering does not produce
 // floating control, which is incompatible with loop unrolling.
 (function I64RorLoweringTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addMemory(1000, 1000);
 
@@ -30,39 +31,19 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
     .exportFunc();
 
   let module = new WebAssembly.Module(builder.toBuffer());
-  let instance = new WebAssembly.Instance(module);
+  new WebAssembly.Instance(module);
 })();
 
 // Test the interaction between multireturn and loop unrolling.
 (function MultiBlockResultTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-
-  builder.addFunction("main", kSig_i_i)
-    .addBody([
-      ...wasmI32Const(1),
-        kExprLet, kWasmVoid, 1, 1, kWasmI32,
-        kExprLoop, kWasmVoid,
-          ...wasmI32Const(10),
-          kExprLet, kWasmVoid, 1, 1, kWasmI32,
-            kExprLocalGet, 0,
-            kExprLocalGet, 1,
-            kExprI32Sub,
-            kExprLocalGet, 2,
-            kExprI32Add,
-            kExprReturn, // (second let) - (first let) + parameter
-          kExprEnd,
-        kExprEnd,
-      kExprEnd,
-      ...wasmI32Const(0)])
-    .exportAs("main");
-
-  let module = new WebAssembly.Module(builder.toBuffer());
-  let instance = new WebAssembly.Instance(module);
-  assertEquals(instance.exports.main(100), 109);
+  // TODO(manoskouk): Rewrite this test.
 })();
 
 // Test the interaction between tail calls and loop unrolling.
 (function TailCallTest() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let callee = builder.addFunction("callee", kSig_i_i)

@@ -37,9 +37,9 @@
 #ifndef V8_CODEGEN_S390_ASSEMBLER_S390_INL_H_
 #define V8_CODEGEN_S390_ASSEMBLER_S390_INL_H_
 
-#include "src/codegen/s390/assembler-s390.h"
-
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/s390/assembler-s390.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 

@@ -6,6 +6,7 @@
 #define V8_TEST_COMMON_FLAG_UTILS_H
 
 #include "src/base/macros.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -13,13 +14,14 @@ namespace internal {
 template <typename T>
 class V8_NODISCARD FlagScope {
  public:
-  FlagScope(T* flag, T new_value) : flag_(flag), previous_value_(*flag) {
+  FlagScope(FlagValue<T>* flag, T new_value)
+      : flag_(flag), previous_value_(*flag) {
     *flag = new_value;
   }
   ~FlagScope() { *flag_ = previous_value_; }
 
  private:
-  T* flag_;
+  FlagValue<T>* flag_;
   T previous_value_;
 };
 

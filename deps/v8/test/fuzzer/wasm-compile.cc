@@ -76,7 +76,7 @@ class DataRange {
   T get() {
     // Bool needs special handling (see template specialization below).
     static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
-    STATIC_ASSERT(max_bytes <= sizeof(T));
+    static_assert(max_bytes <= sizeof(T));
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. For example, if we emit an i32 constant, it's
     // okay if we don't have a full four bytes available, we'll just use what
@@ -144,15 +144,17 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
   // Conceptually, user-defined types are added to the end of the list. Pick a
   // random one among them.
   uint32_t id = data->get<uint8_t>() % (types.size() + num_user_defined_types);
+
+  Nullability nullability = nullable ? kNullable : kNonNullable;
+
   if (id >= types.size()) {
     // Return user-defined type.
-    return ValueType::Ref(id - static_cast<uint32_t>(types.size()),
-                          nullable ? kNullable : kNonNullable);
+    return ValueType::RefMaybeNull(id - static_cast<uint32_t>(types.size()),
+                                   nullability);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
   if (types[id].is_reference()) {
-    return ValueType::Ref(types[id].heap_type(),
-                          nullable ? kNullable : kNonNullable);
+    return ValueType::RefMaybeNull(types[id].heap_type(), nullability);
   }
   // Otherwise, just return the picked type.
   return types[id];
@@ -712,7 +714,7 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void local_op(DataRange* data, WasmOpcode opcode) {
-    STATIC_ASSERT(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
+    static_assert(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
     Var local = GetRandomLocal(data);
     // If there are no locals and no parameters, just generate any value (if a
     // value is needed), or do nothing.
@@ -766,7 +768,7 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void global_op(DataRange* data) {
-    STATIC_ASSERT(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
+    static_assert(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
     constexpr bool is_set = wanted_kind == kVoid;
     Var global = GetRandomGlobal(data, is_set);
     // If there are no globals, just generate any value (if a value is needed),
@@ -860,25 +862,18 @@ class WasmGenerator {
     if (builder_->builder()->IsStructType(index)) {
       const StructType* struct_gen = builder_->builder()->GetStructType(index);
       int field_count = struct_gen->field_count();
-      bool can_be_defaultable = false;
-
-      for (int i = 0; i < field_count && can_be_defaultable; i++) {
-        can_be_defaultable =
-            can_be_defaultable && struct_gen->field(i).is_defaultable();
-      }
+      bool can_be_defaultable = std::all_of(
+          struct_gen->fields().begin(), struct_gen->fields().end(),
+          [](ValueType type) -> bool { return type.is_defaultable(); });
 
       if (new_default && can_be_defaultable) {
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprStructNewDefaultWithRtt);
+        builder_->EmitWithPrefix(kExprStructNewDefault);
         builder_->EmitU32V(index);
       } else {
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprStructNewWithRtt);
+        builder_->EmitWithPrefix(kExprStructNew);
         builder_->EmitU32V(index);
       }
     } else if (builder_->builder()->IsArrayType(index)) {
@@ -890,9 +885,7 @@ class WasmGenerator {
         Generate(kWasmI32, data);
         builder_->EmitI32Const(kMaxArraySize);
         builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprArrayNewDefaultWithRtt);
+        builder_->EmitWithPrefix(kExprArrayNewDefault);
         builder_->EmitU32V(index);
       } else {
         Generate(
@@ -901,9 +894,7 @@ class WasmGenerator {
         Generate(kWasmI32, data);
         builder_->EmitI32Const(kMaxArraySize);
         builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprArrayNewWithRtt);
+        builder_->EmitWithPrefix(kExprArrayNew);
         builder_->EmitU32V(index);
       }
     } else {
@@ -945,7 +936,7 @@ class WasmGenerator {
   }
 
   bool table_get(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     int table_count = builder_->builder()->NumTables();
     ZoneVector<uint32_t> table(builder_->builder()->zone());
     for (int i = 0; i < table_count; i++) {
@@ -1035,7 +1026,7 @@ class WasmGenerator {
     }
   }
   bool array_get_ref(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     return array_get_helper(needed_type, data);
   }
 
@@ -1131,7 +1122,7 @@ class WasmGenerator {
   }
 
   bool struct_get_ref(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     return struct_get_helper(needed_type, data);
   }
 
@@ -2051,7 +2042,7 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
       return Generate<kF64>(data);
     case kS128:
       return Generate<kS128>(data);
-    case kOptRef:
+    case kRefNull:
       return GenerateRef(type.heap_type(), data, kNullable);
     case kRef:
       return GenerateRef(type.heap_type(), data, kNonNullable);
@@ -2365,15 +2356,14 @@ WasmInitExpr GenerateStructNewInitExpr(Zone* zone, WasmModuleBuilder* builder,
                                          struct_type->field(field_index),
                                          num_struct_and_array_types));
   }
-  elements->push_back(WasmInitExpr::RttCanon(index));
-  return WasmInitExpr::StructNewWithRtt(index, elements);
+  return WasmInitExpr::StructNew(index, elements);
 }
 
 WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
                               ValueType type,
                               uint32_t num_struct_and_array_types) {
   switch (type.kind()) {
-    case kOptRef:
+    case kRefNull:
       return WasmInitExpr::RefNullConst(type.heap_type().representation());
     case kI8:
     case kI16:
@@ -2416,8 +2406,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
             elements->push_back(GenerateInitExpr(
                 zone, builder, builder->GetArrayType(index)->element_type(),
                 num_struct_and_array_types));
-            elements->push_back(WasmInitExpr::RttCanon(index));
-            return WasmInitExpr::ArrayInit(index, elements);
+            return WasmInitExpr::ArrayNewFixedStatic(index, elements);
           }
           if (builder->IsSignature(index)) {
             // Transform from signature index to function index.

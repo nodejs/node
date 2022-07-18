@@ -22,5 +22,9 @@ void DisposeNatives() {}
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return nullptr; }
+bool Snapshot::ShouldVerifyChecksum(const v8::StartupData* data) {
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8

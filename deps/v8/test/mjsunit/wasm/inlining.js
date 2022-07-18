@@ -367,7 +367,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
 
   let callee = builder
-    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addFunction("callee", makeSig([wasmRefNullType(struct)], [kWasmI32]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
 
   // When inlining "callee", TF should pass the real parameter type (ref 0) and
@@ -386,7 +386,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
 
   let callee = builder
-    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addFunction("callee", makeSig([wasmRefNullType(struct)], [kWasmI32]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
 
   // The allocation should be removed.

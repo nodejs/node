@@ -6,9 +6,7 @@ console.log message from function before patching:
 }
 Debugger.setScriptSource result:
 {
-    callFrames : [
-    ]
-    stackChanged : false
+    status : Ok
 }
 console.log message from function after patching:
 {

@@ -24,7 +24,7 @@ let builder1 = new WasmModuleBuilder();
 builder1.setName('module_1');
 builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
 builder1.addImportedTable('z', 'table');
-builder1.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0]);
+builder1.addActiveElementSegment(0, wasmI32Const(0), [0]);
 let module1 = new WebAssembly.Module(builder1.toBuffer());
 let instance1 =
     new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});

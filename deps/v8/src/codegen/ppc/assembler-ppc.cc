@@ -36,6 +36,10 @@
 
 #include "src/codegen/ppc/assembler-ppc.h"
 
+#if defined(__PASE__)
+#include <sys/utsname.h>
+#endif
+
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
@@ -76,10 +80,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #else
   base::CPU cpu;
   if (cpu.part() == base::CPU::kPPCPower10) {
-// IBMi does not yet support prefixed instructions introduced on Power10.
-// Run on P9 mode until OS adds support.
 #if defined(__PASE__)
-    supported_ |= (1u << PPC_9_PLUS);
+    // Some P10 features such as prefixed isns will only be supported in future
+    // ibmi versions. We only enable full power 10 features if version>7.4
+    struct utsname uts;
+    memset(reinterpret_cast<void*>(&uts), 0, sizeof(uts));
+    int r = uname(&uts);
+    CHECK_GE(r, 0);
+    int rel = atoi(uts.release);
+    if (rel > 4) {
+      supported_ |= (1u << PPC_10_PLUS);
+    } else {
+      supported_ |= (1u << PPC_9_PLUS);
+    }
 #else
     supported_ |= (1u << PPC_10_PLUS);
 #endif
@@ -1242,6 +1255,60 @@ void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   pload_store_mls(Operand(hi));
   lfd(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::pstb(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stb(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::psth(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  sth(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstw(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stw(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstd(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPSTD | src.code() * B21 | dst.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pstfs(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfs(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstfd(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfd(src, MemOperand(dst.ra(), lo));
 }
 #undef GENERATE_PREFIX_SUFFIX_BITS
 

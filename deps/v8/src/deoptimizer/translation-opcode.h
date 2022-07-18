@@ -12,7 +12,6 @@ namespace internal {
 
 // V(name, operand_count)
 #define TRANSLATION_OPCODE_LIST(V)                        \
-  V(ARGUMENTS_ADAPTOR_FRAME, 2)                           \
   V(ARGUMENTS_ELEMENTS, 1)                                \
   V(ARGUMENTS_LENGTH, 0)                                  \
   V(BEGIN, 3)                                             \
@@ -26,6 +25,7 @@ namespace internal {
   V(DUPLICATED_OBJECT, 1)                                 \
   V(FLOAT_REGISTER, 1)                                    \
   V(FLOAT_STACK_SLOT, 1)                                  \
+  V(INLINED_EXTRA_ARGUMENTS, 2)                           \
   V(INT32_REGISTER, 1)                                    \
   V(INT32_STACK_SLOT, 1)                                  \
   V(INT64_REGISTER, 1)                                    \

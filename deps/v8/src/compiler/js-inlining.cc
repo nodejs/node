@@ -4,8 +4,6 @@
 
 #include "src/compiler/js-inlining.h"
 
-#include "src/ast/ast.h"
-#include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
@@ -18,11 +16,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/parsing/parse-info.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
@@ -616,7 +612,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
-    STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+    static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
     JSConstructNode n(node);
 
     new_target = n.new_target();
@@ -713,16 +709,15 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Insert argument adaptor frame if required. The callees formal parameter
-  // count have to match the number of arguments passed
-  // to the call.
+  // Insert inlined extra arguments if required. The callees formal parameter
+  // count have to match the number of arguments passed to the call.
   int parameter_count =
       shared_info->internal_formal_parameter_count_without_receiver();
   DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.argument_count(), BytecodeOffset::None(),
-        FrameStateType::kArgumentsAdaptor, *shared_info);
+        FrameStateType::kInlinedExtraArguments, *shared_info);
   }
 
   return InlineCall(node, new_target, context, frame_state, start, end,

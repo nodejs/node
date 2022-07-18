@@ -145,6 +145,11 @@ int OffHeapUnwindingInfoSize(HeapObject code, Builtin builtin) {
   return d.UnwindingInfoSizeOf(builtin);
 }
 
+int OffHeapStackSlots(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.StackSlotsOf(builtin);
+}
+
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
@@ -169,7 +174,7 @@ void Code::FlushICache() const {
 void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
                            const CodeDesc& desc) {
   // Copy code.
-  STATIC_ASSERT(kOnHeapBodyIsContiguous);
+  static_assert(kOnHeapBodyIsContiguous);
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
@@ -215,7 +220,15 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
 }
 
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
+  DCHECK(!is_maglevved());
   SafepointTable table(isolate, pc, *this);
+  return table.FindEntry(pc);
+}
+
+MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
+                                                   Address pc) {
+  DCHECK(is_maglevved());
+  MaglevSafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
 
@@ -225,12 +238,31 @@ Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   return d.InstructionStartOfBuiltin(builtin_id());
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::OffHeapInstructionStart(Isolate* isolate,
+                                                   Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_id());
+}
+#endif
+
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id()) +
          d.InstructionSizeOfBuiltin(builtin_id());
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
+                                                 Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_id()) +
+         d.InstructionSizeOfBuiltin(builtin_id());
+}
+#endif
 
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(int offset) {
@@ -292,7 +324,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
       ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
       ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(kModeMask ==
+  static_assert(kModeMask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
@@ -497,11 +529,10 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = "
-     << (is_turbofanned()
-             ? "turbofan"
-             : is_maglevved()
-                   ? "turbofan"
-                   : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
+     << (is_turbofanned()               ? "turbofan"
+         : is_maglevved()               ? "maglev"
+         : kind() == CodeKind::BASELINE ? "baseline"
+                                        : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
@@ -573,8 +604,13 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   if (uses_safepoint_table()) {
-    SafepointTable table(isolate, current_pc, *this);
-    table.Print(os);
+    if (is_maglevved()) {
+      MaglevSafepointTable table(isolate, current_pc, *this);
+      table.Print(os);
+    } else {
+      SafepointTable table(isolate, current_pc, *this);
+      table.Print(os);
+    }
     os << "\n";
   }
 
@@ -610,7 +646,6 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
-  os << "OSR urgency: " << osr_urgency() << "\n";
   os << "Bytecode age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
@@ -696,28 +731,27 @@ void BytecodeArray::MakeOlder() {
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
-  Age age = bytecode_age();
-  if (age < kLastBytecodeAge) {
+  uint16_t age = bytecode_age();
+  if (age < FLAG_bytecode_old_age) {
     static_assert(kBytecodeAgeSize == kUInt16Size);
     base::AsAtomic16::Relaxed_CompareAndSwap(
         reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
-  DCHECK_GE(bytecode_age(), kFirstBytecodeAge);
-  DCHECK_LE(bytecode_age(), kLastBytecodeAge);
+  DCHECK_LE(bytecode_age(), FLAG_bytecode_old_age);
 }
 
 bool BytecodeArray::IsOld() const {
-  return bytecode_age() >= kIsOldBytecodeAge;
+  return bytecode_age() >= FLAG_bytecode_old_age;
 }
 
-DependentCode DependentCode::GetDependentCode(Handle<HeapObject> object) {
-  if (object->IsMap()) {
-    return Handle<Map>::cast(object)->dependent_code();
-  } else if (object->IsPropertyCell()) {
-    return Handle<PropertyCell>::cast(object)->dependent_code();
-  } else if (object->IsAllocationSite()) {
-    return Handle<AllocationSite>::cast(object)->dependent_code();
+DependentCode DependentCode::GetDependentCode(HeapObject object) {
+  if (object.IsMap()) {
+    return Map::cast(object).dependent_code();
+  } else if (object.IsPropertyCell()) {
+    return PropertyCell::cast(object).dependent_code();
+  } else if (object.IsAllocationSite()) {
+    return AllocationSite::cast(object).dependent_code();
   }
   UNREACHABLE();
 }
@@ -758,7 +792,7 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
     PrintDependencyGroups(groups);
     StdoutStream{} << "]\n";
   }
-  Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
+  Handle<DependentCode> old_deps(DependentCode::GetDependentCode(*object),
                                  isolate);
   Handle<DependentCode> new_deps =
       InsertWeakCode(isolate, old_deps, groups, code);
@@ -864,7 +898,7 @@ int DependentCode::FillEntryFromBack(int index, int length) {
   return index;  // No non-cleared entry found.
 }
 
-void DependentCode::DeoptimizeDependentCodeGroup(
+void DependentCode::DeoptimizeDependencyGroups(
     Isolate* isolate, DependentCode::DependencyGroups groups) {
   DisallowGarbageCollection no_gc_scope;
   bool marked_something = MarkCodeForDeoptimization(groups);

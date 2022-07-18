@@ -5,10 +5,31 @@
 #ifndef V8_FLAGS_FLAGS_H_
 #define V8_FLAGS_FLAGS_H_
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+// The value of a single flag (this is the type of all FLAG_* globals).
+template <typename T>
+class FlagValue {
+ public:
+  constexpr FlagValue(T value) : value_(value) {}
+
+  // Implicitly convert to a {T}. Not marked {constexpr} so we do not compiler
+  // warnings about dead code (when checking readonly flags).
+  operator T() const { return value_; }
+
+  // Explicitly convert to a {T} via {value()}. This is {constexpr} so we can
+  // use it for computing other constants.
+  constexpr T value() const { return value_; }
+
+  // Assign a new value (defined below).
+  inline FlagValue<T>& operator=(T new_value);
+
+ private:
+  T value_;
+};
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
@@ -61,8 +82,16 @@ class V8_EXPORT_PRIVATE FlagList {
   // and then calls SetFlagsFromCommandLine() and returns its result.
   static int SetFlagsFromString(const char* str, size_t len);
 
-  // Reset all flags to their default value.
-  static void ResetAllFlags();
+  // Freeze the current flag values (disallow changes via the API).
+  // TODO(12887): Actually write-protect the flags.
+  static void FreezeFlags();
+
+  // Returns true if the flags are currently frozen.
+  static bool IsFrozen();
+
+  // Free dynamically allocated memory of strings. This is called during
+  // teardown; flag values cannot be used afterwards any more.
+  static void ReleaseDynamicAllocations();
 
   // Print help to stdout with flags, types, and default values.
   static void PrintHelp();
@@ -77,7 +106,13 @@ class V8_EXPORT_PRIVATE FlagList {
   static uint32_t Hash();
 };
 
-}  // namespace internal
-}  // namespace v8
+template <typename T>
+FlagValue<T>& FlagValue<T>::operator=(T new_value) {
+  CHECK(!FlagList::IsFrozen());
+  value_ = new_value;
+  return *this;
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_FLAGS_FLAGS_H_

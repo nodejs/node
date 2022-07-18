@@ -1,5 +1,5 @@
 /* gzwrite.c -- zlib functions for writing gzip files
- * Copyright (C) 2004-2017 Mark Adler
+ * Copyright (C) 2004-2019 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -97,6 +97,15 @@ local int gz_comp(state, flush)
         return 0;
     }
 
+    /* check for a pending reset */
+    if (state->reset) {
+        /* don't start a new gzip member unless there is data to write */
+        if (strm->avail_in == 0)
+            return 0;
+        deflateReset(strm);
+        state->reset = 0;
+    }
+
     /* run deflate() on provided input until it produces no more output */
     ret = Z_OK;
     do {
@@ -134,7 +143,7 @@ local int gz_comp(state, flush)
 
     /* if that completed a deflate stream, allow another to start */
     if (flush == Z_FINISH)
-        deflateReset(strm);
+        state->reset = 1;
 
     /* all done, no errors */
     return 0;

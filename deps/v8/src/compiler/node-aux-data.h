@@ -105,6 +105,28 @@ typename NodeAuxData<T, def>::const_iterator NodeAuxData<T, def>::end() const {
                                                       aux_data_.size());
 }
 
+template <class T, T kNonExistent>
+class NodeAuxDataMap {
+ public:
+  explicit NodeAuxDataMap(Zone* zone) : map_(zone) {}
+
+  void Put(NodeId key, T value) { map_[key] = value; }
+
+  T Get(NodeId key) const {
+    auto entry = map_.find(key);
+    if (entry == map_.end()) return kNonExistent;
+    return entry->second;
+  }
+
+  void Reserve(size_t count) {
+    size_t new_capacity = map_.size() + count;
+    map_.reserve(new_capacity);
+  }
+
+ private:
+  ZoneUnorderedMap<NodeId, T> map_;
+};
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -6,6 +6,7 @@
 #define V8_CODEGEN_LOONG64_ASSEMBLER_LOONG64_INL_H_
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"

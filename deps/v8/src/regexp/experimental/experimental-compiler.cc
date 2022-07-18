@@ -40,7 +40,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
         RegExpFlag::kGlobal | RegExpFlag::kSticky | RegExpFlag::kMultiline |
         RegExpFlag::kDotAll | RegExpFlag::kLinear;
     // We support Unicode iff kUnicode is among the supported flags.
-    STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
+    static_assert(ExperimentalRegExp::kSupportsUnicode ==
                   IsUnicode(kAllowedFlags));
     return (flags & ~kAllowedFlags) == 0;
   }
@@ -402,7 +402,7 @@ class CompileVisitor : private RegExpVisitor {
     CompileDisjunction(ranges->length(), [&](int i) {
       // We don't support utf16 for now, so only ranges that can be specified
       // by (complements of) ranges with base::uc16 bounds.
-      STATIC_ASSERT(kMaxSupportedCodepoint <=
+      static_assert(kMaxSupportedCodepoint <=
                     std::numeric_limits<base::uc16>::max());
 
       base::uc32 from = (*ranges)[i].from();

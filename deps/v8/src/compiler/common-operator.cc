@@ -14,7 +14,6 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   switch (hint) {
@@ -27,6 +26,8 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   }
   UNREACHABLE();
 }
+
+namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
   switch (trap_id) {
@@ -767,7 +768,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_IF(Trap) \
@@ -782,7 +783,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_UNLESS(Trap) \
@@ -1009,7 +1010,7 @@ const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 
@@ -1028,7 +1029,7 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 
@@ -1173,7 +1174,7 @@ const Operator* CommonOperatorBuilder::TaggedIndexConstant(int32_t value) {
       value);                                           // parameter
 }
 
-const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
+const Operator* CommonOperatorBuilder::Float32Constant(float value) {
   return zone()->New<Operator1<float>>(             // --
       IrOpcode::kFloat32Constant, Operator::kPure,  // opcode
       "Float32Constant",                            // name
@@ -1182,7 +1183,7 @@ const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
 }
 
 
-const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
+const Operator* CommonOperatorBuilder::Float64Constant(double value) {
   return zone()->New<Operator1<double>>(            // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
@@ -1201,7 +1202,7 @@ const Operator* CommonOperatorBuilder::ExternalConstant(
 }
 
 
-const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
+const Operator* CommonOperatorBuilder::NumberConstant(double value) {
   return zone()->New<Operator1<double>>(           // --
       IrOpcode::kNumberConstant, Operator::kPure,  // opcode
       "NumberConstant",                            // name

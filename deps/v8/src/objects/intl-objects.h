@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 69
+#define V8_MINIMUM_ICU_VERSION 71
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -356,8 +356,10 @@ class Intl {
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> GetTimeZoneIndex(
-      Isolate* isolate, Handle<String> identifier, int32_t* index);
+  // Return the index of timezone which later could be used with
+  // TimeZoneIdFromIndex. Returns -1 while the identifier is not a built-in
+  // TimeZone name.
+  static int32_t GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, Handle<String> identifier);
@@ -365,12 +367,6 @@ class Intl {
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
       Isolate* isolate, Handle<Object> options, const char* service);
-
-  // #sec-tointlmathematicalvalue
-  // The implementation preserve the Object in String, BigInt or Number
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  ToIntlMathematicalValueAsNumberBigIntOrString(Isolate* isolate,
-                                                Handle<Object> input);
 };
 
 }  // namespace internal

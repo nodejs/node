@@ -102,15 +102,15 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return f;
   }
 
-  STATIC_ASSERT(static_cast<int>(kNone) == v8::RegExp::kNone);
+  static_assert(static_cast<int>(kNone) == v8::RegExp::kNone);
 #define V(_, Camel, ...)                                             \
-  STATIC_ASSERT(static_cast<int>(k##Camel) == v8::RegExp::k##Camel); \
-  STATIC_ASSERT(static_cast<int>(k##Camel) ==                        \
+  static_assert(static_cast<int>(k##Camel) == v8::RegExp::k##Camel); \
+  static_assert(static_cast<int>(k##Camel) ==                        \
                 static_cast<int>(RegExpFlag::k##Camel));
   REGEXP_FLAG_LIST(V)
 #undef V
-  STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
-  STATIC_ASSERT(kFlagCount == kRegExpFlagCount);
+  static_assert(kFlagCount == v8::RegExp::kFlagCount);
+  static_assert(kFlagCount == kRegExpFlagCount);
 
   static base::Optional<Flags> FlagsFromString(Isolate* isolate,
                                                Handle<String> flags);
@@ -244,6 +244,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kMaxCaptures = 1 << 16;
 
  private:
+  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
+
   inline Object DataAt(int index) const;
   inline void SetDataAt(int index, Object value);
 

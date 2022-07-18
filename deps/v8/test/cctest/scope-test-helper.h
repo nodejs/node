@@ -75,7 +75,7 @@ class ScopeTestHelper {
     if (precise_maybe_assigned) {
       CHECK_EQ(scope_local->maybe_assigned(), baseline_local->maybe_assigned());
     } else {
-      STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
+      static_assert(kMaybeAssigned > kNotAssigned);
       CHECK_GE(scope_local->maybe_assigned(), baseline_local->maybe_assigned());
     }
   }

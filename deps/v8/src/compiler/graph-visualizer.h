@@ -10,7 +10,9 @@
 #include <fstream>
 #include <iosfwd>
 #include <memory>
+#include <vector>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 

@@ -4,11 +4,8 @@
 
 #include "src/compiler/wasm-loop-peeling.h"
 
-#include "src/base/small-vector.h"
-#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/loop-analysis.h"
-#include "src/compiler/loop-peeling.h"
 
 namespace v8 {
 namespace internal {

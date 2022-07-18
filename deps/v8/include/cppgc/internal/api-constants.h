@@ -32,11 +32,20 @@ static constexpr uint16_t kFullyConstructedBitMask = uint16_t{1};
 
 static constexpr size_t kPageSize = size_t{1} << 17;
 
+#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS)
+constexpr size_t kGuardPageSize = 0;
+#else
+constexpr size_t kGuardPageSize = 4096;
+#endif
+
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 
 #if defined(CPPGC_CAGED_HEAP)
 constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
+
+constexpr size_t kCagedHeapNormalPageReservationSize =
+    kCagedHeapReservationSize / 2;
 #endif
 
 static constexpr size_t kDefaultAlignment = sizeof(void*);

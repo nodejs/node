@@ -187,10 +187,10 @@ void* StringTable::Data::operator new(size_t size, int capacity) {
   DCHECK_EQ(size, sizeof(StringTable::Data));
   // Make sure that the elements_ array is at the end of Data, with no padding,
   // so that subsequent elements can be accessed as offsets from elements_.
-  STATIC_ASSERT(offsetof(StringTable::Data, elements_) ==
+  static_assert(offsetof(StringTable::Data, elements_) ==
                 sizeof(StringTable::Data) - sizeof(Tagged_t));
   // Make sure that elements_ is aligned when StringTable::Data is aligned.
-  STATIC_ASSERT(
+  static_assert(
       (alignof(StringTable::Data) + offsetof(StringTable::Data, elements_)) %
           kTaggedSize ==
       0);
@@ -344,16 +344,14 @@ int StringTable::NumberOfElements() const {
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey final : public StringTableKey {
  public:
-  explicit InternalizedStringKey(Handle<String> string)
-      : StringTableKey(0, string->length()), string_(string) {
+  explicit InternalizedStringKey(Handle<String> string, uint32_t hash)
+      : StringTableKey(hash, string->length()), string_(string) {
     // When sharing the string table, it's possible that another thread already
     // internalized the key, in which case StringTable::LookupKey will perform a
     // redundant lookup and return the already internalized copy.
     DCHECK_IMPLIES(!FLAG_shared_string_table, !string->IsInternalizedString());
     DCHECK(string->IsFlat());
-    // Make sure hash_field is computed.
-    string->EnsureHash();
-    set_raw_hash_field(string->raw_hash_field());
+    DCHECK(String::IsHashFieldComputed(hash));
   }
 
   bool IsMatch(Isolate* isolate, String string) {
@@ -430,6 +428,46 @@ class InternalizedStringKey final : public StringTableKey {
   MaybeHandle<Map> maybe_internalized_map_;
 };
 
+namespace {
+
+void SetInternalizedReference(Isolate* isolate, String string,
+                              String internalized) {
+  // TODO(v8:12007): Support external strings.
+  DCHECK(!string.IsThinString());
+  DCHECK(internalized.IsInternalizedString());
+  DCHECK(!internalized.HasForwardingIndex());
+  if ((string.IsShared() || FLAG_always_use_string_forwarding_table) &&
+      !string.IsExternalString()) {
+    uint32_t field = string.raw_hash_field();
+    // Don't use the forwarding table for strings that have an integer index.
+    // Using the hash field for the integer index is more beneficial than
+    // using it to store the forwarding index to the internalized string.
+    if (Name::IsIntegerIndex(field)) return;
+    // Check one last time if we already have a forwarding index to prevent
+    // too many copies of the string in the forwarding table.
+    if (Name::IsForwardingIndex(field)) return;
+
+    const int forwarding_index =
+        isolate->string_forwarding_table()->Add(isolate, string, internalized);
+    string.set_raw_hash_field(
+        String::CreateHashFieldValue(forwarding_index,
+                                     String::HashFieldType::kForwardingIndex),
+        kReleaseStore);
+  } else {
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
+      // It is possible that the string has a forwarding index (the string was
+      // externalized after it had its forwarding index set). Overwrite the
+      // hash field to avoid having a ThinString with a forwarding index.
+      DCHECK(string.IsExternalString());
+      string.set_raw_hash_field(internalized.raw_hash_field());
+    }
+    DCHECK(!string.HasForwardingIndex());
+    string.MakeThin(isolate, internalized);
+  }
+}
+
+}  // namespace
+
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
   // When sharing the string table, internalization is allowed to be concurrent
@@ -458,19 +496,26 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   // For lookup misses, the internalized string map is the same map in RO space
   // regardless of which thread is doing the lookup.
   //
-  // For lookup hits, String::MakeThin is threadsafe and spinlocks on
-  // migrating into a ThinString.
+  // For lookup hits, we use the StringForwardingTable for shared strings to
+  // delay the transition into a ThinString to the next stop-the-world GC.
+  Handle<String> result = String::Flatten(isolate, string);
+  if (!result->IsInternalizedString()) {
+    result->EnsureHash();
+    uint32_t raw_hash_field = result->raw_hash_field(kAcquireLoad);
 
-  string = String::Flatten(isolate, string);
-  if (string->IsInternalizedString()) return string;
-
-  InternalizedStringKey key(string);
-  Handle<String> result = LookupKey(isolate, &key);
-
-  if (!string->IsInternalizedString()) {
-    string->MakeThin(isolate, *result);
+    if (String::IsForwardingIndex(raw_hash_field)) {
+      const int index = String::HashBits::decode(raw_hash_field);
+      result = handle(
+          isolate->string_forwarding_table()->GetForwardString(isolate, index),
+          isolate);
+    } else {
+      InternalizedStringKey key(result, raw_hash_field);
+      result = LookupKey(isolate, &key);
+    }
   }
-
+  if (*string != *result && !string->IsThinString()) {
+    SetInternalizedReference(isolate, *string, *result);
+  }
   return result;
 }
 
@@ -635,9 +680,23 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   // causes issues around method and class visibility.
 
   DisallowGarbageCollection no_gc;
-  uint64_t seed = HashSeed(isolate);
 
   int length = string.length();
+  // The source hash is usable if it is not from a sliced string.
+  // For sliced strings we need to recalculate the hash from the given offset
+  // with the correct length.
+  const bool is_source_hash_usable = start == 0 && length == source.length();
+
+  // First check if the string constains a forwarding index.
+  uint32_t raw_hash_field = source.raw_hash_field(kAcquireLoad);
+  if (Name::IsForwardingIndex(raw_hash_field) && is_source_hash_usable) {
+    const int index = Name::HashBits::decode(raw_hash_field);
+    String internalized =
+        isolate->string_forwarding_table()->GetForwardString(isolate, index);
+    return internalized.ptr();
+  }
+
+  uint64_t seed = HashSeed(isolate);
 
   std::unique_ptr<Char[]> buffer;
   const Char* chars;
@@ -651,12 +710,16 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   } else {
     chars = source.GetChars<Char>(isolate, no_gc, access_guard) + start;
   }
+
+  if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {
+    raw_hash_field =
+        StringHasher::HashSequentialString<Char>(chars, length, seed);
+  }
   // TODO(verwaest): Internalize to one-byte when possible.
-  SequentialStringKey<Char> key(base::Vector<const Char>(chars, length), seed);
+  SequentialStringKey<Char> key(raw_hash_field,
+                                base::Vector<const Char>(chars, length), seed);
 
   // String could be an array index.
-  uint32_t raw_hash_field = key.raw_hash_field();
-
   if (Name::ContainsCachedArrayIndex(raw_hash_field)) {
     return Smi::FromInt(String::ArrayIndexValueBits::decode(raw_hash_field))
         .ptr();
@@ -683,7 +746,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   // there is no way that it can transition to internalized later on. So a last
   // check here is sufficient.
   if (!string.IsInternalizedString()) {
-    string.MakeThin(isolate, internalized);
+    SetInternalizedReference(isolate, string, internalized);
   } else {
     DCHECK(FLAG_shared_string_table);
   }
@@ -703,9 +766,9 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   // Valid array indices are >= 0, so they cannot be mixed up with any of
   // the result sentinels, which are negative.
-  STATIC_ASSERT(
+  static_assert(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kUnsupported));
-  STATIC_ASSERT(
+  static_assert(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
   size_t start = 0;
@@ -764,11 +827,317 @@ void StringTable::NotifyElementsRemoved(int count) {
   data_.load(std::memory_order_relaxed)->ElementsRemoved(count);
 }
 
-void StringTable::UpdateCountersIfOwnedBy(Isolate* isolate) {
-  DCHECK_EQ(isolate->string_table(), this);
-  if (!isolate->OwnsStringTable()) return;
-  isolate->counters()->string_table_capacity()->Set(Capacity());
-  isolate->counters()->number_of_symbols()->Set(NumberOfElements());
+class StringForwardingTable::Block {
+ public:
+  static std::unique_ptr<Block> New(int capacity);
+  explicit Block(int capacity);
+  int capacity() const { return capacity_; }
+  void* operator new(size_t size, int capacity);
+  void* operator new(size_t size) = delete;
+  void operator delete(void* data);
+
+  void Set(int index, String string, String forward_to) {
+    DCHECK_LT(index, capacity());
+    Set(IndexOfOriginalString(index), string);
+    Set(IndexOfForwardString(index), forward_to);
+  }
+
+  String GetOriginalString(Isolate* isolate, int index) const {
+    DCHECK_LT(index, capacity());
+    return String::cast(Get(isolate, IndexOfOriginalString(index)));
+  }
+
+  String GetForwardString(Isolate* isolate, int index) const {
+    DCHECK_LT(index, capacity());
+    return String::cast(Get(isolate, IndexOfForwardString(index)));
+  }
+
+  void IterateElements(RootVisitor* visitor, int up_to_index) {
+    OffHeapObjectSlot first_slot = slot(0);
+    OffHeapObjectSlot end_slot = slot(IndexOfOriginalString(up_to_index));
+    visitor->VisitRootPointers(Root::kStringForwardingTable, nullptr,
+                               first_slot, end_slot);
+  }
+  void UpdateAfterEvacuation(Isolate* isolate);
+  void UpdateAfterEvacuation(Isolate* isolate, int up_to_index);
+
+ private:
+  static constexpr int kRecordSize = 2;
+  static constexpr int kOriginalStringOffset = 0;
+  static constexpr int kForwardStringOffset = 1;
+
+  int IndexOfOriginalString(int index) const {
+    return index * kRecordSize + kOriginalStringOffset;
+  }
+
+  int IndexOfForwardString(int index) const {
+    return index * kRecordSize + kForwardStringOffset;
+  }
+
+  OffHeapObjectSlot slot(int index) const {
+    return OffHeapObjectSlot(&elements_[index]);
+  }
+
+  Object Get(PtrComprCageBase cage_base, int internal_index) const {
+    return slot(internal_index).Acquire_Load(cage_base);
+  }
+
+  void Set(int internal_index, Object object) {
+    slot(internal_index).Release_Store(object);
+  }
+
+  const int capacity_;
+  Tagged_t elements_[1];
+};
+
+StringForwardingTable::Block::Block(int capacity) : capacity_(capacity) {}
+
+void* StringForwardingTable::Block::operator new(size_t size, int capacity) {
+  // Make sure the size given is the size of the Block structure.
+  DCHECK_EQ(size, sizeof(StringForwardingTable::Block));
+  // Make sure that the elements_ array is at the end of Block, with no padding,
+  // so that subsequent elements can be accessed as offsets from elements_.
+  static_assert(offsetof(StringForwardingTable::Block, elements_) ==
+                sizeof(StringForwardingTable::Block) - sizeof(Tagged_t) * 1);
+  // Make sure that elements_ is aligned when StringTable::Block is aligned.
+  static_assert((alignof(StringForwardingTable::Block) +
+                 offsetof(StringForwardingTable::Block, elements_)) %
+                    kTaggedSize ==
+                0);
+
+  const size_t elements_size = capacity * kRecordSize * sizeof(Tagged_t);
+  // Storage for the first element is already supplied by elements_, so subtract
+  // sizeof(Tagged_t).
+  const size_t new_size = size + elements_size - sizeof(Tagged_t);
+  DCHECK_LE(alignof(StringForwardingTable::Block), kSystemPointerSize);
+  return AlignedAlloc(new_size, kSystemPointerSize);
+}
+
+void StringForwardingTable::Block::operator delete(void* block) {
+  AlignedFree(block);
+}
+
+std::unique_ptr<StringForwardingTable::Block> StringForwardingTable::Block::New(
+    int capacity) {
+  return std::unique_ptr<Block>(new (capacity) Block(capacity));
+}
+
+void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate) {
+  UpdateAfterEvacuation(isolate, capacity_);
+}
+
+void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate,
+                                                         int up_to_index) {
+  DCHECK(FLAG_always_use_string_forwarding_table);
+  for (int index = 0; index < up_to_index; ++index) {
+    Object original = Get(isolate, IndexOfOriginalString(index));
+    if (!original.IsHeapObject()) continue;
+    HeapObject object = HeapObject::cast(original);
+    if (Heap::InFromPage(object)) {
+      DCHECK(!object.InSharedWritableHeap());
+      MapWord map_word = object.map_word(kRelaxedLoad);
+      if (map_word.IsForwardingAddress()) {
+        HeapObject forwarded_object = map_word.ToForwardingAddress();
+        Set(IndexOfOriginalString(index), String::cast(forwarded_object));
+      } else {
+        Set(IndexOfOriginalString(index), deleted_element());
+      }
+    } else {
+      DCHECK(!object.map_word(kRelaxedLoad).IsForwardingAddress());
+    }
+  }
+}
+
+class StringForwardingTable::BlockVector {
+ public:
+  using Block = StringForwardingTable::Block;
+  using Allocator = std::allocator<Block*>;
+
+  explicit BlockVector(size_t capacity);
+  ~BlockVector();
+  size_t capacity() const { return capacity_; }
+
+  Block* LoadBlock(size_t index, AcquireLoadTag) {
+    DCHECK_LT(index, size());
+    return base::AsAtomicPointer::Acquire_Load(&begin_[index]);
+  }
+
+  Block* LoadBlock(size_t index) {
+    DCHECK_LT(index, size());
+    return begin_[index];
+  }
+
+  void AddBlock(std::unique_ptr<Block> block) {
+    DCHECK_LT(size(), capacity());
+    base::AsAtomicPointer::Release_Store(&begin_[size_], block.release());
+    size_++;
+  }
+
+  static std::unique_ptr<BlockVector> Grow(BlockVector* data, size_t capacity,
+                                           const base::Mutex& mutex);
+
+  size_t size() const { return size_; }
+
+ private:
+  V8_NO_UNIQUE_ADDRESS Allocator allocator_;
+  const size_t capacity_;
+  std::atomic<size_t> size_;
+  Block** begin_;
+};
+
+StringForwardingTable::BlockVector::BlockVector(size_t capacity)
+    : allocator_(Allocator()), capacity_(capacity), size_(0) {
+  begin_ = allocator_.allocate(capacity);
+}
+
+StringForwardingTable::BlockVector::~BlockVector() {
+  allocator_.deallocate(begin_, capacity());
+}
+
+// static
+std::unique_ptr<StringForwardingTable::BlockVector>
+StringForwardingTable::BlockVector::Grow(
+    StringForwardingTable::BlockVector* data, size_t capacity,
+    const base::Mutex& mutex) {
+  mutex.AssertHeld();
+  std::unique_ptr<BlockVector> new_data =
+      std::make_unique<BlockVector>(capacity);
+  // Copy pointers to blocks from the old to the new vector.
+  for (size_t i = 0; i < data->size(); i++) {
+    new_data->begin_[i] = data->LoadBlock(i);
+  }
+  new_data->size_ = data->size();
+  return new_data;
+}
+
+StringForwardingTable::StringForwardingTable(Isolate* isolate)
+    : isolate_(isolate), next_free_index_(0) {
+  InitializeBlockVector();
+}
+
+StringForwardingTable::~StringForwardingTable() {
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  for (uint32_t block = 0; block < blocks->size(); block++) {
+    delete blocks->LoadBlock(block);
+  }
+}
+
+void StringForwardingTable::InitializeBlockVector() {
+  BlockVector* blocks = block_vector_storage_
+                            .emplace_back(std::make_unique<BlockVector>(
+                                kInitialBlockVectorCapacity))
+                            .get();
+  blocks->AddBlock(Block::New(kInitialBlockSize));
+  blocks_.store(blocks, std::memory_order_relaxed);
+}
+
+StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
+    uint32_t block) {
+  BlockVector* blocks = blocks_.load(std::memory_order_acquire);
+  if V8_UNLIKELY (block >= blocks->size()) {
+    base::MutexGuard table_grow_guard(&grow_mutex_);
+    // Reload the vector, as another thread could have grown it.
+    blocks = blocks_.load(std::memory_order_relaxed);
+    // Check again if we need to grow under lock.
+    if (block >= blocks->size()) {
+      const uint32_t capacity = CapacityForBlock(block);
+      std::unique_ptr<Block> new_block = Block::New(capacity);
+      // Grow the vector if the block to insert is greater than the vectors
+      // capacity.
+      if (block >= blocks->capacity()) {
+        std::unique_ptr<BlockVector> new_blocks =
+            BlockVector::Grow(blocks, blocks->capacity() * 2, grow_mutex_);
+        block_vector_storage_.push_back(std::move(new_blocks));
+        blocks = block_vector_storage_.back().get();
+        blocks_.store(blocks, std::memory_order_release);
+      }
+      blocks->AddBlock(std::move(new_block));
+    }
+  }
+  return blocks;
+}
+
+int StringForwardingTable::Add(Isolate* isolate, String string,
+                               String forward_to) {
+  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+                 string.InSharedHeap());
+  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+                 forward_to.InSharedHeap());
+  int index = next_free_index_++;
+  uint32_t index_in_block;
+  const uint32_t block = BlockForIndex(index, &index_in_block);
+
+  BlockVector* blocks = EnsureCapacity(block);
+  Block* data = blocks->LoadBlock(block, kAcquireLoad);
+  data->Set(index_in_block, string, forward_to);
+  return index;
+}
+
+String StringForwardingTable::GetForwardString(Isolate* isolate,
+                                               int index) const {
+  CHECK_LT(index, Size());
+  uint32_t index_in_block;
+  const uint32_t block = BlockForIndex(index, &index_in_block);
+  Block* data =
+      blocks_.load(std::memory_order_acquire)->LoadBlock(block, kAcquireLoad);
+  return data->GetForwardString(isolate, index_in_block);
+}
+
+// static
+Address StringForwardingTable::GetForwardStringAddress(Isolate* isolate,
+                                                       int index) {
+  return isolate->string_forwarding_table()
+      ->GetForwardString(isolate, index)
+      .ptr();
+}
+
+void StringForwardingTable::IterateElements(RootVisitor* visitor) {
+  isolate_->heap()->safepoint()->AssertActive();
+  DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
+
+  if (next_free_index_ == 0) return;  // Early exit if table is empty.
+
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  const uint32_t last_block = static_cast<uint32_t>(blocks->size() - 1);
+  for (uint32_t block = 0; block < last_block; ++block) {
+    Block* data = blocks->LoadBlock(block);
+    data->IterateElements(visitor, data->capacity());
+  }
+  // Handle last block separately, as it is not filled to capacity.
+  const uint32_t max_index = IndexInBlock(next_free_index_ - 1, last_block) + 1;
+  Block* data = blocks->LoadBlock(last_block);
+  data->IterateElements(visitor, max_index);
+}
+
+void StringForwardingTable::Reset() {
+  isolate_->heap()->safepoint()->AssertActive();
+  DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
+
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  for (uint32_t block = 0; block < blocks->size(); ++block) {
+    delete blocks->LoadBlock(block);
+  }
+
+  block_vector_storage_.clear();
+  InitializeBlockVector();
+  next_free_index_ = 0;
+}
+
+void StringForwardingTable::UpdateAfterEvacuation() {
+  DCHECK(FLAG_always_use_string_forwarding_table);
+
+  if (next_free_index_ == 0) return;  // Early exit if table is empty.
+
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  const unsigned int last_block = static_cast<unsigned int>(blocks->size() - 1);
+  for (unsigned int block = 0; block < last_block; ++block) {
+    Block* data = blocks->LoadBlock(block, kAcquireLoad);
+    data->UpdateAfterEvacuation(isolate_);
+  }
+  // Handle last block separately, as it is not filled to capacity.
+  const int max_index = IndexInBlock(next_free_index_ - 1, last_block) + 1;
+  blocks->LoadBlock(last_block, kAcquireLoad)
+      ->UpdateAfterEvacuation(isolate_, max_index);
 }
 
 }  // namespace internal

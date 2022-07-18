@@ -38,15 +38,12 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
   name = factory->InternalizeName(name);
   info->set_name(*name);
-  Handle<Object> get = v8::FromCData(isolate, getter);
   if (setter == nullptr) setter = &ReconfigureToDataProperty;
-  Handle<Object> set = v8::FromCData(isolate, setter);
-  info->set_getter(*get);
-  info->set_setter(*set);
+  info->set_setter(isolate, reinterpret_cast<Address>(setter));
+  info->set_getter(isolate, reinterpret_cast<Address>(getter));
   Address redirected = info->redirected_getter();
   if (redirected != kNullAddress) {
-    Handle<Object> js_get = v8::FromCData(isolate, redirected);
-    info->set_js_getter(*js_get);
+    info->set_js_getter(isolate, redirected);
   }
   return info;
 }
@@ -230,6 +227,27 @@ void Accessors::ArrayLengthSetter(
 Handle<AccessorInfo> Accessors::MakeArrayLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &ArrayLengthGetter, &ArrayLengthSetter);
+}
+
+//
+// Accessors::SharedArrayLength
+//
+
+void Accessors::SharedArrayLengthGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(isolate);
+
+  Object value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+
+  Object result = Smi::FromInt(JSObject::cast(value).elements().length());
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
+
+Handle<AccessorInfo> Accessors::MakeSharedArrayLengthInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &SharedArrayLengthGetter, nullptr);
 }
 
 //
@@ -788,6 +806,24 @@ Handle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
     Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &WrappedFunctionLengthGetter, &ReconfigureToDataProperty);
+}
+
+//
+// Accessors::ValueUnavailable
+//
+
+void Accessors::ValueUnavailableGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  isolate->Throw(*isolate->factory()->NewReferenceError(
+      MessageTemplate::kAccessedUnavailableVariable, Utils::OpenHandle(*name)));
+  isolate->OptionalRescheduleException(false);
+}
+
+Handle<AccessorInfo> Accessors::MakeValueUnavailableInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->empty_string(),
+                      &ValueUnavailableGetter, &ReconfigureToDataProperty);
 }
 
 //

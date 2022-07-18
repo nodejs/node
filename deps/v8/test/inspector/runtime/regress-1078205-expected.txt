@@ -6,7 +6,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -18,7 +18,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object
@@ -32,7 +32,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//#" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -44,7 +44,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//#" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object
@@ -58,7 +58,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//# " is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -70,7 +70,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//# " is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object
@@ -84,7 +84,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//# sourceURL" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -96,7 +96,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//# sourceURL" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object
@@ -110,7 +110,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//# sourceURL=" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -122,7 +122,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//# sourceURL=" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object
@@ -136,7 +136,7 @@ Test malformed sourceURL magic comment.
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+                description : SyntaxError: Unexpected token '/', "//# sourceURL="" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -148,7 +148,7 @@ Test malformed sourceURL magic comment.
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token / in JSON at position 0     at JSON.parse (<anonymous>)     at <anonymous>:1:6
+            description : SyntaxError: Unexpected token '/', "//# sourceURL="" is not valid JSON     at JSON.parse (<anonymous>)     at <anonymous>:1:6
             objectId : <objectId>
             subtype : error
             type : object

@@ -4,13 +4,16 @@
 
 #include "src/heap/cppgc/marking-verifier.h"
 
-#include "include/cppgc/internal/caged-heap-local-data.h"
 #include "src/base/logging.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-view.h"
+
+#if defined(CPPGC_CAGED_HEAP)
+#include "include/cppgc/internal/caged-heap-local-data.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 namespace cppgc {
 namespace internal {
@@ -106,8 +109,9 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (collection_type_ == Heap::Config::CollectionType::kMinor) {
-    const auto age = heap_.caged_heap().local_data().age_table.GetAge(
-        heap_.caged_heap().OffsetFromAddress(header.ObjectStart()));
+    auto& caged_heap = CagedHeap::Instance();
+    const auto age = CagedHeapLocalData::Get().age_table.GetAge(
+        caged_heap.OffsetFromAddress(header.ObjectStart()));
     if (age == AgeTable::Age::kOld) {
       // Do not verify old objects.
       return true;

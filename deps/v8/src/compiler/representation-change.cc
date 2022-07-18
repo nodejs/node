@@ -6,9 +6,7 @@
 
 #include <sstream>
 
-#include "src/base/bits.h"
 #include "src/base/safe_conversions.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -241,6 +239,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       return node;
     case MachineRepresentation::kCompressed:

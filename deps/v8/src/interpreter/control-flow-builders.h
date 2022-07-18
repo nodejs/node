@@ -98,10 +98,12 @@ class V8_EXPORT_PRIVATE BlockBuilder final
 class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
  public:
   LoopBuilder(BytecodeArrayBuilder* builder,
-              BlockCoverageBuilder* block_coverage_builder, AstNode* node)
+              BlockCoverageBuilder* block_coverage_builder, AstNode* node,
+              FeedbackVectorSpec* feedback_vector_spec)
       : BreakableControlFlowBuilder(builder, block_coverage_builder, node),
         continue_labels_(builder->zone()),
-        end_labels_(builder->zone()) {
+        end_labels_(builder->zone()),
+        feedback_vector_spec_(feedback_vector_spec) {
     if (block_coverage_builder_ != nullptr) {
       block_coverage_body_slot_ =
           block_coverage_builder_->AllocateBlockCoverageSlot(
@@ -143,8 +145,8 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   BytecodeLabels end_labels_;
 
   int block_coverage_body_slot_;
-
   int source_position_;
+  FeedbackVectorSpec* const feedback_vector_spec_;
 };
 
 // A class to help with co-ordinating break statements with their switch.

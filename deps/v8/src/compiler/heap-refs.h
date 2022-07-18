@@ -745,6 +745,9 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
+  int16_t allowed_receiver_instance_type_range_start() const;
+  int16_t allowed_receiver_instance_type_range_end() const;
+
   base::Optional<CallHandlerInfoRef> call_code() const;
   ZoneVector<Address> c_functions() const;
   ZoneVector<const CFunctionInfo*> c_signatures() const;

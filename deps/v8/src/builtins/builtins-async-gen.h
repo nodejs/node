@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_ASYNC_GEN_H_
 
 #include "src/builtins/builtins-promise-gen.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {

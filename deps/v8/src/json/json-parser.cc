@@ -161,7 +161,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       Handle<FixedArray> contents;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, contents,
-          KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+          KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString),
           Object);
@@ -240,20 +240,75 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
 }
 
 template <typename Char>
-void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
-  // Some exception (for example stack overflow) is already pending.
-  if (isolate_->has_pending_exception()) return;
-
-  // Parse failed. Current character is the unexpected token.
-  Factory* factory = this->factory();
-  MessageTemplate message;
+bool JsonParser<Char>::IsSpecialString() {
+  // The special cases are undefined, NaN, Infinity, and {} being passed to the
+  // parse method
   int offset = original_source_->IsSlicedString()
                    ? SlicedString::cast(*original_source_).offset()
                    : 0;
-  int pos = position() - offset;
-  Handle<Object> arg1 = Handle<Smi>(Smi::FromInt(pos), isolate());
-  Handle<Object> arg2;
+  size_t length = original_source_->length();
+#define CASES(V)       \
+  V("[object Object]") \
+  V("undefined")       \
+  V("Infinity")        \
+  V("NaN")
+  switch (length) {
+#define CASE(n)          \
+  case arraysize(n) - 1: \
+    return CompareCharsEqual(chars_ + offset, n, arraysize(n) - 1);
+    CASES(CASE)
+    default:
+      return false;
+  }
+#undef CASE
+#undef CASES
+}
 
+template <typename Char>
+MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
+    Handle<Object>& arg, Handle<Object>& arg2, int pos) {
+  MessageTemplate message;
+  Factory* factory = this->factory();
+  arg = factory->LookupSingleCharacterStringFromCode(*cursor_);
+  int origin_source_length = original_source_->length();
+  // only provide context for strings with at least
+  // kMinOriginalSourceLengthForContext charcacters in length
+  if (origin_source_length >= kMinOriginalSourceLengthForContext) {
+    int substring_start = 0;
+    int substring_end = origin_source_length;
+    if (pos < kMaxContextCharacters) {
+      message =
+          MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext;
+      // Output the string followed by elipses
+      substring_end = pos + kMaxContextCharacters;
+    } else if (pos >= kMaxContextCharacters &&
+               pos < origin_source_length - kMaxContextCharacters) {
+      message =
+          MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext;
+      // Add context before and after position of bad token surrounded by
+      // elipses
+      substring_start = pos - kMaxContextCharacters;
+      substring_end = pos + kMaxContextCharacters;
+    } else {
+      message = MessageTemplate::kJsonParseUnexpectedTokenEndStringWithContext;
+      // Add ellipses followed by some context before bad token
+      substring_start = pos - kMaxContextCharacters;
+    }
+    arg2 =
+        factory->NewSubString(original_source_, substring_start, substring_end);
+  } else {
+    arg2 = original_source_;
+    // Output the entire string without ellipses but provide the token which
+    // was unexpected
+    message = MessageTemplate::kJsonParseUnexpectedTokenShortString;
+  }
+  return message;
+}
+
+template <typename Char>
+MessageTemplate JsonParser<Char>::LookUpErrorMessageForJsonToken(
+    JsonToken token, Handle<Object>& arg, Handle<Object>& arg2, int pos) {
+  MessageTemplate message;
   switch (token) {
     case JsonToken::EOS:
       message = MessageTemplate::kJsonParseUnexpectedEOS;
@@ -265,11 +320,36 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
       message = MessageTemplate::kJsonParseUnexpectedTokenString;
       break;
     default:
-      message = MessageTemplate::kJsonParseUnexpectedToken;
-      arg2 = arg1;
-      arg1 = factory->LookupSingleCharacterStringFromCode(*cursor_);
-      break;
+      // Output entire string without ellipses and don't provide the token
+      // that was unexpected because it makes the error messages more confusing
+      if (IsSpecialString()) {
+        arg = original_source_;
+        message = MessageTemplate::kJsonParseShortString;
+      } else {
+        message = GetErrorMessageWithEllipses(arg, arg2, pos);
+      }
   }
+  return message;
+}
+
+template <typename Char>
+void JsonParser<Char>::ReportUnexpectedToken(
+    JsonToken token, base::Optional<MessageTemplate> errorMessage) {
+  // Some exception (for example stack overflow) is already pending.
+  if (isolate_->has_pending_exception()) return;
+
+  // Parse failed. Current character is the unexpected token.
+  Factory* factory = this->factory();
+  int offset = original_source_->IsSlicedString()
+                   ? SlicedString::cast(*original_source_).offset()
+                   : 0;
+  int pos = position() - offset;
+  Handle<Object> arg(Smi::FromInt(pos), isolate());
+  Handle<Object> arg2;
+
+  MessageTemplate message =
+      errorMessage ? errorMessage.value()
+                   : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
 
   Handle<Script> script(factory->NewScript(original_source_));
   if (isolate()->NeedsSourcePositionsForProfiling()) {
@@ -290,7 +370,7 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   // separated source file.
   isolate()->debug()->OnCompileError(script);
   MessageLocation location(script, pos, pos + 1);
-  isolate()->ThrowAt(factory->NewSyntaxError(message, arg1, arg2), &location);
+  isolate()->ThrowAt(factory->NewSyntaxError(message, arg, arg2), &location);
 
   // Move the cursor to the end so we won't be able to proceed parsing.
   cursor_ = end_;
@@ -325,7 +405,9 @@ JsonParser<Char>::~JsonParser() {
 template <typename Char>
 MaybeHandle<Object> JsonParser<Char>::ParseJson() {
   MaybeHandle<Object> result = ParseJsonValue();
-  if (!Check(JsonToken::EOS)) ReportUnexpectedToken(peek());
+  if (!Check(JsonToken::EOS))
+    ReportUnexpectedToken(
+        peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
   if (isolate_->has_pending_exception()) return MaybeHandle<Object>();
   return result;
 }
@@ -559,7 +641,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  STATIC_ASSERT(HeapNumber::kSize <= kMutableDoubleSize);
+  static_assert(HeapNumber::kSize <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -608,7 +690,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           }
 
           uint64_t bits =
-              bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+              base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
           // Allocate simple heapnumber with immortal map, with non-pointer
           // payload, so we can skip notifying object layout change.
 
@@ -751,10 +833,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                                   property_stack.size());
 
           // Parse the property key.
-          ExpectNext(JsonToken::STRING);
+          ExpectNext(JsonToken::STRING,
+                     MessageTemplate::kJsonParseExpectedPropNameOrRBrace);
           property_stack.emplace_back(ScanJsonPropertyKey(&cont));
 
-          ExpectNext(JsonToken::COLON);
+          ExpectNext(JsonToken::COLON,
+                     MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
 
           // Continue to start producing the first property value.
           continue;
@@ -829,7 +913,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
           if (V8_LIKELY(Check(JsonToken::COMMA))) {
             // Parse the property key.
-            ExpectNext(JsonToken::STRING);
+            ExpectNext(
+                JsonToken::STRING,
+                MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName);
 
             property_stack.emplace_back(ScanJsonPropertyKey(&cont));
             ExpectNext(JsonToken::COLON);
@@ -855,7 +941,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
           value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize_no_init(cont.index);
-          Expect(JsonToken::RBRACE);
+          Expect(JsonToken::RBRACE,
+                 MessageTemplate::kJsonParseExpectedCommaOrRBrace);
 
           // Return the object.
           value = cont.scope.CloseAndEscape(value);
@@ -874,7 +961,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
           value = BuildJsonArray(cont, element_stack);
           element_stack.resize_no_init(cont.index);
-          Expect(JsonToken::RBRACK);
+          Expect(JsonToken::RBRACK,
+                 MessageTemplate::kJsonParseExpectedCommaOrRBrack);
 
           // Return the array.
           value = cont.scope.CloseAndEscape(value);
@@ -933,12 +1021,14 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
       AdvanceToNonDecimal();
       if (V8_UNLIKELY(smi_start == cursor_)) {
         AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedCharacter(CurrentCharacter());
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseNoNumberAfterMinusSign);
         return handle(Smi::FromInt(0), isolate_);
       }
       c = CurrentCharacter();
-      STATIC_ASSERT(Smi::IsValid(-999999999));
-      STATIC_ASSERT(Smi::IsValid(999999999));
+      static_assert(Smi::IsValid(-999999999));
+      static_assert(Smi::IsValid(999999999));
       const int kMaxSmiLength = 9;
       if ((cursor_ - smi_start) <= kMaxSmiLength &&
           (!base::IsInRange(c, 0,
@@ -959,7 +1049,9 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
       c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedCharacter(c);
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseUnterminatedFractionalNumber);
         return handle(Smi::FromInt(0), isolate_);
       }
       AdvanceToNonDecimal();
@@ -970,7 +1062,9 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
       if (c == '-' || c == '+') c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
-        ReportUnexpectedCharacter(c);
+        ReportUnexpectedToken(
+            JsonToken::ILLEGAL,
+            MessageTemplate::kJsonParseExponentPartMissingNumber);
         return handle(Smi::FromInt(0), isolate_);
       }
       AdvanceToNonDecimal();
@@ -1137,7 +1231,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
     if (V8_UNLIKELY(is_at_end())) {
       AllowGarbageCollection allow_before_exception;
-      ReportUnexpectedCharacter(kEndOfString);
+      ReportUnexpectedToken(JsonToken::ILLEGAL,
+                            MessageTemplate::kJsonParseUnterminatedString);
       break;
     }
 
@@ -1175,7 +1270,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
           base::uc32 value = ScanUnicodeCharacter();
           if (value == kInvalidUnicodeCharacter) {
             AllowGarbageCollection allow_before_exception;
-            ReportUnexpectedCharacter(CurrentCharacter());
+            ReportUnexpectedToken(JsonToken::ILLEGAL,
+                                  MessageTemplate::kJsonParseBadUnicodeEscape);
             return JsonString();
           }
           bits |= value;
@@ -1188,7 +1284,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
         case EscapeKind::kIllegal:
           AllowGarbageCollection allow_before_exception;
-          ReportUnexpectedCharacter(c);
+          ReportUnexpectedToken(JsonToken::ILLEGAL,
+                                MessageTemplate::kJsonParseBadEscapedCharacter);
           return JsonString();
       }
 
@@ -1198,7 +1295,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
     DCHECK_LT(*cursor_, 0x20);
     AllowGarbageCollection allow_before_exception;
-    ReportUnexpectedCharacter(*cursor_);
+    ReportUnexpectedToken(JsonToken::ILLEGAL,
+                          MessageTemplate::kJsonParseBadControlCharacter);
     break;
   }
 

@@ -24,6 +24,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 
+namespace unibrow {
+enum class Utf8Variant : uint8_t;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -76,7 +80,10 @@ class WeakCell;
 namespace wasm {
 class ArrayType;
 class StructType;
+struct WasmElemSegment;
 class WasmValue;
+enum class OnResume : int;
+enum Suspend : bool;
 }  // namespace wasm
 #endif
 
@@ -255,6 +262,25 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       const base::Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      const base::Vector<const uint8_t>& str, unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+#if V8_ENABLE_WEBASSEMBLY
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<WasmArray> array, uint32_t begin, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<ByteArray> array, uint32_t start, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf16(
+      Handle<WasmArray> array, uint32_t start, uint32_t end,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
       Handle<SeqOneByteString> str, int begin, int end,
@@ -268,9 +294,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const ZoneVector<base::uc16>* str,
       AllocationType allocation = AllocationType::kYoung);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Usually the two-byte encodings are in the native endianness, but for
+  // WebAssembly linear memory, they are explicitly little-endian.
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByteLittleEndian(
+      const base::Vector<const base::uc16>& str,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
+  Handle<String> NewInternalizedStringImpl(Handle<String> string, int len,
                                            uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
@@ -310,7 +344,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // A cache is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
-  // Create or lookup a single characters tring made up of a utf16 surrogate
+  // Create or lookup a single character string made up of a utf16 surrogate
   // pair.
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
 
@@ -524,7 +558,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // points to the site.
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
-  Handle<JSObject> NewJSObjectFromMap(
+  inline Handle<JSObject> NewJSObjectFromMap(
+      Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  inline Handle<JSObject> NewSystemPointerAlignedJSObjectFromMap(
       Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.
@@ -607,32 +644,41 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
-      Address sig_address, int wrapper_budget, Handle<Map> rtt);
+      Address sig_address, int wrapper_budget, Handle<Map> rtt,
+      wasm::Suspend suspend);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
-      Handle<JSReceiver> callable, Handle<HeapObject> suspender);
+      Handle<JSReceiver> callable, wasm::Suspend suspend,
+      Handle<WasmInstanceObject> instance);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<CodeT> wrapper_code, Handle<Map> rtt,
-      Handle<HeapObject> suspender);
-  Handle<WasmOnFulfilledData> NewWasmOnFulfilledData(
-      Handle<WasmSuspenderObject> suspender);
+      Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend);
+  Handle<WasmResumeData> NewWasmResumeData(
+      Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
+  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type, uint32_t length,
+                                 wasm::WasmValue initial_value,
+                                 Handle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
       const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
       Handle<Map> map);
   Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length, Handle<Map> map,
                                            Address source);
+  // Returns a handle to a WasmArray if successful, or a Smi containing a
+  // {MessageTemplate} if computing the array's elements leads to an error.
+  Handle<Object> NewWasmArrayFromElementSegment(
+      Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
+      uint32_t start_offset, uint32_t length, Handle<Map> map);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
       Handle<String> name, Handle<WasmJSFunctionData> data);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmOnFulfilled(
-      Handle<WasmOnFulfilledData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmResume(
+      Handle<WasmResumeData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
       Handle<WasmCapiFunctionData> data);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -916,6 +962,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_osr_offset(BytecodeOffset offset) {
+      DCHECK_IMPLIES(!offset.IsNone(), CodeKindCanOSR(kind_));
+      osr_offset_ = offset;
+      return *this;
+    }
+
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
       DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
@@ -993,6 +1045,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     MaybeHandle<Object> self_reference_;
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
+    BytecodeOffset osr_offset_ = BytecodeOffset::None();
     int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code
     // or bytecode_offset_table for baseline code.
@@ -1009,6 +1062,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
  private:
   friend class FactoryBase<Factory>;
+  friend class WebSnapshotDeserializer;
 
   // ------
   // Customization points for FactoryBase
@@ -1024,13 +1078,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when V8_SANDBOXED_EXTERNAL_POINTERS is enabled.
+  // external pointer entries when the sandbox is enabled.
   Isolate* isolate_for_sandbox() const {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     return isolate();
 #else
     return nullptr;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
   }
 
   V8_INLINE HeapAllocator* allocator() const;
@@ -1044,7 +1098,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
-      Handle<AllocationSite> allocation_site);
+      Handle<AllocationSite> allocation_site,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  Handle<JSObject> NewJSObjectFromMapInternal(
+      Handle<Map> map, AllocationType allocation,
+      Handle<AllocationSite> allocation_site, AllocationAlignment alignment);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       Handle<Map> map, Handle<FixedArrayBase> elements,
@@ -1072,13 +1131,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <typename T>
   Handle<T> CopyArrayAndGrow(Handle<T> src, int grow_by,
                              AllocationType allocation);
-
-  template <bool is_one_byte, typename T>
-  Handle<String> AllocateInternalizedStringImpl(T t, int chars,
-                                                uint32_t hash_field);
-
-  Handle<String> AllocateTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t hash_field);
 
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --enable-sudiv --opt --noturbo-inlining
+// Flags: --allow-natives-syntax --enable-sudiv --turbofan --noturbo-inlining
 
 // Use this function as reference. Make sure it is not inlined.
 function div(a, b) {

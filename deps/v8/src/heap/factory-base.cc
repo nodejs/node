@@ -34,7 +34,7 @@ namespace internal {
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
-  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
   Map map = read_only_roots().heap_number_map();
   HeapObject result = AllocateRawWithImmortalMap(HeapNumber::kSize, allocation,
                                                  map, kDoubleUnaligned);
@@ -247,8 +247,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance.set_parameter_count(parameter_count);
   instance.set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance.reset_osr_urgency_and_install_target();
-  instance.set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
+  instance.set_bytecode_age(0);
   instance.set_constant_pool(*constant_pool);
   instance.set_handler_table(read_only_roots().empty_byte_array(),
                              SKIP_WRITE_BARRIER);
@@ -292,6 +291,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
                                   SKIP_WRITE_BARRIER);
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+    raw.set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     raw.set_script_or_modules(roots.empty_array_list());
 #endif
@@ -301,7 +301,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     impl()->AddToScriptList(script);
   }
 
-  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  LOG(isolate(),
+      ScriptEvent(V8FileLogger::ScriptEventType::kCreate, script_id));
   return script;
 }
 
@@ -645,6 +646,19 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 }
 
 template <typename Impl>
+Handle<SeqOneByteString>
+FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
+    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
+  Handle<SeqOneByteString> result =
+      AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
+  DisallowGarbageCollection no_gc;
+  CopyChars(
+      result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
+      str.begin(), str.length());
+  return result;
+}
+
+template <typename Impl>
 template <typename SeqStringT>
 MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
     int length, Map map, AllocationType allocation) {
@@ -737,11 +751,11 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   // If the resulting string is small make a flat string.
   if (length < ConsString::kMinLength) {
     // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
+    static_assert(ConsString::kMinLength <= SlicedString::kMinLength);
     DCHECK(left->IsFlat());
     DCHECK(right->IsFlat());
 
-    STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
+    static_assert(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
@@ -976,7 +990,7 @@ HeapObject FactoryBase<Impl>::AllocateRawWithImmortalMap(
     AllocationAlignment alignment) {
   // TODO(delphick): Potentially you could also pass a immortal immovable Map
   // from MAP_SPACE here, like external_map or message_object_map, but currently
-  // noone does so this check is sufficient.
+  // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
   HeapObject result = AllocateRaw(size, allocation, alignment);
   DisallowGarbageCollection no_gc;
@@ -1065,25 +1079,6 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
       break;
   }
   DCHECK_EQ(!map.is_null(), String::IsInPlaceInternalizable(instance_type));
-  return map;
-}
-
-template <typename Impl>
-Handle<Map> FactoryBase<Impl>::GetStringMigrationSentinelMap(
-    InstanceType from_string_type) {
-  Handle<Map> map;
-  switch (from_string_type) {
-    case SHARED_STRING_TYPE:
-      map = read_only_roots().seq_string_migration_sentinel_map_handle();
-      break;
-    case SHARED_ONE_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().one_byte_seq_string_migration_sentinel_map_handle();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  DCHECK_EQ(map->instance_type(), from_string_type);
   return map;
 }
 

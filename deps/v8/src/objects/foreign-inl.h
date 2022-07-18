@@ -29,18 +29,18 @@ bool Foreign::IsNormalized(Object value) {
 
 DEF_GETTER(Foreign, foreign_address, Address) {
   Isolate* isolate = GetIsolateForSandbox(*this);
-  return ReadExternalPointerField(kForeignAddressOffset, isolate,
-                                  kForeignForeignAddressTag);
+  return ReadExternalPointerField<kForeignForeignAddressTag>(
+      kForeignAddressOffset, isolate);
 }
 
 void Foreign::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kForeignAddressOffset, isolate,
-                           kForeignForeignAddressTag);
+  InitExternalPointerField<kForeignForeignAddressTag>(kForeignAddressOffset,
+                                                      isolate);
 }
 
 void Foreign::set_foreign_address(Isolate* isolate, Address value) {
-  WriteExternalPointerField(kForeignAddressOffset, isolate, value,
-                            kForeignForeignAddressTag);
+  WriteExternalPointerField<kForeignForeignAddressTag>(kForeignAddressOffset,
+                                                       isolate, value);
 }
 
 }  // namespace internal

@@ -66,7 +66,7 @@ struct ContextWorklistPair {
 };
 
 // A helper class that owns all global marking worklists.
-class V8_EXPORT_PRIVATE MarkingWorklists {
+class V8_EXPORT_PRIVATE MarkingWorklists final {
  public:
   class Local;
   // Fake addresses of special contexts used for per-context accounting.
@@ -77,7 +77,9 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
   static const Address kOtherContext = 8;
 
   MarkingWorklists() = default;
-  ~MarkingWorklists();
+
+  // Worklists implicitly check for emptiness on destruction.
+  ~MarkingWorklists() = default;
 
   // Calls the specified callback on each element of the deques and replaces
   // the element with the result of the callback. If the callback returns
@@ -141,16 +143,18 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
 // - active_owner == worlist_by_context[active_context_].get()
 // - *active_owner is empty (all fields are null) because its content has
 //   been moved to active_.
-class V8_EXPORT_PRIVATE MarkingWorklists::Local {
+class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
  public:
   static constexpr Address kSharedContext = MarkingWorklists::kSharedContext;
   static constexpr Address kOtherContext = MarkingWorklists::kOtherContext;
   static constexpr std::nullptr_t kNoCppMarkingState = nullptr;
 
-  Local(
+  explicit Local(
       MarkingWorklists* global,
       std::unique_ptr<CppMarkingState> cpp_marking_state = kNoCppMarkingState);
-  ~Local();
+
+  // Local worklists implicitly check for emptiness on destruction.
+  ~Local() = default;
 
   inline void Push(HeapObject object);
   inline bool Pop(HeapObject* object);
@@ -200,7 +204,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local {
   MarkingWorklist::Local active_;
   Address active_context_;
   MarkingWorklist::Local* active_owner_;
-  bool is_per_context_mode_;
+  bool is_per_context_mode_ = false;
   std::unordered_map<Address, std::unique_ptr<MarkingWorklist::Local>>
       worklist_by_context_;
 

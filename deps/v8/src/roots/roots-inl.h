@@ -96,6 +96,26 @@ Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
   return &read_only_roots_[index];
 }
 
+Address ReadOnlyRoots::first_name_for_protector() const {
+  return at(RootIndex::kFirstNameForProtector);
+}
+
+Address ReadOnlyRoots::last_name_for_protector() const {
+  return at(RootIndex::kLastNameForProtector);
+}
+
+bool ReadOnlyRoots::IsNameForProtector(HeapObject object) const {
+  return base::IsInRange(object.ptr(), first_name_for_protector(),
+                         last_name_for_protector());
+}
+
+void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
+  // The symbols and strings that can cause protector invalidation should
+  // reside on the same page so we can do a fast range check.
+  CHECK_EQ(Page::FromAddress(first_name_for_protector()),
+           Page::FromAddress(last_name_for_protector()));
+}
+
 Address ReadOnlyRoots::at(RootIndex root_index) const {
   return *GetLocation(root_index);
 }

@@ -27,6 +27,11 @@ class V8_EXPORT Date : public Object {
    */
   double ValueOf() const;
 
+  /**
+   * Generates ISO string representation.
+   */
+  v8::Local<v8::String> ToISOString() const;
+
   V8_INLINE static Date* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);

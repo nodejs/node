@@ -5,11 +5,9 @@
 #include "src/compiler/memory-optimizer.h"
 
 #include "src/base/logging.h"
-#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/roots/roots-inl.h"
@@ -53,11 +51,13 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreField:
     case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kTraceInstruction:
     case IrOpcode::kInitializeImmutableInObject:
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnreachable:
-    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kWord32AtomicAdd:
     case IrOpcode::kWord32AtomicAnd:
     case IrOpcode::kWord32AtomicCompareExchange:
@@ -342,12 +342,11 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   EnqueueUses(node, state);
 
   // Node can be replaced under two cases:
-  //   1. V8_SANDBOXED_EXTERNAL_POINTERS_BOOL is enabled and loading an external
-  //   pointer value.
+  //   1. V8_ENABLE_SANDBOX is true and loading an external pointer value.
   //   2. V8_MAP_PACKING_BOOL is enabled.
-  DCHECK_IMPLIES(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && !V8_MAP_PACKING_BOOL,
+  DCHECK_IMPLIES(!V8_ENABLE_SANDBOX_BOOL && !V8_MAP_PACKING_BOOL,
                  reduction.replacement() == node);
-  if ((V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || V8_MAP_PACKING_BOOL) &&
+  if ((V8_ENABLE_SANDBOX_BOOL || V8_MAP_PACKING_BOOL) &&
       reduction.replacement() != node) {
     ReplaceUsesAndKillNode(node, reduction.replacement());
   }

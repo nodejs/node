@@ -170,6 +170,15 @@ struct IsComplete {
       decltype(IsSizeOfKnown(std::declval<T*>()))::value;
 };
 
+template <typename T, typename U>
+constexpr bool IsDecayedSameV =
+    std::is_same_v<std::decay_t<T>, std::decay_t<U>>;
+
+template <typename B, typename D>
+constexpr bool IsStrictlyBaseOfV =
+    std::is_base_of_v<std::decay_t<B>, std::decay_t<D>> &&
+    !IsDecayedSameV<B, D>;
+
 }  // namespace internal
 
 /**

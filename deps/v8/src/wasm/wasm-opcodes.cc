@@ -42,6 +42,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
         (type.has_index() && !module->has_signature(type.ref_index()))) {
       return false;
     }
+    if (type == kWasmStringViewWtf8 || type == kWasmStringViewWtf16 ||
+        type == kWasmStringViewIter) {
+      return false;
+    }
   }
   return true;
 }

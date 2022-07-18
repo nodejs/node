@@ -34,7 +34,7 @@ class RiscvOperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(Node* node) {
     if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
         (IsFloatConstant(node) &&
-         (bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
+         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
       return UseImmediate(node);
     }
     return UseRegister(node);
@@ -43,7 +43,7 @@ class RiscvOperandGenerator final : public OperandGenerator {
   bool IsIntegerConstant(Node* node) {
     if (node->opcode() == IrOpcode::kNumberConstant) {
       const double value = OpParameter<double>(node->op());
-      return bit_cast<int64_t>(value) == 0;
+      return base::bit_cast<int64_t>(value) == 0;
     }
     return (node->opcode() == IrOpcode::kInt32Constant) ||
            (node->opcode() == IrOpcode::kInt64Constant);
@@ -57,8 +57,8 @@ class RiscvOperandGenerator final : public OperandGenerator {
     }
     DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
     const double value = OpParameter<double>(node->op());
-    DCHECK_EQ(bit_cast<int64_t>(value), 0);
-    return bit_cast<int64_t>(value);
+    DCHECK_EQ(base::bit_cast<int64_t>(value), 0);
+    return base::bit_cast<int64_t>(value);
   }
 
   bool IsFloatConstant(Node* node) {
@@ -560,8 +560,9 @@ void InstructionSelector::VisitLoad(Node* node) {
 #else
                                                  // Fall through.
 #endif
-    case MachineRepresentation::kSandboxedPointer:
-    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kSimd256:           // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
+    case MachineRepresentation::kMapWord:           // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -640,8 +641,9 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
         UNREACHABLE();
 #endif
-      case MachineRepresentation::kSandboxedPointer:
-      case MachineRepresentation::kMapWord:            // Fall through.
+      case MachineRepresentation::kSimd256:           // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
+      case MachineRepresentation::kMapWord:           // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -1266,6 +1268,36 @@ void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   VisitRR(this, kRiscvTruncWD, node);
 }
 
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  this->Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kRiscvTruncUwD, output_count, outputs, 1, inputs);
+}
+
 void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
   VisitRR(this, kRiscvTruncLD, node);
 }
@@ -1698,6 +1730,11 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -1796,10 +1833,11 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kRiscvRvvLd;
       break;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -1851,10 +1889,11 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kRiscvRvvSt;
       break;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -2872,8 +2911,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Abs, kRiscvF32x4Abs)                                   \
   V(F32x4Neg, kRiscvF32x4Neg)                                   \
   V(F32x4Sqrt, kRiscvF32x4Sqrt)                                 \
-  V(F32x4RecipApprox, kRiscvF32x4RecipApprox)                   \
-  V(F32x4RecipSqrtApprox, kRiscvF32x4RecipSqrtApprox)           \
   V(F32x4DemoteF64x2Zero, kRiscvF32x4DemoteF64x2Zero)           \
   V(F32x4Ceil, kRiscvF32x4Ceil)                                 \
   V(F32x4Floor, kRiscvF32x4Floor)                               \
@@ -3366,7 +3403,11 @@ void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
-  return flags | MachineOperatorBuilder::kWord32ShiftIsSafe |
+  return flags | MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord64Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
+         MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kFloat64RoundDown |

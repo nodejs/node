@@ -38,7 +38,9 @@
 #include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/debug/debug.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
@@ -1645,11 +1647,17 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
+  START_ALLOW_USE_DEPRECATED()
+
   static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
                                  void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
-    isolate->VisitHandlesWithClassIds(&builder);
+    reinterpret_cast<i::Isolate*>(isolate)
+        ->global_handles()
+        ->IterateAllRootsForTesting(&builder);
   }
+
+  END_ALLOW_USE_DEPRECATED()
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
@@ -1673,8 +1681,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph_->AddEdge(node, group);
         graph_->AddEdge(group, node);
       }
-    } else {
-      UNREACHABLE();
     }
   }
 
@@ -2439,14 +2445,6 @@ TEST(AccessorInfo) {
   const v8::HeapGraphNode* name = GetProperty(
       env->GetIsolate(), length_accessor, v8::HeapGraphEdge::kInternal, "name");
   CHECK(name);
-  const v8::HeapGraphNode* getter =
-      GetProperty(env->GetIsolate(), length_accessor,
-                  v8::HeapGraphEdge::kInternal, "getter");
-  CHECK(getter);
-  const v8::HeapGraphNode* setter =
-      GetProperty(env->GetIsolate(), length_accessor,
-                  v8::HeapGraphEdge::kInternal, "setter");
-  CHECK(setter);
 }
 
 TEST(JSGeneratorObject) {
@@ -3691,9 +3689,9 @@ TEST(SamplingHeapProfiler) {
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  // Turn off always_opt. Inlining can cause stack traces to be shorter than
-  // what we expect in this test.
-  v8::internal::FLAG_always_opt = false;
+  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
+  // than what we expect in this test.
+  v8::internal::FLAG_always_turbofan = false;
 
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
@@ -3774,9 +3772,9 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
   LocalContext env;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  // Turn off always_opt. Inlining can cause stack traces to be shorter than
-  // what we expect in this test.
-  v8::internal::FLAG_always_opt = false;
+  // Turn off always_turbofan. Inlining can cause stack traces to be shorter
+  // than what we expect in this test.
+  v8::internal::FLAG_always_turbofan = false;
 
   // Disable compilation cache to force compilation in both cases
   v8::internal::FLAG_compilation_cache = false;
@@ -3949,7 +3947,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   i::FLAG_expose_gc = true;
 
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking ||
       i::FLAG_stress_concurrent_allocation || i::FLAG_single_generation) {

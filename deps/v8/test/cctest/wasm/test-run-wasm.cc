@@ -628,7 +628,8 @@ WASM_EXEC_TEST(Float32Neg) {
   BUILD(r, WASM_F32_NEG(WASM_LOCAL_GET(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    CHECK_EQ(0x80000000, bit_cast<uint32_t>(i) ^ bit_cast<uint32_t>(r.Call(i)));
+    CHECK_EQ(0x80000000,
+             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(r.Call(i)));
   }
 }
 
@@ -638,7 +639,7 @@ WASM_EXEC_TEST(Float64Neg) {
 
   FOR_FLOAT64_INPUTS(i) {
     CHECK_EQ(0x8000000000000000,
-             bit_cast<uint64_t>(i) ^ bit_cast<uint64_t>(r.Call(i)));
+             base::bit_cast<uint64_t>(i) ^ base::bit_cast<uint64_t>(r.Call(i)));
   }
 }
 
@@ -1118,7 +1119,7 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
 
   FOR_FLOAT32_INPUTS(i) {
     float input = i;
-    int32_t expected = bit_cast<int32_t, float>(input);
+    int32_t expected = base::bit_cast<int32_t, float>(input);
     r.builder().WriteMemory(&memory[0], input);
     CHECK_EQ(expected, r.Call());
   }
@@ -1134,7 +1135,7 @@ WASM_EXEC_TEST(F32ReinterpretI32) {
 
   FOR_INT32_INPUTS(i) {
     int32_t input = i;
-    float expected = bit_cast<float, int32_t>(input);
+    float expected = base::bit_cast<float, int32_t>(input);
     r.builder().WriteMemory(&memory[0], input);
     float result = r.Call();
     if (std::isnan(expected)) {
@@ -2088,11 +2089,16 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  WasmModule module;
+  WasmFeatures enabled;
+  CompilationEnv env(&module, BoundsCheckStrategy::kExplicitBoundsChecks,
+                     RuntimeExceptionSupport::kRuntimeExceptionSupport, enabled,
+                     DynamicTiering::kDynamicTiering);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
@@ -2103,14 +2109,14 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                    1,
                    static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   }
 }
 
 TEST(Build_Wasm_SimpleExprs) {
 // Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, opcode, sig) \
+#define GRAPH_BUILD_TEST(name, ...) \
   TestBuildGraphForSimpleExpression(kExpr##name);
 
   FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);
@@ -2283,8 +2289,8 @@ WASM_EXEC_TEST(MixedGlobals) {
 
   CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
   CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
-  CHECK_EQ(bit_cast<float>(0xEE55CCAA), *var_float);
-  CHECK_EQ(bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
+  CHECK_EQ(base::bit_cast<float>(0xEE55CCAA), *var_float);
+  CHECK_EQ(base::bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
 
   USE(unused);
 }
@@ -3667,7 +3673,7 @@ WASM_EXEC_TEST(IndirectNullTyped) {
   FunctionSig sig(1, 0, &kWasmI32);
   byte sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ValueType::Ref(sig_index, kNullable));
+                                       ValueType::RefNull(sig_index));
 
   BUILD(r, WASM_CALL_INDIRECT(sig_index, WASM_I32V(0)));
 

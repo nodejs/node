@@ -7,9 +7,7 @@
 
 #include <iosfwd>
 
-#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/interpreter/bytecodes.h"
 
 namespace v8 {
 namespace internal {

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 export class Group {
-  constructor(key, id, parentTotal, entries) {
+  constructor(key, id, parentTotal, entries, length = 0) {
     this.key = key;
     this.id = id;
     this.entries = entries;
-    this.length = entries.length;
+    this.length = length || entries.length;
     this.parentTotal = parentTotal;
   }
 
@@ -41,7 +41,7 @@ export function groupBy(array, keyFunction, collect = false) {
       continue;
     }
     let entries = collect ? [each] : sharedEmptyArray;
-    group = new Group(key, id++, array.length, entries);
+    group = new Group(key, id++, array.length, entries, 1);
     groups.push(group);
     keyToGroup.set(key, group);
   }
@@ -49,11 +49,17 @@ export function groupBy(array, keyFunction, collect = false) {
   return groups.sort((a, b) => b.length - a.length);
 }
 
-export function arrayEquals(left, right) {
+export function arrayEquals(left, right, compareFn) {
   if (left == right) return true;
   if (left.length != right.length) return false;
-  for (let i = 0; i < left.length; i++) {
-    if (left[i] != right[i]) return false;
+  if (compareFn === undefined) {
+    for (let i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) return false;
+    }
+  } else {
+    for (let i = 0; i < left.length; i++) {
+      if (!compareFn(left[i], right[i])) return false;
+    }
   }
   return true;
 }

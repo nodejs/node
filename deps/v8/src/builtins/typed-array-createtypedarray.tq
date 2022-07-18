@@ -475,4 +475,19 @@ transitioning macro TypedArraySpeciesCreateByBuffer(implicit context: Context)(
       Convert<Number>(newLength));
   return typedArray;
 }
+
+transitioning macro TypedArrayCreateSameType(implicit context: Context)(
+    exemplar: JSTypedArray, newLength: uintptr): JSTypedArray {
+  const constructor = GetDefaultConstructor(exemplar);
+  const typedArray = CreateTypedArray(
+      context, constructor, constructor, Convert<Number>(newLength), Undefined,
+      Undefined);
+  dcheck(!IsDetachedBuffer(typedArray.buffer));
+  // The elements kind are equal up to resizability / growability. The newly
+  // created TypedArray is never backed by a resizable / growable buffer.
+  dcheck(
+      GetNonRabGsabElementsKind(exemplar.elements_kind) ==
+      typedArray.elements_kind);
+  return typedArray;
+}
 }

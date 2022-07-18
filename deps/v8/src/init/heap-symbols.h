@@ -8,6 +8,7 @@
 #ifdef V8_INTL_SUPPORT
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)               \
   V(_, adoptText_string, "adoptText")                               \
+  V(_, approximatelySign_string, "approximatelySign")               \
   V(_, baseName_string, "baseName")                                 \
   V(_, accounting_string, "accounting")                             \
   V(_, breakType_string, "breakType")                               \
@@ -43,7 +44,6 @@
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
-  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")     \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
   V(_, grapheme_string, "grapheme")                                 \
@@ -187,7 +187,6 @@
   V(_, console_string, "console")                                     \
   V(_, constrain_string, "constrain")                                 \
   V(_, construct_string, "construct")                                 \
-  V(_, constructor_string, "constructor")                             \
   V(_, current_string, "current")                                     \
   V(_, Date_string, "Date")                                           \
   V(_, date_to_string, "[object Date]")                               \
@@ -239,6 +238,7 @@
   V(_, flags_string, "flags")                                         \
   V(_, Float32Array_string, "Float32Array")                           \
   V(_, Float64Array_string, "Float64Array")                           \
+  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")       \
   V(_, from_string, "from")                                           \
   V(_, Function_string, "Function")                                   \
   V(_, function_native_code_string, "function () { [native code] }")  \
@@ -324,7 +324,6 @@
   V(_, narrow_string, "narrow")                                       \
   V(_, native_string, "native")                                       \
   V(_, new_target_string, ".new.target")                              \
-  V(_, next_string, "next")                                           \
   V(_, NFC_string, "NFC")                                             \
   V(_, NFD_string, "NFD")                                             \
   V(_, NFKC_string, "NFKC")                                           \
@@ -369,7 +368,6 @@
   V(_, relativeTo_string, "relativeTo")                               \
   V(_, resizable_string, "resizable")                                 \
   V(_, ResizableArrayBuffer_string, "ResizableArrayBuffer")           \
-  V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
   V(_, roundingIncrement_string, "roundingIncrement")                 \
@@ -398,12 +396,13 @@
   V(_, String_string, "String")                                       \
   V(_, string_string, "string")                                       \
   V(_, string_to_string, "[object String]")                           \
+  V(_, Symbol_iterator_string, "Symbol.iterator")                     \
   V(_, symbol_species_string, "[Symbol.species]")                     \
+  V(_, Symbol_species_string, "Symbol.species")                       \
   V(_, Symbol_string, "Symbol")                                       \
   V(_, symbol_string, "symbol")                                       \
   V(_, SyntaxError_string, "SyntaxError")                             \
   V(_, target_string, "target")                                       \
-  V(_, then_string, "then")                                           \
   V(_, this_function_string, ".this_function")                        \
   V(_, this_string, "this")                                           \
   V(_, throw_string, "throw")                                         \
@@ -478,13 +477,11 @@
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \
-  V(_, iterator_symbol, Symbol.iterator)                  \
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
   V(_, replace_symbol, Symbol.replace)                    \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, species_symbol, Symbol.species)                    \
   V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
@@ -493,10 +490,27 @@
 // them to produce an undefined value when a load results in a failed access
 // check. Because this behaviour is not specified properly as of yet, it only
 // applies to a subset of spec-defined Well-Known Symbols.
-#define WELL_KNOWN_SYMBOL_LIST_GENERATOR(V, _)                 \
-  V(_, has_instance_symbol, Symbol.hasInstance)                \
-  V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
+#define WELL_KNOWN_SYMBOL_LIST_GENERATOR(V, _)  \
+  V(_, has_instance_symbol, Symbol.hasInstance) \
   V(_, to_string_tag_symbol, Symbol.toStringTag)
+
+// Custom list of Names that can cause protector invalidations.
+// These Names have to be allocated consecutively for fast checks,
+#define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, constructor_string, "constructor")                      \
+  V(_, next_string, "next")                                    \
+  V(_, resolve_string, "resolve")                              \
+  V(_, then_string, "then")
+
+// Note that the descriptioon string should be part of the internalized
+// string roots to make sure we don't accidentally end up allocating the
+// description in between the symbols during deserialization.
+#define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, species_symbol, Symbol.species)
+
+#define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable)
 
 #define INCREMENTAL_SCOPES(F)                                      \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
@@ -506,7 +520,6 @@
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)                              \
   F(MC_INCREMENTAL_FINALIZE)                                       \
-  F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)
@@ -535,12 +548,16 @@
   F(MARK_COMPACTOR)                                  \
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
+  F(MC_CLEAR_EXTERNAL_STRING_TABLE)                  \
+  F(MC_CLEAR_STRING_FORWARDING_TABLE)                \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
   F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)                   \
+  F(MC_CLEAR_JOIN_JOB)                               \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
   F(MC_CLEAR_STRING_TABLE)                           \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
+  F(MC_CLEAR_WEAK_GLOBAL_HANDLES)                    \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
   F(MC_SWEEP_EXTERNAL_POINTER_TABLE)                 \
@@ -559,22 +576,22 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
+  F(MC_FINISH_SWEEP_NEW_LO)                          \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
   F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
   F(MC_MARK_EMBEDDER_TRACING)                        \
-  F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
-  F(MC_MARK_MAIN)                                    \
+  F(MC_MARK_FULL_CLOSURE_PARALLEL)                   \
+  F(MC_MARK_FULL_CLOSURE_PARALLEL_JOIN)              \
+  F(MC_MARK_RETAIN_MAPS)                             \
   F(MC_MARK_ROOTS)                                   \
-  F(MC_MARK_WEAK_CLOSURE)                            \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
+  F(MC_MARK_FULL_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
-  F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
   F(MC_SWEEP_CODE)                                   \
+  F(MC_SWEEP_CODE_LO)                                \
+  F(MC_SWEEP_LO)                                     \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \
   F(MINOR_MARK_COMPACTOR)                            \
@@ -603,7 +620,6 @@
   F(MINOR_MC_MARK_WEAK)                              \
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
-  F(MINOR_MC_SWEEPING)                               \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \

@@ -84,6 +84,9 @@ LocalHeap::~LocalHeap() {
     FreeLinearAllocationArea();
 
     if (!is_main_thread()) {
+      CodePageHeaderModificationScope rwx_write_scope(
+          "Publishing of marking barrier results for Code space pages requires "
+          "write access to Code page headers");
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
@@ -431,6 +434,13 @@ void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint() {
   for (auto callback_and_data : gc_epilogue_callbacks_) {
     callback_and_data.first(callback_and_data.second);
   }
+}
+
+void LocalHeap::NotifyObjectSizeChange(
+    HeapObject object, int old_size, int new_size,
+    ClearRecordedSlots clear_recorded_slots) {
+  heap()->NotifyObjectSizeChange(object, old_size, new_size,
+                                 clear_recorded_slots);
 }
 
 }  // namespace internal

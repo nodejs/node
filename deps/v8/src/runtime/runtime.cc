@@ -5,14 +5,9 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
-#include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/contexts.h"
-#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/strings/string-hasher-inl.h"
 
 namespace v8 {
 namespace internal {

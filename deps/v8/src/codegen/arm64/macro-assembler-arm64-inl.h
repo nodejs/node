@@ -101,7 +101,7 @@ void TurboAssembler::CcmpTagged(const Register& rn, const Operand& operand,
   }
 }
 
-void MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
+void TurboAssembler::Ccmn(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond) {
   DCHECK(allow_macro_instructions());
   if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
@@ -531,6 +531,15 @@ void TurboAssembler::Fccmp(const VRegister& fn, const VRegister& fm,
   fccmp(fn, fm, nzcv, cond);
 }
 
+void TurboAssembler::Fccmp(const VRegister& fn, const double value,
+                           StatusFlags nzcv, Condition cond) {
+  DCHECK(allow_macro_instructions());
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireSameSizeAs(fn);
+  Fmov(tmp, value);
+  Fccmp(fn, tmp, nzcv, cond);
+}
+
 void TurboAssembler::Fcmp(const VRegister& fn, const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fcmp(fn, fm);
@@ -671,7 +680,7 @@ void TurboAssembler::Fmov(VRegister vd, double imm) {
   if (IsImmFP64(imm)) {
     fmov(vd, imm);
   } else {
-    uint64_t bits = bit_cast<uint64_t>(imm);
+    uint64_t bits = base::bit_cast<uint64_t>(imm);
     if (vd.IsScalar()) {
       if (bits == 0) {
         fmov(vd, xzr);
@@ -698,7 +707,7 @@ void TurboAssembler::Fmov(VRegister vd, float imm) {
   if (IsImmFP32(imm)) {
     fmov(vd, imm);
   } else {
-    uint32_t bits = bit_cast<uint32_t>(imm);
+    uint32_t bits = base::bit_cast<uint32_t>(imm);
     if (vd.IsScalar()) {
       if (bits == 0) {
         fmov(vd, wzr);
@@ -1106,7 +1115,7 @@ void TurboAssembler::SmiToInt32(Register smi) {
 
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
-  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+  static_assert((kSmiTagSize == 1) && (kSmiTag == 0));
   // Check if the tag bit is set.
   if (smi_label) {
     Tbz(value, 0, smi_label);
@@ -1249,7 +1258,7 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
     return;
   }
   DCHECK_EQ(size % 16, 0);
-#if V8_TARGET_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   while (size > kStackPageSize) {
     Sub(sp, sp, kStackPageSize);
     Str(xzr, MemOperand(sp));
@@ -1271,7 +1280,7 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
   }
   AssertPositiveOrZero(count);
 
-#if V8_TARGET_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   // "Functions that allocate 4k or more worth of stack must ensure that each
   // page prior to the final page is touched in order." Source:
   // https://docs.microsoft.com/en-us/cpp/build/arm64-windows-abi-conventions?view=vs-2019#stack

@@ -4,7 +4,6 @@
 
 #include "src/snapshot/shared-heap-serializer.h"
 
-#include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/read-only-serializer.h"

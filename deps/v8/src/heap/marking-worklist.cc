@@ -21,14 +21,6 @@
 namespace v8 {
 namespace internal {
 
-MarkingWorklists::~MarkingWorklists() {
-  DCHECK(shared_.IsEmpty());
-  DCHECK(on_hold_.IsEmpty());
-  DCHECK(other_.IsEmpty());
-  DCHECK(worklists_.empty());
-  DCHECK(context_worklists_.empty());
-}
-
 void MarkingWorklists::Clear() {
   shared_.Clear();
   on_hold_.Clear();
@@ -106,7 +98,6 @@ MarkingWorklists::Local::Local(
     std::unique_ptr<CppMarkingState> cpp_marking_state)
     : on_hold_(global->on_hold()),
       wrapper_(global->wrapper()),
-      is_per_context_mode_(false),
       cpp_marking_state_(std::move(cpp_marking_state)) {
   if (global->context_worklists().empty()) {
     MarkingWorklist::Local shared(global->shared());
@@ -123,17 +114,6 @@ MarkingWorklists::Local::Local(
     active_owner_ = worklist_by_context_[kSharedContext].get();
     active_ = std::move(*active_owner_);
     active_context_ = kSharedContext;
-  }
-}
-
-MarkingWorklists::Local::~Local() {
-  DCHECK(active_.IsLocalEmpty());
-  if (is_per_context_mode_) {
-    for (auto& cw : worklist_by_context_) {
-      if (cw.first != active_context_) {
-        DCHECK(cw.second->IsLocalEmpty());
-      }
-    }
   }
 }
 

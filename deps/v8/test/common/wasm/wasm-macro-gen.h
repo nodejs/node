@@ -113,8 +113,8 @@
 
 #define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
 
-#define WASM_REF_TYPE(type)                       \
-  (type).kind() == kRef ? kRefCode : kOptRefCode, \
+#define WASM_REF_TYPE(type)                        \
+  (type).kind() == kRef ? kRefCode : kRefNullCode, \
       WASM_HEAP_TYPE((type).heap_type())
 
 #define WASM_BLOCK(...) kExprBlock, kVoidCode, __VA_ARGS__, kExprEnd
@@ -304,6 +304,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   }
 }
 
+// See comment on {WasmOpcode} for the encoding.
+// This method handles opcodes with decoded length up to 3 bytes. Update if we
+// exceed that opcode length.
+inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
+  return (opcode > 0xffff) ? opcode & 0x0fff : opcode & 0xff;
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
@@ -416,22 +423,32 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(((static_cast<int64_t>(val) >> 56) & MASK_7) | 0x80), \
       static_cast<byte>((static_cast<int64_t>(val) >> 63) & MASK_7)
 
-#define WASM_F32(val)                                                       \
-  kExprF32Const,                                                            \
-      static_cast<byte>(bit_cast<int32_t>(static_cast<float>(val))),        \
-      static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 8),  \
-      static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 16), \
-      static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 24)
-#define WASM_F64(val)                                                        \
-  kExprF64Const,                                                             \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val))),       \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 8),  \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 16), \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 24), \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 32), \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 40), \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
-      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
+#define WASM_F32(val)                                                        \
+  kExprF32Const,                                                             \
+      static_cast<byte>(base::bit_cast<int32_t>(static_cast<float>(val))),   \
+      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
+                        8),                                                  \
+      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
+                        16),                                                 \
+      static_cast<byte>(base::bit_cast<uint32_t>(static_cast<float>(val)) >> \
+                        24)
+#define WASM_F64(val)                                                         \
+  kExprF64Const,                                                              \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val))),  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        8),                                                   \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        16),                                                  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        24),                                                  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        32),                                                  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        40),                                                  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        48),                                                  \
+      static_cast<byte>(base::bit_cast<uint64_t>(static_cast<double>(val)) >> \
+                        56)
 
 #define WASM_LOCAL_GET(index) kExprLocalGet, static_cast<byte>(index)
 #define WASM_LOCAL_SET(index, val) val, kExprLocalSet, static_cast<byte>(index)
@@ -487,8 +504,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
-#define WASM_STRUCT_NEW_WITH_RTT(index, ...) \
-  __VA_ARGS__, WASM_GC_OP(kExprStructNewWithRtt), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_DEFAULT(index) \
   WASM_GC_OP(kExprStructNewDefault), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_DEFAULT_WITH_RTT(index, rtt) \
@@ -577,11 +592,11 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   dst_array, dst_index, src_array, src_index, length,                      \
       WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
       static_cast<byte>(src_idx)
-#define WASM_ARRAY_INIT(index, length, ...)                          \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayInit), static_cast<byte>(index), \
+#define WASM_ARRAY_NEW_FIXED(index, length, ...)                         \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<byte>(index), \
       static_cast<byte>(length)
-#define WASM_ARRAY_INIT_STATIC(index, length, ...)                         \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayInitStatic), static_cast<byte>(index), \
+#define WASM_ARRAY_NEW_FIXED_STATIC(index, length, ...)                        \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixedStatic), static_cast<byte>(index), \
       static_cast<byte>(length)
 
 #define WASM_RTT(typeidx) kRttCode, U32V_1(typeidx)
@@ -611,21 +626,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_RETURN_CALL_REF(func_ref, ...) \
   __VA_ARGS__, func_ref, kExprReturnCallRef
-
-// shift locals by 1; let (locals[0]: local_type) = value in ...
-#define WASM_LET_1_V(local_type, value, ...)                                 \
-  value, kExprLet, kVoidCode, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
-      kExprEnd
-#define WASM_LET_1_I(local_type, value, ...)                                \
-  value, kExprLet, kI32Code, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
-      kExprEnd
-// shift locals by 2;
-// let (locals[0]: local_type_1) = value_1,
-//     (locals[1]: local_type_2) = value_2
-// in ...
-#define WASM_LET_2_I(local_type_1, value_1, local_type_2, value_2, ...)     \
-  value_1, value_2, kExprLet, kI32Code, U32V_1(2), U32V_1(1), local_type_1, \
-      U32V_1(1), local_type_2, __VA_ARGS__, kExprEnd
 
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__
@@ -905,11 +905,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 //------------------------------------------------------------------------------
 #define TO_BYTE(val) static_cast<byte>(val)
 // Encode all simd ops as a 2-byte LEB.
-#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(op & 0xff)
+#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(ExtractPrefixedOpcodeBytes(op))
 #define WASM_SIMD_OPN(op, ...) __VA_ARGS__, WASM_SIMD_OP(op)
 #define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
 #define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
+#define WASM_SIMD_TERNOP(op, x, y, z) x, y, z, WASM_SIMD_OP(op)
 #define WASM_SIMD_SHIFT_OP(op, x, y) x, y, WASM_SIMD_OP(op)
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)

@@ -12,11 +12,6 @@ class SignalProc(base.TestProcObserver):
   def __init__(self):
     super(SignalProc, self).__init__()
     self.exit_code = utils.EXIT_CODE_PASS
-
-  def setup(self, *args, **kwargs):
-    super(SignalProc, self).setup(*args, **kwargs)
-    # It should be called after processors are chained together to not loose
-    # catched signal.
     signal.signal(signal.SIGINT, self._on_ctrlc)
     signal.signal(signal.SIGTERM, self._on_sigterm)
 
@@ -29,3 +24,8 @@ class SignalProc(base.TestProcObserver):
     print('>>> SIGTERM received, early abort...')
     self.exit_code = utils.EXIT_CODE_TERMINATED
     self.stop()
+
+  def worst_exit_code(self, results):
+    exit_code = results.exit_code()
+    # Indicate if a SIGINT or SIGTERM happened.
+    return max(exit_code, self.exit_code)

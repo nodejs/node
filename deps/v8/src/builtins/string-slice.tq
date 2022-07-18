@@ -17,13 +17,13 @@ transitioning javascript builtin StringPrototypeSlice(
   // Convert {start} to a relative index.
   const arg0 = arguments[0];
   const start: uintptr =
-      arg0 != Undefined ? ConvertToRelativeIndex(arg0, length) : 0;
+      arg0 != Undefined ? ConvertAndClampRelativeIndex(arg0, length) : 0;
 
   // 5. If end is undefined, let intEnd be len;
   // else Convert {end} to a relative index.
   const arg1 = arguments[1];
   const end: uintptr =
-      arg1 != Undefined ? ConvertToRelativeIndex(arg1, length) : length;
+      arg1 != Undefined ? ConvertAndClampRelativeIndex(arg1, length) : length;
 
   if (end <= start) {
     return kEmptyString;

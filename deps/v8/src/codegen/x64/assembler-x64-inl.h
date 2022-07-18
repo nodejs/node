@@ -5,10 +5,10 @@
 #ifndef V8_CODEGEN_X64_ASSEMBLER_X64_INL_H_
 #define V8_CODEGEN_X64_ASSEMBLER_X64_INL_H_
 
-#include "src/codegen/x64/assembler-x64.h"
-
 #include "src/base/cpu.h"
 #include "src/base/memory.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 

@@ -186,11 +186,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, offset_immediate_);
       __ add(scratch1_, object_, offset_);
     }
-    RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ||
-                FLAG_use_full_record_write_builtin
-            ? RememberedSetAction::kEmit
-            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -204,13 +199,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
     }
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
@@ -461,10 +454,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     MemOperand operand = i.MemoryOperand(&mode);               \
     bool is_atomic = i.InputInt32(2);                          \
     if (mode == kMode_MRI) {                                   \
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {             \
-        __ asm_instrp(result, operand);                        \
-      } else {                                                 \
+      intptr_t offset = operand.offset();                      \
+      if (is_int16(offset)) {                                  \
         __ asm_instr(result, operand);                         \
+      } else {                                                 \
+        CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));          \
+        __ asm_instrp(result, operand);                        \
       }                                                        \
     } else {                                                   \
       __ asm_instrx(result, operand);                          \
@@ -473,23 +468,27 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                       \
   } while (0)
 
-#define ASSEMBLE_LOAD_INTEGER(asm_instr, asm_instrp, asm_instrx) \
-  do {                                                           \
-    Register result = i.OutputRegister();                        \
-    AddressingMode mode = kMode_None;                            \
-    MemOperand operand = i.MemoryOperand(&mode);                 \
-    bool is_atomic = i.InputInt32(2);                            \
-    if (mode == kMode_MRI) {                                     \
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {               \
-        __ asm_instrp(result, operand);                          \
-      } else {                                                   \
-        __ asm_instr(result, operand);                           \
-      }                                                          \
-    } else {                                                     \
-      __ asm_instrx(result, operand);                            \
-    }                                                            \
-    if (is_atomic) __ lwsync();                                  \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                         \
+#define ASSEMBLE_LOAD_INTEGER(asm_instr, asm_instrp, asm_instrx,   \
+                              must_be_aligned)                     \
+  do {                                                             \
+    Register result = i.OutputRegister();                          \
+    AddressingMode mode = kMode_None;                              \
+    MemOperand operand = i.MemoryOperand(&mode);                   \
+    bool is_atomic = i.InputInt32(2);                              \
+    if (mode == kMode_MRI) {                                       \
+      intptr_t offset = operand.offset();                          \
+      bool misaligned = offset & 3;                                \
+      if (is_int16(offset) && (!must_be_aligned || !misaligned)) { \
+        __ asm_instr(result, operand);                             \
+      } else {                                                     \
+        CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));              \
+        __ asm_instrp(result, operand);                            \
+      }                                                            \
+    } else {                                                       \
+      __ asm_instrx(result, operand);                              \
+    }                                                              \
+    if (is_atomic) __ lwsync();                                    \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                           \
   } while (0)
 
 #define ASSEMBLE_LOAD_INTEGER_RR(asm_instr)      \
@@ -504,40 +503,54 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());         \
   } while (0)
 
-#define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrx)      \
-  do {                                                   \
-    size_t index = 0;                                    \
-    AddressingMode mode = kMode_None;                    \
-    MemOperand operand = i.MemoryOperand(&mode, &index); \
-    DoubleRegister value = i.InputDoubleRegister(index); \
-    bool is_atomic = i.InputInt32(3);                    \
-    if (is_atomic) __ lwsync();                          \
-    /* removed frsp as instruction-selector checked */   \
-    /* value to be kFloat32 */                           \
-    if (mode == kMode_MRI) {                             \
-      __ asm_instr(value, operand);                      \
-    } else {                                             \
-      __ asm_instrx(value, operand);                     \
-    }                                                    \
-    if (is_atomic) __ sync();                            \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
+#define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrp, asm_instrx) \
+  do {                                                          \
+    size_t index = 0;                                           \
+    AddressingMode mode = kMode_None;                           \
+    MemOperand operand = i.MemoryOperand(&mode, &index);        \
+    DoubleRegister value = i.InputDoubleRegister(index);        \
+    bool is_atomic = i.InputInt32(3);                           \
+    if (is_atomic) __ lwsync();                                 \
+    /* removed frsp as instruction-selector checked */          \
+    /* value to be kFloat32 */                                  \
+    if (mode == kMode_MRI) {                                    \
+      intptr_t offset = operand.offset();                       \
+      if (is_int16(offset)) {                                   \
+        __ asm_instr(value, operand);                           \
+      } else {                                                  \
+        CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));           \
+        __ asm_instrp(value, operand);                          \
+      }                                                         \
+    } else {                                                    \
+      __ asm_instrx(value, operand);                            \
+    }                                                           \
+    if (is_atomic) __ sync();                                   \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                        \
   } while (0)
 
-#define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrx)    \
-  do {                                                   \
-    size_t index = 0;                                    \
-    AddressingMode mode = kMode_None;                    \
-    MemOperand operand = i.MemoryOperand(&mode, &index); \
-    Register value = i.InputRegister(index);             \
-    bool is_atomic = i.InputInt32(3);                    \
-    if (is_atomic) __ lwsync();                          \
-    if (mode == kMode_MRI) {                             \
-      __ asm_instr(value, operand);                      \
-    } else {                                             \
-      __ asm_instrx(value, operand);                     \
-    }                                                    \
-    if (is_atomic) __ sync();                            \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
+#define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrp, asm_instrx,  \
+                               must_be_aligned)                    \
+  do {                                                             \
+    size_t index = 0;                                              \
+    AddressingMode mode = kMode_None;                              \
+    MemOperand operand = i.MemoryOperand(&mode, &index);           \
+    Register value = i.InputRegister(index);                       \
+    bool is_atomic = i.InputInt32(3);                              \
+    if (is_atomic) __ lwsync();                                    \
+    if (mode == kMode_MRI) {                                       \
+      intptr_t offset = operand.offset();                          \
+      bool misaligned = offset & 3;                                \
+      if (is_int16(offset) && (!must_be_aligned || !misaligned)) { \
+        __ asm_instr(value, operand);                              \
+      } else {                                                     \
+        CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));              \
+        __ asm_instrp(value, operand);                             \
+      }                                                            \
+    } else {                                                       \
+      __ asm_instrx(value, operand);                               \
+    }                                                              \
+    if (is_atomic) __ sync();                                      \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                           \
   } while (0)
 
 #define ASSEMBLE_STORE_INTEGER_RR(asm_instr)             \
@@ -561,6 +574,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define CleanUInt32(x)
 #endif
 
+#if V8_ENABLE_WEBASSEMBLY
 static inline bool is_wasm_on_be(bool IsWasm) {
 #if V8_TARGET_BIG_ENDIAN
   return IsWasm;
@@ -568,34 +582,39 @@ static inline bool is_wasm_on_be(bool IsWasm) {
   return false;
 #endif
 }
+#endif
 
-#define MAYBE_REVERSE_IF_WASM(dst, src, op, reset) \
-  if (is_wasm_on_be(info()->IsWasm())) {           \
-    __ op(dst, src, kScratchReg);                  \
-    if (reset) src = dst;                          \
+#if V8_ENABLE_WEBASSEMBLY
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset) \
+  if (is_wasm_on_be(info()->IsWasm())) {                    \
+    __ op(dst, src, scratch);                               \
+    if (reset) src = dst;                                   \
   }
+#else
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset)
+#endif
 
 #define ASSEMBLE_ATOMIC_EXCHANGE(_type, reverse_op)                    \
   do {                                                                 \
     Register val = i.InputRegister(2);                                 \
     Register dst = i.OutputRegister();                                 \
-    MAYBE_REVERSE_IF_WASM(ip, val, reverse_op, true);                  \
+    MAYBE_REVERSE_IF_WASM(ip, val, reverse_op, kScratchReg, true);     \
     __ AtomicExchange<_type>(                                          \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), val, dst); \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)               \
-  do {                                                                    \
-    Register expected_val = i.InputRegister(2);                           \
-    Register new_val = i.InputRegister(3);                                \
-    Register dst = i.OutputRegister();                                    \
-    MAYBE_REVERSE_IF_WASM(ip, expected_val, reverse_op, true);            \
-    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, true);                 \
-    __ AtomicCompareExchange<_type>(                                      \
-        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val, \
-        new_val, dst, kScratchReg);                                       \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                   \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)                 \
+  do {                                                                      \
+    Register expected_val = i.InputRegister(2);                             \
+    Register new_val = i.InputRegister(3);                                  \
+    Register dst = i.OutputRegister();                                      \
+    MAYBE_REVERSE_IF_WASM(ip, expected_val, reverse_op, kScratchReg, true); \
+    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, kScratchReg, true);      \
+    __ AtomicCompareExchange<_type>(                                        \
+        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val,   \
+        new_val, dst, kScratchReg);                                         \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);        \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
@@ -615,44 +634,38 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     break;                                                                   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op, scratch)          \
-  do {                                                                       \
-    auto bin_op = [&](Register dst, Register lhs, Register rhs) {            \
-      Register _lhs = lhs;                                                   \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
-        __ reverse_op(dst, lhs, scratch);                                    \
-        _lhs = dst;                                                          \
-      }                                                                      \
-      if (std::is_signed<_type>::value) {                                    \
-        switch (sizeof(_type)) {                                             \
-          case 1:                                                            \
-            UNREACHABLE();                                                   \
-            break;                                                           \
-          case 2:                                                            \
-            __ extsh(dst, _lhs);                                             \
-            break;                                                           \
-          case 4:                                                            \
-            __ extsw(dst, _lhs);                                             \
-            break;                                                           \
-          case 8:                                                            \
-            break;                                                           \
-          default:                                                           \
-            UNREACHABLE();                                                   \
-        }                                                                    \
-      }                                                                      \
-      __ bin_inst(dst, _lhs, rhs);                                           \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
-        __ reverse_op(dst, dst, scratch);                                    \
-      }                                                                      \
-    };                                                                       \
-    MemOperand dst_operand =                                                 \
-        MemOperand(i.InputRegister(0), i.InputRegister(1));                  \
-    __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(), \
-                        kScratchReg, bin_op);                                \
-    if (is_wasm_on_be(info()->IsWasm())) {                                   \
-      __ reverse_op(i.OutputRegister(), i.OutputRegister(), scratch);        \
-    }                                                                        \
-    break;                                                                   \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op, scratch)           \
+  do {                                                                        \
+    auto bin_op = [&](Register dst, Register lhs, Register rhs) {             \
+      Register _lhs = lhs;                                                    \
+      MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, scratch, true);            \
+      if (std::is_signed<_type>::value) {                                     \
+        switch (sizeof(_type)) {                                              \
+          case 1:                                                             \
+            UNREACHABLE();                                                    \
+            break;                                                            \
+          case 2:                                                             \
+            __ extsh(dst, _lhs);                                              \
+            break;                                                            \
+          case 4:                                                             \
+            __ extsw(dst, _lhs);                                              \
+            break;                                                            \
+          case 8:                                                             \
+            break;                                                            \
+          default:                                                            \
+            UNREACHABLE();                                                    \
+        }                                                                     \
+      }                                                                       \
+      __ bin_inst(dst, _lhs, rhs);                                            \
+      MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);            \
+    };                                                                        \
+    MemOperand dst_operand =                                                  \
+        MemOperand(i.InputRegister(0), i.InputRegister(1));                   \
+    __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(),  \
+                        kScratchReg, bin_op);                                 \
+    MAYBE_REVERSE_IF_WASM(i.OutputRegister(), i.OutputRegister(), reverse_op, \
+                          scratch, false);                                    \
+    break;                                                                    \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1171,8 +1184,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          __ mov(ip, Operand(offset));
-          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip));
+          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
+                         kScratchReg);
         }
       } else {
         __ LoadU64(i.OutputRegister(), MemOperand(fp, offset), r0);
@@ -1688,7 +1701,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           break;
         case MachineRepresentation::kSimd128:
           __ addi(sp, sp, Operand(-kSimd128Size));
-          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp));
+          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp),
+                          kScratchReg);
           break;
         default:
           __ StoreU64WithUpdate(i.InputRegister(1),
@@ -1732,8 +1746,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       MemOperand(sp, slot * kSystemPointerSize), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          __ mov(ip, Operand(slot * kSystemPointerSize));
-          __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp));
+          __ StoreSimd128(i.InputSimd128Register(0),
+                          MemOperand(sp, slot * kSystemPointerSize),
+                          kScratchReg);
         }
       } else {
         __ StoreU64(i.InputRegister(0),
@@ -1959,27 +1974,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_LoadWordU8:
-      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx);
+      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx, false);
       break;
     case kPPC_LoadWordS8:
-      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx);
+      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx, false);
       __ extsb(i.OutputRegister(), i.OutputRegister());
       break;
     case kPPC_LoadWordU16:
-      ASSEMBLE_LOAD_INTEGER(lhz, plhz, lhzx);
+      ASSEMBLE_LOAD_INTEGER(lhz, plhz, lhzx, false);
       break;
     case kPPC_LoadWordS16:
-      ASSEMBLE_LOAD_INTEGER(lha, plha, lhax);
+      ASSEMBLE_LOAD_INTEGER(lha, plha, lhax, false);
       break;
     case kPPC_LoadWordU32:
-      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       break;
     case kPPC_LoadWordS32:
-      ASSEMBLE_LOAD_INTEGER(lwa, plwa, lwax);
+      ASSEMBLE_LOAD_INTEGER(lwa, plwa, lwax, true);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_LoadWord64:
-      ASSEMBLE_LOAD_INTEGER(ld, pld, ldx);
+      ASSEMBLE_LOAD_INTEGER(ld, pld, ldx, true);
       break;
 #endif
     case kPPC_LoadFloat32:
@@ -1994,7 +2009,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MemOperand operand = i.MemoryOperand(&mode);
       bool is_atomic = i.InputInt32(2);
       DCHECK_EQ(mode, kMode_MRR);
-      __ LoadSimd128(result, operand);
+      __ LoadSimd128(result, operand, kScratchReg);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2004,24 +2019,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreWord8:
-      ASSEMBLE_STORE_INTEGER(stb, stbx);
+      ASSEMBLE_STORE_INTEGER(stb, pstb, stbx, false);
       break;
     case kPPC_StoreWord16:
-      ASSEMBLE_STORE_INTEGER(sth, sthx);
+      ASSEMBLE_STORE_INTEGER(sth, psth, sthx, false);
       break;
     case kPPC_StoreWord32:
-      ASSEMBLE_STORE_INTEGER(stw, stwx);
+      ASSEMBLE_STORE_INTEGER(stw, pstw, stwx, false);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_StoreWord64:
-      ASSEMBLE_STORE_INTEGER(std, stdx);
+      ASSEMBLE_STORE_INTEGER(std, pstd, stdx, true);
       break;
 #endif
     case kPPC_StoreFloat32:
-      ASSEMBLE_STORE_FLOAT(stfs, stfsx);
+      ASSEMBLE_STORE_FLOAT(stfs, pstfs, stfsx);
       break;
     case kPPC_StoreDouble:
-      ASSEMBLE_STORE_FLOAT(stfd, stfdx);
+      ASSEMBLE_STORE_FLOAT(stfd, pstfd, stfdx);
       break;
     case kPPC_StoreSimd128: {
       size_t index = 0;
@@ -2031,7 +2046,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(3);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(mode, kMode_MRR);
-      __ StoreSimd128(value, operand);
+      __ StoreSimd128(value, operand, kScratchReg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2831,14 +2846,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F32x4Neg: {
       __ xvnegsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4RecipApprox: {
-      __ xvresp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4RecipSqrtApprox: {
-      __ xvrsqrtesp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_F32x4Sqrt: {
@@ -3777,23 +3784,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreCompressTagged: {
-      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedField);
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      Register value = i.InputRegister(index);
+      bool is_atomic = i.InputInt32(3);
+      if (is_atomic) __ lwsync();
+      __ StoreTaggedField(value, operand, r0);
+      if (is_atomic) __ sync();
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
     case kPPC_LoadDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       break;
     }
     case kPPC_LoadDecompressTaggedPointer: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
       break;
     }
     case kPPC_LoadDecompressAnyTagged: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
       __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
       break;
     }
@@ -4264,11 +4279,90 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   __ CheckTrampolinePoolQuick(total_size);
 }
 
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  auto rep = LocationOperand::cast(source)->representation();
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    // The scratch register for this rep is available.
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, ip));
+    AssembleMove(source, &scratch);
+  } else {
+    DCHECK(!source->IsRegister() && !source->IsStackSlot());
+    // The scratch register is blocked by pending moves. Use the stack instead.
+    int new_slots = ElementSizeInPointers(rep);
+    PPCOperandConverter g(this, nullptr);
+    if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
+      __ LoadU64(r0, g.ToMemOperand(source), r0);
+      __ Push(r0);
+    } else {
+      // Bump the stack pointer and assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ addi(sp, sp, Operand(-(new_slots * kSystemPointerSize)));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, ip));
+    AssembleMove(&scratch, dest);
+  } else {
+    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
+    PPCOperandConverter g(this, nullptr);
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ Pop(scratch);
+      __ StoreU64(scratch, g.ToMemOperand(dest), r0);
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ addi(sp, sp, Operand(new_slots * kSystemPointerSize));
+    }
+  }
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  } else if (move->source().IsConstant() &&
+             (move->destination().IsDoubleStackSlot() ||
+              move->destination().IsFloatStackSlot())) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   PPCOperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
+  // If a move type needs the scratch register, this also needs to be recorded
+  // in {SetPendingMove} to avoid conflicts with the gap resolver.
   if (source->IsRegister()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
@@ -4283,15 +4377,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ LoadU64(g.ToRegister(destination), src, r0);
     } else {
-      Register temp = kScratchReg;
+      Register temp = ip;
       __ LoadU64(temp, src, r0);
       __ StoreU64(temp, g.ToMemOperand(destination), r0);
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      Register dst =
-          destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
+      Register dst = destination->IsRegister() ? g.ToRegister(destination) : ip;
       switch (src.type()) {
         case Constant::kInt32:
 #if V8_ENABLE_WEBASSEMBLY && !V8_TARGET_ARCH_PPC64
@@ -4379,7 +4472,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                   ? base::Double(static_cast<double>(src.ToFloat32()))
                   : base::Double(src.ToFloat64());
 #endif
-      __ LoadDoubleLiteral(dst, value, kScratchReg);
+      __ LoadDoubleLiteral(dst, value, r0);
       if (destination->IsDoubleStackSlot()) {
         __ StoreF64(dst, g.ToMemOperand(destination), r0);
       } else if (destination->IsFloatStackSlot()) {
@@ -4395,8 +4488,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip));
+        __ StoreSimd128(g.ToSimd128Register(source), dst, kScratchReg);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -4425,9 +4517,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
-        __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(g.ToSimd128Register(destination),
-                       MemOperand(src.ra(), ip));
+        __ LoadSimd128(g.ToSimd128Register(destination), src, kScratchReg);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -4440,18 +4530,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreF32(temp, g.ToMemOperand(destination), r0);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-        // push v0, to be used as scratch
-        __ addi(sp, sp, Operand(-kSimd128Size));
-        __ StoreSimd128(v0, MemOperand(r0, sp));
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(v0, MemOperand(src.ra(), ip));
-        __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(v0, MemOperand(dst.ra(), ip));
-        // restore v0
-        __ LoadSimd128(v0, MemOperand(r0, sp));
-        __ addi(sp, sp, Operand(kSimd128Size));
+        __ LoadSimd128(kScratchSimd128Reg, src, kScratchReg);
+        __ StoreSimd128(kScratchSimd128Reg, dst, kScratchReg);
       }
     }
   } else {
@@ -4518,7 +4600,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchSimd128Reg);
+                   kScratchSimd128Reg, kScratchSimd128Reg2);
 
   } else {
     UNREACHABLE();

@@ -8,7 +8,6 @@
 #include "src/base/flags.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/types.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
