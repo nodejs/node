@@ -19,6 +19,10 @@
     "commit": "c1b24fce6e625c1b79124a58f27bf9adce02d5d7",
     "path": "encoding"
   },
+  "fetch/data-urls/resources": {
+    "commit": "7c79d998ff42e52de90290cb847d1b515b3b58f7",
+    "path": "fetch/data-urls/resources"
+  },
   "FileAPI": {
     "commit": "3b279420d40afea32506e823f9ac005448f4f3d8",
     "path": "FileAPI"
