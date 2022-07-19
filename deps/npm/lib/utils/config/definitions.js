@@ -3,6 +3,7 @@ module.exports = definitions
 
 const Definition = require('./definition.js')
 
+const log = require('../log-shim')
 const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
@@ -238,17 +239,24 @@ define('audit-level', {
 
 define('auth-type', {
   default: 'legacy',
-  type: ['legacy', 'webauthn', 'sso', 'saml', 'oauth'],
-  deprecated: `
-    The SSO/SAML/OAuth methods are deprecated and will be removed in
-    a future version of npm in favor of web-based login.
-  `,
+  type: ['legacy', 'web', 'sso', 'saml', 'oauth', 'webauthn'],
+  // deprecation in description rather than field, because not every value
+  // is deprecated
   description: `
-    What authentication strategy to use with \`adduser\`/\`login\`.
+    NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
+    removed in a future version.
 
-    Pass \`webauthn\` to use a web-based login.
+    What authentication strategy to use with \`login\`.
   `,
-  flatten,
+  flatten (key, obj, flatOptions) {
+    flatOptions.authType = obj[key]
+    if (obj[key] === 'sso') {
+      // no need to deprecate saml/oauth here, as sso-type will be set by these in
+      // lib/auth/ and is deprecated already
+      log.warn('config',
+        '--auth-type=sso is will be removed in a future version.')
+    }
+  },
 })
 
 define('before', {

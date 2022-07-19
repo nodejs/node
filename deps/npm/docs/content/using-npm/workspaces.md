@@ -57,7 +57,7 @@ structure of files and folders:
 ```
 .
 +-- node_modules
-|  `-- packages/a -> ../packages/a
+|  `-- a -> ../packages/a
 +-- package-lock.json
 +-- package.json
 `-- packages
@@ -112,15 +112,15 @@ respect the provided `workspace` configuration.
 
 Given the [specifities of how Node.js handles module resolution](https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together) it's possible to consume any defined workspace
 by its declared `package.json` `name`. Continuing from the example defined
-above, let's also create a Node.js script that will require the `workspace-a`
+above, let's also create a Node.js script that will require the workspace `a`
 example module, e.g:
 
 ```
-// ./workspace-a/index.js
+// ./packages/a/index.js
 module.exports = 'a'
 
 // ./lib/index.js
-const moduleA = require('workspace-a')
+const moduleA = require('a')
 console.log(moduleA) // -> a
 ```
 

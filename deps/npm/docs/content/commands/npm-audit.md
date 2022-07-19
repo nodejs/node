@@ -11,7 +11,7 @@ description: Run a security audit
 <!-- see lib/commands/audit.js -->
 
 ```bash
-npm audit [fix]
+npm audit [fix|signatures]
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -40,6 +40,17 @@ vulnerability is found. It may be useful in CI environments to include the
 `--audit-level` parameter to specify the minimum vulnerability level that
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.
+
+### Audit Signatures
+
+This command can also audit the integrity values of the packages in your
+tree against any signatures present in the registry they were downloaded
+from.  npm will attempt to download the keys from `/-/npm/v1/keys` on
+each the registry used to download any given package.  It will then
+check the `dist.signatures` object in the package itself, and verify the
+`sig` present there using the `keyid` there, matching it with a key
+returned from the registry.  The command for this is `npm audit
+signatures`
 
 ### Audit Endpoints
 

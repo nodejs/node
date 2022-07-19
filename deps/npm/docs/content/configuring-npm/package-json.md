@@ -124,7 +124,7 @@ IDs](https://spdx.org/licenses/).  Ideally you should pick one that is
 
 If your package is licensed under multiple common licenses, use an [SPDX
 license expression syntax version 2.0
-string](https://www.npmjs.com/package/spdx), like this:
+string](https://spdx.dev/specifications/), like this:
 
 ```json
 {

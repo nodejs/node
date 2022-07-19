@@ -3,6 +3,7 @@ const replaceInfo = require('../utils/replace-info.js')
 const BaseCommand = require('../base-command.js')
 const authTypes = {
   legacy: require('../auth/legacy.js'),
+  web: require('../auth/legacy.js'),
   webauthn: require('../auth/legacy.js'),
   oauth: require('../auth/oauth.js'),
   saml: require('../auth/saml.js'),
@@ -28,6 +29,10 @@ class AddUser extends BaseCommand {
 
     log.disableProgress()
 
+    log.warn('adduser',
+      '`adduser` will be split into `login` and `register in a future version.'
+      + ' `adduser` will become an alias of `register`.'
+      + ' `login` (currently an alias) will become its own command.')
     log.notice('', `Log in on ${replaceInfo(registry)}`)
 
     const { message, newCreds } = await auth(this.npm, {

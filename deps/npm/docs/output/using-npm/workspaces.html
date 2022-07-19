@@ -184,7 +184,7 @@ directory <code>.</code> is that the folder <code>packages/a</code> will get sym
 structure of files and folders:</p>
 <pre><code>.
 +-- node_modules
-|  `-- packages/a -&gt; ../packages/a
+|  `-- a -&gt; ../packages/a
 +-- package-lock.json
 +-- package.json
 `-- packages
@@ -223,13 +223,13 @@ respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
 <p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it's possible to consume any defined workspace
 by its declared <code>package.json</code> <code>name</code>. Continuing from the example defined
-above, let's also create a Node.js script that will require the <code>workspace-a</code>
+above, let's also create a Node.js script that will require the workspace <code>a</code>
 example module, e.g:</p>
-<pre><code>// ./workspace-a/index.js
+<pre><code>// ./packages/a/index.js
 module.exports = 'a'
 
 // ./lib/index.js
-const moduleA = require('workspace-a')
+const moduleA = require('a')
 console.log(moduleA) // -&gt; a
 </code></pre>
 <p>When running it with:</p>

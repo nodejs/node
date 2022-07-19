@@ -39,7 +39,7 @@ There are some special life cycle scripts that happen only in certain
 situations. These scripts happen in addition to the `pre<event>`, `post<event>`, and
 `<event>` scripts.
 
-* `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`
+* `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`, `dependencies`
 
 **prepare** (since `npm@4.0.0`)
 * Runs any time before the package is packed, i.e. during `npm publish`
@@ -71,6 +71,10 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 **postpack**
 * Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
 
+**dependencies**
+* Runs AFTER any operations that modify the `node_modules` directory IF changes occurred.
+* Does NOT run in global mode
+
 #### Prepare and Prepublish
 
 **Deprecation Note: prepublish**
@@ -95,6 +99,10 @@ The advantage of doing these things at `prepublish` time is that they can be don
   the size for your users.
 * You don't need to rely on your users having `curl` or `wget` or
   other system tools on the target machines.
+
+#### Dependencies
+
+The `dependencies` script is run any time an `npm` command causes changes to the `node_modules` directory. It is run AFTER the changes have been applied and the `package.json` and `package-lock.json` files have been updated.
 
 ### Life Cycle Operation Order
 

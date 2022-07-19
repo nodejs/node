@@ -292,4 +292,5 @@ module.exports = {
   listTokens,
   removeToken,
   createToken,
+  webAuthCheckLogin,
 }

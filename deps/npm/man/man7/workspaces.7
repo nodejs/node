@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "June 2022" "" ""
+.TH "WORKSPACES" "7" "July 2022" "" ""
 .SH "NAME"
 \fBworkspaces\fR \- Working with workspaces
 .SS Description
@@ -58,7 +58,7 @@ structure of files and folders:
 .nf
 \|\.
 +\-\- node_modules
-|  `\-\- packages/a \-> \.\./packages/a
+|  `\-\- a \-> \.\./packages/a
 +\-\- package\-lock\.json
 +\-\- package\.json
 `\-\- packages
@@ -117,16 +117,16 @@ respect the provided \fBworkspace\fP configuration\.
 .P
 Given the specifities of how Node\.js handles module resolution \fIhttps://nodejs\.org/dist/latest\-v14\.x/docs/api/modules\.html#modules_all_together\fR it's possible to consume any defined workspace
 by its declared \fBpackage\.json\fP \fBname\fP\|\. Continuing from the example defined
-above, let's also create a Node\.js script that will require the \fBworkspace\-a\fP
+above, let's also create a Node\.js script that will require the workspace \fBa\fP
 example module, e\.g:
 .P
 .RS 2
 .nf
-// \./workspace\-a/index\.js
+// \./packages/a/index\.js
 module\.exports = 'a'
 
 // \./lib/index\.js
-const moduleA = require('workspace\-a')
+const moduleA = require('a')
 console\.log(moduleA) // \-> a
 .fi
 .RE

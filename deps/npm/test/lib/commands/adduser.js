@@ -75,6 +75,15 @@ t.test('bad auth type', async t => {
   })
 })
 
+t.test('auth-type sso warning', async t => {
+  const { logs } = await loadMockNpm(t, {
+    config: {
+      'auth-type': 'sso',
+    },
+  })
+  t.matchSnapshot({ warn: logs.warn }, 'warning')
+})
+
 t.test('scoped login', async t => {
   const stdin = new stream.PassThrough()
   stdin.write('test-user\n')
