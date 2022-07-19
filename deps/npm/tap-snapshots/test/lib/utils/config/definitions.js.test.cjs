@@ -253,13 +253,12 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for auth-
 #### \`auth-type\`
 
 * Default: "legacy"
-* Type: "legacy", "webauthn", "sso", "saml", or "oauth"
-* DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
-  a future version of npm in favor of web-based login.
+* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
 
-What authentication strategy to use with \`adduser\`/\`login\`.
+NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
+removed in a future version.
 
-Pass \`webauthn\` to use a web-based login.
+What authentication strategy to use with \`login\`.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for before 1`] = `
