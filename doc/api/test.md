@@ -333,10 +333,11 @@ changes:
   properties are supported:
   * `concurrency` {number|boolean} If a number is provided,
     then that many tests would run in parallel.
-    If truthy, on top level, it would run (number of cpu cores - 1)
-    tests in parallel.
+    If truthy, when running in `--test` mode, it would run
+    (number of cpu cores - 1) tests in parallel.
     For subtests, it will be infinity tests in parallel.
-    If falsy, on top level & subtest level it would only run one test at a time.
+    If falsy, when running in `--test` mode & subtest level
+    it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `1`.
   * `only` {boolean} If truthy, and the test context is configured to run
