@@ -186,8 +186,6 @@ For information about the governance of the Node.js project, see
   **Darshan Sen** <<raisinten@gmail.com>> (he/him)
 * [richardlau](https://github.com/richardlau) -
   **Richard Lau** <<rlau@redhat.com>>
-* [ronag](https://github.com/ronag) -
-  **Robert Nagy** <<ronagy@icloud.com>>
 * [targos](https://github.com/targos) -
   **Michaël Zasso** <<targos@protonmail.com>> (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -239,6 +237,8 @@ For information about the governance of the Node.js project, see
   **Alexis Campailla** <<orangemocha@nodejs.org>>
 * [piscisaureus](https://github.com/piscisaureus) -
   **Bert Belder** <<bertbelder@gmail.com>>
+* [ronag](https://github.com/ronag) -
+  **Robert Nagy** <<ronagy@icloud.com>>
 * [rvagg](https://github.com/rvagg) -
   **Rod Vagg** <<r@va.gg>>
 * [sam-github](https://github.com/sam-github) -
