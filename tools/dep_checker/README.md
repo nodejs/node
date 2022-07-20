@@ -6,9 +6,17 @@ in Node's dependencies.
 
 ## How to use
 
-In order to query the GitHub Advisory Database,
-a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-has to be created (no permissions need to be given to the token, since it's only used to query the public database).
+### Database authentication
+
+- In order to query the GitHub Advisory Database,
+  a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+  has to be created (no permissions need to be given to the token, since it's only used to query the public database).
+- The NVD can be queried without authentication, but it will be rate limited to one query every six seconds. In order to
+  remove
+  that limitation [request an API key](https://nvd.nist.gov/developers/request-an-api-key) and pass it as a parameter.
+
+### Running the script
+
 Once acquired, the script can be run as follows:
 
 ```shell
@@ -16,9 +24,11 @@ cd node/tools/dep_checker/
 pip install -r requirements.txt
 
 # Python >= 3.9 required
-python main.py --gh-token=$PERSONAL_ACCESS_TOKEN
+python main.py --gh-token=$PERSONAL_ACCESS_TOKEN --nvd-key=$NVD_API_KEY
 
-# or to skip querying the GitHub Advisory Database, simply run:
+# The command can also be run without parameters
+# This will skip querying the GitHub Advisory Database, and query the NVD
+# using the anonymous (rate-limited) API
 python main.py
 ```
 
@@ -51,8 +61,8 @@ non-affected version.
 - The queries can return false positives (
   see [this](https://github.com/nodejs/security-wg/issues/802#issuecomment-1144207417) comment for an example). These
   can be ignored by adding the vulnerability to the `ignore_list` in `dependencies.py`
-- The script takes a while to finish (~2 min) because queries to the NVD
-  are [rate-limited](https://nvd.nist.gov/developers)
+- If no NVD API key is provided, the script will take a while to finish (~2 min) because queries to the NVD
+  are [rate-limited](https://nvd.nist.gov/developers/start-here)
 - If any vulnerabilities are found, the script returns 1 and prints out a list with the ID and a link to a description
   of
   the vulnerability. This is the case except when the ID matches one in the ignore-list (inside `dependencies.py`) in
