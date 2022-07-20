@@ -226,10 +226,16 @@ LOAD_AS_DIRECTORY(X)
 
 LOAD_NODE_MODULES(X, START)
 1. let DIRS = NODE_MODULES_PATHS(START)
-2. for each DIR in DIRS:
-   a. LOAD_PACKAGE_EXPORTS(X, DIR)
-   b. LOAD_AS_FILE(DIR/X)
-   c. LOAD_AS_DIRECTORY(DIR/X)
+2. let FOUND_ROOT = false
+3. let FOUND_CEILING = false
+4. for each DIR in DIRS:
+   a. If FOUND_ROOT is false
+      1. If path resolve(DIR, "../../node_modules") = DIR, let FOUND_ROOT = true
+      2. If FOUND_CEILING is true, CONTINUE
+   b. LOAD_PACKAGE_EXPORTS(X, DIR)
+   c. LOAD_AS_FILE(DIR/X)
+   d. LOAD_AS_DIRECTORY(DIR/X)
+   e. If FOUND_ROOT is false && FOUND_CEILING is false && path resolve(DIR, "../node_ceiling") is a file, let FOUND_CEILING = true
 
 NODE_MODULES_PATHS(START)
 1. let PARTS = path split(START)
@@ -238,7 +244,7 @@ NODE_MODULES_PATHS(START)
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
-   c. DIRS = DIR + DIRS
+   c. DIRS = DIRS + DIR
    d. let I = I - 1
 5. return DIRS + GLOBAL_FOLDERS
 
@@ -493,7 +499,9 @@ Node.js will not append `node_modules` to a path already ending in
 `node_modules`.
 
 If it is not found there, then it moves to the parent directory, and so
-on, until the root of the file system is reached.
+on, until the root of the file system is reached. If a `node_ceiling`
+file is found in a directory, Node.js stops moving to the parent directory
+before the root of the file system is reached.
 
 For example, if the file at `'/home/ry/projects/foo.js'` called
 `require('bar.js')`, then Node.js would look in the following locations, in

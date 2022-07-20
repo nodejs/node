@@ -1307,18 +1307,21 @@ The resolver can throw the following errors:
 > 11. While _parentURL_ is not the file system root,
 >     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
 >        concatenated with _packageSpecifier_, relative to _parentURL_.
->     2. Set _parentURL_ to the parent folder URL of _parentURL_.
->     3. If the folder at _packageURL_ does not exist, then
->        1. Continue the next loop iteration.
->     4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
->     5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
+>     2. Let _ceilingURL_ be the URL resolution of _"node\_ceiling"_,
+>        relative to _parentURL_.
+>     3. Set _parentURL_ to the parent folder URL of _parentURL_.
+>     4. If the folder at _packageURL_ does not exist, then
+>        1. If the file at _ceilingURL_ exists, then break out of the loop.
+>        2. Otherwise, continue the next loop iteration.
+>     5. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+>     6. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
 >        **undefined**, then
 >        1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
 >           _packageSubpath_, _pjson.exports_, _defaultConditions_).
->     6. Otherwise, if _packageSubpath_ is equal to _"."_, then
+>     7. Otherwise, if _packageSubpath_ is equal to _"."_, then
 >        1. If _pjson.main_ is a string, then
 >           1. Return the URL resolution of _main_ in _packageURL_.
->     7. Otherwise,
+>     8. Otherwise,
 >        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 12. Throw a _Module Not Found_ error.
 
@@ -1503,6 +1506,10 @@ _internal_, _conditions_)
 >       _scopeURL_.
 >    4. if the file at _pjsonURL_ exists, then
 >       1. Return _scopeURL_.
+>    5. Let _ceilingURL_ be the resolution of _"node\_ceiling"_ within
+>       _scopeURL_.
+>    6. if the file at _ceilingURL_ exists, then
+>       1. Return **null**.
 > 3. Return **null**.
 
 **READ\_PACKAGE\_JSON**(_packageURL_)
