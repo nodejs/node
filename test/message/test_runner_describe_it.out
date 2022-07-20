@@ -23,6 +23,7 @@ not ok 3 - sync fail todo # TODO
     *
     *
     *
+    *
   ...
 # Subtest: sync fail todo with message
 not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -32,6 +33,7 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
   error: 'thrown from sync fail todo with message'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
