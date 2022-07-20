@@ -9,6 +9,7 @@ describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
     setTimeout(() => { resolve(); isFirstTestOver = true; }, 1000);
   }));
   it('should start before the previous test ends', () => {
+    // Should work even on single core CPUs
     assert.strictEqual(isFirstTestOver, false);
   });
 });
