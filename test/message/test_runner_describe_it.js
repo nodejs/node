@@ -225,15 +225,15 @@ it('callback fail', (done) => {
 });
 
 it('sync t is this in test', function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
 });
 
 it('async t is this in test', async function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
 });
 
 it('callback t is this in test', function(done) {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
   done();
 });
 
