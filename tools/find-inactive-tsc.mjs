@@ -12,8 +12,15 @@ import cp from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { parseArgs } from 'node:util';
 
-const SINCE = process.argv[2] || '3 months ago';
+const args = parseArgs({
+  allowPositionals: true,
+  options: { verbose: { type: 'boolean', short: 'v' } }
+});
+
+const verbose = args.values.verbose;
+const SINCE = args.positionals[0] || '3 months ago';
 
 async function runGitCommand(cmd, options = {}) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -270,4 +277,9 @@ if (inactive.length) {
     const newReadmeText = await moveTscToEmeritus(inactive);
     fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
   }
+}
+
+if (verbose) {
+  console.log(attendance);
+  console.log(votingRecords);
 }
