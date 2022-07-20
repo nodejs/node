@@ -337,7 +337,7 @@ changes:
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
-  * `signal` {AbortSignal} allows aborting an in-progress test
+  * `signal` {AbortSignal} Allows aborting an in-progress test
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
@@ -491,7 +491,7 @@ test('top level test', (t) => {
 added: REPLACEME
 -->
 
-this is an <AbortSignal> used to signal when the test has been aborted.
+* <AbortSignal> Can be used to abort test subtasks when the test has been aborted.
 
 ```js
 test('top level test', async (t) => {
@@ -605,7 +605,7 @@ exposed as part of the API.
 added: REPLACEME
 -->
 
-this is an <AbortSignal> used to signal when the test has been aborted.
+* <AbortSignal> Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [`--test-only`]: cli.md#--test-only
