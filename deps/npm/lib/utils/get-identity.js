@@ -9,8 +9,8 @@ module.exports = async (npm, opts) => {
     return creds.username
   }
 
-  // No username, but we have a token; fetch the username from registry
-  if (creds.token) {
+  // No username, but we have other credentials; fetch the username from registry
+  if (creds.token || creds.certfile && creds.keyfile) {
     const registryData = await npmFetch.json('/-/whoami', { ...opts })
     return registryData.username
   }

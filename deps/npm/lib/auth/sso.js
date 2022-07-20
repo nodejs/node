@@ -52,7 +52,7 @@ const login = async (npm, { creds, registry, scope }) => {
     authType: ssoType,
   }
 
-  const { token, sso } = await otplease(opts,
+  const { token, sso } = await otplease(npm, opts,
     opts => profile.loginCouch(auth.username, auth.password, opts)
   )
 

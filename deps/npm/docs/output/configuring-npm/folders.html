@@ -291,7 +291,7 @@ dependency on bar is satisfied by the parent folder copy installed at [B].</p>
 <p>For a graphical breakdown of what is installed where, use <code>npm ls</code>.</p>
 <h4 id="publishing">Publishing</h4>
 <p>Upon publishing, npm will look in the <code>node_modules</code> folder.  If any of
-the items there are not in the <code>bundledDependencies</code> array, then they will
+the items there are not in the <code>bundleDependencies</code> array, then they will
 not be included in the package tarball.</p>
 <p>This allows a package maintainer to install all of their dependencies
 (and dev dependencies) locally, but only re-publish those items that

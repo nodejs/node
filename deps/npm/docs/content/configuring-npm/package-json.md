@@ -829,14 +829,14 @@ if the `soy-milk` package is not installed on the host. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed.
 
-### bundledDependencies
+### bundleDependencies
 
 This defines an array of package names that will be bundled when publishing
 the package.
 
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the `bundledDependencies`
+tarball file by specifying the package names in the `bundleDependencies`
 array and executing `npm pack`.
 
 For example:
@@ -847,7 +847,7 @@ If we define a package.json like this:
 {
   "name": "awesome-web-framework",
   "version": "1.0.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super-streams"
   ]
@@ -860,9 +860,9 @@ can be installed in a new project by executing `npm install
 awesome-web-framework-1.0.0.tgz`.  Note that the package names do not
 include any versions, as that information is specified in `dependencies`.
 
-If this is spelled `"bundleDependencies"`, then that is also honored.
+If this is spelled `"bundledDependencies"`, then that is also honored.
 
-Alternatively, `"bundledDependencies"` can be defined as a boolean value. A
+Alternatively, `"bundleDependencies"` can be defined as a boolean value. A
 value of `true` will bundle all dependencies, a value of `false` will bundle
 none.
 
