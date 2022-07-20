@@ -323,7 +323,7 @@ added: v18.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43505
-    description: add a timeout to tests and allow setting it in options.
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -346,7 +346,7 @@ changes:
     the test is `TODO`. **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
-    **Default:** `30_000`.
+    **Default:** `Infinity`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -378,6 +378,11 @@ test('top level test', async (t) => {
   });
 });
 ```
+
+The `timeout` option can be used to fail the test if it takes longer than
+`timeout` milliseconds to complete. However, it is not a reliable mechanism for
+canceling tests because a running test might block the application thread and
+thus prevent the scheduled cancellation.
 
 ## `describe([name][, options][, fn])`
 
@@ -545,7 +550,7 @@ added: v18.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43505
-    description: add a timeout to tests and allow setting it in options.
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
@@ -567,7 +572,7 @@ changes:
     the test is `TODO`. **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
-    **Default:** `30_000`.
+    **Default:** `Infinity`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
