@@ -20,6 +20,8 @@ if (process.argv[2] !== 'child') {
   const NODE_EXTRA_CA_CERTS = fixtures.path('keys', 'ca1-cert.pem');
   const extendsEnv = (obj) => ({ ...process.env, ...obj });
 
+  // Remove any pre-existing extra CA certs.
+  delete process.env.NODE_EXTRA_CA_CERTS;
   [
     extendsEnv({ CHILD_USE_EXTRA_CA_CERTS: 'yes', NODE_EXTRA_CA_CERTS }),
     extendsEnv({ CHILD_USE_EXTRA_CA_CERTS: 'no' }),
