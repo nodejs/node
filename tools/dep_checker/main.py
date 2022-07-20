@@ -18,6 +18,7 @@ from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 from nvdlib import searchCVE  # type: ignore
 from packaging.specifiers import SpecifierSet
+from typing import Optional
 
 
 class Vulnerability:
@@ -105,7 +106,7 @@ def query_ghad(gh_token: str) -> dict[str, list[Vulnerability]]:
     return found_vulnerabilities
 
 
-def query_nvd() -> dict[str, list[Vulnerability]]:
+def query_nvd(api_key: Optional[str]) -> dict[str, list[Vulnerability]]:
     """Queries the National Vulnerability Database for vulnerabilities reported for Node's dependencies.
 
     The database supports querying by CPE (Common Platform Enumeration) or by a keyword present in the CVE's
@@ -121,7 +122,9 @@ def query_nvd() -> dict[str, list[Vulnerability]]:
     for name, dep in deps_in_nvd.items():
         query_results = [
             cve
-            for cve in searchCVE(cpeMatchString=dep.get_cpe(), keyword=dep.keyword)
+            for cve in searchCVE(
+                cpeMatchString=dep.get_cpe(), keyword=dep.keyword, key=api_key
+            )
             if cve.id not in ignore_list
         ]
         if query_results:
@@ -140,15 +143,24 @@ def main():
         "--gh-token",
         help="the GitHub authentication token for querying the GH Advisory Database",
     )
+    parser.add_argument(
+        "--nvd-key",
+        help="the NVD API key for querying the National Vulnerability Database",
+    )
     gh_token = parser.parse_args().gh_token
+    nvd_key = parser.parse_args().nvd_key
     if gh_token is None:
         print(
             "Warning: GitHub authentication token not provided, skipping GitHub Advisory Database queries"
         )
+    if nvd_key is None:
+        print(
+            "Warning: NVD API key not provided, queries will be slower due to rate limiting"
+        )
     ghad_vulnerabilities: dict[str, list[Vulnerability]] = (
         {} if gh_token is None else query_ghad(gh_token)
     )
-    nvd_vulnerabilities = query_nvd()
+    nvd_vulnerabilities: dict[str, list[Vulnerability]] = query_nvd(nvd_key)
 
     if not ghad_vulnerabilities and not nvd_vulnerabilities:
         print(f"No new vulnerabilities found ({len(ignore_list)} ignored)")
