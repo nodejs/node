@@ -73,7 +73,6 @@ inline void Debug(WASI* wasi, Args&&... args) {
   } while (0)
 
 using v8::Array;
-using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
 using v8::Exception;
@@ -1654,10 +1653,9 @@ void WASI::_SetMemory(const FunctionCallbackInfo<Value>& args) {
 
 uvwasi_errno_t WASI::backingStore(char** store, size_t* byte_length) {
   Local<WasmMemoryObject> memory = PersistentToLocal::Strong(this->memory_);
-  std::shared_ptr<BackingStore> backing_store =
-      memory->Buffer()->GetBackingStore();
-  *byte_length = backing_store->ByteLength();
-  *store = static_cast<char*>(backing_store->Data());
+  Local<v8::ArrayBuffer> ab = memory->Buffer();
+  *byte_length = ab->ByteLength();
+  *store = static_cast<char*>(ab->Data());
   CHECK_NOT_NULL(*store);
   return UVWASI_ESUCCESS;
 }
