@@ -207,12 +207,6 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
-void ArrayBufferIsDetached(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsArrayBuffer());
-  v8::Local<v8::ArrayBuffer> ab = args[0].As<v8::ArrayBuffer>();
-  args.GetReturnValue().Set(ab->GetBackingStore()->Data() == nullptr);
-}
-
 class WeakReference : public BaseObject {
  public:
   WeakReference(Environment* env, Local<Object> object, Local<Object> target)
@@ -340,7 +334,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
-  registry->Register(ArrayBufferIsDetached);
   registry->Register(WeakReference::New);
   registry->Register(WeakReference::Get);
   registry->Register(WeakReference::IncRef);
@@ -387,7 +380,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "sleep", Sleep);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
-  env->SetMethod(target, "arrayBufferIsDetached", ArrayBufferIsDetached);
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
   NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
