@@ -208,11 +208,11 @@ backport the fix:
 Abandoned V8 branches are supported in the Node.js repository. The fix needs
 to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
-As an example for how to backport changes, consider the bug [RegExp show
-inconsistent result with other browsers](https://crbug.com/v8/5199). From the
-bug we can see that it was merged by V8 into 5.2 and 5.3, and not into V8 5.1
-(since it was already abandoned). Since Node.js `v6.x` uses V8 5.1, the fix
-needed to be backported.
+As an example for how to backport changes, consider the bug
+[RegExp show inconsistent result with other browsers](https://crbug.com/v8/5199).
+From the bug we can see that it was merged by V8 into 5.2 and 5.3, and not into
+V8 5.1 (since it was already abandoned). Since Node.js `v6.x` uses V8 5.1, the
+fix needed to be backported.
 
 #### Backporting with `git-node` (recommended)
 
@@ -227,9 +227,7 @@ Here are the steps for the bug mentioned above:
 4. Checkout a branch off the appropriate _vY.x-staging_ branch (e.g.
    _v6.x-staging_ to fix an issue in V8 5.1).
 5. Run `git node v8 backport a51f429`.
-6. If there are conflicts, `git-node` will wait for you to resolve them.
-   `git-node` will prompt you to resolve them in another terminal and then
-   enter `RESOLVED`:
+6. If there are conflicts, `git-node` will wait for you to resolve them:
 
 ```console
 $ git node v8 backport a51f429
@@ -245,6 +243,9 @@ $ git node v8 backport a51f429
 
 ? Resolve merge conflicts and enter 'RESOLVED' ‣
 ```
+Resolve conflicts by opening another terminal and staging resolutions
+to the merge conflicts. Once you fixed the conflicts, return to
+`git-node` and enter `RESOLVED`.
 
 7. After you resolve conflicts (or if there are no conflicts), the
    output should look like this:
@@ -262,7 +263,7 @@ $ git node v8 backport a51f429
 
 See [`git-node-v8-backport`][] for more documentation and additional options.
 
-#### Backporting manually (not recommended)
+#### Backporting manually
 
 * For each abandoned V8 branch corresponding to an LTS branch that is affected
   by the bug:
@@ -379,7 +380,7 @@ that Node.js may be floating (or else cause a merge conflict).
 
 See [`git-node-v8-minor`][] for more documentation and additional options.
 
-#### Applying minor updates manually (not recommended)
+#### Applying minor updates manually
 
 The rough outline of the process is:
 
