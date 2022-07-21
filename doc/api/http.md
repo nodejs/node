@@ -874,7 +874,7 @@ request.setHeader('Foo', 'bar');
 request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
 
 const headerNames = request.getHeaderNames();
-// headerNames === ['foo', 'Cookie']
+// headerNames === ['foo', 'cookie']
 ```
 
 ### `request.getHeaders()`
