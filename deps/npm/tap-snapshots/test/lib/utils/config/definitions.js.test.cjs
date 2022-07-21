@@ -404,8 +404,9 @@ newlines replaced by the string "\\n". For example:
 cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
 \`\`\`
 
-It is _not_ the path to a certificate file (and there is no "certfile"
-option).
+It is _not_ the path to a certificate file, though you can set a
+registry-scoped "certfile" path like
+"//other-registry.tld/:certfile=/path/to/cert.pem".
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for ci-name 1`] = `
@@ -1016,7 +1017,8 @@ format with newlines replaced by the string "\\n". For example:
 key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
 \`\`\`
 
-It is _not_ the path to a key file (and there is no "keyfile" option).
+It is _not_ the path to a key file, though you can set a registry-scoped
+"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for legacy-bundling 1`] = `
