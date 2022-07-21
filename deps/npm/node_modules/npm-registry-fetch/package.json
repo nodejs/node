@@ -1,6 +1,6 @@
 {
   "name": "npm-registry-fetch",
-  "version": "13.2.0",
+  "version": "13.3.0",
   "description": "Fetch-based http client for use with npm registry APIs",
   "main": "lib",
   "files": [

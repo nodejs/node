@@ -924,14 +924,14 @@ Marking a peer dependency as optional ensures npm will not emit a warning
 if the \fBsoy\-milk\fP package is not installed on the host\. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed\.
-.SS bundledDependencies
+.SS bundleDependencies
 .P
 This defines an array of package names that will be bundled when publishing
 the package\.
 .P
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the \fBbundledDependencies\fP
+tarball file by specifying the package names in the \fBbundleDependencies\fP
 array and executing \fBnpm pack\fP\|\.
 .P
 For example:
@@ -943,7 +943,7 @@ If we define a package\.json like this:
 {
   "name": "awesome\-web\-framework",
   "version": "1\.0\.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super\-streams"
   ]
@@ -957,9 +957,9 @@ can be installed in a new project by executing \fBnpm install
 awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.  Note that the package names do not
 include any versions, as that information is specified in \fBdependencies\fP\|\.
 .P
-If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
+If this is spelled \fB"bundledDependencies"\fP, then that is also honored\.
 .P
-Alternatively, \fB"bundledDependencies"\fP can be defined as a boolean value\. A
+Alternatively, \fB"bundleDependencies"\fP can be defined as a boolean value\. A
 value of \fBtrue\fP will bundle all dependencies, a value of \fBfalse\fP will bundle
 none\.
 .SS optionalDependencies
