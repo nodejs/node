@@ -3,6 +3,8 @@
 const common = require('../common');
 const assert = require('node:assert');
 
+let pass = 0;
+
 {
   // ReadableStream with byte source: respondWithNewView() throws if the
   // supplied view's buffer has a different length (in the closed state)
@@ -12,9 +14,11 @@ const assert = require('node:assert');
 
       c.close();
 
-      assert.throws(() => {
-        c.byobRequest.respondWithNewView(view);
-      }, RangeError);
+      assert.throws(() => c.byobRequest.respondWithNewView(view), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        name: 'RangeError',
+      });
+      pass++;
     }),
     type: 'bytes',
   });
@@ -34,9 +38,11 @@ const assert = require('node:assert');
       const view = new Uint8Array([1, 2, 3]);
       reader.read(view);
 
-      assert.throws(() => {
-        c.byobRequest.respondWithNewView(view);
-      }, TypeError);
+      assert.throws(() => c.byobRequest.respondWithNewView(view), {
+        code: 'ERR_INVALID_STATE',
+        name: 'TypeError',
+      });
+      pass++;
     }),
     type: 'bytes',
   });
@@ -44,3 +50,5 @@ const assert = require('node:assert');
   const reader = stream.getReader({ mode: 'byob' });
   reader.read(new Uint8Array([4, 5, 6]));
 }
+
+process.on('exit', () => assert.strictEqual(pass, 2));
