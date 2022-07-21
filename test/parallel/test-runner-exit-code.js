@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { setTimeout } = require('timers/promises');
@@ -25,6 +26,10 @@ if (process.argv[2] === 'child') {
   } else assert.fail('unreachable');
 } else {
   let child = spawnSync(process.execPath, [__filename, 'child', 'pass']);
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+
+  child = spawnSync(process.execPath, ['--test', fixtures.path('test-runner', 'subdir', 'subdir_test.js')]);
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
 
