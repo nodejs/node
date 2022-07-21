@@ -703,17 +703,17 @@ class ArrayBufferOrViewContents {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();
       length_ = view->ByteLength();
-      store_ = view->Buffer()->GetBackingStore();
+      data_ = view->Buffer()->Data();
     } else if (buf->IsArrayBuffer()) {
       auto ab = buf.As<v8::ArrayBuffer>();
       offset_ = 0;
       length_ = ab->ByteLength();
-      store_ = ab->GetBackingStore();
+      data_ = ab->Data();
     } else {
       auto sab = buf.As<v8::SharedArrayBuffer>();
       offset_ = 0;
       length_ = sab->ByteLength();
-      store_ = sab->GetBackingStore();
+      data_ = sab->Data();
     }
   }
 
@@ -723,7 +723,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline T* data() {
@@ -732,7 +732,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline size_t size() const { return length_; }
@@ -772,7 +772,7 @@ class ArrayBufferOrViewContents {
   T buf = 0;
   size_t offset_ = 0;
   size_t length_ = 0;
-  std::shared_ptr<v8::BackingStore> store_;
+  void* data_ = 0;
 };
 
 v8::MaybeLocal<v8::Value> EncodeBignum(
