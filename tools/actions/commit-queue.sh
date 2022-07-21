@@ -38,6 +38,10 @@ for pr in "$@"; do
     echo "pr ${pr} skipped, waiting for CI to start"
     continue
   fi
+  if jq -e 'map(.name) | index("resume-ci")' < labels.json; then
+    echo "pr ${pr} skipped, waiting for CI to start"
+    continue
+  fi
 
   # Skip PR if CI is still running
   if gh pr checks "$pr" | grep -q "\spending\s"; then

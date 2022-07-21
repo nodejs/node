@@ -20,7 +20,7 @@ From a high-level, the Commit Queue works as follow:
 1. Collaborators will add `commit-queue` label to pull requests ready to land
 2. Every five minutes the queue will do the following for each pull request
    with the label:
-   1. Check if the PR also has a `request-ci` label (if it has, skip this PR
+   1. Check if the PR also has a `request-ci` or `resume-ci` label (if it has, skip this PR
       since it's pending a CI run)
    2. Check if the last Jenkins CI is finished running (if it is not, skip this
       PR)
@@ -98,7 +98,7 @@ that into a list of PR ids we can pass as arguments to
 
 The script will iterate over the pull requests. `ncu-ci` is used to check if
 the last CI is still pending, and calls to the GitHub API are used to check if
-the PR is waiting for CI to start (`request-ci` label). The PR is skipped if CI
+the PR is waiting for CI to start (`request-ci` pr `resume-ci` label). The PR is skipped if CI
 is pending. No other CI validation is done here since `git node land` will fail
 if the last CI failed.
 
