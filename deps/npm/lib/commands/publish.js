@@ -61,7 +61,8 @@ class Publish extends BaseCommand {
       throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
     }
 
-    const opts = { ...this.npm.flatOptions }
+    const opts = { ...this.npm.flatOptions, progress: false }
+    log.disableProgress()
 
     // you can publish name@version, ./foo.tgz, etc.
     // even though the default is the 'file:.' cwd.
@@ -101,7 +102,7 @@ class Publish extends BaseCommand {
     const resolved = npa.resolve(manifest.name, manifest.version)
     const registry = npmFetch.pickRegistry(resolved, opts)
     const creds = this.npm.config.getCredentialsByURI(registry)
-    const noCreds = !creds.token && !creds.username
+    const noCreds = !(creds.token || creds.username || creds.certfile && creds.keyfile)
     const outputRegistry = replaceInfo(registry)
 
     if (noCreds) {
@@ -116,7 +117,7 @@ class Publish extends BaseCommand {
     log.notice('', `Publishing to ${outputRegistry}${dryRun ? ' (dry-run)' : ''}`)
 
     if (!dryRun) {
-      await otplease(opts, opts => libpub(manifest, tarballData, opts))
+      await otplease(this.npm, opts, opts => libpub(manifest, tarballData, opts))
     }
 
     if (spec.type === 'directory' && !ignoreScripts) {

@@ -35,6 +35,7 @@ const KEEP_RESPONSE_HEADERS = [
   'etag',
   'expires',
   'last-modified',
+  'link',
   'location',
   'pragma',
   'vary',

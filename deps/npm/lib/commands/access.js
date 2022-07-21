@@ -180,7 +180,7 @@ class Access extends BaseCommand {
 
   modifyPackage (pkg, opts, fn, requireScope = true) {
     return this.getPackage(pkg, requireScope)
-      .then(pkgName => otplease(opts, opts => fn(pkgName, opts)))
+      .then(pkgName => otplease(this.npm, opts, opts => fn(pkgName, opts)))
   }
 
   async getPackage (name, requireScope) {

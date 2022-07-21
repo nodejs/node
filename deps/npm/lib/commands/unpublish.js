@@ -130,7 +130,7 @@ class Unpublish extends BaseCommand {
     }
 
     if (!dryRun) {
-      await otplease(opts, opts => libunpub(spec, opts))
+      await otplease(this.npm, opts, opts => libunpub(spec, opts))
     }
     if (!silent) {
       this.npm.output(`- ${pkgName}${pkgVersion}`)

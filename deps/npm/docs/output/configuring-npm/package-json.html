@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundleddependencies">bundledDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundledependencies">bundleDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -772,19 +772,19 @@ dependencies to be marked as optional.</p>
 if the <code>soy-milk</code> package is not installed on the host. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed.</p>
-<h3 id="bundleddependencies">bundledDependencies</h3>
+<h3 id="bundledependencies">bundleDependencies</h3>
 <p>This defines an array of package names that will be bundled when publishing
 the package.</p>
 <p>In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the <code>bundledDependencies</code>
+tarball file by specifying the package names in the <code>bundleDependencies</code>
 array and executing <code>npm pack</code>.</p>
 <p>For example:</p>
 <p>If we define a package.json like this:</p>
 <pre lang="json"><code>{
   "name": "awesome-web-framework",
   "version": "1.0.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super-streams"
   ]
@@ -794,8 +794,8 @@ array and executing <code>npm pack</code>.</p>
 This file contains the dependencies <code>renderized</code> and <code>super-streams</code> which
 can be installed in a new project by executing <code>npm install awesome-web-framework-1.0.0.tgz</code>.  Note that the package names do not
 include any versions, as that information is specified in <code>dependencies</code>.</p>
-<p>If this is spelled <code>"bundleDependencies"</code>, then that is also honored.</p>
-<p>Alternatively, <code>"bundledDependencies"</code> can be defined as a boolean value. A
+<p>If this is spelled <code>"bundledDependencies"</code>, then that is also honored.</p>
+<p>Alternatively, <code>"bundleDependencies"</code> can be defined as a boolean value. A
 value of <code>true</code> will bundle all dependencies, a value of <code>false</code> will bundle
 none.</p>
 <h3 id="optionaldependencies">optionalDependencies</h3>

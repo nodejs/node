@@ -202,7 +202,7 @@ class Owner extends BaseCommand {
 
     const dataPath = `/${spec.escapedName}/-rev/${encodeURIComponent(data._rev)}`
     try {
-      const res = await otplease(this.npm.flatOptions, opts => {
+      const res = await otplease(this.npm, this.npm.flatOptions, opts => {
         return npmFetch.json(dataPath, {
           ...opts,
           method: 'PUT',

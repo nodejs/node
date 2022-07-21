@@ -1,4 +1,5 @@
 'use strict'
+const fs = require('fs')
 const npa = require('npm-package-arg')
 const { URL } = require('url')
 
@@ -7,7 +8,8 @@ const { URL } = require('url')
 const regKeyFromURI = (uri, opts) => {
   const parsed = new URL(uri)
   // try to find a config key indicating we have auth for this registry
-  // can be one of :_authToken, :_auth, or :_password and :username
+  // can be one of :_authToken, :_auth, :_password and :username, or
+  // :certfile and :keyfile
   // We walk up the "path" until we're left with just //<host>[:<port>],
   // stopping when we reach '//'.
   let regKey = `//${parsed.host}${parsed.pathname}`
@@ -26,7 +28,8 @@ const regKeyFromURI = (uri, opts) => {
 const hasAuth = (regKey, opts) => (
   opts[`${regKey}:_authToken`] ||
   opts[`${regKey}:_auth`] ||
-  opts[`${regKey}:username`] && opts[`${regKey}:_password`]
+  opts[`${regKey}:username`] && opts[`${regKey}:_password`] ||
+  opts[`${regKey}:certfile`] && opts[`${regKey}:keyfile`]
 )
 
 const sameHost = (a, b) => {
@@ -44,6 +47,17 @@ const getRegistry = opts => {
   return scopeReg || opts.registry
 }
 
+const maybeReadFile = file => {
+  try {
+    return fs.readFileSync(file, 'utf8')
+  } catch (er) {
+    if (er.code !== 'ENOENT') {
+      throw er
+    }
+    return null
+  }
+}
+
 const getAuth = (uri, opts = {}) => {
   const { forceAuth } = opts
   if (!uri) {
@@ -59,6 +73,8 @@ const getAuth = (uri, opts = {}) => {
       username: forceAuth.username,
       password: forceAuth._password || forceAuth.password,
       auth: forceAuth._auth || forceAuth.auth,
+      certfile: forceAuth.certfile,
+      keyfile: forceAuth.keyfile,
     })
   }
 
@@ -82,6 +98,8 @@ const getAuth = (uri, opts = {}) => {
     [`${regKey}:username`]: username,
     [`${regKey}:_password`]: password,
     [`${regKey}:_auth`]: auth,
+    [`${regKey}:certfile`]: certfile,
+    [`${regKey}:keyfile`]: keyfile,
   } = opts
 
   return new Auth({
@@ -90,15 +108,19 @@ const getAuth = (uri, opts = {}) => {
     auth,
     username,
     password,
+    certfile,
+    keyfile,
   })
 }
 
 class Auth {
-  constructor ({ token, auth, username, password, scopeAuthKey }) {
+  constructor ({ token, auth, username, password, scopeAuthKey, certfile, keyfile }) {
     this.scopeAuthKey = scopeAuthKey
     this.token = null
     this.auth = null
     this.isBasicAuth = false
+    this.cert = null
+    this.key = null
     if (token) {
       this.token = token
     } else if (auth) {
@@ -107,6 +129,15 @@ class Auth {
       const p = Buffer.from(password, 'base64').toString('utf8')
       this.auth = Buffer.from(`${username}:${p}`, 'utf8').toString('base64')
       this.isBasicAuth = true
+    }
+    // mTLS may be used in conjunction with another auth method above
+    if (certfile && keyfile) {
+      const cert = maybeReadFile(certfile, 'utf-8')
+      const key = maybeReadFile(keyfile, 'utf-8')
+      if (cert && key) {
+        this.cert = cert
+        this.key = key
+      }
     }
   }
 }

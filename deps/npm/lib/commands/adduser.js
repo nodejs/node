@@ -30,7 +30,7 @@ class AddUser extends BaseCommand {
     log.disableProgress()
 
     log.warn('adduser',
-      '`adduser` will be split into `login` and `register in a future version.'
+      '`adduser` will be split into `login` and `register` in a future version.'
       + ' `adduser` will become an alias of `register`.'
       + ' `login` (currently an alias) will become its own command.')
     log.notice('', `Log in on ${replaceInfo(registry)}`)

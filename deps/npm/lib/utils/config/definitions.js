@@ -436,8 +436,8 @@ define('cert', {
     cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
     \`\`\`
 
-    It is _not_ the path to a certificate file (and there is no "certfile"
-    option).
+    It is _not_ the path to a certificate file, though you can set a registry-scoped
+    "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
   `,
   flatten,
 })
@@ -1118,7 +1118,8 @@ define('key', {
     key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
     \`\`\`
 
-    It is _not_ the path to a key file (and there is no "keyfile" option).
+    It is _not_ the path to a key file, though you can set a registry-scoped
+    "keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
   `,
   flatten,
 })

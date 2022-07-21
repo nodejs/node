@@ -33,7 +33,7 @@ class Org extends BaseCommand {
   }
 
   async exec ([cmd, orgname, username, role], cb) {
-    return otplease({
+    return otplease(this.npm, {
       ...this.npm.flatOptions,
     }, opts => {
       switch (cmd) {

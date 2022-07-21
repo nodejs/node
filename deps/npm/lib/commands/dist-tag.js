@@ -116,7 +116,7 @@ class DistTag extends BaseCommand {
       },
       spec,
     }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
     this.npm.output(`+${t}: ${spec.name}@${version}`)
   }
 
@@ -142,7 +142,7 @@ class DistTag extends BaseCommand {
       method: 'DELETE',
       spec,
     }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
     this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
 

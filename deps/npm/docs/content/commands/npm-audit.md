@@ -43,14 +43,55 @@ output, it simply changes the command's failure threshold.
 
 ### Audit Signatures
 
-This command can also audit the integrity values of the packages in your
-tree against any signatures present in the registry they were downloaded
-from.  npm will attempt to download the keys from `/-/npm/v1/keys` on
-each the registry used to download any given package.  It will then
-check the `dist.signatures` object in the package itself, and verify the
-`sig` present there using the `keyid` there, matching it with a key
-returned from the registry.  The command for this is `npm audit
-signatures`
+To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
+
+Registry signatures can be verified using the following `audit` command:
+
+```bash
+$ npm audit signatures
+```
+
+The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:
+
+1. Signatures are provided in the package's `packument` in each published version within the `dist` object:
+
+```json
+"dist":{
+  "..omitted..": "..omitted..",
+  "signatures": [{
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "sig": "a312b9c3cb4a1b693e8ebac5ee1ca9cc01f2661c14391917dcb111517f72370809..."
+  }]
+}
+```
+
+See this [example](https://registry.npmjs.org/light-cycle/1.4.3) of a signed package from the public npm registry.
+
+The `sig` is generated using the following template: `${package.name}@${package.version}:${package.dist.integrity}` and the `keyid` has to match one of the public signing keys below.
+
+2. Public signing keys are provided at `registry-host.tld/-/npm/v1/keys` in the following format:
+
+```
+{
+  "keys": [{
+    "expires": null,
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "keytype": "ecdsa-sha2-nistp256",
+    "scheme": "ecdsa-sha2-nistp256",
+    "key": "{{B64_PUBLIC_KEY}}"
+  }]
+}
+```
+
+Keys response:
+
+- `expires`: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- `keydid`: sha256 fingerprint of the public key
+- `keytype`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
+- `scheme`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
+- `key`: base64 encoded public key
+
+See this <a href="https://registry.npmjs.org/-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>.
 
 ### Audit Endpoints
 

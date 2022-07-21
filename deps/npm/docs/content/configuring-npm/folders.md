@@ -202,7 +202,7 @@ For a graphical breakdown of what is installed where, use `npm ls`.
 #### Publishing
 
 Upon publishing, npm will look in the `node_modules` folder.  If any of
-the items there are not in the `bundledDependencies` array, then they will
+the items there are not in the `bundleDependencies` array, then they will
 not be included in the package tarball.
 
 This allows a package maintainer to install all of their dependencies

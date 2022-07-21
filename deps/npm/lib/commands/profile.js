@@ -221,7 +221,7 @@ class Profile extends BaseCommand {
 
     newUser[prop] = value
 
-    const result = await otplease(conf, conf => npmProfile.set(newUser, conf))
+    const result = await otplease(this.npm, conf, conf => npmProfile.set(newUser, conf))
 
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({ [prop]: result[prop] }, null, 2))

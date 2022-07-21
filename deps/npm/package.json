@@ -1,5 +1,5 @@
 {
-  "version": "8.14.0",
+  "version": "8.15.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -58,7 +58,7 @@
     "@isaacs/string-locale-compare": "^1.1.0",
     "@npmcli/arborist": "^5.0.4",
     "@npmcli/ci-detect": "^2.0.0",
-    "@npmcli/config": "^4.1.0",
+    "@npmcli/config": "^4.2.0",
     "@npmcli/fs": "^2.1.0",
     "@npmcli/map-workspaces": "^2.0.3",
     "@npmcli/package-json": "^2.0.0",
@@ -90,7 +90,7 @@
     "libnpmsearch": "^5.0.2",
     "libnpmteam": "^4.0.2",
     "libnpmversion": "^3.0.1",
-    "make-fetch-happen": "^10.1.8",
+    "make-fetch-happen": "^10.2.0",
     "minipass": "^3.1.6",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",
@@ -103,7 +103,7 @@
     "npm-package-arg": "^9.1.0",
     "npm-pick-manifest": "^7.0.1",
     "npm-profile": "^6.2.0",
-    "npm-registry-fetch": "^13.2.0",
+    "npm-registry-fetch": "^13.3.0",
     "npm-user-validate": "^1.0.1",
     "npmlog": "^6.0.2",
     "opener": "^1.5.2",
@@ -209,7 +209,7 @@
     "tap": "^16.0.1"
   },
   "scripts": {
-    "dependencies": "node scripts/bundle-and-gitignore-deps.js",
+    "dependencies": "node scripts/bundle-and-gitignore-deps.js && node scripts/dependency-graph.js",
     "dumpconf": "env | grep npm | sort | uniq",
     "preversion": "bash scripts/update-authors.sh && git add AUTHORS && git commit -m \"chore: update AUTHORS\" || true",
     "licenses": "licensee --production --errors-only",

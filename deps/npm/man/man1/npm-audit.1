@@ -31,14 +31,74 @@ will cause the command to fail\. This option does not filter the report
 output, it simply changes the command's failure threshold\.
 .SS Audit Signatures
 .P
-This command can also audit the integrity values of the packages in your
-tree against any signatures present in the registry they were downloaded
-from\.  npm will attempt to download the keys from \fB/\-/npm/v1/keys\fP on
-each the registry used to download any given package\.  It will then
-check the \fBdist\.signatures\fP object in the package itself, and verify the
-\fBsig\fP present there using the \fBkeyid\fP there, matching it with a key
-returned from the registry\.  The command for this is \fBnpm audit
-signatures\fP
+To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI\.
+.P
+Registry signatures can be verified using the following \fBaudit\fP command:
+.P
+.RS 2
+.nf
+$ npm audit signatures
+.fi
+.RE
+.P
+The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:
+.RS 0
+.IP 1. 3
+Signatures are provided in the package's \fBpackument\fP in each published version within the \fBdist\fP object:
+
+.RE
+.P
+.RS 2
+.nf
+"dist":{
+  "\.\.omitted\.\.": "\.\.omitted\.\.",
+  "signatures": [{
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "sig": "a312b9c3cb4a1b693e8ebac5ee1ca9cc01f2661c14391917dcb111517f72370809\.\.\."
+  }]
+}
+.fi
+.RE
+.P
+See this example \fIhttps://registry\.npmjs\.org/light\-cycle/1\.4\.3\fR of a signed package from the public npm registry\.
+.P
+The \fBsig\fP is generated using the following template: \fB${package\.name}@${package\.version}:${package\.dist\.integrity}\fP and the \fBkeyid\fP has to match one of the public signing keys below\.
+.RS 0
+.IP 1. 3
+Public signing keys are provided at \fBregistry\-host\.tld/\-/npm/v1/keys\fP in the following format:
+
+.RE
+.P
+.RS 2
+.nf
+{
+  "keys": [{
+    "expires": null,
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "keytype": "ecdsa\-sha2\-nistp256",
+    "scheme": "ecdsa\-sha2\-nistp256",
+    "key": "{{B64_PUBLIC_KEY}}"
+  }]
+}
+.fi
+.RE
+.P
+Keys response:
+.RS 0
+.IP \(bu 2
+\fBexpires\fP: null or a simplified extended <a href="https://en\.wikipedia\.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: \fBYYYY\-MM\-DDTHH:mm:ss\.sssZ\fP
+.IP \(bu 2
+\fBkeydid\fP: sha256 fingerprint of the public key
+.IP \(bu 2
+\fBkeytype\fP: only \fBecdsa\-sha2\-nistp256\fP is currently supported by the npm CLI
+.IP \(bu 2
+\fBscheme\fP: only \fBecdsa\-sha2\-nistp256\fP is currently supported by the npm CLI
+.IP \(bu 2
+\fBkey\fP: base64 encoded public key
+
+.RE
+.P
+See this <a href="https://registry\.npmjs\.org/\-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>\|\.
 .SS Audit Endpoints
 .P
 There are two audit endpoints that npm may use to fetch vulnerability
