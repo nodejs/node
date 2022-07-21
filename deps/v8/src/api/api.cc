@@ -4038,6 +4038,11 @@ std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
 }
 
+void* v8::ArrayBuffer::Data() const {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  return self->backing_store();
+}
+
 std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
@@ -4046,6 +4051,11 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
+}
+
+void* v8::SharedArrayBuffer::Data() const {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  return self->backing_store();
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
