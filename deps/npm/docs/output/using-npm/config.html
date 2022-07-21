@@ -428,8 +428,9 @@ in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
 newlines replaced by the string "\n". For example:</p>
 <pre lang="ini"><code>cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
 </code></pre>
-<p>It is <em>not</em> the path to a certificate file (and there is no "certfile"
-option).</p>
+<p>It is <em>not</em> the path to a certificate file, though you can set a
+registry-scoped "certfile" path like
+"//other-registry.tld/:certfile=/path/to/cert.pem".</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="ci-name"><code>ci-name</code></h4>
@@ -907,7 +908,8 @@ saving them to your <code>package.json</code>.</li>
 format with newlines replaced by the string "\n". For example:</p>
 <pre lang="ini"><code>key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
 </code></pre>
-<p>It is <em>not</em> the path to a key file (and there is no "keyfile" option).</p>
+<p>It is <em>not</em> the path to a key file, though you can set a registry-scoped
+"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>

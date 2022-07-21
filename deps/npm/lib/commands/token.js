@@ -121,7 +121,7 @@ class Token extends BaseCommand {
     })
     await Promise.all(
       toRemove.map(key => {
-        return otplease(conf, conf => {
+        return otplease(this.npm, conf, conf => {
           return profile.removeToken(key, conf)
         })
       })
@@ -146,7 +146,7 @@ class Token extends BaseCommand {
         const validCIDR = this.validateCIDRList(cidr)
         log.info('token', 'creating')
         return pulseTillDone.withPromise(
-          otplease(conf, conf => {
+          otplease(this.npm, conf, conf => {
             return profile.createToken(password, readonly, validCIDR, conf)
           })
         )

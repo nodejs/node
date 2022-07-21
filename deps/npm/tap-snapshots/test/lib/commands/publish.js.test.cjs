@@ -56,7 +56,11 @@ Array [
 ]
 `
 
-exports[`test/lib/commands/publish.js TAP has auth for scope configured registry > new package version 1`] = `
+exports[`test/lib/commands/publish.js TAP has mTLS auth for scope configured registry > new package version 1`] = `
++ @npm/test-package@1.0.0
+`
+
+exports[`test/lib/commands/publish.js TAP has token auth for scope configured registry > new package version 1`] = `
 + @npm/test-package@1.0.0
 `
 
