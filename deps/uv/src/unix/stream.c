@@ -865,6 +865,20 @@ static int uv__try_write(uv_stream_t* stream,
   if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
     return UV_EAGAIN;
 
+#ifdef __APPLE__
+  /* macOS versions 10.10 and 10.15 - and presumbaly 10.11 to 10.14, too -
+   * have a bug where a race condition causes the kernel to return EPROTOTYPE
+   * because the socket isn't fully constructed. It's probably the result of
+   * the peer closing the connection and that is why libuv translates it to
+   * ECONNRESET. Previously, libuv retried until the EPROTOTYPE error went
+   * away but some VPN software causes the same behavior except the error is
+   * permanent, not transient, turning the retry mechanism into an infinite
+   * loop. See https://github.com/libuv/libuv/pull/482.
+   */
+  if (errno == EPROTOTYPE)
+    return UV_ECONNRESET;
+#endif  /* __APPLE__ */
+
   return UV__ERR(errno);
 }
 
