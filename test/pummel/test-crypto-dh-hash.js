@@ -30,6 +30,10 @@ if (common.isPi) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 
+if (!common.hasOpenSSL3) {
+  common.skip('Too slow when dynamically linked against OpenSSL 1.1.1');
+}
+
 const assert = require('assert');
 const crypto = require('crypto');
 
@@ -41,6 +45,7 @@ const hashes = {
   modp15: '7bdd39e5cdbb9748113933e5c2623b559c534e74',
   modp16: 'daea5277a7ad0116e734a8e0d2f297ef759d1161',
   modp17: '3b62aaf0142c2720f0bf26a9589b0432c00eadc1',
+  modp18: 'a870b491bbbec9b131ae9878d07449d32e54f160',
 };
 
 for (const name in hashes) {
