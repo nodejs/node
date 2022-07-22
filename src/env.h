@@ -164,15 +164,15 @@ class NoArrayBufferZeroFillScope {
 // Private symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only and have a
 // "node:" prefix to avoid name clashes with third-party code.
-#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
-  V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
-  V(arrow_message_private_symbol, "node:arrowMessage")                        \
-  V(contextify_context_private_symbol, "node:contextify:context")             \
-  V(contextify_global_private_symbol, "node:contextify:global")               \
-  V(decorated_private_symbol, "node:decorated")                               \
-  V(napi_type_tag, "node:napi:type_tag")                                      \
-  V(napi_wrapper, "node:napi:wrapper")                                        \
-  V(untransferable_object_private_symbol, "node:untransferableObject")        \
+#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                               \
+  V(alpn_buffer_private_symbol, "node:alpnBuffer")                             \
+  V(arrow_message_private_symbol, "node:arrowMessage")                         \
+  V(contextify_context_private_symbol, "node:contextify:context")              \
+  V(contextify_global_private_symbol, "node:contextify:global")                \
+  V(decorated_private_symbol, "node:decorated")                                \
+  V(napi_type_tag, "node:napi:type_tag")                                       \
+  V(napi_wrapper, "node:napi:wrapper")                                         \
+  V(untransferable_object_private_symbol, "node:untransferableObject")         \
   V(exiting_aliased_Uint32Array, "node:exiting_aliased_Uint32Array")
 
 // Symbols are per-isolate primitives but Environment proxies them
