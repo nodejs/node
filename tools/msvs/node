@@ -1,0 +1,4 @@
+#!/bin/sh
+# Shim for invoking node without .exe from WSL
+basedir=$(dirname "$0")
+"$basedir/node.exe" "$@"

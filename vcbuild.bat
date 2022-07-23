@@ -440,6 +440,8 @@ mkdir %TARGET_NAME%\node_modules > nul 2>nul
 
 copy /Y node.exe %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy node.exe && goto package_error
+copy /Y ..\tools\msvs\node %TARGET_NAME%\ > nul
+if errorlevel 1 echo Cannot copy node && goto package_error
 copy /Y ..\LICENSE %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy LICENSE && goto package_error
 copy /Y ..\README.md %TARGET_NAME%\ > nul
