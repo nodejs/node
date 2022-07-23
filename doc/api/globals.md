@@ -306,6 +306,19 @@ A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
+## `CustomEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-customevent`][] CLI flag.
+
+<!-- type=global -->
+
+A browser-compatible implementation of the [`CustomEvent` Web API][].
+
 ## `Event`
 
 <!-- YAML
@@ -607,8 +620,10 @@ The object that acts as the namespace for all W3C
 
 [Web Crypto API]: webcrypto.md
 [`--experimental-fetch`]: cli.md#--experimental-fetch
+[`--experimental-global-customevent`]: cli.md#--experimental-global-customevent
 [`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
