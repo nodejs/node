@@ -4217,7 +4217,7 @@ changes:
 
 * `digest` {string} The digest algorithm to use.
 * `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
-  keying material. It must be at least one byte in length.
+  keying material. Must be provided but can be zero-length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
@@ -4271,7 +4271,7 @@ added: v15.0.0
 
 * `digest` {string} The digest algorithm to use.
 * `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
-  keying material. It must be at least one byte in length.
+  keying material. Must be provided but can be zero-length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
