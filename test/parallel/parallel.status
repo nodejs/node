@@ -28,6 +28,8 @@ test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS,FLAKY
+# https://github.com/nodejs/node/issues/43680
+test-http-client-response-timeout: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
@@ -60,6 +62,8 @@ test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 test-fs-stat-bigint: PASS,FLAKY
 # https://github.com/nodejs/node/issues/31280
 test-worker-message-port-message-before-close: PASS,FLAKY
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==aix]
 # https://github.com/nodejs/node/pull/43054

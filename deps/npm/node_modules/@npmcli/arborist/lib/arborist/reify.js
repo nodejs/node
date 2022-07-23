@@ -22,6 +22,7 @@ const moveFile = require('@npmcli/move-file')
 const rimraf = promisify(require('rimraf'))
 const PackageJson = require('@npmcli/package-json')
 const packageContents = require('@npmcli/installed-package-contents')
+const runScript = require('@npmcli/run-script')
 const { checkEngine, checkPlatform } = require('npm-install-checks')
 const _force = Symbol.for('force')
 
@@ -1516,6 +1517,30 @@ module.exports = cls => class Reifier extends cls {
 
     if (!this[_global]) {
       await this.actualTree.meta.save()
+      const ignoreScripts = !!this.options.ignoreScripts
+      // if we aren't doing a dry run or ignoring scripts and we actually made changes to the dep
+      // tree, then run the dependencies scripts
+      if (!this[_dryRun] && !ignoreScripts && this.diff && this.diff.children.length) {
+        const { path, package: pkg } = this.actualTree.target
+        const stdio = this.options.foregroundScripts ? 'inherit' : 'pipe'
+        const { scripts = {} } = pkg
+        for (const event of ['predependencies', 'dependencies', 'postdependencies']) {
+          if (Object.prototype.hasOwnProperty.call(scripts, event)) {
+            const timer = `reify:run:${event}`
+            process.emit('time', timer)
+            log.info('run', pkg._id, event, scripts[event])
+            await runScript({
+              event,
+              path,
+              pkg,
+              stdioString: true,
+              stdio,
+              scriptShell: this.options.scriptShell,
+            })
+            process.emit('timeEnd', timer)
+          }
+        }
+      }
     }
   }
 }

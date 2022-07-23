@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li><li><a href="#npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></a></li><li><a href="#a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li><li><a href="#dependencies">Dependencies</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li><li><a href="#npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></a></li><li><a href="#a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -172,7 +172,7 @@ described.</p>
 situations. These scripts happen in addition to the <code>pre&lt;event&gt;</code>, <code>post&lt;event&gt;</code>, and
 <code>&lt;event&gt;</code> scripts.</p>
 <ul>
-<li><code>prepare</code>, <code>prepublish</code>, <code>prepublishOnly</code>, <code>prepack</code>, <code>postpack</code></li>
+<li><code>prepare</code>, <code>prepublish</code>, <code>prepublishOnly</code>, <code>prepack</code>, <code>postpack</code>, <code>dependencies</code></li>
 </ul>
 <p><strong>prepare</strong> (since <code>npm@4.0.0</code>)</p>
 <ul>
@@ -221,6 +221,11 @@ and <code>npm install</code>. See below for more info.</li>
 <ul>
 <li>Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)</li>
 </ul>
+<p><strong>dependencies</strong></p>
+<ul>
+<li>Runs AFTER any operations that modify the <code>node_modules</code> directory IF changes occurred.</li>
+<li>Does NOT run in global mode</li>
+</ul>
 <h4 id="prepare-and-prepublish">Prepare and Prepublish</h4>
 <p><strong>Deprecation Note: prepublish</strong></p>
 <p>Since <code>npm@1.1.71</code>, the npm CLI has run the <code>prepublish</code> script for both <code>npm publish</code> and <code>npm install</code>, because it's a convenient way to prepare a package for use (some common use cases are described in the section below).  It has also turned out to be, in practice, <a href="https://github.com/npm/npm/issues/10074">very confusing</a>.  As of <code>npm@4.0.0</code>, a new event has been introduced, <code>prepare</code>, that preserves this existing behavior. A <em>new</em> event, <code>prepublishOnly</code> has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on <code>npm publish</code> (for instance, running the tests one last time to ensure they're in good shape).</p>
@@ -241,6 +246,8 @@ the size for your users.</li>
 <li>You don't need to rely on your users having <code>curl</code> or <code>wget</code> or
 other system tools on the target machines.</li>
 </ul>
+<h4 id="dependencies">Dependencies</h4>
+<p>The <code>dependencies</code> script is run any time an <code>npm</code> command causes changes to the <code>node_modules</code> directory. It is run AFTER the changes have been applied and the <code>package.json</code> and <code>package-lock.json</code> files have been updated.</p>
 <h3 id="life-cycle-operation-order">Life Cycle Operation Order</h3>
 <h4 id="npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></h4>
 <ul>

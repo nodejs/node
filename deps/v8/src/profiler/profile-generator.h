@@ -587,7 +587,7 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   // Accessed by VM thread and profile generator thread.
   std::vector<std::unique_ptr<CpuProfile>> current_profiles_;
   base::Semaphore current_profiles_semaphore_;
-  ProfilerId last_id_;
+  static std::atomic<ProfilerId> last_id_;
   Isolate* isolate_;
 };
 

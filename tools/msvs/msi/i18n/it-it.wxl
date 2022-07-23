@@ -12,9 +12,6 @@
     <String Id="NodeRuntime_Title">Node.js runtime</String>
     <String Id="NodeRuntime_Description">Installa [ProductName] runtime (node.exe).</String>
 
-    <String Id="NodeEtwSupport_Title">Event tracing (ETW)</String>
-    <String Id="NodeEtwSupport_Description">Installa il supporto per gli eventi "event tracing" (ETW) generati da [ProductName].</String>
-
     <String Id="npm_Title">npm package manager</String>
     <String Id="npm_Description">Installa npm, il package manager raccomandato per [ProductName].</String>
 

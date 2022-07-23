@@ -25,13 +25,17 @@ stream.on('error', (err) => { throw err; });
 
 const size = kStringMaxLength / 200;
 const a = Buffer.alloc(size, 'a');
+let expectedSize = 0;
 
 for (let i = 0; i < 201; i++) {
-  stream.write(a);
+  stream.write(a, (err) => { assert.ifError(err); });
+  expectedSize += a.length;
 }
 
 stream.end();
 stream.on('finish', common.mustCall(function() {
+  assert.strictEqual(stream.bytesWritten, expectedSize,
+                     `${stream.bytesWritten} bytes written (expected ${expectedSize} bytes).`);
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
     if (err.message !== 'Array buffer allocation failed') {

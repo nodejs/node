@@ -2,7 +2,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_platform.h"
 #include "node_shadow_realm.h"
@@ -254,6 +254,8 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStrings);
 
   Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->get_per_isolate_options()
@@ -447,9 +449,8 @@ MaybeLocal<Value> LoadEnvironment(
 
         // TODO(addaleax): Avoid having a global table for all scripts.
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        native_module::NativeModuleEnv::Add(
-            name.c_str(),
-            UnionBytes(**main_utf16, main_utf16->length()));
+        native_module::NativeModuleLoader::Add(
+            name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
         env->set_main_utf16(std::move(main_utf16));
         std::vector<Local<String>> params = {
             env->process_string(),
@@ -665,6 +666,9 @@ Maybe<bool> InitializeContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
+  context->AllowCodeGenerationFromStrings(false);
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
 
@@ -700,7 +704,7 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
         global_string, exports_string, primordials_string};
     Local<Value> arguments[] = {context->Global(), exports, primordials};
     MaybeLocal<Function> maybe_fn =
-        native_module::NativeModuleEnv::LookupAndCompile(
+        native_module::NativeModuleLoader::LookupAndCompile(
             context, *module, &parameters, nullptr);
     Local<Function> fn;
     if (!maybe_fn.ToLocal(&fn)) {

@@ -698,9 +698,11 @@ class Config {
     this.delete(`${nerfed}:_password`, 'user')
     this.delete(`${nerfed}:username`, 'user')
     this.delete(`${nerfed}:email`, 'user')
+    this.delete(`${nerfed}:certfile`, 'user')
+    this.delete(`${nerfed}:keyfile`, 'user')
   }
 
-  setCredentialsByURI (uri, { token, username, password, email }) {
+  setCredentialsByURI (uri, { token, username, password, email, certfile, keyfile }) {
     const nerfed = nerfDart(uri)
     const def = nerfDart(this.get('registry'))
 
@@ -733,6 +735,11 @@ class Config {
     this.delete(`${nerfed}:-authtoken`, 'user')
     this.delete(`${nerfed}:_authtoken`, 'user')
     this.delete(`${nerfed}:email`, 'user')
+    if (certfile && keyfile) {
+      this.set(`${nerfed}:certfile`, certfile, 'user')
+      this.set(`${nerfed}:keyfile`, keyfile, 'user')
+      // cert/key may be used in conjunction with other credentials, thus no `else`
+    }
     if (token) {
       this.set(`${nerfed}:_authToken`, token, 'user')
       this.delete(`${nerfed}:_password`, 'user')
@@ -750,7 +757,7 @@ class Config {
       // protects against shoulder-hacks if password is memorable, I guess?
       const encoded = Buffer.from(password, 'utf8').toString('base64')
       this.set(`${nerfed}:_password`, encoded, 'user')
-    } else {
+    } else if (!certfile || !keyfile) {
       throw new Error('No credentials to set.')
     }
   }
@@ -763,6 +770,14 @@ class Config {
     const email = this.get(`${nerfed}:email`) || this.get('email')
     if (email) {
       creds.email = email
+    }
+
+    const certfileReg = this.get(`${nerfed}:certfile`)
+    const keyfileReg = this.get(`${nerfed}:keyfile`)
+    if (certfileReg && keyfileReg) {
+      creds.certfile = certfileReg
+      creds.keyfile = keyfileReg
+      // cert/key may be used in conjunction with other credentials, thus no `return`
     }
 
     const tokenReg = this.get(`${nerfed}:_authToken`) ||

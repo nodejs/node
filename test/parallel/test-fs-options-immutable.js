@@ -9,7 +9,7 @@ const common = require('../common');
 const fs = require('fs');
 const path = require('path');
 
-const options = Object.freeze({});
+const options = common.mustNotMutateObjectDeep({});
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 

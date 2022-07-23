@@ -40,6 +40,9 @@ class PackageUrlCommand extends BaseCommand {
   }
 
   async execWorkspaces (args, filters) {
+    if (args && args.length) {
+      return this.exec(args)
+    }
     await this.setWorkspaces(filters)
     return this.exec(this.workspacePaths)
   }

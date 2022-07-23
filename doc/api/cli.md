@@ -280,6 +280,14 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
+### `--experimental-global-customevent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Expose the [CustomEvent Web API][] on the global scope.
+
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
@@ -1652,6 +1660,7 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-global-customevent`
 * `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
@@ -2077,6 +2086,7 @@ done
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
+[CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
 [ECMAScript module loader]: esm.md#loaders
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [Modules loaders]: packages.md#modules-loaders

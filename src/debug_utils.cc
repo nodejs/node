@@ -1,6 +1,7 @@
 #include "debug_utils-inl.h"  // NOLINT(build/include)
 #include "env-inl.h"
 #include "node_internals.h"
+#include "util.h"
 
 #ifdef __POSIX__
 #if defined(__linux__)
@@ -58,9 +59,10 @@ namespace per_process {
 EnabledDebugList enabled_debug_list;
 }
 
-void EnabledDebugList::Parse(Environment* env) {
+void EnabledDebugList::Parse(std::shared_ptr<KVStore> env_vars,
+                             v8::Isolate* isolate) {
   std::string cats;
-  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env);
+  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env_vars, isolate);
   Parse(cats, true);
 }
 

@@ -6,7 +6,7 @@
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
@@ -89,8 +89,7 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       event_loop,
       platform,
       array_buffer_allocator_.get(),
-      snapshot_data == nullptr ? nullptr
-                               : &(snapshot_data->isolate_data_indices));
+      snapshot_data == nullptr ? nullptr : &(snapshot_data->isolate_data_info));
   IsolateSettings s;
   SetIsolateMiscHandlers(isolate_, s);
   if (snapshot_data == nullptr) {

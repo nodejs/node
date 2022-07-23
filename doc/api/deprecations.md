@@ -3145,6 +3145,38 @@ parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
 [`fs.writeFileSync()`][], and [`fs.appendFileSync()`][] is deprecated.
 Convert them to primitive strings.
 
+### DEP0163: `channel.subscribe(onMessage)`, `channel.unsubscribe(onMessage)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42714
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+These methods were deprecated because they can be used in a way which does not
+hold the channel reference alive long enough to receive the events.
+
+Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
+[`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
+thing instead.
+
+### DEP0164: `process.exit([code])` coercion to integer
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43738
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`code` values other than `undefined`, `null`, integer numbers and integer
+strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3185,6 +3217,8 @@ Convert them to primitive strings.
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
+[`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
+[`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
@@ -3221,6 +3255,7 @@ Convert them to primitive strings.
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
+[`process.exit()`]: process.md#processexitcode
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md

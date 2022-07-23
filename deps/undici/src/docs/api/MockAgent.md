@@ -465,7 +465,7 @@ agent.disableNetConnect()
 agent
   .get('https://example.com')
   .intercept({ method: 'GET', path: '/' })
-  .reply(200, '')
+  .reply(200)
 
 const pendingInterceptors = agent.pendingInterceptors()
 // Returns [
@@ -508,7 +508,7 @@ agent.disableNetConnect()
 agent
   .get('https://example.com')
   .intercept({ method: 'GET', path: '/' })
-  .reply(200, '')
+  .reply(200)
 
 agent.assertNoPendingInterceptors()
 // Throws an UndiciError with the following message:

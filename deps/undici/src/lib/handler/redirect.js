@@ -99,7 +99,7 @@ class RedirectHandler {
       return this.handler.onHeaders(statusCode, headers, resume, statusText)
     }
 
-    const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin))
+    const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
     const path = search ? `${pathname}${search}` : pathname
 
     // Remove headers referring to the original URL.
@@ -186,7 +186,8 @@ function shouldRemoveHeader (header, removeContent, unknownOrigin) {
   return (
     (header.length === 4 && header.toString().toLowerCase() === 'host') ||
     (removeContent && header.toString().toLowerCase().indexOf('content-') === 0) ||
-    (unknownOrigin && header.length === 13 && header.toString().toLowerCase() === 'authorization')
+    (unknownOrigin && header.length === 13 && header.toString().toLowerCase() === 'authorization') ||
+    (unknownOrigin && header.length === 6 && header.toString().toLowerCase() === 'cookie')
   )
 }
 

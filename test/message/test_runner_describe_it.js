@@ -45,6 +45,11 @@ it('async throw fail', async () => {
   throw new Error('thrown from async throw fail');
 });
 
+it('async skip fail', async (t) => {
+  t.skip();
+  throw new Error('thrown from async throw fail');
+});
+
 it('async assertion fail', async () => {
   // Make sure the assert module is handled.
   assert.strictEqual(true, false);
@@ -220,15 +225,15 @@ it('callback fail', (done) => {
 });
 
 it('sync t is this in test', function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
 });
 
 it('async t is this in test', async function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
 });
 
 it('callback t is this in test', function(done) {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal });
   done();
 });
 
@@ -299,5 +304,38 @@ describe('subtest sync throw fails', () => {
   });
   it('sync throw fails at second', () => {
     throw new Error('thrown from subtest sync throw fails at second');
+  });
+});
+
+describe('describe sync throw fails', () => {
+  it('should not run', () => {});
+  throw new Error('thrown from describe');
+});
+
+describe('describe async throw fails', async () => {
+  it('should not run', () => {});
+  throw new Error('thrown from describe');
+});
+
+describe('timeouts', () => {
+  it('timed out async test', { timeout: 5 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+  });
+
+  it('timed out callback test', { timeout: 5 }, (done) => {
+    setTimeout(done, 1000);
+  });
+
+
+  it('large timeout async test is ok', { timeout: 30_000_000 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  });
+
+  it('large timeout callback test is ok', { timeout: 30_000_000 }, (done) => {
+    setTimeout(done, 10);
   });
 });

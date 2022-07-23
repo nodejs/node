@@ -26,6 +26,9 @@ env:
   PYTHON_VERSION: '3.10'
   FLAKY_TESTS: dontcare
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     if: github.event.pull_request.draft == false

@@ -3,7 +3,7 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "util.h"
 
 #include <string>
@@ -24,12 +24,6 @@
 #define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
 #else
 #define NODE_BUILTIN_PROFILER_MODULES(V)
-#endif
-
-#if HAVE_DTRACE || HAVE_ETW
-#define NODE_BUILTIN_DTRACE_MODULES(V) V(dtrace)
-#else
-#define NODE_BUILTIN_DTRACE_MODULES(V)
 #endif
 
 // A list of built-in modules. In order to do module registration
@@ -96,8 +90,7 @@
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
-  NODE_BUILTIN_PROFILER_MODULES(V)                                             \
-  NODE_BUILTIN_DTRACE_MODULES(V)
+  NODE_BUILTIN_PROFILER_MODULES(V)
 
 // This is used to load built-in modules. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
@@ -598,13 +591,14 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
         exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = native_module::NativeModuleEnv::GetSourceObject(env->context());
+    exports =
+        native_module::NativeModuleLoader::GetSourceObject(env->context());
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
               ->Set(env->context(),
                     env->config_string(),
-                    native_module::NativeModuleEnv::GetConfigString(
+                    native_module::NativeModuleLoader::GetConfigString(
                         env->isolate()))
               .FromJust());
   } else {

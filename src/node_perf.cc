@@ -35,11 +35,9 @@ using v8::Value;
 
 // Microseconds in a millisecond, as a float.
 #define MICROS_PER_MILLIS 1e3
+// Nanoseconds in a millisecond, as a float.
+#define NANOS_PER_MILLIS 1e6
 
-// https://w3c.github.io/hr-time/#dfn-time-origin
-const uint64_t timeOrigin = PERFORMANCE_NOW();
-// https://w3c.github.io/hr-time/#dfn-time-origin-timestamp
-const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
 uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
@@ -160,9 +158,10 @@ void MarkGarbageCollectionEnd(
     return;
 
   double start_time =
-      (state->performance_last_gc_start_mark - timeOrigin) / 1e6;
-  double duration =
-      (PERFORMANCE_NOW() / 1e6) - (state->performance_last_gc_start_mark / 1e6);
+      (state->performance_last_gc_start_mark - env->time_origin()) /
+      NANOS_PER_MILLIS;
+  double duration = (PERFORMANCE_NOW() / NANOS_PER_MILLIS) -
+                    (state->performance_last_gc_start_mark / NANOS_PER_MILLIS);
 
   std::unique_ptr<GCPerformanceEntry> entry =
       std::make_unique<GCPerformanceEntry>(
@@ -257,12 +256,15 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(Number::New(args.GetIsolate(), timeOrigin / 1e6));
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(
+      Number::New(args.GetIsolate(), env->time_origin() / 1e6));
 }
 
 void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(
-      Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(Number::New(
+      args.GetIsolate(), env->time_origin_timestamp() / MICROS_PER_MILLIS));
 }
 
 void Initialize(Local<Object> target,

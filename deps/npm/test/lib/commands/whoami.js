@@ -34,6 +34,20 @@ t.test('npm whoami --json', async t => {
   t.equal(JSON.parse(joinedOutput()), username, 'should print username')
 })
 
+t.test('npm whoami using mTLS', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, { config: {
+    '//registry.npmjs.org/:certfile': '/some.cert',
+    '//registry.npmjs.org/:keyfile': '/some.key',
+  } })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  registry.whoami({ username })
+  await npm.exec('whoami', [])
+  t.equal(joinedOutput(), username, 'should print username')
+})
+
 t.test('credentials from token', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
