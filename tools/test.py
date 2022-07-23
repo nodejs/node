@@ -217,8 +217,9 @@ class ProgressIndicator(object):
             if not case.Run().UnexpectedOutput():
               self.flaky_failed.append(output)
               break
-          # If after 100 tries, the test is not passing, it's not flaky.
-          self.failed.append(output)
+          else:
+            # If after 100 tries, the test is not passing, it's not flaky.
+            self.failed.append(output)
         else:
           self.failed.append(output)
           if output.HasCrashed():
@@ -1367,7 +1368,7 @@ def BuildOptions():
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--flaky-tests",
-      help="Regard tests marked as flaky (run|skip|dontcare)",
+      help="Regard tests marked as flaky (run|skip|dontcare|keep_retrying)",
       default="run")
   result.add_option("--measure-flakiness",
       help="When a test fails, re-run it x number of times",
@@ -1448,7 +1449,7 @@ def ProcessOptions(options):
     # -j and ignoring -J, which is the opposite of what we used to do before -J
     # became a legacy no-op.
     print('Warning: Legacy -J option is ignored. Using the -j option.')
-  if options.flaky_tests not in [RUN, SKIP, DONTCARE]:
+  if options.flaky_tests not in [RUN, SKIP, DONTCARE, KEEP_RETRYING]:
     print("Unknown flaky-tests mode %s" % options.flaky_tests)
     return False
   return True
