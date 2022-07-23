@@ -380,6 +380,19 @@ A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
+## `CustomEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-customevent`][] CLI flag.
+
+<!-- type=global -->
+
+A browser-compatible implementation of the [`CustomEvent` Web API][].
+
 ## Class: `DecompressionStream`
 
 <!-- YAML
@@ -852,12 +865,14 @@ added: v18.0.0
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
 [Web Crypto API]: webcrypto.md
+[`--experimental-global-customevent`]: cli.md#--experimental-global-customevent
 [`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
+[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api

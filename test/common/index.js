@@ -315,6 +315,9 @@ if (hasCrypto && global.crypto) {
   knownGlobals.push(global.CryptoKey);
   knownGlobals.push(global.SubtleCrypto);
 }
+if (global.CustomEvent) {
+  knownGlobals.push(global.CustomEvent);
+}
 if (global.ReadableStream) {
   knownGlobals.push(
     global.ReadableStream,
