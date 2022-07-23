@@ -49,6 +49,8 @@ rules:
       message: Use `const { CompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: CountQueuingStrategy
       message: Use `const { CountQueuingStrategy } = require('internal/webstreams/queuingstrategies')` instead of the global.
+    - name: CustomEvent
+      message: Use `const { CustomEvent } = require('internal/event_target');` instead of the global.
     - name: DecompressionStream
       message: Use `const { DecompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: DOMException
