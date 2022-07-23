@@ -8,6 +8,7 @@
 #include <cstring>
 #include <sstream>
 #include <string>
+#include <cstdint>
 
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
