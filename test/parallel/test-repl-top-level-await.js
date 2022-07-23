@@ -3,6 +3,7 @@
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
+const events = require('events');
 const { stripVTControlCharacters } = require('internal/util/inspect');
 const repl = require('repl');
 
@@ -27,31 +28,21 @@ class REPLStream extends ArrayStream {
     if (chunkLines.length > 1) {
       this.lines.push(...chunkLines.slice(1));
     }
-    this.emit('line');
+    this.emit('line', this.lines[this.lines.length - 1]);
     if (callback) callback();
     return true;
   }
 
-  wait() {
+  async wait() {
     if (this.waitingForResponse) {
       throw new Error('Currently waiting for response to another command');
     }
     this.lines = [''];
-    return new Promise((resolve, reject) => {
-      const onError = (err) => {
-        this.removeListener('line', onLine);
-        reject(err);
-      };
-      const onLine = () => {
-        if (this.lines[this.lines.length - 1].includes(PROMPT)) {
-          this.removeListener('error', onError);
-          this.removeListener('line', onLine);
-          resolve(this.lines);
-        }
-      };
-      this.once('error', onError);
-      this.on('line', onLine);
-    });
+    for await (const [line] of events.on(this, 'line')) {
+      if (line.includes(PROMPT)) {
+        return this.lines;
+      }
+    }
   }
 }
 
