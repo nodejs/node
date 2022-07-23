@@ -126,13 +126,10 @@ static const int v8_snapshot_blob_size = )"
   { v8_snapshot_blob_data, v8_snapshot_blob_size },
   // -- v8_snapshot_blob_data ends --
   // -- isolate_data_indices begins --
-  {
-)";
-  WriteVector(&ss,
-              data->isolate_data_indices.data(),
-              data->isolate_data_indices.size());
-  ss << R"(},
+)" << data->isolate_data_info
+     << R"(
   // -- isolate_data_indices ends --
+  ,
   // -- env_info begins --
 )" << data->env_info
      << R"(
@@ -222,9 +219,6 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       }
     });
 
-    out->isolate_data_indices =
-        main_instance->isolate_data()->Serialize(&creator);
-
     // The default context with only things created by V8.
     Local<Context> default_context = Context::New(isolate);
 
@@ -285,6 +279,8 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       }
 
       // Serialize the native states
+      out->isolate_data_info =
+          main_instance->isolate_data()->Serialize(&creator);
       out->env_info = env->Serialize(&creator);
 
 #ifdef NODE_USE_NODE_CODE_CACHE

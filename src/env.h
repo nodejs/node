@@ -469,7 +469,7 @@ class NoArrayBufferZeroFillScope {
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
+#define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(base_object_ctor_template, v8::FunctionTemplate)                           \
@@ -575,17 +575,32 @@ class NoArrayBufferZeroFillScope {
 class Environment;
 
 typedef size_t SnapshotIndex;
+
+struct PropInfo {
+  std::string name;     // name for debugging
+  size_t id;            // In the list - in case there are any empty entries
+  SnapshotIndex index;  // In the snapshot
+};
+
+struct IsolateDataSerializeInfo {
+  std::vector<SnapshotIndex> primitive_values;
+  std::vector<PropInfo> template_values;
+
+  friend std::ostream& operator<<(std::ostream& o,
+                                  const IsolateDataSerializeInfo& i);
+};
+
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
-              const std::vector<size_t>* indexes = nullptr);
+              const IsolateDataSerializeInfo* isolate_data_info = nullptr);
   SET_MEMORY_INFO_NAME(IsolateData)
   SET_SELF_SIZE(IsolateData)
   void MemoryInfo(MemoryTracker* tracker) const override;
-  std::vector<size_t> Serialize(v8::SnapshotCreator* creator);
+  IsolateDataSerializeInfo Serialize(v8::SnapshotCreator* creator);
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -609,6 +624,13 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #undef VY
 #undef VS
 #undef VP
+
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> PropertyName() const;                             \
+  inline void set_##PropertyName(v8::Local<TypeName> value);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   size_t max_young_gen_size = 1;
@@ -621,20 +643,24 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   IsolateData& operator=(IsolateData&&) = delete;
 
  private:
-  void DeserializeProperties(const std::vector<size_t>* indexes);
+  void DeserializeProperties(const IsolateDataSerializeInfo* isolate_data_info);
   void CreateProperties();
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VT(PropertyName, TypeName) V(TypeName, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   v8::Eternal<TypeName> PropertyName ## _;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_ISOLATE_TEMPLATE_PROPERTIES(VT)
 #undef V
-#undef VY
+#undef V
+#undef VT
 #undef VS
+#undef VY
 #undef VP
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
@@ -925,12 +951,6 @@ class CleanupHookCallback {
   uint64_t insertion_order_counter_;
 };
 
-struct PropInfo {
-  std::string name;     // name for debugging
-  size_t id;            // In the list - in case there are any empty entries
-  SnapshotIndex index;  // In the snapshot
-};
-
 typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> holder,
                                            int index,
@@ -955,7 +975,6 @@ struct EnvSerializeInfo {
   AliasedBufferIndex stream_base_state;
   AliasedBufferIndex should_abort_on_uncaught_toggle;
 
-  std::vector<PropInfo> persistent_templates;
   std::vector<PropInfo> persistent_values;
 
   SnapshotIndex context;
@@ -974,7 +993,7 @@ struct SnapshotData {
   // building process.
   v8::StartupData v8_snapshot_blob_data{nullptr, 0};
 
-  std::vector<size_t> isolate_data_indices;
+  IsolateDataSerializeInfo isolate_data_info;
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
   // the worker environments.
   EnvSerializeInfo env_info;
@@ -1342,8 +1361,8 @@ class Environment : public MemoryRetainer {
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   inline v8::Local<v8::Context> context() const;
@@ -1646,7 +1665,6 @@ class Environment : public MemoryRetainer {
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   v8::Global<v8::Context> context_;
