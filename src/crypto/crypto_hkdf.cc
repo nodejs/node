@@ -109,6 +109,9 @@ bool HKDFTraits::DeriveBits(
     return false;
   }
 
+  // TODO: Once support for OpenSSL 1.1.1 is dropped the whole
+  // of HKDFTraits::DeriveBits can be refactored to use
+  // EVP_KDF which does handle zero length key.
   if (params.key->GetSymmetricKeySize() != 0) {
     if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(),
                                 EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
@@ -121,6 +124,7 @@ bool HKDFTraits::DeriveBits(
       return false;
     }
   } else {
+    // Workaround for EVP_PKEY_derive HKDF not handling zero length keys.
     unsigned char temp_key[EVP_MAX_MD_SIZE];
     unsigned int len = sizeof(temp_key);
     if (params.salt.size() != 0) {
