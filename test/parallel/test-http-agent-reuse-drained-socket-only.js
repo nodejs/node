@@ -31,17 +31,20 @@ function sendFstReq(serverPort) {
   }, (res) => {
     res.on('data', noop);
     res.on('end', common.mustCall(() => {
+      assert.ok(req.writableEnded);
       // Agent's socket reusing code is registered to process.nextTick(),
       // and will be run after this function, make sure it take effect.
       setImmediate(sendSecReq, serverPort, req.socket.localPort);
     }));
   });
 
-  // Overwhelm the flow control window, accroding to TCP standard,
-  // flow control window is up to 1GB in theory.
-  assert.strictEqual(req.write(Buffer.alloc(1 + 1024 * 1024 * 1024, 0)), false);
-
-  req.end();
+  req.on('socket', common.mustCall(() => {
+    // If `req` is assigned to a socket, `req.write()` write data to the
+    // socket directly and the return value indicate whether the socket
+    // is non drained.
+    assert.strictEqual(req.write(Buffer.alloc(1024 * 1024 * 1024, 0)), false);
+    req.end();
+  }));
 }
 
 function sendSecReq(serverPort, fstReqCliPort) {
