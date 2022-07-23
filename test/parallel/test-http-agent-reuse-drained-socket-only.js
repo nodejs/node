@@ -6,7 +6,9 @@ const net = require('net');
 
 const agent = new http.Agent({
   keepAlive: true,
-  maxFreeSockets: 1024
+  maxFreeSockets: Infinity,
+  maxSockets: Infinity,
+  maxTotalSockets: Infinity,
 });
 
 const server = net.createServer({
@@ -30,14 +32,14 @@ function sendFstReq(serverPort) {
     res.on('data', noop);
     res.on('end', common.mustCall(() => {
       // Agent's socket reusing code is registered to process.nextTick(),
-      // to ensure it take effect, fire in the next event loop
-      setTimeout(sendSecReq, 10, serverPort, req.socket.localPort);
+      // and will be run after this function, make sure it take effect.
+      setImmediate(sendSecReq, serverPort, req.socket.localPort);
     }));
   });
 
-  // Overwhelm the flow control window
-  // note that tcp over the loopback inteface has a large flow control window
-  assert.strictEqual(req.write('a'.repeat(6_000_000)), false);
+  // Overwhelm the flow control window, accroding to TCP standard,
+  // flow control window is up to 1GB in theory.
+  assert.strictEqual(req.write(Buffer.alloc(1 + 1024 * 1024 * 1024, 0)), false);
 
   req.end();
 }
@@ -52,7 +54,7 @@ function sendSecReq(serverPort, fstReqCliPort) {
   }, (res) => {
     res.on('data', noop);
     res.on('end', common.mustCall(() => {
-      setTimeout(sendThrReq, 10, serverPort, req.socket.localPort);
+      setImmediate(sendThrReq, serverPort, req.socket.localPort);
     }));
   });
 
