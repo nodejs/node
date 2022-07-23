@@ -109,7 +109,7 @@ bool HKDFTraits::DeriveBits(
     return false;
   }
 
-  // TODO: Once support for OpenSSL 1.1.1 is dropped the whole
+  // TODO(panva): Once support for OpenSSL 1.1.1 is dropped the whole
   // of HKDFTraits::DeriveBits can be refactored to use
   // EVP_KDF which does handle zero length key.
   if (params.key->GetSymmetricKeySize() != 0) {
