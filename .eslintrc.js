@@ -320,6 +320,7 @@ module.exports = {
     'node-core/no-duplicate-requires': 'error',
   },
   globals: {
+    CustomEvent: 'readable',
     Crypto: 'readable',
     CryptoKey: 'readable',
     fetch: 'readable',

@@ -315,6 +315,9 @@ if (hasCrypto && global.crypto) {
   knownGlobals.push(global.CryptoKey);
   knownGlobals.push(global.SubtleCrypto);
 }
+if (global.CustomEvent) {
+  knownGlobals.push(global.CustomEvent);
+}
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);

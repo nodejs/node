@@ -280,6 +280,14 @@ added: v16.15.0
 
 Enable experimental support for the [Fetch API][].
 
+### `--experimental-global-customevent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Expose the [CustomEvent Web API][] on the global scope.
+
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
@@ -1619,6 +1627,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-fetch`
+* `--experimental-global-customevent`
 * `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
@@ -2041,6 +2050,7 @@ done
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
+[CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
 [ECMAScript module loader]: esm.md#loaders
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [Modules loaders]: packages.md#modules-loaders
