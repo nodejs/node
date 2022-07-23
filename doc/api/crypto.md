@@ -3541,6 +3541,9 @@ and it will be impossible to extract the private key from the returned object.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43656
+    description: The key can now be zero-length.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer or string. The encoding
@@ -4208,6 +4211,9 @@ web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43656
+    description: The input keying material can now be zero-length.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4267,6 +4273,10 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43656
+    description: The input keying material can now be zero-length.
 -->
 
 * `digest` {string} The digest algorithm to use.
