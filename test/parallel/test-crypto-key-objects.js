@@ -858,3 +858,13 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert(!first.privateKey.equals(second.privateKey));
   assert(!first.privateKey.equals(second.publicKey));
 }
+
+{
+  const first = createSecretKey(Buffer.alloc(0));
+  const second = createSecretKey(Buffer.alloc(0));
+  const third = createSecretKey(Buffer.alloc(1));
+  assert(first.equals(first));
+  assert(first.equals(second));
+  assert(!first.equals(third));
+  assert(!third.equals(first));
+}
