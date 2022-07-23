@@ -89,8 +89,7 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       event_loop,
       platform,
       array_buffer_allocator_.get(),
-      snapshot_data == nullptr ? nullptr
-                               : &(snapshot_data->isolate_data_indices));
+      snapshot_data == nullptr ? nullptr : &(snapshot_data->isolate_data_info));
   IsolateSettings s;
   SetIsolateMiscHandlers(isolate_, s);
   if (snapshot_data == nullptr) {
