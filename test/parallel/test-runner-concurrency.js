@@ -5,8 +5,8 @@ const assert = require('assert');
 
 describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
   let isFirstTestOver = false;
-  it('should end after 1000ms', () => new Promise((resolve) => {
-    setTimeout(() => { resolve(); isFirstTestOver = true; }, 1000);
+  it('should start the first test', () => new Promise((resolve) => {
+    setImmediate(() => { isFirstTestOver = true; resolve(); });
   }));
   it('should start before the previous test ends', () => {
     // Should work even on single core CPUs
@@ -19,8 +19,8 @@ describe(
   { concurrency: false },
   () => {
     let isFirstTestOver = false;
-    it('should end after 1000ms', () => new Promise((resolve) => {
-      setTimeout(() => { resolve(); isFirstTestOver = true; }, 1000);
+    it('should start the first test', () => new Promise((resolve) => {
+      setImmediate(() => { isFirstTestOver = true; resolve(); });
     }));
     it('should start after the previous test ends', () => {
       assert.strictEqual(isFirstTestOver, true);
