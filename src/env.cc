@@ -238,9 +238,43 @@ AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
     : DefaultTriggerAsyncIdScope(async_wrap->env(),
                                  async_wrap->get_async_id()) {}
 
-std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v) {
+  output << "{ ";
+  for (const SnapshotIndex i : v) {
+    output << i << ", ";
+  }
+  output << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  { \"" << info.name << "\", " << std::to_string(info.id) << ", "
+           << std::to_string(info.index) << " },\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const IsolateDataSerializeInfo& i) {
+  output << "{\n"
+         << "// -- primitive begins --\n"
+         << i.primitive_values << ",\n"
+         << "// -- primitive ends --\n"
+         << "// -- template_values begins --\n"
+         << i.template_values << ",\n"
+         << "// -- template_values ends --\n"
+         << "}";
+  return output;
+}
+
+IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
-  std::vector<size_t> indexes;
+  IsolateDataSerializeInfo info;
   HandleScope handle_scope(isolate);
   // XXX(joyeecheung): technically speaking, the indexes here should be
   // consecutive and we could just return a range instead of an array,
@@ -251,7 +285,8 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
-  indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
+  info.primitive_values.push_back(                                             \
+      creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -259,13 +294,27 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VY
 #undef VS
 #undef VP
-  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
-    indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
-  return indexes;
+  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
+    info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
+
+  size_t id = 0;
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    Local<TypeName> field = PropertyName();                                    \
+    if (!field.IsEmpty()) {                                                    \
+      size_t index = creator->AddData(field);                                  \
+      info.template_values.push_back({#PropertyName, id, index});              \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
+  return info;
 }
 
-void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
+void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
@@ -275,7 +324,8 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
-        isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
+        isolate_->GetDataFromSnapshotOnce<TypeName>(                           \
+            info->primitive_values[i++]);                                      \
     Local<TypeName> field;                                                     \
     if (!maybe_field.ToLocal(&field)) {                                        \
       fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
@@ -292,13 +342,38 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
     MaybeLocal<String> maybe_field =
-        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
+        isolate_->GetDataFromSnapshotOnce<String>(info->primitive_values[i++]);
     Local<String> field;
     if (!maybe_field.ToLocal(&field)) {
       fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
     }
     async_wrap_providers_[j].Set(isolate_, field);
   }
+
+  const std::vector<PropInfo>& values = info->template_values;
+  i = 0;  // index to the array
+  size_t id = 0;
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    if (values.size() > i && id == values[i].id) {                             \
+      const PropInfo& d = values[i];                                           \
+      DCHECK_EQ(d.name, #PropertyName);                                        \
+      MaybeLocal<TypeName> maybe_field =                                       \
+          isolate_->GetDataFromSnapshotOnce<TypeName>(d.index);                \
+      Local<TypeName> field;                                                   \
+      if (!maybe_field.ToLocal(&field)) {                                      \
+        fprintf(stderr,                                                        \
+                "Failed to deserialize isolate data template " #PropertyName   \
+                "\n");                                                         \
+      }                                                                        \
+      set_##PropertyName(field);                                               \
+      i++;                                                                     \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V);
+#undef V
 }
 
 void IsolateData::CreateProperties() {
@@ -363,13 +438,15 @@ void IsolateData::CreateProperties() {
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
+
+  // TODO(legendecas): eagerly create per isolate templates.
 }
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const std::vector<size_t>* indexes)
+                         const IsolateDataSerializeInfo* isolate_data_info)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
@@ -378,10 +455,10 @@ IsolateData::IsolateData(Isolate* isolate,
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
-  if (indexes == nullptr) {
+  if (isolate_data_info == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(indexes);
+    DeserializeProperties(isolate_data_info);
   }
 }
 
@@ -1529,16 +1606,6 @@ void AsyncHooks::Deserialize(Local<Context> context) {
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const std::vector<SnapshotIndex>& v) {
-  output << "{ ";
-  for (const SnapshotIndex i : v) {
-    output << i << ", ";
-  }
-  output << " }";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
                          const AsyncHooks::SerializeInfo& i) {
   output << "{\n"
          << "  " << i.async_ids_stack << ",  // async_ids_stack\n"
@@ -1753,19 +1820,6 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
     if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(field);                                  \
-      info.persistent_templates.push_back({#PropertyName, id, index});         \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#undef V
-
-  id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
       size_t index = creator->AddData(ctx, field);                             \
       info.persistent_values.push_back({#PropertyName, id, index});            \
     }                                                                          \
@@ -1776,17 +1830,6 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
 
   info.context = creator->AddData(ctx, context());
   return info;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<PropInfo>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  { \"" << info.name << "\", " << std::to_string(info.id) << ", "
-           << std::to_string(info.index) << " },\n";
-  }
-  output << "}";
-  return output;
 }
 
 std::ostream& operator<<(std::ostream& output,
@@ -1818,9 +1861,6 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << i.stream_base_state << ",  // stream_base_state\n"
          << i.should_abort_on_uncaught_toggle
          << ",  // should_abort_on_uncaught_toggle\n"
-         << "// -- persistent_templates begins --\n"
-         << i.persistent_templates << ",\n"
-         << "// persistent_templates ends --\n"
          << "// -- persistent_values begins --\n"
          << i.persistent_values << ",\n"
          << "// -- persistent_values ends --\n"
@@ -1869,40 +1909,30 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     std::cerr << *info << "\n";
   }
 
-  const std::vector<PropInfo>& templates = info->persistent_templates;
+  const std::vector<PropInfo>& values = info->persistent_values;
   size_t i = 0;  // index to the array
   size_t id = 0;
-#define SetProperty(PropertyName, TypeName, vector, type, from)                \
+#define V(PropertyName, TypeName)                                              \
   do {                                                                         \
-    if (vector.size() > i && id == vector[i].id) {                             \
-      const PropInfo& d = vector[i];                                           \
+    if (values.size() > i && id == values[i].id) {                             \
+      const PropInfo& d = values[i];                                           \
       DCHECK_EQ(d.name, #PropertyName);                                        \
       MaybeLocal<TypeName> maybe_field =                                       \
-          from->GetDataFromSnapshotOnce<TypeName>(d.index);                    \
+          ctx->GetDataFromSnapshotOnce<TypeName>(d.index);                     \
       Local<TypeName> field;                                                   \
       if (!maybe_field.ToLocal(&field)) {                                      \
         fprintf(stderr,                                                        \
-                "Failed to deserialize environment " #type " " #PropertyName   \
+                "Failed to deserialize environment value " #PropertyName       \
                 "\n");                                                         \
       }                                                                        \
       set_##PropertyName(field);                                               \
       i++;                                                                     \
     }                                                                          \
-  } while (0);                                                                 \
-  id++;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              templates, template, isolate_)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V);
-#undef V
+    id++;                                                                      \
+  } while (0);
 
-  i = 0;  // index to the array
-  id = 0;
-  const std::vector<PropInfo>& values = info->persistent_values;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              values, value, ctx)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
 #undef V
-#undef SetProperty
 
   MaybeLocal<Context> maybe_ctx_from_snapshot =
       ctx->GetDataFromSnapshotOnce<Context>(info->context);
