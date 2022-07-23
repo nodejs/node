@@ -123,7 +123,7 @@ bool HKDFTraits::DeriveBits(
   } else {
     unsigned char temp_key[EVP_MAX_MD_SIZE];
     unsigned int len = sizeof(temp_key);
-    if (params.salt.size()) {
+    if (params.salt.size() != 0) {
       if (HMAC(params.digest,
                params.salt.data(),
                params.salt.size(),
@@ -134,9 +134,14 @@ bool HKDFTraits::DeriveBits(
         return false;
       }
     } else {
-      char salt[EVP_MAX_KEY_LENGTH] = {0};
-      if (HMAC(params.digest, salt, sizeof(salt), nullptr, 0, temp_key, &len) ==
-          nullptr) {
+      char salt[EVP_MAX_MD_SIZE] = {0};
+      if (HMAC(params.digest,
+               salt,
+               EVP_MD_size(params.digest),
+               nullptr,
+               0,
+               temp_key,
+               &len) == nullptr) {
         return false;
       }
     }
