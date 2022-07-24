@@ -16,7 +16,7 @@
     "path": "dom/events"
   },
   "encoding": {
-    "commit": "35f70910d3753c8b650fdfd4c716caedfefe88c9",
+    "commit": "c1b24fce6e625c1b79124a58f27bf9adce02d5d7",
     "path": "encoding"
   },
   "FileAPI": {
