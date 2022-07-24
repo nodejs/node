@@ -96,7 +96,7 @@ function verifyStats(bigintStats, numStats, allowableDelta) {
 
 const runSyncTest = (func, arg) => {
   const startTime = process.hrtime.bigint();
-  const bigintStats = func(arg, { bigint: true });
+  const bigintStats = func(arg, common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = func(arg);
   const endTime = process.hrtime.bigint();
   const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
@@ -127,7 +127,7 @@ if (!common.isWindows) {
     () => fs.statSync('does_not_exist'),
     { code: 'ENOENT' });
   assert.strictEqual(
-    fs.statSync('does_not_exist', { throwIfNoEntry: false }),
+    fs.statSync('does_not_exist', common.mustNotMutateObjectDeep({ throwIfNoEntry: false })),
     undefined);
 }
 
@@ -136,7 +136,7 @@ if (!common.isWindows) {
     () => fs.lstatSync('does_not_exist'),
     { code: 'ENOENT' });
   assert.strictEqual(
-    fs.lstatSync('does_not_exist', { throwIfNoEntry: false }),
+    fs.lstatSync('does_not_exist', common.mustNotMutateObjectDeep({ throwIfNoEntry: false })),
     undefined);
 }
 
@@ -145,13 +145,13 @@ if (!common.isWindows) {
     () => fs.fstatSync(9999),
     { code: 'EBADF' });
   assert.throws(
-    () => fs.fstatSync(9999, { throwIfNoEntry: false }),
+    () => fs.fstatSync(9999, common.mustNotMutateObjectDeep({ throwIfNoEntry: false })),
     { code: 'EBADF' });
 }
 
 const runCallbackTest = (func, arg, done) => {
   const startTime = process.hrtime.bigint();
-  func(arg, { bigint: true }, common.mustCall((err, bigintStats) => {
+  func(arg, common.mustNotMutateObjectDeep({ bigint: true }), common.mustCall((err, bigintStats) => {
     func(arg, common.mustCall((err, numStats) => {
       const endTime = process.hrtime.bigint();
       const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
@@ -183,7 +183,7 @@ if (!common.isWindows) {
 
 const runPromiseTest = async (func, arg) => {
   const startTime = process.hrtime.bigint();
-  const bigintStats = await func(arg, { bigint: true });
+  const bigintStats = await func(arg, common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await func(arg);
   const endTime = process.hrtime.bigint();
   const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
@@ -206,7 +206,7 @@ if (!common.isWindows) {
   const filename = getFilename();
   const handle = await promiseFs.open(filename, 'r');
   const startTime = process.hrtime.bigint();
-  const bigintStats = await handle.stat({ bigint: true });
+  const bigintStats = await handle.stat(common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await handle.stat();
   const endTime = process.hrtime.bigint();
   const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);

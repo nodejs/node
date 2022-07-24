@@ -16,14 +16,14 @@ tmpdir.refresh();
   fs.readFile(
     emptyFile,
     // With `a+` the file is created if it does not exist
-    { encoding: 'utf8', flag: 'a+' },
+    common.mustNotMutateObjectDeep({ encoding: 'utf8', flag: 'a+' }),
     common.mustCall((err, data) => { assert.strictEqual(data, ''); })
   );
 
   fs.readFile(
     emptyFile,
     // Like `a+` but fails if the path exists.
-    { encoding: 'utf8', flag: 'ax+' },
+    common.mustNotMutateObjectDeep({ encoding: 'utf8', flag: 'ax+' }),
     common.mustCall((err, data) => { assert.strictEqual(err.code, 'EEXIST'); })
   );
 }
@@ -34,7 +34,7 @@ tmpdir.refresh();
   fs.readFile(
     willBeCreated,
     // With `a+` the file is created if it does not exist
-    { encoding: 'utf8', flag: 'a+' },
+    common.mustNotMutateObjectDeep({ encoding: 'utf8', flag: 'a+' }),
     common.mustCall((err, data) => { assert.strictEqual(data, ''); })
   );
 }
@@ -45,7 +45,7 @@ tmpdir.refresh();
   fs.readFile(
     willNotBeCreated,
     // Default flag is `r`. An exception occurs if the file does not exist.
-    { encoding: 'utf8' },
+    common.mustNotMutateObjectDeep({ encoding: 'utf8' }),
     common.mustCall((err, data) => { assert.strictEqual(err.code, 'ENOENT'); })
   );
 }

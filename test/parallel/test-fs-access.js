@@ -145,7 +145,7 @@ assert.throws(
 
 assert.throws(
   () => {
-    fs.access(__filename, fs.F_OK, {});
+    fs.access(__filename, fs.F_OK, common.mustNotMutateObjectDeep({}));
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
