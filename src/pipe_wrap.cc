@@ -241,6 +241,12 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
                      *name,
                      AfterConnect);
 
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
+                                    "connect",
+                                    req_wrap,
+                                    "pipe_path",
+                                    TRACE_STR_COPY(*name));
+
   args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
 }
 
