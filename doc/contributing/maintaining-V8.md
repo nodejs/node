@@ -270,6 +270,7 @@ Refs: https://github.com/v8/v8/commit/a51f429772d1e796744244128c9feeab4c26a854
 PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 
+* Increase the `v8_embedder_string` number in `common.gypi`.
 * Open a PR against the `v6.x-staging` branch in the Node.js repository. Launch
   the normal and [V8 CI][] using the Node.js CI system. We only needed to
   backport to `v6.x` as the other LTS branches weren't affected by this bug.
