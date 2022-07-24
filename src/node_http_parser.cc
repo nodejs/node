@@ -548,17 +548,21 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
-    if (parser->connectionsList_ != nullptr) {
-      parser->connectionsList_->Pop(parser);
-      parser->connectionsList_->PopActive(parser);
-    }
-
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
     parser->EmitTraceEventDestroy();
     parser->EmitDestroy();
   }
 
+  static void Remove(const FunctionCallbackInfo<Value>& args) {
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+
+    if (parser->connectionsList_ != nullptr) {
+      parser->connectionsList_->Pop(parser);
+      parser->connectionsList_->PopActive(parser);
+    }
+  }
 
   void Save() {
     url_.Save();
@@ -1221,6 +1225,7 @@ void InitializeHttpParser(Local<Object> target,
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "free", Parser::Free);
+  env->SetProtoMethod(t, "remove", Parser::Remove);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);
   env->SetProtoMethod(t, "initialize", Parser::Initialize);
