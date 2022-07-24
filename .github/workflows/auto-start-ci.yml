@@ -68,3 +68,21 @@ jobs:
         run: ./tools/actions/start-ci.sh ${{ needs.get-prs-for-ci.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+name: Label PRs
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: nodejs/node-pr-labeler@v1
+        with:
+          repo-token: ${{ secrets.GH_USER_TOKEN }}
+          configuration-path: .github/label-pr-config.yml
+          
+          
