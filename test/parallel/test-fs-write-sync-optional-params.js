@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // This test ensures that fs.writeSync accepts "named parameters" object
 // and doesn't interpret objects as strings
@@ -16,6 +16,9 @@ const dest = path.resolve(tmpdir.path, 'tmp.txt');
 const buffer = Buffer.from('zyx');
 
 function testInvalid(dest, expectedCode, ...bufferAndOptions) {
+  if (bufferAndOptions.length >= 2) {
+    bufferAndOptions[1] = common.mustNotMutateObjectDeep(bufferAndOptions[1]);
+  }
   let fd;
   try {
     fd = fs.openSync(dest, 'w+');
@@ -28,6 +31,7 @@ function testInvalid(dest, expectedCode, ...bufferAndOptions) {
 }
 
 function testValid(dest, buffer, options) {
+  const length = options?.length;
   let fd;
   try {
     fd = fs.openSync(dest, 'w+');
@@ -35,8 +39,8 @@ function testValid(dest, buffer, options) {
     const bytesRead = fs.readSync(fd, buffer, options);
 
     assert.ok(bytesWritten >= bytesRead);
-    if (options.length !== undefined && options.length !== null) {
-      assert.strictEqual(bytesWritten, options.length);
+    if (length !== undefined && length !== null) {
+      assert.strictEqual(bytesWritten, length);
     }
   } finally {
     if (fd != null) fs.closeSync(fd);
@@ -47,6 +51,8 @@ function testValid(dest, buffer, options) {
   // Test if second argument is not wrongly interpreted as string or options
   for (const badBuffer of [
     undefined, null, true, 42, 42n, Symbol('42'), NaN, [], () => {},
+    common.mustNotCall(),
+    common.mustNotMutateObjectDeep({}),
     {},
     { buffer: 'amNotParam' },
     { string: 'amNotParam' },
@@ -58,7 +64,7 @@ function testValid(dest, buffer, options) {
     { toString() { return 'amObject'; } },
     { [Symbol.toPrimitive]: (hint) => 'amObject' },
   ]) {
-    testInvalid(dest, 'ERR_INVALID_ARG_TYPE', badBuffer);
+    testInvalid(dest, 'ERR_INVALID_ARG_TYPE', common.mustNotMutateObjectDeep(badBuffer));
   }
 
   // First argument (buffer or string) is mandatory
@@ -75,6 +81,8 @@ function testValid(dest, buffer, options) {
 
   // Test compatibility with fs.readSync counterpart with reused options
   for (const options of [
+    undefined,
+    null,
     {},
     { length: 1 },
     { position: 5 },
@@ -84,6 +92,6 @@ function testValid(dest, buffer, options) {
     { position: null },
     { offset: 1 },
   ]) {
-    testValid(dest, buffer, options);
+    testValid(dest, buffer, common.mustNotMutateObjectDeep(options));
   }
 }
