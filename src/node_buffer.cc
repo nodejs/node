@@ -497,6 +497,7 @@ MaybeLocal<Object> New(Environment* env,
     if (length > kMaxLength) {
       Isolate* isolate(env->isolate());
       isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+      free(data);
       return Local<Object>();
     }
   }
