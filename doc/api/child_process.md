@@ -1639,7 +1639,7 @@ in which the child process is launched.
 added: v0.1.90
 -->
 
-* {stream.Readable}
+* {stream.Readable|null|undefined}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -1649,8 +1649,8 @@ then this will be `null`.
 `subprocess.stderr` is an alias for `subprocess.stdio[2]`. Both properties will
 refer to the same value.
 
-The `subprocess.stderr` property can be `null` if the child process could
-not be successfully spawned.
+The `subprocess.stderr` property can be `null` or `undefined`
+if the child process could not be successfully spawned.
 
 ### `subprocess.stdin`
 
@@ -1658,7 +1658,7 @@ not be successfully spawned.
 added: v0.1.90
 -->
 
-* {stream.Writable}
+* {stream.Writable|null|undefined}
 
 A `Writable Stream` that represents the child process's `stdin`.
 
@@ -1671,8 +1671,8 @@ then this will be `null`.
 `subprocess.stdin` is an alias for `subprocess.stdio[0]`. Both properties will
 refer to the same value.
 
-The `subprocess.stdin` property can be `undefined` if the child process could
-not be successfully spawned.
+The `subprocess.stdin` property can be `null` or `undefined`
+if the child process could not be successfully spawned.
 
 ### `subprocess.stdio`
 
@@ -1724,7 +1724,7 @@ not be successfully spawned.
 added: v0.1.90
 -->
 
-* {stream.Readable}
+* {stream.Readable|null|undefined}
 
 A `Readable Stream` that represents the child process's `stdout`.
 
@@ -1744,8 +1744,8 @@ subprocess.stdout.on('data', (data) => {
 });
 ```
 
-The `subprocess.stdout` property can be `null` if the child process could
-not be successfully spawned.
+The `subprocess.stdout` property can be `null` or `undefined`
+if the child process could not be successfully spawned.
 
 ### `subprocess.unref()`
 
