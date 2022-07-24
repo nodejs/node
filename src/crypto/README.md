@@ -20,8 +20,8 @@ The following provide generalized utility declarations that are used throughout
 the various other crypto files and other parts of Node.js:
 
 * `crypto_util.h` / `crypto_util.cc` (Core crypto definitions)
-* `crypto_common.h` / `crypto_common.h` (Shared TLS utility functions)
-* `crypto_bio.c` / `crypto_bio.c` (Custom OpenSSL i/o implementation)
+* `crypto_common.h` / `crypto_common.cc` (Shared TLS utility functions)
+* `crypto_bio.h` / `crypto_bio.cc` (Custom OpenSSL i/o implementation)
 * `crypto_groups.h` (modp group definitions)
 
 Of these, `crypto_util.h` and `crypto_util.cc` are the most important, as
