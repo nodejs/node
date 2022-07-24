@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
       assert.strictEqual(signal.aborted, false);
       testSignal = signal;
       await setTimeout(50);
-    })).then(() => {
+    })).finally(common.mustCall(() => {
       test(() => assert.strictEqual(testSignal.aborted, true));
     });
   } else assert.fail('unreachable');
