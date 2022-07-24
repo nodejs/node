@@ -108,6 +108,12 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
     Boolean::New(env->isolate(), writable)
   };
 
+  TRACE_EVENT_NESTABLE_ASYNC_END1(TRACING_CATEGORY_NODE2(net, native),
+                                  "connect",
+                                  req_wrap.get(),
+                                  "status",
+                                  status);
+
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
