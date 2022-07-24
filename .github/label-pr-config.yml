@@ -26,7 +26,7 @@ subSystemLabels:
   /^src\/.*win32.*/: c++, windows
   /^src\/node_zlib/: c++, zlib
   /^src\/tracing/: c++, tracing
-  /^src\/node_api/: c++, node-api
+  /^src\/(?:node_api|js_native_api)/: c++, node-api
   /^src\/node_http2/: c++, http2
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
@@ -117,7 +117,8 @@ exlusiveLabels:
   /^test\/inspector\//: test, inspector
   /^test\/cctest\/test_inspector/: test, inspector
   /^test\/cctest\/test_url/: test, whatwg-url
-  /^test\/addons-napi\//: test, node-api
+  /^test\/node-api\//: test, node-api
+  /^test\/js-native-api\//: test, node-api
   /^test\/async-hooks\//: test, async_hooks
   /^test\/report\//: test, report
   /^test\/fixtures\/es-module/: test, esm
