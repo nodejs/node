@@ -28,7 +28,7 @@ async function testValid(position, allowedErrors = []) {
       }, callCount);
       fs.read(fd, buffer, offset, length, position, handler);
       fs.read(fd, { buffer, offset, length, position }, handler);
-      fs.read(fd, buffer, { offset, length, position }, handler);
+      fs.read(fd, buffer, common.mustNotMutateObjectDeep({ offset, length, position }), handler);
     }));
   });
 }
@@ -46,7 +46,7 @@ async function testInvalid(code, position) {
           { code }
         );
         assert.throws(
-          () => fs.read(fd, buffer, { offset, length, position }, common.mustNotCall()),
+          () => fs.read(fd, buffer, common.mustNotMutateObjectDeep({ offset, length, position }), common.mustNotCall()),
           { code }
         );
         resolve();

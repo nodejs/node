@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const { mustNotMutateObjectDeep } = require('../common');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const assert = require('assert');
@@ -53,5 +53,5 @@ for (const options of [
   new String('4444'),
   [4, 4, 4, 4],
 ]) {
-  runTest(Buffer.allocUnsafe(expected.length), options);
+  runTest(Buffer.allocUnsafe(expected.length), mustNotMutateObjectDeep(options));
 }

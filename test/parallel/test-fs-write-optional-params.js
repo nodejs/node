@@ -18,13 +18,16 @@ const buffer = Buffer.from('zyx');
 
 function testInvalidCb(fd, expectedCode, buffer, options, callback) {
   assert.throws(
-    () => fs.write(fd, buffer, options, common.mustNotCall()),
+    () => fs.write(fd, buffer, common.mustNotMutateObjectDeep(options), common.mustNotCall()),
     { code: expectedCode }
   );
   callback(0);
 }
 
 function testValidCb(buffer, options, index, callback) {
+  options = common.mustNotMutateObjectDeep(options);
+  const length = options?.length;
+  const offset = options?.offset;
   const dest = path.resolve(tmpdir.path, `rwopt_valid_${index}`);
   fs.open(dest, 'w+', common.mustSucceed((fd) => {
     fs.write(fd, buffer, options, common.mustSucceed((bytesWritten, bufferWritten) => {
@@ -34,10 +37,10 @@ function testValidCb(buffer, options, index, callback) {
         const readBufCopy = Uint8Array.prototype.slice.call(bufferRead);
 
         assert.ok(bytesWritten >= bytesRead);
-        if (options.length !== undefined && options.length !== null) {
-          assert.strictEqual(bytesWritten, options.length);
+        if (length !== undefined && length !== null) {
+          assert.strictEqual(bytesWritten, length);
         }
-        if (options.offset === undefined || options.offset === 0) {
+        if (offset === undefined || offset === 0) {
           assert.deepStrictEqual(writeBufCopy, readBufCopy);
         }
         assert.deepStrictEqual(bufferWritten, bufferRead);
@@ -56,6 +59,8 @@ async function runTests(fd) {
   for (const badBuffer of [
     undefined, null, true, 42, 42n, Symbol('42'), NaN, [], () => {},
     Promise.resolve(new Uint8Array(1)),
+    common.mustNotCall(),
+    common.mustNotMutateObjectDeep({}),
     {},
     { buffer: 'amNotParam' },
     { string: 'amNotParam' },
@@ -81,9 +86,13 @@ async function runTests(fd) {
   await testInvalid(fd, 'ERR_OUT_OF_RANGE', buffer, { offset: -1 });
   await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', buffer, { offset: false });
   await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', buffer, { offset: true });
+  await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', buffer, true);
+  await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', buffer, '42');
+  await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', buffer, Symbol('42'));
 
   // Test compatibility with fs.read counterpart
   for (const [ index, options ] of [
+    null,
     {},
     { length: 1 },
     { position: 5 },

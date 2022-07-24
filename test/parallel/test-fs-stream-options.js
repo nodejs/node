@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const { mustNotMutateObjectDeep } = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
@@ -9,7 +9,7 @@ const fs = require('fs');
 
   assert.throws(
     () => {
-      fs.createReadStream(null, { fd });
+      fs.createReadStream(null, mustNotMutateObjectDeep({ fd }));
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -18,7 +18,7 @@ const fs = require('fs');
 
   assert.throws(
     () => {
-      fs.createWriteStream(null, { fd });
+      fs.createWriteStream(null, mustNotMutateObjectDeep({ fd }));
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',

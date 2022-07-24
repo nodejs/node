@@ -1,4 +1,4 @@
-import { mustCall } from '../common/index.mjs';
+import { mustCall, mustNotMutateObjectDeep } from '../common/index.mjs';
 
 import assert from 'assert';
 import fs from 'fs';
@@ -34,19 +34,19 @@ function nextdir() {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   assertDirEquivalent(src, dest);
 }
 
 // It does not throw errors when directory is copied over and force is false.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'README.md'), 'hello world', 'utf8');
   const dest = nextdir();
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   const initialStat = lstatSync(join(dest, 'README.md'));
-  cpSync(src, dest, { force: false, recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ force: false, recursive: true }));
   // File should not have been copied over, so access times will be identical:
   assertDirEquivalent(src, dest);
   const finalStat = lstatSync(join(dest, 'README.md'));
@@ -57,9 +57,9 @@ function nextdir() {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(dest, 'README.md'), '# Goodbye', 'utf8');
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   assertDirEquivalent(src, dest);
   const content = readFileSync(join(dest, 'README.md'), 'utf8');
   assert.strictEqual(content.trim(), '# Hello');
@@ -71,8 +71,8 @@ function nextdir() {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
   const destFile = join(dest, 'a/b/README2.md');
-  cpSync(src, dest, { dereference: true, recursive: true });
-  cpSync(src, dest, { dereference: true, recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
+  cpSync(src, dest, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
   const stat = lstatSync(destFile);
   assert(stat.isFile());
 }
@@ -81,15 +81,15 @@ function nextdir() {
 // It copies file itself, rather than symlink, when dereference is true.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
   symlinkSync(join(src, 'foo.js'), join(src, 'bar.js'));
 
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   const destFile = join(dest, 'foo.js');
 
-  cpSync(join(src, 'bar.js'), destFile, { dereference: true, recursive: true });
+  cpSync(join(src, 'bar.js'), destFile, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
   const stat = lstatSync(destFile);
   assert(stat.isFile());
 }
@@ -112,7 +112,7 @@ function nextdir() {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   assert.throws(
-    () => cpSync(src, src, { dereference: true, verbatimSymlinks: true }),
+    () => cpSync(src, src, mustNotMutateObjectDeep({ dereference: true, verbatimSymlinks: true })),
     { code: 'ERR_INCOMPATIBLE_OPTION_PAIR' }
   );
 }
@@ -121,14 +121,14 @@ function nextdir() {
 // It resolves relative symlinks to their absolute path by default.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
   symlinkSync('foo.js', join(src, 'bar.js'));
 
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
 
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   const link = readlinkSync(join(dest, 'bar.js'));
   assert.strictEqual(link, join(src, 'foo.js'));
 }
@@ -137,14 +137,14 @@ function nextdir() {
 // It resolves relative symlinks when verbatimSymlinks is false.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
   symlinkSync('foo.js', join(src, 'bar.js'));
 
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
 
-  cpSync(src, dest, { recursive: true, verbatimSymlinks: false });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true, verbatimSymlinks: false }));
   const link = readlinkSync(join(dest, 'bar.js'));
   assert.strictEqual(link, join(src, 'foo.js'));
 }
@@ -153,14 +153,14 @@ function nextdir() {
 // It does not resolve relative symlinks when verbatimSymlinks is true.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
   symlinkSync('foo.js', join(src, 'bar.js'));
 
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
 
-  cpSync(src, dest, { recursive: true, verbatimSymlinks: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true, verbatimSymlinks: true }));
   const link = readlinkSync(join(dest, 'bar.js'));
   assert.strictEqual(link, 'foo.js');
 }
@@ -178,13 +178,13 @@ function nextdir() {
 // It throws error if symlink in src points to location in dest.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
   mkdirSync(dest);
   symlinkSync(dest, join(src, 'link'));
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   assert.throws(
-    () => cpSync(src, dest, { recursive: true }),
+    () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
     {
       code: 'ERR_FS_CP_EINVAL'
     }
@@ -194,14 +194,14 @@ function nextdir() {
 // It throws error if symlink in dest points to location in src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(join(src, 'a', 'b'), join(src, 'a', 'c'));
 
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, join(dest, 'a', 'c'));
   assert.throws(
-    () => cpSync(src, dest, { recursive: true }),
+    () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
     { code: 'ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY' }
   );
 }
@@ -209,11 +209,11 @@ function nextdir() {
 // It throws error if parent directory of symlink in dest points to src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a'), { recursive: true });
+  mkdirSync(join(src, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
   // Create symlink in dest pointing to src.
   const destLink = join(dest, 'b');
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, destLink);
   assert.throws(
     () => cpSync(src, join(dest, 'b', 'c')),
@@ -224,7 +224,7 @@ function nextdir() {
 // It throws error if attempt is made to copy directory to file.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = './test/fixtures/copy/kitchen-sink/README.md';
   assert.throws(
     () => cpSync(src, dest),
@@ -236,7 +236,7 @@ function nextdir() {
 {
   const srcFile = './test/fixtures/copy/kitchen-sink/index.js';
   const destFile = join(nextdir(), 'index.js');
-  cpSync(srcFile, destFile, { dereference: true });
+  cpSync(srcFile, destFile, mustNotMutateObjectDeep({ dereference: true }));
   const stat = lstatSync(destFile);
   assert(stat.isFile());
 }
@@ -256,7 +256,7 @@ function nextdir() {
 {
   const src = './test/fixtures/copy/kitchen-sink/README.md';
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   assert.throws(
     () => cpSync(src, dest),
     { code: 'ERR_FS_CP_NON_DIR_TO_DIR' }
@@ -290,7 +290,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cpSync(src, dest, { preserveTimestamps: true, recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ preserveTimestamps: true, recursive: true }));
   assertDirEquivalent(src, dest);
   const srcStat = lstatSync(join(src, 'index.js'));
   const destStat = lstatSync(join(dest, 'index.js'));
@@ -341,7 +341,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   assert.throws(
     () => cpSync(src, dest, {
       dereference: true,
@@ -356,14 +356,14 @@ if (!isWindows) {
 // It throws EEXIST error if attempt is made to copy symlink over file.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(join(src, 'a', 'b'), join(src, 'a', 'c'));
 
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(dest, 'a', 'c'), 'hello', 'utf8');
   assert.throws(
-    () => cpSync(src, dest, { recursive: true }),
+    () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
     { code: 'EEXIST' }
   );
 }
@@ -371,11 +371,11 @@ if (!isWindows) {
 // It makes file writeable when updating timestamp, if not writeable.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
-  writeFileSync(join(src, 'foo.txt'), 'foo', { mode: 0o444 });
-  cpSync(src, dest, { preserveTimestamps: true, recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(join(src, 'foo.txt'), 'foo', mustNotMutateObjectDeep({ mode: 0o444 }));
+  cpSync(src, dest, mustNotMutateObjectDeep({ preserveTimestamps: true, recursive: true }));
   assertDirEquivalent(src, dest);
   const srcStat = lstatSync(join(src, 'foo.txt'));
   const destStat = lstatSync(join(dest, 'foo.txt'));
@@ -385,12 +385,12 @@ if (!isWindows) {
 // It copies link if it does not point to folder in src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, join(src, 'a', 'c'));
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(dest, join(dest, 'a', 'c'));
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   const link = readlinkSync(join(dest, 'a', 'c'));
   assert.strictEqual(link, src);
 }
@@ -399,7 +399,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cpSync(pathToFileURL(src), pathToFileURL(dest), { recursive: true });
+  cpSync(pathToFileURL(src), pathToFileURL(dest), mustNotMutateObjectDeep({ recursive: true }));
   assertDirEquivalent(src, dest);
 }
 
@@ -417,7 +417,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err, null);
     assertDirEquivalent(src, dest);
   }));
@@ -426,10 +426,10 @@ if (!isWindows) {
 // It does not throw errors when directory is copied over and force is false.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'README.md'), 'hello world', 'utf8');
   const dest = nextdir();
-  cpSync(src, dest, { dereference: true, recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
   const initialStat = lstatSync(join(dest, 'README.md'));
   cp(src, dest, {
     dereference: true,
@@ -448,10 +448,10 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(dest, 'README.md'), '# Goodbye', 'utf8');
 
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err, null);
     assertDirEquivalent(src, dest);
     const content = readFileSync(join(dest, 'README.md'), 'utf8');
@@ -465,7 +465,7 @@ if (!isWindows) {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
   const destFile = join(dest, 'a/b/README2.md');
-  cpSync(src, dest, { dereference: true, recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
   cp(src, dest, {
     dereference: true,
     recursive: true
@@ -479,15 +479,15 @@ if (!isWindows) {
 // It copies file itself, rather than symlink, when dereference is true.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
   symlinkSync(join(src, 'foo.js'), join(src, 'bar.js'));
 
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   const destFile = join(dest, 'foo.js');
 
-  cp(join(src, 'bar.js'), destFile, { dereference: true },
+  cp(join(src, 'bar.js'), destFile, mustNotMutateObjectDeep({ dereference: true }),
      mustCall((err) => {
        assert.strictEqual(err, null);
        const stat = lstatSync(destFile);
@@ -507,12 +507,12 @@ if (!isWindows) {
 // It returns error if symlink in src points to location in dest.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
   mkdirSync(dest);
   symlinkSync(dest, join(src, 'link'));
-  cpSync(src, dest, { recursive: true });
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_FS_CP_EINVAL');
   }));
 }
@@ -520,13 +520,13 @@ if (!isWindows) {
 // It returns error if symlink in dest points to location in src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(join(src, 'a', 'b'), join(src, 'a', 'c'));
 
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, join(dest, 'a', 'c'));
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY');
   }));
 }
@@ -534,11 +534,11 @@ if (!isWindows) {
 // It returns error if parent directory of symlink in dest points to src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a'), { recursive: true });
+  mkdirSync(join(src, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
   // Create symlink in dest pointing to src.
   const destLink = join(dest, 'b');
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, destLink);
   cp(src, join(dest, 'b', 'c'), mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_FS_CP_EINVAL');
@@ -548,7 +548,7 @@ if (!isWindows) {
 // It returns error if attempt is made to copy directory to file.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = './test/fixtures/copy/kitchen-sink/README.md';
   cp(src, dest, mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_FS_CP_DIR_TO_NON_DIR');
@@ -559,7 +559,7 @@ if (!isWindows) {
 {
   const srcFile = './test/fixtures/copy/kitchen-sink/README.md';
   const destFile = join(nextdir(), 'index.js');
-  cp(srcFile, destFile, { dereference: true }, mustCall((err) => {
+  cp(srcFile, destFile, mustNotMutateObjectDeep({ dereference: true }), mustCall((err) => {
     assert.strictEqual(err, null);
     const stat = lstatSync(destFile);
     assert(stat.isFile());
@@ -579,7 +579,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink/README.md';
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   cp(src, dest, mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_FS_CP_NON_DIR_TO_DIR');
   }));
@@ -676,7 +676,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   cp(src, dest, {
     dereference: true,
     errorOnExist: true,
@@ -690,13 +690,13 @@ if (!isWindows) {
 // It returns EEXIST error if attempt is made to copy symlink over file.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(join(src, 'a', 'b'), join(src, 'a', 'c'));
 
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(dest, 'a', 'c'), 'hello', 'utf8');
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err.code, 'EEXIST');
   }));
 }
@@ -704,10 +704,10 @@ if (!isWindows) {
 // It makes file writeable when updating timestamp, if not writeable.
 {
   const src = nextdir();
-  mkdirSync(src, { recursive: true });
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = nextdir();
-  mkdirSync(dest, { recursive: true });
-  writeFileSync(join(src, 'foo.txt'), 'foo', { mode: 0o444 });
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(join(src, 'foo.txt'), 'foo', mustNotMutateObjectDeep({ mode: 0o444 }));
   cp(src, dest, {
     preserveTimestamps: true,
     recursive: true,
@@ -723,12 +723,12 @@ if (!isWindows) {
 // It copies link if it does not point to folder in src.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), { recursive: true });
+  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(src, join(src, 'a', 'c'));
   const dest = nextdir();
-  mkdirSync(join(dest, 'a'), { recursive: true });
+  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
   symlinkSync(dest, join(dest, 'a', 'c'));
-  cp(src, dest, { recursive: true }, mustCall((err) => {
+  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err, null);
     const link = readlinkSync(join(dest, 'a', 'c'));
     assert.strictEqual(link, src);
@@ -739,7 +739,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  cp(pathToFileURL(src), pathToFileURL(dest), { recursive: true },
+  cp(pathToFileURL(src), pathToFileURL(dest), mustNotMutateObjectDeep({ recursive: true }),
      mustCall((err) => {
        assert.strictEqual(err, null);
        assertDirEquivalent(src, dest);
@@ -760,7 +760,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  const p = await fs.promises.cp(src, dest, { recursive: true });
+  const p = await fs.promises.cp(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   assert.strictEqual(p, undefined);
   assertDirEquivalent(src, dest);
 }
@@ -782,7 +782,7 @@ if (!isWindows) {
 {
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
-  await fs.promises.cp(src, dest, { recursive: true });
+  await fs.promises.cp(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   await assert.rejects(
     fs.promises.cp(src, dest, {
       dereference: true,
@@ -824,7 +824,7 @@ function assertDirEquivalent(dir1, dir2) {
 }
 
 function collectEntries(dir, dirEntries) {
-  const newEntries = readdirSync(dir, { withFileTypes: true });
+  const newEntries = readdirSync(dir, mustNotMutateObjectDeep({ withFileTypes: true }));
   for (const entry of newEntries) {
     if (entry.isDirectory()) {
       collectEntries(join(dir, entry.name), dirEntries);

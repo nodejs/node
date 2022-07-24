@@ -12,14 +12,14 @@ const expected = Buffer.from('xyz\n');
 const defaultBufferAsync = Buffer.alloc(16384);
 const bufferAsOption = Buffer.allocUnsafe(expected.byteLength);
 
-read(fd, {})
+read(fd, common.mustNotMutateObjectDeep({}))
   .then(function({ bytesRead, buffer }) {
     assert.strictEqual(bytesRead, expected.byteLength);
     assert.deepStrictEqual(defaultBufferAsync.byteLength, buffer.byteLength);
   })
   .then(common.mustCall());
 
-read(fd, bufferAsOption, { position: 0 })
+read(fd, bufferAsOption, common.mustNotMutateObjectDeep({ position: 0 }))
   .then(function({ bytesRead, buffer }) {
     assert.strictEqual(bytesRead, expected.byteLength);
     assert.deepStrictEqual(bufferAsOption.byteLength, buffer.byteLength);
