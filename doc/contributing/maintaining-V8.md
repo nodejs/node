@@ -244,9 +244,9 @@ $ git node v8 backport a51f429
 ? Resolve merge conflicts and enter 'RESOLVED' ‣
 ```
 
-Resolve conflicts by opening another terminal and staging resolutions
-to the merge conflicts. Once you fixed the conflicts, return to
-`git-node` and enter `RESOLVED`.
+Resolve conflicts, stage the files (you may need to open another terminal or use
+a GUI git client), then return to the terminal running `git-node`, type
+`RESOLVED`, and hit <kbd>Enter</kbd>.
 
 7. After you resolve conflicts (or if there are no conflicts), the
    output should look like this:
