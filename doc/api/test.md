@@ -331,9 +331,14 @@ changes:
   does not have a name.
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
-  * `concurrency` {number} The number of tests that can be run at the same time.
+  * `concurrency` {number|boolean} If a number is provided,
+    then that many tests would run in parallel.
+    If truthy, it would run (number of cpu cores - 1)
+    tests in parallel.
+    For subtests, it will be `Infinity` tests in parallel.
+    If falsy, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
-    **Default:** `1`.
+    **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
