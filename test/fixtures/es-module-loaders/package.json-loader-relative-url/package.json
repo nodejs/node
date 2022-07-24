@@ -1,0 +1,6 @@
+{
+  "name": "package.json-loader-relative-url",
+  "nodeEntryPointConfig": {
+    "loaders": ["./load-extensionless-as-esm.mjs"]
+  }
+}

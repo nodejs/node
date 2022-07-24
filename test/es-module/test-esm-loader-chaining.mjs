@@ -431,3 +431,27 @@ const commonArgs = [
   assert.match(stderr, /'load' hook's nextLoad\(\) context/);
   assert.strictEqual(status, 1);
 }
+
+{
+  const { status } = spawnSync(
+    process.execPath,
+    [
+      fixtures.path('es-module-loaders', 'package.json-loader-relative-url', 'entryPoint'),
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(status, 0);
+}
+
+{
+  const { status } = spawnSync(
+    process.execPath,
+    [
+      fixtures.path('es-module-loaders', 'package.json-loader-package-name', 'entryPoint'),
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(status, 0);
+}

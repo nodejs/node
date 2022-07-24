@@ -1,0 +1,6 @@
+{
+  "name": "somePackage",
+  "nodeEntryPointConfig": {
+    "loaders": ["extensionless-loader"]
+  }
+}

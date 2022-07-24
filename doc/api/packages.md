@@ -1315,10 +1315,36 @@ Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
+### `nodeEntryPointConfig`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+Additional configuration on how to start the Node.js processes inside a package
+(does not apply if the entry point is using `.mjs` or `.cjs` file extension).
+
+#### `nodeEntryPointConfig.loaders`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string\[]}
+
+Specify the `module` of a custom experimental [ECMAScript module loader][].
+`module` may be any string accepted as an [`import` specifier][] resolved
+relative to the `package.json` file.
+This field is ignored if the [`--experimental-loader`][] CLI flag is used.
+
+
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
 [Corepack]: corepack.md
+[ECMAScript module loader]: esm.md#loaders
 [ES module]: esm.md
 [ES modules]: esm.md
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
@@ -1329,9 +1355,11 @@ This field defines [subpath imports][] for the current package.
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
+[`--experimental-loader`]: cli.md#--experimental-loadermodule
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
+[`import` specifier]: esm.md#import-specifiers
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
