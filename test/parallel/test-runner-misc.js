@@ -20,14 +20,14 @@ if (process.argv[2] === 'child') {
       await setTimeout(50);
     })).finally(common.mustCall(() => {
       test(() => assert.strictEqual(testSignal.aborted, true));
-    });
+    }));
   } else assert.fail('unreachable');
 } else {
   const child = spawnSync(process.execPath, [__filename, 'child', 'abortSignal']);
   const stdout = child.stdout.toString();
-  assert.match(stdout, /# pass 1/);
-  assert.match(stdout, /# fail 0/);
-  assert.match(stdout, /# cancelled 1/);
+  assert.match(stdout, /^# pass 1$/m);
+  assert.match(stdout, /^# fail 0$/m);
+  assert.match(stdout, /^# cancelled 1$/m);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 }
