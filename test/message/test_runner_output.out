@@ -129,9 +129,9 @@ not ok 13 - async assertion fail
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-
+    
     true !== false
-
+    
   code: 'ERR_ASSERTION'
   stack: |-
     *
@@ -607,8 +607,8 @@ not ok 61 - invalid subtest fail
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 61
 # pass 26
-# fail 20
-# cancelled 0
+# fail 18
+# cancelled 2
 # skipped 10
 # todo 5
 # duration_ms *
