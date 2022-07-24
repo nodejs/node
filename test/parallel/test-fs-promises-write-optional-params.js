@@ -16,6 +16,9 @@ const dest = path.resolve(tmpdir.path, 'tmp.txt');
 const buffer = Buffer.from('zyx');
 
 async function testInvalid(dest, expectedCode, ...params) {
+  if (params.length >= 2) {
+    params[1] = common.mustNotMutateObjectDeep(params[1]);
+  }
   let fh;
   try {
     fh = await fsPromises.open(dest, 'w+');
@@ -28,6 +31,8 @@ async function testInvalid(dest, expectedCode, ...params) {
 }
 
 async function testValid(dest, buffer, options) {
+  const length = options?.length;
+  const offset = options?.offset;
   let fh;
   try {
     fh = await fsPromises.open(dest, 'w+');
@@ -38,10 +43,10 @@ async function testValid(dest, buffer, options) {
     const readBufCopy = Uint8Array.prototype.slice.call(readResult.buffer);
 
     assert.ok(writeResult.bytesWritten >= readResult.bytesRead);
-    if (options.length !== undefined && options.length !== null) {
-      assert.strictEqual(writeResult.bytesWritten, options.length);
+    if (length !== undefined && length !== null) {
+      assert.strictEqual(writeResult.bytesWritten, length);
     }
-    if (options.offset === undefined || options.offset === 0) {
+    if (offset === undefined || offset === 0) {
       assert.deepStrictEqual(writeBufCopy, readBufCopy);
     }
     assert.deepStrictEqual(writeResult.buffer, readResult.buffer);
@@ -54,6 +59,8 @@ async function testValid(dest, buffer, options) {
   // Test if first argument is not wrongly interpreted as ArrayBufferView|string
   for (const badBuffer of [
     undefined, null, true, 42, 42n, Symbol('42'), NaN, [], () => {},
+    common.mustNotCall(),
+    common.mustNotMutateObjectDeep({}),
     Promise.resolve(new Uint8Array(1)),
     {},
     { buffer: 'amNotParam' },
@@ -64,7 +71,7 @@ async function testValid(dest, buffer, options) {
     { toString() { return 'amObject'; } },
     { [Symbol.toPrimitive]: (hint) => 'amObject' },
   ]) {
-    await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', badBuffer, {});
+    await testInvalid(dest, 'ERR_INVALID_ARG_TYPE', common.mustNotMutateObjectDeep(badBuffer), {});
   }
 
   // First argument (buffer or string) is mandatory
@@ -81,6 +88,8 @@ async function testValid(dest, buffer, options) {
 
   // Test compatibility with filehandle.read counterpart
   for (const options of [
+    undefined,
+    null,
     {},
     { length: 1 },
     { position: 5 },
@@ -90,6 +99,6 @@ async function testValid(dest, buffer, options) {
     { position: null },
     { offset: 1 },
   ]) {
-    await testValid(dest, buffer, options);
+    await testValid(dest, buffer, common.mustNotMutateObjectDeep(options));
   }
 })().then(common.mustCall());
