@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,14 +10,14 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.0-rc.6",
+  "packageManager": "yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
     "@babel/preset-typescript": "^7.13.0",
     "@types/debug": "^4.1.5",
-    "@types/jest": "^27.0.0",
-    "@types/node": "^17.0.10",
+    "@types/jest": "^28.0.0",
+    "@types/node": "^18.0.0",
     "@types/semver": "^7.1.0",
     "@types/tar": "^6.0.0",
     "@types/which": "^2.0.0",
