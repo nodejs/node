@@ -1428,6 +1428,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
+  auto cleanup = OnScopeLeave([&]() { uv_freeaddrinfo(res); });
   std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
       static_cast<GetAddrInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
@@ -1487,8 +1488,6 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     argv[1] = results;
   }
-
-  uv_freeaddrinfo(res);
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
