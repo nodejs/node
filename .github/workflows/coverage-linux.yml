@@ -27,7 +27,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  FLAKY_TESTS: keep_retrying
 
 permissions:
   contents: read
@@ -53,7 +53,7 @@ jobs:
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Test
-        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots" || exit 0
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
         env:

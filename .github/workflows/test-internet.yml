@@ -22,7 +22,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  FLAKY_TESTS: keep_retrying
 
 permissions:
   contents: read
