@@ -3,6 +3,22 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { spawnSync, spawn } = require('child_process');
+const { once } = require('events');
+const { finished } = require('stream/promises');
+
+async function runAndKill(file) {
+  let stdout = '';
+  child = spawn(process.execPath, ['--test', file]);
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    if (!stdout.length) child.kill('SIGINT');
+    stdout += chunk;
+  })
+  await Promise.all([once('exit'), finished(child.stdout)]);
+  assert.strictEqual(code, 1);
+  assert.strictEqual(signal, null);
+  return stdout;
+}
 
 if (process.argv[2] === 'child') {
   const test = require('node:test');
@@ -30,16 +46,15 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 
-  let stdout = '';
-  child = spawn(process.execPath, ['--test', fixtures.path('test-runner', 'never_ending.js')]);
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (chunk) => {
-    if (!stdout.length) child.kill('SIGINT');
-    stdout += chunk;
-  })
-  child.once('exit', common.mustCall(async (code, signal) => {
-    assert.strictEqual(code, 1);
-    assert.strictEqual(signal, null);
+  runAndKill(fixtures.path('test-runner', 'never_ending_sync.js')).then(common.mustCall(async (stdout) => {
+    if (common.isWindows) {
+      common.printSkipMessage('signals are not supported in windows');
+    } else {
+      assert.match(stdout, /not ok 1/);
+      assert.match(stdout, /# cancelled 1\n/);
+    }
+  }));
+  runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall(async (stdout) => {
     if (common.isWindows) {
       common.printSkipMessage('signals are not supported in windows');
     } else {
