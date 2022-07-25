@@ -35,7 +35,6 @@
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_dsa.h"
 #include "crypto/crypto_ec.h"
-#include "crypto/crypto_groups.h"
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
@@ -47,8 +46,8 @@
 #include "crypto/crypto_scrypt.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_spkac.h"
-#include "crypto/crypto_tls.h"
 #include "crypto/crypto_timing.h"
+#include "crypto/crypto_tls.h"
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_x509.h"
 
