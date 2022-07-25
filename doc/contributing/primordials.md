@@ -363,10 +363,33 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
-PromiseAll(array); // unsafe
+PromiseAll([]); // unsafe
 
-PromiseAll(new SafeArrayIterator(array));
+PromiseAll(new SafeArrayIterator([])); // safe
+
+const array = [promise];
+const set = new SafeSet().add(promise);
+// When running one of these functions on a non-empty iterable, it will also:
+// 4. Lookup `then` property on `promise` (user-mutable if user-provided).
+// 5. Lookup `then` property on `%Promise.prototype%` (user-mutable).
+PromiseAll(new SafeArrayIterator(array)); // unsafe
+
+PromiseAll(set); // unsafe
+
 SafePromiseAll(array); // safe
+
+// Some key differences between `SafePromise[...]` and `Promise[...]` methods:
+
+// 1. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, and SafePromiseRace
+//    support passing a mapperFunction as second argument.
+SafePromiseAll(ArrayPrototypeMap(array, someFunction));
+SafePromiseAll(array, someFunction); // Same as the above, but more efficient.
+
+// 2. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, and SafePromiseRace
+//    only support arrays, not iterables. Use ArrayFrom to convert an iterable
+//    to an array.
+SafePromiseAll(set); // ignores set content.
+SafePromiseAll(ArrayFrom(set)); // safe
 ```
 
 </details>
@@ -459,6 +482,7 @@ original methods:
 * It expects an array (or array-like object) instead of an iterable.
 * It wraps each promise in `SafePromise` objects and wraps the result in a new
   `Promise` instance – which may come with a performance penalty.
+* It accepts a `mapperFunction` as second argument.
 * Because it doesn't look up `then` property, it may not be the right tool to
   handle user-provided promises (which may be instances of a subclass of
   `Promise`).
@@ -491,6 +515,15 @@ PromisePrototypeThen(
   () => { thenBlockExecuted = true; }
 );
 process.on('exit', () => console.log(thenBlockExecuted)); // true
+```
+
+A common pattern is to map on the array of `Promise`s to apply some
+transformations, in that case it can be more efficient to pass a second argument
+rather than invoking `%Array.prototype.map%`.
+
+```js
+SafePromiseAll(ArrayPrototypeMap(array, someFunction));
+SafePromiseAll(array, someFunction); // Same as the above, but more efficient.
 ```
 
 </details>
