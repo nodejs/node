@@ -30,7 +30,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  FLAKY_TESTS: keep_retrying
 
 permissions:
   contents: read
@@ -60,4 +60,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
