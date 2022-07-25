@@ -14,7 +14,8 @@ async function runAndKill(file) {
     if (!stdout.length) child.kill('SIGINT');
     stdout += chunk;
   });
-  const { 0: { 0: code, 1: signal } } = await Promise.all([once(child, 'exit'), finished(child.stdout)]);
+  const [code, signal] = await once(child, 'exit');
+  await finished(child.stdout);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
   if (common.isWindows) {
