@@ -20,6 +20,7 @@ class DiffieHellman : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   bool Init(int primeLength, int g);
+  bool Init(BignumPointer&& bn_p, int g);
   bool Init(const char* p, int p_len, int g);
   bool Init(const char* p, int p_len, const char* g, int g_len);
 
