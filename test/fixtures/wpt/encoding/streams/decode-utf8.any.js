@@ -43,7 +43,16 @@
     const array = await readableStreamToArray(output);
     assert_array_equals(array, [expectedOutputString],
                         'the output should be in one chunk');
-  }, 'a trailing empty chunk should be ignored- ' + arrayBufferOrSharedArrayBuffer);
+  }, 'a trailing empty chunk should be ignored - ' + arrayBufferOrSharedArrayBuffer);
+
+  promise_test(async () => {
+    const chunk = new Uint8Array(createBuffer(arrayBufferOrSharedArrayBuffer, 3));
+    chunk.set([0xF0, 0x9F, 0x92]);
+    const input = readableStreamFromArray([chunk]);
+    const output = input.pipeThrough(new TextDecoderStream());
+    const array = await readableStreamToArray(output);
+    assert_array_equals(array, ['\uFFFD']);
+  }, 'UTF-8 EOF handling - ' + arrayBufferOrSharedArrayBuffer);
 });
 
 promise_test(async () => {
