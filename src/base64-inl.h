@@ -169,10 +169,6 @@ inline size_t base64_encode(const char* src,
       a = src[i + 0] & 0xff;
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[(a & 3) << 4];
-      if (mode == Base64Mode::NORMAL) {
-        dst[k + 2] = '=';
-        dst[k + 3] = '=';
-      }
       break;
     case 2:
       a = src[i + 0] & 0xff;
@@ -180,8 +176,6 @@ inline size_t base64_encode(const char* src,
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
       dst[k + 2] = table[(b & 0x0f) << 2];
-      if (mode == Base64Mode::NORMAL)
-        dst[k + 3] = '=';
       break;
   }
 
