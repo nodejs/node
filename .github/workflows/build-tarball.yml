@@ -11,12 +11,11 @@ on:
       - v[0-9]+.x
 
 env:
-  FLAKY_TESTS: dontcare
+  PYTHON_VERSION: '3.10'
+  FLAKY_TESTS: keep_retrying
 
 jobs:
   build-tarball:
-    env:
-      PYTHON_VERSION: '3.10'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -71,4 +70,4 @@ jobs:
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots"
+          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
