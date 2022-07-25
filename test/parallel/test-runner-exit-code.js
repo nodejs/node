@@ -8,13 +8,13 @@ const { finished } = require('stream/promises');
 
 async function runAndKill(file) {
   let stdout = '';
-  child = spawn(process.execPath, ['--test', file]);
+  const child = spawn(process.execPath, ['--test', file]);
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', (chunk) => {
     if (!stdout.length) child.kill('SIGINT');
     stdout += chunk;
-  })
-  await Promise.all([once('exit'), finished(child.stdout)]);
+  });
+  const { 0: { 0: code, 1: signal } } = await Promise.all([once(child, 'exit'), finished(child.stdout)]);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
   return stdout;
