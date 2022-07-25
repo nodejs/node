@@ -60,7 +60,7 @@ try {
   assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
-  assert(err.status > 128 || err.signal);
+  assert(err.status > 128 || err.signal, `status: ${err.status}, signal: ${err.signal}`);
 }
 
 assert.throws(function() {
@@ -87,7 +87,7 @@ const cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 
 const args = [
   '-e',
-  `console.log("${msg}");`
+  `console.log("${msg}");`,
 ];
 {
   const ret = execFileSync(process.execPath, args);
@@ -128,7 +128,7 @@ const args = [
     'signal',
     'status',
     'stderr',
-    'stdout'
+    'stdout',
   ]);
 
   assert.throws(() => {

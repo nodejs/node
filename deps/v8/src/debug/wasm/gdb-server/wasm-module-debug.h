@@ -49,9 +49,15 @@ class WasmModuleDebug {
   // associated to this module.
   // Returns the number of byte copied to {buffer}, or 0 is case of error.
   // Note: only one Memory for Module is currently supported.
-  static uint32_t GetWasmMemory(Isolate* isolate, uint32_t frame_index,
-                                uint32_t offset, uint8_t* buffer,
-                                uint32_t size);
+  uint32_t GetWasmMemory(Isolate* isolate, uint32_t offset, uint8_t* buffer,
+                         uint32_t size);
+
+  // Reads {size} bytes, starting from {offset}, from the first segment
+  // associated to this module.
+  // Returns the number of byte copied to {buffer}, or 0 is case of error.
+  // Note: only one Memory for Module is currently supported.
+  uint32_t GetWasmData(Isolate* isolate, uint32_t offset, uint8_t* buffer,
+                       uint32_t size);
 
   // Gets {size} bytes, starting from {offset}, from the Code space of this
   // module.

@@ -25,7 +25,7 @@ assertFalse(isNeverOptimize());
 
     if (i == 1) {
       // f must be interpreted code.
-      assertTrue(isInterpreted(f));
+      assertTrue(isUnoptimized(f));
 
       // Run twice (i = 0, 1), then tier-up.
       %OptimizeFunctionOnNextCall(f);

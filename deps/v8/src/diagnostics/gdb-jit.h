@@ -5,7 +5,7 @@
 #ifndef V8_DIAGNOSTICS_GDB_JIT_H_
 #define V8_DIAGNOSTICS_GDB_JIT_H_
 
-#include "include/v8.h"
+#include "src/base/address-region.h"
 
 //
 // GDB has two ways of interacting with JIT code.  With the "JIT compilation
@@ -25,12 +25,25 @@
 //
 
 namespace v8 {
+
+struct JitCodeEvent;
+
 namespace internal {
 namespace GDBJITInterface {
 #ifdef ENABLE_GDB_JIT_INTERFACE
+
 // JitCodeEventHandler that creates ELF/Mach-O objects and registers them with
 // GDB.
 void EventHandler(const v8::JitCodeEvent* event);
+
+// Expose some functions for unittests. These only exercise the logic to add
+// AddressRegion to CodeMap, and checking for overlap. It does not touch the
+// actual JITCodeEntry at all.
+V8_EXPORT_PRIVATE void AddRegionForTesting(const base::AddressRegion region);
+V8_EXPORT_PRIVATE void ClearCodeMapForTesting();
+V8_EXPORT_PRIVATE size_t
+NumOverlapEntriesForTesting(const base::AddressRegion region);
+
 #endif
 }  // namespace GDBJITInterface
 }  // namespace internal

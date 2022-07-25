@@ -14,10 +14,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 
-// Environments may come with existing BaseObject instances.
-// This variable offsets the expected BaseObject counts.
-static const int BASE_OBJECT_COUNT = 0;
-
 class BaseObjectPtrTest : public EnvironmentTestFixture {};
 
 class DummyBaseObject : public BaseObject {
@@ -51,12 +47,12 @@ TEST_F(BaseObjectPtrTest, ScopedDetached) {
   Env env_{handle_scope, argv};
   Environment* env = *env_;
 
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
   {
     BaseObjectPtr<DummyBaseObject> ptr = DummyBaseObject::NewDetached(env);
-    EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+    EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
   }
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
 }
 
 TEST_F(BaseObjectPtrTest, ScopedDetachedWithWeak) {
@@ -67,14 +63,14 @@ TEST_F(BaseObjectPtrTest, ScopedDetachedWithWeak) {
 
   BaseObjectWeakPtr<DummyBaseObject> weak_ptr;
 
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
   {
     BaseObjectPtr<DummyBaseObject> ptr = DummyBaseObject::NewDetached(env);
     weak_ptr = ptr;
-    EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+    EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
   }
   EXPECT_EQ(weak_ptr.get(), nullptr);
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
 }
 
 TEST_F(BaseObjectPtrTest, Undetached) {
@@ -86,13 +82,12 @@ TEST_F(BaseObjectPtrTest, Undetached) {
   node::AddEnvironmentCleanupHook(
       isolate_,
       [](void* arg) {
-        EXPECT_EQ(static_cast<Environment*>(arg)->base_object_count(),
-                  BASE_OBJECT_COUNT);
+        EXPECT_EQ(static_cast<Environment*>(arg)->base_object_count(), 0);
       },
       env);
 
   BaseObjectPtr<DummyBaseObject> ptr = DummyBaseObject::New(env);
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
 }
 
 TEST_F(BaseObjectPtrTest, GCWeak) {
@@ -109,21 +104,21 @@ TEST_F(BaseObjectPtrTest, GCWeak) {
     weak_ptr = ptr;
     ptr->MakeWeak();
 
-    EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+    EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
     EXPECT_EQ(weak_ptr.get(), ptr.get());
     EXPECT_EQ(weak_ptr->persistent().IsWeak(), false);
 
     ptr.reset();
   }
 
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
   EXPECT_NE(weak_ptr.get(), nullptr);
   EXPECT_EQ(weak_ptr->persistent().IsWeak(), true);
 
   v8::V8::SetFlagsFromString("--expose-gc");
   isolate_->RequestGarbageCollectionForTesting(Isolate::kFullGarbageCollection);
 
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
   EXPECT_EQ(weak_ptr.get(), nullptr);
 }
 
@@ -134,7 +129,7 @@ TEST_F(BaseObjectPtrTest, Moveable) {
   Environment* env = *env_;
 
   BaseObjectPtr<DummyBaseObject> ptr = DummyBaseObject::NewDetached(env);
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
   BaseObjectWeakPtr<DummyBaseObject> weak_ptr { ptr };
   EXPECT_EQ(weak_ptr.get(), ptr.get());
 
@@ -145,12 +140,12 @@ TEST_F(BaseObjectPtrTest, Moveable) {
   BaseObjectWeakPtr<DummyBaseObject> weak_ptr2 = std::move(weak_ptr);
   EXPECT_EQ(weak_ptr2.get(), ptr2.get());
   EXPECT_EQ(weak_ptr.get(), nullptr);
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 1);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 1);
 
   ptr2.reset();
 
   EXPECT_EQ(weak_ptr2.get(), nullptr);
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 0);
 }
 
 TEST_F(BaseObjectPtrTest, NestedClasses) {
@@ -174,8 +169,7 @@ TEST_F(BaseObjectPtrTest, NestedClasses) {
   node::AddEnvironmentCleanupHook(
       isolate_,
       [](void* arg) {
-        EXPECT_EQ(static_cast<Environment*>(arg)->base_object_count(),
-                  BASE_OBJECT_COUNT);
+        EXPECT_EQ(static_cast<Environment*>(arg)->base_object_count(), 0);
       },
       env);
 
@@ -184,5 +178,5 @@ TEST_F(BaseObjectPtrTest, NestedClasses) {
   obj->ptr1 = DummyBaseObject::NewDetached(env);
   obj->ptr2 = DummyBaseObject::New(env);
 
-  EXPECT_EQ(env->base_object_count(), BASE_OBJECT_COUNT + 3);
+  EXPECT_EQ(env->base_object_created_after_bootstrap(), 3);
 }

@@ -15,7 +15,7 @@ const promiseResolver = new dns.promises.Resolver();
     addresses.DNS4_SERVER,
     {
       address: addresses.DNS4_SERVER
-    }
+    },
   ].forEach((val) => {
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -54,8 +54,8 @@ const promiseResolver = new dns.promises.Resolver();
     [
       {
         address: addresses.DNS4_SERVER
-      }
-    ]
+      },
+    ],
   ].forEach((val) => {
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -104,8 +104,8 @@ const promiseResolver = new dns.promises.Resolver();
     [
       {
         address: addresses.DNS4_SERVER
-      }
-    ]
+      },
+    ],
   ].forEach((val) => {
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',

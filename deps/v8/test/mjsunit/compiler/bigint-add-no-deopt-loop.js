@@ -24,7 +24,9 @@ assertEquals(testAdd(6n, 2n), 8n);
 assertOptimized(testAdd);
 
 assertThrows(() => testAdd(big, big), RangeError);
-assertUnoptimized(testAdd);
+if (%Is64Bit()) {
+  assertUnoptimized(testAdd);
+}
 
 testAdd(30n, -50n);
 testAdd(23n, 5n);

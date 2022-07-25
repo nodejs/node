@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -28,11 +28,6 @@
 #include <openssl/crypto.h>
 
 #include "crypto/siphash.h"
-#include "siphash_local.h"
-
-/* default: SipHash-2-4 */
-#define SIPHASH_C_ROUNDS 2
-#define SIPHASH_D_ROUNDS 4
 
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
@@ -146,7 +141,7 @@ void SipHash_Update(SIPHASH *ctx, const unsigned char *in, size_t inlen)
     uint64_t m;
     const uint8_t *end;
     int left;
-    int i;
+    unsigned int i;
     uint64_t v0 = ctx->v0;
     uint64_t v1 = ctx->v1;
     uint64_t v2 = ctx->v2;
@@ -202,14 +197,14 @@ void SipHash_Update(SIPHASH *ctx, const unsigned char *in, size_t inlen)
 int SipHash_Final(SIPHASH *ctx, unsigned char *out, size_t outlen)
 {
     /* finalize hash */
-    int i;
+    unsigned int i;
     uint64_t b = ctx->total_inlen << 56;
     uint64_t v0 = ctx->v0;
     uint64_t v1 = ctx->v1;
     uint64_t v2 = ctx->v2;
     uint64_t v3 = ctx->v3;
 
-    if (outlen != (size_t)ctx->hash_size)
+    if (ctx->crounds == 0 || outlen == 0 || outlen != (size_t)ctx->hash_size)
         return 0;
 
     switch (ctx->len) {

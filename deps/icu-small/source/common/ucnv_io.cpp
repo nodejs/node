@@ -10,7 +10,7 @@
 *
 *
 *  ucnv_io.cpp:
-*  initializes global variables and defines functions pertaining to converter
+*  initializes global variables and defines functions pertaining to converter 
 *  name resolution aspect of the conversion code.
 *
 *   new implementation:

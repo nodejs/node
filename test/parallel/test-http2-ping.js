@@ -7,7 +7,6 @@ if (!common.hasCrypto)
 const async_hooks = require('async_hooks');
 const assert = require('assert');
 const http2 = require('http2');
-const { inspect } = require('util');
 
 const pings = new Set();
 const events = [0, 0, 0, 0];
@@ -120,9 +119,7 @@ server.listen(0, common.mustCall(() => {
           () => client.ping(payload, invalidCallback),
           {
             name: 'TypeError',
-            code: 'ERR_INVALID_CALLBACK',
-            message: 'Callback must be a function. ' +
-                     `Received ${inspect(invalidCallback)}`
+            code: 'ERR_INVALID_ARG_TYPE',
           }
         )
       );

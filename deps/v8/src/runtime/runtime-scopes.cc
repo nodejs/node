@@ -11,15 +11,15 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -53,8 +53,8 @@ Object DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
                      RedeclarationType redeclaration_type) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context().script_context_table(), isolate);
-  ScriptContextTable::LookupResult lookup;
-  if (ScriptContextTable::Lookup(isolate, *script_contexts, *name, &lookup) &&
+  VariableLookupResult lookup;
+  if (script_contexts->Lookup(name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
     // ES#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -125,8 +125,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 1);
+  Handle<FixedArray> declarations = args.at<FixedArray>(0);
+  Handle<JSFunction> closure = args.at<JSFunction>(1);
 
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       Handle<ClosureFeedbackCellArray>::null();
@@ -158,8 +158,9 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell =
           closure_feedback_cell_array->GetFeedbackCell(feedback_index);
-      value = *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          sfi, context, feedback_cell, AllocationType::kOld);
+      value = *Factory::JSFunctionBuilder(isolate, sfi, context)
+                   .set_feedback_cell(feedback_cell)
+                   .Build();
     }
 
     Cell::cast(exports->get(index - 1)).set_value(value);
@@ -172,8 +173,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 1);
+  Handle<FixedArray> declarations = args.at<FixedArray>(0);
+  Handle<JSFunction> closure = args.at<JSFunction>(1);
 
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
@@ -205,8 +206,9 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       int index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell =
           closure_feedback_cell_array->GetFeedbackCell(index);
-      value = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          sfi, context, feedback_cell, AllocationType::kOld);
+      value = Factory::JSFunctionBuilder(isolate, sfi, context)
+                  .set_feedback_cell(feedback_cell)
+                  .Build();
     }
 
     // Compute the property attributes. According to ECMA-262,
@@ -294,7 +296,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   } else if (context->has_extension()) {
     object = handle(context->extension_object(), isolate);
     DCHECK(object->IsJSContextExtensionObject());
-  } else {
+  } else if (context->scope_info().HasContextExtensionSlot()) {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
@@ -305,6 +307,10 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
         isolate->factory()->NewJSObject(isolate->context_extension_function());
 
     context->set_extension(*object);
+  } else {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewEvalError(MessageTemplate::kVarNotAllowedInEvalScope, name));
   }
 
   RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -318,15 +324,15 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 RUNTIME_FUNCTION(Runtime_DeclareEvalFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value = args.at(1);
   return DeclareEvalHelper(isolate, name, value);
 }
 
 RUNTIME_FUNCTION(Runtime_DeclareEvalVar) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
   return DeclareEvalHelper(isolate, name,
                            isolate->factory()->undefined_value());
 }
@@ -379,17 +385,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 
     return param_data;
   } else {
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     int args_count = frame->GetActualArgumentCount();
-#else
-    if (it.frame()->has_adapted_arguments()) {
-      it.AdvanceOneFrame();
-      DCHECK(it.frame()->is_arguments_adaptor());
-    }
-    frame = it.frame();
-    int args_count = frame->ComputeParametersCount();
-#endif
-
     *total_argc = args_count;
     std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));
@@ -410,10 +406,11 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
-  int parameter_count = callee->shared().internal_formal_parameter_count();
+  int parameter_count =
+      callee->shared().internal_formal_parameter_count_without_receiver();
   if (argument_count > 0) {
     if (parameter_count > 0) {
-      int mapped_count = Min(argument_count, parameter_count);
+      int mapped_count = std::min(argument_count, parameter_count);
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
@@ -496,7 +493,7 @@ class ParameterArguments {
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
@@ -509,7 +506,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
@@ -519,8 +516,8 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
       isolate->factory()->NewArgumentsObject(callee, argument_count);
   if (argument_count) {
     Handle<FixedArray> array =
-        isolate->factory()->NewUninitializedFixedArray(argument_count);
-    DisallowHeapAllocation no_gc;
+        isolate->factory()->NewFixedArray(argument_count);
+    DisallowGarbageCollection no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
       array->set(i, *arguments[i], mode);
@@ -534,8 +531,9 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
-  int start_index = callee->shared().internal_formal_parameter_count();
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  int start_index =
+      callee->shared().internal_formal_parameter_count_without_receiver();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
@@ -546,7 +544,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       PACKED_ELEMENTS, num_elements, num_elements,
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
@@ -559,34 +557,34 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 1);
+  Handle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
+  Handle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
   Handle<Context> context(isolate->context(), isolate);
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, AllocationType::kYoung);
-  return *function;
+  return *Factory::JSFunctionBuilder{isolate, shared, context}
+              .set_feedback_cell(feedback_cell)
+              .set_allocation_type(AllocationType::kYoung)
+              .Build();
 }
 
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 1);
+  Handle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
+  Handle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
   Handle<Context> context(isolate->context(), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, AllocationType::kOld);
-  return *function;
+  return *Factory::JSFunctionBuilder{isolate, shared, context}
+              .set_feedback_cell(feedback_cell)
+              .set_allocation_type(AllocationType::kOld)
+              .Build();
 }
 
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
+  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
 
   Handle<Context> outer(isolate->context(), isolate);
   return *isolate->factory()->NewFunctionContext(outer, scope_info);
@@ -596,8 +594,8 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  Handle<JSReceiver> extension_object = args.at<JSReceiver>(0);
+  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
   Handle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewWithContext(current, scope_info,
                                              extension_object);
@@ -607,8 +605,8 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  Handle<Object> thrown_object = args.at(0);
+  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
   Handle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewCatchContext(current, scope_info,
                                               thrown_object);
@@ -618,7 +616,7 @@ RUNTIME_FUNCTION(Runtime_PushCatchContext) {
 RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
+  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
   Handle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewBlockContext(current, scope_info);
 }
@@ -627,7 +625,7 @@ RUNTIME_FUNCTION(Runtime_PushBlockContext) {
 RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
 
   int index;
   PropertyAttributes attributes;
@@ -733,7 +731,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
 RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
   RETURN_RESULT_OR_FAILURE(isolate,
                            LoadLookupSlot(isolate, name, kThrowOnError));
 }
@@ -742,7 +740,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
 RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
   RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(isolate, name, kDontThrow));
 }
 
@@ -750,7 +748,6 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK(args[0].IsString());
   Handle<String> name = args.at<String>(0);
   Handle<Object> value;
   Handle<Object> receiver;
@@ -833,8 +830,8 @@ MaybeHandle<Object> StoreLookupSlot(
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value = args.at(1);
   Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -844,8 +841,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value = args.at(1);
   Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -857,8 +854,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value = args.at(1);
   const ContextLookupFlags lookup_flags =
       static_cast<ContextLookupFlags>(DONT_FOLLOW_CHAINS);
   Handle<Context> declaration_context(isolate->context().declaration_context(),
@@ -868,19 +865,18 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
                                LanguageMode::kSloppy, lookup_flags));
 }
 
-RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLet) {
+RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value = args.at(1);
 
   Handle<Context> native_context = isolate->native_context();
   Handle<ScriptContextTable> script_contexts(
       native_context->script_context_table(), isolate);
 
-  ScriptContextTable::LookupResult lookup_result;
-  bool found = ScriptContextTable::Lookup(isolate, *script_contexts, *name,
-                                          &lookup_result);
+  VariableLookupResult lookup_result;
+  bool found = script_contexts->Lookup(name, &lookup_result);
   CHECK(found);
   Handle<Context> script_context = ScriptContextTable::GetContext(
       isolate, script_contexts, lookup_result.context_index);

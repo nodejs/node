@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
+// Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExternRefIdentityFunction() {
   print(arguments.callee.name);
@@ -12,7 +12,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('main', kSig_r_r)
       .addBody([kExprLocalGet, 0])
       .exportFunc();
-
 
   const instance = builder.instantiate();
 
@@ -165,7 +164,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -196,7 +195,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v)
-      .addBody([kExprRefNull, kWasmExternRef, kExprRefIsNull])
+      .addBody([kExprRefNull, kExternRefCode, kExprRefIsNull])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -206,15 +205,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExternRefLocalDefaultValue() {
   print(arguments.callee.name);
-  const builder = new WasmModuleBuilder();
-  builder.addFunction('main', kSig_r_v)
-      .addBody([kExprLocalGet, 0])
-      .addLocals(kWasmExternRef, 1)
-      .exportFunc();
+  const numLocals = 3;
+  for (let i = 0; i < numLocals; ++i) {
+    const builder = new WasmModuleBuilder();
+    builder.addFunction('main', kSig_r_v)
+        .addBody([kExprLocalGet, i])
+        .addLocals(kWasmExternRef, numLocals)
+        .exportFunc();
 
-  const instance = builder.instantiate();
+    const instance = builder.instantiate();
 
-  assertEquals(null, instance.exports.main());
+    assertEquals(null, instance.exports.main());
+  }
 })();
 
 (function testImplicitReturnNullAsExternRef() {
@@ -222,7 +224,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -234,9 +236,124 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmExternRef, kExprReturn])
+      .addBody([kExprRefNull, kExternRefCode, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
   assertEquals(null, main());
+})();
+
+(function testGCInStackCheck() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+
+  const gc_sig = builder.addType(kSig_v_v);
+  const mysig = makeSig(
+      [
+        kWasmExternRef, kWasmI32, kWasmExternRef, kWasmExternRef, kWasmExternRef
+      ],
+      []);
+  const func_sig = builder.addType(mysig);
+  const triggerGC_index = builder.addImport('q', 'triggerGC', gc_sig);
+  const func_index = builder.addImport('q', 'func', func_sig);
+
+  const foo = builder.addFunction('foo', func_sig).addBody([
+    kExprLocalGet, 0, // --
+    kExprLocalGet, 1, // --
+    kExprLocalGet, 2, // --
+    kExprLocalGet, 3, // --
+    kExprLocalGet, 4, // --
+    kExprCallFunction, func_index
+  ]);
+
+  builder.addFunction('main', func_sig)
+      .addBody([
+        kExprCallFunction, triggerGC_index,  // --
+        kExprLocalGet, 0,                    // --
+        kExprLocalGet, 1,                    // --
+        kExprLocalGet, 2,                    // --
+        kExprLocalGet, 3,                    // --
+        kExprLocalGet, 4,                    // --
+        kExprCallFunction, foo.index
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate({
+    q: {
+      triggerGC: () => %ScheduleGCInStackCheck(),
+      func: (ref) => assertEquals(ref.hello, 4)
+    }
+  });
+
+  instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
+})();
+
+(function testGCInStackCheckUnalignedFrameSize() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+
+  const gc_sig = builder.addType(kSig_v_v);
+  const mysig = makeSig(
+      [
+        kWasmExternRef, kWasmI32, kWasmExternRef, kWasmExternRef, kWasmExternRef
+      ],
+      []);
+  const func_sig = builder.addType(mysig);
+  const triggerGC_index = builder.addImport('q', 'triggerGC', gc_sig);
+  const func_index = builder.addImport('q', 'func', func_sig);
+
+  const foo = builder.addFunction('foo', func_sig).addBody([
+    kExprLocalGet, 0, // --
+    kExprLocalGet, 1, // --
+    kExprLocalGet, 2, // --
+    kExprLocalGet, 3, // --
+    kExprLocalGet, 4, // --
+    kExprCallFunction, func_index
+  ]).addLocals(kWasmI32, 1);
+
+  builder.addFunction('main', func_sig)
+      .addBody([
+        kExprCallFunction, triggerGC_index,  // --
+        kExprLocalGet, 0,                    // --
+        kExprLocalGet, 1,                    // --
+        kExprLocalGet, 2,                    // --
+        kExprLocalGet, 3,                    // --
+        kExprLocalGet, 4,                    // --
+        kExprCallFunction, foo.index
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate({
+    q: {
+      triggerGC: () => %ScheduleGCInStackCheck(),
+      func: (ref) => assertEquals(ref.hello, 4)
+    }
+  });
+
+  instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
+})();
+
+(function MultiReturnRefTest() {
+  print("MultiReturnTest");
+  let builder = new WasmModuleBuilder();
+  let sig = makeSig([kWasmExternRef],
+      [kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmExternRef]);
+
+  builder.addFunction("callee", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+    ]);
+  builder.addFunction("main", sig)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, 0
+    ])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(null), [null, null, null, null]);
 })();

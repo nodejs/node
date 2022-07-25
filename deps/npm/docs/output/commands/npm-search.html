@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-search</title>
 <style>
 body {
@@ -141,95 +142,151 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#a-note-on-caching">A Note on caching</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#description2">description</a></li><li><a href="#json">json</a></li><li><a href="#parseable">parseable</a></li><li><a href="#long">long</a></li><li><a href="#searchopts">searchopts</a></li><li><a href="#searchexclude">searchexclude</a></li><li><a href="#searchstaleness">searchstaleness</a></li><li><a href="#registry">registry</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#long"><code>long</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#offline"><code>offline</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm search [search terms ...]
 
-aliases: s, se, find
+aliases: find, s, se
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Search the registry for packages matching the search terms. <code>npm search</code>
 performs a linear, incremental, lexically-ordered search through package
-metadata for all files in the registry. If color is enabled, it will further
-highlight the matches in the results.</p>
-<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options paired with
-more search terms will respectively include and exclude further patterns. The
-main difference between <code>--searchopts</code> and the standard search terms is that the
-former does not highlight results in the output and can be used for more
-fine-grained filtering. Additionally, both of these can be added to <code>.npmrc</code> for
-default search filtering behavior.</p>
+metadata for all files in the registry. If your terminal has color
+support, it will further highlight the matches in the results.  This can
+be disabled with the config item <code>color</code></p>
+<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options
+paired with more search terms will include and exclude further patterns.
+The main difference between <code>--searchopts</code> and the standard search terms
+is that the former does not highlight results in the output and you can
+use them more fine-grained filtering. Additionally, you can add both of
+these to your config to change default search filtering behavior.</p>
 <p>Search also allows targeting of maintainers in search results, by prefixing
 their npm username with <code>=</code>.</p>
-<p>If a term starts with <code>/</code>, then it’s interpreted as a regular expression and
-supports standard JavaScript RegExp syntax. A trailing <code>/</code> will be ignored in
-this case. (Note that many regular expression characters must be escaped or
-quoted in most shells.)</p>
-<h3 id="a-note-on-caching">A Note on caching</h3>
+<p>If a term starts with <code>/</code>, then it's interpreted as a regular expression
+and supports standard JavaScript RegExp syntax. In this case search will
+ignore a trailing <code>/</code> .  (Note you must escape or quote many regular
+expression characters in most shells.)</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="description2">description</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="long"><code>long</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="color"><code>color</code></h4>
+<ul>
+<li>Default: true unless the NO_COLOR environ is set to something other than '0'</li>
+<li>Type: "always" or Boolean</li>
+</ul>
+<p>If false, never shows colors. If <code>"always"</code> then always shows colors. If
+true, then only prints color codes for tty file descriptors.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="parseable"><code>parseable</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="description2"><code>description</code></h4>
 <ul>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Used as <code>--no-description</code>, disables search matching in package descriptions and
-suppresses display of that field in results.</p>
-<h4 id="json">json</h4>
+<p>Show the description in <code>npm search</code></p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="searchopts"><code>searchopts</code></h4>
 <ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Output search results as a JSON array.</p>
-<h4 id="parseable">parseable</h4>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Output search results as lines with tab-separated columns.</p>
-<h4 id="long">long</h4>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Display full package descriptions and other long text across multiple
-lines. When disabled (default) search results are truncated to fit
-neatly on a single line. Modules with extremely long names will
-fall on multiple lines.</p>
-<h4 id="searchopts">searchopts</h4>
-<ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that are always passed to search.</p>
-<h4 id="searchexclude">searchexclude</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="searchexclude"><code>searchexclude</code></h4>
 <ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that limit the results from search.</p>
-<h4 id="searchstaleness">searchstaleness</h4>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: 900 (15 minutes)</li>
-<li>Type: Number</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
 </ul>
-<p>The age of the cache, in seconds, before another registry request is made.</p>
-<h4 id="registry">registry</h4>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="prefer-online"><code>prefer-online</code></h4>
 <ul>
-<li>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></li>
-<li>Type: url</li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>Search the specified registry for modules. If you have configured npm to point
-to a different default registry, such as your internal private module
-repository, <code>npm search</code> will default to that registry when searching. Pass a
-different registry url such as the default above in order to override this
-setting.</p>
+<p>If true, staleness checks for cached data will be forced, making the CLI
+look for updates immediately even for fresh package data.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="prefer-offline"><code>prefer-offline</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, staleness checks for cached data will be bypassed, but missing data
+will be requested from the server. To force full offline mode, use
+<code>--offline</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="offline"><code>offline</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Force offline mode: no network requests will be done during install. To
+allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../commands/npm-view.html">npm view</a></li>
+<li><a href="../commands/npm-cache.html">npm cache</a></li>
+<li><a href="https://npm.im/npm-registry-fetch">https://npm.im/npm-registry-fetch</a></li>
 </ul>
 </div>
 

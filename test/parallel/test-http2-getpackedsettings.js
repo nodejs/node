@@ -28,7 +28,7 @@ assert.deepStrictEqual(val, check);
   ['maxHeaderListSize', 0],
   ['maxHeaderListSize', 2 ** 32 - 1],
   ['maxHeaderSize', 0],
-  ['maxHeaderSize', 2 ** 32 - 1]
+  ['maxHeaderSize', 2 ** 32 - 1],
 ].forEach((i) => {
   // Valid options should not throw.
   http2.getPackedSettings({ [i[0]]: i[1] });
@@ -49,7 +49,7 @@ http2.getPackedSettings({ enablePush: false });
   ['maxHeaderListSize', -1],
   ['maxHeaderListSize', 2 ** 32],
   ['maxHeaderSize', -1],
-  ['maxHeaderSize', 2 ** 32]
+  ['maxHeaderSize', 2 ** 32],
 ].forEach((i) => {
   assert.throws(() => {
     http2.getPackedSettings({ [i[0]]: i[1] });
@@ -61,7 +61,7 @@ http2.getPackedSettings({ enablePush: false });
 });
 
 [
-  1, null, '', Infinity, new Date(), {}, NaN, [false]
+  1, null, '', Infinity, new Date(), {}, NaN, [false],
 ].forEach((i) => {
   assert.throws(() => {
     http2.getPackedSettings({ enablePush: i });
@@ -73,7 +73,7 @@ http2.getPackedSettings({ enablePush: false });
 });
 
 [
-  1, null, '', Infinity, new Date(), {}, NaN, [false]
+  1, null, '', Infinity, new Date(), {}, NaN, [false],
 ].forEach((i) => {
   assert.throws(() => {
     http2.getPackedSettings({ enableConnectProtocol: i });
@@ -92,7 +92,7 @@ http2.getPackedSettings({ enablePush: false });
     0x00, 0x04, 0x00, 0x00, 0x00, 0x64,
     0x00, 0x05, 0x00, 0x00, 0x4e, 0x20,
     0x00, 0x06, 0x00, 0x00, 0x00, 0x64,
-    0x00, 0x08, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x08, 0x00, 0x00, 0x00, 0x00,
   ]);
 
   const packed = http2.getPackedSettings({

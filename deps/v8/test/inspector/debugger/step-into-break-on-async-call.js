@@ -5,6 +5,8 @@
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test for Debugger.stepInto with breakOnAsyncCall.');
 
+session.setupScriptMap();
+
 InspectorTest.runAsyncTestSuite([
   async function testSetTimeout() {
     Protocol.Debugger.enable();

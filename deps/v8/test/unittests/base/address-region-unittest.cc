@@ -15,7 +15,7 @@ TEST(AddressRegionTest, Contains) {
   struct {
     Address start;
     size_t size;
-  } test_cases[] = {{153, 771}, {0, 227}, {-447, 447}};
+  } test_cases[] = {{153, 771}, {0, 227}, {static_cast<Address>(-447), 447}};
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     Address start = test_cases[i].start;

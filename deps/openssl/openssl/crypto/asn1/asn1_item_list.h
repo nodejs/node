@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -63,8 +63,10 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(DIST_POINT_NAME),
     ASN1_ITEM_ref(DIST_POINT),
 #ifndef OPENSSL_NO_EC
+# ifndef OPENSSL_NO_DEPRECATED_3_0
     ASN1_ITEM_ref(ECPARAMETERS),
     ASN1_ITEM_ref(ECPKPARAMETERS),
+# endif
 #endif
     ASN1_ITEM_ref(EDIPARTYNAME),
     ASN1_ITEM_ref(EXTENDED_KEY_USAGE),
@@ -78,7 +80,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(IPAddressRange),
 #endif
     ASN1_ITEM_ref(ISSUING_DIST_POINT),
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ASN1_ITEM_ref(LONG),
 #endif
     ASN1_ITEM_ref(NAME_CONSTRAINTS),
@@ -134,7 +136,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(POLICY_MAPPING),
     ASN1_ITEM_ref(PROXY_CERT_INFO_EXTENSION),
     ASN1_ITEM_ref(PROXY_POLICY),
-#ifndef OPENSSL_NO_RSA
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ASN1_ITEM_ref(RSAPrivateKey),
     ASN1_ITEM_ref(RSAPublicKey),
     ASN1_ITEM_ref(RSA_OAEP_PARAMS),
@@ -145,6 +147,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
 #endif
     ASN1_ITEM_ref(SXNETID),
     ASN1_ITEM_ref(SXNET),
+    ASN1_ITEM_ref(ISSUER_SIGN_TOOL),
     ASN1_ITEM_ref(USERNOTICE),
     ASN1_ITEM_ref(X509_ALGORS),
     ASN1_ITEM_ref(X509_ALGOR),
@@ -164,7 +167,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(X509_SIG),
     ASN1_ITEM_ref(X509_VAL),
     ASN1_ITEM_ref(X509),
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ASN1_ITEM_ref(ZLONG),
 #endif
     ASN1_ITEM_ref(INT32),

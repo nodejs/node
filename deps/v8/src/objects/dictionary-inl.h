@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_DICTIONARY_INL_H_
 #define V8_OBJECTS_DICTIONARY_INL_H_
 
+#include "src/base/optional.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/dictionary.h"
@@ -30,15 +31,33 @@ Dictionary<Derived, Shape>::Dictionary(Address ptr)
 
 template <typename Derived, typename Shape>
 Object Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return ValueAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return ValueAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-Object Dictionary<Derived, Shape>::ValueAt(const Isolate* isolate,
+Object Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
                                            InternalIndex entry) {
-  return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
-                                Derived::kEntryValueIndex);
+  return this->get(cage_base, DerivedHashTable::EntryToIndex(entry) +
+                                  Derived::kEntryValueIndex);
+}
+
+template <typename Derived, typename Shape>
+base::Optional<Object> Dictionary<Derived, Shape>::TryValueAt(
+    InternalIndex entry) {
+#if DEBUG
+  Isolate* isolate;
+  GetIsolateFromHeapObject(*this, &isolate);
+  DCHECK_NE(isolate, nullptr);
+  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(*this));
+#endif  // DEBUG
+  // We can read length() in a non-atomic way since we are reading an
+  // initialized object which is not pending allocation.
+  if (DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex >=
+      this->length()) {
+    return {};
+  }
+  return ValueAt(entry);
 }
 
 template <typename Derived, typename Shape>
@@ -139,7 +158,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry, Object key,
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key.IsName() || details.dictionary_index() > 0);
   int index = DerivedHashTable::EntryToIndex(entry);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
   this->set(index + Derived::kEntryKeyIndex, key, mode);
   this->set(index + Derived::kEntryValueIndex, value, mode);
@@ -181,12 +200,12 @@ Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 Name NameDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return NameAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return NameAt(cage_base, entry);
 }
 
-Name NameDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
-  return Name::cast(KeyAt(isolate, entry));
+Name NameDictionary::NameAt(PtrComprCageBase cage_base, InternalIndex entry) {
+  return Name::cast(KeyAt(cage_base, entry));
 }
 
 Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
@@ -194,32 +213,33 @@ Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return CellAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return CellAt(cage_base, entry);
 }
 
-PropertyCell GlobalDictionary::CellAt(const Isolate* isolate,
+PropertyCell GlobalDictionary::CellAt(PtrComprCageBase cage_base,
                                       InternalIndex entry) {
-  DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
-  return PropertyCell::cast(KeyAt(isolate, entry));
+  DCHECK(KeyAt(cage_base, entry).IsPropertyCell(cage_base));
+  return PropertyCell::cast(KeyAt(cage_base, entry));
 }
 
 Name GlobalDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return NameAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return NameAt(cage_base, entry);
 }
 
-Name GlobalDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
-  return CellAt(isolate, entry).name(isolate);
+Name GlobalDictionary::NameAt(PtrComprCageBase cage_base, InternalIndex entry) {
+  return CellAt(cage_base, entry).name(cage_base);
 }
 
 Object GlobalDictionary::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return ValueAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return ValueAt(cage_base, entry);
 }
 
-Object GlobalDictionary::ValueAt(const Isolate* isolate, InternalIndex entry) {
-  return CellAt(isolate, entry).value(isolate);
+Object GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
+                                 InternalIndex entry) {
+  return CellAt(cage_base, entry).value(cage_base);
 }
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Object key, Object value,
@@ -279,21 +299,24 @@ bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
 }
 
 uint32_t NameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
-  return key->Hash();
+  DCHECK(key->IsUniqueName());
+  return key->hash();
 }
 
 uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  return Name::cast(other).Hash();
+  DCHECK(other.IsUniqueName());
+  return Name::cast(other).hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
+  DCHECK(key->IsUniqueName());
   DCHECK(PropertyCell::cast(other).name().IsUniqueName());
   return *key == PropertyCell::cast(other).name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other).name().Hash();
+  return PropertyCell::cast(other).name().hash();
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
@@ -319,12 +342,7 @@ template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Dictionary dict, InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
-  PropertyCell cell = dict.CellAt(entry);
-  if (cell.property_details().IsReadOnly() != value.IsReadOnly()) {
-    cell.dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPropertyCellChangedGroup);
-  }
-  cell.set_property_details(value);
+  dict.CellAt(entry).UpdatePropertyDetailsExceptCellType(value);
 }
 
 }  // namespace internal

@@ -202,7 +202,7 @@
 }());
 
 
-(function TestTDZInIntializers() {
+(function TestTDZInInitializers() {
   'use strict';
   {
     let {x, y = x} = {x : 42, y : 27};

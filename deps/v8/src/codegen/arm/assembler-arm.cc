@@ -43,6 +43,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -197,6 +198,8 @@ static constexpr unsigned CpuFeaturesFromCompiler() {
 #endif
 }
 
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   dcache_line_size_ = 64;
 
@@ -238,15 +241,21 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Additional tuning options.
 
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
-  if (cpu.implementer() == base::CPU::ARM &&
-      (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
-       cpu.part() == base::CPU::ARM_CORTEX_A9)) {
+  if (cpu.implementer() == base::CPU::kArm &&
+      (cpu.part() == base::CPU::kArmCortexA5 ||
+       cpu.part() == base::CPU::kArmCortexA9)) {
     dcache_line_size_ = 32;
   }
 #endif
 
   DCHECK_IMPLIES(IsSupported(ARMv7_SUDIV), IsSupported(ARMv7));
   DCHECK_IMPLIES(IsSupported(ARMv8), IsSupported(ARMv7_SUDIV));
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
@@ -524,10 +533,9 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
-      scratch_register_list_(ip.bit()) {
-  pending_32_bit_constants_.reserve(kMinNumPendingConstants);
+      scratch_register_list_({ip}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
-  next_buffer_check_ = 0;
+  constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -547,11 +555,23 @@ Assembler::Assembler(const AssemblerOptions& options,
   }
 }
 
-Assembler::~Assembler() { DCHECK_EQ(const_pool_blocked_nesting_, 0); }
+Assembler::~Assembler() {
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(first_const_pool_32_use_, -1);
+}
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
@@ -574,7 +594,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -823,7 +843,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_2 << 16
 
     uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-    DCHECK(is_uint24(target24));
+    CHECK(is_uint24(target24));
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
@@ -879,7 +899,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     instr &= ~kImm24Mask;
   }
   int imm24 = imm26 >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   instr_at_put(pos, instr | (imm24 & kImm24Mask));
 }
 
@@ -1012,10 +1032,53 @@ namespace {
 bool FitsShifter(uint32_t imm32, uint32_t* rotate_imm, uint32_t* immed_8,
                  Instr* instr) {
   // imm32 must be unsigned.
-  for (int rot = 0; rot < 16; rot++) {
-    uint32_t imm8 = base::bits::RotateLeft32(imm32, 2 * rot);
-    if ((imm8 <= 0xFF)) {
-      *rotate_imm = rot;
+  {
+    // 32-bit immediates can be encoded as:
+    //   (8-bit value, 2*N bit left rotation)
+    // e.g. 0xab00 can be encoded as 0xab shifted left by 8 == 2*4, i.e.
+    //   (0xab, 4)
+    //
+    // Check three categories which cover all possible shifter fits:
+    //   1. 0x000000FF: The value is already 8-bit (no shifting necessary),
+    //   2. 0x000FF000: The 8-bit value is somewhere in the middle of the 32-bit
+    //                  value, and
+    //   3. 0xF000000F: The 8-bit value is split over the beginning and end of
+    //                  the 32-bit value.
+
+    // For 0x000000FF.
+    if (imm32 <= 0xFF) {
+      *rotate_imm = 0;
+      *immed_8 = imm32;
+      return true;
+    }
+    // For 0x000FF000, count trailing zeros and shift down to 0x000000FF. Note
+    // that we have to round the trailing zeros down to the nearest multiple of
+    // two, since we can only encode shifts of 2*N. Note also that we know that
+    // imm32 isn't zero, since we already checked if it's less than 0xFF.
+    int half_trailing_zeros = base::bits::CountTrailingZerosNonZero(imm32) / 2;
+    uint32_t imm8 = imm32 >> (half_trailing_zeros * 2);
+    if (imm8 <= 0xFF) {
+      DCHECK_GT(half_trailing_zeros, 0);
+      // Rotating right by trailing_zeros is equivalent to rotating left by
+      // 32 - trailing_zeros. We return rotate_right / 2, so calculate
+      // (32 - trailing_zeros)/2 == 16 - trailing_zeros/2.
+      *rotate_imm = (16 - half_trailing_zeros);
+      *immed_8 = imm8;
+      return true;
+    }
+    // For 0xF000000F, rotate by 16 to get 0x000FF000 and continue as if it
+    // were that case.
+    uint32_t imm32_rot16 = base::bits::RotateLeft32(imm32, 16);
+    half_trailing_zeros =
+        base::bits::CountTrailingZerosNonZero(imm32_rot16) / 2;
+    imm8 = imm32_rot16 >> (half_trailing_zeros * 2);
+    if (imm8 <= 0xFF) {
+      // We've rotated left by 2*8, so we can't have more than that many
+      // trailing zeroes.
+      DCHECK_LT(half_trailing_zeros, 8);
+      // We've already rotated by 2*8, before calculating trailing_zeros/2,
+      // so we need (32 - (16 + trailing_zeros))/2 == 8 - trailing_zeros/2.
+      *rotate_imm = 8 - half_trailing_zeros;
       *immed_8 = imm8;
       return true;
     }
@@ -1069,7 +1132,7 @@ bool MustOutputRelocInfo(RelocInfo::Mode rmode, const Assembler* assembler) {
   if (RelocInfo::IsOnlyForSerializer(rmode)) {
     if (assembler->predictable_code_size()) return true;
     return assembler->options().record_reloc_info_for_serialization;
-  } else if (RelocInfo::IsNone(rmode)) {
+  } else if (RelocInfo::IsNoInfo(rmode)) {
     return false;
   }
   return true;
@@ -1349,9 +1412,9 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
 
 void Assembler::AddrMode4(Instr instr, Register rn, RegList rl) {
   DCHECK((instr & ~(kCondMask | P | U | W | L)) == B27);
-  DCHECK_NE(rl, 0);
+  DCHECK(!rl.is_empty());
   DCHECK(rn != pc);
-  emit(instr | rn.code() * B16 | rl);
+  emit(instr | rn.code() * B16 | rl.bits());
 }
 
 void Assembler::AddrMode5(Instr instr, CRegister crd, const MemOperand& x) {
@@ -1401,7 +1464,7 @@ int Assembler::branch_offset(Label* L) {
 
 // Branch instructions.
 void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
@@ -1415,7 +1478,7 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
 }
 
 void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
@@ -2188,12 +2251,12 @@ void Assembler::pld(const MemOperand& address) {
 void Assembler::ldm(BlockAddrMode am, Register base, RegList dst,
                     Condition cond) {
   // ABI stack constraint: ldmxx base, {..sp..}  base != sp  is not restartable.
-  DCHECK(base == sp || (dst & sp.bit()) == 0);
+  DCHECK(base == sp || !dst.has(sp));
 
   AddrMode4(cond | B27 | am | L, base, dst);
 
   // Emit the constant pool after a function return implemented by ldm ..{..pc}.
-  if (cond == al && (dst & pc.bit()) != 0) {
+  if (cond == al && dst.has(pc)) {
     // There is a slight chance that the ldm instruction was actually a call,
     // in which case it would be wrong to return into the constant pool; we
     // recognize this case by checking if the emission of the pool was blocked
@@ -2240,7 +2303,7 @@ void Assembler::bkpt(uint32_t imm16) {
 }
 
 void Assembler::svc(uint32_t imm24, Condition cond) {
-  DCHECK(is_uint24(imm24));
+  CHECK(is_uint24(imm24));
   emit(cond | 15 * B24 | imm24);
 }
 
@@ -2614,7 +2677,7 @@ void Assembler::vstm(BlockAddrMode am, Register base, SwVfpRegister first,
        0xA * B8 | count);
 }
 
-static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
+static void DoubleAsTwoUInt32(base::Double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i = d.AsUint64();
 
   *lo = i & 0xFFFFFFFF;
@@ -2649,12 +2712,30 @@ static bool FitsVmovIntImm(uint64_t imm, uint32_t* encoding, uint8_t* cmode) {
   return false;
 }
 
+void Assembler::vmov(const DwVfpRegister dst, uint64_t imm) {
+  uint32_t enc;
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
+    // Instruction details available in ARM DDI 0406C.b, A8-937.
+    // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
+    // | 0(7) | 0(6) | op(5) | 4(1) | imm4(3-0)
+    int vd, d;
+    dst.split_code(&vd, &d);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         op * B5 | 0x1 * B4 | enc);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
 void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
   uint32_t enc;
   uint8_t cmode;
   uint8_t op = 0;
-  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovIntImm(imm, &enc, &cmode)) {
-    CpuFeatureScope scope(this, VFPv3);
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
     // Instruction details available in ARM DDI 0406C.b, A8-937.
     // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
     // | 0(7) | Q(6) | op(5) | 4(1) | imm4(3-0)
@@ -2669,7 +2750,7 @@ void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
 
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
-static bool FitsVmovFPImmediate(Double d, uint32_t* encoding) {
+static bool FitsVmovFPImmediate(base::Double d, uint32_t* encoding) {
   // VMOV can accept an immediate of the form:
   //
   //  +/- m * 2^(-n) where 16 <= m <= 31 and 0 <= n <= 7
@@ -2718,7 +2799,7 @@ static bool FitsVmovFPImmediate(Double d, uint32_t* encoding) {
 void Assembler::vmov(const SwVfpRegister dst, Float32 imm) {
   uint32_t enc;
   if (CpuFeatures::IsSupported(VFPv3) &&
-      FitsVmovFPImmediate(Double(imm.get_scalar()), &enc)) {
+      FitsVmovFPImmediate(base::Double(imm.get_scalar()), &enc)) {
     CpuFeatureScope scope(this, VFPv3);
     // The float can be encoded in the instruction.
     //
@@ -2737,7 +2818,7 @@ void Assembler::vmov(const SwVfpRegister dst, Float32 imm) {
   }
 }
 
-void Assembler::vmov(const DwVfpRegister dst, Double imm,
+void Assembler::vmov(const DwVfpRegister dst, base::Double imm,
                      const Register extra_scratch) {
   DCHECK(VfpRegisterIsAvailable(dst));
   uint32_t enc;
@@ -3677,6 +3758,28 @@ void Assembler::vld1(NeonSize size, const NeonListOperand& dst,
        src.rm().code());
 }
 
+// vld1s(ingle element to one lane).
+void Assembler::vld1s(NeonSize size, const NeonListOperand& dst, uint8_t index,
+                      const NeonMemOperand& src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.322.
+  // 1111(31-28) | 01001(27-23) | D(22) | 10(21-20) | Rn(19-16) |
+  // Vd(15-12) | size(11-10) | index_align(7-4) | Rm(3-0)
+  // See vld1 (single element to all lanes) if size == 0x3, implemented as
+  // vld1r(eplicate).
+  DCHECK_NE(size, 0x3);
+  // Check for valid lane indices.
+  DCHECK_GT(1 << (3 - size), index);
+  // Specifying alignment not supported, use standard alignment.
+  uint8_t index_align = index << (size + 1);
+
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 4 * B24 | 1 * B23 | d * B22 | 2 * B20 |
+       src.rn().code() * B16 | vd * B12 | size * B10 | index_align * B4 |
+       src.rm().code());
+}
+
 // vld1r(eplicate)
 void Assembler::vld1r(NeonSize size, const NeonListOperand& dst,
                       const NeonMemOperand& src) {
@@ -3698,6 +3801,22 @@ void Assembler::vst1(NeonSize size, const NeonListOperand& src,
   src.base().split_code(&vd, &d);
   emit(0xFU * B28 | 4 * B24 | d * B22 | dst.rn().code() * B16 | vd * B12 |
        src.type() * B8 | size * B6 | dst.align() * B4 | dst.rm().code());
+}
+
+void Assembler::vst1s(NeonSize size, const NeonListOperand& src, uint8_t index,
+                      const NeonMemOperand& dst) {
+  // Instruction details available in ARM DDI 0487F.b F6.1.236.
+  // 1111(31-28) | 01001(27-23) | D(22) | 00(21-20) | Rn(19-16) |
+  // Vd(15-12) | size(11-10) | 00(9-8) | index_align(7-4) | Rm(3-0)
+  DCHECK(IsEnabled(NEON));
+  DCHECK_NE(size, 0x3);
+  DCHECK_GT(1 << (3 - size), index);
+  // Specifying alignment not supported, use standard alignment.
+  uint8_t index_align = index << (size + 1);
+  int vd, d;
+  src.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 9 * B23 | d * B22 | dst.rn().code() * B16 | vd * B12 |
+       size * B10 | index_align * B4 | dst.rm().code());
 }
 
 void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
@@ -3727,6 +3846,7 @@ void Assembler::vqmovn(NeonDataType dst_dt, NeonDataType src_dt,
   int vm, m;
   src.split_code(&vm, &m);
   int size = NeonSz(dst_dt);
+  DCHECK_NE(3, size);
   int op = NeonU(src_dt) ? 0b11 : NeonU(dst_dt) ? 0b01 : 0b10;
   emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | 0x2 * B16 | vd * B12 |
        0x2 * B8 | op * B6 | m * B5 | vm);
@@ -3777,7 +3897,8 @@ void Assembler::vmov(NeonDataType dt, Register dst, DwVfpRegister src,
   int vn, n;
   src.split_code(&vn, &n);
   int opc1_opc2 = EncodeScalar(dt, index);
-  int u = NeonU(dt);
+  // NeonS32 and NeonU32 both encoded as u = 0.
+  int u = NeonDataTypeToSize(dt) == Neon32 ? 0 : NeonU(dt);
   emit(0xEEu * B24 | u * B23 | B20 | vn * B16 | dst.code() * B12 | 0xB * B8 |
        n * B7 | B4 | opc1_opc2);
 }
@@ -3916,9 +4037,26 @@ enum UnaryOp {
   VRINTM,
   VRINTN,
   VRINTP,
-  VRINTZ
+  VRINTZ,
+  VZIP,
+  VUZP,
+  VREV16,
+  VREV32,
+  VREV64,
+  VTRN,
+  VRECPE,
+  VRSQRTE,
+  VPADAL_S,
+  VPADAL_U,
+  VPADDL_S,
+  VPADDL_U,
+  VCEQ0,
+  VCLT0,
+  VCNT
 };
 
+// Encoding helper for "Advanced SIMD two registers misc" decode group. See ARM
+// DDI 0487F.b, F4-4228.
 static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
                                int dst_code, int src_code) {
   int op_encoding = 0;
@@ -3957,8 +4095,55 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VRINTZ:
       op_encoding = B17 | 0xB * B7;
       break;
-    default:
-      UNREACHABLE();
+    case VZIP:
+      op_encoding = 0x2 * B16 | 0x3 * B7;
+      break;
+    case VUZP:
+      op_encoding = 0x2 * B16 | 0x2 * B7;
+      break;
+    case VREV16:
+      op_encoding = 0x2 * B7;
+      break;
+    case VREV32:
+      op_encoding = 0x1 * B7;
+      break;
+    case VREV64:
+      // op_encoding is 0;
+      break;
+    case VTRN:
+      op_encoding = 0x2 * B16 | B7;
+      break;
+    case VRECPE:
+      // Only support floating point.
+      op_encoding = 0x3 * B16 | 0xA * B7;
+      break;
+    case VRSQRTE:
+      // Only support floating point.
+      op_encoding = 0x3 * B16 | 0xB * B7;
+      break;
+    case VPADAL_S:
+      op_encoding = 0xC * B7;
+      break;
+    case VPADAL_U:
+      op_encoding = 0xD * B7;
+      break;
+    case VPADDL_S:
+      op_encoding = 0x4 * B7;
+      break;
+    case VPADDL_U:
+      op_encoding = 0x5 * B7;
+      break;
+    case VCEQ0:
+      // Only support integers.
+      op_encoding = 0x1 * B16 | 0x2 * B7;
+      break;
+    case VCLT0:
+      // Only support signed integers.
+      op_encoding = 0x1 * B16 | 0x4 * B7;
+      break;
+    case VCNT:
+      op_encoding = 0xA * B7;
+      break;
   }
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
@@ -4118,6 +4303,15 @@ void Assembler::vorr(QwNeonRegister dst, QwNeonRegister src1,
                                  src2.code()));
 }
 
+void Assembler::vorn(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = vorn(Qn, Qm) SIMD OR NOT.
+  // Instruction details available in ARM DDI 0406C.d, A8.8.359.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VORN, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
+}
+
 enum FPBinOp {
   VADDF,
   VSUBF,
@@ -4190,7 +4384,8 @@ enum IntegerBinOp {
   VCEQ,
   VCGE,
   VCGT,
-  VRHADD
+  VRHADD,
+  VQRDMULH
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
@@ -4233,6 +4428,9 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
       break;
     case VRHADD:
       op_encoding = B8;
+      break;
+    case VQRDMULH:
+      op_encoding = B24 | 0xB * B8;
       break;
     default:
       UNREACHABLE();
@@ -4388,7 +4586,7 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
 }
 
-enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
+enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI, VSRA };
 
 static Instr EncodeNeonShiftRegisterOp(NeonShiftOp op, NeonDataType dt,
                                        NeonRegType reg_type, int dst_code,
@@ -4438,6 +4636,13 @@ static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
       op_encoding = B24 | 0x4 * B8;
       break;
     }
+    case VSRA: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      op_encoding = B8;
+      if (is_unsigned) op_encoding |= B24;
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -4472,10 +4677,19 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
                                  shift.code()));
 }
 
+void Assembler::vshr(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vshr(Dm, bits) SIMD shift right immediate.
+  // Instruction details available in ARM DDI 0406C.b, A8-1052.
+  emit(EncodeNeonShiftOp(VSHR, NeonDataTypeToSize(dt), NeonU(dt), NEON_D,
+                         dst.code(), src.code(), shift));
+}
+
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
                      int shift) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vshl(Qm, bits) SIMD shift right immediate.
+  // Qd = vshr(Qm, bits) SIMD shift right immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1052.
   emit(EncodeNeonShiftOp(VSHR, NeonDataTypeToSize(dt), NeonU(dt), NEON_Q,
                          dst.code(), src.code(), shift));
@@ -4499,29 +4713,27 @@ void Assembler::vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
                          shift));
 }
 
-static Instr EncodeNeonEstimateOp(bool is_rsqrt, QwNeonRegister dst,
-                                  QwNeonRegister src) {
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int rsqrt = is_rsqrt ? 1 : 0;
-  return 0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 |
-         rsqrt * B7 | B6 | m * B5 | vm;
+void Assembler::vsra(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src,
+                     int imm) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsra(Dm, imm) SIMD shift right and accumulate.
+  // Instruction details available in ARM DDI 0487F.b, F6-5569.
+  emit(EncodeNeonShiftOp(VSRA, NeonDataTypeToSize(dt), NeonU(dt), NEON_D,
+                         dst.code(), src.code(), imm));
 }
 
 void Assembler::vrecpe(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   // Qd = vrecpe(Qm) SIMD reciprocal estimate.
   // Instruction details available in ARM DDI 0406C.b, A8-1024.
-  emit(EncodeNeonEstimateOp(false, dst, src));
+  emit(EncodeNeonUnaryOp(VRECPE, NEON_Q, Neon32, dst.code(), src.code()));
 }
 
 void Assembler::vrsqrte(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   // Qd = vrsqrte(Qm) SIMD reciprocal square root estimate.
   // Instruction details available in ARM DDI 0406C.b, A8-1038.
-  emit(EncodeNeonEstimateOp(true, dst, src));
+  emit(EncodeNeonUnaryOp(VRSQRTE, NEON_Q, Neon32, dst.code(), src.code()));
 }
 
 void Assembler::vrecps(QwNeonRegister dst, QwNeonRegister src1,
@@ -4574,7 +4786,7 @@ static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
 void Assembler::vpadd(DwVfpRegister dst, DwVfpRegister src1,
                       DwVfpRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Dd = vpadd(Dn, Dm) SIMD floating point pairwise ADD.
   // Instruction details available in ARM DDI 0406C.b, A8-982.
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4667,6 +4879,15 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VCEQ, size, dst, src1, src2));
 }
 
+void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+                     int value) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK_EQ(0, value);
+  // Qd = vceq(Qn, Qm, #0) Vector Compare Equal to Zero.
+  // Instruction details available in ARM DDI 0406C.d, A8-847.
+  emit(EncodeNeonUnaryOp(VCEQ0, NEON_Q, size, dst.code(), src1.code()));
+}
+
 void Assembler::vcge(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4699,6 +4920,15 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
 }
 
+void Assembler::vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src,
+                     int value) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK_EQ(0, value);
+  // vclt.<size>(Qn, Qm, #0) SIMD Vector Compare Less Than Zero.
+  // Instruction details available in ARM DDI 0487F.b, F6-5072.
+  emit(EncodeNeonUnaryOp(VCLT0, NEON_Q, size, dst.code(), src.code()));
+}
+
 void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
                        QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4723,43 +4953,6 @@ void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
        n * B7 | B6 | m * B5 | vm);
 }
 
-enum NeonSizedOp { VZIP, VUZP, VREV16, VREV32, VREV64, VTRN };
-
-static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
-                               NeonSize size, int dst_code, int src_code) {
-  int op_encoding = 0;
-  switch (op) {
-    case VZIP:
-      op_encoding = 0x2 * B16 | 0x3 * B7;
-      break;
-    case VUZP:
-      op_encoding = 0x2 * B16 | 0x2 * B7;
-      break;
-    case VREV16:
-      op_encoding = 0x2 * B7;
-      break;
-    case VREV32:
-      op_encoding = 0x1 * B7;
-      break;
-    case VREV64:
-      // op_encoding is 0;
-      break;
-    case VTRN:
-      op_encoding = 0x2 * B16 | B7;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  int vd, d;
-  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
-  int vm, m;
-  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
-
-  int sz = static_cast<int>(size);
-  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | sz * B18 | vd * B12 | m * B5 |
-         vm | op_encoding;
-}
-
 void Assembler::vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
   if (size == Neon32) {  // vzip.32 Dd, Dm is a pseudo-op for vtrn.32 Dd, Dm.
     vtrn(size, src1, src2);
@@ -4767,7 +4960,7 @@ void Assembler::vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
     DCHECK(IsEnabled(NEON));
     // vzip.<size>(Dn, Dm) SIMD zip (interleave).
     // Instruction details available in ARM DDI 0406C.b, A8-1102.
-    emit(EncodeNeonSizedOp(VZIP, NEON_D, size, src1.code(), src2.code()));
+    emit(EncodeNeonUnaryOp(VZIP, NEON_D, size, src1.code(), src2.code()));
   }
 }
 
@@ -4775,7 +4968,7 @@ void Assembler::vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   // vzip.<size>(Qn, Qm) SIMD zip (interleave).
   // Instruction details available in ARM DDI 0406C.b, A8-1102.
-  emit(EncodeNeonSizedOp(VZIP, NEON_Q, size, src1.code(), src2.code()));
+  emit(EncodeNeonUnaryOp(VZIP, NEON_Q, size, src1.code(), src2.code()));
 }
 
 void Assembler::vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
@@ -4785,7 +4978,7 @@ void Assembler::vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
     DCHECK(IsEnabled(NEON));
     // vuzp.<size>(Dn, Dm) SIMD un-zip (de-interleave).
     // Instruction details available in ARM DDI 0406C.b, A8-1100.
-    emit(EncodeNeonSizedOp(VUZP, NEON_D, size, src1.code(), src2.code()));
+    emit(EncodeNeonUnaryOp(VUZP, NEON_D, size, src1.code(), src2.code()));
   }
 }
 
@@ -4793,42 +4986,72 @@ void Assembler::vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   // vuzp.<size>(Qn, Qm) SIMD un-zip (de-interleave).
   // Instruction details available in ARM DDI 0406C.b, A8-1100.
-  emit(EncodeNeonSizedOp(VUZP, NEON_Q, size, src1.code(), src2.code()));
+  emit(EncodeNeonUnaryOp(VUZP, NEON_Q, size, src1.code(), src2.code()));
 }
 
 void Assembler::vrev16(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   // Qd = vrev16.<size>(Qm) SIMD element reverse.
   // Instruction details available in ARM DDI 0406C.b, A8-1028.
-  emit(EncodeNeonSizedOp(VREV16, NEON_Q, size, dst.code(), src.code()));
+  emit(EncodeNeonUnaryOp(VREV16, NEON_Q, size, dst.code(), src.code()));
 }
 
 void Assembler::vrev32(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   // Qd = vrev32.<size>(Qm) SIMD element reverse.
   // Instruction details available in ARM DDI 0406C.b, A8-1028.
-  emit(EncodeNeonSizedOp(VREV32, NEON_Q, size, dst.code(), src.code()));
+  emit(EncodeNeonUnaryOp(VREV32, NEON_Q, size, dst.code(), src.code()));
 }
 
 void Assembler::vrev64(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   // Qd = vrev64.<size>(Qm) SIMD element reverse.
   // Instruction details available in ARM DDI 0406C.b, A8-1028.
-  emit(EncodeNeonSizedOp(VREV64, NEON_Q, size, dst.code(), src.code()));
+  emit(EncodeNeonUnaryOp(VREV64, NEON_Q, size, dst.code(), src.code()));
 }
 
 void Assembler::vtrn(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
   DCHECK(IsEnabled(NEON));
   // vtrn.<size>(Dn, Dm) SIMD element transpose.
   // Instruction details available in ARM DDI 0406C.b, A8-1096.
-  emit(EncodeNeonSizedOp(VTRN, NEON_D, size, src1.code(), src2.code()));
+  emit(EncodeNeonUnaryOp(VTRN, NEON_D, size, src1.code(), src2.code()));
 }
 
 void Assembler::vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   // vtrn.<size>(Qn, Qm) SIMD element transpose.
   // Instruction details available in ARM DDI 0406C.b, A8-1096.
-  emit(EncodeNeonSizedOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
+  emit(EncodeNeonUnaryOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
+}
+
+void Assembler::vpadal(NeonDataType dt, QwNeonRegister dst,
+                       QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // vpadal.<dt>(Qd, Qm) SIMD Vector Pairwise Add and Accumulate Long
+  emit(EncodeNeonUnaryOp(NeonU(dt) ? VPADAL_U : VPADAL_S, NEON_Q,
+                         NeonDataTypeToSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vpaddl(NeonDataType dt, QwNeonRegister dst,
+                       QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // vpaddl.<dt>(Qd, Qm) SIMD Vector Pairwise Add Long.
+  emit(EncodeNeonUnaryOp(NeonU(dt) ? VPADDL_U : VPADDL_S, NEON_Q,
+                         NeonDataTypeToSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vqrdmulh(NeonDataType dt, QwNeonRegister dst,
+                         QwNeonRegister src1, QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK(dt == NeonS16 || dt == NeonS32);
+  emit(EncodeNeonBinOp(VQRDMULH, dt, dst, src1, src2));
+}
+
+void Assembler::vcnt(QwNeonRegister dst, QwNeonRegister src) {
+  // Qd = vcnt(Qm) SIMD Vector Count Set Bits.
+  // Instruction details available at ARM DDI 0487F.b, F6-5094.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonUnaryOp(VCNT, NEON_Q, Neon8, dst.code(), src.code()));
 }
 
 // Encode NEON vtbl / vtbx instruction.
@@ -4998,20 +5221,30 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
+    RecordRelocInfo(rmode);
+  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value) {
+void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
+    RecordRelocInfo(rmode);
+  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
@@ -5034,8 +5267,13 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                     (rmode == RelocInfo::CODE_TARGET && value != 0) ||
                     (RelocInfo::IsEmbeddedObjectMode(rmode) && value != 0);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
-  if (pending_32_bit_constants_.empty()) {
+  if (first_const_pool_32_use_ < 0) {
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK_EQ(constant_pool_deadline_, kMaxInt);
     first_const_pool_32_use_ = position;
+    constant_pool_deadline_ = position + kCheckPoolDeadline;
+  } else {
+    DCHECK(!pending_32_bit_constants_.empty());
   }
   ConstantPoolEntry entry(position, value, sharing_ok, rmode);
 
@@ -5054,7 +5292,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     }
   }
 
-  pending_32_bit_constants_.push_back(entry);
+  pending_32_bit_constants_.emplace_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
@@ -5069,17 +5307,17 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
-    // Max pool start (if we need a jump and an alignment).
-#ifdef DEBUG
-    int start = pc_limit + kInstrSize + 2 * kPointerSize;
-    DCHECK(pending_32_bit_constants_.empty() ||
-           (start < first_const_pool_32_use_ + kMaxDistToIntPool));
-#endif
     no_const_pool_before_ = pc_limit;
   }
 
-  if (next_buffer_check_ < no_const_pool_before_) {
-    next_buffer_check_ = no_const_pool_before_;
+  // If we're due a const pool check before the block finishes, move it to just
+  // after the block.
+  if (constant_pool_deadline_ < no_const_pool_before_) {
+    // Make sure that the new deadline isn't too late (including a jump and the
+    // constant pool marker).
+    DCHECK_LE(no_const_pool_before_,
+              first_const_pool_32_use_ + kMaxDistToIntPool);
+    constant_pool_deadline_ = no_const_pool_before_;
   }
 }
 
@@ -5095,9 +5333,36 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // There is nothing to do if there are no pending constant pool entries.
   if (pending_32_bit_constants_.empty()) {
-    // Calculate the offset of the next check.
-    next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+    // We should only fall into this case if we're either trying to forcing
+    // emission or opportunistically checking after a jump.
+    DCHECK(force_emit || !require_jump);
     return;
+  }
+
+  // We emit a constant pool when:
+  //  * requested to do so by parameter force_emit (e.g. after each function).
+  //  * the distance from the first instruction accessing the constant pool to
+  //    the first constant pool entry will exceed its limit the next time the
+  //    pool is checked.
+  //  * the instruction doesn't require a jump after itself to jump over the
+  //    constant pool, and we're getting close to running out of range.
+  if (!force_emit) {
+    DCHECK_NE(first_const_pool_32_use_, -1);
+    int dist32 = pc_offset() - first_const_pool_32_use_;
+    if (require_jump) {
+      // We should only be on this path if we've exceeded our deadline.
+      DCHECK_GE(dist32, kCheckPoolDeadline);
+    } else if (dist32 < kCheckPoolDeadline / 2) {
+      return;
+    }
+  }
+
+  int size_after_marker = pending_32_bit_constants_.size() * kPointerSize;
+
+  // Deduplicate constants.
+  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
+    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
+    if (entry.is_merged()) size_after_marker -= kPointerSize;
   }
 
   // Check that the code buffer is large enough before emitting the constant
@@ -5105,46 +5370,14 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // the gap to the relocation information).
   int jump_instr = require_jump ? kInstrSize : 0;
   int size_up_to_marker = jump_instr + kInstrSize;
-  int estimated_size_after_marker =
-      pending_32_bit_constants_.size() * kPointerSize;
-  int estimated_size = size_up_to_marker + estimated_size_after_marker;
-
-  // We emit a constant pool when:
-  //  * requested to do so by parameter force_emit (e.g. after each function).
-  //  * the distance from the first instruction accessing the constant pool to
-  //    any of the constant pool entries will exceed its limit the next
-  //    time the pool is checked. This is overly restrictive, but we don't emit
-  //    constant pool entries in-order so it's conservatively correct.
-  //  * the instruction doesn't require a jump after itself to jump over the
-  //    constant pool, and we're getting close to running out of range.
-  if (!force_emit) {
-    DCHECK(!pending_32_bit_constants_.empty());
-    bool need_emit = false;
-    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-      need_emit = true;
-    }
-    if (!need_emit) return;
-  }
-
-  // Deduplicate constants.
-  int size_after_marker = estimated_size_after_marker;
-
-  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
-    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
-    if (entry.is_merged()) size_after_marker -= kPointerSize;
-  }
-
   int size = size_up_to_marker + size_after_marker;
-
   int needed_space = size + kGap;
   while (buffer_space() <= needed_space) GrowBuffer();
 
   {
+    ASM_CODE_COMMENT_STRING(this, "Constant Pool");
     // Block recursive calls to CheckConstPool.
     BlockConstPoolScope block_const_pool(this);
-    RecordComment("[ Constant Pool");
     RecordConstPool(size);
 
     Label size_check;
@@ -5160,6 +5393,21 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // The data size helps disassembly know what to print.
     emit(kConstantPoolMarker |
          EncodeConstantPoolLength(size_after_marker / kPointerSize));
+
+    // The first entry in the constant pool should also be the first
+    CHECK_EQ(first_const_pool_32_use_, pending_32_bit_constants_[0].position());
+    CHECK(!pending_32_bit_constants_[0].is_merged());
+
+    // Make sure we're not emitting the constant too late.
+    CHECK_LE(pc_offset(),
+             first_const_pool_32_use_ + kMaxDistToPcRelativeConstant);
+
+    // Check that the code buffer is large enough before emitting the constant
+    // pool (this includes the gap to the relocation information).
+    int needed_space = pending_32_bit_constants_.size() * kPointerSize + kGap;
+    while (buffer_space() <= needed_space) {
+      GrowBuffer();
+    }
 
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
@@ -5184,6 +5432,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
         ConstantPoolEntry& merged =
             pending_32_bit_constants_[entry.merged_index()];
         DCHECK(entry.value() == merged.value());
+        DCHECK_LT(merged.position(), entry.position());
         Instr merged_instr = instr_at(merged.position());
         DCHECK(IsLdrPcImmediateOffset(merged_instr));
         delta = GetLdrRegisterImmediateOffset(merged_instr);
@@ -5200,8 +5449,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     first_const_pool_32_use_ = -1;
 
-    RecordComment("]");
-
     DCHECK_EQ(size, SizeOfCodeGeneratedSince(&size_check));
 
     if (after_pool.is_linked()) {
@@ -5209,9 +5456,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
   }
 
-  // Since a constant pool was just emitted, move the check offset forward by
-  // the standard interval.
-  next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+  // Since a constant pool was just emitted, we don't need another check until
+  // the next constant pool entry is added.
+  constant_pool_deadline_ = kMaxInt;
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
@@ -5252,11 +5499,22 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
+}
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  if (rep == MachineRepresentation::kWord8) {
+    *this = LoadStoreLaneParams(laneidx, Neon8, 8);
+  } else if (rep == MachineRepresentation::kWord16) {
+    *this = LoadStoreLaneParams(laneidx, Neon16, 4);
+  } else if (rep == MachineRepresentation::kWord32) {
+    *this = LoadStoreLaneParams(laneidx, Neon32, 2);
+  } else if (rep == MachineRepresentation::kWord64) {
+    *this = LoadStoreLaneParams(laneidx, Neon64, 1);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 }  // namespace internal

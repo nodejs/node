@@ -111,7 +111,7 @@ static int is_supported_system(void) {
     if (cnt != 3) {
       return 0;
     }
-    // relase >= 10.0.16299
+    /* release >= 10.0.16299 */
     for (cnt = 0; cnt < 3; ++cnt) {
       if (semver[cnt] > min_semver[cnt])
         return 1;

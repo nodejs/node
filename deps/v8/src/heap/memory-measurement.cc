@@ -4,18 +4,17 @@
 
 #include "src/heap/memory-measurement.h"
 
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
-#include "src/api/api.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/isolate.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/heap/factory.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/marking-worklist.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-promise-inl.h"
-#include "src/objects/js-promise.h"
+#include "src/objects/smi.h"
 #include "src/tasks/task-utils.h"
 
 namespace v8 {
@@ -337,13 +336,36 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
                                                  mode);
 }
 
-bool NativeContextInferrer::InferForJSFunction(JSFunction function,
-                                               Address* native_context) {
-  if (function.has_context()) {
-    *native_context = function.context().native_context().ptr();
+bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
+                                            Address* native_context) {
+  PtrComprCageBase cage_base(isolate);
+  Map context_map = context.map(cage_base, kAcquireLoad);
+  Object maybe_native_context =
+      TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
+          Acquire_Load(cage_base, context_map);
+  if (maybe_native_context.IsNativeContext(cage_base)) {
+    *native_context = maybe_native_context.ptr();
     return true;
   }
   return false;
+}
+
+bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
+                                               JSFunction function,
+                                               Address* native_context) {
+  Object maybe_context =
+      TaggedField<Object, JSFunction::kContextOffset>::Acquire_Load(isolate,
+                                                                    function);
+  // The context may be a smi during deserialization.
+  if (maybe_context.IsSmi()) {
+    DCHECK_EQ(maybe_context, Smi::uninitialized_deserialization_value());
+    return false;
+  }
+  if (!maybe_context.IsContext()) {
+    // The function does not have a context.
+    return false;
+  }
+  return InferForContext(isolate, Context::cast(maybe_context), native_context);
 }
 
 bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
@@ -361,7 +383,7 @@ bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
   const int kMaxSteps = 3;
   Object maybe_constructor = map.TryGetConstructor(isolate, kMaxSteps);
   if (maybe_constructor.IsJSFunction()) {
-    return InferForJSFunction(JSFunction::cast(maybe_constructor),
+    return InferForJSFunction(isolate, JSFunction::cast(maybe_constructor),
                               native_context);
   }
   return false;
@@ -380,7 +402,7 @@ void NativeContextStats::IncrementExternalSize(Address context, Map map,
   InstanceType instance_type = map.instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object).allocation_length();
+    external_size = JSArrayBuffer::cast(object).GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
     external_size = ExternalString::cast(object).ExternalPayloadSize();

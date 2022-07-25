@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
-const { URL } = require('url');
 const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
@@ -76,7 +75,7 @@ server.on('session', common.mustCall((session) => {
     'abc:',
     new URL('abc:'),
     { origin: 'null' },
-    { origin: '' }
+    { origin: '' },
   ].forEach((input) => {
     assert.throws(
       () => session.altsvc('h2=":8000', input),

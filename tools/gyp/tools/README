@@ -5,7 +5,7 @@ pretty_vcproj:
 
   For example, if I want to diff the base.vcproj project:
 
-  pretty_vcproj.py z:\dev\src-chrome\src\base\build\base.vcproj "$(SolutionDir)=z:\dev\src-chrome\src\chrome\\" "$(CHROMIUM_BUILD)=" "$(CHROME_BUILD_TYPE)=" > orignal.txt
+  pretty_vcproj.py z:\dev\src-chrome\src\base\build\base.vcproj "$(SolutionDir)=z:\dev\src-chrome\src\chrome\\" "$(CHROMIUM_BUILD)=" "$(CHROME_BUILD_TYPE)=" > original.txt
   pretty_vcproj.py z:\dev\src-chrome\src\base\base_gyp.vcproj "$(SolutionDir)=z:\dev\src-chrome\src\chrome\\" "$(CHROMIUM_BUILD)=" "$(CHROME_BUILD_TYPE)=" > gyp.txt
 
   And you can use your favorite diff tool to see the changes.

@@ -7,6 +7,7 @@ import errno
 import os
 import shutil
 import sys
+import re
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -19,8 +20,8 @@ def abspath(*args):
   return os.path.abspath(path)
 
 def load_config():
-  s = open('config.gypi').read()
-  return ast.literal_eval(s)
+  with open('config.gypi') as f:
+    return ast.literal_eval(f.read())
 
 def try_unlink(path):
   try:
@@ -79,8 +80,8 @@ def uninstall(paths, dst):
   for path in paths:
     try_remove(path, dst)
 
-def npm_files(action):
-  target_path = 'lib/node_modules/npm/'
+def package_files(action, name, bins):
+  target_path = 'lib/node_modules/' + name + '/'
 
   # don't install npm if the target path is a symlink, it probably means
   # that a dev version of npm is installed there
@@ -88,28 +89,48 @@ def npm_files(action):
 
   # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
   # so we walk its source directory instead...
-  for dirname, subdirs, basenames in os.walk('deps/npm', topdown=True):
+  root = 'deps/' + name
+  for dirname, subdirs, basenames in os.walk(root, topdown=True):
     subdirs[:] = [subdir for subdir in subdirs if subdir != 'test']
     paths = [os.path.join(dirname, basename) for basename in basenames]
-    action(paths, target_path + dirname[9:] + '/')
+    action(paths, target_path + dirname[len(root) + 1:] + '/')
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npm')
-  if action == uninstall:
-    action([link_path], 'bin/npm')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-  else:
-    assert 0  # unhandled action type
+  # create/remove symlinks
+  for bin_name, bin_target in bins.items():
+    link_path = abspath(install_path, 'bin/' + bin_name)
+    if action == uninstall:
+      action([link_path], 'bin/' + bin_name)
+    elif action == install:
+      try_symlink('../lib/node_modules/' + name + '/' + bin_target, link_path)
+    else:
+      assert 0  # unhandled action type
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npx')
-  if action == uninstall:
-    action([link_path], 'bin/npx')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
-  else:
-    assert 0 # unhandled action type
+def npm_files(action):
+  package_files(action, 'npm', {
+    'npm': 'bin/npm-cli.js',
+    'npx': 'bin/npx-cli.js',
+  })
+
+def corepack_files(action):
+  package_files(action, 'corepack', {
+    'corepack': 'dist/corepack.js',
+#   Not the default just yet:
+#   'yarn': 'dist/yarn.js',
+#   'yarnpkg': 'dist/yarn.js',
+#   'pnpm': 'dist/pnpm.js',
+#   'pnpx': 'dist/pnpx.js',
+  })
+
+  # On z/OS, we install node-gyp for convenience, as some vendors don't have
+  # external access and may want to build native addons.
+  if sys.platform == 'zos':
+    link_path = abspath(install_path, 'bin/node-gyp')
+    if action == uninstall:
+      action([link_path], 'bin/node-gyp')
+    elif action == install:
+      try_symlink('../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js', link_path)
+    else:
+      assert 0 # unhandled action type
 
 def subdir_files(path, dest, action):
   ret = {}
@@ -124,25 +145,38 @@ def files(action):
   output_file = 'node'
   output_prefix = 'out/Release/'
 
-  if 'false' == variables.get('node_shared'):
+  if is_windows:
+    output_file += '.exe'
+  action([output_prefix + output_file], 'bin/' + output_file)
+
+  if 'true' == variables.get('node_shared'):
     if is_windows:
-      output_file += '.exe'
-  else:
-    if is_windows:
-      output_file += '.dll'
+      action([output_prefix + 'libnode.dll'], 'bin/libnode.dll')
+      action([output_prefix + 'libnode.lib'], 'lib/libnode.lib')
+    elif sys.platform == 'zos':
+      # GYP will output to lib.target; see _InstallableTargetInstallPath
+      # function in tools/gyp/pylib/gyp/generator/make.py
+      output_prefix += 'lib.target/'
+
+      output_lib = 'libnode.' + variables.get('shlib_suffix')
+      action([output_prefix + output_lib], 'lib/' + output_lib)
+
+      # create libnode.x that references libnode.so (C++ addons compat)
+      os.system(os.path.dirname(os.path.realpath(__file__)) +
+                '/zos/modifysidedeck.sh ' +
+                abspath(install_path, 'lib/' + output_lib) + ' ' +
+                abspath(install_path, 'lib/libnode.x') + ' libnode.so')
+
+      # install libnode.version.so
+      so_name = 'libnode.' + re.sub(r'\.x$', '.so', variables.get('shlib_suffix'))
+      action([output_prefix + so_name], 'lib/' + so_name)
+
+      # create symlink of libnode.so -> libnode.version.so (C++ addons compat)
+      link_path = abspath(install_path, 'lib/libnode.so')
+      try_symlink(so_name, link_path)
     else:
-      output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
-
-  if 'false' == variables.get('node_shared'):
-    action([output_prefix + output_file], 'bin/' + output_file)
-  else:
-    action([output_prefix + output_file], 'lib/' + output_file)
-
-  if 'true' == variables.get('node_use_dtrace'):
-    action(['out/Release/node.d'], 'lib/dtrace/node.d')
-
-  # behave similarly for systemtap
-  action(['src/node.stp'], 'share/systemtap/tapset/')
+      output_lib = 'libnode.' + variables.get('shlib_suffix')
+      action([output_prefix + output_lib], 'lib/' + output_lib)
 
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
   action(['deps/v8/tools/lldb_commands.py'], 'share/doc/node/')
@@ -152,17 +186,78 @@ def files(action):
   else:
     action(['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_npm'):
+    npm_files(action)
+
+  if 'true' == variables.get('node_install_corepack'):
+    corepack_files(action)
 
   headers(action)
 
 def headers(action):
-  def ignore_inspector_headers(files_arg, dest):
-    inspector_headers = [
-      'deps/v8/include/v8-inspector.h',
-      'deps/v8/include/v8-inspector-protocol.h'
+  def wanted_v8_headers(files_arg, dest):
+    v8_headers = [
+      'deps/v8/include/cppgc/common.h',
+      'deps/v8/include/libplatform/libplatform.h',
+      'deps/v8/include/libplatform/libplatform-export.h',
+      'deps/v8/include/libplatform/v8-tracing.h',
+      'deps/v8/include/v8.h',
+      'deps/v8/include/v8-array-buffer.h',
+      'deps/v8/include/v8-callbacks.h',
+      'deps/v8/include/v8-container.h',
+      'deps/v8/include/v8-context.h',
+      'deps/v8/include/v8-data.h',
+      'deps/v8/include/v8-date.h',
+      'deps/v8/include/v8-debug.h',
+      'deps/v8/include/v8-embedder-heap.h',
+      'deps/v8/include/v8-embedder-state-scope.h',
+      'deps/v8/include/v8-exception.h',
+      'deps/v8/include/v8-extension.h',
+      'deps/v8/include/v8-external.h',
+      'deps/v8/include/v8-forward.h',
+      'deps/v8/include/v8-function-callback.h',
+      'deps/v8/include/v8-function.h',
+      'deps/v8/include/v8-initialization.h',
+      'deps/v8/include/v8-internal.h',
+      'deps/v8/include/v8-isolate.h',
+      'deps/v8/include/v8-json.h',
+      'deps/v8/include/v8-local-handle.h',
+      'deps/v8/include/v8-locker.h',
+      'deps/v8/include/v8-maybe.h',
+      'deps/v8/include/v8-memory-span.h',
+      'deps/v8/include/v8-message.h',
+      'deps/v8/include/v8-microtask-queue.h',
+      'deps/v8/include/v8-microtask.h',
+      'deps/v8/include/v8-object.h',
+      'deps/v8/include/v8-persistent-handle.h',
+      'deps/v8/include/v8-platform.h',
+      'deps/v8/include/v8-primitive-object.h',
+      'deps/v8/include/v8-primitive.h',
+      'deps/v8/include/v8-profiler.h',
+      'deps/v8/include/v8-promise.h',
+      'deps/v8/include/v8-proxy.h',
+      'deps/v8/include/v8-regexp.h',
+      'deps/v8/include/v8-script.h',
+      'deps/v8/include/v8-snapshot.h',
+      'deps/v8/include/v8-statistics.h',
+      'deps/v8/include/v8-template.h',
+      'deps/v8/include/v8-traced-handle.h',
+      'deps/v8/include/v8-typed-array.h',
+      'deps/v8/include/v8-unwinder.h',
+      'deps/v8/include/v8-value-serializer.h',
+      'deps/v8/include/v8-value.h',
+      'deps/v8/include/v8-version.h',
+      'deps/v8/include/v8-wasm.h',
+      'deps/v8/include/v8-weak-callback-info.h',
+      'deps/v8/include/v8config.h',
     ]
-    files_arg = [name for name in files_arg if name not in inspector_headers]
+    files_arg = [name for name in files_arg if name in v8_headers]
+    action(files_arg, dest)
+
+  def wanted_zoslib_headers(files_arg, dest):
+    import glob
+    zoslib_headers = glob.glob(zoslibinc + '/*.h')
+    files_arg = [name for name in files_arg if name in zoslib_headers]
     action(files_arg, dest)
 
   action([
@@ -182,7 +277,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
+  subdir_files('deps/v8/include', 'include/node/', wanted_v8_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
@@ -198,6 +293,14 @@ def headers(action):
       'deps/zlib/zconf.h',
       'deps/zlib/zlib.h',
     ], 'include/node/')
+
+  if sys.platform == 'zos':
+    zoslibinc = os.environ.get('ZOSLIB_INCLUDES')
+    if not zoslibinc:
+      raise RuntimeError('Environment variable ZOSLIB_INCLUDES is not set\n')
+    if not os.path.isfile(zoslibinc + '/zos-base.h'):
+      raise RuntimeError('ZOSLIB_INCLUDES is not set to a valid location\n')
+    subdir_files(zoslibinc, 'include/node/zoslib/', wanted_zoslib_headers)
 
 def run(args):
   global node_prefix, install_path, target_defaults, variables
@@ -223,11 +326,19 @@ def run(args):
   cmd = args[1] if len(args) > 1 else 'install'
 
   if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
+    if cmd == 'install':
+      headers(install)
+      return
+    if cmd == 'uninstall':
+      headers(uninstall)
+      return
   else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+    if cmd == 'install':
+      files(install)
+      return
+    if cmd == 'uninstall':
+      files(uninstall)
+      return
 
   raise RuntimeError('Bad command: %s\n' % cmd)
 

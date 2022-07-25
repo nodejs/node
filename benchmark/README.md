@@ -5,7 +5,7 @@ of different Node.js implementations and different ways of
 writing JavaScript run by the built-in JavaScript engine.
 
 For a detailed guide on how to write and run benchmarks in this
-directory, see [the guide on benchmarks](../doc/guides/writing-and-running-benchmarks.md).
+directory, see [the guide on benchmarks](../doc/contributing/writing-and-running-benchmarks.md).
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ directory, see [the guide on benchmarks](../doc/guides/writing-and-running-bench
 | module          | Benchmarks for the `module` subsystem.                                                                           |
 | net             | Benchmarks for the `net` subsystem.                                                                              |
 | path            | Benchmarks for the `path` subsystem.                                                                             |
-| perf_hooks      | Benchmarks for the `perf_hooks` subsystem.                                                                       |
+| perf\_hooks     | Benchmarks for the `perf_hooks` subsystem.                                                                       |
 | process         | Benchmarks for the `process` subsystem.                                                                          |
 | querystring     | Benchmarks for the `querystring` subsystem.                                                                      |
 | streams         | Benchmarks for the `streams` subsystem.                                                                          |
@@ -77,17 +77,17 @@ writing benchmarks.
 
 ### `createBenchmark(fn, configs[, options])`
 
-See [the guide on writing benchmarks](../doc/guides/writing-and-running-benchmarks.md#basics-of-a-benchmark).
+See [the guide on writing benchmarks](../doc/contributing/writing-and-running-benchmarks.md#basics-of-a-benchmark).
 
 ### `default_http_benchmarker`
 
 The default benchmarker used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
 ### `PORT`
 
 The default port used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
 ### `sendResult(data)`
 

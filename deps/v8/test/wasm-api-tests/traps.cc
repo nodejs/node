@@ -35,15 +35,27 @@ void ExpectMessage(const char* expected, const Message& message) {
 }  // namespace
 
 TEST_F(WasmCapiTest, Traps) {
+  FLAG_experimental_wasm_eh = true;
   ValueType i32_type[] = {kWasmI32};
   FunctionSig sig(1, 0, i32_type);
-  uint32_t callback_index = builder()->AddImport(CStrVector("callback"), &sig);
+  uint32_t callback_index =
+      builder()->AddImport(base::CStrVector("callback"), &sig);
   byte code[] = {WASM_CALL_FUNCTION0(callback_index)};
-  AddExportedFunction(CStrVector("callback"), code, sizeof(code), &sig);
+  AddExportedFunction(base::CStrVector("callback"), code, sizeof(code), &sig);
+
+  byte code2[] = {WASM_CALL_FUNCTION0(3)};
+  AddExportedFunction(base::CStrVector("unreachable"), code2, sizeof(code2),
+                      &sig);
   // The first constant is a 4-byte dummy so that the {unreachable} trap
-  // has a more interesting offset.
-  byte code2[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
-  AddExportedFunction(CStrVector("unreachable"), code2, sizeof(code2), &sig);
+  // has a more interesting offset. This is called by code2.
+  byte code3[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
+  AddFunction(code3, sizeof(code3), &sig);
+
+  // Check that traps returned from a C callback are uncatchable in Wasm.
+  byte code4[] = {WASM_TRY_CATCH_ALL_T(
+      kWasmI32, WASM_CALL_FUNCTION0(callback_index), WASM_I32V(42))};
+  AddExportedFunction(base::CStrVector("uncatchable"), code4, sizeof(code4),
+                      &sig);
 
   own<FuncType> func_type =
       FuncType::make(ownvec<ValType>::make(),
@@ -61,12 +73,14 @@ TEST_F(WasmCapiTest, Traps) {
       WasmFeatures::All(), wire_bytes()->begin(), wire_bytes()->end(), false,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, isolate->wasm_engine()->allocator());
+      DecodingMethod::kSync, GetWasmEngine()->allocator());
   ASSERT_TRUE(result.ok());
   const WasmFunction* func1 = &result.value()->functions[1];
   const WasmFunction* func2 = &result.value()->functions[2];
+  const WasmFunction* func3 = &result.value()->functions[3];
   const uint32_t func1_offset = func1->code.offset();
   const uint32_t func2_offset = func2->code.offset();
+  const uint32_t func3_offset = func3->code.offset();
 
   Func* cpp_trapping_func = GetExportedFunction(0);
   own<Trap> cpp_trap = cpp_trapping_func->call();
@@ -91,16 +105,30 @@ TEST_F(WasmCapiTest, Traps) {
   ExpectMessage("Uncaught RuntimeError: unreachable", wasm_trap->message());
   frame = wasm_trap->origin();
   EXPECT_TRUE(frame->instance()->same(instance()));
-  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(3u, frame->func_index());
   EXPECT_EQ(5u, frame->func_offset());
-  EXPECT_EQ(func2_offset + frame->func_offset(), frame->module_offset());
+  EXPECT_EQ(func3_offset + frame->func_offset(), frame->module_offset());
   trace = wasm_trap->trace();
-  EXPECT_EQ(1u, trace.size());
+  EXPECT_EQ(2u, trace.size());
+
   frame.reset(trace[0].release());
   EXPECT_TRUE(frame->instance()->same(instance()));
-  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(3u, frame->func_index());
   EXPECT_EQ(5u, frame->func_offset());
+  EXPECT_EQ(func3_offset + frame->func_offset(), frame->module_offset());
+
+  frame.reset(trace[1].release());
+  EXPECT_TRUE(frame->instance()->same(instance()));
+  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(1u, frame->func_offset());
   EXPECT_EQ(func2_offset + frame->func_offset(), frame->module_offset());
+
+  Func* wasm_uncatchable_func = GetExportedFunction(2);
+  Val* args = nullptr;
+  Val results[1] = {Val(3.14)};  // Sentinel value.
+  own<Trap> uncatchable_trap = wasm_uncatchable_func->call(args, results);
+  EXPECT_NE(nullptr, uncatchable_trap.get());
+  EXPECT_EQ(::wasm::F64, results[0].kind());
 }
 
 }  // namespace wasm

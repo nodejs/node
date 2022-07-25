@@ -8,7 +8,9 @@
 #include <initializer_list>
 #include <vector>
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/pointer-policies.h"
+#include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -19,7 +21,7 @@ namespace internal {
 
 namespace {
 
-class IncrementalMarkingScope {
+class V8_NODISCARD IncrementalMarkingScope {
  public:
   explicit IncrementalMarkingScope(MarkerBase* marker) : marker_(marker) {}
 
@@ -38,19 +40,24 @@ class IncrementalMarkingScope {
 
 constexpr Marker::MarkingConfig IncrementalMarkingScope::kIncrementalConfig;
 
-class ExpectWriteBarrierFires final : private IncrementalMarkingScope {
+class V8_NODISCARD ExpectWriteBarrierFires final
+    : private IncrementalMarkingScope {
  public:
   ExpectWriteBarrierFires(MarkerBase* marker,
                           std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->MarkingStateForTesting().marking_worklist()),
+        marking_worklist_(
+            marker->MutatorMarkingStateForTesting().marking_worklist()),
         write_barrier_worklist_(
-            marker->MarkingStateForTesting().write_barrier_worklist()),
+            marker->MutatorMarkingStateForTesting().write_barrier_worklist()),
+        retrace_marked_objects_worklist_(
+            marker->MutatorMarkingStateForTesting()
+                .retrace_marked_objects_worklist()),
         objects_(objects) {
     EXPECT_TRUE(marking_worklist_.IsGlobalEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalEmpty());
     for (void* object : objects) {
-      headers_.push_back(&HeapObjectHeader::FromPayload(object));
+      headers_.push_back(&HeapObjectHeader::FromObject(object));
       EXPECT_FALSE(headers_.back()->IsMarked());
     }
   }
@@ -67,7 +74,16 @@ class ExpectWriteBarrierFires final : private IncrementalMarkingScope {
     {
       HeapObjectHeader* item;
       while (write_barrier_worklist_.Pop(&item)) {
-        auto pos = std::find(objects_.begin(), objects_.end(), item->Payload());
+        auto pos =
+            std::find(objects_.begin(), objects_.end(), item->ObjectStart());
+        if (pos != objects_.end()) objects_.erase(pos);
+      }
+    }
+    {
+      HeapObjectHeader* item;
+      while (retrace_marked_objects_worklist_.Pop(&item)) {
+        auto pos =
+            std::find(objects_.begin(), objects_.end(), item->ObjectStart());
         if (pos != objects_.end()) objects_.erase(pos);
       }
     }
@@ -83,22 +99,26 @@ class ExpectWriteBarrierFires final : private IncrementalMarkingScope {
  private:
   MarkingWorklists::MarkingWorklist::Local& marking_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist_;
+  MarkingWorklists::RetraceMarkedObjectsWorklist::Local&
+      retrace_marked_objects_worklist_;
   std::vector<void*> objects_;
   std::vector<HeapObjectHeader*> headers_;
 };
 
-class ExpectNoWriteBarrierFires final : private IncrementalMarkingScope {
+class V8_NODISCARD ExpectNoWriteBarrierFires final
+    : private IncrementalMarkingScope {
  public:
   ExpectNoWriteBarrierFires(MarkerBase* marker,
                             std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->MarkingStateForTesting().marking_worklist()),
+        marking_worklist_(
+            marker->MutatorMarkingStateForTesting().marking_worklist()),
         write_barrier_worklist_(
-            marker->MarkingStateForTesting().write_barrier_worklist()) {
+            marker->MutatorMarkingStateForTesting().write_barrier_worklist()) {
     EXPECT_TRUE(marking_worklist_.IsGlobalEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalEmpty());
     for (void* object : objects) {
-      auto* header = &HeapObjectHeader::FromPayload(object);
+      auto* header = &HeapObjectHeader::FromObject(object);
       headers_.emplace_back(header, header->IsMarked());
     }
   }
@@ -125,7 +145,7 @@ class GCed : public GarbageCollected<GCed> {
   void Trace(cppgc::Visitor* v) const { v->Trace(next_); }
 
   bool IsMarked() const {
-    return HeapObjectHeader::FromPayload(this).IsMarked();
+    return HeapObjectHeader::FromObject(this).IsMarked();
   }
 
   void set_next(GCed* next) { next_ = next; }
@@ -141,10 +161,12 @@ class GCed : public GarbageCollected<GCed> {
 class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
-    GetMarkerRef() = MarkerFactory::CreateAndStartMarking<Marker>(
-        *internal_heap_, GetPlatformHandle().get(),
-        IncrementalMarkingScope::kIncrementalConfig);
+    DCHECK_NULL(GetMarkerRef().get());
+    GetMarkerRef() =
+        std::make_unique<Marker>(*internal_heap_, GetPlatformHandle().get(),
+                                 IncrementalMarkingScope::kIncrementalConfig);
     marker_ = GetMarkerRef().get();
+    marker_->StartMarking();
   }
 
   ~WriteBarrierTest() override {
@@ -168,7 +190,7 @@ class NoWriteBarrierTest : public testing::TestWithHeap {};
 TEST_F(WriteBarrierTest, EnableDisableIncrementalMarking) {
   {
     IncrementalMarkingScope scope(marker());
-    EXPECT_TRUE(ProcessHeap::IsAnyIncrementalOrConcurrentMarking());
+    EXPECT_TRUE(WriteBarrier::IsAnyIncrementalOrConcurrentMarking());
   }
 }
 
@@ -194,7 +216,7 @@ TEST_F(NoWriteBarrierTest, BailoutWhenMarkingIsOff) {
 TEST_F(WriteBarrierTest, BailoutIfMarked) {
   auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(object1).TryMarkAtomic());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(object1).TryMarkAtomic());
   {
     ExpectNoWriteBarrierFires scope(marker(), {object1});
     object2->set_next(object1);
@@ -206,7 +228,7 @@ TEST_F(WriteBarrierTest, MemberInitializingStoreNoBarrier) {
   {
     ExpectNoWriteBarrierFires scope(marker(), {object1});
     auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
-    HeapObjectHeader& object2_header = HeapObjectHeader::FromPayload(object2);
+    HeapObjectHeader& object2_header = HeapObjectHeader::FromObject(object2);
     EXPECT_FALSE(object2_header.IsMarked());
   }
 }
@@ -306,12 +328,162 @@ TEST_F(WriteBarrierTest, NoWriteBarrierOnMarkedMixinApplication) {
   ParentWithMixinPointer* parent =
       MakeGarbageCollected<ParentWithMixinPointer>(GetAllocationHandle());
   auto* child = MakeGarbageCollected<Child>(GetAllocationHandle());
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(child).TryMarkAtomic());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(child).TryMarkAtomic());
   Mixin* mixin = static_cast<Mixin*>(child);
   EXPECT_NE(static_cast<void*>(child), static_cast<void*>(mixin));
   {
     ExpectNoWriteBarrierFires scope(marker(), {child});
     parent->set_mixin(mixin);
+  }
+}
+
+// =============================================================================
+// Raw barriers. ===============================================================
+// =============================================================================
+
+using WriteBarrierParams = subtle::HeapConsistency::WriteBarrierParams;
+using WriteBarrierType = subtle::HeapConsistency::WriteBarrierType;
+using subtle::HeapConsistency;
+
+TEST_F(NoWriteBarrierTest, WriteBarrierBailoutWhenMarkingIsOff) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
+  {
+    EXPECT_FALSE(object1->IsMarked());
+    WriteBarrierParams params;
+#if defined(CPPGC_YOUNG_GENERATION)
+    WriteBarrierType expected = WriteBarrierType::kGenerational;
+#else   // !CPPGC_YOUNG_GENERATION
+    WriteBarrierType expected = WriteBarrierType::kNone;
+#endif  // !CPPGC_YOUNG_GENERATION
+    EXPECT_EQ(expected, HeapConsistency::GetWriteBarrierType(
+                            object2->next_ref().GetSlotForTesting(),
+                            object2->next_ref().Get(), params));
+    EXPECT_FALSE(object1->IsMarked());
+  }
+}
+
+TEST_F(WriteBarrierTest, DijkstraWriteBarrierTriggersWhenMarkingIsOn) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
+  {
+    ExpectWriteBarrierFires scope(marker(), {object1});
+    EXPECT_FALSE(object1->IsMarked());
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  object2->next_ref().GetSlotForTesting(),
+                  object2->next_ref().Get(), params));
+    HeapConsistency::DijkstraWriteBarrier(params, object2->next_ref().Get());
+    EXPECT_TRUE(object1->IsMarked());
+  }
+}
+
+TEST_F(WriteBarrierTest, DijkstraWriteBarrierBailoutIfMarked) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
+  EXPECT_TRUE(HeapObjectHeader::FromObject(object1).TryMarkAtomic());
+  {
+    ExpectNoWriteBarrierFires scope(marker(), {object1});
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  object2->next_ref().GetSlotForTesting(),
+                  object2->next_ref().Get(), params));
+    HeapConsistency::DijkstraWriteBarrier(params, object2->next_ref().Get());
+  }
+}
+
+namespace {
+
+struct InlinedObject {
+  void Trace(cppgc::Visitor* v) const { v->Trace(ref); }
+
+  Member<GCed> ref;
+};
+
+class GCedWithInlinedArray : public GarbageCollected<GCedWithInlinedArray> {
+ public:
+  static constexpr size_t kNumReferences = 4;
+
+  explicit GCedWithInlinedArray(GCed* value2) {
+    new (&objects[2].ref) Member<GCed>(value2);
+  }
+
+  void Trace(cppgc::Visitor* v) const {
+    for (size_t i = 0; i < kNumReferences; ++i) {
+      v->Trace(objects[i]);
+    }
+  }
+
+  InlinedObject objects[kNumReferences];
+};
+
+}  // namespace
+
+TEST_F(WriteBarrierTest, DijkstraWriteBarrierRangeTriggersWhenMarkingIsOn) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCedWithInlinedArray>(
+      GetAllocationHandle(), object1);
+  {
+    ExpectWriteBarrierFires scope(marker(), {object1});
+    EXPECT_FALSE(object1->IsMarked());
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  object2->objects, params, [this]() -> HeapHandle& {
+                    return GetHeap()->GetHeapHandle();
+                  }));
+    HeapConsistency::DijkstraWriteBarrierRange(
+        params, object2->objects, sizeof(InlinedObject), 4,
+        TraceTrait<InlinedObject>::Trace);
+    EXPECT_TRUE(object1->IsMarked());
+  }
+}
+
+TEST_F(WriteBarrierTest, DijkstraWriteBarrierRangeBailoutIfMarked) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCedWithInlinedArray>(
+      GetAllocationHandle(), object1);
+  EXPECT_TRUE(HeapObjectHeader::FromObject(object1).TryMarkAtomic());
+  {
+    ExpectNoWriteBarrierFires scope(marker(), {object1});
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  object2->objects, params, [this]() -> HeapHandle& {
+                    return GetHeap()->GetHeapHandle();
+                  }));
+    HeapConsistency::DijkstraWriteBarrierRange(
+        params, object2->objects, sizeof(InlinedObject), 4,
+        TraceTrait<InlinedObject>::Trace);
+  }
+}
+
+TEST_F(WriteBarrierTest, SteeleWriteBarrierTriggersWhenMarkingIsOn) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
+  {
+    ExpectWriteBarrierFires scope(marker(), {object1});
+    EXPECT_TRUE(HeapObjectHeader::FromObject(object1).TryMarkAtomic());
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  &object2->next_ref(), object2->next_ref().Get(), params));
+    HeapConsistency::SteeleWriteBarrier(params, object2->next_ref().Get());
+  }
+}
+
+TEST_F(WriteBarrierTest, SteeleWriteBarrierBailoutIfNotMarked) {
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
+  {
+    ExpectNoWriteBarrierFires scope(marker(), {object1});
+    WriteBarrierParams params;
+    EXPECT_EQ(WriteBarrierType::kMarking,
+              HeapConsistency::GetWriteBarrierType(
+                  &object2->next_ref(), object2->next_ref().Get(), params));
+    HeapConsistency::SteeleWriteBarrier(params, object2->next_ref().Get());
   }
 }
 

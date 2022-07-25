@@ -14,7 +14,7 @@ test(function() {
     let a = new URL("http://a.b/c?a=1&b=2&c=3&d=4");
     let b = a.searchParams;
     var c = [];
-    for (i of b) {
+    for (const i of b) {
         a.search = "x=1&y=2&z=3";
         c.push(i);
     }
@@ -26,7 +26,7 @@ test(function() {
 test(function() {
     let a = new URL("http://a.b/c");
     let b = a.searchParams;
-    for (i of b) {
+    for (const i of b) {
         assert_unreached(i);
     }
 }, "empty");
@@ -35,7 +35,7 @@ test(function() {
     const url = new URL("http://localhost/query?param0=0&param1=1&param2=2");
     const searchParams = url.searchParams;
     const seen = [];
-    for (param of searchParams) {
+    for (const param of searchParams) {
         if (param[0] === 'param0') {
             searchParams.delete('param1');
         }
@@ -50,7 +50,7 @@ test(function() {
     const url = new URL("http://localhost/query?param0=0&param1=1&param2=2");
     const searchParams = url.searchParams;
     const seen = [];
-    for (param of searchParams) {
+    for (const param of searchParams) {
         if (param[0] === 'param0') {
             searchParams.delete('param0');
             // 'param1=1' is now in the first slot, so the next iteration will see 'param2=2'.
@@ -66,7 +66,7 @@ test(function() {
     const url = new URL("http://localhost/query?param0=0&param1=1&param2=2");
     const searchParams = url.searchParams;
     const seen = [];
-    for (param of searchParams) {
+    for (const param of searchParams) {
         seen.push(param[0]);
         searchParams.delete(param[0]);
     }

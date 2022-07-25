@@ -35,6 +35,10 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
                              FunctionLiteral* literal);
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
+  LazyCompileDispatcher* dispatcher() { return dispatcher_; }
+  const Utf16CharacterStream* character_stream() const {
+    return character_stream_;
+  }
 
   // Accessors for the input data of the function being compiled.
 
@@ -85,6 +89,10 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
  private:
   // Compilation flags.
   const UnoptimizedCompileFlags flags_;
+
+  // For dispatching eager compilation of lazily compiled functions.
+  LazyCompileDispatcher* dispatcher_;
+  const Utf16CharacterStream* character_stream_;
 
   // The root AST node of the function literal being compiled.
   FunctionLiteral* literal_;

@@ -6,8 +6,9 @@
 
 #include <memory>
 
-#include "src/utils/allocation.h"
+#include "src/base/strings.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -27,13 +28,15 @@ StringsStorage::~StringsStorage() {
 }
 
 const char* StringsStorage::GetCopy(const char* src) {
+  base::MutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {
-    Vector<char> dst = Vector<char>::New(len + 1);
-    StrNCpy(dst, src, len);
+    base::Vector<char> dst = base::Vector<char>::New(len + 1);
+    base::StrNCpy(dst, src, len);
     dst[len] = '\0';
     entry->key = dst.begin();
+    string_size_ += len;
   }
   entry->value =
       reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);
@@ -49,10 +52,12 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 }
 
 const char* StringsStorage::AddOrDisposeString(char* str, int len) {
+  base::MutexGuard guard(&mutex_);
   base::HashMap::Entry* entry = GetEntry(str, len);
   if (entry->value == nullptr) {
     // New entry added.
     entry->key = str;
+    string_size_ += len;
   } else {
     DeleteArray(str);
   }
@@ -62,8 +67,8 @@ const char* StringsStorage::AddOrDisposeString(char* str, int len) {
 }
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
-  Vector<char> str = Vector<char>::New(1024);
-  int len = VSNPrintF(str, format, args);
+  base::Vector<char> str = base::Vector<char>::New(1024);
+  int len = base::VSNPrintF(str, format, args);
   if (len == -1) {
     DeleteArray(str.begin());
     return GetCopy(format);
@@ -71,16 +76,33 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   return AddOrDisposeString(str.begin(), len);
 }
 
+const char* StringsStorage::GetSymbol(Symbol sym) {
+  if (!sym.description().IsString()) {
+    return "<symbol>";
+  }
+  String description = String::cast(sym.description());
+  int length = std::min(FLAG_heap_snapshot_string_limit, description.length());
+  auto data = description.ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0,
+                                    length, &length);
+  if (sym.is_private_name()) {
+    return AddOrDisposeString(data.release(), length);
+  }
+  auto str_length = 8 + length + 1 + 1;
+  auto str_result = NewArray<char>(str_length);
+  snprintf(str_result, str_length, "<symbol %s>", data.get());
+  return AddOrDisposeString(str_result, str_length - 1);
+}
+
 const char* StringsStorage::GetName(Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
+    int length = std::min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
   } else if (name.IsSymbol()) {
-    return "<symbol>";
+    return GetSymbol(Symbol::cast(name));
   }
   return "";
 }
@@ -92,7 +114,7 @@ const char* StringsStorage::GetName(int index) {
 const char* StringsStorage::GetConsName(const char* prefix, Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
+    int length = std::min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
@@ -101,19 +123,33 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     char* cons_result = NewArray<char>(cons_length);
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
-    return AddOrDisposeString(cons_result, cons_length);
+    return AddOrDisposeString(cons_result, cons_length - 1);
   } else if (name.IsSymbol()) {
-    return "<symbol>";
+    return GetSymbol(Symbol::cast(name));
   }
   return "";
 }
 
+namespace {
+
+inline uint32_t ComputeStringHash(const char* str, int len) {
+  uint32_t raw_hash_field =
+      StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  return Name::HashBits::decode(raw_hash_field);
+}
+
+}  // namespace
+
 bool StringsStorage::Release(const char* str) {
+  base::MutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(str));
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   base::HashMap::Entry* entry = names_.Lookup(const_cast<char*>(str), hash);
-  DCHECK(entry);
-  if (!entry) {
+
+  // If an entry wasn't found or the address of the found entry doesn't match
+  // the one passed in, this string wasn't managed by this StringsStorage
+  // instance (i.e. a constant). Ignore this.
+  if (!entry || entry->key != str) {
     return false;
   }
 
@@ -122,6 +158,7 @@ bool StringsStorage::Release(const char* str) {
       reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) - 1);
 
   if (entry->value == 0) {
+    string_size_ -= len;
     names_.Remove(const_cast<char*>(str), hash);
     DeleteArray(str);
   }
@@ -132,8 +169,13 @@ size_t StringsStorage::GetStringCountForTesting() const {
   return names_.occupancy();
 }
 
+size_t StringsStorage::GetStringSize() {
+  base::MutexGuard guard(&mutex_);
+  return string_size_;
+}
+
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
 

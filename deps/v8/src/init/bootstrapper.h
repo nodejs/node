@@ -5,6 +5,9 @@
 #ifndef V8_INIT_BOOTSTRAPPER_H_
 #define V8_INIT_BOOTSTRAPPER_H_
 
+#include "include/v8-context.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-snapshot.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
@@ -19,27 +22,31 @@ namespace internal {
 class SourceCodeCache final {
  public:
   explicit SourceCodeCache(Script::Type type) : type_(type) {}
+  SourceCodeCache(const SourceCodeCache&) = delete;
+  SourceCodeCache& operator=(const SourceCodeCache&) = delete;
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
   void Iterate(RootVisitor* v);
 
-  bool Lookup(Isolate* isolate, Vector<const char> name,
+  bool Lookup(Isolate* isolate, base::Vector<const char> name,
               Handle<SharedFunctionInfo>* handle);
 
-  void Add(Isolate* isolate, Vector<const char> name,
+  void Add(Isolate* isolate, base::Vector<const char> name,
            Handle<SharedFunctionInfo> shared);
 
  private:
   Script::Type type_;
   FixedArray cache_;
-  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper final {
  public:
+  Bootstrapper(const Bootstrapper&) = delete;
+  Bootstrapper& operator=(const Bootstrapper&) = delete;
+
   static void InitializeOncePerProcess();
 
   // Requires: Heap::SetUp has been called.
@@ -73,9 +80,6 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template);
 
-  // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
-
   // Traverses the pointers for memory management.
   void Iterate(RootVisitor* v);
 
@@ -108,8 +112,6 @@ class Bootstrapper final {
   friend class NativesExternalStringResource;
 
   explicit Bootstrapper(Isolate* isolate);
-
-  DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };
 
 class BootstrapperActive final {
@@ -118,13 +120,13 @@ class BootstrapperActive final {
       : bootstrapper_(bootstrapper) {
     ++bootstrapper_->nesting_;
   }
+  BootstrapperActive(const BootstrapperActive&) = delete;
+  BootstrapperActive& operator=(const BootstrapperActive&) = delete;
 
   ~BootstrapperActive() { --bootstrapper_->nesting_; }
 
  private:
   Bootstrapper* bootstrapper_;
-
-  DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
 };
 
 }  // namespace internal

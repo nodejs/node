@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-unpublish</title>
 <style>
 body {
@@ -141,34 +142,128 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><ul><li><a href="#unpublishing-a-single-version-of-a-package">Unpublishing a single version of a package</a></li><li><a href="#unpublishing-an-entire-package">Unpublishing an entire package</a></li></ul><li><a href="#warning">Warning</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#warning">Warning</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<h4 id="unpublishing-a-single-version-of-a-package">Unpublishing a single version of a package</h4>
-<pre lang="bash"><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version&gt;
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm unpublish [&lt;package-spec&gt;]
 </code></pre>
-<h4 id="unpublishing-an-entire-package">Unpublishing an entire package</h4>
-<pre lang="bash"><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt; --force
-</code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>To learn more about how the npm registry treats unpublish, see our <!-- raw HTML omitted --> unpublish policies<!-- raw HTML omitted --></p>
 <h3 id="warning">Warning</h3>
-<p>Consider using the <code>deprecate</code> command instead, if your intent is to encourage users to upgrade, or if you no longer want to maintain a package.</p>
+<p>Consider using the <a href="../commands/npm-deprecate.html"><code>deprecate</code></a> command instead,
+if your intent is to encourage users to upgrade, or if you no longer
+want to maintain a package.</p>
 <h3 id="description">Description</h3>
-<p>This removes a package version from the registry, deleting its
-entry and removing the tarball.</p>
-<p>If no version is specified, or if all versions are removed then
-the root package entry is removed from the registry entirely.</p>
-<p>Even if a package version is unpublished, that specific name and
-version combination can never be reused. In order to publish the
-package again, a new version number must be used. If you unpublish the entire package, you may not publish any new versions of that package until 24 hours have passed.</p>
-<p>To learn more about how unpublish is treated on the npm registry, see our <!-- raw HTML omitted --> unpublish policies<!-- raw HTML omitted -->.</p>
+<p>This removes a package version from the registry, deleting its entry and
+removing the tarball.</p>
+<p>The npm registry will return an error if you are not <a href="../commands/npm-adduser.html">logged
+in</a>.</p>
+<p>If you do not specify a version or if you remove all of a package's
+versions then the registry will remove the root package entry entirely.</p>
+<p>Even if you unpublish a package version, that specific name and version
+combination can never be reused. In order to publish the package again,
+you must use a new version number. If you unpublish the entire package,
+you may not publish any new versions of that package until 24 hours have
+passed.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
+<code>owner</code>, etc.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="force"><code>force</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input.</p>
+<ul>
+<li>Allow clobbering non-npm files in global installs.</li>
+<li>Allow the <code>npm version</code> command to work on an unclean git repository.</li>
+<li>Allow deleting the cache folder with <code>npm cache clean</code>.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of npm.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of <code>node</code>, even if <code>--engine-strict</code> is enabled.</li>
+<li>Allow <code>npm audit fix</code> to install modules outside your stated dependency
+range (including SemVer-major changes).</li>
+<li>Allow unpublishing all versions of a published package.</li>
+<li>Allow conflicting peerDependencies to be installed in the root project.</li>
+<li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
+<li>Allow clobbering existing values in <code>npm pkg</code></li>
+<li>Allow unpublishing of entire packages (not just a single version).</li>
+</ul>
+<p>If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-deprecate.html">npm deprecate</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>
 <li><a href="../commands/npm-owner.html">npm owner</a></li>
+<li><a href="../commands/npm-adduser.html">npm login</a></li>
 </ul>
 </div>
 

@@ -36,7 +36,7 @@ typedef struct _CharList
 
 
 /*
- * write CharList 'l' into stream 's' using deliminter 'delim' (delim can be NULL). quoted: -1 remove, 0 as is, 1 add quotes
+ * write CharList 'l' into stream 's' using delimiter 'delim' (delim can be NULL). quoted: -1 remove, 0 as is, 1 add quotes
  */
 const char *pkg_writeCharList(FileStream *s, CharList *l, const char *delim, int32_t quoted);
 

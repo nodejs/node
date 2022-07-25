@@ -10,6 +10,33 @@ Test throwOnSideEffect: false
         }
     }
 }
+Test prototype extension expression with side-effect, with throwOnSideEffect: true
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
 Test expression with side-effect, with throwOnSideEffect: true
 {
     id : <messageId>

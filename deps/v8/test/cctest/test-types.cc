@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/base/strings.h"
 #include "src/compiler/types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
@@ -25,21 +26,21 @@ static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
-using bitset = uint32_t;
+using bitset = Type::bitset;
 
 struct Tests {
   using TypeIterator = Types::TypeVector::iterator;
   using ValueIterator = Types::ValueVector::iterator;
 
   Isolate* isolate;
-  HandleScope scope;
+  HandleScope tests_scope;
   CanonicalHandleScope canonical;
   Zone zone;
   Types T;
 
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
-        scope(isolate),
+        tests_scope(isolate),
         canonical(isolate),
         zone(isolate->allocator(), ZONE_NAME),
         T(&zone, isolate, isolate->random_number_generator()) {}
@@ -113,7 +114,7 @@ struct Tests {
     CHECK(this->IsBitset(T.Any));
 
     CHECK(bitset(0) == this->AsBitset(T.None));
-    CHECK(bitset(0xFFFFFFFEu) == this->AsBitset(T.Any));
+    CHECK(bitset(0xFFFFFFFFFFFFFFFEu) == this->AsBitset(T.Any));
 
     // Union(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -276,9 +277,9 @@ struct Tests {
     // Typing of Strings
     Handle<String> s1 = fac->NewStringFromAsciiChecked("a");
     CHECK(T.Constant(s1).Is(T.InternalizedString));
-    const uc16 two_byte[1] = {0x2603};
-    Handle<String> s2 =
-        fac->NewTwoByteInternalizedString(Vector<const uc16>(two_byte, 1), 1);
+    const base::uc16 two_byte[1] = {0x2603};
+    Handle<String> s2 = fac->NewTwoByteInternalizedString(
+        base::Vector<const base::uc16>(two_byte, 1), 1);
     CHECK(T.Constant(s2).Is(T.InternalizedString));
 
     // Typing of special constants

@@ -31,7 +31,7 @@
  * text in a single paragraph or in a line of a single paragraph
  * which has already been processed according to
  * the Unicode 6.3 BiDi algorithm as defined in
- * http://www.unicode.org/unicode/reports/tr9/ , version 28,
+ * https://www.unicode.org/reports/tr9/ , version 28,
  * also described in The Unicode Standard, Version 6.3.0 .
  *
  * This means that there is a UBiDi object with a levels
@@ -530,7 +530,7 @@ static int32_t getRunFromLogicalIndex(UBiDi *pBiDi, int32_t logicalIndex) {
         visualStart+=length;
     }
     /* we should never get here */
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 /*

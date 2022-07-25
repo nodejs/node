@@ -148,19 +148,29 @@ CharacterNode::addValue(void *value, UObjectDeleter *valueDeleter, UErrorCode &s
         if (!fHasValuesVector) {
             // There is only one value so far, and not in a vector yet.
             // Create a vector and add the old value.
-            UVector *values = new UVector(valueDeleter, NULL, DEFAULT_CHARACTERNODE_CAPACITY, status);
+            LocalPointer<UVector> values(
+                new UVector(valueDeleter, NULL, DEFAULT_CHARACTERNODE_CAPACITY, status), status);
             if (U_FAILURE(status)) {
                 if (valueDeleter) {
                     valueDeleter(value);
                 }
                 return;
             }
-            values->addElement(fValues, status);
-            fValues = values;
+            if (values->hasDeleter()) {
+                values->adoptElement(fValues, status);
+            } else {
+                values->addElement(fValues, status);
+            }
+            fValues = values.orphan();
             fHasValuesVector = TRUE;
         }
         // Add the new value.
-        ((UVector *)fValues)->addElement(value, status);
+        UVector *values = (UVector *)fValues;
+        if (values->hasDeleter()) {
+            values->adoptElement(value, status);
+        } else {
+            values->addElement(value, status);
+        }
     }
 }
 
@@ -174,7 +184,7 @@ TextTrieMapSearchResultHandler::~TextTrieMapSearchResultHandler(){
 // TextTrieMap class implementation
 // ---------------------------------------------------
 TextTrieMap::TextTrieMap(UBool ignoreCase, UObjectDeleter *valueDeleter)
-: fIgnoreCase(ignoreCase), fNodes(NULL), fNodesCapacity(0), fNodesCount(0),
+: fIgnoreCase(ignoreCase), fNodes(NULL), fNodesCapacity(0), fNodesCount(0), 
   fLazyContents(NULL), fIsEmpty(TRUE), fValueDeleter(valueDeleter) {
 }
 
@@ -189,7 +199,7 @@ TextTrieMap::~TextTrieMap() {
             if (fValueDeleter) {
                 fValueDeleter(fLazyContents->elementAt(i+1));
             }
-        }
+        } 
         delete fLazyContents;
     }
 }
@@ -206,7 +216,7 @@ int32_t TextTrieMap::isEmpty() const {
 //  We defer actually building the TextTrieMap node structure until the first time a
 //     search is performed.  put() simply saves the parameters in case we do
 //     eventually need to build it.
-//
+//     
 void
 TextTrieMap::put(const UnicodeString &key, void *value, ZNStringPool &sp, UErrorCode &status) {
     const UChar *s = sp.get(key, status);
@@ -219,10 +229,8 @@ void
 TextTrieMap::put(const UChar *key, void *value, UErrorCode &status) {
     fIsEmpty = FALSE;
     if (fLazyContents == NULL) {
-        fLazyContents = new UVector(status);
-        if (fLazyContents == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }
+        LocalPointer<UVector> lpLazyContents(new UVector(status), status);
+        fLazyContents = lpLazyContents.orphan();
     }
     if (U_FAILURE(status)) {
         if (fValueDeleter) {
@@ -373,7 +381,7 @@ void TextTrieMap::buildTrie(UErrorCode &status) {
             putImpl(keyString, val, status);
         }
         delete fLazyContents;
-        fLazyContents = NULL;
+        fLazyContents = NULL; 
     }
 }
 
@@ -470,9 +478,9 @@ ZNStringPool::ZNStringPool(UErrorCode &status) {
         return;
     }
 
-    fHash   = uhash_open(uhash_hashUChars      /* keyHash */,
-                         uhash_compareUChars   /* keyComp */,
-                         uhash_compareUChars   /* valueComp */,
+    fHash   = uhash_open(uhash_hashUChars      /* keyHash */, 
+                         uhash_compareUChars   /* keyComp */, 
+                         uhash_compareUChars   /* valueComp */, 
                          &status);
     if (U_FAILURE(status)) {
         return;
@@ -521,19 +529,19 @@ const UChar *ZNStringPool::get(const UChar *s, UErrorCode &status) {
         }
         fChunks->fNext = oldChunk;
     }
-
+    
     UChar *destString = &fChunks->fStrings[fChunks->fLimit];
     u_strcpy(destString, s);
     fChunks->fLimit += (length + 1);
     uhash_put(fHash, destString, destString, &status);
     return destString;
-}
+}        
 
 
 //
 //  ZNStringPool::adopt()    Put a string into the hash, but do not copy the string data
 //                           into the pool's storage.  Used for strings from resource bundles,
-//                           which will perisist for the life of the zone string formatter, and
+//                           which will persist for the life of the zone string formatter, and
 //                           therefore can be used directly without copying.
 const UChar *ZNStringPool::adopt(const UChar * s, UErrorCode &status) {
     const UChar *pooledString;
@@ -550,7 +558,7 @@ const UChar *ZNStringPool::adopt(const UChar * s, UErrorCode &status) {
     return s;
 }
 
-
+    
 const UChar *ZNStringPool::get(const UnicodeString &s, UErrorCode &status) {
     UnicodeString &nonConstStr = const_cast<UnicodeString &>(s);
     return this->get(nonConstStr.getTerminatedBuffer(), status);
@@ -776,7 +784,7 @@ struct ZNames::ZNamesLoader : public ResourceSink {
         clear();
         ures_getAllItemsWithFallback(zoneStrings, key, *this, localStatus);
 
-        // Ignore errors, but propogate possible warnings.
+        // Ignore errors, but propagate possible warnings.
         if (U_SUCCESS(localStatus)) {
             errorCode = localStatus;
         }
@@ -794,7 +802,7 @@ struct ZNames::ZNamesLoader : public ResourceSink {
     }
 
     virtual void put(const char* key, ResourceValue& value, UBool /*noFallback*/,
-            UErrorCode &errorCode) {
+            UErrorCode &errorCode) override {
         ResourceTable namesTable = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
         for (int32_t i = 0; namesTable.getKeyAndValue(i, key, value); ++i) {
@@ -854,33 +862,34 @@ class MetaZoneIDsEnumeration : public StringEnumeration {
 public:
     MetaZoneIDsEnumeration();
     MetaZoneIDsEnumeration(const UVector& mzIDs);
-    MetaZoneIDsEnumeration(UVector* mzIDs);
+    MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs);
     virtual ~MetaZoneIDsEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
-    virtual const UnicodeString* snext(UErrorCode& status);
-    virtual void reset(UErrorCode& status);
-    virtual int32_t count(UErrorCode& status) const;
+    virtual UClassID getDynamicClassID(void) const override;
+    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual void reset(UErrorCode& status) override;
+    virtual int32_t count(UErrorCode& status) const override;
 private:
     int32_t fLen;
     int32_t fPos;
     const UVector* fMetaZoneIDs;
-    UVector *fLocalVector;
+    LocalPointer<UVector> fLocalVector;
 };
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(MetaZoneIDsEnumeration)
 
-MetaZoneIDsEnumeration::MetaZoneIDsEnumeration()
+MetaZoneIDsEnumeration::MetaZoneIDsEnumeration() 
 : fLen(0), fPos(0), fMetaZoneIDs(NULL), fLocalVector(NULL) {
 }
 
-MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(const UVector& mzIDs)
+MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(const UVector& mzIDs) 
 : fPos(0), fMetaZoneIDs(&mzIDs), fLocalVector(NULL) {
     fLen = fMetaZoneIDs->size();
 }
 
-MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(UVector *mzIDs)
-: fLen(0), fPos(0), fMetaZoneIDs(mzIDs), fLocalVector(mzIDs) {
+MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs)
+: fLen(0), fPos(0), fMetaZoneIDs(nullptr), fLocalVector(std::move(mzIDs)) {
+    fMetaZoneIDs = fLocalVector.getAlias();
     if (fMetaZoneIDs) {
         fLen = fMetaZoneIDs->size();
     }
@@ -906,9 +915,6 @@ MetaZoneIDsEnumeration::count(UErrorCode& /*status*/) const {
 }
 
 MetaZoneIDsEnumeration::~MetaZoneIDsEnumeration() {
-    if (fLocalVector) {
-        delete fLocalVector;
-    }
 }
 
 
@@ -920,7 +926,7 @@ public:
     ZNameSearchHandler(uint32_t types);
     virtual ~ZNameSearchHandler();
 
-    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status);
+    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status) override;
     TimeZoneNames::MatchInfoCollection* getMatches(int32_t& maxMatchLen);
 
 private:
@@ -929,7 +935,7 @@ private:
     TimeZoneNames::MatchInfoCollection* fResults;
 };
 
-ZNameSearchHandler::ZNameSearchHandler(uint32_t types)
+ZNameSearchHandler::ZNameSearchHandler(uint32_t types) 
 : fTypes(types), fMaxMatchLen(0), fResults(NULL) {
 }
 
@@ -1104,13 +1110,13 @@ TimeZoneNamesImpl::cleanup() {
     }
 }
 
-UBool
+bool
 TimeZoneNamesImpl::operator==(const TimeZoneNames& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     // No implementation for now
-    return FALSE;
+    return false;
 }
 
 TimeZoneNamesImpl*
@@ -1153,13 +1159,10 @@ TimeZoneNamesImpl::_getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCod
         return new MetaZoneIDsEnumeration();
     }
 
-    MetaZoneIDsEnumeration *senum = NULL;
-    UVector* mzIDs = new UVector(NULL, uhash_compareUChars, status);
-    if (mzIDs == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
+    LocalPointer<MetaZoneIDsEnumeration> senum;
+    LocalPointer<UVector> mzIDs(new UVector(NULL, uhash_compareUChars, status), status);
     if (U_SUCCESS(status)) {
-        U_ASSERT(mzIDs != NULL);
+        U_ASSERT(mzIDs.isValid());
         for (int32_t i = 0; U_SUCCESS(status) && i < mappings->size(); i++) {
 
             OlsonToMetaMappingEntry *map = (OlsonToMetaMappingEntry *)mappings->elementAt(i);
@@ -1169,12 +1172,10 @@ TimeZoneNamesImpl::_getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCod
             }
         }
         if (U_SUCCESS(status)) {
-            senum = new MetaZoneIDsEnumeration(mzIDs);
-        } else {
-            delete mzIDs;
+            senum.adoptInsteadAndCheckErrorCode(new MetaZoneIDsEnumeration(std::move(mzIDs)), status);
         }
     }
-    return senum;
+    return U_SUCCESS(status) ? senum.orphan() : nullptr;
 }
 
 UnicodeString&
@@ -1194,7 +1195,7 @@ TimeZoneNamesImpl::getReferenceZoneID(const UnicodeString& mzID, const char* reg
     return TimeZoneNamesImpl::_getReferenceZoneID(mzID, region, tzID);
 }
 
-// static implementaion of getReferenceZoneID
+// static implementation of getReferenceZoneID
 UnicodeString&
 TimeZoneNamesImpl::_getReferenceZoneID(const UnicodeString& mzID, const char* region, UnicodeString& tzID) {
     ZoneMeta::getZoneIdByMetazone(mzID, UnicodeString(region, -1, US_INV), tzID);
@@ -1560,7 +1561,7 @@ struct TimeZoneNamesImpl::ZoneStringsLoader : public ResourceSink {
     }
 
     virtual void put(const char *key, ResourceValue &value, UBool noFallback,
-            UErrorCode &status) {
+            UErrorCode &status) override {
         ResourceTable timeZonesTable = value.getTable(status);
         if (U_FAILURE(status)) { return; }
         for (int32_t i = 0; timeZonesTable.getKeyAndValue(i, key, value); ++i) {
@@ -1891,7 +1892,7 @@ public:
     TZDBNameSearchHandler(uint32_t types, const char* region);
     virtual ~TZDBNameSearchHandler();
 
-    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status);
+    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status) override;
     TimeZoneNames::MatchInfoCollection* getMatches(int32_t& maxMatchLen);
 
 private:
@@ -1901,7 +1902,7 @@ private:
     const char* fRegion;
 };
 
-TZDBNameSearchHandler::TZDBNameSearchHandler(uint32_t types, const char* region)
+TZDBNameSearchHandler::TZDBNameSearchHandler(uint32_t types, const char* region) 
 : fTypes(types), fMaxMatchLen(0), fResults(NULL), fRegion(region) {
 }
 
@@ -2156,13 +2157,13 @@ TZDBTimeZoneNames::TZDBTimeZoneNames(const Locale& locale)
 TZDBTimeZoneNames::~TZDBTimeZoneNames() {
 }
 
-UBool
+bool
 TZDBTimeZoneNames::operator==(const TimeZoneNames& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     // No implementation for now
-    return FALSE;
+    return false;
 }
 
 TZDBTimeZoneNames*

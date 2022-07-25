@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --noalways-opt --stress-flush-bytecode
-// Flags: --expose-gc
+// Flags: --allow-natives-syntax --opt --noalways-opt --stress-flush-code
+// Flags: --expose-gc --flush-bytecode
 
 Debug = debug.Debug
 

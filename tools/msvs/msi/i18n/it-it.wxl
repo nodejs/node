@@ -12,11 +12,11 @@
     <String Id="NodeRuntime_Title">Node.js runtime</String>
     <String Id="NodeRuntime_Description">Installa [ProductName] runtime (node.exe).</String>
 
-    <String Id="NodeEtwSupport_Title">Event tracing (ETW)</String>
-    <String Id="NodeEtwSupport_Description">Installa il supporto per gli eventi "event tracing" (ETW) generati da [ProductName].</String>
-
     <String Id="npm_Title">npm package manager</String>
     <String Id="npm_Description">Installa npm, il package manager raccomandato per [ProductName].</String>
+
+    <String Id="corepack_Title">corepack manager</String>
+    <String Id="corepack_Description">Installa corepack, il package manager universale per [ProductName].</String>
 
     <String Id="DocumentationShortcuts_Title">Collegamenti alla documentazione online</String>
     <String Id="DocumentationShortcuts_Description">Aggiunge i collegamenti al menu start alla documentazione online per [ProductName] [FullVersion] e per il sito web di [ProductName].</String>

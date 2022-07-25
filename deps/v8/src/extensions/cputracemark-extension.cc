@@ -4,6 +4,9 @@
 
 #include "src/extensions/cputracemark-extension.h"
 
+#include "include/v8-isolate.h"
+#include "include/v8-template.h"
+
 namespace v8 {
 namespace internal {
 
@@ -16,9 +19,8 @@ CpuTraceMarkExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
 void CpuTraceMarkExtension::Mark(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1 || !args[0]->IsUint32()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
-        "First parameter to cputracemark() must be a unsigned int32."));
+    args.GetIsolate()->ThrowError(
+        "First parameter to cputracemark() must be a unsigned int32.");
     return;
   }
 

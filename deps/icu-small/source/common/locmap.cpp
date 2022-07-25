@@ -20,7 +20,7 @@
  *
  *  Date        Name        Description
  *  3/11/97     aliu        Fixed off-by-one bug in assignment operator. Added
- *                          setId() method and safety check against
+ *                          setId() method and safety check against 
  *                          MAX_ID_LENGTH.
  * 04/23/99     stephen     Added C wrapper for convertToPosix.
  * 09/18/00     george      Removed the memory leaks.
@@ -118,7 +118,7 @@ static const ILcidPosixElement locmap_ ## id [] =
 // Keep static locale variables inside the function so that
 // it can be created properly during static init.
 //
-// Note: This table should be updated periodically. Check the [MS-LCID] Windows Language Code Identifier
+// Note: This table should be updated periodically. Check the [MS-LCID] Windows Language Code Identifier 
 //       (LCID) Reference defined at https://msdn.microsoft.com/en-us/library/cc233965.aspx
 //
 //       Microsoft is moving away from LCID in favor of locale name as of Vista.  This table needs to be
@@ -132,7 +132,7 @@ static const ILcidPosixElement locmap_ ## id [] =
 ////////////////////////////////////////////
 */
 
-// TODO: For Windows ideally this table would be a list of exceptions rather than a complete list as
+// TODO: For Windows ideally this table would be a list of exceptions rather than a complete list as 
 // LocaleNameToLCID and LCIDToLocaleName provide 90% of these.
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0436, af, af_ZA)
@@ -524,7 +524,7 @@ ILCID_POSIX_SUBTABLE(nl) {
 /* The "no" locale split into nb and nn.  By default in ICU, "no" is nb.*/
 // TODO: Not all of these are needed on Windows, but I don't know how ICU treats preferred ones here.
 ILCID_POSIX_SUBTABLE(no) {
-    {0x14,   "no"},     /* really nb_NO - actually Windows differentiates between neutral (no region) and specific (with region) */
+    {0x14,   "no"},     /* really nb_NO - actually Windows differentiates between neutral (no region) and specific (with region) */ 
     {0x7c14, "nb"},     /* really nb */
     {0x0414, "nb_NO"},  /* really nb_NO. Keep first in the 414 list. */
     {0x0414, "no_NO"},  /* really nb_NO */
@@ -1273,7 +1273,7 @@ uprv_convertToLCID(const char *langID, const char* posixID, UErrorCode* status)
 
         mid = (high+low) >> 1; /*Finds median*/
 
-        if (mid == oldmid)
+        if (mid == oldmid) 
             break;
 
         compVal = uprv_strcmp(langID, gPosixIDmap[mid].regionMaps->posixID);

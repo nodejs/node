@@ -1,9 +1,10 @@
+#include "async_wrap.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -16,18 +17,53 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
+using v8::Just;
 using v8::kPromiseHandlerAddedAfterReject;
 using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
 using v8::kPromiseResolveAfterResolved;
 using v8::Local;
-using v8::MicrotasksScope;
+using v8::Maybe;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
 using v8::Value;
+
+static Maybe<double> GetAssignedPromiseAsyncId(Environment* env,
+                                               Local<Promise> promise,
+                                               Local<Value> id_symbol) {
+  Local<Value> maybe_async_id;
+  if (!promise->Get(env->context(), id_symbol).ToLocal(&maybe_async_id)) {
+    return v8::Just(AsyncWrap::kInvalidAsyncId);
+  }
+  return maybe_async_id->IsNumber()
+      ? maybe_async_id->NumberValue(env->context())
+      : v8::Just(AsyncWrap::kInvalidAsyncId);
+}
+
+static Maybe<double> GetAssignedPromiseWrapAsyncId(Environment* env,
+                                                   Local<Promise> promise,
+                                                   Local<Value> id_symbol) {
+  // This check is imperfect. If the internal field is set, it should
+  // be an object. If it's not, we just ignore it. Ideally v8 would
+  // have had GetInternalField returning a MaybeLocal but this works
+  // for now.
+  Local<Value> promiseWrap = promise->GetInternalField(0);
+  if (promiseWrap->IsObject()) {
+        Local<Value> maybe_async_id;
+    if (!promiseWrap.As<Object>()->Get(env->context(), id_symbol)
+        .ToLocal(&maybe_async_id)) {
+      return v8::Just(AsyncWrap::kInvalidAsyncId);
+    }
+    return maybe_async_id->IsNumber()
+        ? maybe_async_id->NumberValue(env->context())
+        : v8::Just(AsyncWrap::kInvalidAsyncId);
+  } else {
+      return v8::Just(AsyncWrap::kInvalidAsyncId);
+  }
+}
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> unhandledRejections{0};
@@ -77,12 +113,46 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Local<Value> args[] = { type, promise, value };
 
+  double async_id = AsyncWrap::kInvalidAsyncId;
+  double trigger_async_id = AsyncWrap::kInvalidAsyncId;
+  TryCatchScope try_catch(env);
+
+  if (!GetAssignedPromiseAsyncId(env, promise, env->async_id_symbol())
+          .To(&async_id)) return;
+  if (!GetAssignedPromiseAsyncId(env, promise, env->trigger_async_id_symbol())
+          .To(&trigger_async_id)) return;
+
+  if (async_id == AsyncWrap::kInvalidAsyncId &&
+      trigger_async_id == AsyncWrap::kInvalidAsyncId) {
+    // That means that promise might be a PromiseWrap, so we'll
+    // check there as well.
+    if (!GetAssignedPromiseWrapAsyncId(env, promise, env->async_id_symbol())
+              .To(&async_id)) return;
+    if (!GetAssignedPromiseWrapAsyncId(
+          env, promise, env->trigger_async_id_symbol())
+              .To(&trigger_async_id)) return;
+  }
+
+  if (async_id != AsyncWrap::kInvalidAsyncId &&
+      trigger_async_id != AsyncWrap::kInvalidAsyncId) {
+    env->async_hooks()->push_async_context(
+        async_id, trigger_async_id, promise);
+  }
+
+  USE(callback->Call(
+      env->context(), Undefined(isolate), arraysize(args), args));
+
+  if (async_id != AsyncWrap::kInvalidAsyncId &&
+      trigger_async_id != AsyncWrap::kInvalidAsyncId &&
+      env->execution_async_id() == async_id) {
+    // This condition might not be true if async_hooks was enabled during
+    // the promise callback execution.
+    env->async_hooks()->pop_async_context(async_id);
+  }
+
   // V8 does not expect this callback to have a scheduled exceptions once it
   // returns, so we print them out in a best effort to do something about it
   // without failing silently and without crashing the process.
-  TryCatchScope try_catch(env);
-  USE(callback->Call(
-      env->context(), Undefined(isolate), arraysize(args), args));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     fprintf(stderr, "Exception in PromiseRejectCallback:\n");
     PrintCaughtException(isolate, env->context(), try_catch);
@@ -96,11 +166,13 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  isolate->EnqueueMicrotask(args[0].As<Function>());
+  isolate->GetCurrentContext()->GetMicrotaskQueue()
+      ->EnqueueMicrotask(isolate, args[0].As<Function>());
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  MicrotasksScope::PerformCheckpoint(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
+  env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
 }
 
 static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {

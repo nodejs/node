@@ -32,13 +32,11 @@ extern uint64_t performance_v8_start;
 
 
 #define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
-  V(NODE, "node")                                                             \
-  V(MARK, "mark")                                                             \
-  V(MEASURE, "measure")                                                       \
   V(GC, "gc")                                                                 \
-  V(FUNCTION, "function")                                                     \
+  V(HTTP, "http")                                                             \
   V(HTTP2, "http2")                                                           \
-  V(HTTP, "http")
+  V(NET, "net")                                                               \
+  V(DNS, "dns")
 
 enum PerformanceMilestone {
 #define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,
@@ -57,9 +55,9 @@ enum PerformanceEntryType {
 class PerformanceState {
  public:
   struct SerializeInfo {
-    AliasedBufferInfo root;
-    AliasedBufferInfo milestones;
-    AliasedBufferInfo observers;
+    AliasedBufferIndex root;
+    AliasedBufferIndex milestones;
+    AliasedBufferIndex observers;
   };
 
   explicit PerformanceState(v8::Isolate* isolate, const SerializeInfo* info);

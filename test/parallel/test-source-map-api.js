@@ -54,6 +54,7 @@ const { readFileSync } = require('fs');
     // Require a file that throws an exception, and has a source map.
     require('../fixtures/source-map/typescript-throw.js');
   } catch (err) {
+    // eslint-disable-next-line no-unused-expressions
     err.stack; // Force prepareStackTrace() to be called.
   }
   assert(callSite);
@@ -96,6 +97,20 @@ const { readFileSync } = require('fs');
   assert.notStrictEqual(payload, sourceMap.payload);
   assert.strictEqual(payload.sources[0], sourceMap.payload.sources[0]);
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
+}
+
+// findEntry() must return empty object instead error when
+// receive a malformed mappings.
+{
+  const payload = JSON.parse(readFileSync(
+    require.resolve('../fixtures/source-map/disk.map'), 'utf8'
+  ));
+  payload.mappings = ';;;;;;;;;';
+
+  const sourceMap = new SourceMap(payload);
+  const result = sourceMap.findEntry(0, 5);
+  assert.strictEqual(typeof result, 'object');
+  assert.strictEqual(Object.keys(result).length, 0);
 }
 
 // Test various known decodings to ensure decodeVLQ works correctly.

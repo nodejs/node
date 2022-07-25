@@ -15,7 +15,7 @@ const zlib = require('zlib');
   0,
   1,
   [1, 2, 3],
-  { foo: 'bar' }
+  { foo: 'bar' },
 ].forEach((input) => {
   assert.throws(
     () => zlib.deflateSync(input),

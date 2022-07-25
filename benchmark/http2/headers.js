@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common.js');
-const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
   n: [1e3],
@@ -32,8 +31,8 @@ function main({ n, nheaders }) {
     stream.respond();
     stream.end('Hi!');
   });
-  server.listen(PORT, () => {
-    const client = http2.connect(`http://localhost:${PORT}/`, {
+  server.listen(0, () => {
+    const client = http2.connect(`http://localhost:${server.address().port}/`, {
       maxHeaderListPairs: 20000
     });
 

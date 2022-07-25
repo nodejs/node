@@ -68,7 +68,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * @param o  the object to be copied.
      */
     StringMatcher(const StringMatcher& o);
-
+        
     /**
      * Destructor
      */
@@ -78,21 +78,21 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * Implement UnicodeFunctor
      * @return a copy of the object.
      */
-    virtual StringMatcher* clone() const;
+    virtual StringMatcher* clone() const override;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeMatcher* pointer
      * and return the pointer.
      * @return the UnicodeMatcher point.
      */
-    virtual UnicodeMatcher* toMatcher() const;
+    virtual UnicodeMatcher* toMatcher() const override;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeReplacer* pointer
      * and return the pointer.
      * @return the UnicodeReplacer pointer.
      */
-    virtual UnicodeReplacer* toReplacer() const;
+    virtual UnicodeReplacer* toReplacer() const override;
 
     /**
      * Implement UnicodeMatcher
@@ -119,7 +119,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
     virtual UMatchDegree matches(const Replaceable& text,
                                  int32_t& offset,
                                  int32_t limit,
-                                 UBool incremental);
+                                 UBool incremental) override;
 
     /**
      * Implement UnicodeMatcher
@@ -128,7 +128,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * @return                  A reference to 'result'.
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = false) const;
+                                     UBool escapeUnprintable = false) const override;
 
     /**
      * Implement UnicodeMatcher
@@ -137,20 +137,20 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * offset).  This is used by <tt>RuleBasedTransliterator</tt> for
      * indexing.
      * @param v    the given value
-     * @return     true if this matcher will match a character c,
+     * @return     true if this matcher will match a character c, 
      *             where c & 0xFF == v
      */
-    virtual UBool matchesIndexValue(uint8_t v) const;
+    virtual UBool matchesIndexValue(uint8_t v) const override;
 
     /**
      * Implement UnicodeMatcher
      */
-    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const;
+    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const override;
 
     /**
      * Implement UnicodeFunctor
      */
-    virtual void setData(const TransliterationRuleData*);
+    virtual void setData(const TransliterationRuleData*) override;
 
     /**
      * Replace characters in 'text' from 'start' to 'limit' with the
@@ -172,7 +172,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
     virtual int32_t replace(Replaceable& text,
                             int32_t start,
                             int32_t limit,
-                            int32_t& cursor);
+                            int32_t& cursor) override;
 
     /**
      * Returns a string representation of this replacer.  If the
@@ -188,7 +188,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * @return a reference to 'result'.
      */
     virtual UnicodeString& toReplacerPattern(UnicodeString& result,
-                                             UBool escapeUnprintable) const;
+                                             UBool escapeUnprintable) const override;
 
     /**
      * Remove any match data.  This must be called before performing a
@@ -199,7 +199,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -211,7 +211,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * into the given set.
      * @param toUnionTo the set into which to union the output characters
      */
-    virtual void addReplacementSetTo(UnicodeSet& toUnionTo) const;
+    virtual void addReplacementSetTo(UnicodeSet& toUnionTo) const override;
 
  private:
 

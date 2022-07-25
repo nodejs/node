@@ -3,11 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -16,6 +15,7 @@ namespace node {
 namespace crypto {
 namespace Keygen {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Keygen
 
 enum class KeyGenJobStatus {
@@ -58,6 +58,10 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     CryptoJob<KeyGenTraits>::Initialize(New, env, target);
   }
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<KeyGenTraits>::RegisterExternalReferences(New, registry);
+  }
+
   KeyGenJob(
       Environment* env,
       v8::Local<v8::Object> object,
@@ -71,7 +75,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
             std::move(params)) {}
 
   void DoThreadPoolWork() override {
-    // Make sure the the CSPRNG is properly seeded so the results are secure
+    // Make sure the CSPRNG is properly seeded so the results are secure.
     CheckEntropy();
 
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
@@ -82,10 +86,10 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
         // Success!
         break;
       case KeyGenJobStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
+        CryptoErrorStore* errors = CryptoJob<KeyGenTraits>::errors();
         errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Key generation job failed"));
+        if (errors->Empty())
+          errors->Insert(NodeCryptoError::KEY_GENERATION_JOB_FAILED);
       }
     }
   }
@@ -94,22 +98,25 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<KeyGenTraits>::errors();
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
-    if (status_ == KeyGenJobStatus::OK &&
-        LIKELY(!KeyGenTraits::EncodeKey(env, params, result).IsNothing())) {
-      *err = Undefined(env->isolate());
-      return v8::Just(true);
+
+    if (status_ == KeyGenJobStatus::OK) {
+      v8::Maybe<bool> ret = KeyGenTraits::EncodeKey(env, params, result);
+      if (ret.IsJust() && ret.FromJust()) {
+        *err = Undefined(env->isolate());
+      }
+      return ret;
     }
 
-    if (errors->empty())
+    if (errors->Empty())
       errors->Capture();
-    CHECK(!errors->empty());
+    CHECK(!errors->Empty());
     *result = Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(KeyGenJob);
+  SET_SELF_SIZE(KeyGenJob)
 
  private:
   KeyGenJobStatus status_ = KeyGenJobStatus::FAILED;
@@ -161,7 +168,8 @@ struct KeyPairGenTraits final {
       Environment* env,
       AdditionalParameters* params) {
     EVPKeyCtxPointer ctx = KeyPairAlgorithmTraits::Setup(params);
-    if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0)
+
+    if (!ctx)
       return KeyGenJobStatus::FAILED;
 
     // Generate the key
@@ -234,6 +242,9 @@ struct KeyPairGenConfig final : public MemoryRetainer {
   AlgorithmParams params;
 
   KeyPairGenConfig() = default;
+  ~KeyPairGenConfig() {
+    Mutex::ScopedLock priv_lock(*key.mutex());
+  }
 
   explicit KeyPairGenConfig(KeyPairGenConfig&& other) noexcept
       : public_key_encoding(other.public_key_encoding),
@@ -289,6 +300,6 @@ using SecretKeyGenJob = KeyGenJob<SecretKeyGenTraits>;
 }  // namespace crypto
 }  // namespace node
 
-#endif  // !defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYGEN_H_
 

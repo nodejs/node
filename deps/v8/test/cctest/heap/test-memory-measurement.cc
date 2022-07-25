@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -57,8 +58,6 @@ TEST(NativeContextInferrerJSObject) {
   Handle<HeapObject> function = Handle<HeapObject>::cast(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
-  // TODO(ulan): Enable this test once we have more precise native
-  // context inference.
   CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
   CHECK_EQ(native_context->ptr(), inferred_context);
 }
@@ -91,7 +90,6 @@ TEST(NativeContextStatsArrayBuffers) {
                       *i_array_buffer, 10);
   CHECK_EQ(1010, stats.Get(native_context->ptr()));
 }
-
 namespace {
 
 class TestResource : public v8::String::ExternalStringResource {
@@ -134,10 +132,7 @@ namespace {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() : TestPlatform(), mock_task_runner_(new MockTaskRunner()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*) override {
@@ -201,14 +196,10 @@ class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
 
 }  // namespace
 
-TEST(RandomizedTimeout) {
-  MockPlatform platform;
+TEST_WITH_PLATFORM(RandomizedTimeout, MockPlatform) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  // We have to create the isolate manually here. Using CcTest::isolate() would
-  // lead to the situation when the isolate outlives MockPlatform which may lead
-  // to UAF on the background thread.
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = CcTest::isolate();
   std::vector<double> delays;
   for (int i = 0; i < 10; i++) {
     isolate->MeasureMemory(std::make_unique<MockMeasureMemoryDelegate>());
@@ -216,7 +207,6 @@ TEST(RandomizedTimeout) {
     platform.PerformTask();
   }
   std::sort(delays.begin(), delays.end());
-  isolate->Dispose();
   CHECK_LT(delays[0], delays.back());
 }
 
@@ -227,6 +217,64 @@ TEST(LazyMemoryMeasurement) {
       std::make_unique<MockMeasureMemoryDelegate>(),
       v8::MeasureMemoryExecution::kLazy);
   CHECK(!platform.TaskPosted());
+}
+
+TEST(PartiallyInitializedJSFunction) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<JSFunction> js_function = factory->NewFunctionForTesting(
+      factory->NewStringFromAsciiChecked("test"));
+  Handle<Context> context = handle(js_function->context(), isolate);
+
+  // 1. Start simulating deserializaiton.
+  isolate->RegisterDeserializerStarted();
+  // 2. Set the context field to the uninitialized sentintel.
+  TaggedField<Object, JSFunction::kContextOffset>::store(
+      *js_function, Smi::uninitialized_deserialization_value());
+  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // of the measurement should not crash.
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kEager);
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       CcTest::isolate())) {
+  }
+  // 4. Restore the value and complete deserialization.
+  TaggedField<Object, JSFunction::kContextOffset>::store(*js_function,
+                                                         *context);
+  isolate->RegisterDeserializerFinished();
+}
+
+TEST(PartiallyInitializedContext) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+  Handle<Context> context = factory->NewScriptContext(
+      GetNativeContext(isolate, env.local()), scope_info);
+  Handle<Map> map = handle(context->map(), isolate);
+  Handle<NativeContext> native_context = handle(map->native_context(), isolate);
+  // 1. Start simulating deserializaiton.
+  isolate->RegisterDeserializerStarted();
+  // 2. Set the native context field to the uninitialized sentintel.
+  TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
+      store(*map, Smi::uninitialized_deserialization_value());
+  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // of the measurement should not crash.
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kEager);
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       CcTest::isolate())) {
+  }
+  // 4. Restore the value and complete deserialization.
+  TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
+      store(*map, *native_context);
+  isolate->RegisterDeserializerFinished();
 }
 
 }  // namespace heap

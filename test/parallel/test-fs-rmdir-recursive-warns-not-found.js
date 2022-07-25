@@ -11,8 +11,7 @@ tmpdir.refresh();
   common.expectWarning(
     'DeprecationWarning',
     'In future versions of Node.js, fs.rmdir(path, { recursive: true }) ' +
-    'will throw if path does not exist or is a file. Use fs.rm(path, ' +
-    '{ recursive: true, force: true }) instead',
+      'will be removed. Use fs.rm(path, { recursive: true }) instead',
     'DEP0147'
   );
   fs.rmdir(

@@ -14,16 +14,21 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T>
+class Vector;
+}  // namespace base
+
 namespace internal {
 
 class Logger;
-template <typename T>
-class Vector;
 
 enum class LogSeparator { kSeparator };
 
@@ -31,15 +36,6 @@ enum class LogSeparator { kSeparator };
 class Log {
  public:
   explicit Log(Logger* logger, std::string log_file_name);
-
-  static bool InitLogAtStart() {
-    return FLAG_log || FLAG_log_all || FLAG_log_api || FLAG_log_code ||
-           FLAG_log_handles || FLAG_log_suspect || FLAG_ll_prof ||
-           FLAG_perf_basic_prof || FLAG_perf_prof || FLAG_log_source_code ||
-           FLAG_gdbjit || FLAG_log_internal_timer_events || FLAG_prof_cpp ||
-           FLAG_trace_ic || FLAG_log_function_events || FLAG_trace_zone_stats ||
-           FLAG_turbo_profiling_log_builtins;
-  }
 
   V8_EXPORT_PRIVATE static bool IsLoggingToConsole(std::string file_name);
   V8_EXPORT_PRIVATE static bool IsLoggingToTemporaryFile(std::string file_name);
@@ -67,7 +63,7 @@ class Log {
 
     void AppendString(String str,
                       base::Optional<int> length_limit = base::nullopt);
-    void AppendString(Vector<const char> str);
+    void AppendString(base::Vector<const char> str);
     void AppendString(const char* str);
     void AppendString(const char* str, size_t length, bool is_one_byte = true);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
@@ -102,7 +98,7 @@ class Log {
     void AppendRawCharacter(const char character);
 
     Log* log_;
-    base::MutexGuard lock_guard_;
+    NoGarbageCollectionMutexGuard lock_guard_;
 
     friend class Log;
   };

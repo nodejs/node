@@ -21,6 +21,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// This neuters too low stack size passed by the flag fuzzer.
+// Flags: --stack-size=864
+
 description("This test how deep we can recurse, and that we get an exception when we do, as opposed to a stack overflow.");
 
     function simpleRecursion(depth) {

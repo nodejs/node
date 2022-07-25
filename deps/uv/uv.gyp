@@ -221,6 +221,7 @@
             '-Wextra',
             '-Wno-unused-parameter',
             '-Wstrict-prototypes',
+            '-fno-strict-aliasing',
           ],
         }],
         [ 'OS in "mac ios"', {
@@ -238,6 +239,7 @@
         [ 'OS=="linux"', {
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
+            'src/unix/epoll.c',
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
@@ -252,15 +254,16 @@
         }],
         [ 'OS=="android"', {
           'sources': [
+            'src/unix/android-ifaddrs.c',
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
-            'src/unix/linux-syscalls.h',
-            'src/unix/pthread-fixes.c',
-            'src/unix/android-ifaddrs.c',
             'src/unix/procfs-exepath.c',
+            'src/unix/pthread-fixes.c',
+            'src/unix/random-getentropy.c',
             'src/unix/random-getrandom.c',
             'src/unix/random-sysctl-linux.c',
+            'src/unix/epoll.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],
@@ -274,6 +277,7 @@
           'defines': [
             '__EXTENSIONS__',
             '_XOPEN_SOURCE=500',
+            '_REENTRANT',
           ],
           'link_settings': {
             'libraries': [

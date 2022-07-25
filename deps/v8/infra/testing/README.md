@@ -34,7 +34,7 @@ The structure of the file is:
 ```
 The `<buildername>` is a string name of the builder to execute the tests.
 `<test-spec name>` is a label defining a test specification matching the
-[infra-side](https://chromium.googlesource.com/chromium/tools/build/+/master/scripts/slave/recipe_modules/v8/testing.py#58).
+[infra-side](https://chromium.googlesource.com/chromium/tools/build/+/refs/heads/master/recipes/recipe_modules/v8/testing.py).
 The optional `suffix` will be appended to test-step names for disambiguation.
 The optional `variant` is a testing variant specified
 [here](https://chromium.googlesource.com/v8/v8/+/master/tools/testrunner/local/variants.py).

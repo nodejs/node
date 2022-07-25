@@ -29,7 +29,14 @@ READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 ACCESSOR_INFO_ROOT_LIST(ACCESSOR_INFO_ACCESSOR)
 #undef ACCESSOR_INFO_ACCESSOR
 
-#endif  // V8_HEAP_LOCAL_FACTORY_INL_H_
+AllocationType LocalFactory::AllocationTypeForInPlaceInternalizableString() {
+  return isolate()
+      ->heap()
+      ->AsHeap()
+      ->allocation_type_for_in_place_internalizable_strings();
+}
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_HEAP_LOCAL_FACTORY_INL_H_

@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(function() {
       ':method',
       ':path',
       ':authority',
-      ':scheme'
+      ':scheme',
     ].forEach((header) => assert.throws(
       () => response.setHeader(header, 'foobar'),
       {

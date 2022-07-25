@@ -4,7 +4,7 @@ const common = require('../common.js');
 const http = require('http');
 
 const bench = common.createBenchmark(main, {
-  n: [10, 1000],
+  n: [10, 600],
   len: [1, 100],
   duration: 5
 });
@@ -27,11 +27,12 @@ function main({ len, n, duration }) {
     res.writeHead(200, headers);
     res.end();
   });
-  server.listen(common.PORT, () => {
+  server.listen(0, () => {
     bench.http({
       path: '/',
       connections: 10,
-      duration
+      duration,
+      port: server.address().port,
     }, () => {
       server.close();
     });

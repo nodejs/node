@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -814,7 +814,7 @@ const UConverterSharedData _UTF7Data=
  *       the use of "~" in some servers as a home directory indicator.
  *
  *    5) UTF-7 permits multiple alternate forms to represent the same
- *       string; in particular, printable US-ASCII chararacters can be
+ *       string; in particular, printable US-ASCII characters can be
  *       represented in encoded form.
  *
  * In modified UTF-7, printable US-ASCII characters except for "&"

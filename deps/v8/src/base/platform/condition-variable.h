@@ -36,6 +36,8 @@ class TimeDelta;
 class V8_BASE_EXPORT ConditionVariable final {
  public:
   ConditionVariable();
+  ConditionVariable(const ConditionVariable&) = delete;
+  ConditionVariable& operator=(const ConditionVariable&) = delete;
   ~ConditionVariable();
 
   // If any threads are waiting on this condition variable, calling
@@ -67,7 +69,7 @@ class V8_BASE_EXPORT ConditionVariable final {
 #if V8_OS_POSIX
   using NativeHandle = pthread_cond_t;
 #elif V8_OS_WIN
-  using NativeHandle = CONDITION_VARIABLE;
+  using NativeHandle = V8_CONDITION_VARIABLE;
 #elif V8_OS_STARBOARD
   using NativeHandle = SbConditionVariable;
 #endif
@@ -81,8 +83,6 @@ class V8_BASE_EXPORT ConditionVariable final {
 
  private:
   NativeHandle native_handle_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
 };
 
 // POD ConditionVariable initialized lazily (i.e. the first time Pointer() is

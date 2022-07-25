@@ -1,6 +1,7 @@
 # Global objects
 
 <!--introduced_in=v0.10.0-->
+
 <!-- type=misc -->
 
 These objects are available in all modules. The following variables may appear
@@ -18,10 +19,13 @@ that are part of the JavaScript language itself, which are also globally
 accessible.
 
 ## Class: `AbortController`
-<!--YAML
-added: v15.0.0
+
+<!-- YAML
+added:
+  - v15.0.0
+  - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
@@ -42,24 +46,42 @@ ac.abort();
 console.log(ac.signal.aborted);  // Prints True
 ```
 
-### `abortController.abort()`
+### `abortController.abort([reason])`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
+changes:
+  - version:
+      - v17.2.0
+      - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
 -->
+
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
+  `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
 the `'abort'` event.
 
 ### `abortController.signal`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {AbortSignal}
 
 ### Class: `AbortSignal`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Extends: {EventTarget}
@@ -67,14 +89,49 @@ added: v15.0.0
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
-#### Event: `'abort'`
+#### Static method: `AbortSignal.abort([reason])`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.12.0
+  - v14.17.0
+changes:
+  - version:
+      - v17.2.0
+      - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
+-->
+
+* `reason`: {any}
+* Returns: {AbortSignal}
+
+Returns a new already aborted `AbortSignal`.
+
+#### Static method: `AbortSignal.timeout(delay)`
+
+<!-- YAML
+added:
+  - v17.3.0
+  - v16.14.0
+-->
+
+* `delay` {number} The number of milliseconds to wait before triggering
+  the AbortSignal.
+
+Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
+
+#### Event: `'abort'`
+
+<!-- YAML
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 The `'abort'` event is emitted when the `abortController.abort()` method
 is called. The callback is invoked with a single object argument with a
-single `type` propety set to `'abort'`:
+single `type` property set to `'abort'`:
 
 ```js
 const ac = new AbortController();
@@ -91,22 +148,32 @@ ac.abort();
 ```
 
 The `AbortController` with which the `AbortSignal` is associated will only
-ever trigger the `'abort'` event once. Any event listeners attached to the
-`AbortSignal` *should* use the `{ once: true }` option (or, if using the
-`EventEmitter` APIs to attach a listener, use the `once()` method) to ensure
-that the event listener is removed as soon as the `'abort'` event is handled.
-Failure to do so may result in memory leaks.
+ever trigger the `'abort'` event once. We recommended that code check
+that the `abortSignal.aborted` attribute is `false` before adding an `'abort'`
+event listener.
+
+Any event listeners attached to the `AbortSignal` should use the
+`{ once: true }` option (or, if using the `EventEmitter` APIs to attach a
+listener, use the `once()` method) to ensure that the event listener is
+removed as soon as the `'abort'` event is handled. Failure to do so may
+result in memory leaks.
 
 #### `abortSignal.aborted`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
+
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * Type: {Function}
@@ -114,7 +181,44 @@ added: v15.0.0
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
 
+#### `abortSignal.reason`
+
+<!-- YAML
+added:
+  - v17.2.0
+  - v16.14.0
+-->
+
+* Type: {any}
+
+An optional reason specified when the `AbortSignal` was triggered.
+
+```js
+const ac = new AbortController();
+ac.abort(new Error('boom!'));
+console.log(ac.signal.reason);  // Error('boom!');
+```
+
+#### `abortSignal.throwIfAborted()`
+
+<!-- YAML
+added: v17.3.0
+-->
+
+If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
+
+## Class: `Blob`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+<!-- type=global -->
+
+See {Blob}.
+
 ## Class: `Buffer`
+
 <!-- YAML
 added: v0.1.103
 -->
@@ -125,6 +229,16 @@ added: v0.1.103
 
 Used to handle binary data. See the [buffer section][].
 
+## Class: `ByteLengthQueuingStrategy`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ByteLengthQueuingStrategy`][].
+
 ## `__dirname`
 
 This variable may appear to be global but is not. See [`__dirname`][].
@@ -133,7 +247,36 @@ This variable may appear to be global but is not. See [`__dirname`][].
 
 This variable may appear to be global but is not. See [`__filename`][].
 
+## `atob(data)`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+> Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
+
+Global alias for [`buffer.atob()`][].
+
+## `BroadcastChannel`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+See {BroadcastChannel}.
+
+## `btoa(data)`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+> Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
+
+Global alias for [`buffer.btoa()`][].
+
 ## `clearImmediate(immediateObject)`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -143,6 +286,7 @@ added: v0.9.1
 [`clearImmediate`][] is described in the [timers][] section.
 
 ## `clearInterval(intervalObject)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -152,6 +296,7 @@ added: v0.0.1
 [`clearInterval`][] is described in the [timers][] section.
 
 ## `clearTimeout(timeoutObject)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -160,7 +305,18 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
+## Class: `CompressionStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`CompressionStream`][].
+
 ## `console`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -171,11 +327,88 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## Class: `CountQueuingStrategy`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`CountQueuingStrategy`][].
+
+## `Crypto`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {Crypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`node:crypto` module.
+
+## `crypto`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of the [Web Crypto API][].
+
+## `CryptoKey`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {CryptoKey}. This global is available
+only if the Node.js binary was compiled with including support for the
+`node:crypto` module.
+
+## `CustomEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-customevent`][] CLI flag.
+
+<!-- type=global -->
+
+A browser-compatible implementation of the [`CustomEvent` Web API][].
+
+## Class: `DecompressionStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`DecompressionStream`][].
+
 ## `Event`
+
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
@@ -186,10 +419,11 @@ A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
 ## `EventTarget`
+
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
@@ -203,7 +437,34 @@ A browser-compatible implementation of the `EventTarget` class. See
 
 This variable may appear to be global but is not. See [`exports`][].
 
+## `fetch`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of the [`fetch()`][] function.
+
+## Class `FormData`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {FormData}.
+
 ## `global`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -217,7 +478,21 @@ within the browser `var something` will define a new global variable. In
 Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
 
+## Class `Headers`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Headers}.
+
 ## `MessageChannel`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -227,6 +502,7 @@ added: v15.0.0
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
 
 ## `MessageEvent`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -236,6 +512,7 @@ added: v15.0.0
 The `MessageEvent` class. See [`MessageEvent`][] for more details.
 
 ## `MessagePort`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -248,7 +525,16 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
+## `performance`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+The [`perf_hooks.performance`][] object.
+
 ## `process`
+
 <!-- YAML
 added: v0.1.7
 -->
@@ -260,6 +546,7 @@ added: v0.1.7
 The process object. See the [`process` object][] section.
 
 ## `queueMicrotask(callback)`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -284,7 +571,7 @@ within each turn of the Node.js event loop.
 // before any other promise jobs.
 
 DataHandler.prototype.load = async function load(key) {
-  const hit = this._cache.get(url);
+  const hit = this._cache.get(key);
   if (hit !== undefined) {
     queueMicrotask(() => {
       this.emit('load', hit);
@@ -293,16 +580,103 @@ DataHandler.prototype.load = async function load(key) {
   }
 
   const data = await fetchData(key);
-  this._cache.set(url, data);
+  this._cache.set(key, data);
   this.emit('load', data);
 };
 ```
+
+## Class: `ReadableByteStreamController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableByteStreamController`][].
+
+## Class: `ReadableStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStream`][].
+
+## Class: `ReadableStreamBYOBReader`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
+
+## Class: `ReadableStreamBYOBRequest`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
+
+## Class: `ReadableStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamDefaultController`][].
+
+## Class: `ReadableStreamDefaultReader`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
 
 ## `require()`
 
 This variable may appear to be global but is not. See [`require()`][].
 
+## `Response`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Response}.
+
+## `Request`
+
+<!-- YAML
+added:
+  - v17.5.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Request}.
+
 ## `setImmediate(callback[, ...args])`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -312,6 +686,7 @@ added: v0.9.1
 [`setImmediate`][] is described in the [timers][] section.
 
 ## `setInterval(callback, delay[, ...args])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -321,6 +696,7 @@ added: v0.0.1
 [`setInterval`][] is described in the [timers][] section.
 
 ## `setTimeout(callback, delay[, ...args])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -329,7 +705,43 @@ added: v0.0.1
 
 [`setTimeout`][] is described in the [timers][] section.
 
+## `structuredClone(value[, options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+<!-- type=global -->
+
+The WHATWG [`structuredClone`][] method.
+
+## `SubtleCrypto`
+
+<!-- YAML
+added:
+  - v17.6.0
+  - v16.15.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {SubtleCrypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`node:crypto` module.
+
+## `DOMException`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+<!-- type=global -->
+
+The WHATWG `DOMException` class. See [`DOMException`][] for more details.
+
 ## `TextDecoder`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -338,7 +750,18 @@ added: v11.0.0
 
 The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
+## Class: `TextDecoderStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TextDecoderStream`][].
+
 ## `TextEncoder`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -347,7 +770,38 @@ added: v11.0.0
 
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
+## Class: `TextEncoderStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TextEncoderStream`][].
+
+## Class: `TransformStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TransformStream`][].
+
+## Class: `TransformStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`TransformStreamDefaultController`][].
+
 ## `URL`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -357,6 +811,7 @@ added: v10.0.0
 The WHATWG `URL` class. See the [`URL`][] section.
 
 ## `URLSearchParams`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -366,6 +821,7 @@ added: v10.0.0
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
 ## `WebAssembly`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -378,29 +834,87 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+## Class: `WritableStream`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStream`][].
+
+## Class: `WritableStreamDefaultController`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStreamDefaultController`][].
+
+## Class: `WritableStreamDefaultWriter`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+> Stability: 1 - Experimental.
+
+A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
+
+[Web Crypto API]: webcrypto.md
+[`--experimental-global-customevent`]: cli.md#--experimental-global-customevent
+[`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
+[`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-[`EventTarget` and `Event` API]: events.md#event-target-and-event-api
-[`MessageChannel`]: worker_threads.md#worker_threads_class_messagechannel
+[`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
+[`CompressionStream`]: webstreams.md#class-compressionstream
+[`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
+[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
+[`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
+[`DecompressionStream`]: webstreams.md#class-decompressionstream
+[`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
+[`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
-[`MessagePort`]: worker_threads.md#worker_threads_class_messageport
-[`TextDecoder`]: util.md#util_class_util_textdecoder
-[`TextEncoder`]: util.md#util_class_util_textencoder
-[`URLSearchParams`]: url.md#url_class_urlsearchparams
-[`URL`]: url.md#url_class_url
-[`__dirname`]: modules.md#modules_dirname
-[`__filename`]: modules.md#modules_filename
-[`clearImmediate`]: timers.md#timers_clearimmediate_immediate
-[`clearInterval`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout`]: timers.md#timers_cleartimeout_timeout
+[`MessagePort`]: worker_threads.md#class-messageport
+[`ReadableByteStreamController`]: webstreams.md#class-readablebytestreamcontroller
+[`ReadableStreamBYOBReader`]: webstreams.md#class-readablestreambyobreader
+[`ReadableStreamBYOBRequest`]: webstreams.md#class-readablestreambyobrequest
+[`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
+[`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
+[`ReadableStream`]: webstreams.md#class-readablestream
+[`TextDecoderStream`]: webstreams.md#class-textdecoderstream
+[`TextDecoder`]: util.md#class-utiltextdecoder
+[`TextEncoderStream`]: webstreams.md#class-textencoderstream
+[`TextEncoder`]: util.md#class-utiltextencoder
+[`TransformStreamDefaultController`]: webstreams.md#class-transformstreamdefaultcontroller
+[`TransformStream`]: webstreams.md#class-transformstream
+[`URLSearchParams`]: url.md#class-urlsearchparams
+[`URL`]: url.md#class-url
+[`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
+[`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
+[`WritableStream`]: webstreams.md#class-writablestream
+[`__dirname`]: modules.md#__dirname
+[`__filename`]: modules.md#__filename
+[`buffer.atob()`]: buffer.md#bufferatobdata
+[`buffer.btoa()`]: buffer.md#bufferbtoadata
+[`clearImmediate`]: timers.md#clearimmediateimmediate
+[`clearInterval`]: timers.md#clearintervaltimeout
+[`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
-[`exports`]: modules.md#modules_exports
-[`module`]: modules.md#modules_module
-[`process.nextTick()`]: process.md#process_process_nexttick_callback_args
-[`process` object]: process.md#process_process
-[`require()`]: modules.md#modules_require_id
-[`setImmediate`]: timers.md#timers_setimmediate_callback_args
-[`setInterval`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
+[`exports`]: modules.md#exports
+[`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/fetch
+[`module`]: modules.md#module
+[`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
+[`process.nextTick()`]: process.md#processnexttickcallback-args
+[`process` object]: process.md#process
+[`require()`]: modules.md#requireid
+[`setImmediate`]: timers.md#setimmediatecallback-args
+[`setInterval`]: timers.md#setintervalcallback-delay-args
+[`setTimeout`]: timers.md#settimeoutcallback-delay-args
+[`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md

@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-function.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-template.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -170,8 +174,8 @@ TEST_F(InterceptorLoggingTest, DispatchTest) {
   EXPECT_EQ(Run("obj.foo"), "named getter");
   EXPECT_EQ(Run("obj[42]"), "indexed getter");
 
-  EXPECT_EQ(Run("obj.foo = null"), "named setter");
-  EXPECT_EQ(Run("obj[42] = null"), "indexed setter");
+  EXPECT_EQ(Run("obj.foo = null"), "named setter, named descriptor");
+  EXPECT_EQ(Run("obj[42] = null"), "indexed setter, indexed descriptor");
 
   EXPECT_EQ(Run("Object.getOwnPropertyDescriptor(obj, 'foo')"),
             "named descriptor");

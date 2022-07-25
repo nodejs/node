@@ -5,6 +5,9 @@
 
 #include <algorithm>
 
+// TODO(RaisinTen): Replace all uses with empty `v8::Maybe`s.
+#define JS_EXCEPTION_PENDING UV_EPROTO
+
 namespace node {
 
 using errors::TryCatchScope;
@@ -16,7 +19,6 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 // JSUDPWrap is a testing utility used by test/common/udppair.js
@@ -61,7 +63,7 @@ int JSUDPWrap::RecvStart() {
   Context::Scope context_scope(env()->context());
   TryCatchScope try_catch(env());
   Local<Value> value;
-  int32_t value_int = UV_EPROTO;
+  int32_t value_int = JS_EXCEPTION_PENDING;
   if (!MakeCallback(env()->onreadstart_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
@@ -75,7 +77,7 @@ int JSUDPWrap::RecvStop() {
   Context::Scope context_scope(env()->context());
   TryCatchScope try_catch(env());
   Local<Value> value;
-  int32_t value_int = UV_EPROTO;
+  int32_t value_int = JS_EXCEPTION_PENDING;
   if (!MakeCallback(env()->onreadstop_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
@@ -91,7 +93,7 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   Context::Scope context_scope(env()->context());
   TryCatchScope try_catch(env());
   Local<Value> value;
-  int64_t value_int = UV_EPROTO;
+  int64_t value_int = JS_EXCEPTION_PENDING;
   size_t total_len = 0;
 
   MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
@@ -101,10 +103,13 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
     total_len += bufs[i].len;
   }
 
+  Local<Object> address;
+  if (!AddressToJS(env(), addr).ToLocal(&address)) return value_int;
+
   Local<Value> args[] = {
     listener()->CreateSendWrap(total_len)->object(),
     Array::New(env()->isolate(), buffers.out(), nbufs),
-    AddressToJS(env(), addr)
+    address,
   };
 
   if (!MakeCallback(env()->onwrite_string(), arraysize(args), args)
@@ -162,7 +167,7 @@ void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
     ssize_t avail = std::min<size_t>(buf.len, len);
     memcpy(buf.base, data, avail);
     data += avail;
-    len -= avail;
+    len -= static_cast<int>(avail);
     wrap->listener()->OnRecv(
         avail, buf, reinterpret_cast<sockaddr*>(&addr), flags);
   }
@@ -195,9 +200,6 @@ void JSUDPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  Local<String> js_udp_wrap_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "JSUDPWrap");
-  t->SetClassName(js_udp_wrap_string);
   t->InstanceTemplate()
     ->SetInternalFieldCount(UDPWrapBase::kUDPWrapBaseField + 1);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -207,9 +209,7 @@ void JSUDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "onSendDone", OnSendDone);
   env->SetProtoMethod(t, "onAfterBind", OnAfterBind);
 
-  target->Set(env->context(),
-              js_udp_wrap_string,
-              t->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "JSUDPWrap", t);
 }
 
 

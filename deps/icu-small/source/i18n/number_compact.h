@@ -28,7 +28,10 @@ class CompactData : public MultiplierProducer {
 
     int32_t getMultiplier(int32_t magnitude) const U_OVERRIDE;
 
-    const UChar *getPattern(int32_t magnitude, StandardPlural::Form plural) const;
+    const UChar *getPattern(
+        int32_t magnitude,
+        const PluralRules *rules,
+        const DecimalQuantity &dq) const;
 
     void getUniquePatterns(UVector &output, UErrorCode &status) const;
 

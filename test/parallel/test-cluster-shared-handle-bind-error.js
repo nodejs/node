@@ -25,8 +25,8 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isMaster) {
-  // Master opens and binds the socket and shares it with the worker.
+if (cluster.isPrimary) {
+  // Primary opens and binds the socket and shares it with the worker.
   cluster.schedulingPolicy = cluster.SCHED_NONE;
   // Hog the TCP port so that when the worker tries to bind, it'll fail.
   const server = net.createServer(common.mustNotCall());

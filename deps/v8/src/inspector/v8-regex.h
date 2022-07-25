@@ -5,10 +5,13 @@
 #ifndef V8_INSPECTOR_V8_REGEX_H_
 #define V8_INSPECTOR_V8_REGEX_H_
 
+#include "include/v8-persistent-handle.h"
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
 
-#include "include/v8.h"
+namespace v8 {
+class RegExp;
+}
 
 namespace v8_inspector {
 
@@ -20,6 +23,8 @@ class V8Regex {
  public:
   V8Regex(V8InspectorImpl*, const String16&, bool caseSensitive,
           bool multiline = false);
+  V8Regex(const V8Regex&) = delete;
+  V8Regex& operator=(const V8Regex&) = delete;
   int match(const String16&, int startFrom = 0,
             int* matchLength = nullptr) const;
   bool isValid() const { return !m_regex.IsEmpty(); }
@@ -29,8 +34,6 @@ class V8Regex {
   V8InspectorImpl* m_inspector;
   v8::Global<v8::RegExp> m_regex;
   String16 m_errorMessage;
-
-  DISALLOW_COPY_AND_ASSIGN(V8Regex);
 };
 
 }  // namespace v8_inspector

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --logfile='+' --log --log-code --log-function-events --no-stress-opt
+// Flags: --no-stress-background-compile
 
 let twoByteName = "twoByteName_🍕"
 let o = {
@@ -20,9 +21,6 @@ function testFunctionWithFunnyName(o) {
   for (let i = 0; i < 1000; i++) {
     result += o[twoByteName](object);
   }
-  console.log(result);
-  console.log(twoByteName);
-
 })();
 
 var __v_3 = {};

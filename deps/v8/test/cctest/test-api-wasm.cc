@@ -4,7 +4,13 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-persistent-handle.h"
+#include "include/v8-promise.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
 #include "test/cctest/cctest.h"
@@ -13,6 +19,10 @@ namespace {
 
 bool wasm_streaming_callback_got_called = false;
 bool wasm_streaming_data_got_collected = false;
+
+// The bytes of a minimal WebAssembly module.
+const uint8_t kMinimalWasmModuleBytes[]{0x00, 0x61, 0x73, 0x6d,
+                                        0x01, 0x00, 0x00, 0x00};
 
 void WasmStreamingTestFinalizer(const v8::WeakCallbackInfo<void>& data) {
   CHECK(!wasm_streaming_data_got_collected);
@@ -48,9 +58,8 @@ void WasmStreamingCallbackTestFinishWithSuccess(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::shared_ptr<v8::WasmStreaming> streaming =
       v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  // The bytes of a minimal WebAssembly module.
-  const uint8_t bytes[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
-  streaming->OnBytesReceived(bytes, arraysize(bytes));
+  streaming->OnBytesReceived(kMinimalWasmModuleBytes,
+                             arraysize(kMinimalWasmModuleBytes));
   streaming->Finish();
 }
 
@@ -127,49 +136,30 @@ TEST(WasmStreamingAbortWithoutReject) {
                     v8::Promise::kPending);
 }
 
+TEST(WasmCompileToWasmModuleObject) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto maybe_module = v8::WasmModuleObject::Compile(
+      CcTest::isolate(),
+      {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)});
+  CHECK(!maybe_module.IsEmpty());
+}
+
 namespace {
 
-bool wasm_threads_enabled_value = false;
 bool wasm_simd_enabled_value = false;
-
-bool MockWasmThreadsEnabledCallback(v8::Local<v8::Context>) {
-  return wasm_threads_enabled_value;
-}
+bool wasm_exceptions_enabled_value = false;
 
 bool MockWasmSimdEnabledCallback(v8::Local<v8::Context>) {
   return wasm_simd_enabled_value;
 }
 
-}  // namespace
-
-TEST(TestSetWasmThreadsEnabledCallback) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
-
-  // {Isolate::AreWasmThreadsEnabled} calls the callback set by the embedder if
-  // such a callback exists. Otherwise it returns
-  // {FLAG_experimental_wasm_threads}. First we test that the flag is returned
-  // correctly if no callback is set. Then we test that the flag is ignored if
-  // the callback is set.
-
-  i::FLAG_experimental_wasm_threads = false;
-  CHECK(!i_isolate->AreWasmThreadsEnabled(i_context));
-
-  i::FLAG_experimental_wasm_threads = true;
-  CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
-
-  isolate->SetWasmThreadsEnabledCallback(MockWasmThreadsEnabledCallback);
-  wasm_threads_enabled_value = false;
-  CHECK(!i_isolate->AreWasmThreadsEnabled(i_context));
-
-  wasm_threads_enabled_value = true;
-  i::FLAG_experimental_wasm_threads = false;
-  CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
+bool MockWasmExceptionsEnabledCallback(v8::Local<v8::Context>) {
+  return wasm_exceptions_enabled_value;
 }
+
+}  // namespace
 
 TEST(TestSetWasmSimdEnabledCallback) {
   LocalContext env;
@@ -198,4 +188,33 @@ TEST(TestSetWasmSimdEnabledCallback) {
   wasm_simd_enabled_value = true;
   i::FLAG_experimental_wasm_simd = false;
   CHECK(i_isolate->IsWasmSimdEnabled(i_context));
+}
+
+TEST(TestSetWasmExceptionsEnabledCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
+
+  // {Isolate::AreWasmExceptionsEnabled} calls the callback set by the embedder
+  // if such a callback exists. Otherwise it returns
+  // {FLAG_experimental_wasm_eh}. First we test that the flag is returned
+  // correctly if no callback is set. Then we test that the flag is ignored if
+  // the callback is set.
+
+  i::FLAG_experimental_wasm_eh = false;
+  CHECK(!i_isolate->AreWasmExceptionsEnabled(i_context));
+
+  i::FLAG_experimental_wasm_eh = true;
+  CHECK(i_isolate->AreWasmExceptionsEnabled(i_context));
+
+  isolate->SetWasmExceptionsEnabledCallback(MockWasmExceptionsEnabledCallback);
+  wasm_exceptions_enabled_value = false;
+  CHECK(!i_isolate->AreWasmExceptionsEnabled(i_context));
+
+  wasm_exceptions_enabled_value = true;
+  i::FLAG_experimental_wasm_eh = false;
+  CHECK(i_isolate->AreWasmExceptionsEnabled(i_context));
 }

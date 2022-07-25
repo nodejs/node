@@ -56,8 +56,13 @@
 # define HAVE_PREADV 0
 #endif
 
+#if defined(__linux__)
+# include "sys/utsname.h"
+#endif
+
 #if defined(__linux__) || defined(__sun)
 # include <sys/sendfile.h>
+# include <sys/sysmacros.h>
 #endif
 
 #if defined(__APPLE__)
@@ -212,14 +217,30 @@ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 UV_UNUSED(static struct timespec uv__fs_to_timespec(double time)) {
   struct timespec ts;
   ts.tv_sec  = time;
-  ts.tv_nsec = (uint64_t)(time * 1000000) % 1000000 * 1000;
+  ts.tv_nsec = (time - ts.tv_sec) * 1e9;
+
+ /* TODO(bnoordhuis) Remove this. utimesat() has nanosecond resolution but we
+  * stick to microsecond resolution for the sake of consistency with other
+  * platforms. I'm the original author of this compatibility hack but I'm
+  * less convinced it's useful nowadays.
+  */
+  ts.tv_nsec -= ts.tv_nsec % 1000;
+
+  if (ts.tv_nsec < 0) {
+    ts.tv_nsec += 1e9;
+    ts.tv_sec -= 1;
+  }
   return ts;
 }
 
 UV_UNUSED(static struct timeval uv__fs_to_timeval(double time)) {
   struct timeval tv;
   tv.tv_sec  = time;
-  tv.tv_usec = (uint64_t)(time * 1000000) % 1000000;
+  tv.tv_usec = (time - tv.tv_sec) * 1e6;
+  if (tv.tv_usec < 0) {
+    tv.tv_usec += 1e6;
+    tv.tv_sec -= 1;
+  }
   return tv;
 }
 
@@ -227,9 +248,6 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 #if defined(__linux__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -887,6 +905,115 @@ out:
 }
 
 
+#ifdef __linux__
+static unsigned uv__kernel_version(void) {
+  static unsigned cached_version;
+  struct utsname u;
+  unsigned version;
+  unsigned major;
+  unsigned minor;
+  unsigned patch;
+
+  version = uv__load_relaxed(&cached_version);
+  if (version != 0)
+    return version;
+
+  if (-1 == uname(&u))
+    return 0;
+
+  if (3 != sscanf(u.release, "%u.%u.%u", &major, &minor, &patch))
+    return 0;
+
+  version = major * 65536 + minor * 256 + patch;
+  uv__store_relaxed(&cached_version, version);
+
+  return version;
+}
+
+
+/* Pre-4.20 kernels have a bug where CephFS uses the RADOS copy-from command
+ * in copy_file_range() when it shouldn't. There is no workaround except to
+ * fall back to a regular copy.
+ */
+static int uv__is_buggy_cephfs(int fd) {
+  struct statfs s;
+
+  if (-1 == fstatfs(fd, &s))
+    return 0;
+
+  if (s.f_type != /* CephFS */ 0xC36400)
+    return 0;
+
+  return uv__kernel_version() < /* 4.20.0 */ 0x041400;
+}
+
+
+static int uv__is_cifs_or_smb(int fd) {
+  struct statfs s;
+
+  if (-1 == fstatfs(fd, &s))
+    return 0;
+
+  switch ((unsigned) s.f_type) {
+  case 0x0000517Bu:  /* SMB */
+  case 0xFE534D42u:  /* SMB2 */
+  case 0xFF534D42u:  /* CIFS */
+    return 1;
+  }
+
+  return 0;
+}
+
+
+static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off,
+                                          int out_fd, size_t len) {
+  static int no_copy_file_range_support;
+  ssize_t r;
+
+  if (uv__load_relaxed(&no_copy_file_range_support)) {
+    errno = ENOSYS;
+    return -1;
+  }
+
+  r = uv__fs_copy_file_range(in_fd, off, out_fd, NULL, len, 0);
+
+  if (r != -1)
+    return r;
+
+  switch (errno) {
+  case EACCES:
+    /* Pre-4.20 kernels have a bug where CephFS uses the RADOS
+     * copy-from command when it shouldn't.
+     */
+    if (uv__is_buggy_cephfs(in_fd))
+      errno = ENOSYS;  /* Use fallback. */
+    break;
+  case ENOSYS:
+    uv__store_relaxed(&no_copy_file_range_support, 1);
+    break;
+  case EPERM:
+    /* It's been reported that CIFS spuriously fails.
+     * Consider it a transient error.
+     */
+    if (uv__is_cifs_or_smb(out_fd))
+      errno = ENOSYS;  /* Use fallback. */
+    break;
+  case ENOTSUP:
+  case EXDEV:
+    /* ENOTSUP - it could work on another file system type.
+     * EXDEV - it will not work when in_fd and out_fd are not on the same
+     *         mounted filesystem (pre Linux 5.3)
+     */
+    errno = ENOSYS;  /* Use fallback. */
+    break;
+  }
+
+  return -1;
+}
+
+#endif  /* __linux__ */
+
+
 static ssize_t uv__fs_sendfile(uv_fs_t* req) {
   int in_fd;
   int out_fd;
@@ -898,29 +1025,21 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
   {
     off_t off;
     ssize_t r;
+    size_t len;
+    int try_sendfile;
 
     off = req->off;
+    len = req->bufsml[0].len;
+    try_sendfile = 1;
 
 #ifdef __linux__
-    {
-      static int copy_file_range_support = 1;
-
-      if (copy_file_range_support) {
-        r = uv__fs_copy_file_range(in_fd, NULL, out_fd, &off, req->bufsml[0].len, 0);
-
-        if (r == -1 && errno == ENOSYS) {
-          errno = 0;
-          copy_file_range_support = 0;
-        } else {
-          goto ok;
-        }
-      }
-    }
+    r = uv__fs_try_copy_file_range(in_fd, &off, out_fd, len);
+    try_sendfile = (r == -1 && errno == ENOSYS);
 #endif
 
-    r = sendfile(out_fd, in_fd, &off, req->bufsml[0].len);
+    if (try_sendfile)
+      r = sendfile(out_fd, in_fd, &off, len);
 
-ok:
     /* sendfile() on SunOS returns EINVAL if the target fd is not a socket but
      * it still writes out data. Fortunately, we can detect it by checking if
      * the offset has been updated.
@@ -1010,9 +1129,6 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
     || defined(_AIX71)                                                         \
     || defined(__sun)                                                          \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -1207,22 +1323,15 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
     err = UV__ERR(errno);
 #ifdef __linux__
+    /* fchmod() on CIFS shares always fails with EPERM unless the share is
+     * mounted with "noperm". As fchmod() is a meaningless operation on such
+     * shares anyway, detect that condition and squelch the error.
+     */
     if (err != UV_EPERM)
       goto out;
 
-    {
-      struct statfs s;
-
-      /* fchmod() on CIFS shares always fails with EPERM unless the share is
-       * mounted with "noperm". As fchmod() is a meaningless operation on such
-       * shares anyway, detect that condition and squelch the error.
-       */
-      if (fstatfs(dstfd, &s) == -1)
-        goto out;
-
-      if (s.f_type != /* CIFS */ 0xFF534D42u)
-        goto out;
-    }
+    if (!uv__is_cifs_or_smb(dstfd))
+      goto out;
 
     err = 0;
 #else  /* !__linux__ */
@@ -1340,7 +1449,8 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_ctimensec;
   dst->st_flags = 0;
   dst->st_gen = 0;
-#elif !defined(_AIX) && (       \
+#elif !defined(_AIX) &&         \
+    !defined(__MVS__) && (      \
     defined(__DragonFly__)   || \
     defined(__FreeBSD__)     || \
     defined(__OpenBSD__)     || \
@@ -1420,8 +1530,9 @@ static int uv__fs_statx(int fd,
   case -1:
     /* EPERM happens when a seccomp filter rejects the system call.
      * Has been observed with libseccomp < 2.3.3 and docker < 18.04.
+     * EOPNOTSUPP is used on DVS exported filesystems
      */
-    if (errno != EINVAL && errno != EPERM && errno != ENOSYS)
+    if (errno != EINVAL && errno != EPERM && errno != ENOSYS && errno != EOPNOTSUPP)
       return -1;
     /* Fall through. */
   default:
@@ -1434,12 +1545,12 @@ static int uv__fs_statx(int fd,
     return UV_ENOSYS;
   }
 
-  buf->st_dev = 256 * statxbuf.stx_dev_major + statxbuf.stx_dev_minor;
+  buf->st_dev = makedev(statxbuf.stx_dev_major, statxbuf.stx_dev_minor);
   buf->st_mode = statxbuf.stx_mode;
   buf->st_nlink = statxbuf.stx_nlink;
   buf->st_uid = statxbuf.stx_uid;
   buf->st_gid = statxbuf.stx_gid;
-  buf->st_rdev = statxbuf.stx_rdev_major;
+  buf->st_rdev = makedev(statxbuf.stx_rdev_major, statxbuf.stx_rdev_minor);
   buf->st_ino = statxbuf.stx_ino;
   buf->st_size = statxbuf.stx_size;
   buf->st_blksize = statxbuf.stx_blksize;

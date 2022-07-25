@@ -55,7 +55,7 @@ static void print_err_msg(const char* expect, ssize_t expect_len,
 
 static void tty_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
   buf->base = malloc(size);
-  ASSERT(buf->base != NULL);
+  ASSERT_NOT_NULL(buf->base);
   buf->len = size;
 }
 

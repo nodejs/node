@@ -576,9 +576,12 @@ Type OperationTyper::NumberSilenceNaN(Type type) {
   return type;
 }
 
-Type OperationTyper::BigIntAsUintN(Type type) {
-  DCHECK(type.Is(Type::BigInt()));
-  return Type::BigInt();
+Type OperationTyper::SpeculativeBigIntAsIntN(Type) {
+  return Type::SignedBigInt64();
+}
+
+Type OperationTyper::SpeculativeBigIntAsUintN(Type) {
+  return Type::UnsignedBigInt64();
 }
 
 Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }
@@ -1115,6 +1118,7 @@ Type OperationTyper::NumberPow(Type lhs, Type rhs) {
 SPECULATIVE_NUMBER_BINOP(NumberAdd)
 SPECULATIVE_NUMBER_BINOP(NumberSubtract)
 SPECULATIVE_NUMBER_BINOP(NumberMultiply)
+SPECULATIVE_NUMBER_BINOP(NumberPow)
 SPECULATIVE_NUMBER_BINOP(NumberDivide)
 SPECULATIVE_NUMBER_BINOP(NumberModulus)
 SPECULATIVE_NUMBER_BINOP(NumberBitwiseOr)
@@ -1126,16 +1130,24 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
 Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntNegate(Type type) {
+  DCHECK(type.Is(Type::BigInt()));
+
   if (type.IsNone()) return type;
   return Type::BigInt();
 }
@@ -1263,14 +1275,12 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
 Type OperationTyper::CheckBounds(Type index, Type length) {
   DCHECK(length.Is(cache_->kPositiveSafeInteger));
   if (length.Is(cache_->kSingletonZero)) return Type::None();
-  Type mask = Type::Range(0.0, length.Max() - 1, zone());
+  Type const upper_bound = Type::Range(0.0, length.Max() - 1, zone());
+  if (index.Maybe(Type::String())) return upper_bound;
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_->kSingletonZero, zone());
   }
-  if (index.Maybe(Type::String())) {
-    index = Type::Union(index, cache_->kIntPtr, zone());
-  }
-  return Type::Intersect(index, mask, zone());
+  return Type::Intersect(index, upper_bound, zone());
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {

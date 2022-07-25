@@ -12,16 +12,17 @@ namespace v8 {
 namespace internal {
 
 void RegExpBytecodeDisassembleSingle(const byte* code_base, const byte* pc) {
-  PrintF("%s", RegExpBytecodeName(*pc));
+  int bytecode = *reinterpret_cast<const int32_t*>(pc) & BYTECODE_MASK;
+  PrintF("%s", RegExpBytecodeName(bytecode));
 
   // Args and the bytecode as hex.
-  for (int i = 0; i < RegExpBytecodeLength(*pc); i++) {
+  for (int i = 0; i < RegExpBytecodeLength(bytecode); i++) {
     PrintF(", %02x", pc[i]);
   }
   PrintF(" ");
 
   // Args as ascii.
-  for (int i = 1; i < RegExpBytecodeLength(*pc); i++) {
+  for (int i = 1; i < RegExpBytecodeLength(bytecode); i++) {
     unsigned char b = pc[i];
     PrintF("%c", std::isprint(b) ? b : '.');
   }

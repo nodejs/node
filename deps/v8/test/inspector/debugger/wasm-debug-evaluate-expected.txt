@@ -1,5 +1,0 @@
-Tests wasm debug-evaluate
-Test: TestGetMemory
-Result: 2
-Expected: 2
-Finished!

@@ -20,7 +20,7 @@ class SortState extends HeapObject {
     return sortCompare(context, this.userCmpFn, x, y);
   }
 
-  macro CheckAccessor(implicit context: Context)() labels Bailout {
+  macro CheckAccessor(implicit context: Context)(): void labels Bailout {
     if (!IsFastJSArray(this.receiver, context)) goto Bailout;
 
     const canUseSameAccessorFn: CanUseSameAccessorFn =
@@ -33,7 +33,7 @@ class SortState extends HeapObject {
     }
   }
 
-  macro ResetToGenericAccessor() {
+  macro ResetToGenericAccessor(): void {
     this.loadFn = Load<GenericElementsAccessor>;
     this.storeFn = Store<GenericElementsAccessor>;
     this.deleteFn = Delete<GenericElementsAccessor>;
@@ -276,7 +276,7 @@ Store<FastSmiElements>(
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedArray>(object.elements);
   const value = UnsafeCast<Smi>(value);
-  StoreFixedArrayElement(elements, index, value, SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(elements, index, value);
   return kSuccess;
 }
 
@@ -307,7 +307,7 @@ transitioning builtin Delete<ElementsAccessor : type extends ElementsKind>(
 
 Delete<FastSmiElements>(
     context: Context, sortState: SortState, index: Smi): Smi {
-  assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+  dcheck(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
 
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedArray>(object.elements);
@@ -317,7 +317,7 @@ Delete<FastSmiElements>(
 
 Delete<FastObjectElements>(
     context: Context, sortState: SortState, index: Smi): Smi {
-  assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+  dcheck(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
 
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedArray>(object.elements);
@@ -327,7 +327,7 @@ Delete<FastObjectElements>(
 
 Delete<FastDoubleElements>(
     context: Context, sortState: SortState, index: Smi): Smi {
-  assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+  dcheck(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
 
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedDoubleArray>(object.elements);
@@ -337,7 +337,7 @@ Delete<FastDoubleElements>(
 
 transitioning builtin SortCompareDefault(
     context: Context, comparefn: JSAny, x: JSAny, y: JSAny): Number {
-  assert(comparefn == Undefined);
+  dcheck(comparefn == Undefined);
 
   if (TaggedIsSmi(x) && TaggedIsSmi(y)) {
     return SmiLexicographicCompare(UnsafeCast<Smi>(x), UnsafeCast<Smi>(y));
@@ -365,7 +365,7 @@ transitioning builtin SortCompareDefault(
 
 transitioning builtin SortCompareUserFn(
     context: Context, comparefn: JSAny, x: JSAny, y: JSAny): Number {
-  assert(comparefn != Undefined);
+  dcheck(comparefn != Undefined);
   const cmpfn = UnsafeCast<Callable>(comparefn);
 
   // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
@@ -383,7 +383,7 @@ builtin CanUseSameAccessor<ElementsAccessor : type extends ElementsKind>(
     initialReceiverLength: Number): Boolean {
   if (receiver.map != initialReceiverMap) return False;
 
-  assert(TaggedIsSmi(initialReceiverLength));
+  dcheck(TaggedIsSmi(initialReceiverLength));
   const array = UnsafeCast<JSArray>(receiver);
   const originalLength = UnsafeCast<Smi>(initialReceiverLength);
 
@@ -401,7 +401,7 @@ CanUseSameAccessor<GenericElementsAccessor>(
 // for easier invariant checks at all use sites.
 macro GetPendingRunsSize(implicit context: Context)(sortState: SortState): Smi {
   const stackSize: Smi = sortState.pendingRunsSize;
-  assert(stackSize >= 0);
+  dcheck(stackSize >= 0);
   return stackSize;
 }
 
@@ -410,7 +410,7 @@ macro GetPendingRunBase(implicit context: Context)(
   return UnsafeCast<Smi>(pendingRuns.objects[run << 1]);
 }
 
-macro SetPendingRunBase(pendingRuns: FixedArray, run: Smi, value: Smi) {
+macro SetPendingRunBase(pendingRuns: FixedArray, run: Smi, value: Smi): void {
   pendingRuns.objects[run << 1] = value;
 }
 
@@ -419,13 +419,13 @@ macro GetPendingRunLength(implicit context: Context)(
   return UnsafeCast<Smi>(pendingRuns.objects[(run << 1) + 1]);
 }
 
-macro SetPendingRunLength(pendingRuns: FixedArray, run: Smi, value: Smi) {
+macro SetPendingRunLength(pendingRuns: FixedArray, run: Smi, value: Smi): void {
   pendingRuns.objects[(run << 1) + 1] = value;
 }
 
 macro PushRun(implicit context: Context)(
-    sortState: SortState, base: Smi, length: Smi) {
-  assert(GetPendingRunsSize(sortState) < kMaxMergePending);
+    sortState: SortState, base: Smi, length: Smi): void {
+  dcheck(GetPendingRunsSize(sortState) < kMaxMergePending);
 
   const stackSize: Smi = GetPendingRunsSize(sortState);
   const pendingRuns: FixedArray = sortState.pendingRuns;
@@ -458,10 +458,10 @@ transitioning builtin
 Copy(implicit context: Context)(
     source: FixedArray, srcPos: Smi, target: FixedArray, dstPos: Smi,
     length: Smi): JSAny {
-  assert(srcPos >= 0);
-  assert(dstPos >= 0);
-  assert(srcPos <= source.length - length);
-  assert(dstPos <= target.length - length);
+  dcheck(srcPos >= 0);
+  dcheck(dstPos >= 0);
+  dcheck(srcPos <= source.length - length);
+  dcheck(dstPos <= target.length - length);
 
   // TODO(szuend): Investigate whether this builtin should be replaced
   //               by CopyElements/MoveElements for perfomance.
@@ -498,8 +498,8 @@ Copy(implicit context: Context)(
 // On entry, must have low <= start <= high, and that [low, start) is
 // already sorted. Pass start == low if you do not know!.
 macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
-    low: Smi, startArg: Smi, high: Smi) {
-  assert(low <= startArg && startArg <= high);
+    low: Smi, startArg: Smi, high: Smi): void {
+  dcheck(low <= startArg && startArg <= high);
 
   const workArray = sortState.workArray;
 
@@ -515,7 +515,7 @@ macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
     // Invariants:
     //   pivot >= all in [low, left).
     //   pivot  < all in [right, start).
-    assert(left < right);
+    dcheck(left < right);
 
     // Find pivot insertion point.
     while (left < right) {
@@ -529,7 +529,7 @@ macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
         left = mid + 1;
       }
     }
-    assert(left == right);
+    dcheck(left == right);
 
     // The invariants still hold, so:
     //   pivot >= all in [low, left) and
@@ -564,7 +564,7 @@ macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
 // returned length is always an ascending sequence.
 macro CountAndMakeRun(implicit context: Context, sortState: SortState)(
     lowArg: Smi, high: Smi): Smi {
-  assert(lowArg < high);
+  dcheck(lowArg < high);
 
   const workArray = sortState.workArray;
 
@@ -604,7 +604,7 @@ macro CountAndMakeRun(implicit context: Context, sortState: SortState)(
   return runLength;
 }
 
-macro ReverseRange(array: FixedArray, from: Smi, to: Smi) {
+macro ReverseRange(array: FixedArray, from: Smi, to: Smi): void {
   let low: Smi = from;
   let high: Smi = to - 1;
 
@@ -624,9 +624,9 @@ MergeAt(implicit context: Context, sortState: SortState)(i: Smi): Smi {
 
   // We are only allowed to either merge the two top-most runs, or leave
   // the top most run alone and merge the two next runs.
-  assert(stackSize >= 2);
-  assert(i >= 0);
-  assert(i == stackSize - 2 || i == stackSize - 3);
+  dcheck(stackSize >= 2);
+  dcheck(i >= 0);
+  dcheck(i == stackSize - 2 || i == stackSize - 3);
 
   const workArray = sortState.workArray;
 
@@ -635,8 +635,8 @@ MergeAt(implicit context: Context, sortState: SortState)(i: Smi): Smi {
   let lengthA: Smi = GetPendingRunLength(pendingRuns, i);
   const baseB: Smi = GetPendingRunBase(pendingRuns, i + 1);
   let lengthB: Smi = GetPendingRunLength(pendingRuns, i + 1);
-  assert(lengthA > 0 && lengthB > 0);
-  assert(baseA + lengthA == baseB);
+  dcheck(lengthA > 0 && lengthB > 0);
+  dcheck(baseA + lengthA == baseB);
 
   // Record the length of the combined runs; if i is the 3rd-last run now,
   // also slide over the last run (which isn't involved in this merge).
@@ -654,18 +654,18 @@ MergeAt(implicit context: Context, sortState: SortState)(i: Smi): Smi {
   // because they are already in place.
   const keyRight = UnsafeCast<JSAny>(workArray.objects[baseB]);
   const k: Smi = GallopRight(workArray, keyRight, baseA, lengthA, 0);
-  assert(k >= 0);
+  dcheck(k >= 0);
 
   baseA = baseA + k;
   lengthA = lengthA - k;
   if (lengthA == 0) return kSuccess;
-  assert(lengthA > 0);
+  dcheck(lengthA > 0);
 
   // Where does a end in b? Elements in b after that can be ignored,
   // because they are already in place.
   const keyLeft = UnsafeCast<JSAny>(workArray.objects[baseA + lengthA - 1]);
   lengthB = GallopLeft(workArray, keyLeft, baseB, lengthB, lengthB - 1);
-  assert(lengthB >= 0);
+  dcheck(lengthB >= 0);
   if (lengthB == 0) return kSuccess;
 
   // Merge what remains of the runs, using a temp array with
@@ -698,8 +698,8 @@ MergeAt(implicit context: Context, sortState: SortState)(i: Smi): Smi {
 // is plus infinity. In other words, key belongs at index base + k.
 builtin GallopLeft(implicit context: Context, sortState: SortState)(
     array: FixedArray, key: JSAny, base: Smi, length: Smi, hint: Smi): Smi {
-  assert(length > 0 && base >= 0);
-  assert(0 <= hint && hint < length);
+  dcheck(length > 0 && base >= 0);
+  dcheck(0 <= hint && hint < length);
 
   let lastOfs: Smi = 0;
   let offset: Smi = 1;
@@ -736,7 +736,7 @@ builtin GallopLeft(implicit context: Context, sortState: SortState)(
   } else {
     // key <= a[base + hint]: gallop left, until
     // a[base + hint - offset] < key <= a[base + hint - lastOfs].
-    assert(order >= 0);
+    dcheck(order >= 0);
 
     // a[base + hint] is lowest.
     const maxOfs: Smi = hint + 1;
@@ -762,7 +762,7 @@ builtin GallopLeft(implicit context: Context, sortState: SortState)(
     offset = hint - tmp;
   }
 
-  assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
+  dcheck(-1 <= lastOfs && lastOfs < offset && offset <= length);
 
   // Now a[base+lastOfs] < key <= a[base+offset], so key belongs
   // somewhere to the right of lastOfs but no farther right than offset.
@@ -781,8 +781,8 @@ builtin GallopLeft(implicit context: Context, sortState: SortState)(
     }
   }
   // so a[base + offset - 1] < key <= a[base + offset].
-  assert(lastOfs == offset);
-  assert(0 <= offset && offset <= length);
+  dcheck(lastOfs == offset);
+  dcheck(0 <= offset && offset <= length);
   return offset;
 }
 
@@ -797,8 +797,8 @@ builtin GallopLeft(implicit context: Context, sortState: SortState)(
 // or kFailure on error.
 builtin GallopRight(implicit context: Context, sortState: SortState)(
     array: FixedArray, key: JSAny, base: Smi, length: Smi, hint: Smi): Smi {
-  assert(length > 0 && base >= 0);
-  assert(0 <= hint && hint < length);
+  dcheck(length > 0 && base >= 0);
+  dcheck(0 <= hint && hint < length);
 
   let lastOfs: Smi = 0;
   let offset: Smi = 1;
@@ -859,7 +859,7 @@ builtin GallopRight(implicit context: Context, sortState: SortState)(
     lastOfs = lastOfs + hint;
     offset = offset + hint;
   }
-  assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
+  dcheck(-1 <= lastOfs && lastOfs < offset && offset <= length);
 
   // Now a[base + lastOfs] <= key < a[base + ofs], so key belongs
   // somewhere to the right of lastOfs but no farther right than ofs.
@@ -878,8 +878,8 @@ builtin GallopRight(implicit context: Context, sortState: SortState)(
     }
   }
   // so a[base + offset - 1] <= key < a[base + offset].
-  assert(lastOfs == offset);
-  assert(0 <= offset && offset <= length);
+  dcheck(lastOfs == offset);
+  dcheck(0 <= offset && offset <= length);
   return offset;
 }
 
@@ -890,10 +890,10 @@ builtin GallopRight(implicit context: Context, sortState: SortState)(
 // that array[baseA + lengthA - 1] belongs at the end of the merge,
 // and should have lengthA <= lengthB.
 transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
-    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
-  assert(0 < lengthAArg && 0 < lengthBArg);
-  assert(0 <= baseA && 0 < baseB);
-  assert(baseA + lengthAArg == baseB);
+    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi): void {
+  dcheck(0 < lengthAArg && 0 < lengthBArg);
+  dcheck(0 <= baseA && 0 < baseB);
+  dcheck(baseA + lengthAArg == baseB);
 
   let lengthA: Smi = lengthAArg;
   let lengthB: Smi = lengthBArg;
@@ -924,7 +924,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
       // TODO(szuend): Replace with something that does not have a runtime
       //               overhead as soon as its available in Torque.
       while (Int32TrueConstant()) {
-        assert(lengthA > 1 && lengthB > 0);
+        dcheck(lengthA > 1 && lengthB > 0);
 
         const order = sortState.Compare(
             UnsafeCast<JSAny>(workArray.objects[cursorB]),
@@ -959,7 +959,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
       while (nofWinsA >= kMinGallopWins || nofWinsB >= kMinGallopWins ||
              firstIteration) {
         firstIteration = false;
-        assert(lengthA > 1 && lengthB > 0);
+        dcheck(lengthA > 1 && lengthB > 0);
 
         minGallop = SmiMax(1, minGallop - 1);
         sortState.minGallop = minGallop;
@@ -967,7 +967,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
         nofWinsA = GallopRight(
             tempArray, UnsafeCast<JSAny>(workArray.objects[cursorB]),
             cursorTemp, lengthA, 0);
-        assert(nofWinsA >= 0);
+        dcheck(nofWinsA >= 0);
 
         if (nofWinsA > 0) {
           Copy(tempArray, cursorTemp, workArray, dest, nofWinsA);
@@ -987,7 +987,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
         nofWinsB = GallopLeft(
             workArray, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
             cursorB, lengthB, 0);
-        assert(nofWinsB >= 0);
+        dcheck(nofWinsB >= 0);
         if (nofWinsB > 0) {
           Copy(workArray, cursorB, workArray, dest, nofWinsB);
 
@@ -1008,7 +1008,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
       Copy(tempArray, cursorTemp, workArray, dest, lengthA);
     }
   } label CopyB {
-    assert(lengthA == 1 && lengthB > 0);
+    dcheck(lengthA == 1 && lengthB > 0);
     // The last element of run A belongs at the end of the merge.
     Copy(workArray, cursorB, workArray, dest, lengthB);
     workArray.objects[dest + lengthB] = tempArray.objects[cursorTemp];
@@ -1020,10 +1020,10 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
 // be > 0. Must also have that array[baseA + lengthA - 1] belongs at the
 // end of the merge and should have lengthA >= lengthB.
 transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
-    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
-  assert(0 < lengthAArg && 0 < lengthBArg);
-  assert(0 <= baseA && 0 < baseB);
-  assert(baseA + lengthAArg == baseB);
+    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi): void {
+  dcheck(0 < lengthAArg && 0 < lengthBArg);
+  dcheck(0 <= baseA && 0 < baseB);
+  dcheck(baseA + lengthAArg == baseB);
 
   let lengthA: Smi = lengthAArg;
   let lengthB: Smi = lengthBArg;
@@ -1055,7 +1055,7 @@ transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
       // TODO(szuend): Replace with something that does not have a runtime
       //               overhead as soon as its available in Torque.
       while (Int32TrueConstant()) {
-        assert(lengthA > 0 && lengthB > 1);
+        dcheck(lengthA > 0 && lengthB > 1);
 
         const order = sortState.Compare(
             UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
@@ -1091,7 +1091,7 @@ transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
              firstIteration) {
         firstIteration = false;
 
-        assert(lengthA > 0 && lengthB > 1);
+        dcheck(lengthA > 0 && lengthB > 1);
 
         minGallop = SmiMax(1, minGallop - 1);
         sortState.minGallop = minGallop;
@@ -1099,7 +1099,7 @@ transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
         let k: Smi = GallopRight(
             workArray, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]), baseA,
             lengthA, lengthA - 1);
-        assert(k >= 0);
+        dcheck(k >= 0);
         nofWinsA = lengthA - k;
 
         if (nofWinsA > 0) {
@@ -1116,7 +1116,7 @@ transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
         k = GallopLeft(
             tempArray, UnsafeCast<JSAny>(workArray.objects[cursorA]), 0,
             lengthB, lengthB - 1);
-        assert(k >= 0);
+        dcheck(k >= 0);
         nofWinsB = lengthB - k;
 
         if (nofWinsB > 0) {
@@ -1139,11 +1139,11 @@ transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
     }
   } label Succeed {
     if (lengthB > 0) {
-      assert(lengthA == 0);
+      dcheck(lengthA == 0);
       Copy(tempArray, 0, workArray, dest - (lengthB - 1), lengthB);
     }
   } label CopyA {
-    assert(lengthB == 1 && lengthA > 0);
+    dcheck(lengthB == 1 && lengthA > 0);
 
     // The first element of run B belongs at the front of the merge.
     dest = dest - lengthA;
@@ -1166,14 +1166,14 @@ macro ComputeMinRunLength(nArg: Smi): Smi {
   let n: Smi = nArg;
   let r: Smi = 0;  // Becomes 1 if any 1 bits are shifted off.
 
-  assert(n >= 0);
+  dcheck(n >= 0);
   while (n >= 64) {
     r = r | (n & 1);
     n = n >> 1;
   }
 
   const minRunLength: Smi = n + r;
-  assert(nArg < 64 || (32 <= minRunLength && minRunLength <= 64));
+  dcheck(nArg < 64 || (32 <= minRunLength && minRunLength <= 64));
   return minRunLength;
 }
 
@@ -1198,7 +1198,8 @@ macro RunInvariantEstablished(implicit context: Context)(
 // TODO(szuend): Remove unnecessary loads. This macro was refactored to
 //               improve readability, introducing unnecessary loads in the
 //               process. Determine if all these extra loads are ok.
-transitioning macro MergeCollapse(context: Context, sortState: SortState) {
+transitioning macro MergeCollapse(
+    context: Context, sortState: SortState): void {
   const pendingRuns: FixedArray = sortState.pendingRuns;
 
   // Reload the stack size because MergeAt might change it.
@@ -1226,7 +1227,7 @@ transitioning macro MergeCollapse(context: Context, sortState: SortState) {
 // Regardless of invariants, merge all runs on the stack until only one
 // remains. This is used at the end of the mergesort.
 transitioning macro
-MergeForceCollapse(context: Context, sortState: SortState) {
+MergeForceCollapse(context: Context, sortState: SortState): void {
   const pendingRuns: FixedArray = sortState.pendingRuns;
 
   // Reload the stack size becuase MergeAt might change it.
@@ -1243,7 +1244,7 @@ MergeForceCollapse(context: Context, sortState: SortState) {
 }
 
 transitioning macro
-ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi) {
+ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi): void {
   if (length < 2) return;
   let remaining: Smi = length;
 
@@ -1272,8 +1273,8 @@ ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi) {
   }
 
   MergeForceCollapse(context, sortState);
-  assert(GetPendingRunsSize(sortState) == 1);
-  assert(GetPendingRunLength(sortState.pendingRuns, 0) == length);
+  dcheck(GetPendingRunsSize(sortState) == 1);
+  dcheck(GetPendingRunLength(sortState.pendingRuns, 0) == length);
 }
 
 transitioning macro
@@ -1290,7 +1291,7 @@ CompactReceiverElementsIntoWorkArray(
   // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
   //               https://crbug.com/v8/7970.
   const receiverLength: Number = sortState.initialReceiverLength;
-  assert(IsNumberNormalized(receiverLength));
+  dcheck(IsNumberNormalized(receiverLength));
 
   const sortLength: Smi = TaggedIsSmi(receiverLength) ?
       UnsafeCast<Smi>(receiverLength) :
@@ -1322,12 +1323,12 @@ CompactReceiverElementsIntoWorkArray(
 
 transitioning macro
 CopyWorkArrayToReceiver(implicit context: Context, sortState: SortState)(
-    numberOfNonUndefined: Smi) {
+    numberOfNonUndefined: Smi): void {
   const storeFn = sortState.storeFn;
   const workArray = sortState.workArray;
 
-  assert(numberOfNonUndefined <= workArray.length);
-  assert(
+  dcheck(numberOfNonUndefined <= workArray.length);
+  dcheck(
       numberOfNonUndefined + sortState.numberOfUndefined <=
       sortState.sortLength);
 
@@ -1388,11 +1389,11 @@ ArrayPrototypeSort(
   // 3. Let len be ? ToLength(? Get(obj, "length")).
   const len: Number = GetLengthProperty(obj);
 
-  if (len < 2) return receiver;
+  if (len < 2) return obj;
 
   const sortState: SortState = NewSortState(obj, comparefn, len);
   ArrayTimSort(context, sortState);
 
-  return receiver;
+  return obj;
 }
 }

@@ -81,10 +81,9 @@ API
     initialized ``struct sockaddr_in`` or ``struct sockaddr_in6``.
 
     When the port is already taken, you can expect to see an ``UV_EADDRINUSE``
-    error from either :c:func:`uv_tcp_bind`, :c:func:`uv_listen` or
-    :c:func:`uv_tcp_connect`. That is, a successful call to this function does
-    not guarantee that the call to :c:func:`uv_listen` or :c:func:`uv_tcp_connect`
-    will succeed as well.
+    error from :c:func:`uv_listen` or :c:func:`uv_tcp_connect`. That is,
+    a successful call to this function does not guarantee that the call
+    to :c:func:`uv_listen` or :c:func:`uv_tcp_connect` will succeed as well.
 
     `flags` can contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
     is disabled and only IPv6 is used.
@@ -128,3 +127,20 @@ API
     :c:func:`uv_tcp_close_reset` calls is not allowed.
 
     .. versionadded:: 1.32.0
+
+.. c:function:: int uv_socketpair(int type, int protocol, uv_os_sock_t socket_vector[2], int flags0, int flags1)
+
+    Create a pair of connected sockets with the specified properties.
+    The resulting handles can be passed to `uv_tcp_open`, used with `uv_spawn`,
+    or for any other purpose.
+
+    Valid values for `flags0` and `flags1` are:
+
+      - UV_NONBLOCK_PIPE: Opens the specified socket handle for `OVERLAPPED`
+        or `FIONBIO`/`O_NONBLOCK` I/O usage.
+        This is recommended for handles that will be used by libuv,
+        and not usually recommended otherwise.
+
+    Equivalent to :man:`socketpair(2)` with a domain of AF_UNIX.
+
+    .. versionadded:: 1.41.0

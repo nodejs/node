@@ -8,7 +8,7 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 const child = spawn(process.argv[0], [
-  fixtures.path('GH-1899-output.js')
+  fixtures.path('GH-1899-output.js'),
 ]);
 let output = '';
 

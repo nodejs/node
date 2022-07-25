@@ -25,31 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --expose-gc --allow-natives-syntax --concurrent-recompilation
 // Flags: --opt --no-always-opt
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
 
 function test(fun) {
   %PrepareFunctionForOptimization(fun);
   fun();
   fun();
-  // Mark for concurrent optimization.
+  %DisableOptimizationFinalization();
   %OptimizeFunctionOnNextCall(fun, "concurrent");
   // Kick off recompilation.
   fun();
   // Tenure cons string after compile graph has been created.
+  %WaitForBackgroundOptimization();
   gc();
   // In the mean time, concurrent recompiling is still blocked.
-  assertUnoptimized(fun, "no sync");
-  // Let concurrent recompilation proceed.
-  %UnblockConcurrentRecompilation();
+  assertUnoptimized(fun);
+  // Let concurrent recompilation finish.
+  %FinalizeOptimization();
   // Concurrent recompilation eventually finishes, embeds tenured cons string.
-  assertOptimized(fun, "sync");
+  assertOptimized(fun);
   // Visit embedded cons string during mark compact.
   gc();
 }

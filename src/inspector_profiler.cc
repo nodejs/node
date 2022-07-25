@@ -3,8 +3,9 @@
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_file.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
+#include "node_file.h"
 #include "node_internals.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
@@ -169,18 +170,12 @@ static bool EnsureDirectory(const std::string& directory, const char* type) {
 }
 
 std::string V8CoverageConnection::GetFilename() const {
-  std::string thread_id = std::to_string(env()->thread_id());
-  std::string pid = std::to_string(uv_os_getpid());
-  std::string timestamp = std::to_string(
-      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000));
-  char filename[1024];
-  snprintf(filename,
-           sizeof(filename),
-           "coverage-%s-%s-%s.json",
-           pid.c_str(),
-           timestamp.c_str(),
-           thread_id.c_str());
-  return filename;
+  uint64_t timestamp =
+      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000);
+  return SPrintF("coverage-%s-%s-%s.json",
+      uv_os_getpid(),
+      timestamp,
+      env()->thread_id());
 }
 
 void V8ProfilerConnection::WriteProfile(Local<Object> result) {
@@ -336,11 +331,11 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 
 void V8CpuProfilerConnection::Start() {
   DispatchMessage("Profiler.enable");
-  DispatchMessage("Profiler.start");
   std::string params = R"({ "interval": )";
   params += std::to_string(env()->cpu_prof_interval());
   params += " }";
   DispatchMessage("Profiler.setSamplingInterval", params.c_str());
+  DispatchMessage("Profiler.start");
 }
 
 void V8CpuProfilerConnection::End() {
@@ -519,7 +514,16 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "stopCoverage", StopCoverage);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetCoverageDirectory);
+  registry->Register(SetSourceMapCacheGetter);
+  registry->Register(TakeCoverage);
+  registry->Register(StopCoverage);
+}
+
 }  // namespace profiler
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(profiler,
+                               node::profiler::RegisterExternalReferences)

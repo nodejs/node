@@ -1,7 +1,7 @@
 /*
- * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -36,6 +36,13 @@
  *
  */
 
+/*
+ * Whirlpool low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
+
+#include "internal/cryptlib.h"
 #include "wp_local.h"
 #include <string.h>
 
@@ -63,6 +70,20 @@ typedef unsigned long long u64;
 # undef STRICT_ALIGNMENT
 #endif
 
+#ifndef STRICT_ALIGNMENT
+# ifdef __GNUC__
+typedef u64 u64_a1 __attribute((__aligned__(1)));
+# else
+typedef u64 u64_a1;
+# endif
+#endif
+
+#if defined(__GNUC__) && !defined(STRICT_ALIGNMENT)
+typedef u64 u64_aX __attribute((__aligned__(1)));
+#else
+typedef u64 u64_aX;
+#endif
+
 #undef SMALL_REGISTER_BANK
 #if defined(__i386) || defined(__i386__) || defined(_M_IX86)
 # define SMALL_REGISTER_BANK
@@ -75,7 +96,6 @@ typedef unsigned long long u64;
 #   define OPENSSL_SMALL_FOOTPRINT
 #  endif
 #  define GO_FOR_MMX(ctx,inp,num)     do {                    \
-        extern unsigned long OPENSSL_ia32cap_P[];               \
         void whirlpool_block_mmx(void *,const void *,size_t);   \
         if (!(OPENSSL_ia32cap_P[0] & (1<<23)))  break;          \
         whirlpool_block_mmx(ctx->H.c,inp,num);  return;         \
@@ -145,7 +165,7 @@ typedef unsigned long long u64;
  */
 /*
  * Note that every Cn macro expands as two loads: one byte load and
- * one quadword load. One can argue that that many single-byte loads
+ * one quadword load. One can argue that many single-byte loads
  * is too excessive, as one could load a quadword and "milk" it for
  * eight 8-bit values instead. Well, yes, but in order to do so *and*
  * avoid excessive loads you have to accommodate a handful of 64-bit
@@ -191,13 +211,13 @@ typedef unsigned long long u64;
 # define LL(c0,c1,c2,c3,c4,c5,c6,c7)   c0,c1,c2,c3,c4,c5,c6,c7, \
                                         c0,c1,c2,c3,c4,c5,c6,c7
 # define C0(K,i)       (((u64*)(Cx.c+0))[2*K.c[(i)*8+0]])
-# define C1(K,i)       (((u64*)(Cx.c+7))[2*K.c[(i)*8+1]])
-# define C2(K,i)       (((u64*)(Cx.c+6))[2*K.c[(i)*8+2]])
-# define C3(K,i)       (((u64*)(Cx.c+5))[2*K.c[(i)*8+3]])
-# define C4(K,i)       (((u64*)(Cx.c+4))[2*K.c[(i)*8+4]])
-# define C5(K,i)       (((u64*)(Cx.c+3))[2*K.c[(i)*8+5]])
-# define C6(K,i)       (((u64*)(Cx.c+2))[2*K.c[(i)*8+6]])
-# define C7(K,i)       (((u64*)(Cx.c+1))[2*K.c[(i)*8+7]])
+# define C1(K,i)       (((u64_a1*)(Cx.c+7))[2*K.c[(i)*8+1]])
+# define C2(K,i)       (((u64_a1*)(Cx.c+6))[2*K.c[(i)*8+2]])
+# define C3(K,i)       (((u64_a1*)(Cx.c+5))[2*K.c[(i)*8+3]])
+# define C4(K,i)       (((u64_a1*)(Cx.c+4))[2*K.c[(i)*8+4]])
+# define C5(K,i)       (((u64_a1*)(Cx.c+3))[2*K.c[(i)*8+5]])
+# define C6(K,i)       (((u64_a1*)(Cx.c+2))[2*K.c[(i)*8+6]])
+# define C7(K,i)       (((u64_a1*)(Cx.c+1))[2*K.c[(i)*8+7]])
 #endif
 
 static const
@@ -531,7 +551,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
         } else
 # endif
         {
-            const u64 *pa = (const u64 *)p;
+            const u64_aX *pa = (const u64_aX *)p;
             S.q[0] = (K.q[0] = H->q[0]) ^ pa[0];
             S.q[1] = (K.q[1] = H->q[1]) ^ pa[1];
             S.q[2] = (K.q[2] = H->q[2]) ^ pa[2];
@@ -769,7 +789,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
         } else
 # endif
         {
-            const u64 *pa = (const u64 *)p;
+            const u64_aX *pa = (const u64_aX *)p;
             H->q[0] ^= S.q[0] ^ pa[0];
             H->q[1] ^= S.q[1] ^ pa[1];
             H->q[2] ^= S.q[2] ^ pa[2];

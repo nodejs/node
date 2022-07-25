@@ -4,4 +4,4 @@
 
 // Flags: --stress-compaction --throws
 
-load('test/mjsunit/regress/regress-8510.js');
+d8.file.execute('test/mjsunit/regress/regress-8510.js');

@@ -5,16 +5,6 @@
 #ifndef BASE_TRACE_EVENT_COMMON_TRACE_EVENT_COMMON_H_
 #define BASE_TRACE_EVENT_COMMON_TRACE_EVENT_COMMON_H_
 
-// This header file defines the set of trace_event macros without specifying
-// how the events actually get collected and stored. If you need to expose trace
-// events to some other universe, you can copy-and-paste this file as well as
-// trace_event.h, modifying the macros contained there as necessary for the
-// target platform. The end result is that multiple libraries can funnel events
-// through to a shared trace event collector.
-
-// IMPORTANT: To avoid conflicts, if you need to modify this file for a library,
-// land your change in base/ first, and then copy-and-paste it.
-
 // Trace events are for tracking application performance and resource usage.
 // Macros are provided to track:
 //    Begin and end of function calls
@@ -66,12 +56,12 @@
 //     static int send_count = 0;
 //     ++send_count;
 //     TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-//         "ipc", "message", TRACE_ID_LOCAL(send_count));
+//         "ipc", "message", TRACE_ID_WITH_SCOPE("message", send_count));
 //     Send(new MyMessage(send_count));
 //   [receive code]
 //     void OnMyMessage(send_count) {
 //       TRACE_NESTABLE_EVENT_ASYNC_END0(
-//           "ipc", "message", TRACE_ID_LOCAL(send_count));
+//           "ipc", "message", TRACE_ID_WITH_SCOPE("message", send_count));
 //     }
 // The third parameter is a unique ID to match NESTABLE_ASYNC_BEGIN/ASYNC_END
 // pairs. NESTABLE_ASYNC_BEGIN and ASYNC_END can occur on any thread of any
@@ -81,10 +71,12 @@
 //   class MyTracedClass {
 //    public:
 //     MyTracedClass() {
-//       TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("category", "MyTracedClass", this);
+//       TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("category", "MyTracedClass",
+//                                         TRACE_ID_LOCAL(this));
 //     }
 //     ~MyTracedClass() {
-//       TRACE_EVENT_NESTABLE_ASYNC_END0("category", "MyTracedClass", this);
+//       TRACE_EVENT_NESTABLE_ASYNC_END0("category", "MyTracedClass",
+//                                       TRACE_ID_LOCAL(this));
 //     }
 //   }
 //
@@ -152,12 +144,15 @@
 //   class MyData : public base::trace_event::ConvertableToTraceFormat {
 //    public:
 //     MyData() {}
+//
+//     MyData(const MyData&) = delete;
+//     MyData& operator=(const MyData&) = delete;
+//
 //     void AppendAsTraceFormat(std::string* out) const override {
 //       out->append("{\"foo\":1}");
 //     }
 //    private:
 //     ~MyData() override {}
-//     DISALLOW_COPY_AND_ASSIGN(MyData);
 //   };
 //
 //   TRACE_EVENT1("foo", "bar", "data",
@@ -193,6 +188,100 @@
 // Without the use of these static category pointers and enabled flags all
 // trace points would carry a significant performance cost of acquiring a lock
 // and resolving the category.
+
+// There are currently two implementations of the tracing macros. Firstly,
+// Perfetto (https://perfetto.dev/) implements a compatible set of macros which
+// we are migrating to. The Perfetto implementation is enabled through the
+// use_perfetto_client_library GN arg. If that flag is disabled, we fall back to
+// the legacy implementation in the latter half of this file (and
+// trace_event.h).
+// TODO(skyostil): Remove the legacy macro implementation.
+
+// Normally we'd use BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) for this, but
+// because v8 includes trace_event_common.h directly (in non-Perfetto mode), we
+// can't depend on any other header files here.
+#if defined(BASE_USE_PERFETTO_CLIENT_LIBRARY)
+////////////////////////////////////////////////////////////////////////////////
+// Perfetto trace macros
+
+#include "base/threading/platform_thread.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
+
+// Export Perfetto symbols in the same way as //base symbols.
+#define PERFETTO_COMPONENT_EXPORT BASE_EXPORT
+
+// Enable legacy trace event macros (e.g., TRACE_EVENT{0,1,2}).
+#define PERFETTO_ENABLE_LEGACY_TRACE_EVENTS 1
+
+// Macros for reading the current trace time (bypassing any virtual time
+// overrides).
+#define TRACE_TIME_TICKS_NOW() ::base::subtle::TimeTicksNowIgnoringOverride()
+#define TRACE_TIME_NOW() ::base::subtle::TimeNowIgnoringOverride()
+
+// Implementation detail: trace event macros create temporary variables
+// to keep instrumentation overhead low. These macros give each temporary
+// variable a unique name based on the line number to prevent name collisions.
+#define INTERNAL_TRACE_EVENT_UID(name_prefix) PERFETTO_UID(name_prefix)
+
+// Special trace event macro to trace log messages.
+// TODO(skyostil): Convert this into a regular typed trace event.
+#define TRACE_LOG_MESSAGE(file, message, line) \
+  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
+
+// Declare debug annotation converters for base time types, so they can be
+// passed as trace event arguments.
+// TODO(skyostil): Serialize timestamps using perfetto::TracedValue instead.
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+class DebugAnnotation;
+}  // namespace pbzero
+}  // namespace protos
+namespace internal {
+
+void BASE_EXPORT
+WriteDebugAnnotation(protos::pbzero::DebugAnnotation* annotation,
+                     ::base::TimeTicks);
+void BASE_EXPORT
+WriteDebugAnnotation(protos::pbzero::DebugAnnotation* annotation, ::base::Time);
+
+}  // namespace internal
+}  // namespace perfetto
+
+// Pull in the tracing macro definitions from Perfetto.
+#include "third_party/perfetto/include/perfetto/tracing.h"
+
+namespace perfetto {
+namespace legacy {
+
+template <>
+perfetto::ThreadTrack BASE_EXPORT
+ConvertThreadId(const ::base::PlatformThreadId& thread);
+
+#if BUILDFLAG(IS_WIN)
+template <>
+perfetto::ThreadTrack BASE_EXPORT ConvertThreadId(const int& thread);
+#endif  // BUILDFLAG(IS_WIN)
+
+}  // namespace legacy
+
+template <>
+struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
+  static TraceTimestamp ConvertTimestampToTraceTimeNs(
+      const ::base::TimeTicks& ticks);
+};
+
+}  // namespace perfetto
+
+#else  // !defined(BASE_USE_PERFETTO_CLIENT_LIBRARY)
+////////////////////////////////////////////////////////////////////////////////
+// Legacy trace macros
+
+// What follows is the legacy TRACE_EVENT macro implementation, which is being
+// replaced by the Perfetto-based implementation above. New projects wishing to
+// enable tracing should use the Perfetto SDK. See
+// https://perfetto.dev/docs/instrumentation/tracing-sdk.
 
 // Check that nobody includes this file directly.  Clients are supposed to
 // include the surrounding "trace_event.h" of their project instead.
@@ -306,12 +395,15 @@
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,     \
                            arg2_name, arg2_val)
 
-// Similar to TRACE_EVENT_BEGINx but with a custom |at| timestamp provided.
+// Similar to TRACE_EVENT_BEGINx but with a custom |timestamp| provided.
 // - |id| is used to match the _BEGIN event with the _END event.
 //   Events are considered to match if their category_group, name and id values
 //   all match. |id| must either be a pointer or an integer value up to 64 bits.
 //   If it's a pointer, the bits will be xored with a hash of the process ID so
 //   that the same pointer on two different processes will not collide.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
 #define TRACE_EVENT_BEGIN_WITH_ID_TID_AND_TIMESTAMP0(category_group, name, id, \
                                                      thread_id, timestamp)     \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
@@ -362,6 +454,10 @@
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,   \
                            arg2_name, arg2_val)
 
+// Adds a trace event with the given |name| and |timestamp|. |timestamp| must be
+// non-null or it crashes. Use DCHECK(timestamp) before calling this to detect
+// an invalid timestamp even when tracing is not enabled, as the commit queue
+// doesn't run all tests with tracing enabled.
 #define TRACE_EVENT_MARK_WITH_TIMESTAMP0(category_group, name, timestamp) \
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                \
       TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,            \
@@ -392,12 +488,15 @@
       TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,                \
       TRACE_EVENT_FLAG_COPY)
 
-// Similar to TRACE_EVENT_ENDx but with a custom |at| timestamp provided.
+// Similar to TRACE_EVENT_ENDx but with a custom |timestamp| provided.
 // - |id| is used to match the _BEGIN event with the _END event.
 //   Events are considered to match if their category_group, name and id values
 //   all match. |id| must either be a pointer or an integer value up to 64 bits.
 //   If it's a pointer, the bits will be xored with a hash of the process ID so
 //   that the same pointer on two different processes will not collide.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
 #define TRACE_EVENT_END_WITH_ID_TID_AND_TIMESTAMP0(category_group, name, id, \
                                                    thread_id, timestamp)     \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                        \
@@ -456,6 +555,9 @@
                            static_cast<int>(value2_val))
 
 // Similar to TRACE_COUNTERx, but with a custom |timestamp| provided.
+// - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
+//   calling this to detect an invalid timestamp even when tracing is not
+//   enabled, as the commit queue doesn't run all tests with tracing enabled.
 #define TRACE_COUNTER_WITH_TIMESTAMP1(category_group, name, timestamp, value) \
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                    \
       TRACE_EVENT_PHASE_COUNTER, category_group, name, timestamp,             \
@@ -841,6 +943,16 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, \
                                    category_group, name, id,               \
                                    TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN1(category_group, name, id,   \
+                                               arg1_name, arg1_val)        \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, \
+                                   category_group, name, id,               \
+                                   TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN2(                         \
+    category_group, name, id, arg1_name, arg1_val, arg2_name, arg2_val) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                     \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id, \
+      TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val, arg2_name, arg2_val)
 #define TRACE_EVENT_COPY_NESTABLE_ASYNC_END0(category_group, name, id)   \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
@@ -850,6 +962,12 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                   \
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id, \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(             \
+    category_group, name, id, timestamp, arg1_name, arg1_val)              \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                      \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id,    \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY, \
+      arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(          \
     category_group, name, id, timestamp)                              \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                 \
@@ -861,114 +979,7 @@
                                    category_group, name, id,             \
                                    TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
 
-// Records a single FLOW_BEGIN event called "name" immediately, with 0, 1 or 2
-// associated arguments. If the category is not enabled, then this
-// does nothing.
-// - category and name strings must have application lifetime (statics or
-//   literals). They may not include " chars.
-// - |id| is used to match the FLOW_BEGIN event with the FLOW_END event. FLOW
-//   events are considered to match if their category_group, name and id values
-//   all match. |id| must either be a pointer or an integer value up to 64 bits.
-//   If it's a pointer, the bits will be xored with a hash of the process ID so
-//   that the same pointer on two different processes will not collide.
-// FLOW events are different from ASYNC events in how they are drawn by the
-// tracing UI. A FLOW defines asynchronous data flow, such as posting a task
-// (FLOW_BEGIN) and later executing that task (FLOW_END). Expect FLOWs to be
-// drawn as lines or arrows from FLOW_BEGIN scopes to FLOW_END scopes. Similar
-// to ASYNC, a FLOW can consist of multiple phases. The first phase is defined
-// by the FLOW_BEGIN calls. Additional phases can be defined using the FLOW_STEP
-// macros. When the operation completes, call FLOW_END. An async operation can
-// span threads and processes, but all events in that operation must use the
-// same |name| and |id|. Each event can have its own args.
-#define TRACE_EVENT_FLOW_BEGIN0(category_group, name, id)        \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_BEGIN, \
-                                   category_group, name, id,     \
-                                   TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_FLOW_BEGIN1(category_group, name, id, arg1_name, arg1_val) \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_BEGIN,               \
-                                   category_group, name, id,                   \
-                                   TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
-#define TRACE_EVENT_FLOW_BEGIN2(category_group, name, id, arg1_name, arg1_val, \
-                                arg2_name, arg2_val)                           \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                            \
-      TRACE_EVENT_PHASE_FLOW_BEGIN, category_group, name, id,                  \
-      TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val, arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_FLOW_BEGIN0(category_group, name, id)   \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_BEGIN, \
-                                   category_group, name, id,     \
-                                   TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_FLOW_BEGIN1(category_group, name, id, arg1_name, \
-                                     arg1_val)                            \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_BEGIN,          \
-                                   category_group, name, id,              \
-                                   TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-#define TRACE_EVENT_COPY_FLOW_BEGIN2(category_group, name, id, arg1_name, \
-                                     arg1_val, arg2_name, arg2_val)       \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                       \
-      TRACE_EVENT_PHASE_FLOW_BEGIN, category_group, name, id,             \
-      TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val, arg2_name, arg2_val)
-
-// Records a single FLOW_STEP event for |step| immediately. If the category
-// is not enabled, then this does nothing. The |name| and |id| must match the
-// FLOW_BEGIN event above. The |step| param identifies this step within the
-// async event. This should be called at the beginning of the next phase of an
-// asynchronous operation.
-#define TRACE_EVENT_FLOW_STEP0(category_group, name, id, step)  \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_STEP, \
-                                   category_group, name, id,    \
-                                   TRACE_EVENT_FLAG_NONE, "step", step)
-#define TRACE_EVENT_FLOW_STEP1(category_group, name, id, step, arg1_name, \
-                               arg1_val)                                  \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                       \
-      TRACE_EVENT_PHASE_FLOW_STEP, category_group, name, id,              \
-      TRACE_EVENT_FLAG_NONE, "step", step, arg1_name, arg1_val)
-#define TRACE_EVENT_COPY_FLOW_STEP0(category_group, name, id, step) \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_STEP,     \
-                                   category_group, name, id,        \
-                                   TRACE_EVENT_FLAG_COPY, "step", step)
-#define TRACE_EVENT_COPY_FLOW_STEP1(category_group, name, id, step, arg1_name, \
-                                    arg1_val)                                  \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                            \
-      TRACE_EVENT_PHASE_FLOW_STEP, category_group, name, id,                   \
-      TRACE_EVENT_FLAG_COPY, "step", step, arg1_name, arg1_val)
-
-// Records a single FLOW_END event for "name" immediately. If the category
-// is not enabled, then this does nothing.
-#define TRACE_EVENT_FLOW_END0(category_group, name, id)                        \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_FLOW_END_BIND_TO_ENCLOSING0(category_group, name, id)      \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id,                                   \
-                                   TRACE_EVENT_FLAG_BIND_TO_ENCLOSING)
-#define TRACE_EVENT_FLOW_END1(category_group, name, id, arg1_name, arg1_val)   \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_NONE, arg1_name, \
-                                   arg1_val)
-#define TRACE_EVENT_FLOW_END2(category_group, name, id, arg1_name, arg1_val,   \
-                              arg2_name, arg2_val)                             \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_NONE, arg1_name, \
-                                   arg1_val, arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_FLOW_END0(category_group, name, id)                   \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_FLOW_END1(category_group, name, id, arg1_name,        \
-                                   arg1_val)                                   \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_COPY, arg1_name, \
-                                   arg1_val)
-#define TRACE_EVENT_COPY_FLOW_END2(category_group, name, id, arg1_name,        \
-                                   arg1_val, arg2_name, arg2_val)              \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FLOW_END, category_group, \
-                                   name, id, TRACE_EVENT_FLAG_COPY, arg1_name, \
-                                   arg1_val, arg2_name, arg2_val)
-
-// Special trace event macro to trace task execution with the location where it
-// was posted from.
-#define TRACE_TASK_EXECUTION(run_function, task) \
-  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
-
+// Special trace event macro to trace log messages.
 #define TRACE_LOG_MESSAGE(file, message, line) \
   INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
@@ -1106,9 +1117,6 @@
 #define TRACE_EVENT_FLAG_HAS_PROCESS_ID (static_cast<unsigned int>(1 << 10))
 #define TRACE_EVENT_FLAG_HAS_LOCAL_ID (static_cast<unsigned int>(1 << 11))
 #define TRACE_EVENT_FLAG_HAS_GLOBAL_ID (static_cast<unsigned int>(1 << 12))
-// TODO(eseckler): Remove once we have native support for typed proto events in
-// TRACE_EVENT macros.
-#define TRACE_EVENT_FLAG_TYPED_PROTO_ARGS (static_cast<unsigned int>(1 << 15))
 #define TRACE_EVENT_FLAG_JAVA_STRING_LITERALS \
   (static_cast<unsigned int>(1 << 16))
 
@@ -1125,6 +1133,7 @@
 #define TRACE_VALUE_TYPE_STRING (static_cast<unsigned char>(6))
 #define TRACE_VALUE_TYPE_COPY_STRING (static_cast<unsigned char>(7))
 #define TRACE_VALUE_TYPE_CONVERTABLE (static_cast<unsigned char>(8))
+#define TRACE_VALUE_TYPE_PROTO (static_cast<unsigned char>(9))
 
 // Enum reflecting the scope of an INSTANT event. Must fit within
 // TRACE_EVENT_FLAG_SCOPE_MASK.
@@ -1136,4 +1145,5 @@
 #define TRACE_EVENT_SCOPE_NAME_PROCESS ('p')
 #define TRACE_EVENT_SCOPE_NAME_THREAD ('t')
 
+#endif  // !defined(BASE_USE_PERFETTO_CLIENT_LIBRARY)
 #endif  // BASE_TRACE_EVENT_COMMON_TRACE_EVENT_COMMON_H_

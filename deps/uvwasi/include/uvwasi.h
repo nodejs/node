@@ -10,7 +10,7 @@ extern "C" {
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 11
+#define UVWASI_VERSION_PATCH 12
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -68,7 +68,7 @@ typedef struct uvwasi_options_s {
 } uvwasi_options_t;
 
 /* Embedder API. */
-uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options);
+uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, const uvwasi_options_t* options);
 void uvwasi_destroy(uvwasi_t* uvwasi);
 void uvwasi_options_init(uvwasi_options_t* options);
 /* Use int instead of uv_file to avoid needing uv.h */

@@ -176,9 +176,9 @@ class ZoneUnorderedSet
     : public std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>> {
  public:
   // Constructs an empty map.
-  explicit ZoneUnorderedSet(Zone* zone)
+  explicit ZoneUnorderedSet(Zone* zone, size_t bucket_count = 100)
       : std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>>(
-            100, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
+            bucket_count, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
 };
 
 // A wrapper subclass for std::multimap to make it easy to construct one that

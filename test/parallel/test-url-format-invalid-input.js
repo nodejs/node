@@ -10,7 +10,7 @@ const throwsObjsAndReportTypes = [
   false,
   0,
   function() {},
-  Symbol('foo')
+  Symbol('foo'),
 ];
 
 for (const urlObject of throwsObjsAndReportTypes) {

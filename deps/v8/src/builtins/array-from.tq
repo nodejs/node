@@ -8,10 +8,12 @@ namespace array {
 transitioning javascript builtin
 ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
     JSReceiver {
+  const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
+
   // Use fast path if:
   // * |items| is the only argument, and
   // * the receiver is the Array function.
-  if (arguments.length == 1 && receiver == GetArrayFunction()) {
+  if (arguments.length == 1 && c == GetArrayFunction()) {
     try {
       return iterator::FastIterableToList(arguments[0]) otherwise Slow;
     } label Slow {
@@ -24,7 +26,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   const thisArg = arguments[2];
 
   // 1. Let C be the this value.
-  const c = receiver;
+  // (Done above.)
 
   let mapping: bool;
   // 2. If mapfn is undefined, let mapping be false.
@@ -77,7 +79,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // memory, e.g. a proxy that discarded the values. Ignoring this case
       // just means we would repeatedly call CreateDataProperty with index =
       // 2^53
-      assert(k < kMaxSafeInteger);
+      dcheck(k < kMaxSafeInteger);
 
       // ii. Let Pk be ! ToString(k).
 
@@ -108,9 +110,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
         try {
           mappedValue =
               Call(context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
-        } catch (e) {
+        } catch (e, message) {
           iterator::IteratorCloseOnException(iteratorRecord);
-          ReThrow(context, e);
+          ReThrowWithMessage(context, e, message);
         }
       } else {
         mappedValue = nextValue;
@@ -121,9 +123,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       //     return ? IteratorClose(iteratorRecord, defineStatus).
       try {
         FastCreateDataProperty(a, k, mappedValue);
-      } catch (e) deferred {
+      } catch (e, message) deferred {
         iterator::IteratorCloseOnException(iteratorRecord);
-        ReThrow(context, e);
+        ReThrowWithMessage(context, e, message);
       }
       // x. Set k to k + 1.
       k += 1;

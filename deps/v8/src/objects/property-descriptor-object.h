@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/property-descriptor-object-tq.inc"
+
 class PropertyDescriptorObject
     : public TorqueGeneratedPropertyDescriptorObject<PropertyDescriptorObject,
                                                      Struct> {
@@ -32,6 +34,8 @@ class PropertyDescriptorObject
                               HasConfigurableBit::kMask |
                               HasWritableBit::kMask | HasValueBit::kMask |
                               HasGetBit::kMask | HasSetBit::kMask;
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PropertyDescriptorObject)
 };

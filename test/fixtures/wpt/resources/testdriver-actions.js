@@ -2,9 +2,38 @@
   let sourceNameIdx = 0;
 
   /**
+   * @class
    * Builder for creating a sequence of actions
-   * The default tick duration is set to 16ms, which is one frame time based on
-   * 60Hz display.
+   *
+   *
+   * The actions are dispatched once
+   * :js:func:`test_driver.Actions.send` is called. This returns a
+   * promise which resolves once the actions are complete.
+   *
+   * The other methods on :js:class:`test_driver.Actions` object are
+   * used to build the sequence of actions that will be sent. These
+   * return the `Actions` object itself, so the actions sequence can
+   * be constructed by chaining method calls.
+   *
+   * Internally :js:func:`test_driver.Actions.send` invokes
+   * :js:func:`test_driver.action_sequence`.
+   *
+   * @example
+   * let text_box = document.getElementById("text");
+   *
+   * let actions = new test_driver.Actions()
+   *    .pointerMove(0, 0, {origin: text_box})
+   *    .pointerDown()
+   *    .pointerUp()
+   *    .addTick()
+   *    .keyDown("p")
+   *    .keyUp("p");
+   *
+   * await actions.send();
+   *
+   * @param {number} [defaultTickDuration] - The default duration of a
+   * tick. Be default this is set ot 16ms, which is one frame time
+   * based on 60Hz display.
    */
   function Actions(defaultTickDuration=16) {
     this.sourceTypes = new Map([["key", KeySource],
@@ -281,9 +310,12 @@
      *                               pointer source
      * @returns {Actions}
      */
-    pointerDown: function({button=this.ButtonType.LEFT, sourceName=null}={}) {
+    pointerDown: function({button=this.ButtonType.LEFT, sourceName=null,
+                           width, height, pressure, tangentialPressure,
+                           tiltX, tiltY, twist, altitudeAngle, azimuthAngle}={}) {
       let source = this.getSource("pointer", sourceName);
-      source.pointerDown(this, button);
+      source.pointerDown(this, button, width, height, pressure, tangentialPressure,
+                         tiltX, tiltY, twist, altitudeAngle, azimuthAngle);
       return this;
     },
 
@@ -314,9 +346,13 @@
      * @returns {Actions}
      */
     pointerMove: function(x, y,
-                          {origin="viewport", duration, sourceName=null}={}) {
+                          {origin="viewport", duration, sourceName=null,
+                           width, height, pressure, tangentialPressure,
+                           tiltX, tiltY, twist, altitudeAngle, azimuthAngle}={}) {
       let source = this.getSource("pointer", sourceName);
-      source.pointerMove(this, x, y, duration, origin);
+      source.pointerMove(this, x, y, duration, origin, width, height, pressure,
+                         tangentialPressure, tiltX, tiltY, twist, altitudeAngle,
+                         azimuthAngle);
       return this;
     },
 
@@ -424,6 +460,38 @@
     this.actions = new Map();
   }
 
+  function setPointerProperties(action, width, height, pressure, tangentialPressure,
+                                tiltX, tiltY, twist, altitudeAngle, azimuthAngle) {
+    if (width) {
+      action.width = width;
+    }
+    if (height) {
+      action.height = height;
+    }
+    if (pressure) {
+      action.pressure = pressure;
+    }
+    if (tangentialPressure) {
+      action.tangentialPressure = tangentialPressure;
+    }
+    if (tiltX) {
+      action.tiltX = tiltX;
+    }
+    if (tiltY) {
+      action.tiltY = tiltY;
+    }
+    if (twist) {
+      action.twist = twist;
+    }
+    if (altitudeAngle) {
+      action.altitudeAngle = altitudeAngle;
+    }
+    if (azimuthAngle) {
+      action.azimuthAngle = azimuthAngle;
+    }
+    return action;
+  }
+
   PointerSource.prototype = {
     serialize: function(tickCount) {
       if (!this.actions.size) {
@@ -441,12 +509,16 @@
       return data;
     },
 
-    pointerDown: function(actions, button) {
+    pointerDown: function(actions, button, width, height, pressure, tangentialPressure,
+                          tiltX, tiltY, twist, altitudeAngle, azimuthAngle) {
       let tick = actions.tickIdx;
       if (this.actions.has(tick)) {
         tick = actions.addTick().tickIdx;
       }
-      this.actions.set(tick, {type: "pointerDown", button});
+      let actionProperties = setPointerProperties({type: "pointerDown", button}, width, height,
+                                                  pressure, tangentialPressure, tiltX, tiltY,
+                                                  twist, altitudeAngle, azimuthAngle);
+      this.actions.set(tick, actionProperties);
     },
 
     pointerUp: function(actions, button) {
@@ -457,15 +529,20 @@
       this.actions.set(tick, {type: "pointerUp", button});
     },
 
-    pointerMove: function(actions, x, y, duration, origin) {
+    pointerMove: function(actions, x, y, duration, origin, width, height, pressure,
+                          tangentialPressure, tiltX, tiltY, twist, altitudeAngle, azimuthAngle) {
       let tick = actions.tickIdx;
       if (this.actions.has(tick)) {
         tick = actions.addTick().tickIdx;
       }
-      this.actions.set(tick, {type: "pointerMove", x, y, origin});
+      let moveAction = {type: "pointerMove", x, y, origin};
       if (duration) {
-        this.actions.get(tick).duration = duration;
+        moveAction.duration = duration;
       }
+      let actionProperties = setPointerProperties(moveAction, width, height, pressure,
+                                                  tangentialPressure, tiltX, tiltY, twist,
+                                                  altitudeAngle, azimuthAngle);
+      this.actions.set(tick, actionProperties);
     },
 
     addPause: function(actions, duration) {

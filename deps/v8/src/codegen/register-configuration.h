@@ -14,22 +14,13 @@
 namespace v8 {
 namespace internal {
 
-// An architecture independent representation of the sets of registers available
-// for instruction creation.
 class V8_EXPORT_PRIVATE RegisterConfiguration {
  public:
-  enum AliasingKind {
-    // Registers alias a single register of every other size (e.g. Intel).
-    OVERLAP,
-    // Registers alias two registers of the next smaller size (e.g. ARM).
-    COMBINE
-  };
-
   // Architecture independent maxes.
   static constexpr int kMaxGeneralRegisters = 32;
   static constexpr int kMaxFPRegisters = 32;
   static constexpr int kMaxRegisters =
-      Max(kMaxFPRegisters, kMaxGeneralRegisters);
+      std::max(kMaxFPRegisters, kMaxGeneralRegisters);
 
   // Default RegisterConfigurations for the target architecture.
   static const RegisterConfiguration* Default();
@@ -40,12 +31,14 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   static const RegisterConfiguration* RestrictGeneralRegisters(
       RegList registers);
 
-  RegisterConfiguration(int num_general_registers, int num_double_registers,
-                        int num_allocatable_general_registers,
-                        int num_allocatable_double_registers,
-                        const int* allocatable_general_codes,
-                        const int* allocatable_double_codes,
-                        AliasingKind fp_aliasing_kind);
+  RegisterConfiguration(
+      AliasingKind fp_aliasing_kind, int num_general_registers,
+      int num_double_registers, int num_simd128_registers,
+      int num_allocatable_general_registers,
+      int num_allocatable_double_registers,
+      int num_allocatable_simd128_registers,
+      const int* allocatable_general_codes, const int* allocatable_double_codes,
+      const int* independent_allocatable_simd128_codes = nullptr);
 
   int num_general_registers() const { return num_general_registers_; }
   int num_float_registers() const { return num_float_registers_; }
@@ -57,6 +50,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   int num_allocatable_float_registers() const {
     return num_allocatable_float_registers_;
   }
+  // Caution: this value depends on the current cpu and may change between
+  // build and runtime. At the time of writing, the only architecture with a
+  // variable allocatable double register set is Arm.
   int num_allocatable_double_registers() const {
     return num_allocatable_double_registers_;
   }

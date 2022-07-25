@@ -23,7 +23,11 @@ class LocalLogger {
   void ScriptDetails(Script script);
   void ScriptEvent(Logger::ScriptEventType type, int script_id);
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray source_position_table);
+                                  ByteArray source_position_table,
+                                  JitCodeEvent::CodeType code_type);
+
+  void MapCreate(Map map);
+  void MapDetails(Map map);
 
  private:
   Logger* logger_;

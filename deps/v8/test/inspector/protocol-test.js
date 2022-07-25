@@ -36,7 +36,7 @@ InspectorTest.logMessage = function(originalMessage) {
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
-    'formatterObjectId', 'debuggerId', 'bodyGetterId'
+    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId'
   ]);
   const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
   if (message.id)
@@ -142,6 +142,10 @@ InspectorTest.ContextGroup = class {
     this.id = utils.createContextGroup();
   }
 
+  createContext(name) {
+    utils.createContext(this.id, name || '');
+  }
+
   schedulePauseOnNextStatement(reason, details) {
     utils.schedulePauseOnNextStatement(this.id, reason, details);
   }
@@ -184,7 +188,7 @@ InspectorTest.ContextGroup = class {
         "PropertyDescriptor","object","get","set","value","configurable",
         "enumerable","symbol","getPrototypeOf","nativeAccessorDescriptor",
         "isBuiltin","hasGetter","hasSetter","getOwnPropertyDescriptor",
-        "description","formatAccessorsAsProperties","isOwn","name",
+        "description","isOwn","name",
         "typedArrayProperties","keys","getOwnPropertyNames",
         "getOwnPropertySymbols","isPrimitiveValue","com","toLowerCase",
         "ELEMENT","trim","replace","DOCUMENT","size","byteLength","toString",
@@ -260,11 +264,15 @@ InspectorTest.Session = class {
     this._scriptMap = new Map();
   }
 
+  getCallFrameUrl(frame) {
+    const {scriptId} = frame.location ? frame.location : frame;
+    return (this._scriptMap.get(scriptId) ?? frame).url;
+  }
+
   logCallFrames(callFrames) {
     for (var frame of callFrames) {
       var functionName = frame.functionName || '(anonymous)';
-      var scriptId = frame.location ? frame.location.scriptId : frame.scriptId;
-      var url = frame.url ? frame.url : this._scriptMap.get(scriptId).url;
+      var url = this.getCallFrameUrl(frame);
       var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
       var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
       InspectorTest.log(`${functionName} (${url}:${lineNumber}:${columnNumber})`);
@@ -295,9 +303,14 @@ InspectorTest.Session = class {
       if (location.lineNumber != 0) {
         InspectorTest.log('Unexpected wasm line number: ' + location.lineNumber);
       }
-      let wasm_opcode = script.bytecode[location.columnNumber].toString(16);
-      if (wasm_opcode.length % 2) wasm_opcode = '0' + wasm_opcode;
-      InspectorTest.log(`Script ${script.url} byte offset ${location.columnNumber}: Wasm opcode 0x${wasm_opcode}`);
+      let wasm_opcode = script.bytecode[location.columnNumber];
+      let opcode_str = wasm_opcode.toString(16);
+      if (opcode_str.length % 2) opcode_str = `0${opcode_str}`;
+      if (InspectorTest.getWasmOpcodeName) {
+        opcode_str += ` (${InspectorTest.getWasmOpcodeName(wasm_opcode)})`;
+      }
+      InspectorTest.log(`Script ${script.url} byte offset ${
+          location.columnNumber}: Wasm opcode 0x${opcode_str}`);
     } else {
       var lines = script.scriptSource.split('\n');
       var line = lines[location.lineNumber];

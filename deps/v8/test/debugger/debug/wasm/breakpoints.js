@@ -6,7 +6,7 @@
 // Similar tests exist as inspector tests already, but inspector tests are not
 // run concurrently in multiple isolates (see `run-tests.py --isolates`).
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const body_a = [
@@ -34,10 +34,10 @@ const a_add_offset = body_a.indexOf(kExprI32Add);
 const b_sub_offset = body_b.indexOf(kExprI32Sub);
 
 const expected_breaks = [
-  `a:1:${fun_a.body_offset + a_add_offset}`,       // break in a at i32.add
-  `b:1:${fun_b.body_offset + b_sub_offset}`,       // break in b at i32.sub
-  `a:1:${fun_a.body_offset + a_localget_offset}`,  // break in a at local.get i0
-  `a:1:${fun_a.body_offset + a_const_offset}`      // break in a at i32.const 1
+  `$a:1:${fun_a.body_offset + a_add_offset}`,       // break in a at i32.add
+  `$b:1:${fun_b.body_offset + b_sub_offset}`,       // break in b at i32.sub
+  `$a:1:${fun_a.body_offset + a_localget_offset}`,  // break in a at local.get i0
+  `$a:1:${fun_a.body_offset + a_const_offset}`      // break in a at i32.const 1
 ];
 let error;
 function onBreak(event, exec_state, data) {
@@ -53,13 +53,13 @@ function onBreak(event, exec_state, data) {
     assertEquals(expected_pos, pos);
     // When we stop in b, we add another breakpoint in a at offset 0 and remove
     // the existing breakpoint.
-    if (data.functionName() == 'b') {
+    if (data.functionName() === '$b') {
       Debug.setBreakPoint(instance.exports.a, 0, a_localget_offset);
       Debug.clearBreakPoint(breakpoint_a);
     }
     // When we stop at a at local.get, we set another breakpoint *in the same
     // function*, one instruction later (at i32.const).
-    if (data.functionName() == 'a' &&
+    if (data.functionName() === '$a' &&
         data.sourceColumn() == fun_a.body_offset) {
       Debug.setBreakPoint(instance.exports.a, 0, a_const_offset);
     }

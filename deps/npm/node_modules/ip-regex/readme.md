@@ -1,4 +1,4 @@
-# ip-regex [![Build Status](https://travis-ci.org/sindresorhus/ip-regex.svg?branch=master)](https://travis-ci.org/sindresorhus/ip-regex)
+# ip-regex
 
 > Regular expression for matching IP addresses
 

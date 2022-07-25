@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const { URLSearchParams } = require('url');
 
 {
   const params = new URLSearchParams();

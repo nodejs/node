@@ -9,7 +9,10 @@
 #include <cctype>
 #include <list>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -75,16 +78,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (size > INT_MAX) return 0;
   v8::internal::MaybeHandle<v8::internal::String> source =
       factory->NewStringFromOneByte(
-          v8::internal::Vector<const uint8_t>(data, static_cast<int>(size)));
+          v8::base::Vector<const uint8_t>(data, static_cast<int>(size)));
   if (source.is_null()) return 0;
 
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
-  v8::internal::UnoptimizedCompileState state(i_isolate);
+  v8::internal::UnoptimizedCompileState state;
+  v8::internal::ReusableUnoptimizedCompileState reusable_state(i_isolate);
   v8::internal::UnoptimizedCompileFlags flags =
       v8::internal::UnoptimizedCompileFlags::ForScriptCompile(i_isolate,
                                                               *script);
-  v8::internal::ParseInfo info(i_isolate, flags, &state);
+  v8::internal::ParseInfo info(i_isolate, flags, &state, &reusable_state);
   if (!v8::internal::parsing::ParseProgram(
           &info, script, i_isolate, i::parsing::ReportStatisticsMode::kYes)) {
     info.pending_error_handler()->PrepareErrors(i_isolate,

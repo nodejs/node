@@ -22,7 +22,6 @@ using v8::Maybe;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Uint32;
 using v8::Value;
 
@@ -85,9 +84,7 @@ Maybe<bool> DsaKeyGenTraits::AdditionalConfig(
   params->params.modulus_bits = args[*offset].As<Uint32>()->Value();
   params->params.divisor_bits = args[*offset + 1].As<Int32>()->Value();
   if (params->params.divisor_bits < -1) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "invalid value for divisor_bits");
-    THROW_ERR_OUT_OF_RANGE(env, msg);
+    THROW_ERR_OUT_OF_RANGE(env, "invalid value for divisor_bits");
     return Nothing<bool>();
   }
 
@@ -127,107 +124,6 @@ WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(
   }
 }
 
-Maybe<bool> ExportJWKDsaKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_DSA);
-
-  DSA* dsa = EVP_PKEY_get0_DSA(pkey.get());
-  CHECK_NOT_NULL(dsa);
-
-  const BIGNUM* y;
-  const BIGNUM* x;
-  const BIGNUM* p;
-  const BIGNUM* q;
-  const BIGNUM* g;
-
-  DSA_get0_key(dsa, &y, &x);
-  DSA_get0_pqg(dsa, &p, &q, &g);
-
-  if (target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_dsa_string()).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  if (SetEncodedValue(env, target, env->jwk_y_string(), y).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_p_string(), p).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_q_string(), q).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_g_string(), g).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  if (key->GetKeyType() == kKeyTypePrivate &&
-      SetEncodedValue(env, target, env->jwk_x_string(), x).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  return Just(true);
-}
-
-std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
-    Environment* env,
-    Local<Object> jwk,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset) {
-  Local<Value> y_value;
-  Local<Value> p_value;
-  Local<Value> q_value;
-  Local<Value> g_value;
-  Local<Value> x_value;
-
-  if (!jwk->Get(env->context(), env->jwk_y_string()).ToLocal(&y_value) ||
-      !jwk->Get(env->context(), env->jwk_p_string()).ToLocal(&p_value) ||
-      !jwk->Get(env->context(), env->jwk_q_string()).ToLocal(&q_value) ||
-      !jwk->Get(env->context(), env->jwk_g_string()).ToLocal(&g_value) ||
-      !jwk->Get(env->context(), env->jwk_x_string()).ToLocal(&x_value)) {
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  if (!y_value->IsString() ||
-      !p_value->IsString() ||
-      !q_value->IsString() ||
-      !q_value->IsString() ||
-      (!x_value->IsUndefined() && !x_value->IsString())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  KeyType type = x_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
-
-  DsaPointer dsa(DSA_new());
-
-  ByteSource y = ByteSource::FromEncodedString(env, y_value.As<String>());
-  ByteSource p = ByteSource::FromEncodedString(env, p_value.As<String>());
-  ByteSource q = ByteSource::FromEncodedString(env, q_value.As<String>());
-  ByteSource g = ByteSource::FromEncodedString(env, g_value.As<String>());
-
-  if (!DSA_set0_key(dsa.get(), y.ToBN().release(), nullptr) ||
-      !DSA_set0_pqg(dsa.get(),
-                    p.ToBN().release(),
-                    q.ToBN().release(),
-                    g.ToBN().release())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  if (type == kKeyTypePrivate) {
-    ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
-    if (!DSA_set0_key(dsa.get(), nullptr, x.ToBN().release())) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-      return std::shared_ptr<KeyObjectData>();
-    }
-  }
-
-  EVPKeyPointer pkey(EVP_PKEY_new());
-  CHECK_EQ(EVP_PKEY_set1_DSA(pkey.get(), dsa.get()), 1);
-
-  return KeyObjectData::CreateAsymmetric(type, ManagedEVPPKey(std::move(pkey)));
-}
-
 Maybe<bool> GetDsaKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
@@ -235,11 +131,12 @@ Maybe<bool> GetDsaKeyDetail(
   const BIGNUM* p;  // Modulus length
   const BIGNUM* q;  // Divisor length
 
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  int type = EVP_PKEY_id(pkey.get());
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_DSA);
 
-  DSA* dsa = EVP_PKEY_get0_DSA(pkey.get());
+  const DSA* dsa = EVP_PKEY_get0_DSA(m_pkey.get());
   CHECK_NOT_NULL(dsa);
 
   DSA_get0_pqg(dsa, &p, &q, nullptr);
@@ -247,14 +144,18 @@ Maybe<bool> GetDsaKeyDetail(
   size_t modulus_length = BN_num_bytes(p) * CHAR_BIT;
   size_t divisor_length = BN_num_bytes(q) * CHAR_BIT;
 
-  if (target->Set(
-          env->context(),
-          env->modulus_length_string(),
-          Number::New(env->isolate(), modulus_length)).IsNothing() ||
-      target->Set(
-          env->context(),
-          env->divisor_length_string(),
-          Number::New(env->isolate(), divisor_length)).IsNothing()) {
+  if (target
+          ->Set(
+              env->context(),
+              env->modulus_length_string(),
+              Number::New(env->isolate(), static_cast<double>(modulus_length)))
+          .IsNothing() ||
+      target
+          ->Set(
+              env->context(),
+              env->divisor_length_string(),
+              Number::New(env->isolate(), static_cast<double>(divisor_length)))
+          .IsNothing()) {
     return Nothing<bool>();
   }
 
@@ -266,7 +167,11 @@ void Initialize(Environment* env, Local<Object> target) {
   DsaKeyPairGenJob::Initialize(env, target);
   DSAKeyExportJob::Initialize(env, target);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  DsaKeyPairGenJob::RegisterExternalReferences(registry);
+  DSAKeyExportJob::RegisterExternalReferences(registry);
+}
 }  // namespace DSAAlg
 }  // namespace crypto
 }  // namespace node
-

@@ -1653,6 +1653,7 @@ L$Camellia_SBOX:
 .p2align	4
 _Camellia_cbc_encrypt:
 
+.byte	243,15,30,250
 	cmpq	$0,%rdx
 	je	L$cbc_abort
 	pushq	%rbx

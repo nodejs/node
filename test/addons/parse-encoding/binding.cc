@@ -6,6 +6,7 @@ namespace {
 #define ENCODING_MAP(V) \
   V(ASCII)              \
   V(BASE64)             \
+  V(BASE64URL)          \
   V(BUFFER)             \
   V(HEX)                \
   V(LATIN1)             \

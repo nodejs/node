@@ -114,7 +114,7 @@ static void ipc_connection_cb(uv_stream_t* ipc_pipe, int status) {
   buf = uv_buf_init("PING", 4);
   sc = container_of(ipc_pipe, struct ipc_server_ctx, ipc_pipe);
   pc = calloc(1, sizeof(*pc));
-  ASSERT(pc != NULL);
+  ASSERT_NOT_NULL(pc);
 
   if (ipc_pipe->type == UV_TCP)
     ASSERT(0 == uv_tcp_init(loop, (uv_tcp_t*) &pc->peer_handle));
@@ -295,7 +295,7 @@ static void sv_connection_cb(uv_stream_t* server_handle, int status) {
   ASSERT(status == 0);
 
   storage = malloc(sizeof(*storage));
-  ASSERT(storage != NULL);
+  ASSERT_NOT_NULL(storage);
 
   if (server_handle->type == UV_TCP)
     ASSERT(0 == uv_tcp_init(server_handle->loop, (uv_tcp_t*) storage));
@@ -372,8 +372,8 @@ static int test_tcp(unsigned int num_servers, unsigned int num_clients) {
 
   servers = calloc(num_servers, sizeof(servers[0]));
   clients = calloc(num_clients, sizeof(clients[0]));
-  ASSERT(servers != NULL);
-  ASSERT(clients != NULL);
+  ASSERT_NOT_NULL(servers);
+  ASSERT_NOT_NULL(clients);
 
   /* We're making the assumption here that from the perspective of the
    * OS scheduler, threads are functionally equivalent to and interchangeable

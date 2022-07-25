@@ -126,7 +126,7 @@ static void U_CALLCONV initRecognizers(UErrorCode &status) {
 
     if (fCSRecognizers == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
-    }
+    } 
     else {
         fCSRecognizers_size = rCount;
         for (int32_t r = 0; r < rCount; r += 1) {
@@ -224,7 +224,7 @@ int32_t CharsetDetector::getDetectableCount()
 
     setRecognizers(status);
 
-    return fCSRecognizers_size;
+    return fCSRecognizers_size; 
 }
 
 const CharsetMatch *CharsetDetector::detect(UErrorCode &status)
@@ -269,6 +269,11 @@ const CharsetMatch * const *CharsetDetector::detectAll(int32_t &maxMatchesFound,
     }
 
     maxMatchesFound = resultCount;
+
+    if (maxMatchesFound == 0) {
+        status = U_INVALID_CHAR_FOUND;
+        return NULL;
+    }
 
     return resultArray;
 }
@@ -385,7 +390,7 @@ enumNext(UEnumeration *en, int32_t *resultLength, UErrorCode * /*status*/) {
             // ucsdet_getDetectableCharsets
             UBool *enabledArray = ((Context *)en->context)->enabledRecognizers;
             if (enabledArray != NULL) {
-                // custome set
+                // custom set
                 while (currName == NULL && ((Context *)en->context)->currIndex < fCSRecognizers_size) {
                     if (enabledArray[((Context *)en->context)->currIndex]) {
                         currName = fCSRecognizers[((Context *)en->context)->currIndex]->recognizer->getName();

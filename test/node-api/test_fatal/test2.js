@@ -16,3 +16,4 @@ const p = child_process.spawnSync(
 assert.ifError(p.error);
 assert.ok(p.stderr.toString().includes(
   'FATAL ERROR: test_fatal::Test fatal message'));
+assert.ok(p.status === 134 || p.signal === 'SIGABRT');

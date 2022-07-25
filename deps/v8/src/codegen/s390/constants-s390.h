@@ -101,16 +101,7 @@ enum Condition {
   mask0xC = 12,
   mask0xD = 13,
   mask0xE = 14,
-  mask0xF = 15,
-
-  // Rounding modes for floating poing facility
-  CURRENT_ROUNDING_MODE = 0,
-  ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0 = 1,
-  ROUND_TO_PREPARE_FOR_SHORTER_PRECISION = 3,
-  ROUND_TO_NEAREST_WITH_TIES_TO_EVEN = 4,
-  ROUND_TOWARD_0 = 5,
-  ROUND_TOWARD_PLUS_INFINITE = 6,
-  ROUND_TOWARD_MINUS_INFINITE = 7
+  mask0xF = 15
 };
 
 inline Condition NegateCondition(Condition cond) {
@@ -1212,7 +1203,7 @@ using SixByteInstr = uint64_t;
   V(pt, PT, 0xB228)       /* type = RRE   PROGRAM TRANSFER  */                 \
   V(iske, ISKE, 0xB229)   /* type = RRE   INSERT STORAGE KEY EXTENDED  */      \
   V(rrbe, RRBE, 0xB22A)   /* type = RRE   RESET REFERENCE BIT EXTENDED  */     \
-  V(tb, TB, 0xB22C)       /* type = RRE   TEST BLOCK  */                       \
+  V(tb, TB_, 0xB22C)      /* type = RRE   TEST BLOCK  */                       \
   V(dxr, DXR, 0xB22D)     /* type = RRE   DIVIDE (extended HFP)  */            \
   V(pgin, PGIN, 0xB22E)   /* type = RRE   PAGE IN  */                          \
   V(pgout, PGOUT, 0xB22F) /* type = RRE   PAGE OUT  */                         \
@@ -1562,14 +1553,28 @@ using SixByteInstr = uint64_t;
   V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */       \
   V(vl, VL, 0xE706)       /* type = VRX   VECTOR LOAD  */                     \
   V(vlbb, VLBB, 0xE707)   /* type = VRX   VECTOR LOAD TO BLOCK BOUNDARY  */   \
+  V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
+  V(vlbrrep, VLBRREP,                                                         \
+    0xE605) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT AND REPLICATE */  \
+  V(vlebrh, VLEBRH,                                                           \
+    0xE601) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (16) */           \
+  V(vlebrf, VLEBRF,                                                           \
+    0xE603) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (32) */           \
+  V(vlebrg, VLEBRG,                                                           \
+    0xE602) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (64) */           \
   V(vsteb, VSTEB, 0xE708) /* type = VRX   VECTOR STORE ELEMENT (8)  */        \
   V(vsteh, VSTEH, 0xE709) /* type = VRX   VECTOR STORE ELEMENT (16)  */       \
   V(vsteg, VSTEG, 0xE70A) /* type = VRX   VECTOR STORE ELEMENT (64)  */       \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */       \
   V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */                    \
-  V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
-  V(vstbr, VSTBR, 0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS \
-                           */
+  V(vstbr, VSTBR,                                                             \
+    0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS */            \
+  V(vstebrh, VSTEBRH,                                                         \
+    0xE609) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (16) */          \
+  V(vstebrf, VSTEBRF,                                                         \
+    0xE60B) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (32) */          \
+  V(vstebrg, VSTEBRG,                                                         \
+    0xE60A) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (64) */
 
 #define S390_RIE_G_OPCODE_LIST(V)                                             \
   V(lochi, LOCHI,                                                             \
@@ -1787,16 +1792,18 @@ const int32_t kDefaultStopCode = -1;
 
 // FP rounding modes.
 enum FPRoundingMode {
-  RN = 0,  // Round to Nearest.
-  RZ = 1,  // Round towards zero.
-  RP = 2,  // Round towards Plus Infinity.
-  RM = 3,  // Round towards Minus Infinity.
+  CURRENT_ROUNDING_MODE = 0,
+  ROUND_TO_NEAREST_AWAY_FROM_0 = 1,
+  ROUND_TO_NEAREST_TO_EVEN = 4,
+  ROUND_TOWARD_0 = 5,
+  ROUND_TOWARD_POS_INF = 6,
+  ROUND_TOWARD_NEG_INF = 7,
 
   // Aliases.
-  kRoundToNearest = RN,
-  kRoundToZero = RZ,
-  kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM
+  kRoundToNearest = ROUND_TO_NEAREST_TO_EVEN,
+  kRoundToZero = ROUND_TOWARD_0,
+  kRoundToPlusInf = ROUND_TOWARD_POS_INF,
+  kRoundToMinusInf = ROUND_TOWARD_NEG_INF
 };
 
 const uint32_t kFPRoundingModeMask = 3;

@@ -2498,6 +2498,7 @@ L$init_base2_44:
 .p2align	5
 poly1305_blocks_vpmadd52:
 
+.byte	243,15,30,250
 	shrq	$4,%rdx
 	jz	L$no_data_vpmadd52
 
@@ -3386,6 +3387,7 @@ L$no_data_vpmadd52_8x:
 .p2align	5
 poly1305_emit_base2_44:
 
+.byte	243,15,30,250
 	movq	0(%rdi),%r8
 	movq	8(%rdi),%r9
 	movq	16(%rdi),%r10

@@ -92,6 +92,7 @@ static const char *gNumberElementKeys[DecimalFormatSymbols::kFormatSymbolCount] 
     NULL, /* eight digit - get it from the numbering system */
     NULL, /* nine digit - get it from the numbering system */
     "superscriptingExponent", /* Multiplication (x) symbol for exponents */
+    "approximatelySign" /* Approximately sign symbol */
 };
 
 // -------------------------------------
@@ -164,8 +165,8 @@ DecimalFormatSymbols::operator=(const DecimalFormatSymbols& rhs)
         locale = rhs.locale;
         uprv_strcpy(validLocale, rhs.validLocale);
         uprv_strcpy(actualLocale, rhs.actualLocale);
-        fIsCustomCurrencySymbol = rhs.fIsCustomCurrencySymbol;
-        fIsCustomIntlCurrencySymbol = rhs.fIsCustomIntlCurrencySymbol;
+        fIsCustomCurrencySymbol = rhs.fIsCustomCurrencySymbol; 
+        fIsCustomIntlCurrencySymbol = rhs.fIsCustomIntlCurrencySymbol; 
         fCodePointZero = rhs.fCodePointZero;
         currPattern = rhs.currPattern;
     }
@@ -174,29 +175,29 @@ DecimalFormatSymbols::operator=(const DecimalFormatSymbols& rhs)
 
 // -------------------------------------
 
-UBool
+bool
 DecimalFormatSymbols::operator==(const DecimalFormatSymbols& that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
-    if (fIsCustomCurrencySymbol != that.fIsCustomCurrencySymbol) {
-        return FALSE;
-    }
-    if (fIsCustomIntlCurrencySymbol != that.fIsCustomIntlCurrencySymbol) {
-        return FALSE;
-    }
+    if (fIsCustomCurrencySymbol != that.fIsCustomCurrencySymbol) { 
+        return false;
+    } 
+    if (fIsCustomIntlCurrencySymbol != that.fIsCustomIntlCurrencySymbol) { 
+        return false;
+    } 
     for(int32_t i = 0; i < (int32_t)kFormatSymbolCount; ++i) {
         if(fSymbols[(ENumberFormatSymbol)i] != that.fSymbols[(ENumberFormatSymbol)i]) {
-            return FALSE;
+            return false;
         }
     }
     for(int32_t i = 0; i < (int32_t)UNUM_CURRENCY_SPACING_COUNT; ++i) {
         if(currencySpcBeforeSym[i] != that.currencySpcBeforeSym[i]) {
-            return FALSE;
+            return false;
         }
         if(currencySpcAfterSym[i] != that.currencySpcAfterSym[i]) {
-            return FALSE;
+            return false;
         }
     }
     // No need to check fCodePointZero since it is based on fSymbols
@@ -221,7 +222,7 @@ struct DecFmtSymDataSink : public ResourceSink {
     // Destination for data, modified via setters.
     DecimalFormatSymbols& dfs;
     // Boolean array of whether or not we have seen a particular symbol yet.
-    // Can't simpy check fSymbols because it is pre-populated with defaults.
+    // Can't simply check fSymbols because it is pre-populated with defaults.
     UBool seenSymbol[DecimalFormatSymbols::kFormatSymbolCount];
 
     // Constructor/Destructor
@@ -231,7 +232,7 @@ struct DecFmtSymDataSink : public ResourceSink {
     virtual ~DecFmtSymDataSink();
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
-            UErrorCode &errorCode) {
+            UErrorCode &errorCode) override {
         ResourceTable symbolsTable = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
         for (int32_t j = 0; symbolsTable.getKeyAndValue(j, key, value); ++j) {
@@ -286,7 +287,7 @@ struct CurrencySpacingSink : public ResourceSink {
     virtual ~CurrencySpacingSink();
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
-            UErrorCode &errorCode) {
+            UErrorCode &errorCode) override {
         ResourceTable spacingTypesTable = value.getTable(errorCode);
         for (int32_t i = 0; spacingTypesTable.getKeyAndValue(i, key, value); ++i) {
             UBool beforeCurrency;
@@ -506,9 +507,10 @@ DecimalFormatSymbols::initialize() {
     fSymbols[kInfinitySymbol] = (UChar)0x221e;          // 'oo' infinite
     fSymbols[kNaNSymbol] = (UChar)0xfffd;               // SUB NaN
     fSymbols[kSignificantDigitSymbol] = (UChar)0x0040;  // '@' significant digit
-    fSymbols[kMonetaryGroupingSeparatorSymbol].remove(); //
+    fSymbols[kMonetaryGroupingSeparatorSymbol].remove(); // 
     fSymbols[kExponentMultiplicationSymbol] = (UChar)0xd7; // 'x' multiplication symbol for exponents
-    fIsCustomCurrencySymbol = FALSE;
+    fSymbols[kApproximatelySignSymbol] = u'~';          // '~' approximately sign
+    fIsCustomCurrencySymbol = FALSE; 
     fIsCustomIntlCurrencySymbol = FALSE;
     fCodePointZero = 0x30;
     U_ASSERT(fCodePointZero == fSymbols[kZeroDigitSymbol].char32At(0));

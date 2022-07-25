@@ -28,6 +28,7 @@ const server = net.createServer(function(socket) {
 });
 
 server.listen(0, common.mustCall(function() {
+  /* eslint-disable no-unused-expressions */
   const client = net.createConnection(this.address().port);
   server.close();
   // Server connection event has not yet fired client is still attempting to
@@ -37,4 +38,5 @@ server.listen(0, common.mustCall(function() {
   client.remotePort;
   // Exit now, do not wait for the client error event.
   process.exit(0);
+  /* eslint-enable no-unused-expressions */
 }));

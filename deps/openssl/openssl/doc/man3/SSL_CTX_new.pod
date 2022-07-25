@@ -3,13 +3,14 @@
 =head1 NAME
 
 TLSv1_2_method, TLSv1_2_server_method, TLSv1_2_client_method,
-SSL_CTX_new, SSL_CTX_up_ref, SSLv3_method, SSLv3_server_method,
-SSLv3_client_method, TLSv1_method, TLSv1_server_method, TLSv1_client_method,
-TLSv1_1_method, TLSv1_1_server_method, TLSv1_1_client_method, TLS_method,
-TLS_server_method, TLS_client_method, SSLv23_method, SSLv23_server_method,
-SSLv23_client_method, DTLS_method, DTLS_server_method, DTLS_client_method,
-DTLSv1_method, DTLSv1_server_method, DTLSv1_client_method,
-DTLSv1_2_method, DTLSv1_2_server_method, DTLSv1_2_client_method
+SSL_CTX_new, SSL_CTX_new_ex, SSL_CTX_up_ref, SSLv3_method,
+SSLv3_server_method, SSLv3_client_method, TLSv1_method, TLSv1_server_method,
+TLSv1_client_method, TLSv1_1_method, TLSv1_1_server_method,
+TLSv1_1_client_method, TLS_method, TLS_server_method, TLS_client_method,
+SSLv23_method, SSLv23_server_method, SSLv23_client_method, DTLS_method,
+DTLS_server_method, DTLS_client_method, DTLSv1_method, DTLSv1_server_method,
+DTLSv1_client_method, DTLSv1_2_method, DTLSv1_2_server_method,
+DTLSv1_2_client_method
 - create a new SSL_CTX object as framework for TLS/SSL or DTLS enabled
 functions
 
@@ -17,6 +18,8 @@ functions
 
  #include <openssl/ssl.h>
 
+ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
+                         const SSL_METHOD *method);
  SSL_CTX *SSL_CTX_new(const SSL_METHOD *method);
  int SSL_CTX_up_ref(SSL_CTX *ctx);
 
@@ -70,20 +73,48 @@ functions
 
 =head1 DESCRIPTION
 
-SSL_CTX_new() creates a new B<SSL_CTX> object as framework to
-establish TLS/SSL or DTLS enabled connections. An B<SSL_CTX> object is
-reference counted. Creating an B<SSL_CTX> object for the first time increments
-the reference count. Freeing it (using SSL_CTX_free) decrements it. When the
-reference count drops to zero, any memory or resources allocated to the
-B<SSL_CTX> object are freed. SSL_CTX_up_ref() increments the reference count for
-an existing B<SSL_CTX> structure.
+SSL_CTX_new_ex() creates a new B<SSL_CTX> object, which holds various
+configuration and data relevant to SSL/TLS or DTLS session establishment.
+These are later inherited by the B<SSL> object representing an active session.
+The I<method> parameter specifies whether the context will be used for the
+client or server side or both - for details see the L</NOTES> below.
+The library context I<libctx> (see L<OSSL_LIB_CTX(3)>) is used to provide the
+cryptographic algorithms needed for the session. Any cryptographic algorithms
+that are used by any B<SSL> objects created from this B<SSL_CTX> will be fetched
+from the I<libctx> using the property query string I<propq> (see
+L<crypto(7)/ALGORITHM FETCHING>. Either or both the I<libctx> or I<propq>
+parameters may be NULL.
+
+SSL_CTX_new() does the same as SSL_CTX_new_ex() except that the default
+library context is used and no property query string is specified.
+
+An B<SSL_CTX> object is reference counted. Creating an B<SSL_CTX> object for the
+first time increments the reference count. Freeing the B<SSL_CTX> (using
+SSL_CTX_free) decrements it. When the reference count drops to zero, any memory
+or resources allocated to the B<SSL_CTX> object are freed. SSL_CTX_up_ref()
+increments the reference count for an existing B<SSL_CTX> structure.
+
+An B<SSL_CTX> object should not be changed after it is used to create any B<SSL>
+objects or from multiple threads concurrently, since the implementation does not
+provide serialization of access for these cases.
 
 =head1 NOTES
 
-The SSL_CTX object uses B<method> as connection method.
-The methods exist in a generic type (for client and server use), a server only
-type, and a client only type.
-B<method> can be of the following types:
+On session estabilishment, by default, no peer credentials verification is done.
+This must be explicitly requested, typically using L<SSL_CTX_set_verify(3)>.
+For verifying peer certificates many options can be set using various functions
+such as L<SSL_CTX_load_verify_locations(3)> and L<SSL_CTX_set1_param(3)>.
+The L<X509_VERIFY_PARAM_set_purpose(3)> function can be used, also in conjunction
+with L<SSL_CTX_get0_param(3)>, to set the intended purpose of the session.
+The default is B<X509_PURPOSE_SSL_SERVER> on the client side
+and B<X509_PURPOSE_SSL_CLIENT> on the server side.
+
+The SSL_CTX object uses I<method> as the connection method.
+Three method variants are available: a generic method (for either client or
+server use), a server-only method, and a client-only method.
+
+The I<method> parameter of SSL_CTX_new_ex() and SSL_CTX_new()
+can be one of the following:
 
 =over 4
 
@@ -197,7 +228,9 @@ SSL_CTX_up_ref() returns 1 for success and 0 for failure.
 
 =head1 SEE ALSO
 
-L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>, L<SSL_accept(3)>,
+L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>,
+SSL_CTX_set_verify(3), L<SSL_CTX_set1_param(3)>, L<SSL_CTX_get0_param(3)>,
+L<SSL_connect(3)>, L<SSL_accept(3)>,
 L<SSL_CTX_set_min_proto_version(3)>, L<ssl(7)>, L<SSL_set_connect_state(3)>
 
 =head1 HISTORY
@@ -212,11 +245,13 @@ and TLS_client_method() functions were added in OpenSSL 1.1.0.
 
 All version-specific methods were deprecated in OpenSSL 1.1.0.
 
+SSL_CTX_new_ex() was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

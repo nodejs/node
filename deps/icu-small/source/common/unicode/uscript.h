@@ -484,6 +484,17 @@ typedef enum UScriptCode {
       /** @stable ICU 66 */
       USCRIPT_YEZIDI                        = 192,/* Yezi */
 
+      /** @stable ICU 70 */
+      USCRIPT_CYPRO_MINOAN                  = 193,/* Cpmn */
+      /** @stable ICU 70 */
+      USCRIPT_OLD_UYGHUR                    = 194,/* Ougr */
+      /** @stable ICU 70 */
+      USCRIPT_TANGSA                        = 195,/* Tnsa */
+      /** @stable ICU 70 */
+      USCRIPT_TOTO                          = 196,/* Toto */
+      /** @stable ICU 70 */
+      USCRIPT_VITHKUQI                      = 197,/* Vith */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UScriptCode value.
@@ -491,7 +502,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 193
+    USCRIPT_CODE_LIMIT    = 198
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 

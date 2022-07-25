@@ -27,6 +27,8 @@ class UnicodeString;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segment-iterator-tq.inc"
+
 class JSSegmentIterator
     : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
  public:

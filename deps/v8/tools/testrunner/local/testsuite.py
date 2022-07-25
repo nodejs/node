@@ -223,7 +223,7 @@ class TestGenerator(object):
     return self
 
   def __next__(self):
-    return next(self)
+    return self.next()
 
   def next(self):
     return next(self._iterator)

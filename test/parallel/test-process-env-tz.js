@@ -1,10 +1,4 @@
 'use strict';
-
-// Set the locale to a known good value because it affects ICU's date string
-// formatting. Setting LC_ALL needs to happen before the first call to
-// `icu::Locale::getDefault()` because ICU caches the result.
-process.env.LC_ALL = 'C';
-
 const common = require('../common');
 const assert = require('assert');
 
@@ -31,19 +25,20 @@ if (date.toString().includes('(Central European Time)') ||
   common.skip('tzdata too old');
 }
 
-assert.strictEqual(
-  date.toString().replace('Central European Summer Time', 'CEST'),
-  'Sat Apr 14 2018 14:34:56 GMT+0200 (CEST)');
+// Text representation of timezone depends on locale in environment
+assert.match(
+  date.toString(),
+  /^Sat Apr 14 2018 14:34:56 GMT\+0200 \(.+\)$/);
 
 process.env.TZ = 'Europe/London';
-assert.strictEqual(
-  date.toString().replace('British Summer Time', 'BST'),
-  'Sat Apr 14 2018 13:34:56 GMT+0100 (BST)');
+assert.match(
+  date.toString(),
+  /^Sat Apr 14 2018 13:34:56 GMT\+0100 \(.+\)$/);
 
 process.env.TZ = 'Etc/UTC';
-assert.strictEqual(
-  date.toString().replace('Coordinated Universal Time', 'UTC'),
-  'Sat Apr 14 2018 12:34:56 GMT+0000 (UTC)');
+assert.match(
+  date.toString(),
+  /^Sat Apr 14 2018 12:34:56 GMT\+0000 \(.+\)$/);
 
 // Just check that deleting the environment variable doesn't crash the process.
 // We can't really check the result of date.toString() because we don't know

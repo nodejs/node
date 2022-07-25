@@ -7,11 +7,17 @@
 #include "src/api/api.h"
 #include "src/base/logging.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
+
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif  // V8_ENABLE_MAGLEV
 
 #ifdef DEBUG
 // For GetIsolateFromWritableHeapObject.
@@ -41,20 +47,36 @@ bool HandleBase::IsDereferenceAllowed() const {
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
+  if (isolate->IsBuiltinTableHandleLocation(location_)) return true;
+  if (!AllowHandleDereference::IsAllowed()) return false;
 
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (FLAG_local_heaps && local_heap) {
-    // Local heap can't access handles when parked
-    if (!local_heap->IsHandleDereferenceAllowed()) return false;
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  if (isolate->is_shared()) return true;
 
-    if (local_heap->ContainsPersistentHandle(location_) ||
-        local_heap->ContainsLocalHandle(location_)) {
-      // The current thread owns the handle and thus can dereference it.
-      return true;
-    }
+  LocalHeap* local_heap = isolate->CurrentLocalHeap();
+
+  // Local heap can't access handles when parked
+  if (!local_heap->IsHandleDereferenceAllowed()) {
+    StdoutStream{} << "Cannot dereference handle owned by "
+                   << "non-running local heap\n";
+    return false;
   }
 
-  return AllowHandleDereference::IsAllowed();
+  // We are pretty strict with handle dereferences on background threads: A
+  // background local heap is only allowed to dereference its own local or
+  // persistent handles.
+  if (!local_heap->is_main_thread()) {
+    // The current thread owns the handle and thus can dereference it.
+    return local_heap->ContainsPersistentHandle(location_) ||
+           local_heap->ContainsLocalHandle(location_);
+  }
+  // If LocalHeap::Current() is null, we're on the main thread -- if we were to
+  // check main thread HandleScopes here, we should additionally check the
+  // main-thread LocalHeap.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  // TODO(leszeks): Check if the main thread owns this handle.
+  return true;
 }
 #endif
 
@@ -131,11 +153,9 @@ Address HandleScope::current_limit_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
 }
 
-CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate,
-                                           OptimizedCompilationInfo* info)
-    : isolate_(isolate),
-      info_(info),
-      zone_(info ? info->zone() : new Zone(isolate->allocator(), ZONE_NAME)) {
+CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate, Zone* zone)
+    : zone_(zone == nullptr ? new Zone(isolate->allocator(), ZONE_NAME) : zone),
+      isolate_(isolate) {
   HandleScopeData* handle_scope_data = isolate_->handle_scope_data();
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;
@@ -147,18 +167,12 @@ CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate,
 
 CanonicalHandleScope::~CanonicalHandleScope() {
   delete root_index_map_;
-  if (info_) {
-    // If we passed a compilation info as parameter, we created the identity map
-    // on its zone(). Then, we pass it to the compilation info which is
-    // responsible for the disposal.
-    info_->set_canonical_handles(DetachCanonicalHandles());
-  } else {
-    // If we don't have a compilation info, we created the zone manually. To
-    // properly dispose of said zone, we need to first free the identity_map_.
-    // Then we do so manually even though identity_map_ is a unique_ptr.
-    identity_map_.reset();
-    delete zone_;
-  }
+  // Note: both the identity_map_ (zone-allocated) and the zone_ itself may
+  // have custom ownership semantics, controlled by subclasses. For example, in
+  // case of external ownership, the subclass destructor may 'steal' both by
+  // resetting the identity map pointer and nulling the zone.
+  identity_map_.reset();
+  delete zone_;
   isolate_->handle_scope_data()->canonical_scope = prev_canonical_scope_;
 }
 
@@ -175,18 +189,39 @@ Address* CanonicalHandleScope::Lookup(Address object) {
       return isolate_->root_handle(root_index).location();
     }
   }
-  Address** entry = identity_map_->Get(Object(object));
-  if (*entry == nullptr) {
+  auto find_result = identity_map_->FindOrInsert(Object(object));
+  if (!find_result.already_exists) {
     // Allocate new handle location.
-    *entry = HandleScope::CreateHandle(isolate_, object);
+    *find_result.entry = HandleScope::CreateHandle(isolate_, object);
   }
-  return *entry;
+  return *find_result.entry;
 }
 
 std::unique_ptr<CanonicalHandlesMap>
 CanonicalHandleScope::DetachCanonicalHandles() {
   return std::move(identity_map_);
 }
+
+template <class CompilationInfoT>
+CanonicalHandleScopeForOptimization<CompilationInfoT>::
+    CanonicalHandleScopeForOptimization(Isolate* isolate,
+                                        CompilationInfoT* info)
+    : CanonicalHandleScope(isolate, info->zone()), info_(info) {}
+
+template <class CompilationInfoT>
+CanonicalHandleScopeForOptimization<
+    CompilationInfoT>::~CanonicalHandleScopeForOptimization() {
+  // We created the identity map on the compilation info's zone(). Pass
+  // ownership to the compilation info which is responsible for the disposal.
+  info_->set_canonical_handles(DetachCanonicalHandles());
+  zone_ = nullptr;  // We don't own the zone, null it.
+}
+
+template class CanonicalHandleScopeForOptimization<OptimizedCompilationInfo>;
+#ifdef V8_ENABLE_MAGLEV
+template class CanonicalHandleScopeForOptimization<
+    maglev::ExportedMaglevCompilationInfo>;
+#endif  // V8_ENABLE_MAGLEV
 
 }  // namespace internal
 }  // namespace v8

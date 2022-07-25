@@ -6,13 +6,16 @@ RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1,
 RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2,
 RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP,
 RSA_padding_add_PKCS1_OAEP_mgf1, RSA_padding_check_PKCS1_OAEP_mgf1,
-RSA_padding_add_SSLv23, RSA_padding_check_SSLv23,
 RSA_padding_add_none, RSA_padding_check_none - asymmetric encryption
 padding
 
 =head1 SYNOPSIS
 
  #include <openssl/rsa.h>
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
                                   const unsigned char *f, int fl);
@@ -44,12 +47,6 @@ padding
                                        const unsigned char *p, int pl,
                                        const EVP_MD *md, const EVP_MD *mgf1md);
 
- int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
-                            const unsigned char *f, int fl);
-
- int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
-                              const unsigned char *f, int fl, int rsa_len);
-
  int RSA_padding_add_none(unsigned char *to, int tlen,
                           const unsigned char *f, int fl);
 
@@ -57,6 +54,9 @@ padding
                             const unsigned char *f, int fl, int rsa_len);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use the EVP PKEY APIs.
 
 The RSA_padding_xxx_xxx() functions are called from the RSA encrypt,
 decrypt, sign and verify functions. Normally they should not be called
@@ -87,10 +87,6 @@ PKCS #1 v2.0 EME-PKCS1-v1_5 (PKCS #1 v1.5 block type 2)
 =item PKCS1_OAEP
 
 PKCS #1 v2.0 EME-OAEP
-
-=item SSLv23
-
-PKCS #1 EME-PKCS1-v1_5 with SSL-specific modification
 
 =item none
 
@@ -148,11 +144,15 @@ L<RSA_private_decrypt(3)>,
 L<RSA_sign(3)>, L<RSA_verify(3)>,
 L<RAND(7)>
 
+=head1 HISTORY
+
+All of these functions were deprecated in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

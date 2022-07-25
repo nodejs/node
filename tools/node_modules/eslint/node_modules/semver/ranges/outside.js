@@ -1,6 +1,6 @@
 const SemVer = require('../classes/semver')
 const Comparator = require('../classes/comparator')
-const {ANY} = Comparator
+const { ANY } = Comparator
 const Range = require('../classes/range')
 const satisfies = require('../functions/satisfies')
 const gt = require('../functions/gt')
@@ -32,7 +32,7 @@ const outside = (version, range, hilo, options) => {
       throw new TypeError('Must provide a hilo val of "<" or ">"')
   }
 
-  // If it satisifes the range it is not outside
+  // If it satisfies the range it is not outside
   if (satisfies(version, range, options)) {
     return false
   }

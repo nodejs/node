@@ -2,9 +2,12 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
+#include "node_options-inl.h"
 #include "node_platform.h"
+#include "node_shadow_realm.h"
 #include "node_v8_platform-inl.h"
+#include "node_wasm_web_api.h"
 #include "uv.h"
 
 #if HAVE_INSPECTOR
@@ -20,8 +23,11 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -80,16 +86,16 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
   if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
-    ret = UncheckedCalloc(size);
+    ret = allocator_->Allocate(size);
   else
-    ret = UncheckedMalloc(size);
+    ret = allocator_->AllocateUninitialized(size);
   if (LIKELY(ret != nullptr))
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
-  void* ret = node::UncheckedMalloc(size);
+  void* ret = allocator_->AllocateUninitialized(size);
   if (LIKELY(ret != nullptr))
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
@@ -97,7 +103,7 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
 
 void* NodeArrayBufferAllocator::Reallocate(
     void* data, size_t old_size, size_t size) {
-  void* ret = UncheckedRealloc<char>(static_cast<char*>(data), size);
+  void* ret = allocator_->Reallocate(data, old_size, size);
   if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
     total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
   return ret;
@@ -105,7 +111,7 @@ void* NodeArrayBufferAllocator::Reallocate(
 
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
-  free(data);
+  allocator_->Free(data, size);
 }
 
 DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
@@ -138,8 +144,12 @@ void* DebuggingArrayBufferAllocator::Reallocate(void* data,
   Mutex::ScopedLock lock(mutex_);
   void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
   if (ret == nullptr) {
-    if (size == 0)  // i.e. equivalent to free().
+    if (size == 0) {  // i.e. equivalent to free().
+      // suppress coverity warning as data is used as key versus as pointer
+      // in UnregisterPointerInternal
+      // coverity[pass_freed_arg]
       UnregisterPointerInternal(data, old_size);
+    }
     return nullptr;
   }
 
@@ -231,9 +241,11 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
       s.fatal_error_callback : OnFatalError;
   isolate->SetFatalErrorHandler(fatal_error_cb);
 
-  auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
-      s.prepare_stack_trace_callback : PrepareStackTraceCallback;
-  isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
+  if ((s.flags & SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK) == 0) {
+    auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
+        s.prepare_stack_trace_callback : PrepareStackTraceCallback;
+    isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
+  }
 }
 
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
@@ -242,6 +254,21 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStrings);
+
+  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  if (per_process::cli_options->get_per_isolate_options()
+          ->get_per_env_options()
+          ->experimental_fetch) {
+    isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  }
+
+  if (per_process::cli_options->get_per_isolate_options()
+          ->experimental_shadow_realm) {
+    isolate->SetHostCreateShadowRealmContextCallback(
+        shadow_realm::HostCreateShadowRealmContextCallback);
+  }
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?
@@ -339,12 +366,14 @@ Environment* CreateEnvironment(
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
 #if HAVE_INSPECTOR
-  if (inspector_parent_handle) {
-    env->InitializeInspector(
-        std::move(static_cast<InspectorParentHandleImpl*>(
-            inspector_parent_handle.get())->impl));
-  } else {
-    env->InitializeInspector({});
+  if (env->should_create_inspector()) {
+    if (inspector_parent_handle) {
+      env->InitializeInspector(
+          std::move(static_cast<InspectorParentHandleImpl*>(
+              inspector_parent_handle.get())->impl));
+    } else {
+      env->InitializeInspector({});
+    }
   }
 #endif
 
@@ -357,12 +386,13 @@ Environment* CreateEnvironment(
 }
 
 void FreeEnvironment(Environment* env) {
-  Isolate::DisallowJavascriptExecutionScope disallow_js(env->isolate(),
+  Isolate* isolate = env->isolate();
+  Isolate::DisallowJavascriptExecutionScope disallow_js(isolate,
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   {
-    HandleScope handle_scope(env->isolate());  // For env->context().
+    HandleScope handle_scope(isolate);  // For env->context().
     Context::Scope context_scope(env->context());
-    SealHandleScope seal_handle_scope(env->isolate());
+    SealHandleScope seal_handle_scope(isolate);
 
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
@@ -375,7 +405,7 @@ void FreeEnvironment(Environment* env) {
   // NodePlatform implementation.
   MultiIsolatePlatform* platform = env->isolate_data()->platform();
   if (platform != nullptr)
-    platform->DrainTasks(env->isolate());
+    platform->DrainTasks(isolate);
 
   delete env;
 }
@@ -407,20 +437,20 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8) {
   CHECK_NOT_NULL(main_script_source_utf8);
+  Isolate* isolate = env->isolate();
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         // This is a slightly hacky way to convert UTF-8 to UTF-16.
         Local<String> str =
-            String::NewFromUtf8(env->isolate(),
+            String::NewFromUtf8(isolate,
                                 main_script_source_utf8).ToLocalChecked();
-        auto main_utf16 = std::make_unique<String::Value>(env->isolate(), str);
+        auto main_utf16 = std::make_unique<String::Value>(isolate, str);
 
         // TODO(addaleax): Avoid having a global table for all scripts.
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        native_module::NativeModuleEnv::Add(
-            name.c_str(),
-            UnionBytes(**main_utf16, main_utf16->length()));
+        native_module::NativeModuleLoader::Add(
+            name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
         env->set_main_utf16(std::move(main_utf16));
         std::vector<Local<String>> params = {
             env->process_string(),
@@ -434,6 +464,14 @@ MaybeLocal<Value> LoadEnvironment(
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
   return Environment::GetCurrent(context);
+}
+
+IsolateData* GetEnvironmentIsolateData(Environment* env) {
+  return env->isolate_data();
+}
+
+ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* isolate_data) {
+  return isolate_data->node_allocator();
 }
 
 MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env) {
@@ -455,7 +493,8 @@ MultiIsolatePlatform* CreatePlatform(
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size, tracing_controller)
+  return MultiIsolatePlatform::Create(thread_pool_size,
+                                      tracing_controller)
       .release();
 }
 
@@ -465,8 +504,11 @@ void FreePlatform(MultiIsolatePlatform* platform) {
 
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return std::make_unique<NodePlatform>(thread_pool_size, tracing_controller);
+    v8::TracingController* tracing_controller,
+    v8::PageAllocator* page_allocator) {
+  return std::make_unique<NodePlatform>(thread_pool_size,
+                                        tracing_controller,
+                                        page_allocator);
 }
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
@@ -485,7 +527,7 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
 
   Local<Object> exports = Object::New(isolate);
   if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
-      !InitializePrimordials(context))
+      InitializePrimordials(context).IsNothing())
     return MaybeLocal<Object>();
   return handle_scope.Escape(exports);
 }
@@ -498,7 +540,7 @@ Local<Context> NewContext(Isolate* isolate,
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
 
-  if (!InitializeContext(context)) {
+  if (InitializeContext(context).IsNothing()) {
     return Local<Context>();
   }
 
@@ -511,70 +553,129 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
-void InitializeContextRuntime(Local<Context> context) {
+Maybe<bool> InitializeContextRuntime(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
   // Delete `Intl.v8BreakIterator`
   // https://github.com/nodejs/node/issues/14909
-  Local<String> intl_string = FIXED_ONE_BYTE_STRING(isolate, "Intl");
-  Local<String> break_iter_string =
-    FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
-  Local<Value> intl_v;
-  if (context->Global()->Get(context, intl_string).ToLocal(&intl_v) &&
-      intl_v->IsObject()) {
-    Local<Object> intl = intl_v.As<Object>();
-    intl->Delete(context, break_iter_string).Check();
+  {
+    Local<String> intl_string =
+      FIXED_ONE_BYTE_STRING(isolate, "Intl");
+    Local<String> break_iter_string =
+      FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+
+    Local<Value> intl_v;
+    if (!context->Global()
+        ->Get(context, intl_string)
+        .ToLocal(&intl_v)) {
+      return Nothing<bool>();
+    }
+
+    if (intl_v->IsObject() &&
+        intl_v.As<Object>()
+          ->Delete(context, break_iter_string)
+          .IsNothing()) {
+      return Nothing<bool>();
+    }
   }
 
   // Delete `Atomics.wake`
   // https://github.com/nodejs/node/issues/21219
-  Local<String> atomics_string = FIXED_ONE_BYTE_STRING(isolate, "Atomics");
-  Local<String> wake_string = FIXED_ONE_BYTE_STRING(isolate, "wake");
-  Local<Value> atomics_v;
-  if (context->Global()->Get(context, atomics_string).ToLocal(&atomics_v) &&
-      atomics_v->IsObject()) {
-    Local<Object> atomics = atomics_v.As<Object>();
-    atomics->Delete(context, wake_string).Check();
+  {
+    Local<String> atomics_string =
+      FIXED_ONE_BYTE_STRING(isolate, "Atomics");
+    Local<String> wake_string =
+      FIXED_ONE_BYTE_STRING(isolate, "wake");
+
+    Local<Value> atomics_v;
+    if (!context->Global()
+        ->Get(context, atomics_string)
+        .ToLocal(&atomics_v)) {
+      return Nothing<bool>();
+    }
+
+    if (atomics_v->IsObject() &&
+        atomics_v.As<Object>()
+          ->Delete(context, wake_string)
+          .IsNothing()) {
+      return Nothing<bool>();
+    }
   }
 
   // Remove __proto__
   // https://github.com/nodejs/node/issues/31951
-  Local<String> object_string = FIXED_ONE_BYTE_STRING(isolate, "Object");
-  Local<String> prototype_string = FIXED_ONE_BYTE_STRING(isolate, "prototype");
-  Local<Object> prototype = context->Global()
-                                ->Get(context, object_string)
-                                .ToLocalChecked()
-                                .As<Object>()
-                                ->Get(context, prototype_string)
-                                .ToLocalChecked()
-                                .As<Object>();
-  Local<String> proto_string = FIXED_ONE_BYTE_STRING(isolate, "__proto__");
+  Local<Object> prototype;
+  {
+    Local<String> object_string =
+      FIXED_ONE_BYTE_STRING(isolate, "Object");
+    Local<String> prototype_string =
+      FIXED_ONE_BYTE_STRING(isolate, "prototype");
+
+    Local<Value> object_v;
+    if (!context->Global()
+        ->Get(context, object_string)
+        .ToLocal(&object_v)) {
+      return Nothing<bool>();
+    }
+
+    Local<Value> prototype_v;
+    if (!object_v.As<Object>()
+        ->Get(context, prototype_string)
+        .ToLocal(&prototype_v)) {
+      return Nothing<bool>();
+    }
+
+    prototype = prototype_v.As<Object>();
+  }
+
+  Local<String> proto_string =
+    FIXED_ONE_BYTE_STRING(isolate, "__proto__");
+
   if (per_process::cli_options->disable_proto == "delete") {
-    prototype->Delete(context, proto_string).ToChecked();
+    if (prototype
+        ->Delete(context, proto_string)
+        .IsNothing()) {
+      return Nothing<bool>();
+    }
   } else if (per_process::cli_options->disable_proto == "throw") {
-    Local<Value> thrower =
-        Function::New(context, ProtoThrower).ToLocalChecked();
+    Local<Value> thrower;
+    if (!Function::New(context, ProtoThrower)
+        .ToLocal(&thrower)) {
+      return Nothing<bool>();
+    }
+
     PropertyDescriptor descriptor(thrower, thrower);
     descriptor.set_enumerable(false);
     descriptor.set_configurable(true);
-    prototype->DefineProperty(context, proto_string, descriptor).ToChecked();
+    if (prototype
+        ->DefineProperty(context, proto_string, descriptor)
+        .IsNothing()) {
+      return Nothing<bool>();
+    }
   } else if (per_process::cli_options->disable_proto != "") {
     // Validated in ProcessGlobalArgs
-    FatalError("InitializeContextRuntime()", "invalid --disable-proto mode");
+    FatalError("InitializeContextRuntime()",
+               "invalid --disable-proto mode");
   }
+
+  return Just(true);
 }
 
-bool InitializeContextForSnapshot(Local<Context> context) {
+Maybe<bool> InitializeContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
+  context->AllowCodeGenerationFromStrings(false);
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
+
   return InitializePrimordials(context);
 }
 
-bool InitializePrimordials(Local<Context> context) {
+Maybe<bool> InitializePrimordials(Local<Context> context) {
   // Run per-context JS files.
   Isolate* isolate = context->GetIsolate();
   Context::Scope context_scope(context);
@@ -587,10 +688,10 @@ bool InitializePrimordials(Local<Context> context) {
 
   // Create primordials first and make it available to per-context scripts.
   Local<Object> primordials = Object::New(isolate);
-  if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
+  if (primordials->SetPrototype(context, Null(isolate)).IsNothing() ||
       !GetPerContextExports(context).ToLocal(&exports) ||
-      !exports->Set(context, primordials_string, primordials).FromJust()) {
-    return false;
+      exports->Set(context, primordials_string, primordials).IsNothing()) {
+    return Nothing<bool>();
   }
 
   static const char* context_files[] = {"internal/per_context/primordials",
@@ -603,31 +704,29 @@ bool InitializePrimordials(Local<Context> context) {
         global_string, exports_string, primordials_string};
     Local<Value> arguments[] = {context->Global(), exports, primordials};
     MaybeLocal<Function> maybe_fn =
-        native_module::NativeModuleEnv::LookupAndCompile(
+        native_module::NativeModuleLoader::LookupAndCompile(
             context, *module, &parameters, nullptr);
     Local<Function> fn;
     if (!maybe_fn.ToLocal(&fn)) {
-      return false;
+      return Nothing<bool>();
     }
     MaybeLocal<Value> result =
         fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
     // Execution failed during context creation.
-    // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
     if (result.IsEmpty()) {
-      return false;
+      return Nothing<bool>();
     }
   }
 
-  return true;
+  return Just(true);
 }
 
-bool InitializeContext(Local<Context> context) {
-  if (!InitializeContextForSnapshot(context)) {
-    return false;
+Maybe<bool> InitializeContext(Local<Context> context) {
+  if (InitializeContextForSnapshot(context).IsNothing()) {
+    return Nothing<bool>();
   }
 
-  InitializeContextRuntime(context);
-  return true;
+  return InitializeContextRuntime(context);
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
@@ -643,10 +742,10 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
   CHECK_NOT_NULL(env);
   Mutex::ScopedLock lock(env->extra_linked_bindings_mutex());
 
-  node_module* prev_head = env->extra_linked_bindings_head();
+  node_module* prev_tail = env->extra_linked_bindings_tail();
   env->extra_linked_bindings()->push_back(mod);
-  if (prev_head != nullptr)
-    prev_head->nm_link = &env->extra_linked_bindings()->back();
+  if (prev_tail != nullptr)
+    prev_tail->nm_link = &env->extra_linked_bindings()->back();
 }
 
 void AddLinkedBinding(Environment* env, const napi_module& mod) {

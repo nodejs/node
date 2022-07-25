@@ -30,6 +30,11 @@ namespace internal {
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+bool Factory::CodeBuilder::CompiledWithConcurrentBaseline() const {
+  return FLAG_concurrent_sparkplug && kind_ == CodeKind::BASELINE &&
+         !local_isolate_->is_main_thread();
+}
+
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;
   return isolate()->string_table()->LookupString(isolate(), string);
@@ -67,7 +72,22 @@ Handle<Object> Factory::NewURIError() {
                   MessageTemplate::kURIMalformed);
 }
 
-ReadOnlyRoots Factory::read_only_roots() { return ReadOnlyRoots(isolate()); }
+ReadOnlyRoots Factory::read_only_roots() const {
+  return ReadOnlyRoots(isolate());
+}
+
+HeapAllocator* Factory::allocator() const {
+  return isolate()->heap()->allocator();
+}
+
+Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
+    Handle<HeapObject> interpreter_data) {
+  // This DCHECK requires this function to be in -inl.h.
+  DCHECK(interpreter_data->IsInterpreterData() ||
+         interpreter_data->IsBytecodeArray());
+  interpreter_data_ = interpreter_data;
+  return *this;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -4,6 +4,7 @@
 
 #include "src/wasm/streaming-decoder.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
@@ -28,11 +29,13 @@ namespace wasm {
 class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
  public:
   explicit AsyncStreamingDecoder(std::unique_ptr<StreamingProcessor> processor);
+  AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
+  AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
 
   // The buffer passed into OnBytesReceived is owned by the caller.
-  void OnBytesReceived(Vector<const uint8_t> bytes) override;
+  void OnBytesReceived(base::Vector<const uint8_t> bytes) override;
 
-  void Finish() override;
+  void Finish(bool can_use_compiled_module) override;
 
   void Abort() override;
 
@@ -53,10 +56,10 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
     // payload_length: The length of the payload.
     // length_bytes: The section length, as it is encoded in the module bytes.
     SectionBuffer(uint32_t module_offset, uint8_t id, size_t payload_length,
-                  Vector<const uint8_t> length_bytes)
+                  base::Vector<const uint8_t> length_bytes)
         :  // ID + length + payload
           module_offset_(module_offset),
-          bytes_(OwnedVector<uint8_t>::NewForOverwrite(
+          bytes_(base::OwnedVector<uint8_t>::NewForOverwrite(
               1 + length_bytes.length() + payload_length)),
           payload_offset_(1 + length_bytes.length()) {
       bytes_.start()[0] = id;
@@ -67,22 +70,24 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
       return static_cast<SectionCode>(bytes_.start()[0]);
     }
 
-    Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
+    base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
       DCHECK_LE(module_offset_, ref.offset());
       uint32_t offset_in_code_buffer = ref.offset() - module_offset_;
       return bytes().SubVector(offset_in_code_buffer,
                                offset_in_code_buffer + ref.length());
     }
 
+    base::Optional<ModuleWireBytes> GetModuleBytes() const final { return {}; }
+
     uint32_t module_offset() const { return module_offset_; }
-    Vector<uint8_t> bytes() const { return bytes_.as_vector(); }
-    Vector<uint8_t> payload() const { return bytes() + payload_offset_; }
+    base::Vector<uint8_t> bytes() const { return bytes_.as_vector(); }
+    base::Vector<uint8_t> payload() const { return bytes() + payload_offset_; }
     size_t length() const { return bytes_.size(); }
     size_t payload_offset() const { return payload_offset_; }
 
    private:
     const uint32_t module_offset_;
-    const OwnedVector<uint8_t> bytes_;
+    const base::OwnedVector<uint8_t> bytes_;
     const size_t payload_offset_;
   };
 
@@ -119,13 +124,13 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
     // Reads the bytes for the current state and returns the number of read
     // bytes.
     virtual size_t ReadBytes(AsyncStreamingDecoder* streaming,
-                             Vector<const uint8_t> bytes);
+                             base::Vector<const uint8_t> bytes);
 
     // Returns the next state of the streaming decoding.
     virtual std::unique_ptr<DecodingState> Next(
         AsyncStreamingDecoder* streaming) = 0;
     // The buffer to store the received bytes.
-    virtual Vector<uint8_t> buffer() = 0;
+    virtual base::Vector<uint8_t> buffer() = 0;
     // The number of bytes which were already received.
     size_t offset() const { return offset_; }
     void set_offset(size_t value) { offset_ = value; }
@@ -151,7 +156,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   // Creates a buffer for the next section of the module.
   SectionBuffer* CreateNewBuffer(uint32_t module_offset, uint8_t section_id,
                                  size_t length,
-                                 Vector<const uint8_t> length_bytes);
+                                 base::Vector<const uint8_t> length_bytes);
 
   std::unique_ptr<DecodingState> Error(const WasmError& error) {
     if (ok()) processor_->OnError(error);
@@ -180,18 +185,18 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   void StartCodeSection(int num_functions,
                         std::shared_ptr<WireBytesStorage> wire_bytes_storage,
-                        int code_section_length) {
+                        int code_section_start, int code_section_length) {
     if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
     if (!processor_->ProcessCodeSectionHeader(
             num_functions, module_offset() - 1, std::move(wire_bytes_storage),
-            code_section_length)) {
+            code_section_start, code_section_length)) {
       Fail();
     }
   }
 
-  void ProcessFunctionBody(Vector<const uint8_t> bytes,
+  void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
     if (!ok()) return;
     if (!processor_->ProcessFunctionBody(bytes, module_offset)) Fail();
@@ -218,11 +223,9 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   // We need wire bytes in an array for deserializing cached modules.
   std::vector<uint8_t> wire_bytes_for_deserializing_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncStreamingDecoder);
 };
 
-void AsyncStreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
+void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
   if (deserializing()) {
     wire_bytes_for_deserializing_.insert(wire_bytes_for_deserializing_.end(),
                                          bytes.begin(), bytes.end());
@@ -248,8 +251,8 @@ void AsyncStreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
 }
 
 size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
-    AsyncStreamingDecoder* streaming, Vector<const uint8_t> bytes) {
-  Vector<uint8_t> remaining_buf = buffer() + offset();
+    AsyncStreamingDecoder* streaming, base::Vector<const uint8_t> bytes) {
+  base::Vector<uint8_t> remaining_buf = buffer() + offset();
   size_t num_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes(%zu bytes)\n", num_bytes);
   memcpy(remaining_buf.begin(), &bytes.first(), num_bytes);
@@ -257,18 +260,22 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
   return num_bytes;
 }
 
-void AsyncStreamingDecoder::Finish() {
+void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   TRACE_STREAMING("Finish\n");
   DCHECK(!stream_finished_);
   stream_finished_ = true;
   if (!ok()) return;
 
   if (deserializing()) {
-    Vector<const uint8_t> wire_bytes = VectorOf(wire_bytes_for_deserializing_);
+    base::Vector<const uint8_t> wire_bytes =
+        base::VectorOf(wire_bytes_for_deserializing_);
     // Try to deserialize the module from wire bytes and module bytes.
-    if (processor_->Deserialize(compiled_module_bytes_, wire_bytes)) return;
+    if (can_use_compiled_module &&
+        processor_->Deserialize(compiled_module_bytes_, wire_bytes))
+      return;
 
-    // Deserialization failed. Restart decoding using |wire_bytes|.
+    // Compiled module bytes are invalidated by can_use_compiled_module = false
+    // or the deserialization failed. Restart decoding using |wire_bytes|.
     compiled_module_bytes_ = {};
     DCHECK(!deserializing());
     OnBytesReceived(wire_bytes);
@@ -281,8 +288,8 @@ void AsyncStreamingDecoder::Finish() {
     return;
   }
 
-  OwnedVector<uint8_t> bytes =
-      OwnedVector<uint8_t>::NewForOverwrite(total_size_);
+  base::OwnedVector<uint8_t> bytes =
+      base::OwnedVector<uint8_t>::NewForOverwrite(total_size_);
   uint8_t* cursor = bytes.start();
   {
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
@@ -310,33 +317,41 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class TopTierCompiledCallback {
+class CompilationChunkFinishedCallback : public CompilationEventCallback {
  public:
-  TopTierCompiledCallback(
+  CompilationChunkFinishedCallback(
       std::weak_ptr<NativeModule> native_module,
       AsyncStreamingDecoder::ModuleCompiledCallback callback)
       : native_module_(std::move(native_module)),
-        callback_(std::move(callback)) {}
+        callback_(std::move(callback)) {
+    // As a baseline we also count the modules that could be cached but
+    // never reach the threshold.
+    if (std::shared_ptr<NativeModule> module = native_module_.lock()) {
+      module->counters()->wasm_cache_count()->AddSample(0);
+    }
+  }
 
-  void operator()(CompilationEvent event) const {
-    if (event != CompilationEvent::kFinishedTopTierCompilation) return;
+  void call(CompilationEvent event) override {
+    if (event != CompilationEvent::kFinishedCompilationChunk &&
+        event != CompilationEvent::kFinishedTopTierCompilation) {
+      return;
+    }
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
+      native_module->counters()->wasm_cache_count()->AddSample(++cache_count_);
       callback_(native_module);
     }
-#ifdef DEBUG
-    DCHECK(!called_);
-    called_ = true;
-#endif
+  }
+
+  ReleaseAfterFinalEvent release_after_final_event() override {
+    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
   }
 
  private:
   const std::weak_ptr<NativeModule> native_module_;
   const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
-#ifdef DEBUG
-  mutable bool called_ = false;
-#endif
+  int cache_count_ = 0;
 };
 
 }  // namespace
@@ -345,8 +360,9 @@ void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
   auto* comp_state = native_module->compilation_state();
-  comp_state->AddCallback(TopTierCompiledCallback{
-      std::move(native_module), std::move(module_compiled_callback_)});
+
+  comp_state->AddCallback(std::make_unique<CompilationChunkFinishedCallback>(
+      std::move(native_module), std::move(module_compiled_callback_)));
   module_compiled_callback_ = {};
 }
 
@@ -358,10 +374,12 @@ class AsyncStreamingDecoder::DecodeVarInt32 : public DecodingState {
   explicit DecodeVarInt32(size_t max_value, const char* field_name)
       : max_value_(max_value), field_name_(field_name) {}
 
-  Vector<uint8_t> buffer() override { return ArrayVector(byte_buffer_); }
+  base::Vector<uint8_t> buffer() override {
+    return base::ArrayVector(byte_buffer_);
+  }
 
   size_t ReadBytes(AsyncStreamingDecoder* streaming,
-                   Vector<const uint8_t> bytes) override;
+                   base::Vector<const uint8_t> bytes) override;
 
   std::unique_ptr<DecodingState> Next(
       AsyncStreamingDecoder* streaming) override;
@@ -381,7 +399,9 @@ class AsyncStreamingDecoder::DecodeVarInt32 : public DecodingState {
 
 class AsyncStreamingDecoder::DecodeModuleHeader : public DecodingState {
  public:
-  Vector<uint8_t> buffer() override { return ArrayVector(byte_buffer_); }
+  base::Vector<uint8_t> buffer() override {
+    return base::ArrayVector(byte_buffer_);
+  }
 
   std::unique_ptr<DecodingState> Next(
       AsyncStreamingDecoder* streaming) override;
@@ -400,7 +420,7 @@ class AsyncStreamingDecoder::DecodeSectionID : public DecodingState {
   explicit DecodeSectionID(uint32_t module_offset)
       : module_offset_(module_offset) {}
 
-  Vector<uint8_t> buffer() override { return {&id_, 1}; }
+  base::Vector<uint8_t> buffer() override { return {&id_, 1}; }
   bool is_finishing_allowed() const override { return true; }
 
   std::unique_ptr<DecodingState> Next(
@@ -433,7 +453,7 @@ class AsyncStreamingDecoder::DecodeSectionPayload : public DecodingState {
   explicit DecodeSectionPayload(SectionBuffer* section_buffer)
       : section_buffer_(section_buffer) {}
 
-  Vector<uint8_t> buffer() override { return section_buffer_->payload(); }
+  base::Vector<uint8_t> buffer() override { return section_buffer_->payload(); }
 
   std::unique_ptr<DecodingState> Next(
       AsyncStreamingDecoder* streaming) override;
@@ -460,7 +480,7 @@ class AsyncStreamingDecoder::DecodeFunctionLength : public DecodeVarInt32 {
   explicit DecodeFunctionLength(SectionBuffer* section_buffer,
                                 size_t buffer_offset,
                                 size_t num_remaining_functions)
-      : DecodeVarInt32(kV8MaxWasmFunctionSize, "body size"),
+      : DecodeVarInt32(kV8MaxWasmFunctionSize, "function body size"),
         section_buffer_(section_buffer),
         buffer_offset_(buffer_offset),
         // We are reading a new function, so one function less is remaining.
@@ -489,8 +509,8 @@ class AsyncStreamingDecoder::DecodeFunctionBody : public DecodingState {
         num_remaining_functions_(num_remaining_functions),
         module_offset_(module_offset) {}
 
-  Vector<uint8_t> buffer() override {
-    Vector<uint8_t> remaining_buffer =
+  base::Vector<uint8_t> buffer() override {
+    base::Vector<uint8_t> remaining_buffer =
         section_buffer_->bytes() + buffer_offset_;
     return remaining_buffer.SubVector(0, function_body_length_);
   }
@@ -507,9 +527,9 @@ class AsyncStreamingDecoder::DecodeFunctionBody : public DecodingState {
 };
 
 size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
-    AsyncStreamingDecoder* streaming, Vector<const uint8_t> bytes) {
-  Vector<uint8_t> buf = buffer();
-  Vector<uint8_t> remaining_buf = buf + offset();
+    AsyncStreamingDecoder* streaming, base::Vector<const uint8_t> bytes) {
+  base::Vector<uint8_t> buf = buffer();
+  base::Vector<uint8_t> remaining_buf = buf + offset();
   size_t new_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes of a VarInt\n");
   memcpy(remaining_buf.begin(), &bytes.first(), new_bytes);
@@ -517,10 +537,6 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));
   value_ = decoder.consume_u32v(field_name_);
-  // The number of bytes we actually needed to read.
-  DCHECK_GT(decoder.pc(), buffer().begin());
-  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
-  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
@@ -530,6 +546,11 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
     set_offset(offset() + new_bytes);
     return new_bytes;
   }
+
+  // The number of bytes we actually needed to read.
+  DCHECK_GT(decoder.pc(), buffer().begin());
+  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
+  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   // We read all the bytes we needed.
   DCHECK_GT(bytes_consumed_, offset());
@@ -546,8 +567,8 @@ AsyncStreamingDecoder::DecodeVarInt32::Next(AsyncStreamingDecoder* streaming) {
 
   if (value_ > max_value_) {
     std::ostringstream oss;
-    oss << "function size > maximum function size: " << value_ << " < "
-        << max_value_;
+    oss << "The value " << value_ << " for " << field_name_
+        << " exceeds the maximum allowed value of " << max_value_;
     return streaming->Error(oss.str());
   }
 
@@ -621,7 +642,7 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     AsyncStreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeNumberOfFunctions(%zu)\n", value_);
   // Copy the bytes we read into the section buffer.
-  Vector<uint8_t> payload_buf = section_buffer_->payload();
+  base::Vector<uint8_t> payload_buf = section_buffer_->payload();
   if (payload_buf.size() < bytes_consumed_) {
     return streaming->Error("invalid code section length");
   }
@@ -635,12 +656,16 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     return std::make_unique<DecodeSectionID>(streaming->module_offset());
   }
 
+  DCHECK_GE(kMaxInt, section_buffer_->module_offset() +
+                         section_buffer_->payload_offset());
+  int code_section_start = static_cast<int>(section_buffer_->module_offset() +
+                                            section_buffer_->payload_offset());
   DCHECK_GE(kMaxInt, payload_buf.length());
   int code_section_len = static_cast<int>(payload_buf.length());
   DCHECK_GE(kMaxInt, value_);
   streaming->StartCodeSection(static_cast<int>(value_),
                               streaming->section_buffers_.back(),
-                              code_section_len);
+                              code_section_start, code_section_len);
   if (!streaming->ok()) return nullptr;
   return std::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
@@ -652,7 +677,8 @@ AsyncStreamingDecoder::DecodeFunctionLength::NextWithValue(
     AsyncStreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeFunctionLength(%zu)\n", value_);
   // Copy the bytes we consumed into the section buffer.
-  Vector<uint8_t> fun_length_buffer = section_buffer_->bytes() + buffer_offset_;
+  base::Vector<uint8_t> fun_length_buffer =
+      section_buffer_->bytes() + buffer_offset_;
   if (fun_length_buffer.size() < bytes_consumed_) {
     return streaming->Error("read past code section end");
   }
@@ -697,7 +723,7 @@ AsyncStreamingDecoder::AsyncStreamingDecoder(
 
 AsyncStreamingDecoder::SectionBuffer* AsyncStreamingDecoder::CreateNewBuffer(
     uint32_t module_offset, uint8_t section_id, size_t length,
-    Vector<const uint8_t> length_bytes) {
+    base::Vector<const uint8_t> length_bytes) {
   // Section buffers are allocated in the same order they appear in the module,
   // they will be processed and later on concatenated in that same order.
   section_buffers_.emplace_back(std::make_shared<SectionBuffer>(

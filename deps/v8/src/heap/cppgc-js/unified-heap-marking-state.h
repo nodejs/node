@@ -6,38 +6,32 @@
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_H_
 
 #include "include/v8-cppgc.h"
-#include "src/heap/heap.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap/marking-worklist.h"
 
 namespace v8 {
-
-class JSMemberBase;
-
 namespace internal {
 
-class JSMemberBaseExtractor {
+// `UnifiedHeapMarkingState` is used to handle `TracedReferenceBase` and
+// friends. It is used when `CppHeap` is attached but also detached. In detached
+// mode, the expectation is that no non-null `TracedReferenceBase` is found.
+class UnifiedHeapMarkingState final {
  public:
-  static Address* ObjectReference(const JSMemberBase& ref) {
-    return reinterpret_cast<Address*>(ref.val_);
-  }
-};
-
-class UnifiedHeapMarkingState {
- public:
-  explicit UnifiedHeapMarkingState(Heap& heap) : heap_(heap) {}
+  UnifiedHeapMarkingState(Heap*, MarkingWorklists::Local*);
 
   UnifiedHeapMarkingState(const UnifiedHeapMarkingState&) = delete;
   UnifiedHeapMarkingState& operator=(const UnifiedHeapMarkingState&) = delete;
 
-  inline void MarkAndPush(const JSMemberBase&);
+  void Update(MarkingWorklists::Local*);
+
+  V8_INLINE void MarkAndPush(const TracedReferenceBase&);
 
  private:
-  Heap& heap_;
+  Heap* const heap_;
+  MarkCompactCollector::MarkingState* const marking_state_;
+  MarkingWorklists::Local* local_marking_worklist_ = nullptr;
+  const bool track_retaining_path_;
 };
-
-void UnifiedHeapMarkingState::MarkAndPush(const JSMemberBase& ref) {
-  heap_.RegisterExternallyReferencedObject(
-      JSMemberBaseExtractor::ObjectReference(ref));
-}
 
 }  // namespace internal
 }  // namespace v8

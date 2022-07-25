@@ -96,7 +96,7 @@ public:
     /**
      * Computes the spans for duplicated values.
      * For example, if the string has fields:
-     *
+     * 
      *     ...aa..[b.cc]..d.[bb.e.c]..a..
      *
      * then the spans will be the bracketed regions.
@@ -117,6 +117,14 @@ private:
 };
 
 
+// Internal struct that must be exported for MSVC
+struct U_I18N_API SpanInfo {
+    UFieldCategory category;
+    int32_t spanValue;
+    int32_t start;
+    int32_t length;
+};
+
 // Export an explicit template instantiation of the MaybeStackArray that
 //    is used as a data member of CEBuffer.
 //
@@ -126,7 +134,7 @@ private:
 // See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
 //
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<int32_t, 8>;
+template class U_I18N_API MaybeStackArray<SpanInfo, 8>;
 #endif
 
 /**
@@ -161,14 +169,24 @@ public:
     inline const FormattedStringBuilder& getStringRef() const {
         return fString;
     }
+    void resetString();
 
-    void appendSpanIndex(int32_t index);
-    void prependSpanIndex(int32_t index);
+    /**
+     * Adds additional metadata used for span fields.
+     *
+     * category: the category to use for the span field.
+     * spanValue: the value of the span field: index of the list item, for example.
+     * start: the start position within the string of the span. -1 if unknown.
+     * length: the length of the span, used to split adjacent fields.
+     */
+    void appendSpanInfo(UFieldCategory category, int32_t spanValue, int32_t start, int32_t length, UErrorCode& status);
+    void prependSpanInfo(UFieldCategory category, int32_t spanValue, int32_t start, int32_t length, UErrorCode& status);
 
 private:
     FormattedStringBuilder fString;
     FormattedStringBuilder::Field fNumericField;
-    MaybeStackArray<int32_t, 8> spanIndices;
+    MaybeStackArray<SpanInfo, 8> spanIndices;
+    int32_t spanIndicesCount = 0;
 
     bool nextPositionImpl(ConstrainedFieldPosition& cfpos, FormattedStringBuilder::Field numericField, UErrorCode& status) const;
     static bool isIntOrGroup(FormattedStringBuilder::Field field);

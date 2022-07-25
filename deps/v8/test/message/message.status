@@ -37,12 +37,11 @@
   'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
 
-# Liftoff is currently only sufficiently implemented on x64, ia32, arm, arm64.
-# TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
-['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
+# Skip Liftoff tests on platforms that don't support Liftoff.
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x', {
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
-}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
+}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
 
 ['variant == code_serializer', {
   # Code serializer output is incompatible with all message tests
@@ -55,20 +54,44 @@
 }],  # no_i18n == True
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
   'mjsunit/fail/assert-in-promise-fail-recursive': [FAIL],
   'fail/wasm-*': [SKIP],
   'wasm-*': [SKIP],
-
-  # Test output requires --validate-asm, which is disabled in jitless mode.
   'asm-*': [SKIP],
-}], # lite_mode or variant == jitless
+}],  # not has_webassembly or variant == jitless
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}], # arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64
+
+##############################################################################
+['no_simd_hardware == True', {
+  'wasm-trace-memory': [SKIP],
+  'wasm-trace-memory-liftoff': [SKIP],
+}],  # no_simd_hardware == True
+
+################################################################################
+['third_party_heap', {
+  # Performs GC
+  'weakref-finalizationregistry-error': [SKIP],
+}], # third_party_heap
+
+##############################################################################
+['not (arch == x64 and mode == release)', {
+  # Only run these known slow tests on bots that we think to be reasonably
+  # fast.
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # not (arch == x64 and mode == release)
 
 ]

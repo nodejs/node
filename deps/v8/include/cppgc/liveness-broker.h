@@ -19,7 +19,7 @@ class LivenessBrokerFactory;
 /**
  * The broker is passed to weak callbacks to allow (temporarily) querying
  * the liveness state of an object. References to non-live objects must be
- * cleared when IsHeapObjectAlive() returns false.
+ * cleared when `IsHeapObjectAlive()` returns false.
  *
  * \code
  * class GCedWithCustomWeakCallback final
@@ -44,9 +44,18 @@ class V8_EXPORT LivenessBroker final {
  public:
   template <typename T>
   bool IsHeapObjectAlive(const T* object) const {
-    return object &&
+    // nullptr objects are considered alive to allow weakness to be used from
+    // stack while running into a conservative GC. Treating nullptr as dead
+    // would mean that e.g. custom collectins could not be strongified on stack.
+    return !object ||
            IsHeapObjectAliveImpl(
                TraceTrait<T>::GetTraceDescriptor(object).base_object_payload);
+  }
+
+  template <typename T>
+  bool IsHeapObjectAlive(const WeakMember<T>& weak_member) const {
+    return (weak_member != kSentinelPointer) &&
+           IsHeapObjectAlive<T>(weak_member.Get());
   }
 
   template <typename T>

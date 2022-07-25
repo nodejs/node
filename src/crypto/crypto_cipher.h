@@ -5,7 +5,6 @@
 
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
@@ -21,6 +20,7 @@ class CipherBase : public BaseObject {
   static void GetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(CipherBase)
@@ -60,8 +60,9 @@ class CipherBase : public BaseObject {
   bool InitAuthenticated(const char* cipher_type, int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, size_t len, AllocatedBuffer* out);
-  bool Final(AllocatedBuffer* out);
+  UpdateResult Update(const char* data, size_t len,
+                      std::unique_ptr<v8::BackingStore>* out);
+  bool Final(std::unique_ptr<v8::BackingStore>* out);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
@@ -114,7 +115,7 @@ class PublicKeyCipher {
                      const EVP_MD* digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
-                     AllocatedBuffer* out);
+                     std::unique_ptr<v8::BackingStore>* out);
 
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
@@ -190,6 +191,10 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoJob<CipherTraits>::Initialize(New, env, target);
   }
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<CipherTraits>::RegisterExternalReferences(New, registry);
+  }
+
   CipherJob(
       Environment* env,
       v8::Local<v8::Object> object,
@@ -215,24 +220,31 @@ class CipherJob final : public CryptoJob<CipherTraits> {
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
   void DoThreadPoolWork() override {
-    switch (CipherTraits::DoCipher(
-                AsyncWrap::env(),
-                key(),
-                cipher_mode_,
-                *CryptoJob<CipherTraits>::params(),
-                in_,
-                &out_)) {
-      case WebCryptoCipherStatus::OK:
-        // Success!
-        break;
-      case WebCryptoCipherStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoCipherStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Cipher job failed."));
+    const WebCryptoCipherStatus status =
+        CipherTraits::DoCipher(
+            AsyncWrap::env(),
+            key(),
+            cipher_mode_,
+            *CryptoJob<CipherTraits>::params(),
+            in_,
+            &out_);
+    if (status == WebCryptoCipherStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+    errors->Capture();
+    if (errors->Empty()) {
+      switch (status) {
+        case WebCryptoCipherStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoCipherStatus::INVALID_KEY_TYPE:
+          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
+          break;
+        case WebCryptoCipherStatus::FAILED:
+          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
+          break;
       }
     }
   }
@@ -241,17 +253,18 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-    if (out_.size() > 0) {
-      CHECK(errors->empty());
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+
+    if (errors->Empty())
+      errors->Capture();
+
+    if (out_.size() > 0 || errors->Empty()) {
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       return v8::Just(!result->IsEmpty());
     }
 
-    if (errors->empty())
-      errors->Capture();
-    CHECK(!errors->empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }

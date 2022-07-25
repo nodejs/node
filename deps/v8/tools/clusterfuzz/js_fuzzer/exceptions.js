@@ -97,14 +97,14 @@ const DISALLOWED_FLAGS = [
     // stabilized yet and would cause too much noise when enabled.
     /^--experimental-.*/,
 
-    // Disallowed due to noise. We explicitly add --es-staging to job
+    // Disallowed due to noise. We explicitly add --harmony to job
     // definitions, and all of these features are staged before launch.
     /^--harmony-.*/,
 
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
     '--debug-code',
-    '--es-staging',
+    '--harmony',
     '--wasm-staging',
     '--expose-gc',
     '--expose_gc',
@@ -113,6 +113,7 @@ const DISALLOWED_FLAGS = [
 
     // Disallowed due to false positives.
     '--check-handle-count',
+    '--correctness-fuzzer-suppressions',
     '--expose-debug-as',
     '--expose-natives-as',
     '--expose-trigger-failure',
@@ -142,23 +143,6 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
     '--stress-opt',
     '--validate-asm',
 ];
-
-const ALLOWED_RUNTIME_FUNCTIONS = new Set([
-    // List of allowed runtime functions. Others will be replaced with no-ops.
-    'ArrayBufferDetach',
-    'DeoptimizeFunction',
-    'DeoptimizeNow',
-    'EnableCodeLoggingForTesting',
-    'GetUndetectable',
-    'HeapObjectVerify',
-    'IsBeingInterpreted',
-    'NeverOptimizeFunction',
-    'OptimizeFunctionOnNextCall',
-    'OptimizeOsr',
-    'PrepareFunctionForOptimization',
-    'SetAllocationTimeout',
-    'SimulateNewspaceFull',
-]);
 
 const MAX_FILE_SIZE_BYTES = 128 * 1024;  // 128KB
 const MEDIUM_FILE_SIZE_BYTES = 32 * 1024;  // 32KB
@@ -258,13 +242,6 @@ function filterDifferentialFuzzFlags(flags) {
       flag => _doesntMatch(DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS, flag));
 }
 
-function isAllowedRuntimeFunction(name) {
-  if (process.env.APP_NAME != 'd8') {
-    return false;
-  }
-
-  return ALLOWED_RUNTIME_FUNCTIONS.has(name);
-}
 
 module.exports = {
   filterDifferentialFuzzFlags: filterDifferentialFuzzFlags,
@@ -272,7 +249,6 @@ module.exports = {
   getGeneratedSoftSkipped: getGeneratedSoftSkipped,
   getGeneratedSloppy: getGeneratedSloppy,
   getSoftSkipped: getSoftSkipped,
-  isAllowedRuntimeFunction: isAllowedRuntimeFunction,
   isTestSkippedAbs: isTestSkippedAbs,
   isTestSkippedRel: isTestSkippedRel,
   isTestSoftSkippedAbs: isTestSoftSkippedAbs,

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-promise-any --ignore-unhandled-promises
+// Flags: --ignore-unhandled-promises
 
 // Test debug events when we only listen to uncaught exceptions and a
 // Promise p3 created by Promise.any has no catch handler, and is rejected

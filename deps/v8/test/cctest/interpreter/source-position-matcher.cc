@@ -117,8 +117,6 @@ bool SourcePositionMatcher::Match(Handle<BytecodeArray> original_bytecode,
     // equivalent? e.g. before a bytecode that has debugger observable
     // effects. This is likely non-trivial.
   }
-
-  return true;
 }
 
 bool SourcePositionMatcher::HasNewExpressionPositionsInOptimized(

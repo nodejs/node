@@ -20,7 +20,7 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
     : public NON_EXPORTED_BASE(TaskRunner) {
  public:
   using TimeFunction = double (*)();
-  class RunTaskScope {
+  class V8_NODISCARD RunTaskScope {
    public:
     explicit RunTaskScope(
         std::shared_ptr<DefaultForegroundTaskRunner> task_runner);

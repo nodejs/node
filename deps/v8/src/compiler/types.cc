@@ -6,9 +6,11 @@
 
 #include <iomanip>
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -21,7 +23,7 @@ namespace compiler {
 bool RangeType::Limits::IsEmpty() { return this->min > this->max; }
 
 RangeType::Limits RangeType::Limits::Intersect(Limits lhs, Limits rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Limits result(lhs);
   if (lhs.min < rhs.min) result.min = rhs.min;
   if (lhs.max > rhs.max) result.max = rhs.max;
@@ -29,7 +31,7 @@ RangeType::Limits RangeType::Limits::Intersect(Limits lhs, Limits rhs) {
 }
 
 RangeType::Limits RangeType::Limits::Union(Limits lhs, Limits rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (lhs.IsEmpty()) return rhs;
   if (rhs.IsEmpty()) return lhs;
   Limits result(lhs);
@@ -39,14 +41,14 @@ RangeType::Limits RangeType::Limits::Union(Limits lhs, Limits rhs) {
 }
 
 bool Type::Overlap(const RangeType* lhs, const RangeType* rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   return !RangeType::Limits::Intersect(RangeType::Limits(lhs),
                                        RangeType::Limits(rhs))
               .IsEmpty();
 }
 
 bool Type::Contains(const RangeType* lhs, const RangeType* rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
@@ -94,7 +96,7 @@ double Type::Max() const {
 
 // The largest bitset subsumed by this type.
 Type::bitset Type::BitsetGlb() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // Fast case.
   if (IsBitset()) {
     return AsBitset();
@@ -112,17 +114,17 @@ Type::bitset Type::BitsetGlb() const {
 
 // The smallest bitset subsuming this type, possibly not a proper one.
 Type::bitset Type::BitsetLub() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (IsBitset()) return AsBitset();
   if (IsUnion()) {
     // Take the representation from the first element, which is always
     // a bitset.
-    int bitset = AsUnion()->Get(0).BitsetLub();
+    bitset lub = AsUnion()->Get(0).BitsetLub();
     for (int i = 0, n = AsUnion()->Length(); i < n; ++i) {
       // Other elements only contribute their semantic part.
-      bitset |= AsUnion()->Get(i).BitsetLub();
+      lub |= AsUnion()->Get(i).BitsetLub();
     }
-    return bitset;
+    return lub;
   }
   if (IsHeapConstant()) return AsHeapConstant()->Lub();
   if (IsOtherNumberConstant()) {
@@ -182,13 +184,24 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
     case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_EXTERNAL_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       if (map.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
@@ -245,14 +258,30 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_SHADOW_REALM_TYPE:
+    case JS_SHARED_STRUCT_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
-    case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_STRUCT_TYPE:
+    case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
+    case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case WEAK_CELL_TYPE:
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());
@@ -260,9 +289,21 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
-    case JS_FUNCTION_TYPE:
+    case JS_WRAPPED_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
-      return kFunction;
+      return kOtherCallable;
+    case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+    case JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case JS_ARRAY_CONSTRUCTOR_TYPE:
+#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
+  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
+#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
+      DCHECK(!map.is_undetectable());
+      return kCallableFunction;
+    case JS_CLASS_CONSTRUCTOR_TYPE:
+      return kClassConstructor;
     case JS_PROXY_TYPE:
       DCHECK(!map.is_undetectable());
       if (map.is_callable()) return kCallableProxy;
@@ -294,7 +335,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case BYTECODE_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
-    case DESCRIPTOR_ARRAY_TYPE:
+    case REG_EXP_BOILERPLATE_DESCRIPTION_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case FEEDBACK_CELL_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
@@ -310,11 +351,13 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
+    case MODULE_REQUEST_TYPE:
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
+    case CODE_DATA_CONTAINER_TYPE:
     case PROPERTY_CELL_TYPE:
     case SOURCE_TEXT_MODULE_TYPE:
     case SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE:
@@ -324,55 +367,14 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
     case COVERAGE_INFO_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_TYPE_INFO_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
     // require bit set types, they should get kOtherInternal.
-    case FREE_SPACE_TYPE:
-    case FILLER_TYPE:
-    case ACCESS_CHECK_INFO_TYPE:
-    case ASM_WASM_DATA_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
-    case INTERCEPTOR_INFO_TYPE:
-    case OBJECT_TEMPLATE_INFO_TYPE:
-    case ALLOCATION_MEMENTO_TYPE:
-    case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case PROMISE_CAPABILITY_TYPE:
-    case PROMISE_REACTION_TYPE:
-    case CLASS_POSITIONS_TYPE:
-    case DEBUG_INFO_TYPE:
-    case STACK_FRAME_INFO_TYPE:
-    case STACK_TRACE_FRAME_TYPE:
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-    case SMALL_ORDERED_HASH_SET_TYPE:
-    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-    case PROTOTYPE_INFO_TYPE:
-    case INTERPRETER_DATA_TYPE:
-    case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
-    case TUPLE2_TYPE:
-    case BREAK_POINT_TYPE:
-    case BREAK_POINT_INFO_TYPE:
-    case WASM_VALUE_TYPE:
-    case CACHED_TEMPLATE_OBJECT_TYPE:
-    case ENUM_CACHE_TYPE:
-    case WASM_CAPI_FUNCTION_DATA_TYPE:
-    case WASM_INDIRECT_FUNCTION_TABLE_TYPE:
-    case WASM_EXCEPTION_TAG_TYPE:
-    case WASM_EXPORTED_FUNCTION_DATA_TYPE:
-    case WASM_JS_FUNCTION_DATA_TYPE:
-    case LOAD_HANDLER_TYPE:
-    case STORE_HANDLER_TYPE:
-    case ASYNC_GENERATOR_REQUEST_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
-    case CALLBACK_TASK_TYPE:
-    case CALLABLE_TASK_TYPE:
-    case PROMISE_FULFILL_REACTION_JOB_TASK_TYPE:
-    case PROMISE_REJECT_REACTION_JOB_TASK_TYPE:
-    case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
-#define MAKE_TORQUE_CLASS_TYPE(INSTANCE_TYPE, Name, name) case INSTANCE_TYPE:
-      TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_TORQUE_CLASS_TYPE)
-#undef MAKE_TORQUE_CLASS_TYPE
+    default:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -382,7 +384,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
 
 Type::bitset BitsetType::Lub(double value) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
@@ -409,7 +411,7 @@ size_t BitsetType::BoundariesSize() {
 
 Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
   DCHECK_IMPLIES(bits & kOtherString, (bits & kString) == kString);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (!(bits & kPlainNumber)) return bits;  // Shortcut.
   const Boundary* boundaries = Boundaries();
   for (size_t i = 0; i < BoundariesSize(); ++i) {
@@ -420,8 +422,8 @@ Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
 }
 
 Type::bitset BitsetType::Lub(double min, double max) {
-  DisallowHeapAllocation no_allocation;
-  int lub = kNone;
+  DisallowGarbageCollection no_gc;
+  bitset lub = kNone;
   const Boundary* mins = Boundaries();
 
   for (size_t i = 1; i < BoundariesSize(); ++i) {
@@ -436,8 +438,8 @@ Type::bitset BitsetType::Lub(double min, double max) {
 Type::bitset BitsetType::NumberBits(bitset bits) { return bits & kPlainNumber; }
 
 Type::bitset BitsetType::Glb(double min, double max) {
-  DisallowHeapAllocation no_allocation;
-  int glb = kNone;
+  DisallowGarbageCollection no_gc;
+  bitset glb = kNone;
   const Boundary* mins = Boundaries();
 
   // If the range does not touch 0, the bound is empty.
@@ -455,7 +457,7 @@ Type::bitset BitsetType::Glb(double min, double max) {
 }
 
 double BitsetType::Min(bitset bits) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DCHECK(Is(bits, kNumber));
   DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
@@ -470,7 +472,7 @@ double BitsetType::Min(bitset bits) {
 }
 
 double BitsetType::Max(bitset bits) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DCHECK(Is(bits, kNumber));
   DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
@@ -506,7 +508,7 @@ Handle<HeapObject> HeapConstantType::Value() const {
 // Predicates.
 
 bool Type::SimplyEquals(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsHeapConstant()) {
     return that.IsHeapConstant() &&
            this->AsHeapConstant()->Value().address() ==
@@ -537,7 +539,7 @@ bool Type::SimplyEquals(Type that) const {
 
 // Check if [this] <= [that].
 bool Type::SlowIs(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // Fast bitset cases
   if (that.IsBitset()) {
@@ -575,7 +577,7 @@ bool Type::SlowIs(Type that) const {
 
 // Check if [this] and [that] overlap.
 bool Type::Maybe(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   if (BitsetType::IsNone(this->BitsetLub() & that.BitsetLub())) return false;
 
@@ -622,7 +624,7 @@ bool Type::Maybe(Type that) const {
 
 // Return the range in [this], or [nullptr].
 Type Type::GetRange() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsRange()) return *this;
   if (this->IsUnion() && this->AsUnion()->Get(1).IsRange()) {
     return this->AsUnion()->Get(1);
@@ -631,7 +633,7 @@ Type Type::GetRange() const {
 }
 
 bool UnionType::Wellformed() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // This checks the invariants of the union representation:
   // 1. There are at least two elements.
   // 2. The first element is a bitset, no other element is a bitset.
@@ -857,7 +859,14 @@ Type Type::Constant(double value, Zone* zone) {
 }
 
 Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
-  ObjectRef ref(broker, value);
+  // TODO(jgruber,chromium:1209798): Using kAssumeMemoryFence works around
+  // the fact that the graph stores handles (and not refs). The assumption is
+  // that any handle inserted into the graph is safe to read; but we don't
+  // preserve the reason why it is safe to read. Thus we must over-approximate
+  // here and assume the existence of a memory fence. In the future, we should
+  // consider having the graph store ObjectRefs or ObjectData pointer instead,
+  // which would make new ref construction here unnecessary.
+  ObjectRef ref = MakeRefAssumeMemoryFence(broker, value);
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
@@ -958,7 +967,7 @@ Type Type::NormalizeUnion(UnionType* unioned, int size, Zone* zone) {
 }
 
 int Type::NumConstants() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsHeapConstant() || this->IsOtherNumberConstant()) {
     return 1;
   } else if (this->IsUnion()) {
@@ -989,9 +998,8 @@ const char* BitsetType::Name(bitset bits) {
   }
 }
 
-void BitsetType::Print(std::ostream& os,  // NOLINT
-                       bitset bits) {
-  DisallowHeapAllocation no_allocation;
+void BitsetType::Print(std::ostream& os, bitset bits) {
+  DisallowGarbageCollection no_gc;
   const char* name = Name(bits);
   if (name != nullptr) {
     os << name;
@@ -1023,7 +1031,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
 }
 
 void Type::PrintTo(std::ostream& os) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
   } else if (this->IsHeapConstant()) {
@@ -1142,6 +1150,50 @@ std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);
   return os;
 }
+
+Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
+  DCHECK(CanBeAsserted());
+  if (IsBitset()) {
+    const bitset bits = AsBitset();
+    uint32_t low = bits & 0xffffffff;
+    uint32_t high = (bits >> 32) & 0xffffffff;
+    return factory->NewTurbofanBitsetType(low, high, AllocationType::kYoung);
+  } else if (IsUnion()) {
+    const UnionType* union_type = AsUnion();
+    Handle<TurbofanType> result = union_type->Get(0).AllocateOnHeap(factory);
+    for (int i = 1; i < union_type->Length(); ++i) {
+      result = factory->NewTurbofanUnionType(
+          result, union_type->Get(i).AllocateOnHeap(factory),
+          AllocationType::kYoung);
+    }
+    return result;
+  } else if (IsHeapConstant()) {
+    return factory->NewTurbofanHeapConstantType(AsHeapConstant()->Value(),
+                                                AllocationType::kYoung);
+  } else if (IsOtherNumberConstant()) {
+    return factory->NewTurbofanOtherNumberConstantType(
+        AsOtherNumberConstant()->Value(), AllocationType::kYoung);
+  } else if (IsRange()) {
+    return factory->NewTurbofanRangeType(AsRange()->Min(), AsRange()->Max(),
+                                         AllocationType::kYoung);
+  } else {
+    // Other types are not supported for type assertions.
+    UNREACHABLE();
+  }
+}
+
+#define VERIFY_TORQUE_LOW_BITSET_AGREEMENT(Name, _)           \
+  STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
+                static_cast<uint32_t>(TurbofanTypeLowBits::k##Name));
+#define VERIFY_TORQUE_HIGH_BITSET_AGREEMENT(Name, _)                     \
+  STATIC_ASSERT(static_cast<uint32_t>(                                   \
+                    static_cast<uint64_t>(BitsetType::k##Name) >> 32) == \
+                static_cast<uint32_t>(TurbofanTypeHighBits::k##Name));
+INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_LOW_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(VERIFY_TORQUE_HIGH_BITSET_AGREEMENT)
+#undef VERIFY_TORQUE_HIGH_BITSET_AGREEMENT
+#undef VERIFY_TORQUE_LOW_BITSET_AGREEMENT
 
 }  // namespace compiler
 }  // namespace internal

@@ -44,7 +44,7 @@ typedef enum UAlphabeticIndexLabelType {
     U_ALPHAINDEX_NORMAL    = 0,
 
     /**
-     * Undeflow Label.  The bucket with this label contains names
+     * Underflow Label.  The bucket with this label contains names
      * in scripts that sort before any of the bucket labels in this index.
      * @stable ICU 4.8
      */
@@ -61,7 +61,7 @@ typedef enum UAlphabeticIndexLabelType {
     U_ALPHAINDEX_INFLOW    = 2,
 
     /**
-     * Overflow Label. Te bucket with this label contains names in scripts
+     * Overflow Label. The bucket with this label contains names in scripts
      * that sort after all of the bucket labels in this index.
      * @stable ICU 4.8
      */
@@ -87,7 +87,7 @@ class UVector;
  * AlphabeticIndex supports the creation of a UI index appropriate for a given language.
  * It can support either direct use, or use with a client that doesn't support localized collation.
  * The following is an example of what an index might look like in a UI:
- *
+ * 
  * <pre>
  *  <b>... A B C D E F G H I J K L M N O P Q R S T U V W X Y Z  ...</b>
  *
@@ -309,17 +309,17 @@ public:
      */
      AlphabeticIndex(const Locale &locale, UErrorCode &status);
 
-   /**
+   /** 
      * Construct an AlphabeticIndex that uses a specific collator.
-     *
+     * 
      * The index will be created with no labels; the addLabels() function must be called
      * after creation to add the desired labels to the index.
-     *
-     * The index adopts the collator, and is responsible for deleting it.
+     * 
+     * The index adopts the collator, and is responsible for deleting it. 
      * The caller should make no further use of the collator after creating the index.
-     *
+     * 
      * @param collator The collator to use to order the contents of this index.
-     * @param status Error code, will be set with the reason if the
+     * @param status Error code, will be set with the reason if the 
      *               operation fails.
      * @stable ICU 51
      */
@@ -330,7 +330,7 @@ public:
      * that are already in the index; they do not replace the existing
      * ones.
      * @param additions The additional characters to add to the index, such as A-Z.
-     * @param status Error code, will be set with the reason if the
+     * @param status Error code, will be set with the reason if the 
      *               operation fails.
      * @return this, for chaining
      * @stable ICU 4.8
@@ -345,7 +345,7 @@ public:
      * when creating this Index.
      *
      * @param locale The locale whose index characters are to be added.
-     * @param status Error code, will be set with the reason if the
+     * @param status Error code, will be set with the reason if the 
      *               operation fails.
      * @return this, for chaining
      * @stable ICU 4.8
@@ -647,7 +647,7 @@ public:
 private:
      /**
       * No Copy constructor.
-      * @internal
+      * @internal (private)
       */
      AlphabeticIndex(const AlphabeticIndex &other);
 
@@ -658,15 +658,15 @@ private:
 
     /**
      * No Equality operators.
-     * @internal
+     * @internal (private)
      */
-     virtual UBool operator==(const AlphabeticIndex& other) const;
+     virtual bool operator==(const AlphabeticIndex& other) const;
 
     /**
      * Inequality operator.
-     * @internal
+     * @internal (private)
      */
-     virtual UBool operator!=(const AlphabeticIndex& other) const;
+     virtual bool operator!=(const AlphabeticIndex& other) const;
 
      // Common initialization, for use from all constructors.
      void init(const Locale *locale, UErrorCode &status);
@@ -723,7 +723,7 @@ private:
     /**
      * Holds all user records before they are distributed into buckets.
      * Type of contents is (Record *)
-     * @internal
+     * @internal (private)
      */
     UVector  *inputList_;
 

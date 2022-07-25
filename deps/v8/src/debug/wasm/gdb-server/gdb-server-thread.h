@@ -22,6 +22,8 @@ class GdbServer;
 class GdbServerThread : public v8::base::Thread {
  public:
   explicit GdbServerThread(GdbServer* gdb_server);
+  GdbServerThread(const GdbServerThread&) = delete;
+  GdbServerThread& operator=(const GdbServerThread&) = delete;
 
   // base::Thread
   void Run() override;
@@ -51,8 +53,6 @@ class GdbServerThread : public v8::base::Thread {
   // Protected by {mutex_}:
   std::unique_ptr<TransportBase> transport_;
   std::unique_ptr<Target> target_;
-
-  DISALLOW_COPY_AND_ASSIGN(GdbServerThread);
 };
 
 }  // namespace gdb_server

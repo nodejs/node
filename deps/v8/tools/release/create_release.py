@@ -1,25 +1,24 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2015 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# for py2/py3 compatibility
-from __future__ import print_function
 
 import argparse
 import os
 import sys
 import tempfile
-import urllib2
 
 from common_includes import *
+
+import urllib.request as urllib2
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
     self.Git("fetch origin +refs/heads/*:refs/heads/*")
-    self.GitCheckout("origin/master")
+    self.GitCheckout("origin/main")
     self.DeleteBranch("work-branch")
 
 
@@ -28,7 +27,7 @@ class PrepareBranchRevision(Step):
 
   def RunStep(self):
     self["push_hash"] = (self._options.revision or
-                         self.GitLog(n=1, format="%H", branch="origin/master"))
+                         self.GitLog(n=1, format="%H", branch="origin/main"))
     assert self["push_hash"]
     print("Release revision %s" % self["push_hash"])
 
@@ -39,16 +38,16 @@ class IncrementVersion(Step):
   def RunStep(self):
     latest_version = self.GetLatestVersion()
 
-    # The version file on master can be used to bump up major/minor at
+    # The version file on main can be used to bump up major/minor at
     # branch time.
-    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMasterBranch())
-    self.ReadAndPersistVersion("master_")
-    master_version = self.ArrayToVersion("master_")
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMainBranch())
+    self.ReadAndPersistVersion("main_")
+    main_version = self.ArrayToVersion("main_")
 
-    # Use the highest version from master or from tags to determine the new
+    # Use the highest version from main or from tags to determine the new
     # version.
     authoritative_version = sorted(
-        [master_version, latest_version], key=SortingKey)[1]
+        [main_version, latest_version], key=LooseVersion)[1]
     self.StoreVersion(authoritative_version, "authoritative_")
 
     # Variables prefixed with 'new_' contain the new version numbers for the
@@ -74,7 +73,7 @@ class DetectLastRelease(Step):
   MESSAGE = "Detect commit ID of last release base."
 
   def RunStep(self):
-    self["last_push_master"] = self.GetLatestReleaseBase()
+    self["last_push_main"] = self.GetLatestReleaseBase()
 
 
 class DeleteBranchRef(Step):
@@ -107,7 +106,7 @@ class MakeBranch(Step):
   MESSAGE = "Create the branch."
 
   def RunStep(self):
-    self.Git("reset --hard origin/master")
+    self.Git("reset --hard origin/main")
     self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
 
@@ -137,7 +136,7 @@ class CommitBranch(Step):
 
   def RunStep(self):
     self["commit_title"] = "Version %s" % self["version"]
-    text = "%s\n\nTBR=%s" % (self["commit_title"], self._options.reviewer)
+    text = "%s" % (self["commit_title"])
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
@@ -153,7 +152,10 @@ class LandBranch(Step):
       self.GitUpload(force=True,
                      bypass_hooks=True,
                      no_autocc=True,
+                     set_bot_commit=True,
                      message_file=self.Config("COMMITMSG_FILE"))
+    # TODO(crbug.com/1176141): This might need to go through CQ.
+    # We'd need to wait for it to land and then tag it.
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print("Dry run. Command:\ngit %s" % cmd)
@@ -183,7 +185,7 @@ class CleanUp(Step):
     print("Congratulations, you have successfully created version %s."
           % self["version"])
 
-    self.GitCheckout("origin/master")
+    self.GitCheckout("origin/main")
     self.DeleteBranch("work-branch")
     self.Git("gc")
 

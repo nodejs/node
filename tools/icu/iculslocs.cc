@@ -150,7 +150,7 @@ int localeExists(const char* loc, UBool* exists) {
   }
   icu::LocalUResourceBundlePointer aResource(
       ures_openDirect(packageName.data(), loc, &status));
-  *exists = FALSE;
+  *exists = false;
   if (U_SUCCESS(status)) {
     *exists = true;
     if (VERBOSE > 1) {

@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,7 +18,7 @@ int PKCS12_add_localkeyid(PKCS12_SAFEBAG *bag, unsigned char *name,
                           int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_localKeyID,
-                                V_ASN1_OCTET_STRING, name, namelen))
+                                V_ASN1_OCTET_STRING, name, namelen) != NULL)
         return 1;
     else
         return 0;
@@ -39,7 +39,7 @@ int PKCS12_add_friendlyname_asc(PKCS12_SAFEBAG *bag, const char *name,
                                 int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_friendlyName,
-                                MBSTRING_ASC, (unsigned char *)name, namelen))
+                                MBSTRING_ASC, (unsigned char *)name, namelen) != NULL)
         return 1;
     else
         return 0;
@@ -49,7 +49,7 @@ int PKCS12_add_friendlyname_utf8(PKCS12_SAFEBAG *bag, const char *name,
                                 int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_friendlyName,
-                                MBSTRING_UTF8, (unsigned char *)name, namelen))
+                                MBSTRING_UTF8, (unsigned char *)name, namelen) != NULL)
         return 1;
     else
         return 0;
@@ -59,7 +59,7 @@ int PKCS12_add_friendlyname_uni(PKCS12_SAFEBAG *bag,
                                 const unsigned char *name, int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_friendlyName,
-                                MBSTRING_BMP, name, namelen))
+                                MBSTRING_BMP, name, namelen) != NULL)
         return 1;
     else
         return 0;
@@ -68,7 +68,25 @@ int PKCS12_add_friendlyname_uni(PKCS12_SAFEBAG *bag,
 int PKCS12_add_CSPName_asc(PKCS12_SAFEBAG *bag, const char *name, int namelen)
 {
     if (X509at_add1_attr_by_NID(&bag->attrib, NID_ms_csp_name,
-                                MBSTRING_ASC, (unsigned char *)name, namelen))
+                                MBSTRING_ASC, (unsigned char *)name, namelen) != NULL)
+        return 1;
+    else
+        return 0;
+}
+
+int PKCS12_add1_attr_by_NID(PKCS12_SAFEBAG *bag, int nid, int type,
+                            const unsigned char *bytes, int len)
+{
+    if (X509at_add1_attr_by_NID(&bag->attrib, nid, type, bytes, len) != NULL)
+        return 1;
+    else
+        return 0;
+}
+
+int PKCS12_add1_attr_by_txt(PKCS12_SAFEBAG *bag, const char *attrname, int type,
+                            const unsigned char *bytes, int len)
+{
+    if (X509at_add1_attr_by_txt(&bag->attrib, attrname, type, bytes, len) != NULL)
         return 1;
     else
         return 0;

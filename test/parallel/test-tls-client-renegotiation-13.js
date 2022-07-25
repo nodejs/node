@@ -29,7 +29,9 @@ connect({
 
   const ok = client.renegotiate({}, common.mustCall((err) => {
     assert.throws(() => { throw err; }, {
-      message: 'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
+      message: common.hasOpenSSL3 ?
+        'error:0A00010A:SSL routines::wrong ssl version' :
+        'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
       code: 'ERR_SSL_WRONG_SSL_VERSION',
       library: 'SSL routines',
       reason: 'wrong ssl version',

@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class TimedScope {
+class V8_NODISCARD TimedScope {
  public:
   explicit TimedScope(double* result)
       : start_(TimestampMs()), result_(result) {}

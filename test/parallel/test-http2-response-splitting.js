@@ -9,7 +9,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const { URL } = require('url');
 
 // Response splitting example, credit: Amit Klein, Safebreach
 const str = '/welcome?lang=bar%c4%8d%c4%8aContent­Length:%200%c4%8d%c4%8a%c' +
@@ -33,11 +32,12 @@ server.on('stream', common.mustCall((stream, headers) => {
 
   const obj = Object.create(null);
   switch (remaining--) {
-    case 3:
+    case 3: {
       const url = new URL(makeUrl(headers));
       obj[':status'] = 302;
       obj.Location = `/foo?lang=${url.searchParams.get('lang')}`;
       break;
+    }
     case 2:
       obj.foo = x;
       break;

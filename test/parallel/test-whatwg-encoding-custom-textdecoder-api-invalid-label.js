@@ -11,7 +11,7 @@ const assert = require('assert');
   'utf8',
   'utf-16be',
   'utf-16le',
-  'utf-16'
+  'utf-16',
 ].forEach((i) => {
   ['\u0000', '\u000b', '\u00a0', '\u2028', '\u2029'].forEach((ws) => {
     assert.throws(

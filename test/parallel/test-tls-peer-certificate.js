@@ -69,6 +69,12 @@ connect({
     'B0:BE:46:49:B8:29:63:E0:6F:63:C8:8A:57:9C:3F:9B:72:C6:F5:89:E3:0D:84:AC:' +
     '5B:08:9A:20:89:B6:8F:D6'
   );
+  assert.strictEqual(
+    peerCert.fingerprint512,
+    'D0:05:01:82:2C:D8:09:BE:27:94:E7:83:F1:88:BC:7A:8B:D0:39:97:54:B6:' +
+    'D0:B4:46:5B:DE:13:5B:68:86:B6:F2:A8:95:22:D5:6E:8B:35:DA:89:29:CA:' +
+    'A3:06:C5:CE:43:C1:7F:2D:7E:5F:44:A5:EE:A3:CB:97:05:A3:E3:68'
+  );
 
   // SHA256 fingerprint of the public key
   assert.strictEqual(
@@ -119,6 +125,12 @@ connect({
     'AB:08:3C:40:C7:07:D7:D1:79:32:92:3B:96:52:D0:38:4C:22:ED:CD:23:51:D0:A1:' +
     '67:AA:33:A0:D5:26:5C:41'
   );
+  assert.strictEqual(
+    peerCert.fingerprint512,
+    '52:F4:86:64:69:0F:94:6F:78:DE:17:7A:5C:92:CA:0F:05:2E:6A:EE:4A:FF:8B:39:' +
+    'D6:5E:7A:B8:08:77:B3:80:FC:40:A1:F4:58:CC:7A:DF:BB:3D:38:F9:02:77:50:2B:' +
+    '9A:0B:FB:79:B4:BD:E9:F5:9C:44:C8:5D:D5:F0:E2:BC'
+  );
 
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('hex'),
@@ -128,7 +140,7 @@ connect({
   assert.strictEqual(peerCert.nistCurve, 'P-256');
   assert.strictEqual(peerCert.bits, 256);
 
-  assert.deepStrictEqual(peerCert.infoAccess, undefined);
+  assert.strictEqual(peerCert.infoAccess, undefined);
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);

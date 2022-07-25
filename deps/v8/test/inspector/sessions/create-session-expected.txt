@@ -8,6 +8,7 @@ From session 1
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -20,6 +21,7 @@ From session 2
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -32,6 +34,7 @@ From session 2
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -44,6 +47,7 @@ From session 1
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -56,6 +60,7 @@ From session 3
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -92,6 +97,7 @@ From session 2
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -103,6 +109,7 @@ From session 1
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -114,6 +121,7 @@ From session 3
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -127,6 +135,7 @@ From session 4
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }

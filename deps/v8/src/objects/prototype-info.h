@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/prototype-info-tq.inc"
+
 // Container for metadata stored on each prototype map.
 class PrototypeInfo
     : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
@@ -23,6 +25,9 @@ class PrototypeInfo
   static const int UNREGISTERED = -1;
 
   // [object_create_map]: A field caching the map for Object.create(prototype).
+  DECL_GETTER(object_create_map, MaybeObject)
+  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(object_create_map)
+
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map);
   inline Map ObjectCreateMap();

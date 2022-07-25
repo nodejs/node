@@ -42,7 +42,7 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       if (state < step_in_count) {
         // Step into f().
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
         state++;
       } else {
         assertEquals(expected_source_line_text,

@@ -6,7 +6,6 @@
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "env.h"
 #include "v8.h"
 
@@ -52,8 +51,8 @@ struct AESCipherConfig final : public MemoryRetainer {
   AESCipherConfig& operator=(AESCipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(AESCipherConfig);
-  SET_SELF_SIZE(AESCipherConfig);
+  SET_MEMORY_INFO_NAME(AESCipherConfig)
+  SET_SELF_SIZE(AESCipherConfig)
 };
 
 struct AESCipherTraits final {
@@ -81,6 +80,7 @@ using AESCryptoJob = CipherJob<AESCipherTraits>;
 
 namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
 }  // namespace crypto
 }  // namespace node

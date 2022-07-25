@@ -26,7 +26,7 @@ process.env.NODE_CLUSTER_SCHED_POLICY = 'none';
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const unbound = cluster.fork().on('online', bind);
 
   function bind() {

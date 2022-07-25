@@ -5,6 +5,9 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
+const { execSync } = require('child_process');
+
 const { validateRmOptionsSync } = require('internal/fs/utils');
 
 tmpdir.refresh();
@@ -13,11 +16,20 @@ let count = 0;
 const nextDirPath = (name = 'rm') =>
   path.join(tmpdir.path, `${name}-${count++}`);
 
+const isGitPresent = (() => {
+  try { execSync('git --version'); return true; } catch { return false; }
+})();
+
+function gitInit(gitDirectory) {
+  fs.mkdirSync(gitDirectory);
+  execSync('git init', common.mustNotMutateObjectDeep({ cwd: gitDirectory }));
+}
+
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
-  fs.mkdirSync(dirname, { recursive: true });
+  fs.mkdirSync(dirname, common.mustNotMutateObjectDeep({ recursive: true }));
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
 
-  const options = { flag: 'wx' };
+  const options = common.mustNotMutateObjectDeep({ flag: 'wx' });
 
   for (let f = files; f > 0; f--) {
     fs.writeFileSync(path.join(dirname, `f-${depth}-${f}`), '', options);
@@ -68,11 +80,11 @@ function removeAsync(dir) {
     assert.strictEqual(err.syscall, 'rm');
 
     // Removal should fail without the recursive option set to true.
-    fs.rm(dir, { recursive: false }, common.mustCall((err) => {
+    fs.rm(dir, common.mustNotMutateObjectDeep({ recursive: false }), common.mustCall((err) => {
       assert.strictEqual(err.syscall, 'rm');
 
       // Recursive removal should succeed.
-      fs.rm(dir, { recursive: true }, common.mustSucceed(() => {
+      fs.rm(dir, common.mustNotMutateObjectDeep({ recursive: true }), common.mustSucceed(() => {
 
         // Attempted removal should fail now because the directory is gone.
         fs.rm(dir, common.mustCall((err) => {
@@ -95,6 +107,11 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(2, 10, 2, dir, false);
   removeAsync(dir);
 
+  // Same test using URL instead of a path
+  dir = nextDirPath();
+  makeNonEmptyDirectory(2, 10, 2, dir, false);
+  removeAsync(pathToFileURL(dir));
+
   // Create a flat folder including symlinks
   dir = nextDirPath();
   makeNonEmptyDirectory(1, 10, 2, dir, true);
@@ -103,7 +120,7 @@ function removeAsync(dir) {
   // Should fail if target does not exist
   fs.rm(
     path.join(tmpdir.path, 'noexist.txt'),
-    { recursive: true },
+    common.mustNotMutateObjectDeep({ recursive: true }),
     common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOENT');
     })
@@ -112,13 +129,23 @@ function removeAsync(dir) {
   // Should delete a file
   const filePath = path.join(tmpdir.path, 'rm-async-file.txt');
   fs.writeFileSync(filePath, '');
-  fs.rm(filePath, { recursive: true }, common.mustCall((err) => {
+  fs.rm(filePath, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     try {
       assert.strictEqual(err, null);
       assert.strictEqual(fs.existsSync(filePath), false);
     } finally {
-      fs.rmSync(filePath, { force: true });
+      fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
     }
+  }));
+}
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rm(gitDirectory, common.mustNotMutateObjectDeep({ recursive: true }), common.mustSucceed(() => {
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
   }));
 }
 
@@ -132,12 +159,12 @@ function removeAsync(dir) {
     fs.rmSync(dir);
   }, { syscall: 'rm' });
   assert.throws(() => {
-    fs.rmSync(dir, { recursive: false });
+    fs.rmSync(dir, common.mustNotMutateObjectDeep({ recursive: false }));
   }, { syscall: 'rm' });
 
   // Should fail if target does not exist
   assert.throws(() => {
-    fs.rmSync(path.join(tmpdir.path, 'noexist.txt'), { recursive: true });
+    fs.rmSync(path.join(tmpdir.path, 'noexist.txt'), common.mustNotMutateObjectDeep({ recursive: true }));
   }, {
     code: 'ENOENT',
     name: 'Error',
@@ -149,9 +176,19 @@ function removeAsync(dir) {
   fs.writeFileSync(filePath, '');
 
   try {
-    fs.rmSync(filePath, { recursive: true });
+    fs.rmSync(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
   } finally {
-    fs.rmSync(filePath, { force: true });
+    fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ recursive: true }));
+  } finally {
+    fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ force: true }));
   }
 
   // Recursive removal should succeed.
@@ -161,25 +198,34 @@ function removeAsync(dir) {
   assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
 }
 
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  const gitDirectory = nextDirPath();
+  gitInit(gitDirectory);
+  fs.rmSync(gitDirectory, common.mustNotMutateObjectDeep({ recursive: true }));
+  assert.strictEqual(fs.existsSync(gitDirectory), false);
+}
+
 // Test the Promises based version.
 (async () => {
   const dir = nextDirPath();
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
-  assert.rejects(fs.promises.rm(dir, { recursive: false }), {
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
+  await assert.rejects(fs.promises.rm(dir, common.mustNotMutateObjectDeep({ recursive: false })), {
     syscall: 'rm'
   });
 
   // Recursive removal should succeed.
-  await fs.promises.rm(dir, { recursive: true });
+  await fs.promises.rm(dir, common.mustNotMutateObjectDeep({ recursive: true }));
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
 
   // Should fail if target does not exist
-  assert.rejects(fs.promises.rm(
+  await assert.rejects(fs.promises.rm(
     path.join(tmpdir.path, 'noexist.txt'),
     { recursive: true }
   ), {
@@ -189,18 +235,39 @@ function removeAsync(dir) {
   });
 
   // Should not fail if target does not exist and force option is true
-  fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
+  await fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), common.mustNotMutateObjectDeep({ force: true }));
 
   // Should delete file
   const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');
   fs.writeFileSync(filePath, '');
 
   try {
-    await fs.promises.rm(filePath, { recursive: true });
+    await fs.promises.rm(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
   } finally {
-    fs.rmSync(filePath, { force: true });
+    fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-promises-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    await fs.promises.rm(fileURL, common.mustNotMutateObjectDeep({ recursive: true }));
+  } finally {
+    fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ force: true }));
   }
 })().then(common.mustCall());
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+if (isGitPresent) {
+  (async () => {
+    const gitDirectory = nextDirPath();
+    gitInit(gitDirectory);
+    await fs.promises.rm(gitDirectory, common.mustNotMutateObjectDeep({ recursive: true }));
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  })().then(common.mustCall());
+}
 
 // Test input validation.
 {
@@ -279,4 +346,81 @@ function removeAsync(dir) {
     name: 'RangeError',
     message: /^The value of "options\.maxRetries" is out of range\./
   });
+}
+
+{
+  // IBMi has a different access permission mechanism
+  // This test should not be run as `root`
+  if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
+    function makeDirectoryReadOnly(dir, mode) {
+      let accessErrorCode = 'EACCES';
+      if (common.isWindows) {
+        accessErrorCode = 'EPERM';
+        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC)"`);
+      } else {
+        fs.chmodSync(dir, mode);
+      }
+      return accessErrorCode;
+    }
+
+    function makeDirectoryWritable(dir) {
+      if (fs.existsSync(dir)) {
+        if (common.isWindows) {
+          execSync(`icacls ${dir} /remove:d "everyone"`);
+        } else {
+          fs.chmodSync(dir, 0o777);
+        }
+      }
+    }
+
+    {
+      // Check that deleting a file that cannot be accessed using rmsync throws
+      // https://github.com/nodejs/node/issues/38683
+      const dirname = nextDirPath();
+      const filePath = path.join(dirname, 'text.txt');
+      try {
+        fs.mkdirSync(dirname, common.mustNotMutateObjectDeep({ recursive: true }));
+        fs.writeFileSync(filePath, 'hello');
+        const code = makeDirectoryReadOnly(dirname, 0o444);
+        assert.throws(() => {
+          fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
+        }, {
+          code,
+          name: 'Error',
+        });
+      } finally {
+        makeDirectoryWritable(dirname);
+      }
+    }
+
+    {
+      // Check endless recursion.
+      // https://github.com/nodejs/node/issues/34580
+      const dirname = nextDirPath();
+      fs.mkdirSync(dirname, common.mustNotMutateObjectDeep({ recursive: true }));
+      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+      const middle = path.join(root, 'middle');
+      fs.mkdirSync(middle);
+      fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
+      try {
+        const code = makeDirectoryReadOnly(middle, 0o555);
+        try {
+          assert.throws(() => {
+            fs.rmSync(root, common.mustNotMutateObjectDeep({ recursive: true }));
+          }, {
+            code,
+            name: 'Error',
+          });
+        } catch (err) {
+          // Only fail the test if the folder was not deleted.
+          // as in some cases rmSync succesfully deletes read-only folders.
+          if (fs.existsSync(root)) {
+            throw err;
+          }
+        }
+      } finally {
+        makeDirectoryWritable(middle);
+      }
+    }
+  }
 }

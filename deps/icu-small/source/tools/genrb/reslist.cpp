@@ -340,7 +340,8 @@ IntResource::~IntResource() {}
 IntVectorResource::IntVectorResource(SRBRoot *bundle, const char *tag,
                   const UString* comment, UErrorCode &errorCode)
         : SResource(bundle, tag, URES_INT_VECTOR, comment, errorCode),
-          fCount(0), fArray(new uint32_t[RESLIST_MAX_INT_VECTOR]) {
+          fCount(0), fSize(RESLIST_INT_VECTOR_INIT_SIZE),
+          fArray(new uint32_t[fSize]) {
     if (fArray == NULL) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
@@ -352,6 +353,17 @@ IntVectorResource::~IntVectorResource() {
 }
 
 void IntVectorResource::add(int32_t value, UErrorCode &errorCode) {
+    if (fCount == fSize) {
+        uint32_t* tmp = new uint32_t[2 * fSize];
+        if (tmp == nullptr) {
+            errorCode = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+        uprv_memcpy(tmp, fArray, fSize * sizeof(uint32_t));
+        delete[] fArray;
+        fArray = tmp;
+        fSize *= 2;
+    }
     if (U_SUCCESS(errorCode)) {
         fArray[fCount++] = value;
     }
@@ -942,11 +954,7 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
     if (writtenFilename) {
        int32_t off = 0, len = 0;
        if (outputDir) {
-           len = (int32_t)uprv_strlen(outputDir);
-           if (len > writtenFilenameLen) {
-               len = writtenFilenameLen;
-           }
-           uprv_strncpy(writtenFilename, outputDir, len);
+           uprv_strncpy(writtenFilename, outputDir, writtenFilenameLen);
        }
        if (writtenFilenameLen -= len) {
            off += len;
@@ -965,14 +973,10 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
                if (len > writtenFilenameLen) {
                    len = writtenFilenameLen;
                }
-               uprv_strncpy(writtenFilename + off, fLocale, len);
+               uprv_strncpy(writtenFilename + off, fLocale, writtenFilenameLen - off);
                if (writtenFilenameLen -= len) {
                    off += len;
-                   len = 5;
-                   if (len > writtenFilenameLen) {
-                       len = writtenFilenameLen;
-                   }
-                   uprv_strncpy(writtenFilename +  off, ".res", len);
+                   uprv_strncpy(writtenFilename +  off, ".res", writtenFilenameLen - off);
                }
            }
        }

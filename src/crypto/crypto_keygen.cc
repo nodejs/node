@@ -1,5 +1,4 @@
 #include "crypto/crypto_keygen.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
@@ -66,7 +65,8 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
     SecretKeyGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsUint32());
-  params->length = std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT);
+  params->length = static_cast<size_t>(
+      std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT));
   if (params->length > INT_MAX) {
     const std::string msg{
       SPrintF("length must be less than or equal to %s bits",
@@ -103,6 +103,12 @@ void Initialize(Environment* env, Local<Object> target) {
   NidKeyPairGenJob::Initialize(env, target);
   SecretKeyGenJob::Initialize(env, target);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  NidKeyPairGenJob::RegisterExternalReferences(registry);
+  SecretKeyGenJob::RegisterExternalReferences(registry);
+}
+
 }  // namespace Keygen
 }  // namespace crypto
 }  // namespace node

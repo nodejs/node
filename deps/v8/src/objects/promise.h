@@ -14,6 +14,9 @@ namespace v8 {
 namespace internal {
 
 class JSPromise;
+class StructBodyDescriptor;
+
+#include "torque-generated/src/objects/promise-tq.inc"
 
 // Struct to hold state required for PromiseReactionJob. See the comment on the
 // PromiseReaction below for details on how this is being managed to reduce the
@@ -29,6 +32,9 @@ class PromiseReactionJobTask
                                                    Microtask> {
  public:
   static const int kSizeOfAllPromiseReactionJobTasks = kHeaderSize;
+
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PromiseReactionJobTask)
 };
 
@@ -37,10 +43,9 @@ class PromiseFulfillReactionJobTask
     : public TorqueGeneratedPromiseFulfillReactionJobTask<
           PromiseFulfillReactionJobTask, PromiseReactionJobTask> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(PromiseFulfillReactionJobTask)
-
   STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask)
 };
@@ -50,10 +55,9 @@ class PromiseRejectReactionJobTask
     : public TorqueGeneratedPromiseRejectReactionJobTask<
           PromiseRejectReactionJobTask, PromiseReactionJobTask> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(PromiseRejectReactionJobTask)
-
   STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask)
 };
@@ -63,8 +67,7 @@ class PromiseResolveThenableJobTask
     : public TorqueGeneratedPromiseResolveThenableJobTask<
           PromiseResolveThenableJobTask, Microtask> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(PromiseResolveThenableJobTask)
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask)
 };
@@ -73,8 +76,7 @@ class PromiseResolveThenableJobTask
 class PromiseCapability
     : public TorqueGeneratedPromiseCapability<PromiseCapability, Struct> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(PromiseCapability)
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseCapability)
 };
@@ -101,8 +103,7 @@ class PromiseReaction
  public:
   enum Type { kFulfill, kReject };
 
-  // Dispatched behavior.
-  DECL_PRINTER(PromiseReaction)
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseReaction)
 };

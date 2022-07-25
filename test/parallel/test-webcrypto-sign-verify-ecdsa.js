@@ -10,20 +10,20 @@ const { subtle } = require('crypto').webcrypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
-async function testVerify({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ name,
+                            hash,
+                            namedCurve,
+                            publicKeyBuffer,
+                            privateKeyBuffer,
+                            signature,
+                            plaintext }) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    rsaKeys
+    rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -55,7 +55,13 @@ async function testVerify({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
+      },
+      false,
+      ['sign']),
   ]);
 
   assert(await subtle.verify({ name, hash }, publicKey, signature, plaintext));
@@ -87,6 +93,11 @@ async function testVerify({
 
   await assert.rejects(
     subtle.verify({ name, hash }, rsaKeys.publicKey, signature, plaintext), {
+      message: /Unable to use this key to verify/
+    });
+
+  await assert.rejects(
+    subtle.verify({ name, hash }, okpKeys.publicKey, signature, plaintext), {
       message: /Unable to use this key to verify/
     });
 
@@ -128,20 +139,20 @@ async function testVerify({
     });
 }
 
-async function testSign({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testSign({ name,
+                          hash,
+                          namedCurve,
+                          publicKeyBuffer,
+                          privateKeyBuffer,
+                          signature,
+                          plaintext }) {
   const [
     publicKey,
     noSignPrivateKey,
     privateKey,
     hmacKey,
     rsaKeys,
+    okpKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -173,7 +184,13 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
+    subtle.generateKey(
+      {
+        name: 'Ed25519',
+      },
+      false,
+      ['sign']),
   ]);
 
   {
@@ -210,6 +227,11 @@ async function testSign({
 
   await assert.rejects(
     subtle.sign({ name, hash }, rsaKeys.privateKey, plaintext), {
+      message: /Unable to use this key to sign/
+    });
+
+  await assert.rejects(
+    subtle.sign({ name, hash }, okpKeys.privateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 }

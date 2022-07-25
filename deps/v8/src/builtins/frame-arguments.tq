@@ -6,13 +6,15 @@
 struct Arguments {
   const frame: FrameWithArguments;
   const base: RawPtr;
+  // length is the number of arguments without the receiver.
   const length: intptr;
+  // actual_count is the actual number of arguments on the stack (including the
+  // receiver).
+  const actual_count: intptr;
 }
 
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
 extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
-const kNoArgumentsAdaptor:
-    constexpr bool generates 'kNoArgumentsAdaptor';
 
 struct ArgumentsIterator {
   macro Next(): Object labels NoMore {
@@ -37,7 +39,7 @@ struct FrameWithArgumentsInfo {
 // This macro is should only be used in builtins that can be called from
 // interpreted or JITted code, not from CSA/Torque builtins (the number of
 // returned formal parameters would be wrong).
-// It is difficult to actually check/assert this, since interpreted or JITted
+// It is difficult to actually check/dcheck this, since interpreted or JITted
 // frames are StandardFrames, but so are hand-written builtins. Doing that
 // more refined check would be prohibitively expensive.
 macro GetFrameWithArgumentsInfo(implicit context: Context)():
@@ -47,32 +49,15 @@ macro GetFrameWithArgumentsInfo(implicit context: Context)():
   const f: JSFunction = frame.function;
 
   const shared: SharedFunctionInfo = f.shared_function_info;
-  const formalParameterCount: bint =
-      Convert<bint>(Convert<int32>(shared.formal_parameter_count));
-  if constexpr (kNoArgumentsAdaptor) {
-    // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
-    // FrameWithArgumentsInfo can be simplified, since the frame field already
-    // contains the argument count.
-    const argumentCount: bint = Convert<bint>(frame.argument_count);
-    return FrameWithArgumentsInfo{
-      frame,
-      argument_count: argumentCount,
-      formal_parameter_count: formalParameterCount
-    };
-  } else {
-    const argumentCount: bint = formalParameterCount;
-
-    const adaptor = Cast<ArgumentsAdaptorFrame>(frame.caller)
-        otherwise return FrameWithArgumentsInfo{
-      frame,
-      argument_count: argumentCount,
-      formal_parameter_count: formalParameterCount
-    };
-
-    return FrameWithArgumentsInfo{
-      frame: adaptor,
-      argument_count: Convert<bint>(adaptor.length),
-      formal_parameter_count: formalParameterCount
-    };
-  }
+  const formalParameterCount: bint = Convert<bint>(Convert<int32>(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared)));
+  // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
+  // FrameWithArgumentsInfo can be simplified, since the frame field already
+  // contains the argument count.
+  const argumentCount: bint = Convert<bint>(frame.argument_count);
+  return FrameWithArgumentsInfo{
+    frame,
+    argument_count: argumentCount,
+    formal_parameter_count: formalParameterCount
+  };
 }

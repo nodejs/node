@@ -20,7 +20,8 @@ namespace compiler {
 
 Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
                                   ArgvMode argv_mode, bool builtin_exit_frame) {
-  if (save_doubles == kDontSaveFPRegs && argv_mode == kArgvOnStack) {
+  if (save_doubles == SaveFPRegsMode::kIgnore &&
+      argv_mode == ArgvMode::kStack) {
     DCHECK(result_size >= 1 && result_size <= 3);
     if (!builtin_exit_frame) {
       Node** ptr = nullptr;
@@ -48,11 +49,12 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
 
 Node* JSGraph::Constant(const ObjectRef& ref) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
-  OddballType oddball_type =
-      ref.AsHeapObject().GetHeapObjectType().oddball_type();
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
-  } else if (oddball_type == OddballType::kUndefined) {
+  }
+  OddballType oddball_type =
+      ref.AsHeapObject().GetHeapObjectType().oddball_type();
+  if (oddball_type == OddballType::kUndefined) {
     DCHECK(ref.object().equals(isolate()->factory()->undefined_value()));
     return UndefinedConstant();
   } else if (oddball_type == OddballType::kNull) {

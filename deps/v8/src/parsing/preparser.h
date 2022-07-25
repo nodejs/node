@@ -310,7 +310,6 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
-  void mark_as_oneshot_iife() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
@@ -538,7 +537,7 @@ class PreParserFactory {
   PreParserExpression NewTheHoleLiteral() {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewRegExpLiteral(const PreParserIdentifier& js_pattern,
+  PreParserExpression NewRegExpLiteral(const AstRawString* js_pattern,
                                        int js_flags, int pos) {
     return PreParserExpression::Default();
   }
@@ -567,7 +566,7 @@ class PreParserFactory {
   }
   PreParserExpression NewObjectLiteral(
       const PreParserExpressionList& properties, int boilerplate_properties,
-      int pos, bool has_rest_property) {
+      int pos, bool has_rest_property, Variable* home_object = nullptr) {
     return PreParserExpression::ObjectLiteral();
   }
   PreParserExpression NewVariableProxy(void* variable) {
@@ -645,6 +644,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCall(PreParserExpression expression,
                               const PreParserExpressionList& arguments, int pos,
+                              bool has_spread,
                               Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                               bool optional_chain = false) {
     if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
@@ -661,7 +661,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCallNew(const PreParserExpression& expression,
                                  const PreParserExpressionList& arguments,
-                                 int pos) {
+                                 int pos, bool has_spread) {
     return PreParserExpression::Default();
   }
   PreParserStatement NewReturnStatement(
@@ -792,6 +792,12 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
+  PreParserExpression NewImportCallExpression(
+      const PreParserExpression& specifier,
+      const PreParserExpression& import_assertions, int pos) {
+    return PreParserExpression::Default();
+  }
+
  private:
   // For creating VariableProxy objects to track unresolved variables.
   AstNodeFactory ast_node_factory_;
@@ -823,6 +829,9 @@ class PreParserFormalParameters : public FormalParametersBase {
 class PreParserFuncNameInferrer {
  public:
   explicit PreParserFuncNameInferrer(AstValueFactory* avf) {}
+  PreParserFuncNameInferrer(const PreParserFuncNameInferrer&) = delete;
+  PreParserFuncNameInferrer& operator=(const PreParserFuncNameInferrer&) =
+      delete;
   void RemoveAsyncKeywordFromEnd() const {}
   void Infer() const {}
   void RemoveLastFunction() const {}
@@ -830,13 +839,9 @@ class PreParserFuncNameInferrer {
   class State {
    public:
     explicit State(PreParserFuncNameInferrer* fni) {}
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(State);
+    State(const State&) = delete;
+    State& operator=(const State&) = delete;
   };
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PreParserFuncNameInferrer);
 };
 
 class PreParserSourceRange {
@@ -871,6 +876,7 @@ struct ParserTypes<PreParser> {
 
   // Return types for traversing functions.
   using ClassLiteralProperty = PreParserExpression;
+  using ClassLiteralStaticElement = PreParserExpression;
   using Expression = PreParserExpression;
   using FunctionLiteral = PreParserExpression;
   using ObjectLiteralProperty = PreParserExpression;
@@ -880,6 +886,7 @@ struct ParserTypes<PreParser> {
   using FormalParameters = PreParserFormalParameters;
   using Identifier = PreParserIdentifier;
   using ClassPropertyList = PreParserPropertyList;
+  using ClassStaticElementList = PreParserPropertyList;
   using StatementList = PreParserScopedStatementList;
   using Block = PreParserBlock;
   using BreakableStatement = PreParserStatement;
@@ -928,10 +935,9 @@ class PreParser : public ParserBase<PreParser> {
             PendingCompilationErrorHandler* pending_error_handler,
             RuntimeCallStats* runtime_call_stats, Logger* logger,
             UnoptimizedCompileFlags flags, bool parsing_on_main_thread = true)
-      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
-                              ast_value_factory, pending_error_handler,
-                              runtime_call_stats, logger, flags,
-                              parsing_on_main_thread),
+      : ParserBase<PreParser>(zone, scanner, stack_limit, ast_value_factory,
+                              pending_error_handler, runtime_call_stats, logger,
+                              flags, parsing_on_main_thread),
         use_counts_(nullptr),
         preparse_data_builder_(nullptr),
         preparse_data_builder_buffer_() {
@@ -1041,15 +1047,6 @@ class PreParser : public ParserBase<PreParser> {
     scope->SetLanguageMode(mode);
   }
   V8_INLINE void SetAsmModule() {}
-
-  V8_INLINE PreParserExpression SpreadCall(const PreParserExpression& function,
-                                           const PreParserExpressionList& args,
-                                           int pos,
-                                           Call::PossiblyEval possibly_eval,
-                                           bool optional_chain);
-  V8_INLINE PreParserExpression
-  SpreadCallNew(const PreParserExpression& function,
-                const PreParserExpressionList& args, int pos);
 
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
@@ -1234,6 +1231,11 @@ class PreParser : public ParserBase<PreParser> {
     }
   }
 
+  V8_INLINE void AddClassStaticBlock(PreParserBlock block,
+                                     ClassInfo* class_info) {
+    DCHECK(class_info->has_static_elements);
+  }
+
   V8_INLINE PreParserExpression
   RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
@@ -1255,7 +1257,7 @@ class PreParser : public ParserBase<PreParser> {
       FunctionState function_state(&function_state_, &scope_, function_scope);
       GetNextFunctionLiteralId();
     }
-    if (class_info->has_static_class_fields) {
+    if (class_info->has_static_elements) {
       GetNextFunctionLiteralId();
     }
     if (class_info->has_instance_members) {
@@ -1320,6 +1322,14 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static bool IsBoilerplateProperty(
       const PreParserExpression& property) {
     // PreParser doesn't count boilerplate properties.
+    return false;
+  }
+
+  V8_INLINE bool ParsingExtension() const {
+    // Preparsing is disabled for extensions (because the extension
+    // details aren't passed to lazily compiled functions), so we
+    // don't accept "native function" in the preparser and there is
+    // no need to keep track of "native".
     return false;
   }
 
@@ -1445,29 +1455,13 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const char* arg = nullptr) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
-    scanner()->set_parser_error();
+  V8_INLINE const AstRawString* PreParserIdentifierToAstRawString(
+      const PreParserIdentifier& x) {
+    return x.string_;
   }
 
   V8_INLINE void ReportUnidentifiableError() {
     pending_error_handler()->set_unidentifiable_error();
-    scanner()->set_parser_error();
-  }
-
-  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
-                                 MessageTemplate message,
-                                 const PreParserIdentifier& arg) {
-    ReportMessageAt(source_location, message, arg.string_);
-  }
-
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const AstRawString* arg) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
     scanner()->set_parser_error();
   }
 
@@ -1538,10 +1532,8 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::This();
   }
 
-  V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
-    scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_function_string(), pos,
-                           NORMAL_VARIABLE);
+  V8_INLINE PreParserExpression
+  NewSuperPropertyReference(Scope* home_object_scope, int pos) {
     return PreParserExpression::Default();
   }
 
@@ -1596,6 +1588,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserPropertyList NewClassPropertyList(int size) const {
+    return PreParserPropertyList();
+  }
+
+  V8_INLINE PreParserPropertyList NewClassStaticElementList(int size) const {
     return PreParserPropertyList();
   }
 
@@ -1668,20 +1664,6 @@ class PreParser : public ParserBase<PreParser> {
   PreparseDataBuilder* preparse_data_builder_;
   std::vector<void*> preparse_data_builder_buffer_;
 };
-
-PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,
-                                          const PreParserExpressionList& args,
-                                          int pos,
-                                          Call::PossiblyEval possibly_eval,
-                                          bool optional_chain) {
-  return factory()->NewCall(function, args, pos, possibly_eval, optional_chain);
-}
-
-PreParserExpression PreParser::SpreadCallNew(
-    const PreParserExpression& function, const PreParserExpressionList& args,
-    int pos) {
-  return factory()->NewCallNew(function, args, pos);
-}
 
 }  // namespace internal
 }  // namespace v8

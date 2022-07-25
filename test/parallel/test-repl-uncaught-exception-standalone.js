@@ -24,7 +24,7 @@ child.on('exit', common.mustCall(() => {
       'undefined',
       // x\n
       '> Foobar',
-      '> '
+      '> ',
     ]
   );
 }));

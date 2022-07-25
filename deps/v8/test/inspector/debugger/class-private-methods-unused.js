@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-private-methods
-
 let { session, contextGroup, Protocol } = InspectorTest.start(
   "Test accessing unused private methods at runtime"
 );
@@ -38,7 +36,7 @@ InspectorTest.runAsyncTestSuite([
     let { result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     });
-    InspectorTest.logObject(result.privateProperties);
+    InspectorTest.logMessage(result.privateProperties);
 
     // Variables not referenced in the source code are currently
     // considered "optimized away".
@@ -47,14 +45,14 @@ InspectorTest.runAsyncTestSuite([
       expression: 'A.#staticMethod();',
       callFrameId: callFrames[0].callFrameId
     }));
-    InspectorTest.logObject(result);
+    InspectorTest.logMessage(result);
 
     InspectorTest.log('Access this.#staticMethod() in testStatic()');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#staticMethod();',
       callFrameId: callFrames[0].callFrameId
     }));
-    InspectorTest.logObject(result);
+    InspectorTest.logMessage(result);
 
     Protocol.Debugger.resume();
     ({ params: { callFrames } } = await Protocol.Debugger.oncePaused());  // a.testInstatnce();
@@ -64,14 +62,14 @@ InspectorTest.runAsyncTestSuite([
     ({ result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     }));
-    InspectorTest.logObject(result.privateProperties);
+    InspectorTest.logMessage(result.privateProperties);
 
     InspectorTest.log('Evaluating this.#instanceMethod() in testInstance()');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#instanceMethod();',
       callFrameId: callFrames[0].callFrameId
     }));
-    InspectorTest.logObject(result);
+    InspectorTest.logMessage(result);
 
     Protocol.Debugger.resume();
     Protocol.Debugger.disable();

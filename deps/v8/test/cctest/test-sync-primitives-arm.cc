@@ -198,11 +198,12 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<int(TestData*, int, int, int)>([&](Assembler& assm) {
-    AssembleLoadExcl(&assm, access1, r1, r1);
-    AssembleMemoryAccess(&assm, access2, r3, r2, r1);
-    AssembleStoreExcl(&assm, access3, r0, r3, r1);
-  });
+  auto f = AssembleCode<int(TestData*, int, int, int)>(
+      isolate, [&](Assembler& assm) {
+        AssembleLoadExcl(&assm, access1, r1, r1);
+        AssembleMemoryAccess(&assm, access2, r3, r2, r1);
+        AssembleStoreExcl(&assm, access3, r0, r3, r1);
+      });
 
   TestData t = initial_data;
 
@@ -266,9 +267,10 @@ namespace {
 int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                         MemoryAccess access) {
   HandleScope scope(isolate);
-  auto f = AssembleCode<int(TestData*, int, int)>([&](Assembler& assm) {
-    AssembleMemoryAccess(&assm, access, r0, r2, r1);
-  });
+  auto f =
+      AssembleCode<int(TestData*, int, int)>(isolate, [&](Assembler& assm) {
+        AssembleMemoryAccess(&assm, access, r0, r2, r1);
+      });
 
   return f.Call(test_data, 0, 0);
 }

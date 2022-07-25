@@ -225,15 +225,33 @@ assertEquals([undefined,2,1,3,"X"], r2);
 
 // Make first array change length of second array massively.
 arr2.length = 2;
+var largeLength = 500000;
 Object.defineProperty(arr1, 0, {get: function() {
-      arr2[500000] = "X";
+      arr2[largeLength] = "X";
       return undefined;
     }, configurable: true})
 var r3 = [].concat(arr1, arr2);  // [undefined,2,1,3,"X"]
 var expected = [undefined,2,1,3];
-expected[500000 + 2] = "X";
+var initialLen = expected.length;
+expected[largeLength + 2] = "X";
 
-assertEquals(expected, r3);
+var numElementsToCheck = 10;
+
+// Checking entire massive array is too slow, so check:
+// - the length,
+assertEquals(expected.length, r3.length);
+var slicesToCheck = [
+  // - the first few elements,
+  {start: 0, end: initialLen},
+  // - arbitrary number of elements past the first few elements,
+  {start: initialLen, end: initialLen + numElementsToCheck},
+  // - arbitrary number of elements in the middle of the array
+  {start: largeLength / 2, end: largeLength / 2 + numElementsToCheck},
+  // - last few elements
+  {start: largeLength, end: largeLength + 3}];
+for (const {start, end} of slicesToCheck) {
+  assertEquals(expected.slice(start, end), r3.slice(start, end));
+}
 
 var arr3 = [];
 var trace = [];

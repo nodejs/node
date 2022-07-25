@@ -12,7 +12,7 @@ function listener(event, exec_state, event_data, data) {
       var line = exec_state.frame(0).sourceLineText();
       log.push(line);
       if (!/STOP/.test(line)) {
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
       }
     }
   } catch (e) {

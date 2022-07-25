@@ -29,7 +29,7 @@
 
 function f(deopt, osr) {
   var result = "result";
-  %_Call(function() {}, 0, 0);
+  %Call(function() {}, 0, 0);
   var dummy = deopt + 0;
   for (var i = 0; osr && i < 2; i++) {
     %PrepareFunctionForOptimization(f);

@@ -16,9 +16,7 @@ process.on('uncaughtException', common.mustCall((err) => {
 const s = new PassThrough();
 s.end('data');
 pipeline(s, async function(source) {
-  for await (const chunk of source) {
-    chunk;
-  }
+  for await (const chunk of source) { } // eslint-disable-line no-unused-vars, no-empty
 }, common.mustSucceed(() => {
   throw new Error('error');
 }));

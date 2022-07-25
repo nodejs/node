@@ -5,7 +5,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_report.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
@@ -62,8 +62,9 @@ static std::string GetErrorSource(Isolate* isolate,
   // added in the JavaScript context:
   Environment* env = Environment::GetCurrent(isolate);
   const bool has_source_map_url =
-      !message->GetScriptOrigin().SourceMapUrl().IsEmpty();
-  if (has_source_map_url && env->source_maps_enabled()) {
+      !message->GetScriptOrigin().SourceMapUrl().IsEmpty() &&
+      !message->GetScriptOrigin().SourceMapUrl()->IsUndefined();
+  if (has_source_map_url && env != nullptr && env->source_maps_enabled()) {
     return sourceline;
   }
 
@@ -98,8 +99,8 @@ static std::string GetErrorSource(Isolate* isolate,
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber(context).FromJust();
 
-  int script_start = (linenum - origin.ResourceLineOffset()->Value()) == 1
-                         ? origin.ResourceColumnOffset()->Value()
+  int script_start = (linenum - origin.LineOffset()) == 1
+                         ? origin.ColumnOffset()
                          : 0;
   int start = message->GetStartColumn(context).FromMaybe(0);
   int end = message->GetEndColumn(context).FromMaybe(0);
@@ -215,6 +216,12 @@ void AppendExceptionLine(Environment* env,
   Local<Object> err_obj;
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
+    // If arrow_message is already set, skip.
+    auto maybe_value = err_obj->GetPrivate(env->context(),
+                                          env->arrow_message_private_symbol());
+    Local<Value> lvalue;
+    if (!maybe_value.ToLocal(&lvalue) || lvalue->IsString())
+      return;
   }
 
   bool added_exception_line = false;
@@ -408,6 +415,10 @@ static void ReportFatalException(Environment* env,
     }
   }
 
+  if (env->options()->extra_info_on_fatal_exception) {
+    FPrintF(stderr, "\nNode.js %s\n", NODE_VERSION);
+  }
+
   fflush(stderr);
 }
 
@@ -424,8 +435,11 @@ void OnFatalError(const char* location, const char* message) {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
 
-  Isolate* isolate = Isolate::GetCurrent();
-  Environment* env = Environment::GetCurrent(isolate);
+  Isolate* isolate = Isolate::TryGetCurrent();
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
+  }
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
@@ -439,6 +453,38 @@ void OnFatalError(const char* location, const char* message) {
 
   fflush(stderr);
   ABORT();
+}
+
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> source,
+    bool is_code_like) {
+  HandleScope scope(context->GetIsolate());
+
+  Environment* env = Environment::GetCurrent(context);
+  if (env->source_maps_enabled()) {
+    // We do not expect the maybe_cache_generated_source_map to throw any more
+    // exceptions. If it does, just ignore it.
+    errors::TryCatchScope try_catch(env);
+    Local<Function> maybe_cache_source_map =
+        env->maybe_cache_generated_source_map();
+    Local<Value> argv[1] = {source};
+
+    MaybeLocal<Value> maybe_cached = maybe_cache_source_map->Call(
+        context, context->Global(), arraysize(argv), argv);
+    if (maybe_cached.IsEmpty()) {
+      DCHECK(try_catch.HasCaught());
+    }
+  }
+
+  Local<Value> allow_code_gen = context->GetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings);
+  bool codegen_allowed =
+      allow_code_gen->IsUndefined() || allow_code_gen->IsTrue();
+  return {
+      codegen_allowed,
+      {},
+  };
 }
 
 namespace errors {
@@ -817,9 +863,17 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
-static void EnableSourceMaps(const FunctionCallbackInfo<Value>& args) {
+static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  env->set_source_maps_enabled(true);
+  CHECK(args[0]->IsBoolean());
+  env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
+}
+
+static void SetMaybeCacheGeneratedSourceMap(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_maybe_cache_generated_source_map(args[0].As<Function>());
 }
 
 static void SetEnhanceStackForFatalException(
@@ -855,7 +909,8 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPrepareStackTraceCallback);
-  registry->Register(EnableSourceMaps);
+  registry->Register(SetSourceMapsEnabled);
+  registry->Register(SetMaybeCacheGeneratedSourceMap);
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
@@ -868,7 +923,10 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
-  env->SetMethod(target, "enableSourceMaps", EnableSourceMaps);
+  env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
+  env->SetMethod(target,
+                 "setMaybeCacheGeneratedSourceMap",
+                 SetMaybeCacheGeneratedSourceMap);
   env->SetMethod(target,
                  "setEnhanceStackForFatalException",
                  SetEnhanceStackForFatalException);
@@ -954,7 +1012,7 @@ void TriggerUncaughtException(Isolate* isolate,
     return;
   }
 
-  MaybeLocal<Value> handled;
+  MaybeLocal<Value> maybe_handled;
   if (env->can_call_into_js()) {
     // We do not expect the global uncaught exception itself to throw any more
     // exceptions. If it does, exit the current Node.js instance.
@@ -968,7 +1026,7 @@ void TriggerUncaughtException(Isolate* isolate,
     Local<Value> argv[2] = { error,
                              Boolean::New(env->isolate(), from_promise) };
 
-    handled = fatal_exception_function.As<Function>()->Call(
+    maybe_handled = fatal_exception_function.As<Function>()->Call(
         env->context(), process_object, arraysize(argv), argv);
   }
 
@@ -976,7 +1034,8 @@ void TriggerUncaughtException(Isolate* isolate,
   // instance so return to continue the exit routine.
   // TODO(joyeecheung): return a Maybe here to prevent the caller from
   // stepping on the exit.
-  if (handled.IsEmpty()) {
+  Local<Value> handled;
+  if (!maybe_handled.ToLocal(&handled)) {
     return;
   }
 
@@ -986,7 +1045,7 @@ void TriggerUncaughtException(Isolate* isolate,
   // TODO(joyeecheung): This has been only checking that the return value is
   // exactly false. Investigate whether this can be turned to an "if true"
   // similar to how the worker global uncaught exception handler handles it.
-  if (!handled.ToLocalChecked()->IsFalse()) {
+  if (!handled->IsFalse()) {
     return;
   }
 

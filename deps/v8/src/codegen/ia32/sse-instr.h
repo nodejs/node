@@ -5,6 +5,14 @@
 #ifndef V8_CODEGEN_IA32_SSE_INSTR_H_
 #define V8_CODEGEN_IA32_SSE_INSTR_H_
 
+// SSE/SSE2 instructions whose AVX version has two operands.
+#define SSE_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtps, 0F, 51)                  \
+  V(rsqrtps, 0F, 52)                 \
+  V(rcpps, 0F, 53)                   \
+  V(cvtps2pd, 0F, 5A)                \
+  V(cvtdq2ps, 0F, 5B)
+
 #define SSE2_INSTRUCTION_LIST(V) \
   V(packsswb, 66, 0F, 63)        \
   V(packssdw, 66, 0F, 6B)        \
@@ -19,6 +27,7 @@
   V(paddusb, 66, 0F, DC)         \
   V(paddusw, 66, 0F, DD)         \
   V(pand, 66, 0F, DB)            \
+  V(pandn, 66, 0F, DF)           \
   V(pcmpeqb, 66, 0F, 74)         \
   V(pcmpeqw, 66, 0F, 75)         \
   V(pcmpeqd, 66, 0F, 76)         \
@@ -39,6 +48,8 @@
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \
   V(pavgw, 66, 0F, E3)           \
+  V(pmulhuw, 66, 0F, E4)         \
+  V(pmulhw, 66, 0F, E5)          \
   V(psrlw, 66, 0F, D1)           \
   V(psrld, 66, 0F, D2)           \
   V(psrlq, 66, 0F, D3)           \
@@ -60,13 +71,26 @@
   V(punpckhqdq, 66, 0F, 6D)      \
   V(pxor, 66, 0F, EF)
 
+// Instructions dealing with scalar double-precision values.
+#define SSE2_INSTRUCTION_LIST_SD(V) \
+  V(sqrtsd, F2, 0F, 51)             \
+  V(addsd, F2, 0F, 58)              \
+  V(mulsd, F2, 0F, 59)              \
+  V(cvtsd2ss, F2, 0F, 5A)           \
+  V(subsd, F2, 0F, 5C)              \
+  V(minsd, F2, 0F, 5D)              \
+  V(divsd, F2, 0F, 5E)              \
+  V(maxsd, F2, 0F, 5F)
+
 #define SSSE3_INSTRUCTION_LIST(V) \
-  V(phaddd, 66, 0F, 38, 02)       \
-  V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
+  V(phaddw, 66, 0F, 38, 01)       \
+  V(phaddd, 66, 0F, 38, 02)       \
+  V(pmaddubsw, 66, 0F, 38, 04)    \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
-  V(psignd, 66, 0F, 38, 0A)
+  V(psignd, 66, 0F, 38, 0A)       \
+  V(pmulhrsw, 66, 0F, 38, 0B)
 
 // SSSE3 instructions whose AVX version has two operands.
 #define SSSE3_UNOP_INSTRUCTION_LIST(V) \
@@ -75,6 +99,8 @@
   V(pabsd, 66, 0F, 38, 1E)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(pmuldq, 66, 0F, 38, 28)      \
+  V(pcmpeqq, 66, 0F, 38, 29)     \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
@@ -94,5 +120,11 @@
   V(pmovzxwd, 66, 0F, 38, 33)       \
   V(pmovzxdq, 66, 0F, 38, 35)       \
   V(ptest, 66, 0F, 38, 17)
+
+// These require AVX2, and we only define the VEX-128 versions.
+#define AVX2_BROADCAST_LIST(V)    \
+  V(vpbroadcastd, 66, 0F, 38, 58) \
+  V(vpbroadcastb, 66, 0F, 38, 78) \
+  V(vpbroadcastw, 66, 0F, 38, 79)
 
 #endif  // V8_CODEGEN_IA32_SSE_INSTR_H_

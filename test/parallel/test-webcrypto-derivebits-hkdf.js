@@ -237,6 +237,7 @@ async function testDeriveBits(
     baseKeys[size],
     256);
 
+  assert(bits instanceof ArrayBuffer);
   assert.strictEqual(
     Buffer.from(bits).toString('hex'),
     kDerivations[size][saltSize][hash][infoSize]);
@@ -298,7 +299,7 @@ async function testDeriveBitsBadHash(
         },
         baseKeys[size], 256), {
         message: /Unrecognized name/
-      })
+      }),
   ]);
 }
 
@@ -438,7 +439,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      { message: /Unrecognized name/ })
+      { message: /Unrecognized name/ }),
   ]);
 }
 

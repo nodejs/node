@@ -29,7 +29,7 @@ main();
     '--input-type',
     'module',
     '-e',
-    main
+    main,
   ], {
     env: { ...process.env }
   });

@@ -17,9 +17,9 @@ ProxyGetProperty(implicit context: Context)(
     onNonExistent: Smi): JSAny {
   PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.
-  assert(TaggedIsNotSmi(name));
-  assert(Is<Name>(name));
-  assert(!IsPrivateSymbol(name));
+  dcheck(TaggedIsNotSmi(name));
+  dcheck(Is<Name>(name));
+  dcheck(!IsPrivateSymbol(name));
 
   // 2. Let handler be O.[[ProxyHandler]].
   // 3. If handler is null, throw a TypeError exception.

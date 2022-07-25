@@ -128,7 +128,7 @@ typedef struct {
     MaskEnum currentMaskToUnicode;      /* mask for current state in toUnicode */
     MaskEnum defMaskToUnicode;          /* mask for default state in toUnicode */
     UBool isFirstBuffer;                /* boolean for fromUnicode to see if we need to announce the first script */
-    UBool resetToDefaultToUnicode;      /* boolean for reseting to default delta and mask when a newline is encountered*/
+    UBool resetToDefaultToUnicode;      /* boolean for resetting to default delta and mask when a newline is encountered*/
     char name[sizeof(ISCII_CNV_PREFIX) + 1];
     UChar32 prevToUnicodeStatus;        /* Hold the previous toUnicodeStatus. This is necessary because we may need to know the last two code points. */
 } UConverterDataISCII;
@@ -213,13 +213,13 @@ _ISCIIOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode) {
             converterData->currentMaskFromUnicode
                     = converterData->currentMaskToUnicode
                             = converterData->defMaskToUnicode = lookupInitialData[pArgs->options & UCNV_OPTIONS_VERSION_MASK].maskEnum;
-
+            
             converterData->isFirstBuffer=TRUE;
             (void)uprv_strcpy(converterData->name, ISCII_CNV_PREFIX);
             len = (int32_t)uprv_strlen(converterData->name);
             converterData->name[len]= (char)((pArgs->options & UCNV_OPTIONS_VERSION_MASK) + '0');
             converterData->name[len+1]=0;
-
+            
             converterData->prevToUnicodeStatus = 0x0000;
         } else {
             uprv_free(cnv->extraInfo);
@@ -934,12 +934,12 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
                 break;
             }
         }
-
+        
         sourceChar = *source++;
         tempContextFromUnicode = converterData->contextCharFromUnicode;
-
+        
         targetByteUnit = missingCharMarker;
-
+        
         /*check if input is in ASCII and C0 control codes range*/
         if (sourceChar <= ASCII_END) {
             args->converter->fromUnicodeStatus = sourceChar;
@@ -989,16 +989,16 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
                         deltaChanged =TRUE;
                         converterData->isFirstBuffer=FALSE;
                     }
-
-                    if (converterData->currentDeltaFromUnicode == PNJ_DELTA) {
+                    
+                    if (converterData->currentDeltaFromUnicode == PNJ_DELTA) { 
                         if (sourceChar == PNJ_TIPPI) {
-                            /* Make sure Tippi is converterd to Bindi. */
+                            /* Make sure Tippi is converted to Bindi. */
                             sourceChar = PNJ_BINDI;
                         } else if (sourceChar == PNJ_ADHAK) {
                             /* This is for consonant cluster handling. */
                             converterData->contextCharFromUnicode = PNJ_ADHAK;
                         }
-
+                        
                     }
                     /* Normalize all Indic codepoints to Devanagari and map them to ISCII */
                     /* now subtract the new delta from sourceChar*/
@@ -1031,7 +1031,7 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
                         break;
                     }
                 }
-
+                
                 if (converterData->currentDeltaFromUnicode == PNJ_DELTA && (sourceChar + PNJ_DELTA) == PNJ_ADHAK) {
                     continue;
                 }
@@ -1105,7 +1105,7 @@ getTrail:
 }
 
 static const uint16_t lookupTable[][2]={
-    { ZERO,       ZERO     },     /*DEFALT*/
+    { ZERO,       ZERO     },     /*DEFAULT*/
     { ZERO,       ZERO     },     /*ROMAN*/
     { DEVANAGARI, DEV_MASK },
     { BENGALI,    BNG_MASK },
@@ -1147,7 +1147,7 @@ static const uint16_t lookupTable[][2]={
     /* is the code point valid in current script? */                                     \
     if(sourceChar> ASCII_END &&                                                          \
             (validityTable[(targetUniChar & 0x7F)] & data->currentMaskToUnicode)==0){    \
-        /* Vocallic RR is assigne in ISCII Telugu and Unicode */                         \
+        /* Vocallic RR is assigned in ISCII Telugu and Unicode */                         \
         if(data->currentDeltaToUnicode!=(TELUGU_DELTA) ||                                \
                     targetUniChar!=VOCALLIC_RR){                                         \
             targetUniChar=missingCharMarker;                                             \
@@ -1164,15 +1164,15 @@ static const uint16_t lookupTable[][2]={
  *  Post context
  *  i)  ATR : Attribute code is used to declare the font and script switching.
  *      Currently we only switch scripts and font codes consumed without generating an error
- *  ii) EXT : Extention code is used to declare switching to Sanskrit and for obscure,
+ *  ii) EXT : Extension code is used to declare switching to Sanskrit and for obscure,
  *      obsolete characters
  *  Pre context
- *  i)  Halant: if preceeded by a halant then it is a explicit halant
+ *  i)  Halant: if preceded by a halant then it is a explicit halant
  *  ii) Nukta :
- *       a) if preceeded by a halant then it is a soft halant
- *       b) if preceeded by specific consonants and the ligatures have pre-composed
+ *       a) if preceded by a halant then it is a soft halant
+ *       b) if preceded by specific consonants and the ligatures have pre-composed
  *          characters in Unicode then convert to pre-composed characters
- *  iii) Danda: If Danda is preceeded by a Danda then convert to Double Danda
+ *  iii) Danda: If Danda is preceded by a Danda then convert to Double Danda
  *
  */
 
@@ -1189,7 +1189,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
     UChar32 tempTargetUniChar = 0x0000;
     UChar* contextCharToUnicode= NULL;
     UBool found;
-    int i;
+    int i; 
     int offset = 0;
 
     if ((args->converter == NULL) || (target < args->target) || (source < args->source)) {
@@ -1208,7 +1208,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
         if (target < targetLimit) {
             sourceChar = (unsigned char)*(source)++;
 
-            /* look at the post-context preform special processing */
+            /* look at the post-context perform special processing */
             if (*contextCharToUnicode==ATR) {
 
                 /* If we have ATR in *contextCharToUnicode then we need to change our
@@ -1245,7 +1245,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
                     /* We currently support only Anudatta and Devanagari abbreviation sign */
                     if (sourceChar==0xBF || sourceChar == 0xB8) {
                         targetUniChar = (sourceChar==0xBF) ? DEV_ABBR_SIGN : DEV_ANUDATTA;
-
+                        
                         /* find out if the mapping is valid in this state */
                         if (validityTable[(uint8_t)targetUniChar] & data->currentMaskToUnicode) {
                             *contextCharToUnicode= NO_CHAR_MARKER;
@@ -1272,7 +1272,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
                 goto CALLBACK;
             } else if (*contextCharToUnicode==ISCII_INV) {
                 if (sourceChar==ISCII_HALANT) {
-                    targetUniChar = 0x0020; /* replace with space accoding to Indic FAQ */
+                    targetUniChar = 0x0020; /* replace with space according to Indic FAQ */
                 } else {
                     targetUniChar = ZWJ;
                 }
@@ -1452,7 +1452,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
                         WRITE_TO_TARGET_TO_U(args,source,target,args->offsets,(source-args->source -1),data->prevToUnicodeStatus,0,err);
                         data->prevToUnicodeStatus = 0x0000;
                     }
-                    /* Check to make sure that Bindi and Tippi are handled correctly for Gurmukhi script.
+                    /* Check to make sure that Bindi and Tippi are handled correctly for Gurmukhi script. 
                      * If 0xA2 is preceded by a codepoint in the PNJ_BINDI_TIPPI_SET then the target codepoint should be Tippi instead of Bindi.
                      */
                     if (data->currentDeltaToUnicode == PNJ_DELTA && (targetUniChar + PNJ_DELTA) == PNJ_BINDI && isPNJBindiTippi((*toUnicodeStatus + PNJ_DELTA))) {

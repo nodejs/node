@@ -18,9 +18,9 @@ assert.throws(() => getValidStdio(600), expectedError);
   const stdio1 = [];
   const result = getValidStdio(stdio1, false);
   assert.strictEqual(stdio1.length, 3);
-  assert.strictEqual(result.hasOwnProperty('stdio'), true);
-  assert.strictEqual(result.hasOwnProperty('ipc'), true);
-  assert.strictEqual(result.hasOwnProperty('ipcFd'), true);
+  assert.strictEqual(Object.hasOwn(result, 'stdio'), true);
+  assert.strictEqual(Object.hasOwn(result, 'ipc'), true);
+  assert.strictEqual(Object.hasOwn(result, 'ipcFd'), true);
 }
 
 // Should throw if stdio has ipc and sync is true
@@ -50,7 +50,7 @@ if (common.isMainThread) {
     stdio: [
       { type: 'fd', fd: 0 },
       { type: 'fd', fd: 1 },
-      { type: 'fd', fd: 2 }
+      { type: 'fd', fd: 2 },
     ],
     ipc: undefined,
     ipcFd: undefined

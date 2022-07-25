@@ -39,11 +39,6 @@
 #include <string>
 #include <vector>
 
-// Custom constants used by both node_constants.cc and node_zlib.cc
-#define Z_MIN_WINDOWBITS 8
-#define Z_MAX_WINDOWBITS 15
-#define Z_DEFAULT_WINDOWBITS 15
-
 struct sockaddr;
 
 namespace node {
@@ -63,7 +58,7 @@ class Environment;
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
-v8::Local<v8::Object> AddressToJS(
+v8::MaybeLocal<v8::Object> AddressToJS(
     Environment* env,
     const sockaddr* addr,
     v8::Local<v8::Object> info = v8::Local<v8::Object>());
@@ -97,8 +92,8 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
-void InitializeContextRuntime(v8::Local<v8::Context>);
-bool InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
+v8::Maybe<bool> InitializePrimordials(v8::Local<v8::Context> context);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -123,6 +118,10 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
   std::atomic<size_t> total_mem_usage_ {0};
+
+  // Delegate to V8's allocator for compatibility with the V8 memory cage.
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
@@ -199,6 +198,12 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     int argc,
     v8::Local<v8::Value> argv[],
     async_context asyncContext);
+
+v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           v8::Local<v8::Function> callback,
+                                           int argc,
+                                           v8::Local<v8::Value> argv[]);
 
 class InternalCallbackScope {
  public:
@@ -282,10 +287,13 @@ class ThreadPoolWork {
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 #define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
-#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
+#endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
+bool SafeGetenv(const char* key,
+                std::string* text,
+                std::shared_ptr<KVStore> env_vars = nullptr,
+                v8::Isolate* isolate = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
@@ -310,8 +318,23 @@ struct InitializationResult {
   std::vector<std::string> exec_args;
   bool early_return = false;
 };
-InitializationResult InitializeOncePerProcess(int argc, char** argv);
-void TearDownOncePerProcess();
+
+enum InitializationSettingsFlags : uint64_t {
+  kDefaultInitialization = 1 << 0,
+  kInitializeV8 = 1 << 1,
+  kRunPlatformInit = 1 << 2,
+  kInitOpenSSL = 1 << 3
+};
+
+// TODO(codebytere): eventually document and expose to embedders.
+InitializationResult NODE_EXTERN_PRIVATE InitializeOncePerProcess(int argc,
+                                                                  char** argv);
+InitializationResult NODE_EXTERN_PRIVATE InitializeOncePerProcess(
+    int argc,
+    char** argv,
+    InitializationSettingsFlags flags,
+    ProcessFlags::Flags process_flags = ProcessFlags::kNoFlags);
+void NODE_EXTERN_PRIVATE TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
@@ -364,25 +387,8 @@ class DiagnosticFilename {
 };
 
 namespace heap {
-bool WriteSnapshot(v8::Isolate* isolate, const char* filename);
+v8::Maybe<void> WriteSnapshot(Environment* env, const char* filename);
 }
-
-class TraceEventScope {
- public:
-  TraceEventScope(const char* category,
-                  const char* name,
-                  void* id) : category_(category), name_(name), id_(id) {
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
-  }
-  ~TraceEventScope() {
-    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
-  }
-
- private:
-  const char* category_;
-  const char* name_;
-  void* id_;
-};
 
 namespace heap {
 

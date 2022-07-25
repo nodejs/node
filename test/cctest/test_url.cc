@@ -44,6 +44,11 @@ TEST_F(URLTest, Simple2) {
   EXPECT_EQ(simple.fragment(), "fragment");
 }
 
+TEST_F(URLTest, ForbiddenHostCodePoint) {
+  URL error("https://exa|mple.org:81/a/b/c?query#fragment");
+  EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
+}
+
 TEST_F(URLTest, NoBase1) {
   URL error("123noscheme");
   EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
@@ -79,6 +84,52 @@ TEST_F(URLTest, Base3) {
   EXPECT_EQ(simple.protocol(), "http:");
   EXPECT_EQ(simple.host(), "example.org");
   EXPECT_EQ(simple.path(), "/baz");
+}
+
+TEST_F(URLTest, Base4) {
+  const char* input = "\\x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "example.org");
+  EXPECT_EQ(simple.path(), "/x");
+}
+
+TEST_F(URLTest, Base5) {
+  const char* input = "/x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "example.org");
+  EXPECT_EQ(simple.path(), "/x");
+}
+
+TEST_F(URLTest, Base6) {
+  const char* input = "\\\\x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "x");
+}
+
+TEST_F(URLTest, Base7) {
+  const char* input = "//x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "x");
 }
 
 TEST_F(URLTest, TruncatedAfterProtocol) {

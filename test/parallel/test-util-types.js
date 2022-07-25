@@ -73,7 +73,7 @@ for (const [ value, _method ] of [
   new Number(),
   new String(),
   Object(Symbol()),
-  Object(BigInt(0))
+  Object(BigInt(0)),
 ].forEach((entry) => assert(types.isBoxedPrimitive(entry)));
 
 {
@@ -194,7 +194,7 @@ for (const [ value, _method ] of [
     float32Array, fakeFloat32Array, stealthyFloat32Array,
     float64Array, fakeFloat64Array, stealthyFloat64Array,
     bigInt64Array, fakeBigInt64Array, stealthyBigInt64Array,
-    bigUint64Array, fakeBigUint64Array, stealthyBigUint64Array
+    bigUint64Array, fakeBigUint64Array, stealthyBigUint64Array,
   ];
 
   const expected = {
@@ -211,7 +211,7 @@ for (const [ value, _method ] of [
       float32Array, stealthyFloat32Array,
       float64Array, stealthyFloat64Array,
       bigInt64Array, stealthyBigInt64Array,
-      bigUint64Array, stealthyBigUint64Array
+      bigUint64Array, stealthyBigUint64Array,
     ],
     isTypedArray: [
       buffer,
@@ -225,40 +225,40 @@ for (const [ value, _method ] of [
       float32Array, stealthyFloat32Array,
       float64Array, stealthyFloat64Array,
       bigInt64Array, stealthyBigInt64Array,
-      bigUint64Array, stealthyBigUint64Array
+      bigUint64Array, stealthyBigUint64Array,
     ],
     isUint8Array: [
-      buffer, uint8Array, stealthyUint8Array
+      buffer, uint8Array, stealthyUint8Array,
     ],
     isUint8ClampedArray: [
-      uint8ClampedArray, stealthyUint8ClampedArray
+      uint8ClampedArray, stealthyUint8ClampedArray,
     ],
     isUint16Array: [
-      uint16Array, stealthyUint16Array
+      uint16Array, stealthyUint16Array,
     ],
     isUint32Array: [
-      uint32Array, stealthyUint32Array
+      uint32Array, stealthyUint32Array,
     ],
     isInt8Array: [
-      int8Array, stealthyInt8Array
+      int8Array, stealthyInt8Array,
     ],
     isInt16Array: [
-      int16Array, stealthyInt16Array
+      int16Array, stealthyInt16Array,
     ],
     isInt32Array: [
-      int32Array, stealthyInt32Array
+      int32Array, stealthyInt32Array,
     ],
     isFloat32Array: [
-      float32Array, stealthyFloat32Array
+      float32Array, stealthyFloat32Array,
     ],
     isFloat64Array: [
-      float64Array, stealthyFloat64Array
+      float64Array, stealthyFloat64Array,
     ],
     isBigInt64Array: [
-      bigInt64Array, stealthyBigInt64Array
+      bigInt64Array, stealthyBigInt64Array,
     ],
     isBigUint64Array: [
-      bigUint64Array, stealthyBigUint64Array
+      bigUint64Array, stealthyBigUint64Array,
     ]
   };
 
@@ -281,3 +281,13 @@ for (const [ value, _method ] of [
   await m.evaluate();
   assert.ok(types.isModuleNamespaceObject(m.namespace));
 })().then(common.mustCall());
+
+{
+  // eslint-disable-next-line node-core/crypto-check
+  if (common.hasCrypto) {
+    const crypto = require('crypto');
+    assert.ok(!types.isKeyObject(crypto.createHash('sha1')));
+  }
+  assert.ok(!types.isCryptoKey());
+  assert.ok(!types.isKeyObject());
+}

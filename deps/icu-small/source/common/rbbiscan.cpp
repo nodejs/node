@@ -96,7 +96,7 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
     fLineNum            = 1;
     fCharNum            = 0;
     fLastChar           = 0;
-
+    
     fStateTable         = NULL;
     fStack[0]           = 0;
     fStackPtr           = 0;
@@ -175,7 +175,7 @@ RBBIRuleScanner::~RBBIRuleScanner() {
 
     // Node Stack.
     //   Normally has one entry, which is the entire parse tree for the rules.
-    //   If errors occured, there may be additional subtrees left on the stack.
+    //   If errors occurred, there may be additional subtrees left on the stack.
     while (fNodeStackPtr > 0) {
         delete fNodeStack[fNodeStackPtr];
         fNodeStackPtr--;
@@ -284,7 +284,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doEndAssign:
         {
-            // We have reached the end of an assignement statement.
+            // We have reached the end of an assignment statement.
             //   Current scan char is the ';' that terminates the assignment.
 
             // Terminate expression, leaves expression parse tree rooted in TOS node.
@@ -357,7 +357,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         thisRule->fRuleRoot = TRUE;
 
         // Flag if chaining into this rule is wanted.
-        //
+        //    
         if (fRB->fChainRules &&         // If rule chaining is enabled globally via !!chain
                 !fNoChainInRule) {      //     and no '^' chain-in inhibit was on this rule
             thisRule->fChainIn = TRUE;
@@ -375,7 +375,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         RBBINode **destRules = (fReverseRule? &fRB->fSafeRevTree : fRB->fDefaultTree);
 
         if (*destRules != NULL) {
-            // This is not the first rule encounted.
+            // This is not the first rule encountered.
             // OR previous stuff  (from *destRules)
             // with the current rule expression (on the Node Stack)
             //  with the resulting OR expression going to *destRules
@@ -856,6 +856,10 @@ UChar32  RBBIRuleScanner::nextCharLL() {
         return (UChar32)-1;
     }
     ch         = fRB->fRules.char32At(fNextIndex);
+    if (U_IS_SURROGATE(ch)) {
+        error(U_ILLEGAL_CHAR_FOUND);
+        return U_SENTINEL;
+    }
     fNextIndex = fRB->fRules.moveIndex32(fNextIndex, 1);
 
     if (ch == chCR ||
@@ -1112,7 +1116,7 @@ void RBBIRuleScanner::parse() {
     if (U_FAILURE(*fRB->fStatus)) {
         return;
     }
-
+    
     // If there are no forward rules set an error.
     //
     if (fRB->fForwardTree == NULL) {
@@ -1219,7 +1223,7 @@ void RBBIRuleScanner::scanSet() {
         //  TODO:  Get more accurate position of the error from UnicodeSet's return info.
         //         UnicodeSet appears to not be reporting correctly at this time.
         #ifdef RBBI_DEBUG
-            RBBIDebugPrintf("UnicodeSet parse postion.ErrorIndex = %d\n", pos.getIndex());
+            RBBIDebugPrintf("UnicodeSet parse position.ErrorIndex = %d\n", pos.getIndex());
         #endif
         error(localStatus);
         delete uset;
@@ -1240,7 +1244,7 @@ void RBBIRuleScanner::scanSet() {
     }
 
 
-    // Advance the RBBI parse postion over the UnicodeSet pattern.
+    // Advance the RBBI parse position over the UnicodeSet pattern.
     //   Don't just set fScanIndex because the line/char positions maintained
     //   for error reporting would be thrown off.
     i = pos.getIndex();
@@ -1263,7 +1267,7 @@ void RBBIRuleScanner::scanSet() {
         fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
         //  findSetFor() serves several purposes here:
         //     - Adopts storage for the UnicodeSet, will be responsible for deleting.
-        //     - Mantains collection of all sets in use, needed later for establishing
+        //     - Maintains collection of all sets in use, needed later for establishing
         //          character categories for run time engine.
         //     - Eliminates mulitiple instances of the same set.
         //     - Creates a new uset node if necessary (if this isn't a duplicate.)

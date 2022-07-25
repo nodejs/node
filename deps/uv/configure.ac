@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.40.0], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.43.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -24,7 +24,11 @@ AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
-CC_FLAG_VISIBILITY #[-fvisibility=hidden]
+
+CC_ATTRIBUTE_VISIBILITY([default], [
+  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
+])
+CC_CHECK_CFLAGS_APPEND([-fno-strict-aliasing])
 CC_CHECK_CFLAGS_APPEND([-g])
 CC_CHECK_CFLAGS_APPEND([-std=gnu89])
 CC_CHECK_CFLAGS_APPEND([-Wall])
@@ -42,7 +46,7 @@ AX_PTHREAD([
     LIBS="$LIBS $PTHREAD_LIBS"
     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 ])
-AC_CHECK_LIB([dl], [dlopen])
+AC_SEARCH_LIBS([dlopen], [dl])
 AC_SEARCH_LIBS([kstat_lookup], [kstat])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_SEARCH_LIBS([perfstat_cpu], [perfstat])

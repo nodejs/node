@@ -15,6 +15,6 @@ const length = a.length;
 const { port1 } = new MessageChannel();
 port1.postMessage(a, [ a.buffer ]);
 
-// Verify that the pool ArrayBuffer has not actually been transfered:
+// Verify that the pool ArrayBuffer has not actually been transferred:
 assert.strictEqual(a.buffer, b.buffer);
 assert.strictEqual(a.length, length);

@@ -79,7 +79,7 @@ void  RBBITableBuilder::buildForwardTable() {
 
     //
     // Walk through the tree, replacing any references to $variables with a copy of the
-    //   parse tree for the substition expression.
+    //   parse tree for the substitution expression.
     //
     fTree = fTree->flattenVariables();
 #ifdef RBBI_DEBUG
@@ -90,11 +90,11 @@ void  RBBITableBuilder::buildForwardTable() {
 #endif
 
     //
-    // If the rules contained any references to {bof}
+    // If the rules contained any references to {bof} 
     //   add a {bof} <cat> <former root of tree> to the
-    //   tree.  Means that all matches must start out with the
+    //   tree.  Means that all matches must start out with the 
     //   {bof} fake character.
-    //
+    // 
     if (fRB->fSetBuilder->sawBOF()) {
         RBBINode *bofTop    = new RBBINode(RBBINode::opCat);
         RBBINode *bofLeaf   = new RBBINode(RBBINode::leafChar);
@@ -151,7 +151,7 @@ void  RBBITableBuilder::buildForwardTable() {
     //
     // calculate the functions nullable, firstpos, lastpos and followpos on
     // nodes in the parse tree.
-    //    See the alogrithm description in Aho.
+    //    See the algorithm description in Aho.
     //    Understanding how this works by looking at the code alone will be
     //       nearly impossible.
     //
@@ -390,6 +390,7 @@ void RBBITableBuilder::addRuleRootNodes(UVector *dest, RBBINode *node) {
     if (node == NULL || U_FAILURE(*fStatus)) {
         return;
     }
+    U_ASSERT(!dest->hasDeleter());
     if (node->fRuleRoot) {
         dest->addElement(node, *fStatus);
         // Note: rules cannot nest. If we found a rule start node,
@@ -420,9 +421,9 @@ void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree, RBBINode *endMarkNod
     }
 
     // Collect all leaf nodes that can start matches for rules
-    // with inbound chaining enabled, which is the union of the
+    // with inbound chaining enabled, which is the union of the 
     // firstPosition sets from each of the rule root nodes.
-
+    
     UVector ruleRootNodes(*fStatus);
     addRuleRootNodes(&ruleRootNodes, tree);
 
@@ -530,7 +531,7 @@ void RBBITableBuilder::bofFixup() {
     //  (excluding the fake bofNode)
     //  We want the nodes that can start a match in the
     //     part labeled "rest of tree"
-    //
+    // 
     UVector *matchStartNodes = fTree->fLeftChild->fRightChild->fFirstPosSet;
 
     RBBINode *startNode;
@@ -546,7 +547,7 @@ void RBBITableBuilder::bofFixup() {
             //    explicitly written into a rule.
             //  Add everything from the followPos set of this node to the
             //    followPos set of the fake bofNode at the start of the tree.
-            //
+            //  
             setAdd(bofNode->fFollowPos, startNode->fFollowPos);
         }
     }
@@ -567,7 +568,7 @@ void RBBITableBuilder::buildStateTable() {
     }
     RBBIStateDescriptor *failState;
     // Set it to NULL to avoid uninitialized warning
-    RBBIStateDescriptor *initialState = NULL;
+    RBBIStateDescriptor *initialState = NULL; 
     //
     // Add a dummy state 0 - the stop state.  Not from Aho.
     int      lastInputSymbol = fRB->fSetBuilder->getNumCharCategories() - 1;
@@ -644,8 +645,8 @@ void RBBITableBuilder::buildStateTable() {
                     if (U == NULL) {
                         U = new UVector(*fStatus);
                         if (U == NULL) {
-				*fStatus = U_MEMORY_ALLOCATION_ERROR;
-				goto ExitBuildSTdeleteall;
+                        	*fStatus = U_MEMORY_ALLOCATION_ERROR;
+                        	goto ExitBuildSTdeleteall;
                         }
                     }
                     setAdd(U, p->fFollowPos);
@@ -675,7 +676,7 @@ void RBBITableBuilder::buildStateTable() {
                 {
                     RBBIStateDescriptor *newState = new RBBIStateDescriptor(lastInputSymbol, fStatus);
                     if (newState == NULL) {
-			*fStatus = U_MEMORY_ALLOCATION_ERROR;
+                    	*fStatus = U_MEMORY_ALLOCATION_ERROR;
                     }
                     if (U_FAILURE(*fStatus)) {
                         goto ExitBuildSTdeleteall;
@@ -694,7 +695,7 @@ void RBBITableBuilder::buildStateTable() {
         }
     }
     return;
-    // delete local pointers only if error occured.
+    // delete local pointers only if error occurred.
 ExitBuildSTdeleteall:
     delete initialState;
     delete failState;
@@ -1042,6 +1043,8 @@ void RBBITableBuilder::sortedAdd(UVector **vector, int32_t val) {
 //
 //-----------------------------------------------------------------------------
 void RBBITableBuilder::setAdd(UVector *dest, UVector *source) {
+    U_ASSERT(!dest->hasDeleter());
+    U_ASSERT(!source->hasDeleter());
     int32_t destOriginalSize = dest->size();
     int32_t sourceSize       = source->size();
     int32_t di           = 0;
@@ -1070,6 +1073,9 @@ void RBBITableBuilder::setAdd(UVector *dest, UVector *source) {
     (void) source->toArray(sourcePtr);
 
     dest->setSize(sourceSize+destOriginalSize, *fStatus);
+    if (U_FAILURE(*fStatus)) {
+        return;
+    }
 
     while (sourcePtr < sourceLim && destPtr < destLim) {
         if (*destPtr == *sourcePtr) {
@@ -1402,12 +1408,13 @@ void RBBITableBuilder::exportTable(void *where) {
             U_ASSERT (sd->fAccepting <= 255);
             U_ASSERT (sd->fLookAhead <= 255);
             U_ASSERT (0 <= sd->fTagsIdx && sd->fTagsIdx <= 255);
-            row->r8.fAccepting = sd->fAccepting;
-            row->r8.fLookAhead = sd->fLookAhead;
-            row->r8.fTagsIdx   = sd->fTagsIdx;
+            RBBIStateTableRow8 *r8 = (RBBIStateTableRow8*)row;
+            r8->fAccepting = sd->fAccepting;
+            r8->fLookAhead = sd->fLookAhead;
+            r8->fTagsIdx   = sd->fTagsIdx;
             for (col=0; col<catCount; col++) {
                 U_ASSERT (sd->fDtran->elementAti(col) <= kMaxStateFor8BitsTable);
-                row->r8.fNextState[col] = sd->fDtran->elementAti(col);
+                r8->fNextState[col] = sd->fDtran->elementAti(col);
             }
         } else {
             U_ASSERT (sd->fAccepting <= 0xffff);
@@ -1430,7 +1437,7 @@ void RBBITableBuilder::exportTable(void *where) {
 void RBBITableBuilder::buildSafeReverseTable(UErrorCode &status) {
     // The safe table creation has three steps:
 
-    // 1. Identifiy pairs of character classes that are "safe." Safe means that boundaries
+    // 1. Identify pairs of character classes that are "safe." Safe means that boundaries
     // following the pair do not depend on context or state before the pair. To test
     // whether a pair is safe, run it through the main forward state table, starting
     // from each state. If the the final state is the same, no matter what the starting state,
@@ -1444,7 +1451,7 @@ void RBBITableBuilder::buildSafeReverseTable(UErrorCode &status) {
     // the first of a pair. In each of these rows, the entry for the second character
     // of a safe pair is set to the stop state (0), indicating that a match was found.
     // All other table entries are set to the state corresponding the current input
-    // character, allowing that charcter to be the of a start following pair.
+    // character, allowing that character to be the of a start following pair.
     //
     // Because the safe rules are to be run in reverse, moving backwards in the text,
     // the first and second pair categories are swapped when building the table.
@@ -1489,16 +1496,25 @@ void RBBITableBuilder::buildSafeReverseTable(UErrorCode &status) {
     // The table as a whole is UVector<UnicodeString>
     // Each row is represented by a UnicodeString, being used as a Vector<int16>.
     // Row 0 is the stop state.
-    // Row 1 is the start sate.
+    // Row 1 is the start state.
     // Row 2 and beyond are other states, initially one per char class, but
     //   after initial construction, many of the states will be combined, compacting the table.
     // The String holds the nextState data only. The four leading fields of a row, fAccepting,
     // fLookAhead, etc. are not needed for the safe table, and are omitted at this stage of building.
 
     U_ASSERT(fSafeTable == nullptr);
-    fSafeTable = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, numCharClasses + 2, status);
+    LocalPointer<UVector> lpSafeTable(
+        new UVector(uprv_deleteUObject, uhash_compareUnicodeString, numCharClasses + 2, status), status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    fSafeTable = lpSafeTable.orphan();
     for (int32_t row=0; row<numCharClasses + 2; ++row) {
-        fSafeTable->addElement(new UnicodeString(numCharClasses, 0, numCharClasses+4), status);
+        LocalPointer<UnicodeString> lpString(new UnicodeString(numCharClasses, 0, numCharClasses+4), status);
+        fSafeTable->adoptElement(lpString.orphan(), status);
+    }
+    if (U_FAILURE(status)) {
+        return;
     }
 
     // From the start state, each input char class transitions to the state for that input.
@@ -1603,12 +1619,13 @@ void RBBITableBuilder::exportSafeTable(void *where) {
         UnicodeString *rowString = (UnicodeString *)fSafeTable->elementAt(state);
         RBBIStateTableRow   *row = (RBBIStateTableRow *)(table->fTableData + state*table->fRowLen);
         if (use8BitsForSafeTable()) {
-            row->r8.fAccepting = 0;
-            row->r8.fLookAhead = 0;
-            row->r8.fTagsIdx    = 0;
+            RBBIStateTableRow8 *r8 = (RBBIStateTableRow8*)row;
+            r8->fAccepting = 0;
+            r8->fLookAhead = 0;
+            r8->fTagsIdx    = 0;
             for (col=0; col<catCount; col++) {
                 U_ASSERT(rowString->charAt(col) <= kMaxStateFor8BitsTable);
-                row->r8.fNextState[col] = static_cast<uint8_t>(rowString->charAt(col));
+                r8->fNextState[col] = static_cast<uint8_t>(rowString->charAt(col));
             }
         } else {
             row->r16.fAccepting = 0;

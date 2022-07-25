@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-view</title>
 <style>
 body {
@@ -141,45 +142,48 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm view [&lt;@scope&gt;/]&lt;name&gt;[@&lt;version&gt;] [&lt;field&gt;[.&lt;subfield&gt;]...]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm view [&lt;package-spec&gt;] [&lt;field&gt;[.subfield]...]
 
 aliases: info, show, v
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
-<p>This command shows data about a package and prints it to the stream
-referenced by the <code>outfd</code> config, which defaults to stdout.</p>
-<p>To show the package registry entry for the <code>connect</code> package, you can do
-this:</p>
+<p>This command shows data about a package and prints it to stdout.</p>
+<p>As an example, to view information about the <code>connect</code> package from the registry, you would run:</p>
 <pre lang="bash"><code>npm view connect
 </code></pre>
-<p>The default version is “latest” if unspecified.</p>
+<p>The default version is <code>"latest"</code> if unspecified.</p>
 <p>Field names can be specified after the package descriptor.
 For example, to show the dependencies of the <code>ronn</code> package at version
-0.3.5, you could do the following:</p>
+<code>0.3.5</code>, you could do the following:</p>
 <pre lang="bash"><code>npm view ronn@0.3.5 dependencies
 </code></pre>
 <p>You can view child fields by separating them with a period.
-To view the git repository URL for the latest version of npm, you could
-do this:</p>
+To view the git repository URL for the latest version of <code>npm</code>, you would run the following command:</p>
 <pre lang="bash"><code>npm view npm repository.url
 </code></pre>
 <p>This makes it easy to view information about a dependency with a bit of
-shell scripting.  For example, to view all the data about the version of
-opts that ronn depends on, you can do this:</p>
+shell scripting. For example, to view all the data about the version of
+<code>opts</code> that <code>ronn</code> depends on, you could write the following:</p>
 <pre lang="bash"><code>npm view opts@$(npm view ronn dependencies.opts)
 </code></pre>
 <p>For fields that are arrays, requesting a non-numeric field will return
-all of the values from the objects in the list.  For example, to get all
-the contributor names for the “express” project, you can do this:</p>
+all of the values from the objects in the list. For example, to get all
+the contributor email addresses for the <code>express</code> package, you would run:</p>
 <pre lang="bash"><code>npm view express contributors.email
 </code></pre>
 <p>You may also use numeric indices in square braces to specifically select
-an item in an array field.  To just get the email address of the first
-contributor in the list, you can do this:</p>
+an item in an array field. To just get the email address of the first
+contributor in the list, you can run:</p>
 <pre lang="bash"><code>npm view express contributors[0].email
 </code></pre>
 <p>Multiple fields may be specified, and will be printed one after another.
@@ -187,31 +191,101 @@ For example, to get all the contributor names and email addresses, you
 can do this:</p>
 <pre lang="bash"><code>npm view express contributors.name contributors.email
 </code></pre>
-<p>“Person” fields are shown as a string if they would be shown as an
-object.  So, for example, this will show the list of npm contributors in
-the shortened string format.  (See <a href="../configuring-npm/package.json.html"><code>package.json</code></a> for more on this.)</p>
+<p>"Person" fields are shown as a string if they would be shown as an
+object.  So, for example, this will show the list of <code>npm</code> contributors in
+the shortened string format.  (See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more on this.)</p>
 <pre lang="bash"><code>npm view npm contributors
 </code></pre>
 <p>If a version range is provided, then data will be printed for every
-matching version of the package.  This will show which version of jsdom
-was required by each matching version of yui3:</p>
+matching version of the package.  This will show which version of <code>jsdom</code>
+was required by each matching version of <code>yui3</code>:</p>
 <pre lang="bash"><code>npm view yui3@'&gt;0.5.4' dependencies.jsdom
 </code></pre>
 <p>To show the <code>connect</code> package version history, you can do
 this:</p>
 <pre lang="bash"><code>npm view connect versions
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="output">Output</h3>
 <p>If only a single string field for a single version is output, then it
-will not be colorized or quoted, so as to enable piping the output to
+will not be colorized or quoted, to enable piping the output to
 another command. If the field is an object, it will be output as a JavaScript object literal.</p>
-<p>If the –json flag is given, the outputted fields will be JSON.</p>
-<p>If the version range matches multiple versions, than each printed value
+<p>If the <code>--json</code> flag is given, the outputted fields will be JSON.</p>
+<p>If the version range matches multiple versions then each printed value
 will be prefixed with the version it applies to.</p>
-<p>If multiple fields are requested, than each of them are prefixed with
+<p>If multiple fields are requested, then each of them is prefixed with
 the field name.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-search.html">npm search</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>

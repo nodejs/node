@@ -10,9 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/base/enum-set.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
-#include "src/debug/interface-types.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 
@@ -39,6 +39,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   V8DebuggerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                       protocol::DictionaryValue* state);
   ~V8DebuggerAgentImpl() override;
+  V8DebuggerAgentImpl(const V8DebuggerAgentImpl&) = delete;
+  V8DebuggerAgentImpl& operator=(const V8DebuggerAgentImpl&) = delete;
   void restore();
 
   // Part of the protocol.
@@ -116,11 +118,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<double> timeout,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*) override;
-  Response executeWasmEvaluator(
-      const String16& callFrameId, const protocol::Binary& evaluator,
-      Maybe<double> timeout,
-      std::unique_ptr<protocol::Runtime::RemoteObject>* result,
-      Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) override;
   Response setVariableValue(
       int scopeNumber, const String16& variableName,
       std::unique_ptr<protocol::Runtime::CallArgument> newValue,
@@ -152,10 +149,12 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void reset();
 
   // Interface for V8InspectorImpl
+  void didPauseOnInstrumentation(v8::debug::BreakpointId instrumentationId);
+
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
-                bool isOOMBreak, bool isAssert);
+                v8::debug::BreakReasons breakReasons);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
 
@@ -169,6 +168,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void ScriptCollected(const V8DebuggerScript* script);
 
   v8::Isolate* isolate() { return m_isolate; }
+
+  void clearBreakDetails();
 
  private:
   void enableImpl();
@@ -188,7 +189,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                          v8::Local<v8::String> condition);
   void removeBreakpointImpl(const String16& breakpointId,
                             const std::vector<V8DebuggerScript*>& scripts);
-  void clearBreakDetails();
 
   void internalSetAsyncCallStackDepth(int);
   void increaseCachedSkipStackGeneration();
@@ -226,7 +226,16 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   size_t m_maxScriptCacheSize = 0;
   size_t m_cachedScriptSize = 0;
-  std::deque<String16> m_cachedScriptIds;
+  struct CachedScript {
+    String16 scriptId;
+    String16 source;
+    std::vector<uint8_t> bytecode;
+
+    size_t size() const {
+      return source.length() * sizeof(UChar) + bytecode.size();
+    }
+  };
+  std::deque<CachedScript> m_cachedScripts;
 
   using BreakReason =
       std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;
@@ -244,8 +253,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
   std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
-
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
 
 }  // namespace v8_inspector

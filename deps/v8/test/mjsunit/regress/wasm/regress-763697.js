@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --no-experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
     builder.addFunction("main", kSig_i_i)

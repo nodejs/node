@@ -82,6 +82,7 @@ function main({ n, methodName, params }) {
       }
       break;
     case 'execFileSync':
+    case 'spawnSync':
       switch (params) {
         case 1:
           bench.start();
@@ -115,25 +116,6 @@ function main({ n, methodName, params }) {
         case 3:
           bench.start();
           for (let i = 0; i < n; i++) method(command, args, options).kill();
-          bench.end(n);
-          break;
-      }
-      break;
-    case 'spawnSync':
-      switch (params) {
-        case 1:
-          bench.start();
-          for (let i = 0; i < n; i++) method(command);
-          bench.end(n);
-          break;
-        case 2:
-          bench.start();
-          for (let i = 0; i < n; i++) method(command, args);
-          bench.end(n);
-          break;
-        case 3:
-          bench.start();
-          for (let i = 0; i < n; i++) method(command, args, options);
           bench.end(n);
           break;
       }

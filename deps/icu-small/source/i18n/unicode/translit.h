@@ -18,7 +18,7 @@
 
 /**
  * \file
- * \brief C++ API: Tranforms text from one format to another.
+ * \brief C++ API: Transforms text from one format to another.
  */
 
 #if !UCONFIG_NO_TRANSLITERATION
@@ -157,7 +157,7 @@ class TransliteratorIDParser;
  * transliterator <b>B</b> decrements character values, then <b>A</b>
  * is an inverse of <b>B</b> and vice versa.  If we compose <b>A</b>
  * with <b>B</b> in a compound transliterator, the result is the
- * indentity transliterator, that is, a transliterator that does not
+ * identity transliterator, that is, a transliterator that does not
  * change its input text.
  *
  * The <code>Transliterator</code> method <code>getInverse()</code>
@@ -219,7 +219,7 @@ class TransliteratorIDParser;
  * acts a template; future calls to {@link #createInstance } with the ID
  * of the registered object return clones of that object.  Thus any
  * object passed to <tt>registerInstance()</tt> must implement
- * <tt>clone()</tt> propertly.  To register a transliterator subclass
+ * <tt>clone()</tt> properly.  To register a transliterator subclass
  * without instantiating it (until it is needed), users may call
  * {@link #registerFactory }.  In this case, the objects are
  * instantiated by invoking the zero-argument public constructor of
@@ -317,7 +317,7 @@ class TransliteratorIDParser;
  * replacement. The cursor is the point in the text at which the
  * next replacement, if any, will be applied. The cursor is usually
  * placed within the replacement text; however, it can actually be
- * placed into the precending or following context by using the
+ * placed into the preceding or following context by using the
  * special character '@'. Examples:
  *
  * <pre>
@@ -375,7 +375,7 @@ class TransliteratorIDParser;
  *
  * <p>It is also possible to match the beginning or the end of the text using a <code>UnicodeSet</code>.
  * This is done by including a virtual anchor character '<code>$</code>' at the end of the
- * set pattern. Although this is usually the match chafacter for the end anchor, the set will
+ * set pattern. Although this is usually the match character for the end anchor, the set will
  * match either the beginning or the end of the text, depending on its placement. For
  * example:
  *
@@ -683,8 +683,8 @@ public:
      * unambiguous transliterations.  After the last call to this
      * method, there may be untransliterated text that is waiting for
      * more input to resolve an ambiguity.  In order to perform these
-     * pending transliterations, clients should call {@link
-     * #finishTransliteration } after the last call to this
+     * pending transliterations, clients should call
+     * {@link #finishTransliteration } after the last call to this
      * method has been made.
      *
      * @param text the buffer holding transliterated and untransliterated text
@@ -741,8 +741,7 @@ public:
     /**
      * Transliterates the portion of the text buffer that can be
      * transliterated unambiguosly.  This is a convenience method; see
-     * {@link
-     * #transliterate(Replaceable&, UTransPosition&, const UnicodeString&, UErrorCode&) const }
+     * {@link #transliterate(Replaceable&, UTransPosition&, const UnicodeString&, UErrorCode&) const }
      * for details.
      * @param text the buffer holding transliterated and
      * untransliterated text
@@ -761,8 +760,7 @@ public:
      * <code>transliterate()</code>.
      * @param text the buffer holding transliterated and
      * untransliterated text.
-     * @param index the array of indices previously passed to {@link
-     * #transliterate }
+     * @param index the array of indices previously passed to {@link #transliterate }
      * @stable ICU 2.0
      */
     virtual void finishTransliteration(Replaceable& text,
@@ -883,7 +881,7 @@ public:
      * @param text the text to be transliterated
      * @param index the position indices
      * @param incremental if true, then assume more characters may be inserted
-     * at index.limit, and postpone processing to accomodate future incoming
+     * at index.limit, and postpone processing to accommodate future incoming
      * characters
      * @stable ICU 2.4
      */
@@ -913,7 +911,7 @@ private:
      * @param text the text to be transliterated
      * @param index the position indices
      * @param incremental if true, then assume more characters may be inserted
-     * at index.limit, and postpone processing to accomodate future incoming
+     * at index.limit, and postpone processing to accommodate future incoming
      * characters
      * @param rollback if true and if incremental is true, then perform special
      * incremental processing, as described above, and undo partial
@@ -968,8 +966,8 @@ public:
 
     /**
      * Returns a name for this transliterator that is appropriate for
-     * display to the user in the default locale.  See {@link
-     * #getDisplayName } for details.
+     * display to the user in the default locale.  See {@link #getDisplayName }
+     * for details.
      * @param ID     the string identifier for this transliterator
      * @param result Output param to receive the display name
      * @return       A reference to 'result'.
@@ -1063,7 +1061,7 @@ public:
      *
      * @param ID a valid ID, as enumerated by <code>getAvailableIDs()</code>
      * @param dir        either FORWARD or REVERSE.
-     * @param parseError Struct to recieve information on position
+     * @param parseError Struct to receive information on position
      *                   of error if an error is encountered
      * @param status     Output param to filled in with a success or an error.
      * @return A <code>Transliterator</code> object with the given ID
@@ -1168,8 +1166,8 @@ public:
      * input text by this Transliterator.  This incorporates this
      * object's current filter; if the filter is changed, the return
      * value of this function will change.  The default implementation
-     * returns an empty set.  Some subclasses may override {@link
-     * #handleGetSourceSet } to return a more precise result.  The
+     * returns an empty set.  Some subclasses may override
+     * {@link #handleGetSourceSet } to return a more precise result. The
      * return result is approximate in any case and is intended for
      * use by tests, tools, or utilities.
      * @param result receives result set; previous contents lost
@@ -1382,7 +1380,7 @@ public:
      * Return a registered source specifier.
      * @param index which specifier to return, from 0 to n-1, where
      * n = countAvailableSources()
-     * @param result fill-in paramter to receive the source specifier.
+     * @param result fill-in parameter to receive the source specifier.
      * If index is out of range, result will be empty.
      * @return reference to result
      * @stable ICU 2.0
@@ -1405,7 +1403,7 @@ public:
      * @param index which specifier to return, from 0 to n-1, where
      * n = countAvailableTargets(source)
      * @param source the source specifier
-     * @param result fill-in paramter to receive the target specifier.
+     * @param result fill-in parameter to receive the target specifier.
      * If source is invalid or if index is out of range, result will
      * be empty.
      * @return reference to result
@@ -1432,7 +1430,7 @@ public:
      * n = countAvailableVariants(source, target)
      * @param source the source specifier
      * @param target the target specifier
-     * @param result fill-in paramter to receive the variant
+     * @param result fill-in parameter to receive the variant
      * specifier.  If source is invalid or if target is invalid or if
      * index is out of range, result will be empty.
      * @return reference to result
@@ -1529,7 +1527,7 @@ public:
      * different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
 private:
     static UBool initializeRegistry(UErrorCode &status);

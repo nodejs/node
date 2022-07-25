@@ -12,6 +12,7 @@
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
 #define HEAP_TEST_METHODS(V)                                \
   V(CodeLargeObjectSpace)                                   \
+  V(CodeLargeObjectSpace64k)                                \
   V(CompactionFullAbortedPage)                              \
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
@@ -47,7 +48,6 @@
   V(StressHandles)                                          \
   V(TestMemoryReducerSampleJsCalls)                         \
   V(TestSizeOfObjects)                                      \
-  V(Regress5831)                                            \
   V(Regress10560)                                           \
   V(Regress538257)                                          \
   V(Regress587004)                                          \

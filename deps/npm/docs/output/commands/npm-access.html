@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-access</title>
 <style>
 body {
@@ -141,23 +142,26 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm access public [&lt;package&gt;]
 npm access restricted [&lt;package&gt;]
-
 npm access grant &lt;read-only|read-write&gt; &lt;scope:team&gt; [&lt;package&gt;]
 npm access revoke &lt;scope:team&gt; [&lt;package&gt;]
-
 npm access 2fa-required [&lt;package&gt;]
 npm access 2fa-not-required [&lt;package&gt;]
-
 npm access ls-packages [&lt;user&gt;|&lt;scope&gt;|&lt;scope:team&gt;]
 npm access ls-collaborators [&lt;package&gt; [&lt;user&gt;]]
 npm access edit [&lt;package&gt;]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>Used to set access controls on private packages.</p>
 <p>For all of the subcommands, <code>npm access</code> will perform actions on the packages
@@ -181,7 +185,7 @@ authentication enabled on their account.</p>
 <li>
 <p>ls-packages:
 Show all of the packages a user or a team is able to access, along with the
-access level, except for read-only public packages (it won’t print the whole
+access level, except for read-only public packages (it won't print the whole
 registry listing)</p>
 </li>
 <li>
@@ -209,13 +213,37 @@ public using <code>npm publish --access=public</code>, or set their access as pu
 <li>You have been given read-write privileges for a package, either as a member
 of a team or directly as an owner.</li>
 </ul>
-<p>If you have two-factor authentication enabled then you’ll be prompted to
+<p>If you have two-factor authentication enabled then you'll be prompted to
 provide an otp token, or may use the <code>--otp=...</code> option to specify it on
 the command line.</p>
 <p>If your account is not paid, then attempts to publish scoped packages will
 fail with an HTTP 402 status code (logically enough), unless you use
 <code>--access=public</code>.</p>
 <p>Management of teams and team memberships is done with the <code>npm team</code> command.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="https://npm.im/libnpmaccess"><code>libnpmaccess</code></a></li>

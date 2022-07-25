@@ -5,12 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const lodash = require("lodash");
-
-//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -29,18 +23,16 @@ function getStartLocation(token) {
 //------------------------------------------------------------------------------
 
 /**
- * Binary-searches the index of the first token which is after the given location.
+ * Finds the index of the first token which is after the given location.
  * If it was not found, this returns `tokens.length`.
  * @param {(Token|Comment)[]} tokens It searches the token in this list.
  * @param {number} location The location to search.
  * @returns {number} The found index or `tokens.length`.
  */
 exports.search = function search(tokens, location) {
-    return lodash.sortedIndexBy(
-        tokens,
-        { range: [location] },
-        getStartLocation
-    );
+    const index = tokens.findIndex(el => location <= getStartLocation(el));
+
+    return index === -1 ? tokens.length : index;
 };
 
 /**

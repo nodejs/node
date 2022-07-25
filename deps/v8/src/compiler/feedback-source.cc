@@ -17,9 +17,6 @@ FeedbackSource::FeedbackSource(Handle<FeedbackVector> vector_,
 FeedbackSource::FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_)
     : FeedbackSource(vector_.object(), slot_) {}
 
-FeedbackSource::FeedbackSource(FeedbackNexus const& nexus)
-    : FeedbackSource(nexus.vector_handle(), nexus.slot()) {}
-
 int FeedbackSource::index() const {
   CHECK(IsValid());
   return FeedbackVector::GetIndex(slot);

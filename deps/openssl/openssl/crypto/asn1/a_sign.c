@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,10 +18,11 @@
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 #include <openssl/buffer.h>
+#include <openssl/core_names.h>
 #include "crypto/asn1.h"
 #include "crypto/evp.h"
 
-#ifndef NO_ASN1_OLD
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 
 int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
               ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
@@ -34,7 +35,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
     X509_ALGOR *a;
 
     if (ctx == NULL) {
-        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         goto err;
     }
     for (i = 0; i < 2; i++) {
@@ -61,27 +62,27 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
         ASN1_OBJECT_free(a->algorithm);
         a->algorithm = OBJ_nid2obj(type->pkey_type);
         if (a->algorithm == NULL) {
-            ASN1err(ASN1_F_ASN1_SIGN, ASN1_R_UNKNOWN_OBJECT_TYPE);
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_UNKNOWN_OBJECT_TYPE);
             goto err;
         }
         if (a->algorithm->length == 0) {
-            ASN1err(ASN1_F_ASN1_SIGN,
-                    ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
+            ERR_raise(ERR_LIB_ASN1,
+                      ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
             goto err;
         }
     }
     inl = i2d(data, NULL);
     if (inl <= 0) {
-        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_INTERNAL_ERROR);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     inll = (size_t)inl;
     buf_in = OPENSSL_malloc(inll);
-    outll = outl = EVP_PKEY_size(pkey);
+    outll = outl = EVP_PKEY_get_size(pkey);
     buf_out = OPENSSL_malloc(outll);
     if (buf_in == NULL || buf_out == NULL) {
         outl = 0;
-        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         goto err;
     }
     p = buf_in;
@@ -92,7 +93,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
         || !EVP_SignFinal(ctx, (unsigned char *)buf_out,
                           (unsigned int *)&outl, pkey)) {
         outl = 0;
-        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_EVP_LIB);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
     }
     OPENSSL_free(signature->data);
@@ -114,54 +115,104 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
 
 #endif
 
-int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1,
-                   X509_ALGOR *algor2, ASN1_BIT_STRING *signature, void *asn,
-                   EVP_PKEY *pkey, const EVP_MD *type)
+int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
+                   ASN1_BIT_STRING *signature, const void *data,
+                   EVP_PKEY *pkey, const EVP_MD *md)
 {
-    int rv;
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    return ASN1_item_sign_ex(it, algor1, algor2, signature, data, NULL, pkey,
+                             md, NULL, NULL);
+}
+
+int ASN1_item_sign_ex(const ASN1_ITEM *it, X509_ALGOR *algor1,
+                      X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
+                      const void *data, const ASN1_OCTET_STRING *id,
+                      EVP_PKEY *pkey, const EVP_MD *md, OSSL_LIB_CTX *libctx,
+                      const char *propq)
+{
+    int rv = 0;
+    EVP_MD_CTX *ctx = evp_md_ctx_new_ex(pkey, id, libctx, propq);
 
     if (ctx == NULL) {
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    if (!EVP_DigestSignInit(ctx, NULL, type, NULL, pkey)) {
-        EVP_MD_CTX_free(ctx);
-        return 0;
-    }
+    /* We can use the non _ex variant here since the pkey is already setup */
+    if (!EVP_DigestSignInit(ctx, NULL, md, NULL, pkey))
+        goto err;
 
-    rv = ASN1_item_sign_ctx(it, algor1, algor2, signature, asn, ctx);
+    rv = ASN1_item_sign_ctx(it, algor1, algor2, signature, data, ctx);
 
+ err:
+    EVP_PKEY_CTX_free(EVP_MD_CTX_get_pkey_ctx(ctx));
     EVP_MD_CTX_free(ctx);
     return rv;
 }
 
-int ASN1_item_sign_ctx(const ASN1_ITEM *it,
-                       X509_ALGOR *algor1, X509_ALGOR *algor2,
-                       ASN1_BIT_STRING *signature, void *asn, EVP_MD_CTX *ctx)
+int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
+                       X509_ALGOR *algor2, ASN1_BIT_STRING *signature,
+                       const void *data, EVP_MD_CTX *ctx)
 {
-    const EVP_MD *type;
+    const EVP_MD *md;
     EVP_PKEY *pkey;
     unsigned char *buf_in = NULL, *buf_out = NULL;
     size_t inl = 0, outl = 0, outll = 0;
     int signid, paramtype, buf_len = 0;
-    int rv;
+    int rv, pkey_id;
 
-    type = EVP_MD_CTX_md(ctx);
-    pkey = EVP_PKEY_CTX_get0_pkey(EVP_MD_CTX_pkey_ctx(ctx));
+    md = EVP_MD_CTX_get0_md(ctx);
+    pkey = EVP_PKEY_CTX_get0_pkey(EVP_MD_CTX_get_pkey_ctx(ctx));
 
     if (pkey == NULL) {
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ASN1_R_CONTEXT_NOT_INITIALISED);
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_CONTEXT_NOT_INITIALISED);
         goto err;
     }
 
     if (pkey->ameth == NULL) {
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
-        goto err;
-    }
+        EVP_PKEY_CTX *pctx = EVP_MD_CTX_get_pkey_ctx(ctx);
+        OSSL_PARAM params[2];
+        unsigned char aid[128];
+        size_t aid_len = 0;
 
-    if (pkey->ameth->item_sign) {
-        rv = pkey->ameth->item_sign(ctx, it, asn, algor1, algor2, signature);
+        if (pctx == NULL
+            || !EVP_PKEY_CTX_IS_SIGNATURE_OP(pctx)) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_CONTEXT_NOT_INITIALISED);
+            goto err;
+        }
+
+        params[0] =
+            OSSL_PARAM_construct_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID,
+                                              aid, sizeof(aid));
+        params[1] = OSSL_PARAM_construct_end();
+
+        if (EVP_PKEY_CTX_get_params(pctx, params) <= 0)
+            goto err;
+
+        if ((aid_len = params[0].return_size) == 0) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
+            goto err;
+        }
+
+        if (algor1 != NULL) {
+            const unsigned char *pp = aid;
+
+            if (d2i_X509_ALGOR(&algor1, &pp, aid_len) == NULL) {
+                ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+        }
+
+        if (algor2 != NULL) {
+            const unsigned char *pp = aid;
+
+            if (d2i_X509_ALGOR(&algor2, &pp, aid_len) == NULL) {
+                ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+        }
+
+        rv = 3;
+    } else if (pkey->ameth->item_sign) {
+        rv = pkey->ameth->item_sign(ctx, it, data, algor1, algor2, signature);
         if (rv == 1)
             outl = signature->length;
         /*-
@@ -172,7 +223,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
          *   3: ASN1 method sets algorithm identifiers: just sign.
          */
         if (rv <= 0)
-            ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_EVP_LIB);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         if (rv <= 1)
             goto err;
     } else {
@@ -180,15 +231,19 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
     }
 
     if (rv == 2) {
-        if (type == NULL) {
-            ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ASN1_R_CONTEXT_NOT_INITIALISED);
+        if (md == NULL) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_CONTEXT_NOT_INITIALISED);
             goto err;
         }
-        if (!OBJ_find_sigid_by_algs(&signid,
-                                    EVP_MD_nid(type),
-                                    pkey->ameth->pkey_id)) {
-            ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX,
-                    ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
+
+        pkey_id =
+#ifndef OPENSSL_NO_SM2
+            EVP_PKEY_get_id(pkey) == NID_sm2 ? NID_sm2 :
+#endif
+            pkey->ameth->pkey_id;
+
+        if (!OBJ_find_sigid_by_algs(&signid, EVP_MD_nid(md), pkey_id)) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
             goto err;
         }
 
@@ -204,24 +259,29 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
 
     }
 
-    buf_len = ASN1_item_i2d(asn, &buf_in, it);
+    buf_len = ASN1_item_i2d(data, &buf_in, it);
     if (buf_len <= 0) {
         outl = 0;
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_INTERNAL_ERROR);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     inl = buf_len;
-    outll = outl = EVP_PKEY_size(pkey);
+    if (!EVP_DigestSign(ctx, NULL, &outll, buf_in, inl)) {
+        outl = 0;
+        ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
+        goto err;
+    }
+    outl = outll;
     buf_out = OPENSSL_malloc(outll);
     if (buf_in == NULL || buf_out == NULL) {
         outl = 0;
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     if (!EVP_DigestSign(ctx, buf_out, &outl, buf_in, inl)) {
         outl = 0;
-        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_EVP_LIB);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
     }
     OPENSSL_free(signature->data);

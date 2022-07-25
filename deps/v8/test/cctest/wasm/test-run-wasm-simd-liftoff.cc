@@ -30,26 +30,26 @@ namespace test_run_wasm_simd_liftoff {
   void RunWasm_##name##_Impl()
 
 WASM_SIMD_LIFTOFF_TEST(S128Local) {
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(temp1, WASM_GET_LOCAL(temp1)), WASM_ONE);
+  BUILD(r, WASM_LOCAL_SET(temp1, WASM_LOCAL_GET(temp1)), WASM_ONE);
   CHECK_EQ(1, r.Call());
 }
 
 WASM_SIMD_LIFTOFF_TEST(S128Global) {
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
 
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
+  BUILD(r, WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE);
 
   int32_t expected = 0x1234;
   for (int i = 0; i < 4; i++) {
-    WriteLittleEndianValue<int32_t>(&g0[i], expected);
+    LANE(g0, i) = expected;
   }
   r.Call();
   for (int i = 0; i < 4; i++) {
-    int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
+    int32_t actual = LANE(g1, i);
     CHECK_EQ(actual, expected);
   }
 }
@@ -58,7 +58,7 @@ WASM_SIMD_LIFTOFF_TEST(S128Param) {
   // Test how SIMD parameters in functions are processed. There is no easy way
   // to specify a SIMD value when initializing a WasmRunner, so we manually
   // add a new function with the right signature, and call it from main.
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   TestSignatures sigs;
   // We use a temp local to materialize a SIMD value, since at this point
   // Liftoff does not support any SIMD operations.
@@ -67,18 +67,18 @@ WASM_SIMD_LIFTOFF_TEST(S128Param) {
   BUILD(simd_func, WASM_ONE);
 
   BUILD(r,
-        WASM_CALL_FUNCTION(simd_func.function_index(), WASM_GET_LOCAL(temp1)));
+        WASM_CALL_FUNCTION(simd_func.function_index(), WASM_LOCAL_GET(temp1)));
 
   CHECK_EQ(1, r.Call());
 }
 
 WASM_SIMD_LIFTOFF_TEST(S128Return) {
   // Test how functions returning SIMD values are processed.
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   TestSignatures sigs;
   WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
   byte temp1 = simd_func.AllocateLocal(kWasmS128);
-  BUILD(simd_func, WASM_GET_LOCAL(temp1));
+  BUILD(simd_func, WASM_LOCAL_GET(temp1));
 
   BUILD(r, WASM_CALL_FUNCTION(simd_func.function_index(), WASM_ONE), kExprDrop,
         WASM_ONE);
@@ -93,11 +93,11 @@ WASM_SIMD_LIFTOFF_TEST(REGRESS_1088273) {
   // explicitly skip them.
   if (!CpuFeatures::SupportsWasmSimd128()) return;
 
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   TestSignatures sigs;
   WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
   byte temp1 = simd_func.AllocateLocal(kWasmS128);
-  BUILD(simd_func, WASM_GET_LOCAL(temp1));
+  BUILD(simd_func, WASM_LOCAL_GET(temp1));
 
   BUILD(r, WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x80)),
         WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x92)),
@@ -109,7 +109,7 @@ WASM_SIMD_LIFTOFF_TEST(REGRESS_1088273) {
 // implementation in Liftoff is a bit more tricky due to shuffle requiring
 // adjacent registers in ARM/ARM64.
 WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   // Temps to use up registers and force non-adjacent registers for shuffle.
   byte local0 = r.AllocateLocal(kWasmS128);
   byte local1 = r.AllocateLocal(kWasmS128);
@@ -120,8 +120,8 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
   byte* g0 = r.builder().AddGlobal<byte>(kWasmS128);
   byte* g1 = r.builder().AddGlobal<byte>(kWasmS128);
   for (int i = 0; i < 16; i++) {
-    WriteLittleEndianValue<byte>(&g0[i], i);
-    WriteLittleEndianValue<byte>(&g1[i], i + 16);
+    LANE(g0, i) = i;
+    LANE(g1, i) = i + 16;
   }
 
   // Output global holding a kWasmS128.
@@ -133,11 +133,11 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 31}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_SET_LOCAL(local0, WASM_GET_GLOBAL(1)),  // local0 is in v0
-        WASM_SET_LOCAL(local1, WASM_GET_GLOBAL(0)),     // local1 is in v1
-        WASM_GET_GLOBAL(0),                             // global0 is in v2
-        WASM_GET_LOCAL(local0),                         // local0 is in v0
-        WASM_SET_GLOBAL(2, WASM_SIMD_I8x16_SHUFFLE_OP(
+  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(1)),  // local0 is in v0
+        WASM_LOCAL_SET(local1, WASM_GLOBAL_GET(0)),     // local1 is in v1
+        WASM_GLOBAL_GET(0),                             // global0 is in v2
+        WASM_LOCAL_GET(local0),                         // local0 is in v0
+        WASM_GLOBAL_SET(2, WASM_SIMD_I8x16_SHUFFLE_OP(
                                kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 
@@ -145,21 +145,21 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
 
   // The shuffle pattern only changes the last element.
   for (int i = 0; i < 15; i++) {
-    byte actual = ReadLittleEndianValue<byte>(&output[i]);
+    byte actual = LANE(output, i);
     CHECK_EQ(i, actual);
   }
-  CHECK_EQ(31, ReadLittleEndianValue<byte>(&output[15]));
+  CHECK_EQ(31, LANE(output, 15));
 }
 
 // Exercise logic in Liftoff's implementation of shuffle when inputs to the
 // shuffle are the same register.
 WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   byte local0 = r.AllocateLocal(kWasmS128);
 
   byte* g0 = r.builder().AddGlobal<byte>(kWasmS128);
   for (int i = 0; i < 16; i++) {
-    WriteLittleEndianValue<byte>(&g0[i], i);
+    LANE(g0, i) = i;
   }
 
   byte* output = r.builder().AddGlobal<byte>(kWasmS128);
@@ -171,9 +171,9 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
       {31, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_SET_LOCAL(local0, WASM_GET_GLOBAL(0)), WASM_GET_LOCAL(local0),
-        WASM_GET_LOCAL(local0),
-        WASM_SET_GLOBAL(1, WASM_SIMD_I8x16_SHUFFLE_OP(
+  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(0)), WASM_LOCAL_GET(local0),
+        WASM_LOCAL_GET(local0),
+        WASM_GLOBAL_SET(1, WASM_SIMD_I8x16_SHUFFLE_OP(
                                kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 
@@ -181,7 +181,7 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
 
   for (int i = 0; i < 16; i++) {
     // Check that the output is the reverse of input.
-    byte actual = ReadLittleEndianValue<byte>(&output[i]);
+    byte actual = LANE(output, i);
     CHECK_EQ(15 - i, actual);
   }
 }
@@ -190,7 +190,7 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
 // incorrect instruction for storing zeroes into the slot when the slot offset
 // was too large to fit in the instruction as an immediate.
 WASM_SIMD_LIFTOFF_TEST(FillStackSlotsWithZero_CheckStartOffset) {
-  WasmRunner<int64_t> r(TestExecutionTier::kLiftoff, kNoLowerSimd);
+  WasmRunner<int64_t> r(TestExecutionTier::kLiftoff);
   // Function that takes in 32 i64 arguments, returns i64. This gets us a large
   // enough starting offset from which we spill locals.
   // start = 32 * 8 + 16 (instance) = 272 (cannot fit in signed int9).

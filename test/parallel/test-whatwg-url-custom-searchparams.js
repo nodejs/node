@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const { URL, URLSearchParams } = require('url');
 const fixtures = require('../common/fixtures');
 
 const serialized = 'a=a&a=1&a=true&a=undefined&a=null&a=%EF%BF%BD' +
@@ -75,7 +74,7 @@ sp.forEach(function() {
 
 {
   const callbackErr = {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   };
   assert.throws(() => sp.forEach(), callbackErr);

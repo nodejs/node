@@ -21,7 +21,7 @@
 
 'use strict';
 // Flags: --expose-internals
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
@@ -148,6 +148,8 @@ assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
+assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
+
 {
   assert.strictEqual(util.types.isNativeError(new Error()), true);
   assert.strictEqual(util.types.isNativeError(new TypeError()), true);
@@ -176,3 +178,11 @@ assert.strictEqual(util.isFunction('string'), false);
     true
   );
 }
+
+assert.throws(() => {
+  util.stripVTControlCharacters({});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "str" argument must be of type string.' +
+           common.invalidArgTypeHelper({})
+});

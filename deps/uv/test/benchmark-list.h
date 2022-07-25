@@ -81,7 +81,6 @@ HELPER_DECLARE    (tcp_pump_server)
 HELPER_DECLARE    (pipe_pump_server)
 HELPER_DECLARE    (tcp4_echo_server)
 HELPER_DECLARE    (pipe_echo_server)
-HELPER_DECLARE    (dns_server)
 
 TASK_LIST_START
   BENCHMARK_ENTRY  (sizes)

@@ -31,14 +31,63 @@
 #include <stddef.h>
 #include <string.h>
 #include "unicode/localpointer.h"
+#include "uassert.h"
 
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
 #include <stdio.h>
 #endif
 
-
-#define uprv_memcpy(dst, src, size) U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size)
-#define uprv_memmove(dst, src, size) U_STANDARD_CPP_NAMESPACE memmove(dst, src, size)
+// uprv_memcpy and uprv_memmove
+#if defined(__clang__)
+#define uprv_memcpy(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    /* Suppress warnings about addresses that will never be NULL */ \
+    _Pragma("clang diagnostic push") \
+    _Pragma("clang diagnostic ignored \"-Waddress\"") \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    _Pragma("clang diagnostic pop") \
+    U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#define uprv_memmove(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    /* Suppress warnings about addresses that will never be NULL */ \
+    _Pragma("clang diagnostic push") \
+    _Pragma("clang diagnostic ignored \"-Waddress\"") \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    _Pragma("clang diagnostic pop") \
+    U_STANDARD_CPP_NAMESPACE memmove(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#elif defined(__GNUC__)
+#define uprv_memcpy(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    /* Suppress warnings about addresses that will never be NULL */ \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Waddress\"") \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    _Pragma("GCC diagnostic pop") \
+    U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#define uprv_memmove(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    /* Suppress warnings about addresses that will never be NULL */ \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Waddress\"") \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    _Pragma("GCC diagnostic pop") \
+    U_STANDARD_CPP_NAMESPACE memmove(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#else
+#define uprv_memcpy(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#define uprv_memmove(dst, src, size) UPRV_BLOCK_MACRO_BEGIN { \
+    U_ASSERT(dst != NULL); \
+    U_ASSERT(src != NULL); \
+    U_STANDARD_CPP_NAMESPACE memmove(dst, src, size); \
+} UPRV_BLOCK_MACRO_END
+#endif
 
 /**
  * \def UPRV_LENGTHOF
@@ -101,7 +150,7 @@ uprv_calloc(size_t num, size_t size) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR2(1,2);
   *    Clears any user heap functions from u_setMemoryFunctions()
   *    Does NOT deallocate any remaining allocated memory.
   */
-U_CFUNC UBool
+U_CFUNC UBool 
 cmemory_cleanup(void);
 
 /**
@@ -725,9 +774,14 @@ public:
     }
 
     MemoryPool& operator=(MemoryPool&& other) U_NOEXCEPT {
-        fCount = other.fCount;
-        fPool = std::move(other.fPool);
-        other.fCount = 0;
+        // Since `this` may contain instances that need to be deleted, we can't
+        // just throw them away and replace them with `other`. The normal way of
+        // dealing with this in C++ is to swap `this` and `other`, rather than
+        // simply overwrite: the destruction of `other` can then take care of
+        // running MemoryPool::~MemoryPool() over the still-to-be-deallocated
+        // instances.
+        std::swap(fCount, other.fCount);
+        std::swap(fPool, other.fPool);
         return *this;
     }
 
@@ -796,9 +850,6 @@ protected:
 template<typename T, int32_t stackCapacity = 8>
 class MaybeStackVector : protected MemoryPool<T, stackCapacity> {
 public:
-    using MemoryPool<T, stackCapacity>::MemoryPool;
-    using MemoryPool<T, stackCapacity>::operator=;
-
     template<typename... Args>
     T* emplaceBack(Args&&... args) {
         return this->create(args...);

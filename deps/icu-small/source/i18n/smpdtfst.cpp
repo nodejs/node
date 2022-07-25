@@ -110,7 +110,7 @@ UnicodeSet *SimpleDateFormatStaticSets::getIgnorables(UDateFormatField fieldInde
     if (U_FAILURE(status)) {
         return NULL;
     }
-
+    
     switch (fieldIndex) {
         case UDAT_YEAR_FIELD:
         case UDAT_MONTH_FIELD:
@@ -118,7 +118,7 @@ UnicodeSet *SimpleDateFormatStaticSets::getIgnorables(UDateFormatField fieldInde
         case UDAT_STANDALONE_DAY_FIELD:
         case UDAT_STANDALONE_MONTH_FIELD:
             return gStaticSets->fDateIgnorables;
-
+            
         case UDAT_HOUR_OF_DAY1_FIELD:
         case UDAT_HOUR_OF_DAY0_FIELD:
         case UDAT_MINUTE_FIELD:
@@ -126,7 +126,7 @@ UnicodeSet *SimpleDateFormatStaticSets::getIgnorables(UDateFormatField fieldInde
         case UDAT_HOUR1_FIELD:
         case UDAT_HOUR0_FIELD:
             return gStaticSets->fTimeIgnorables;
-
+            
         default:
             return gStaticSets->fOtherIgnorables;
     }

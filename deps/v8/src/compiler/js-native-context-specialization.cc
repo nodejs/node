@@ -5,11 +5,13 @@
 #include "src/compiler/js-native-context-specialization.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/string-constants.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
@@ -20,7 +22,6 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
 #include "src/execution/isolate-inl.h"
-#include "src/numbers/dtoa.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/heap-number.h"
@@ -34,28 +35,21 @@ namespace compiler {
 
 namespace {
 
-bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps) {
-  for (auto map : maps) {
-    MapRef map_ref(broker, map);
-    if (map_ref.IsHeapNumberMap()) return true;
+bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (map.IsHeapNumberMap()) return true;
   }
   return false;
 }
 
-bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
-                        ZoneVector<Handle<Map>> const& maps) {
-  for (auto map : maps) {
-    MapRef map_ref(broker, map);
-    if (!map_ref.IsJSArrayMap()) return false;
+bool HasOnlyJSArrayMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSArrayMap()) return false;
   }
   return true;
 }
 
 }  // namespace
-
-bool JSNativeContextSpecialization::should_disallow_heap_access() const {
-  return broker()->is_concurrent_inlining();
-}
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker, Flags flags,
@@ -73,8 +67,6 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       type_cache_(TypeCache::Get()) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
-
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
@@ -102,18 +94,22 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreGlobal(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
-    case IrOpcode::kJSStoreNamed:
-      return ReduceJSStoreNamed(node);
+    case IrOpcode::kJSLoadNamedFromSuper:
+      return ReduceJSLoadNamedFromSuper(node);
+    case IrOpcode::kJSSetNamedProperty:
+      return ReduceJSSetNamedProperty(node);
     case IrOpcode::kJSHasProperty:
       return ReduceJSHasProperty(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
-    case IrOpcode::kJSStoreProperty:
-      return ReduceJSStoreProperty(node);
-    case IrOpcode::kJSStoreNamedOwn:
-      return ReduceJSStoreNamedOwn(node);
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
-      return ReduceJSStoreDataPropertyInLiteral(node);
+    case IrOpcode::kJSSetKeyedProperty:
+      return ReduceJSSetKeyedProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnProperty:
+      return ReduceJSDefineKeyedOwnProperty(node);
+    case IrOpcode::kJSDefineNamedOwnProperty:
+      return ReduceJSDefineNamedOwnProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
+      return ReduceJSDefineKeyedOwnPropertyInLiteral(node);
     case IrOpcode::kJSStoreInArrayLiteral:
       return ReduceJSStoreInArrayLiteral(node);
     case IrOpcode::kJSToObject:
@@ -136,14 +132,14 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
   }
 
   HeapObjectMatcher matcher(node);
-  if (matcher.HasValue() && matcher.Ref(broker).IsString()) {
+  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
     return input.length();
   }
 
   NumberMatcher number_matcher(node);
-  if (number_matcher.HasValue()) {
-    return kBase10MaximalLength + 1;
+  if (number_matcher.HasResolvedValue()) {
+    return kMaxDoubleStringLength;
   }
 
   // We don't support objects with possibly monkey-patched prototype.toString
@@ -157,7 +153,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   Reduction reduction;
 
   HeapObjectMatcher matcher(input);
-  if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
+  if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
     reduction = Changed(input);  // JSToString(x:string) => x
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -168,9 +164,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // so alternative approach should be designed if this causes performance
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
-  if (number_matcher.HasValue()) {
-    const StringConstantBase* base =
-        shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
+  if (number_matcher.HasResolvedValue()) {
+    const StringConstantBase* base = shared_zone()->New<NumberToStringConstant>(
+        number_matcher.ResolvedValue());
     reduction =
         Replace(graph()->NewNode(common()->DelayedStringConstant(base)));
     ReplaceWithValue(node, reduction.replacement());
@@ -180,20 +176,22 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   return NoChange();
 }
 
-const StringConstantBase*
+base::Optional<const StringConstantBase*>
 JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
   if (node->opcode() == IrOpcode::kDelayedStringConstant) {
     return StringConstantBaseOf(node->op());
   } else {
     NumberMatcher number_matcher(node);
-    if (number_matcher.HasValue()) {
-      return shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
+    if (number_matcher.HasResolvedValue()) {
+      return shared_zone()->New<NumberToStringConstant>(
+          number_matcher.ResolvedValue());
     } else {
       HeapObjectMatcher matcher(node);
-      if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
+      if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
+        if (!s.length().has_value()) return base::nullopt;
         return shared_zone()->New<StringLiteral>(
-            s.object(), static_cast<size_t>(s.length()));
+            s.object(), static_cast<size_t>(s.length().value()));
       } else {
         UNREACHABLE();
       }
@@ -208,7 +206,7 @@ bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   }
 
   HeapObjectMatcher matcher(node);
-  return matcher.HasValue() && matcher.Ref(broker).IsString();
+  return matcher.HasResolvedValue() && matcher.Ref(broker).IsString();
 }
 }  // namespace
 
@@ -230,12 +228,18 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
   // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
   // extracted from the top-most frame in {frame_state}.
-  SharedFunctionInfoRef shared(
+  SharedFunctionInfoRef shared = MakeRef(
       broker(),
       FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked());
   DCHECK(shared.is_compiled());
-  int register_count = shared.internal_formal_parameter_count() +
-                       shared.GetBytecodeArray().register_count();
+  int register_count =
+      shared.internal_formal_parameter_count_without_receiver() +
+      shared.GetBytecodeArray().register_count();
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
+  AllocationBuilder ab(jsgraph(), effect, control);
+  if (!ab.CanAllocateArray(register_count, fixed_array_map)) {
+    return NoChange();
+  }
   Node* value = effect =
       graph()->NewNode(javascript()->CreateAsyncFunctionObject(register_count),
                        closure, receiver, promise, context, effect, control);
@@ -266,7 +270,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
   // JSRejectPromise operation (which yields undefined).
   Node* parameters[] = {promise};
   frame_state = CreateStubBuiltinContinuationFrameState(
-      jsgraph(), Builtins::kAsyncFunctionLazyDeoptContinuation, context,
+      jsgraph(), Builtin::kAsyncFunctionLazyDeoptContinuation, context,
       parameters, arraysize(parameters), frame_state,
       ContinuationFrameStateMode::LAZY);
 
@@ -302,7 +306,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   // JSResolvePromise operation (which yields undefined).
   Node* parameters[] = {promise};
   frame_state = CreateStubBuiltinContinuationFrameState(
-      jsgraph(), Builtins::kAsyncFunctionLazyDeoptContinuation, context,
+      jsgraph(), Builtin::kAsyncFunctionLazyDeoptContinuation, context,
       parameters, arraysize(parameters), frame_state,
       ContinuationFrameStateMode::LAZY);
 
@@ -332,10 +336,14 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // string constant and the addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
       (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
-    const StringConstantBase* left = CreateDelayedStringConstant(lhs);
-    const StringConstantBase* right = CreateDelayedStringConstant(rhs);
+    base::Optional<const StringConstantBase*> left =
+        CreateDelayedStringConstant(lhs);
+    if (!left.has_value()) return NoChange();
+    base::Optional<const StringConstantBase*> right =
+        CreateDelayedStringConstant(rhs);
+    if (!right.has_value()) return NoChange();
     const StringConstantBase* cons =
-        shared_zone()->New<StringCons>(left, right);
+        shared_zone()->New<StringCons>(left.value(), right.value());
 
     Node* reduced = graph()->NewNode(common()->DelayedStringConstant(cons));
     ReplaceWithValue(node, reduced);
@@ -352,20 +360,17 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 
   // Check if the input is a known JSFunction.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue()) return NoChange();
-  JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-  MapRef function_map = function.map();
-  if (should_disallow_heap_access() && !function_map.serialized_prototype()) {
-    TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
+  if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSFunction()) {
     return NoChange();
   }
-  ObjectRef function_prototype = function_map.prototype();
+  JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+  MapRef function_map = function.map();
+  HeapObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
-  if (function_map.is_stable() && function_prototype.IsHeapObject() &&
-      function_prototype.AsHeapObject().map().is_constructor()) {
+  if (function_map.is_stable()) {
     dependencies()->DependOnStableMap(function_map);
     Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);
@@ -387,40 +392,30 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   // Check if the right hand side is a known {receiver}, or
   // we have feedback from the InstanceOfIC.
-  Handle<JSObject> receiver;
+  base::Optional<JSObjectRef> receiver;
   HeapObjectMatcher m(constructor);
-  if (m.HasValue() && m.Ref(broker()).IsJSObject()) {
-    receiver = m.Ref(broker()).AsJSObject().object();
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSObject()) {
+    receiver = m.Ref(broker()).AsJSObject();
   } else if (p.feedback().IsValid()) {
     ProcessedFeedback const& feedback =
         broker()->GetFeedbackForInstanceOf(FeedbackSource(p.feedback()));
     if (feedback.IsInsufficient()) return NoChange();
-    base::Optional<JSObjectRef> maybe_receiver =
-        feedback.AsInstanceOf().value();
-    if (!maybe_receiver.has_value()) return NoChange();
-    receiver = maybe_receiver->object();
+    receiver = feedback.AsInstanceOf().value();
   } else {
     return NoChange();
   }
 
-  JSObjectRef receiver_ref(broker(), receiver);
-  MapRef receiver_map = receiver_ref.map();
+  if (!receiver.has_value()) return NoChange();
 
-  PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
-  if (should_disallow_heap_access()) {
-    access_info = broker()->GetPropertyAccessInfo(
-        receiver_map,
-        NameRef(broker(), isolate()->factory()->has_instance_symbol()),
-        AccessMode::kLoad);
-  } else {
-    AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                          graph()->zone());
-    access_info = access_info_factory.ComputePropertyAccessInfo(
-        receiver_map.object(), factory()->has_instance_symbol(),
-        AccessMode::kLoad);
+  MapRef receiver_map = receiver->map();
+  NameRef name = MakeRef(broker(), isolate()->factory()->has_instance_symbol());
+  PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      receiver_map, name, AccessMode::kLoad, dependencies());
+
+  // TODO(v8:11457) Support dictionary mode holders here.
+  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
+    return NoChange();
   }
-
-  if (access_info.IsInvalid()) return NoChange();
   access_info.RecordDependencies(dependencies());
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
@@ -430,12 +425,12 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // takes over, but that requires the constructor to be callable.
     if (!receiver_map.is_callable()) return NoChange();
 
-    dependencies()->DependOnStablePrototypeChains(access_info.receiver_maps(),
-                                                  kStartAtPrototype);
+    dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype);
 
     // Monomorphic property access.
     access_builder.BuildCheckMaps(constructor, &effect, control,
-                                  access_info.receiver_maps());
+                                  access_info.lookup_start_object_maps());
 
     // Lower to OrdinaryHasInstance(C, O).
     NodeProperties::ReplaceValueInput(node, constructor, 0);
@@ -447,30 +442,31 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     return Changed(node).FollowedBy(ReduceJSOrdinaryHasInstance(node));
   }
 
-  if (access_info.IsDataConstant()) {
-    Handle<JSObject> holder;
-    bool found_on_proto = access_info.holder().ToHandle(&holder);
-    JSObjectRef holder_ref =
-        found_on_proto ? JSObjectRef(broker(), holder) : receiver_ref;
-    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
-        access_info.field_representation(), access_info.field_index());
+  if (access_info.IsFastDataConstant()) {
+    base::Optional<JSObjectRef> holder = access_info.holder();
+    bool found_on_proto = holder.has_value();
+    JSObjectRef holder_ref = found_on_proto ? holder.value() : receiver.value();
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
+        access_info.field_representation(), access_info.field_index(),
+        dependencies());
     if (!constant.has_value() || !constant->IsHeapObject() ||
-        !constant->AsHeapObject().map().is_callable())
+        !constant->AsHeapObject().map().is_callable()) {
       return NoChange();
+    }
 
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
-          access_info.receiver_maps(), kStartAtPrototype,
-          JSObjectRef(broker(), holder));
+          access_info.lookup_start_object_maps(), kStartAtPrototype,
+          holder.value());
     }
 
     // Check that {constructor} is actually {receiver}.
-    constructor =
-        access_builder.BuildCheckValue(constructor, &effect, control, receiver);
+    constructor = access_builder.BuildCheckValue(constructor, &effect, control,
+                                                 receiver->object());
 
     // Monomorphic property access.
     access_builder.BuildCheckMaps(constructor, &effect, control,
-                                  access_info.receiver_maps());
+                                  access_info.lookup_start_object_maps());
 
     // Create a nested frame state inside the current method's most-recent frame
     // state that will ensure that deopts that happen after this point will not
@@ -479,7 +475,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // ToBoolean stub that finishes the remaining work of instanceof and returns
     // to the caller without duplicating side-effects upon a lazy deopt.
     Node* continuation_frame_state = CreateStubBuiltinContinuationFrameState(
-        jsgraph(), Builtins::kToBooleanLazyDeoptContinuation, context, nullptr,
+        jsgraph(), Builtin::kToBooleanLazyDeoptContinuation, context, nullptr,
         0, frame_state, ContinuationFrameStateMode::LAZY);
 
     // Call the @@hasInstance handler.
@@ -517,21 +513,22 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
 JSNativeContextSpecialization::InferHasInPrototypeChainResult
 JSNativeContextSpecialization::InferHasInPrototypeChain(
-    Node* receiver, Node* effect, HeapObjectRef const& prototype) {
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMapsUnsafe(broker(), receiver, effect,
-                                              &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
+    Node* receiver, Effect effect, HeapObjectRef const& prototype) {
+  ZoneRefUnorderedSet<MapRef> receiver_maps(zone());
+  NodeProperties::InferMapsResult result = NodeProperties::InferMapsUnsafe(
+      broker(), receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoMaps) return kMayBeInPrototypeChain;
+
+  ZoneVector<MapRef> receiver_map_refs(zone());
 
   // Try to determine either that all of the {receiver_maps} have the given
   // {prototype} in their chain, or that none do. If we can't tell, return
   // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
-  for (size_t i = 0; i < receiver_maps.size(); ++i) {
-    MapRef map(broker(), receiver_maps[i]);
-    if (result == NodeProperties::kUnreliableReceiverMaps && !map.is_stable()) {
+  for (MapRef map : receiver_maps) {
+    receiver_map_refs.push_back(map);
+    if (result == NodeProperties::kUnreliableMaps && !map.is_stable()) {
       return kMayBeInPrototypeChain;
     }
     while (true) {
@@ -542,16 +539,16 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      if (should_disallow_heap_access() && !map.serialized_prototype()) {
-        TRACE_BROKER_MISSING(broker(), "prototype data for map " << map);
-        return kMayBeInPrototypeChain;
-      }
-      if (map.prototype().equals(prototype)) {
+      HeapObjectRef map_prototype = map.prototype();
+      if (map_prototype.equals(prototype)) {
         none = false;
         break;
       }
-      map = map.prototype().map();
-      if (!map.is_stable()) return kMayBeInPrototypeChain;
+      map = map_prototype.map();
+      // TODO(v8:11457) Support dictionary mode protoypes here.
+      if (!map.is_stable() || map.is_dictionary_map()) {
+        return kMayBeInPrototypeChain;
+      }
       if (map.oddball_type() == OddballType::kNull) {
         all = false;
         break;
@@ -573,10 +570,10 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
       if (!prototype.map().is_stable()) return kMayBeInPrototypeChain;
       last_prototype = prototype.AsJSObject();
     }
-    WhereToStart start = result == NodeProperties::kUnreliableReceiverMaps
+    WhereToStart start = result == NodeProperties::kUnreliableMaps
                              ? kStartAtReceiver
                              : kStartAtPrototype;
-    dependencies()->DependOnStablePrototypeChains(receiver_maps, start,
+    dependencies()->DependOnStablePrototypeChains(receiver_map_refs, start,
                                                   last_prototype);
   }
 
@@ -589,18 +586,19 @@ Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
   DCHECK_EQ(IrOpcode::kJSHasInPrototypeChain, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* prototype = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
+  Effect effect{NodeProperties::GetEffectInput(node)};
 
   // Check if we can constant-fold the prototype chain walk
   // for the given {value} and the {prototype}.
   HeapObjectMatcher m(prototype);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     InferHasInPrototypeChainResult result =
         InferHasInPrototypeChain(value, effect, m.Ref(broker()));
     if (result != kMayBeInPrototypeChain) {
-      Node* value = jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
-      ReplaceWithValue(node, value);
-      return Replace(value);
+      Node* result_in_chain =
+          jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
+      ReplaceWithValue(node, result_in_chain);
+      return Replace(result_in_chain);
     }
   }
 
@@ -615,24 +613,17 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
 
   // Check if the {constructor} is known at compile time.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue()) return NoChange();
+  if (!m.HasResolvedValue()) return NoChange();
 
   if (m.Ref(broker()).IsJSBoundFunction()) {
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
-    if (should_disallow_heap_access() && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << function);
-      return NoChange();
-    }
-
-    JSReceiverRef bound_target_function = function.bound_target_function();
-
     Node* feedback = jsgraph()->UndefinedConstant();
     NodeProperties::ReplaceValueInput(node, object,
                                       JSInstanceOfNode::LeftIndex());
     NodeProperties::ReplaceValueInput(
-        node, jsgraph()->Constant(bound_target_function),
+        node, jsgraph()->Constant(function.bound_target_function()),
         JSInstanceOfNode::RightIndex());
     node->InsertInput(zone(), JSInstanceOfNode::FeedbackVectorIndex(),
                       feedback);
@@ -644,15 +635,12 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (should_disallow_heap_access() && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for JSFunction " << function);
-      return NoChange();
-    }
 
     // TODO(neis): Remove the has_prototype_slot condition once the broker is
     // always enabled.
-    if (!function.map().has_prototype_slot() || !function.has_prototype() ||
-        function.PrototypeRequiresRuntimeLookup()) {
+    if (!function.map().has_prototype_slot() ||
+        !function.has_instance_prototype(dependencies()) ||
+        function.PrototypeRequiresRuntimeLookup(dependencies())) {
       return NoChange();
     }
 
@@ -675,13 +663,13 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   Node* constructor = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
 
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue() ||
+  if (!m.HasResolvedValue() ||
       !m.Ref(broker()).equals(native_context().promise_function())) {
     return NoChange();
   }
@@ -710,35 +698,32 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   Node* promise = NodeProperties::GetValueInput(node, 0);
   Node* resolution = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
 
   // Check if we know something about the {resolution}.
   MapInference inference(broker(), resolution, effect);
   if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& resolution_maps = inference.GetMaps();
+  ZoneVector<MapRef> const& resolution_maps = inference.GetMaps();
 
   // Compute property access info for "then" on {resolution}.
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!should_disallow_heap_access()) {
-    access_info_factory.ComputePropertyAccessInfos(
-        resolution_maps, factory()->then_string(), AccessMode::kLoad,
-        &access_infos);
-  } else {
-    // Obtain pre-computed access infos from the broker.
-    for (auto map : resolution_maps) {
-      MapRef map_ref(broker(), map);
-      access_infos.push_back(broker()->GetPropertyAccessInfo(
-          map_ref, NameRef(broker(), isolate()->factory()->then_string()),
-          AccessMode::kLoad));
-    }
+
+  for (const MapRef& map : resolution_maps) {
+    access_infos.push_back(broker()->GetPropertyAccessInfo(
+        map, MakeRef(broker(), isolate()->factory()->then_string()),
+        AccessMode::kLoad, dependencies()));
   }
   PropertyAccessInfo access_info =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
                                                            AccessMode::kLoad);
-  if (access_info.IsInvalid()) return inference.NoChange();
+
+  // TODO(v8:11457) Support dictionary mode prototypes here.
+  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
+    return inference.NoChange();
+  }
 
   // Only optimize when {resolution} definitely doesn't have a "then" property.
   if (!access_info.IsNotFound()) return inference.NoChange();
@@ -747,8 +732,8 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
     return inference.NoChange();
   }
 
-  dependencies()->DependOnStablePrototypeChains(access_info.receiver_maps(),
-                                                kStartAtPrototype);
+  dependencies()->DependOnStablePrototypeChains(
+      access_info.lookup_start_object_maps(), kStartAtPrototype);
 
   // Simply fulfill the {promise} with the {resolution}.
   Node* value = effect =
@@ -778,24 +763,20 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 
 }  // namespace
 
-Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
-    Node* node, Node* receiver, Node* value, NameRef const& name,
-    AccessMode access_mode, Node* key) {
-  base::Optional<PropertyCellRef> cell =
-      native_context().global_object().GetPropertyCell(name);
-  return cell.has_value() ? ReduceGlobalAccess(node, receiver, value, name,
-                                               access_mode, key, *cell)
-                          : NoChange();
-}
-
 // TODO(neis): Try to merge this with ReduceNamedAccess by introducing a new
 // PropertyAccessInfo kind for global accesses and using the existing mechanism
 // for building loads/stores.
+// Note: The "receiver" parameter is only used for DCHECKS, but that's on
+// purpose. This way we can assert the super property access cases won't hit the
+// code which hasn't been modified to support super property access.
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
-    Node* node, Node* receiver, Node* value, NameRef const& name,
-    AccessMode access_mode, Node* key, PropertyCellRef const& property_cell) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+    Node* node, Node* lookup_start_object, Node* receiver, Node* value,
+    NameRef const& name, AccessMode access_mode, Node* key,
+    PropertyCellRef const& property_cell, Node* effect) {
+  if (!property_cell.Cache()) {
+    TRACE_BROKER_MISSING(broker(), "usable data for " << property_cell);
+    return NoChange();
+  }
 
   ObjectRef property_cell_value = property_cell.value();
   if (property_cell_value.IsHeapObject() &&
@@ -807,25 +788,32 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
-  DCHECK_EQ(kData, property_details.kind());
+  DCHECK_EQ(PropertyKind::kData, property_details.kind());
+
+  Node* control = NodeProperties::GetControlInput(node);
+  if (effect == nullptr) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
+    DCHECK_EQ(receiver, lookup_start_object);
     if (property_details.IsReadOnly()) {
       // Don't even bother trying to lower stores to read-only data properties.
+      // TODO(neis): We could generate code that checks if the new value equals
+      // the old one and then does nothing or deopts, respectively.
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kUndefined) {
-      // There's no fast-path for dealing with undefined property cells.
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kConstantType) {
-      // There's also no fast-path to store to a global cell which pretended
-      // to be stable, but is no longer stable now.
+      // We rely on stability further below.
       if (property_cell_value.IsHeapObject() &&
           !property_cell_value.AsHeapObject().map().is_stable()) {
         return NoChange();
       }
     }
   } else if (access_mode == AccessMode::kHas) {
+    DCHECK_EQ(receiver, lookup_start_object);
     // has checks cannot follow the fast-path used by loads when these
     // conditions hold.
     if ((property_details.IsConfigurable() || !property_details.IsReadOnly()) &&
@@ -839,16 +827,18 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     effect = BuildCheckEqualsName(name, key, effect, control);
   }
 
-  // If we have a {receiver} to validate, we do so by checking that its map is
-  // the (target) global proxy's map. This guarantees that in fact the receiver
-  // is the global proxy.
-  if (receiver != nullptr) {
+  // If we have a {lookup_start_object} to validate, we do so by checking that
+  // its map is the (target) global proxy's map. This guarantees that in fact
+  // the lookup start object is the global proxy.
+  // Note: we rely on the map constant below being the same as what is used in
+  // NativeContextRef::GlobalIsDetached().
+  if (lookup_start_object != nullptr) {
     effect = graph()->NewNode(
         simplified()->CheckMaps(
             CheckMapsFlag::kNone,
             ZoneHandleSet<Map>(
-                HeapObjectRef(broker(), global_proxy()).map().object())),
-        receiver, effect, control);
+                native_context().global_proxy_object().map().object())),
+        lookup_start_object, effect, control);
   }
 
   if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
@@ -914,12 +904,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     }
   } else {
     DCHECK_EQ(AccessMode::kStore, access_mode);
+    DCHECK_EQ(receiver, lookup_start_object);
     DCHECK(!property_details.IsReadOnly());
     switch (property_details.cell_type()) {
-      case PropertyCellType::kUndefined: {
-        UNREACHABLE();
-        break;
-      }
       case PropertyCellType::kConstant: {
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
@@ -934,14 +921,12 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       }
       case PropertyCellType::kConstantType: {
         // Record a code dependency on the cell, and just deoptimize if the new
-        // values' type doesn't match the type of the previous value in the
+        // value's type doesn't match the type of the previous value in the
         // cell.
         dependencies()->DependOnGlobalProperty(property_cell);
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value.IsHeapObject()) {
-          // We cannot do anything if the {property_cell_value}s map is no
-          // longer stable.
           MapRef property_cell_value_map =
               property_cell_value.AsHeapObject().map();
           dependencies()->DependOnStableMap(property_cell_value_map);
@@ -949,8 +934,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
-
-          // Check {value} map against the {property_cell} map.
+          // Check {value} map against the {property_cell_value} map.
           effect = graph()->NewNode(
               simplified()->CheckMaps(
                   CheckMapsFlag::kNone,
@@ -983,6 +967,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             jsgraph()->Constant(property_cell), value, effect, control);
         break;
       }
+      case PropertyCellType::kUndefined:
+      case PropertyCellType::kInTransition:
+        UNREACHABLE();
     }
   }
 
@@ -1010,9 +997,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
-    return ReduceGlobalAccess(node, nullptr, nullptr,
-                              NameRef(broker(), p.name()), AccessMode::kLoad,
-                              nullptr, feedback.property_cell());
+    return ReduceGlobalAccess(node, nullptr, nullptr, nullptr, p.name(broker()),
+                              AccessMode::kLoad, nullptr,
+                              feedback.property_cell());
   } else {
     DCHECK(feedback.IsMegamorphic());
     return NoChange();
@@ -1041,7 +1028,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
-    return ReduceGlobalAccess(node, nullptr, value, NameRef(broker(), p.name()),
+    return ReduceGlobalAccess(node, nullptr, nullptr, value, p.name(broker()),
                               AccessMode::kStore, nullptr,
                               feedback.property_cell());
   } else {
@@ -1050,93 +1037,92 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   }
 }
 
-Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
-    Node* node, Node* value,
-    MinimorphicLoadPropertyAccessFeedback const& feedback,
-    FeedbackSource const& source) {
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  MinimorphicLoadPropertyAccessInfo access_info =
-      broker()->GetPropertyAccessInfo(
-          feedback, source,
-          should_disallow_heap_access()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded);
-  if (access_info.IsInvalid()) return NoChange();
-
-  PropertyAccessBuilder access_builder(jsgraph(), broker(), nullptr);
-  CheckMapsFlags flags = CheckMapsFlag::kNone;
-  if (feedback.has_migration_target_maps()) {
-    flags |= CheckMapsFlag::kTryMigrateInstance;
-  }
-  effect =
-      graph()->NewNode(simplified()->DynamicCheckMaps(flags, feedback.handler(),
-                                                      feedback.map(), source),
-                       receiver, effect, control);
-  value = access_builder.BuildMinimorphicLoadDataField(
-      feedback.name(), access_info, receiver, &effect, &control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
-         node->opcode() == IrOpcode::kJSHasProperty);
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSHasProperty ||
+         node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
-                JSStoreNamedOwnNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
-                JSHasPropertyNode::ObjectIndex() == 0);
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineNamedOwnPropertyNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSHasPropertyNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
+  STATIC_ASSERT(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
+
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  // receiver = the object we pass to the accessor (if any) as the "this" value.
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  // lookup_start_object = the object where we start looking for the property.
+  Node* lookup_start_object;
+  if (node->opcode() == IrOpcode::kJSLoadNamedFromSuper) {
+    DCHECK(FLAG_super_ic);
+    JSLoadNamedFromSuperNode n(node);
+    // Lookup start object is the __proto__ of the home object.
+    lookup_start_object = effect =
+        BuildLoadPrototypeFromObject(n.home_object(), effect, control);
+  } else {
+    lookup_start_object = receiver;
+  }
 
   // Either infer maps from the graph or use the feedback.
-  ZoneVector<Handle<Map>> receiver_maps(zone());
-  if (!InferReceiverMaps(receiver, effect, &receiver_maps)) {
-    receiver_maps = feedback.maps();
+  ZoneVector<MapRef> inferred_maps(zone());
+  if (!InferMaps(lookup_start_object, effect, &inferred_maps)) {
+    for (const MapRef& map : feedback.maps()) {
+      inferred_maps.push_back(map);
+    }
   }
-  RemoveImpossibleReceiverMaps(receiver, &receiver_maps);
+  RemoveImpossibleMaps(lookup_start_object, &inferred_maps);
 
   // Check if we have an access o.x or o.x=v where o is the target native
   // contexts' global proxy, and turn that into a direct access to the
   // corresponding global object instead.
-  if (receiver_maps.size() == 1) {
-    MapRef receiver_map(broker(), receiver_maps[0]);
-    if (receiver_map.equals(
-            broker()->target_native_context().global_proxy_object().map()) &&
-        !broker()->target_native_context().global_object().IsDetached()) {
-      return ReduceGlobalAccess(node, receiver, value, feedback.name(),
-                                access_mode, key);
+  if (inferred_maps.size() == 1) {
+    MapRef lookup_start_object_map = inferred_maps[0];
+    if (lookup_start_object_map.equals(
+            native_context().global_proxy_object().map())) {
+      if (!native_context().GlobalIsDetached()) {
+        base::Optional<PropertyCellRef> cell =
+            native_context().global_object().GetPropertyCell(feedback.name());
+        if (!cell.has_value()) return NoChange();
+        // Note: The map check generated by ReduceGlobalAccesses ensures that we
+        // will deopt when/if GlobalIsDetached becomes true.
+        return ReduceGlobalAccess(node, lookup_start_object, receiver, value,
+                                  feedback.name(), access_mode, key, *cell,
+                                  effect);
+      }
     }
   }
 
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
-    for (Handle<Map> map_handle : receiver_maps) {
-      MapRef map(broker(), map_handle);
+    for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
+
+      // TODO(v8:12547): Support writing to shared structs, which needs a write
+      // barrier that calls Object::Share to ensure the RHS is shared.
+      if (InstanceTypeChecker::IsJSSharedStruct(map.instance_type()) &&
+          access_mode == AccessMode::kStore) {
+        return NoChange();
+      }
+
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-          map, feedback.name(), access_mode, dependencies(),
-          should_disallow_heap_access()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded);
+          map, feedback.name(), access_mode, dependencies());
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -1166,15 +1152,26 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Check for the monomorphic cases.
   if (access_infos.size() == 1) {
     PropertyAccessInfo access_info = access_infos.front();
-    // Try to build string check or number check if possible.
-    // Otherwise build a map check.
-    if (!access_builder.TryBuildStringCheck(broker(),
-                                            access_info.receiver_maps(),
-                                            &receiver, &effect, control) &&
-        !access_builder.TryBuildNumberCheck(broker(),
-                                            access_info.receiver_maps(),
-                                            &receiver, &effect, control)) {
-      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
+    if (receiver != lookup_start_object) {
+      // Super property access. lookup_start_object is a JSReceiver or
+      // null. It can't be a number, a string etc. So trying to build the
+      // checks in the "else if" branch doesn't make sense.
+      access_builder.BuildCheckMaps(lookup_start_object, &effect, control,
+                                    access_info.lookup_start_object_maps());
+
+    } else if (!access_builder.TryBuildStringCheck(
+                   broker(), access_info.lookup_start_object_maps(), &receiver,
+                   &effect, control) &&
+               !access_builder.TryBuildNumberCheck(
+                   broker(), access_info.lookup_start_object_maps(), &receiver,
+                   &effect, control)) {
+      // Try to build string check or number check if possible. Otherwise build
+      // a map check.
+
+      // TryBuildStringCheck and TryBuildNumberCheck don't update the receiver
+      // if they fail.
+      DCHECK_EQ(receiver, lookup_start_object);
+      if (HasNumberMaps(broker(), access_info.lookup_start_object_maps())) {
         // We need to also let Smi {receiver}s through in this case, so
         // we construct a diamond, guarded by the Sminess of the {receiver}
         // and if {receiver} is not a Smi just emit a sequence of map checks.
@@ -1184,29 +1181,40 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
 
-        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-        Node* efalse = effect;
-        {
-          access_builder.BuildCheckMaps(receiver, &efalse, if_false,
-                                        access_info.receiver_maps());
-        }
+        Control if_false{graph()->NewNode(common()->IfFalse(), branch)};
+        Effect efalse = effect;
+        access_builder.BuildCheckMaps(receiver, &efalse, if_false,
+                                      access_info.lookup_start_object_maps());
 
         control = graph()->NewNode(common()->Merge(2), if_true, if_false);
         effect =
             graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
       } else {
         access_builder.BuildCheckMaps(receiver, &effect, control,
-                                      access_info.receiver_maps());
+                                      access_info.lookup_start_object_maps());
       }
+    } else {
+      // At least one of TryBuildStringCheck & TryBuildNumberCheck succeeded
+      // and updated the receiver. Update lookup_start_object to match (they
+      // should be the same).
+      lookup_start_object = receiver;
     }
 
     // Generate the actual property access.
-    ValueEffectControl continuation = BuildPropertyAccess(
-        receiver, value, context, frame_state, effect, control, feedback.name(),
-        if_exceptions, access_info, access_mode);
-    value = continuation.value();
-    effect = continuation.effect();
-    control = continuation.control();
+    base::Optional<ValueEffectControl> continuation = BuildPropertyAccess(
+        lookup_start_object, receiver, value, context, frame_state, effect,
+        control, feedback.name(), if_exceptions, access_info, access_mode);
+    if (!continuation) {
+      // At this point we maybe have added nodes into the graph (e.g. via
+      // NewNode or BuildCheckMaps) in some cases but we haven't connected them
+      // to End since we haven't called ReplaceWithValue. Since they are nodes
+      // which are not connected with End, they will be removed by graph
+      // trimming.
+      return NoChange();
+    }
+    value = continuation->value();
+    effect = continuation->effect();
+    control = continuation->control();
   } else {
     // The final states for every polymorphic branch. We join them with
     // Merge+Phi+EffectPhi at the bottom.
@@ -1214,24 +1222,27 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     ZoneVector<Node*> effects(zone());
     ZoneVector<Node*> controls(zone());
 
-    // Check if {receiver} may be a number.
-    bool receiverissmi_possible = false;
-    for (PropertyAccessInfo const& access_info : access_infos) {
-      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
-        receiverissmi_possible = true;
-        break;
-      }
-    }
-
-    // Handle the case that {receiver} may be a number.
     Node* receiverissmi_control = nullptr;
     Node* receiverissmi_effect = effect;
-    if (receiverissmi_possible) {
-      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-      Node* branch = graph()->NewNode(common()->Branch(), check, control);
-      control = graph()->NewNode(common()->IfFalse(), branch);
-      receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
-      receiverissmi_effect = effect;
+
+    if (receiver == lookup_start_object) {
+      // Check if {receiver} may be a number.
+      bool receiverissmi_possible = false;
+      for (PropertyAccessInfo const& access_info : access_infos) {
+        if (HasNumberMaps(broker(), access_info.lookup_start_object_maps())) {
+          receiverissmi_possible = true;
+          break;
+        }
+      }
+
+      // Handle the case that {receiver} may be a number.
+      if (receiverissmi_possible) {
+        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+        Node* branch = graph()->NewNode(common()->Branch(), check, control);
+        control = graph()->NewNode(common()->IfFalse(), branch);
+        receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+        receiverissmi_effect = effect;
+      }
     }
 
     // Generate code for the various different property access patterns.
@@ -1239,24 +1250,25 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     for (size_t j = 0; j < access_infos.size(); ++j) {
       PropertyAccessInfo const& access_info = access_infos[j];
       Node* this_value = value;
+      Node* this_lookup_start_object = lookup_start_object;
       Node* this_receiver = receiver;
-      Node* this_effect = effect;
-      Node* this_control = fallthrough_control;
+      Effect this_effect = effect;
+      Control this_control{fallthrough_control};
 
-      // Perform map check on {receiver}.
-      ZoneVector<Handle<Map>> const& receiver_maps =
-          access_info.receiver_maps();
+      // Perform map check on {lookup_start_object}.
+      ZoneVector<MapRef> const& lookup_start_object_maps =
+          access_info.lookup_start_object_maps();
       {
         // Whether to insert a dedicated MapGuard node into the
         // effect to be able to learn from the control flow.
         bool insert_map_guard = true;
 
-        // Check maps for the {receiver}s.
+        // Check maps for the {lookup_start_object}s.
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
-          access_builder.BuildCheckMaps(receiver, &this_effect, this_control,
-                                        receiver_maps);
+          access_builder.BuildCheckMaps(lookup_start_object, &this_effect,
+                                        this_control, lookup_start_object_maps);
           fallthrough_control = nullptr;
 
           // Don't insert a MapGuard in this case, as the CheckMaps
@@ -1264,14 +1276,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           // along the effect chain.
           insert_map_guard = false;
         } else {
-          // Explicitly branch on the {receiver_maps}.
+          // Explicitly branch on the {lookup_start_object_maps}.
           ZoneHandleSet<Map> maps;
-          for (Handle<Map> map : receiver_maps) {
-            maps.insert(map, graph()->zone());
+          for (MapRef map : lookup_start_object_maps) {
+            maps.insert(map.object(), graph()->zone());
           }
           Node* check = this_effect =
-              graph()->NewNode(simplified()->CompareMaps(maps), receiver,
-                               this_effect, this_control);
+              graph()->NewNode(simplified()->CompareMaps(maps),
+                               lookup_start_object, this_effect, this_control);
           Node* branch =
               graph()->NewNode(common()->Branch(), check, this_control);
           fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
@@ -1279,8 +1291,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         }
 
         // The Number case requires special treatment to also deal with Smis.
-        if (HasNumberMaps(broker(), receiver_maps)) {
+        if (HasNumberMaps(broker(), lookup_start_object_maps)) {
           // Join this check with the "receiver is smi" check above.
+          DCHECK_EQ(receiver, lookup_start_object);
           DCHECK_NOT_NULL(receiverissmi_effect);
           DCHECK_NOT_NULL(receiverissmi_control);
           this_control = graph()->NewNode(common()->Merge(2), this_control,
@@ -1289,7 +1302,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                          receiverissmi_effect, this_control);
           receiverissmi_effect = receiverissmi_control = nullptr;
 
-          // The {receiver} can also be a Smi in this case, so
+          // The {lookup_start_object} can also be a Smi in this case, so
           // a MapGuard doesn't make sense for this at all.
           insert_map_guard = false;
         }
@@ -1297,32 +1310,43 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // Introduce a MapGuard to learn from this on the effect chain.
         if (insert_map_guard) {
           ZoneHandleSet<Map> maps;
-          for (auto receiver_map : receiver_maps) {
-            maps.insert(receiver_map, graph()->zone());
+          for (MapRef map : lookup_start_object_maps) {
+            maps.insert(map.object(), graph()->zone());
           }
-          this_effect = graph()->NewNode(simplified()->MapGuard(maps), receiver,
-                                         this_effect, this_control);
+          this_effect =
+              graph()->NewNode(simplified()->MapGuard(maps),
+                               lookup_start_object, this_effect, this_control);
         }
 
-        // If all {receiver_maps} are Strings we also need to rename the
-        // {receiver} here to make sure that TurboFan knows that along this
-        // path the {this_receiver} is a String. This is because we want
-        // strict checking of types, for example for StringLength operators.
-        if (HasOnlyStringMaps(broker(), receiver_maps)) {
-          this_receiver = this_effect =
-              graph()->NewNode(common()->TypeGuard(Type::String()), receiver,
-                               this_effect, this_control);
+        // If all {lookup_start_object_maps} are Strings we also need to rename
+        // the {lookup_start_object} here to make sure that TurboFan knows that
+        // along this path the {this_lookup_start_object} is a String. This is
+        // because we want strict checking of types, for example for
+        // StringLength operators.
+        if (HasOnlyStringMaps(broker(), lookup_start_object_maps)) {
+          DCHECK_EQ(receiver, lookup_start_object);
+          this_lookup_start_object = this_receiver = this_effect =
+              graph()->NewNode(common()->TypeGuard(Type::String()),
+                               lookup_start_object, this_effect, this_control);
         }
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation =
-          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
-                              this_effect, this_control, feedback.name(),
-                              if_exceptions, access_info, access_mode);
-      values.push_back(continuation.value());
-      effects.push_back(continuation.effect());
-      controls.push_back(continuation.control());
+      base::Optional<ValueEffectControl> continuation = BuildPropertyAccess(
+          this_lookup_start_object, this_receiver, this_value, context,
+          frame_state, this_effect, this_control, feedback.name(),
+          if_exceptions, access_info, access_mode);
+      if (!continuation) {
+        // At this point we maybe have added nodes into the graph (e.g. via
+        // NewNode or BuildCheckMaps) in some cases but we haven't connected
+        // them to End since we haven't called ReplaceWithValue. Since they are
+        // nodes which are not connected with End, they will be removed by graph
+        // trimming.
+        return NoChange();
+      }
+      values.push_back(continuation->value());
+      effects.push_back(continuation->effect());
+      controls.push_back(continuation->control());
     }
 
     DCHECK_NULL(fallthrough_control);
@@ -1373,24 +1397,21 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   Node* const receiver = n.object();
-  NameRef name(broker(), p.name());
+  NameRef name = p.name(broker());
 
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
     if (object.IsJSFunction() &&
-        name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
+        name.equals(MakeRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      if (should_disallow_heap_access() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for function " << function);
-        return NoChange();
-      }
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
       // always enabled.
-      if (!function.map().has_prototype_slot() || !function.has_prototype() ||
-          function.PrototypeRequiresRuntimeLookup()) {
+      if (!function.map().has_prototype_slot() ||
+          !function.has_instance_prototype(dependencies()) ||
+          function.PrototypeRequiresRuntimeLookup(dependencies())) {
         return NoChange();
       }
       ObjectRef prototype = dependencies()->DependOnPrototypeProperty(function);
@@ -1398,13 +1419,25 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       ReplaceWithValue(node, value);
       return Replace(value);
     } else if (object.IsString() &&
-               name.equals(ObjectRef(broker(), factory()->length_string()))) {
+               name.equals(MakeRef(broker(), factory()->length_string()))) {
       // Constant-fold "length" property on constant strings.
-      Node* value = jsgraph()->Constant(object.AsString().length());
+      if (!object.AsString().length().has_value()) return NoChange();
+      Node* value = jsgraph()->Constant(object.AsString().length().value());
       ReplaceWithValue(node, value);
       return Replace(value);
     }
   }
+
+  if (!p.feedback().IsValid()) return NoChange();
+  return ReducePropertyAccess(node, nullptr, name, jsgraph()->Dead(),
+                              FeedbackSource(p.feedback()), AccessMode::kLoad);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSLoadNamedFromSuper(
+    Node* node) {
+  JSLoadNamedFromSuperNode n(node);
+  NamedAccess const& p = n.Parameters();
+  NameRef name = p.name(broker());
 
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, name, jsgraph()->Dead(),
@@ -1422,7 +1455,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   Control control = n.control();
 
   // Load iterator property operator
-  Handle<Name> iterator_symbol = factory()->iterator_symbol();
+  NameRef iterator_symbol = MakeRef(broker(), factory()->iterator_symbol());
   const Operator* load_op =
       javascript()->LoadNamed(iterator_symbol, p.loadFeedback());
 
@@ -1432,7 +1465,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   Node* call_feedback = jsgraph()->HeapConstant(p.callFeedback().vector);
   Node* lazy_deopt_parameters[] = {receiver, call_slot, call_feedback};
   Node* lazy_deopt_frame_state = CreateStubBuiltinContinuationFrameState(
-      jsgraph(), Builtins::kGetIteratorWithFeedbackLazyDeoptContinuation,
+      jsgraph(), Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation,
       context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
       frame_state, ContinuationFrameStateMode::LAZY);
   Node* load_property =
@@ -1472,7 +1505,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   // Eager deopt of call iterator property
   Node* parameters[] = {receiver, load_property, call_slot, call_feedback};
   Node* eager_deopt_frame_state = CreateStubBuiltinContinuationFrameState(
-      jsgraph(), Builtins::kCallIteratorWithFeedback, context, parameters,
+      jsgraph(), Builtin::kCallIteratorWithFeedback, context, parameters,
       arraysize(parameters), frame_state, ContinuationFrameStateMode::EAGER);
   Node* deopt_checkpoint = graph()->NewNode(
       common()->Checkpoint(), eager_deopt_frame_state, effect, control);
@@ -1487,7 +1520,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   const Operator* call_op = javascript()->Call(
       JSCallNode::ArityForArgc(0), CallFrequency(), p.callFeedback(),
       ConvertReceiverMode::kNotNullOrUndefined, mode,
-      CallFeedbackRelation::kRelated);
+      CallFeedbackRelation::kTarget);
   Node* call_property =
       graph()->NewNode(call_op, load_property, receiver, n.feedback_vector(),
                        context, frame_state, effect, control);
@@ -1495,21 +1528,21 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   return Replace(call_property);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetNamedProperty(Node* node) {
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, NameRef(broker(), p.name()),
-                              n.value(), FeedbackSource(p.feedback()),
-                              AccessMode::kStore);
+  return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
+                              FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
-  JSStoreNamedOwnNode n(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+Reduction JSNativeContextSpecialization::ReduceJSDefineNamedOwnProperty(
+    Node* node) {
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, NameRef(broker(), p.name()),
-                              n.value(), FeedbackSource(p.feedback()),
+  return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
+                              FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
 }
 
@@ -1542,74 +1575,72 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
 }
 
 namespace {
+
 base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
                                                       Node* receiver) {
   HeapObjectMatcher m(receiver);
-  if (!m.HasValue()) return base::nullopt;
+  if (!m.HasResolvedValue()) return base::nullopt;
   ObjectRef object = m.Ref(broker);
   if (!object.IsJSTypedArray()) return base::nullopt;
   JSTypedArrayRef typed_array = object.AsJSTypedArray();
   if (typed_array.is_on_heap()) return base::nullopt;
   return typed_array;
 }
+
 }  // namespace
 
-void JSNativeContextSpecialization::RemoveImpossibleReceiverMaps(
-    Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const {
-  base::Optional<MapRef> root_map = InferReceiverRootMap(receiver);
-  if (root_map.has_value()) {
-    DCHECK(!root_map->is_abandoned_prototype_map());
-    receiver_maps->erase(
-        std::remove_if(receiver_maps->begin(), receiver_maps->end(),
-                       [root_map, this](Handle<Map> map) {
-                         MapRef map_ref(broker(), map);
-                         return map_ref.is_abandoned_prototype_map() ||
-                                (map_ref.FindRootMap().has_value() &&
-                                 !map_ref.FindRootMap()->equals(*root_map));
-                       }),
-        receiver_maps->end());
+void JSNativeContextSpecialization::RemoveImpossibleMaps(
+    Node* object, ZoneVector<MapRef>* maps) const {
+  base::Optional<MapRef> root_map = InferRootMap(object);
+  if (root_map.has_value() && !root_map->is_abandoned_prototype_map()) {
+    maps->erase(std::remove_if(maps->begin(), maps->end(),
+                               [root_map](const MapRef& map) {
+                                 return map.is_abandoned_prototype_map() ||
+                                        !map.FindRootMap().equals(*root_map);
+                               }),
+                maps->end());
   }
 }
 
 // Possibly refine the feedback using inferred map information from the graph.
 ElementAccessFeedback const&
 JSNativeContextSpecialization::TryRefineElementAccessFeedback(
-    ElementAccessFeedback const& feedback, Node* receiver, Node* effect) const {
+    ElementAccessFeedback const& feedback, Node* receiver,
+    Effect effect) const {
   AccessMode access_mode = feedback.keyed_mode().access_mode();
   bool use_inference =
       access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas;
   if (!use_inference) return feedback;
 
-  ZoneVector<Handle<Map>> inferred_maps(zone());
-  if (!InferReceiverMaps(receiver, effect, &inferred_maps)) return feedback;
+  ZoneVector<MapRef> inferred_maps(zone());
+  if (!InferMaps(receiver, effect, &inferred_maps)) return feedback;
 
-  RemoveImpossibleReceiverMaps(receiver, &inferred_maps);
+  RemoveImpossibleMaps(receiver, &inferred_maps);
   // TODO(neis): After Refine, the resulting feedback can still contain
   // impossible maps when a target is kept only because more than one of its
   // sources was inferred. Think of a way to completely rule out impossible
   // maps.
-  return feedback.Refine(inferred_maps, zone());
+  return feedback.Refine(broker(), inferred_maps);
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
     ElementAccessFeedback const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
-         node->opcode() == IrOpcode::kJSHasProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSHasProperty ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
                 JSStoreInArrayLiteralNode::ArrayIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0);
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state =
-      NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
 
   // TODO(neis): It's odd that we do optimizations below that don't really care
   // about the feedback, but we don't do them when the feedback is megamorphic.
@@ -1650,8 +1681,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // the zone allocation of this vector.
     ZoneVector<MapRef> prototype_maps(zone());
     for (ElementAccessInfo const& access_info : access_infos) {
-      for (Handle<Map> map : access_info.receiver_maps()) {
-        MapRef receiver_map(broker(), map);
+      for (MapRef receiver_map : access_info.lookup_start_object_maps()) {
         // If the {receiver_map} has a prototype and its elements backing
         // store is either holey, or we have a potentially growing store,
         // then we need to check that all prototypes have stable maps with
@@ -1660,6 +1690,13 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
              IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
             !receiver_map.HasOnlyStablePrototypesWithFastElements(
                 &prototype_maps)) {
+          return NoChange();
+        }
+
+        // TODO(v8:12547): Support writing to shared structs, which needs a
+        // write barrier that calls Object::Share to ensure the RHS is shared.
+        if (InstanceTypeChecker::IsJSSharedStruct(
+                receiver_map.instance_type())) {
           return NoChange();
         }
       }
@@ -1678,29 +1715,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
-  // Check if we have the necessary data for building element accesses.
-  for (ElementAccessInfo const& access_info : access_infos) {
-    if (!IsTypedArrayElementsKind(access_info.elements_kind())) continue;
-    base::Optional<JSTypedArrayRef> typed_array =
-        GetTypedArrayConstant(broker(), receiver);
-    if (typed_array.has_value()) {
-      if (should_disallow_heap_access() && !typed_array->serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for typed array " << *typed_array);
-        return NoChange();
-      }
-    }
-  }
-
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_infos.size() == 1) {
     ElementAccessInfo access_info = access_infos.front();
 
     // Perform possible elements kind transitions.
-    MapRef transition_target(broker(), access_info.receiver_maps().front());
-    for (auto source : access_info.transition_sources()) {
-      DCHECK_EQ(access_info.receiver_maps().size(), 1);
-      MapRef transition_source(broker(), source);
+    MapRef transition_target = access_info.lookup_start_object_maps().front();
+    for (MapRef transition_source : access_info.transition_sources()) {
+      DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
       effect = graph()->NewNode(
           simplified()->TransitionElementsKind(ElementsTransition(
               IsSimpleMapChangeTransition(transition_source.elements_kind(),
@@ -1716,12 +1739,14 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // elements kind transition above. This is because those operators
     // don't have the kNoWrite flag on it, even though they are not
     // observable by JavaScript.
+    Node* frame_state =
+        NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
     // Perform map check on the {receiver}.
     access_builder.BuildCheckMaps(receiver, &effect, control,
-                                  access_info.receiver_maps());
+                                  access_info.lookup_start_object_maps());
 
     // Access the actual element.
     ValueEffectControl continuation =
@@ -1744,14 +1769,13 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       Node* this_receiver = receiver;
       Node* this_value = value;
       Node* this_index = index;
-      Node* this_effect = effect;
-      Node* this_control = fallthrough_control;
+      Effect this_effect = effect;
+      Control this_control{fallthrough_control};
 
       // Perform possible elements kind transitions.
-      MapRef transition_target(broker(), access_info.receiver_maps().front());
-      for (auto source : access_info.transition_sources()) {
-        MapRef transition_source(broker(), source);
-        DCHECK_EQ(access_info.receiver_maps().size(), 1);
+      MapRef transition_target = access_info.lookup_start_object_maps().front();
+      for (MapRef transition_source : access_info.transition_sources()) {
+        DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
         this_effect = graph()->NewNode(
             simplified()->TransitionElementsKind(ElementsTransition(
                 IsSimpleMapChangeTransition(transition_source.elements_kind(),
@@ -1763,8 +1787,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       }
 
       // Perform map check(s) on {receiver}.
-      ZoneVector<Handle<Map>> const& receiver_maps =
-          access_info.receiver_maps();
+      ZoneVector<MapRef> const& receiver_maps =
+          access_info.lookup_start_object_maps();
       if (j == access_infos.size() - 1) {
         // Last map check on the fallthrough control path, do a
         // conditional eager deoptimization exit here.
@@ -1774,8 +1798,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       } else {
         // Explicitly branch on the {receiver_maps}.
         ZoneHandleSet<Map> maps;
-        for (Handle<Map> map : receiver_maps) {
-          maps.insert(map, graph()->zone());
+        for (MapRef map : receiver_maps) {
+          maps.insert(map.object(), graph()->zone());
         }
         Node* check = this_effect =
             graph()->NewNode(simplified()->CompareMaps(maps), receiver,
@@ -1848,28 +1872,42 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   // Check whether we're accessing a known element on the {receiver} and can
   // constant-fold the load.
   NumberMatcher mkey(key);
-  if (mkey.IsInteger() && mkey.IsInRange(0.0, kMaxUInt32 - 1.0)) {
-    uint32_t index = static_cast<uint32_t>(mkey.Value());
-    base::Optional<ObjectRef> element =
-        receiver_ref.GetOwnConstantElement(index);
-    if (!element.has_value() && receiver_ref.IsJSArray()) {
-      // We didn't find a constant element, but if the receiver is a cow-array
-      // we can exploit the fact that any future write to the element will
-      // replace the whole elements storage.
-      element = receiver_ref.AsJSArray().GetOwnCowElement(index);
-      if (element.has_value()) {
-        Node* elements = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-            receiver, effect, control);
-        FixedArrayRef array_elements =
-            receiver_ref.AsJSArray().elements().AsFixedArray();
-        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), elements,
-                                       jsgraph()->Constant(array_elements));
-        effect = graph()->NewNode(
-            simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
-            check, effect, control);
+  if (mkey.IsInteger() &&
+      mkey.IsInRange(0.0, static_cast<double>(JSObject::kMaxElementIndex))) {
+    STATIC_ASSERT(JSObject::kMaxElementIndex <= kMaxUInt32);
+    const uint32_t index = static_cast<uint32_t>(mkey.ResolvedValue());
+    base::Optional<ObjectRef> element;
+
+    if (receiver_ref.IsJSObject()) {
+      JSObjectRef jsobject_ref = receiver_ref.AsJSObject();
+      base::Optional<FixedArrayBaseRef> elements =
+          jsobject_ref.elements(kRelaxedLoad);
+      if (elements.has_value()) {
+        element = jsobject_ref.GetOwnConstantElement(*elements, index,
+                                                     dependencies());
+        if (!element.has_value() && receiver_ref.IsJSArray()) {
+          // We didn't find a constant element, but if the receiver is a
+          // cow-array we can exploit the fact that any future write to the
+          // element will replace the whole elements storage.
+          element = receiver_ref.AsJSArray().GetOwnCowElement(*elements, index);
+          if (element.has_value()) {
+            Node* actual_elements = effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+                receiver, effect, control);
+            Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                           actual_elements,
+                                           jsgraph()->Constant(*elements));
+            effect = graph()->NewNode(
+                simplified()->CheckIf(
+                    DeoptimizeReason::kCowArrayElementsChanged),
+                check, effect, control);
+          }
+        }
       }
+    } else if (receiver_ref.IsString()) {
+      element = receiver_ref.AsString().GetCharAsStringOrUndefined(index);
     }
+
     if (element.has_value()) {
       Node* value = access_mode == AccessMode::kHas
                         ? jsgraph()->TrueConstant()
@@ -1884,7 +1922,9 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   if (receiver_ref.IsString()) {
     DCHECK_NE(access_mode, AccessMode::kHas);
     // Ensure that {key} is less than {receiver} length.
-    Node* length = jsgraph()->Constant(receiver_ref.AsString().length());
+    if (!receiver_ref.AsString().length().has_value()) return NoChange();
+    Node* length =
+        jsgraph()->Constant(receiver_ref.AsString().length().value());
 
     // Load the single character string from {receiver} or yield
     // undefined if the {key} is out of bounds (depending on the
@@ -1901,44 +1941,40 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
 Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
     FeedbackSource const& source, AccessMode access_mode) {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
-
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn);
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
+         node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   DCHECK_GE(node->op()->ControlOutputCount(), 1);
 
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForPropertyAccess(source, access_mode, static_name);
   switch (feedback.kind()) {
     case ProcessedFeedback::kInsufficient:
-      return ReduceSoftDeoptimize(
+      return ReduceEagerDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback.AsNamedAccess(),
                                access_mode, key);
-    case ProcessedFeedback::kMinimorphicPropertyAccess:
-      DCHECK_EQ(access_mode, AccessMode::kLoad);
-      DCHECK_NULL(key);
-      return ReduceMinimorphicPropertyAccess(
-          node, value, feedback.AsMinimorphicPropertyAccess(), source);
     case ProcessedFeedback::kElementAccess:
       DCHECK_EQ(feedback.AsElementAccess().keyed_mode().access_mode(),
                 access_mode);
+      DCHECK_NE(node->opcode(), IrOpcode::kJSLoadNamedFromSuper);
       return ReduceElementAccess(node, key, value, feedback.AsElementAccess());
     default:
       UNREACHABLE();
   }
 }
 
-Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
+Reduction JSNativeContextSpecialization::ReduceEagerDeoptimize(
     Node* node, DeoptimizeReason reason) {
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
 
@@ -1946,9 +1982,9 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
-  Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kSoft, reason, FeedbackSource()),
-      frame_state, effect, control);
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(reason, FeedbackSource()),
+                       frame_state, effect, control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
   Revisit(graph()->end());
@@ -2008,18 +2044,17 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 
   DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* name = NodeProperties::GetValueInput(node, 1);
-  DCHECK_EQ(IrOpcode::kJSForInNext, name->opcode());
+  JSForInNextNode name(NodeProperties::GetValueInput(node, 1));
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (ForInModeOf(name->op()) != ForInMode::kUseEnumCacheKeysAndIndices) {
+  if (name.Parameters().mode() != ForInMode::kUseEnumCacheKeysAndIndices) {
     return NoChange();
   }
 
-  Node* object = NodeProperties::GetValueInput(name, 0);
-  Node* enumerator = NodeProperties::GetValueInput(name, 2);
-  Node* key = NodeProperties::GetValueInput(name, 3);
+  Node* object = name.receiver();
+  Node* cache_type = name.cache_type();
+  Node* index = name.index();
   if (object->opcode() == IrOpcode::kJSToObject) {
     object = NodeProperties::GetValueInput(object, 0);
   }
@@ -2033,7 +2068,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                          receiver, effect, control);
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                   enumerator);
+                                   cache_type);
     effect =
         graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
                          check, effect, control);
@@ -2041,7 +2076,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 
   // Load the enum cache indices from the {cache_type}.
   Node* descriptor_array = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), enumerator,
+      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), cache_type,
       effect, control);
   Node* enum_cache = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
@@ -2060,10 +2095,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
       control);
 
   // Determine the key from the {enum_indices}.
-  key = effect = graph()->NewNode(
+  Node* key = effect = graph()->NewNode(
       simplified()->LoadElement(
           AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
-      enum_indices, key, effect, control);
+      enum_indices, index, effect, control);
 
   // Load the actual field value.
   Node* value = effect = graph()->NewNode(simplified()->LoadFieldByIndex(),
@@ -2088,21 +2123,40 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
                               FeedbackSource(p.feedback()), AccessMode::kLoad);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetKeyedProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
+Reduction JSNativeContextSpecialization::ReduceJSDefineKeyedOwnProperty(
+    Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
+  PropertyAccess const& p = n.Parameters();
+  if (!p.feedback().IsValid()) return NoChange();
+  return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
+                              FeedbackSource(p.feedback()),
+                              AccessMode::kDefine);
+}
+
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
-    Node* receiver, Node* context, Node* frame_state, Node** effect,
+    Node* receiver, ConvertReceiverMode receiver_mode,
+    Node* lookup_start_object, Node* context, Node* frame_state, Node** effect,
     Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
-  ObjectRef constant(broker(), access_info.constant());
+  ObjectRef constant = access_info.constant().value();
+
+  if (access_info.IsDictionaryProtoAccessorConstant()) {
+    // For fast mode holders we recorded dependencies in BuildPropertyLoad.
+    for (const MapRef map : access_info.lookup_start_object_maps()) {
+      dependencies()->DependOnConstantInDictionaryPrototypeChain(
+          map, access_info.name(), constant, PropertyKind::kAccessor);
+    }
+  }
+
   Node* target = jsgraph()->Constant(constant);
-  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   // Introduce the call to the getter function.
   Node* value;
   if (constant.IsJSFunction()) {
@@ -2110,19 +2164,19 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     value = *effect = *control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(0),
                                       CallFrequency(), FeedbackSource(),
-                                      ConvertReceiverMode::kNotNullOrUndefined),
+                                      receiver_mode),
         target, receiver, feedback, context, frame_state, *effect, *control);
   } else {
-    Node* holder = access_info.holder().is_null()
-                       ? receiver
-                       : jsgraph()->Constant(ObjectRef(
-                             broker(), access_info.holder().ToHandleChecked()));
-    SharedFunctionInfoRef shared_info(
-        broker(), frame_info.shared_info().ToHandleChecked());
-
-    value =
-        InlineApiCall(receiver, holder, frame_state, nullptr, effect, control,
-                      shared_info, constant.AsFunctionTemplateInfo());
+    // Disable optimizations for super ICs using API getters, so that we get
+    // the correct receiver checks.
+    if (receiver != lookup_start_object) {
+      return nullptr;
+    }
+    Node* holder = access_info.holder().has_value()
+                       ? jsgraph()->Constant(access_info.holder().value())
+                       : receiver;
+    value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
+                          control, constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2140,9 +2194,8 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
     Node* receiver, Node* value, Node* context, Node* frame_state,
     Node** effect, Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
-  ObjectRef constant(broker(), access_info.constant());
+  ObjectRef constant = access_info.constant().value();
   Node* target = jsgraph()->Constant(constant);
-  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   // Introduce the call to the setter function.
   if (constant.IsJSFunction()) {
     Node* feedback = jsgraph()->UndefinedConstant();
@@ -2153,14 +2206,11 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
         target, receiver, value, feedback, context, frame_state, *effect,
         *control);
   } else {
-    Node* holder = access_info.holder().is_null()
-                       ? receiver
-                       : jsgraph()->Constant(ObjectRef(
-                             broker(), access_info.holder().ToHandleChecked()));
-    SharedFunctionInfoRef shared_info(
-        broker(), frame_info.shared_info().ToHandleChecked());
+    Node* holder = access_info.holder().has_value()
+                       ? jsgraph()->Constant(access_info.holder().value())
+                       : receiver;
     InlineApiCall(receiver, holder, frame_state, value, effect, control,
-                  shared_info, constant.AsFunctionTemplateInfo());
+                  constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2175,12 +2225,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 
 Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
-    Node** control, SharedFunctionInfoRef const& shared_info,
-    FunctionTemplateInfoRef const& function_template_info) {
-  if (!function_template_info.has_call_code()) {
-    return nullptr;
-  }
-
+    Node** control, FunctionTemplateInfoRef const& function_template_info) {
   if (!function_template_info.call_code().has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
@@ -2227,53 +2272,72 @@ Node* JSNativeContextSpecialization::InlineApiCall(
              graph()->NewNode(common()->Call(call_descriptor), index, inputs);
 }
 
-JSNativeContextSpecialization::ValueEffectControl
+base::Optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyLoad(
-    Node* receiver, Node* context, Node* frame_state, Node* effect,
-    Node* control, NameRef const& name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info) {
+    Node* lookup_start_object, Node* receiver, Node* context, Node* frame_state,
+    Node* effect, Node* control, NameRef const& name,
+    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
   // Determine actual holder and perform prototype chain checks.
-  Handle<JSObject> holder;
-  if (access_info.holder().ToHandle(&holder)) {
+  base::Optional<JSObjectRef> holder = access_info.holder();
+  if (holder.has_value() && !access_info.HasDictionaryHolder()) {
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        holder.value());
   }
 
   // Generate the actual property access.
   Node* value;
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
-  } else if (access_info.IsAccessorConstant()) {
-    value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
-                                     &control, if_exceptions, access_info);
+  } else if (access_info.IsFastAccessorConstant() ||
+             access_info.IsDictionaryProtoAccessorConstant()) {
+    ConvertReceiverMode receiver_mode =
+        receiver == lookup_start_object
+            ? ConvertReceiverMode::kNotNullOrUndefined
+            : ConvertReceiverMode::kAny;
+    value = InlinePropertyGetterCall(
+        receiver, receiver_mode, lookup_start_object, context, frame_state,
+        &effect, &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
-    Node* cell = jsgraph()->Constant(
-        ObjectRef(broker(), access_info.constant()).AsCell());
+    Node* cell = jsgraph()->Constant(access_info.constant().value().AsCell());
     value = effect =
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
                          cell, effect, control);
   } else if (access_info.IsStringLength()) {
+    DCHECK_EQ(receiver, lookup_start_object);
     value = graph()->NewNode(simplified()->StringLength(), receiver);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
+    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
+           access_info.IsDictionaryProtoDataConstant());
     PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
-    value = access_builder.BuildLoadDataField(name, access_info, receiver,
-                                              &effect, &control);
+    if (access_info.IsDictionaryProtoDataConstant()) {
+      auto maybe_value =
+          access_builder.FoldLoadDictPrototypeConstant(access_info);
+      if (!maybe_value) return {};
+      value = maybe_value.value();
+    } else {
+      value = access_builder.BuildLoadDataField(
+          name, access_info, lookup_start_object, &effect, &control);
+    }
   }
-
-  return ValueEffectControl(value, effect, control);
+  if (value != nullptr) {
+    return ValueEffectControl(value, effect, control);
+  }
+  return base::Optional<ValueEffectControl>();
 }
 
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyTest(
     Node* effect, Node* control, PropertyAccessInfo const& access_info) {
+  // TODO(v8:11457) Support property tests for dictionary mode protoypes.
+  DCHECK(!access_info.HasDictionaryHolder());
+
   // Determine actual holder and perform prototype chain checks.
-  Handle<JSObject> holder;
-  if (access_info.holder().ToHandle(&holder)) {
+  base::Optional<JSObjectRef> holder = access_info.holder();
+  if (holder.has_value()) {
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        holder.value());
   }
 
   Node* value = access_info.IsNotFound() ? jsgraph()->FalseConstant()
@@ -2281,21 +2345,26 @@ JSNativeContextSpecialization::BuildPropertyTest(
   return ValueEffectControl(value, effect, control);
 }
 
-JSNativeContextSpecialization::ValueEffectControl
+base::Optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyAccess(
-    Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
-    Node* control, NameRef const& name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info, AccessMode access_mode) {
+    Node* lookup_start_object, Node* receiver, Node* value, Node* context,
+    Node* frame_state, Node* effect, Node* control, NameRef const& name,
+    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
+    AccessMode access_mode) {
   switch (access_mode) {
     case AccessMode::kLoad:
-      return BuildPropertyLoad(receiver, context, frame_state, effect, control,
-                               name, if_exceptions, access_info);
+      return BuildPropertyLoad(lookup_start_object, receiver, context,
+                               frame_state, effect, control, name,
+                               if_exceptions, access_info);
     case AccessMode::kStore:
     case AccessMode::kStoreInLiteral:
+    case AccessMode::kDefine:
+      DCHECK_EQ(receiver, lookup_start_object);
       return BuildPropertyStore(receiver, value, context, frame_state, effect,
                                 control, name, if_exceptions, access_info,
                                 access_mode);
     case AccessMode::kHas:
+      DCHECK_EQ(receiver, lookup_start_object);
       return BuildPropertyTest(effect, control, access_info);
   }
   UNREACHABLE();
@@ -2307,25 +2376,27 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* control, NameRef const& name, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
-  Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
-  if (access_info.holder().ToHandle(&holder)) {
+  base::Optional<JSObjectRef> holder = access_info.holder();
+  if (holder.has_value()) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
+    DCHECK_NE(AccessMode::kDefine, access_mode);
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        holder.value());
   }
 
   DCHECK(!access_info.IsNotFound());
 
   // Generate the actual property access.
-  if (access_info.IsAccessorConstant()) {
+  if (access_info.IsFastAccessorConstant()) {
     InlinePropertySetterCall(receiver, value, context, frame_state, &effect,
                              &control, if_exceptions, access_info);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
+    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
     DCHECK(access_mode == AccessMode::kStore ||
-           access_mode == AccessMode::kStoreInLiteral);
+           access_mode == AccessMode::kStoreInLiteral ||
+           access_mode == AccessMode::kDefine);
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -2338,7 +2409,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    bool store_to_existing_constant_field = access_info.IsDataConstant() &&
+    bool store_to_existing_constant_field = access_info.IsFastDataConstant() &&
                                             access_mode == AccessMode::kStore &&
                                             !access_info.HasTransitionMap();
     FieldAccess field_access = {
@@ -2349,7 +2420,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
-        LoadSensitivity::kUnsafe,
         access_info.GetConstFieldInfo(),
         access_mode == AccessMode::kStoreInLiteral};
 
@@ -2358,43 +2428,39 @@ JSNativeContextSpecialization::BuildPropertyStore(
         value = effect =
             graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
                              effect, control);
-        if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
-          if (access_info.HasTransitionMap()) {
-            // Allocate a HeapNumber for the new property.
-            AllocationBuilder a(jsgraph(), effect, control);
-            a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
-                       Type::OtherInternal());
-            a.Store(AccessBuilder::ForMap(),
-                    MapRef(broker(), factory()->heap_number_map()));
-            FieldAccess value_field_access =
-                AccessBuilder::ForHeapNumberValue();
-            value_field_access.const_field_info = field_access.const_field_info;
-            a.Store(value_field_access, value);
-            value = effect = a.Finish();
+        if (access_info.HasTransitionMap()) {
+          // Allocate a HeapNumber for the new property.
+          AllocationBuilder a(jsgraph(), effect, control);
+          a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
+                     Type::OtherInternal());
+          a.Store(AccessBuilder::ForMap(),
+                  MakeRef(broker(), factory()->heap_number_map()));
+          FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
+          value_field_access.const_field_info = field_access.const_field_info;
+          a.Store(value_field_access, value);
+          value = effect = a.Finish();
 
-            field_access.type = Type::Any();
-            field_access.machine_type = MachineType::TaggedPointer();
-            field_access.write_barrier_kind = kPointerWriteBarrier;
-          } else {
-            // We just store directly to the HeapNumber.
-            FieldAccess const storage_access = {
-                kTaggedBase,
-                field_index.offset(),
-                name.object(),
-                MaybeHandle<Map>(),
-                Type::OtherInternal(),
-                MachineType::TaggedPointer(),
-                kPointerWriteBarrier,
-                LoadSensitivity::kUnsafe,
-                access_info.GetConstFieldInfo(),
-                access_mode == AccessMode::kStoreInLiteral};
-            storage = effect =
-                graph()->NewNode(simplified()->LoadField(storage_access),
-                                 storage, effect, control);
-            field_access.offset = HeapNumber::kValueOffset;
-            field_access.name = MaybeHandle<Name>();
-            field_access.machine_type = MachineType::Float64();
-          }
+          field_access.type = Type::Any();
+          field_access.machine_type = MachineType::TaggedPointer();
+          field_access.write_barrier_kind = kPointerWriteBarrier;
+        } else {
+          // We just store directly to the HeapNumber.
+          FieldAccess const storage_access = {
+              kTaggedBase,
+              field_index.offset(),
+              name.object(),
+              MaybeHandle<Map>(),
+              Type::OtherInternal(),
+              MachineType::TaggedPointer(),
+              kPointerWriteBarrier,
+              access_info.GetConstFieldInfo(),
+              access_mode == AccessMode::kStoreInLiteral};
+          storage = effect =
+              graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                               effect, control);
+          field_access.offset = HeapNumber::kValueOffset;
+          field_access.name = MaybeHandle<Name>();
+          field_access.machine_type = MachineType::Float64();
         }
         if (store_to_existing_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
@@ -2437,13 +2503,14 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
         } else if (field_representation ==
                    MachineRepresentation::kTaggedPointer) {
-          Handle<Map> field_map;
-          if (access_info.field_map().ToHandle(&field_map)) {
+          base::Optional<MapRef> field_map = access_info.field_map();
+          if (field_map.has_value()) {
             // Emit a map check for the value.
-            effect = graph()->NewNode(
-                simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                        ZoneHandleSet<Map>(field_map)),
-                value, effect, control);
+            effect =
+                graph()->NewNode(simplified()->CheckMaps(
+                                     CheckMapsFlag::kNone,
+                                     ZoneHandleSet<Map>(field_map->object())),
+                                 value, effect, control);
           } else {
             // Ensure that {value} is a HeapObject.
             value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
@@ -2459,21 +2526,22 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kBit:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kMapWord:
         UNREACHABLE();
-        break;
     }
     // Check if we need to perform a transitioning store.
-    Handle<Map> transition_map;
-    if (access_info.transition_map().ToHandle(&transition_map)) {
+    base::Optional<MapRef> transition_map = access_info.transition_map();
+    if (transition_map.has_value()) {
       // Check if we need to grow the properties backing store
       // with this transitioning store.
-      MapRef transition_map_ref(broker(), transition_map);
+      MapRef transition_map_ref = transition_map.value();
       MapRef original_map = transition_map_ref.GetBackPointer().AsMap();
       if (original_map.UnusedPropertyFields() == 0) {
         DCHECK(!field_index.is_inobject());
@@ -2510,17 +2578,19 @@ JSNativeContextSpecialization::BuildPropertyStore(
   return ValueEffectControl(value, effect, control);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
+Reduction
+JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
     Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
 
   NumberMatcher mflags(n.flags());
-  CHECK(mflags.HasValue());
-  DataPropertyInLiteralFlags cflags(mflags.Value());
-  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
-  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+  CHECK(mflags.HasResolvedValue());
+  DefineKeyedOwnPropertyInLiteralFlags cflags(mflags.ResolvedValue());
+  DCHECK(!(cflags & DefineKeyedOwnPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
+    return NoChange();
 
   return ReducePropertyAccess(node, n.name(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
@@ -2540,7 +2610,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
 Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSToObject, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
+  Effect effect{NodeProperties::GetEffectInput(node)};
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
@@ -2575,7 +2645,8 @@ JSNativeContextSpecialization::BuildElementAccess(
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
-  ZoneVector<Handle<Map>> const& receiver_maps = access_info.receiver_maps();
+  ZoneVector<MapRef> const& receiver_maps =
+      access_info.lookup_start_object_maps();
 
   if (IsTypedArrayElementsKind(elements_kind)) {
     Node* buffer_or_receiver = receiver;
@@ -2690,10 +2761,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         if (situation == kHandleOOB_SmiCheckDone) {
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(
-              common()->Branch(BranchHint::kTrue,
-                               IsSafetyCheck::kCriticalSafetyCheck),
-              check, control);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check, control);
 
           Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
           Node* etrue = effect;
@@ -2741,8 +2810,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         break;
       }
       case AccessMode::kStoreInLiteral:
+      case AccessMode::kDefine:
         UNREACHABLE();
-        break;
       case AccessMode::kStore: {
         // Ensure that the {value} is actually a Number or an Oddball,
         // and truncate it to a Number appropriately.
@@ -2882,10 +2951,9 @@ JSNativeContextSpecialization::BuildElementAccess(
       element_type = Type::SignedSmall();
       element_machine_type = MachineType::TaggedSigned();
     }
-    ElementAccess element_access = {
-        kTaggedBase,       FixedArray::kHeaderSize,
-        element_type,      element_machine_type,
-        kFullWriteBarrier, LoadSensitivity::kCritical};
+    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                    element_type, element_machine_type,
+                                    kFullWriteBarrier};
 
     // Access the actual element.
     if (keyed_mode.access_mode() == AccessMode::kLoad) {
@@ -2905,10 +2973,8 @@ JSNativeContextSpecialization::BuildElementAccess(
           CanTreatHoleAsUndefined(receiver_maps)) {
         Node* check =
             graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(
-            common()->Branch(BranchHint::kTrue,
-                             IsSafetyCheck::kCriticalSafetyCheck),
-            check, control);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
@@ -3070,7 +3136,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
     } else {
       DCHECK(keyed_mode.access_mode() == AccessMode::kStore ||
-             keyed_mode.access_mode() == AccessMode::kStoreInLiteral);
+             keyed_mode.access_mode() == AccessMode::kStoreInLiteral ||
+             keyed_mode.access_mode() == AccessMode::kDefine);
 
       if (IsSmiElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(
@@ -3191,9 +3258,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* check =
         graph()->NewNode(simplified()->NumberLessThan(), index, length);
     Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue,
-                                          IsSafetyCheck::kCriticalSafetyCheck),
-                         check, *control);
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, *control);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     // Do a real bounds check against {length}. This is in order to protect
@@ -3204,10 +3269,8 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                   CheckBoundsFlag::kConvertStringAndMinusZero |
                                       CheckBoundsFlag::kAbortOnOutOfBounds),
         index, length, *effect, if_true);
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-    Node* vtrue = etrue =
-        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, etrue, if_true);
+    Node* vtrue = etrue = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                           receiver, index, etrue, if_true);
     vtrue = graph()->NewNode(simplified()->StringFromSingleCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -3225,12 +3288,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                   CheckBoundsFlag::kConvertStringAndMinusZero),
         index, length, *effect, *control);
 
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-
     // Return the character from the {receiver} as single character string.
-    Node* value = *effect =
-        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, *effect, *control);
+    Node* value = *effect = graph()->NewNode(
+        simplified()->StringCharCodeAt(), receiver, index, *effect, *control);
     value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
     return value;
   }
@@ -3317,12 +3377,11 @@ Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef const& name,
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
-    ZoneVector<Handle<Map>> const& receiver_maps) {
+    ZoneVector<MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
+  for (MapRef receiver_map : receiver_maps) {
     ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
@@ -3334,51 +3393,55 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   return dependencies()->DependOnNoElementsProtector();
 }
 
-bool JSNativeContextSpecialization::InferReceiverMaps(
-    Node* receiver, Node* effect,
-    ZoneVector<Handle<Map>>* receiver_maps) const {
-  ZoneHandleSet<Map> maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMapsUnsafe(broker(), receiver, effect,
-                                              &maps);
-  if (result == NodeProperties::kReliableReceiverMaps) {
-    for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->push_back(maps[i]);
+bool JSNativeContextSpecialization::InferMaps(Node* object, Effect effect,
+                                              ZoneVector<MapRef>* maps) const {
+  ZoneRefUnorderedSet<MapRef> map_set(broker()->zone());
+  NodeProperties::InferMapsResult result =
+      NodeProperties::InferMapsUnsafe(broker(), object, effect, &map_set);
+  if (result == NodeProperties::kReliableMaps) {
+    for (const MapRef& map : map_set) {
+      maps->push_back(map);
     }
     return true;
-  } else if (result == NodeProperties::kUnreliableReceiverMaps) {
-    // For untrusted receiver maps, we can still use the information
+  } else if (result == NodeProperties::kUnreliableMaps) {
+    // For untrusted maps, we can still use the information
     // if the maps are stable.
-    for (size_t i = 0; i < maps.size(); ++i) {
-      MapRef map(broker(), maps[i]);
+    for (const MapRef& map : map_set) {
       if (!map.is_stable()) return false;
     }
-    for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->push_back(maps[i]);
+    for (const MapRef& map : map_set) {
+      maps->push_back(map);
     }
     return true;
   }
   return false;
 }
 
-base::Optional<MapRef> JSNativeContextSpecialization::InferReceiverRootMap(
-    Node* receiver) const {
-  HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+base::Optional<MapRef> JSNativeContextSpecialization::InferRootMap(
+    Node* object) const {
+  HeapObjectMatcher m(object);
+  if (m.HasResolvedValue()) {
     MapRef map = m.Ref(broker()).map();
     return map.FindRootMap();
   } else if (m.IsJSCreate()) {
     base::Optional<MapRef> initial_map =
-        NodeProperties::GetJSCreateMap(broker(), receiver);
+        NodeProperties::GetJSCreateMap(broker(), object);
     if (initial_map.has_value()) {
-      if (!initial_map->FindRootMap().has_value()) {
-        return base::nullopt;
-      }
-      DCHECK(initial_map->equals(*initial_map->FindRootMap()));
+      DCHECK(initial_map->equals(initial_map->FindRootMap()));
       return *initial_map;
     }
   }
   return base::nullopt;
+}
+
+Node* JSNativeContextSpecialization::BuildLoadPrototypeFromObject(
+    Node* object, Node* effect, Node* control) {
+  Node* map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
+                       effect, control);
+  return graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapPrototype()), map, effect,
+      control);
 }
 
 Graph* JSNativeContextSpecialization::graph() const {

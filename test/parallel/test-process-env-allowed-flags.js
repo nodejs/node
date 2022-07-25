@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // Assert legit flags are allowed, and bogus flags are disallowed
@@ -28,7 +28,7 @@ const assert = require('assert');
     '--r',
     '-R',
     '---inspect-brk',
-    '--cheeseburgers'
+    '--cheeseburgers',
   ];
 
   goodFlags.forEach((flag) => {
@@ -51,8 +51,7 @@ const assert = require('assert');
 // Assert all "canonical" flags begin with dash(es)
 {
   process.allowedNodeEnvironmentFlags.forEach((flag) => {
-    assert(/^--?[a-z0-9._-]+$/.test(flag),
-           `Unexpected format for flag ${flag}`);
+    assert.match(flag, /^--?[a-zA-Z0-9._-]+$/);
   });
 }
 
@@ -63,14 +62,41 @@ const assert = require('assert');
 
   process.allowedNodeEnvironmentFlags.add('foo');
   assert.strictEqual(process.allowedNodeEnvironmentFlags.has('foo'), false);
-  process.allowedNodeEnvironmentFlags.forEach((flag) => {
-    assert.strictEqual(flag === 'foo', false);
-  });
+  Set.prototype.add.call(process.allowedNodeEnvironmentFlags, 'foo');
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.has('foo'), false);
 
-  process.allowedNodeEnvironmentFlags.clear();
-  assert.strictEqual(process.allowedNodeEnvironmentFlags.size > 0, true);
+  const thisArg = {};
+  process.allowedNodeEnvironmentFlags.forEach(
+    common.mustCallAtLeast(function(flag, _, set) {
+      assert.notStrictEqual(flag, 'foo');
+      assert.strictEqual(this, thisArg);
+      assert.strictEqual(set, process.allowedNodeEnvironmentFlags);
+    }),
+    thisArg
+  );
+
+  for (const flag of process.allowedNodeEnvironmentFlags.keys()) {
+    assert.notStrictEqual(flag, 'foo');
+  }
+  for (const flag of process.allowedNodeEnvironmentFlags.values()) {
+    assert.notStrictEqual(flag, 'foo');
+  }
+  for (const flag of process.allowedNodeEnvironmentFlags) {
+    assert.notStrictEqual(flag, 'foo');
+  }
+  for (const [flag] of process.allowedNodeEnvironmentFlags.entries()) {
+    assert.notStrictEqual(flag, 'foo');
+  }
 
   const size = process.allowedNodeEnvironmentFlags.size;
+
+  process.allowedNodeEnvironmentFlags.clear();
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.size, size);
+  Set.prototype.clear.call(process.allowedNodeEnvironmentFlags);
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.size, size);
+
   process.allowedNodeEnvironmentFlags.delete('-r');
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.size, size);
+  Set.prototype.delete.call(process.allowedNodeEnvironmentFlags, '-r');
   assert.strictEqual(process.allowedNodeEnvironmentFlags.size, size);
 }

@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Tests function calls containing s128 parameters. It also checks that
 // lowering of simd calls are correct, so we create 2 functions with s128

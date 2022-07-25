@@ -115,17 +115,6 @@ static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
   return Vector<const char>(buffer.start(), 0);
 }
 
-
-static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
-  for (int i = buffer.length() - 1; i >= 0; --i) {
-    if (buffer[i] != '0') {
-      return buffer.SubVector(0, i + 1);
-    }
-  }
-  return Vector<const char>(buffer.start(), 0);
-}
-
-
 static void CutToMaxSignificantDigits(Vector<const char> buffer,
                                        int exponent,
                                        char* significant_buffer,
@@ -216,12 +205,14 @@ static bool DoubleStrtod(Vector<const char> trimmed,
                          int exponent,
                          double* result) {
 #if !defined(DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS)
+  // Avoid "unused parameter" warnings
+  (void) trimmed;
+  (void) exponent;
+  (void) result;
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
   // 80 bits wide (as is the case on Linux) then double-rounding occurs and the
   // result is not accurate.
   // We know that Windows32 uses 64 bits and is therefore accurate.
-  // Note that the ARM simulator is compiled for 32bits. It therefore exhibits
-  // the same problem.
   return false;
 #else
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
@@ -473,6 +464,11 @@ static bool IsNonZeroDigit(const char d) {
   return ('1' <= d) && (d <= '9');
 }
 
+#ifdef __has_cpp_attribute
+#if __has_cpp_attribute(maybe_unused)
+[[maybe_unused]]
+#endif
+#endif
 static bool AssertTrimmedDigits(const Vector<const char>& buffer) {
   for(int i = 0; i < buffer.length(); ++i) {
     if(!IsDigit(buffer[i])) {
@@ -545,6 +541,12 @@ float Strtof(Vector<const char> buffer, int exponent) {
   TrimAndCut(buffer, exponent, copy_buffer, kMaxSignificantDecimalDigits,
              &trimmed, &updated_exponent);
   exponent = updated_exponent;
+  return StrtofTrimmed(trimmed, exponent);
+}
+
+float StrtofTrimmed(Vector<const char> trimmed, int exponent) {
+  DOUBLE_CONVERSION_ASSERT(trimmed.length() <= kMaxSignificantDecimalDigits);
+  DOUBLE_CONVERSION_ASSERT(AssertTrimmedDigits(trimmed));
 
   double double_guess;
   bool is_correct = ComputeGuess(trimmed, exponent, &double_guess);
@@ -564,7 +566,7 @@ float Strtof(Vector<const char> buffer, int exponent) {
   //    low-precision (3 digits):
   //       when read from input: 123
   //       when rounded from high precision: 124.
-  // To do this we simply look at the neigbors of the correct result and see
+  // To do this we simply look at the neighbors of the correct result and see
   // if they would round to the same float. If the guess is not correct we have
   // to look at four values (since two different doubles could be the correct
   // double).

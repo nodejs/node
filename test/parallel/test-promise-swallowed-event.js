@@ -38,7 +38,7 @@ const expected = [
   swallowedResolve2,
   'reject',
   p2,
-  rejection2
+  rejection2,
 ];
 
 let count = 0;

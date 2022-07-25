@@ -56,13 +56,13 @@
  */
 /* eslint no-undefined:0, no-use-before-define: 0 */
 
-"use strict";
+import * as acorn from "acorn";
+import jsx from "acorn-jsx";
+import espree from "./lib/espree.js";
+import espreeVersion from "./lib/version.js";
+import * as visitorKeys from "eslint-visitor-keys";
+import { getLatestEcmaVersion, getSupportedEcmaVersions } from "./lib/options.js";
 
-const acorn = require("acorn");
-const jsx = require("acorn-jsx");
-const astNodeTypes = require("./lib/ast-node-types");
-const espree = require("./lib/espree");
-const { getLatestEcmaVersion, getSupportedEcmaVersions } = require("./lib/options");
 
 // To initialize lazily.
 const parsers = {
@@ -106,7 +106,7 @@ const parsers = {
  * @throws {SyntaxError} If the input code is invalid.
  * @private
  */
-function tokenize(code, options) {
+export function tokenize(code, options) {
     const Parser = parsers.get(options);
 
     // Ensure to collect tokens.
@@ -128,7 +128,7 @@ function tokenize(code, options) {
  * @returns {ASTNode} The "Program" AST node.
  * @throws {SyntaxError} If the input code is invalid.
  */
-function parse(code, options) {
+export function parse(code, options) {
     const Parser = parsers.get(options);
 
     return new Parser(options, code).parse();
@@ -138,15 +138,16 @@ function parse(code, options) {
 // Public
 //------------------------------------------------------------------------------
 
-exports.version = require("./package.json").version;
+export const version = espreeVersion;
 
-exports.tokenize = tokenize;
-
-exports.parse = parse;
-
-// Deep copy.
 /* istanbul ignore next */
-exports.Syntax = (function() {
+export const VisitorKeys = (function() {
+    return visitorKeys.KEYS;
+}());
+
+// Derive node types from VisitorKeys
+/* istanbul ignore next */
+export const Syntax = (function() {
     let name,
         types = {};
 
@@ -154,9 +155,9 @@ exports.Syntax = (function() {
         types = Object.create(null);
     }
 
-    for (name in astNodeTypes) {
-        if (Object.hasOwnProperty.call(astNodeTypes, name)) {
-            types[name] = astNodeTypes[name];
+    for (name in VisitorKeys) {
+        if (Object.hasOwnProperty.call(VisitorKeys, name)) {
+            types[name] = name;
         }
     }
 
@@ -167,11 +168,6 @@ exports.Syntax = (function() {
     return types;
 }());
 
-/* istanbul ignore next */
-exports.VisitorKeys = (function() {
-    return require("eslint-visitor-keys").KEYS;
-}());
+export const latestEcmaVersion = getLatestEcmaVersion();
 
-exports.latestEcmaVersion = getLatestEcmaVersion();
-
-exports.supportedEcmaVersions = getSupportedEcmaVersions();
+export const supportedEcmaVersions = getSupportedEcmaVersions();

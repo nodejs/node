@@ -80,6 +80,9 @@ class SpillPlacer {
 
   ~SpillPlacer();
 
+  SpillPlacer(const SpillPlacer&) = delete;
+  SpillPlacer& operator=(const SpillPlacer&) = delete;
+
   // Adds the given TopLevelLiveRange to the SpillPlacer's state. Will
   // eventually commit spill moves for that range and mark the range to indicate
   // whether its value is spilled at the definition or some later point, so that
@@ -158,8 +161,6 @@ class SpillPlacer {
   // additional work.
   RpoNumber first_block_ = RpoNumber::Invalid();
   RpoNumber last_block_ = RpoNumber::Invalid();
-
-  DISALLOW_COPY_AND_ASSIGN(SpillPlacer);
 };
 
 }  // namespace compiler

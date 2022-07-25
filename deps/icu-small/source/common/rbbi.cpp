@@ -82,6 +82,19 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode 
     }
 }
 
+//-------------------------------------------------------------------------------
+//
+//   Constructor   from a UDataMemory handle to precompiled break rules
+//                 stored in an ICU data file. This construcotr is private API,
+//                 only for internal use.
+//
+//-------------------------------------------------------------------------------
+RuleBasedBreakIterator::RuleBasedBreakIterator(UDataMemory* udm, UBool isPhraseBreaking,
+        UErrorCode &status) : RuleBasedBreakIterator(udm, status)
+{
+    fIsPhraseBreaking = isPhraseBreaking;
+}
+
 //
 //  Construct from precompiled binary rules (tables).  This constructor is public API,
 //  taking the rules as a (const uint8_t *) to match the type produced by getBinaryRules().
@@ -262,7 +275,7 @@ RuleBasedBreakIterator::operator=(const RuleBasedBreakIterator& that) {
     fCharIter = &fSCharIter;
 
     if (that.fCharIter != NULL && that.fCharIter != &that.fSCharIter) {
-        // This is a little bit tricky - it will intially appear that
+        // This is a little bit tricky - it will initially appear that
         //  this->fCharIter is adopted, even if that->fCharIter was
         //  not adopted.  That's ok.
         fCharIter = that.fCharIter->clone();
@@ -322,6 +335,7 @@ void RuleBasedBreakIterator::init(UErrorCode &status) {
     fBreakCache           = nullptr;
     fDictionaryCache      = nullptr;
     fLookAheadMatches     = nullptr;
+    fIsPhraseBreaking     = false;
 
     // Note: IBM xlC is unable to assign or initialize member fText from UTEXT_INITIALIZER.
     // fText                 = UTEXT_INITIALIZER;
@@ -366,16 +380,16 @@ RuleBasedBreakIterator::clone() const {
 }
 
 /**
- * Equality operator.  Returns TRUE if both BreakIterators are of the
+ * Equality operator.  Returns true if both BreakIterators are of the
  * same class, have the same behavior, and iterate over the same text.
  */
-UBool
+bool
 RuleBasedBreakIterator::operator==(const BreakIterator& that) const {
     if (typeid(*this) != typeid(that)) {
-        return FALSE;
+        return false;
     }
     if (this == &that) {
-        return TRUE;
+        return true;
     }
 
     // The base class BreakIterator carries no state that participates in equality,
@@ -388,21 +402,21 @@ RuleBasedBreakIterator::operator==(const BreakIterator& that) const {
         // The two break iterators are operating on different text,
         //   or have a different iteration position.
         //   Note that fText's position is always the same as the break iterator's position.
-        return FALSE;
+        return false;
     }
 
     if (!(fPosition == that2.fPosition &&
             fRuleStatusIndex == that2.fRuleStatusIndex &&
             fDone == that2.fDone)) {
-        return FALSE;
+        return false;
     }
 
     if (that2.fData == fData ||
         (fData != NULL && that2.fData != NULL && *that2.fData == *fData)) {
             // The two break iterators are using the same rules.
-            return TRUE;
+            return true;
         }
-    return FALSE;
+    return false;
 }
 
 /**
@@ -671,7 +685,7 @@ int32_t RuleBasedBreakIterator::preceding(int32_t offset) {
 }
 
 /**
- * Returns true if the specfied position is a boundary position.  As a side
+ * Returns true if the specified position is a boundary position.  As a side
  * effect, leaves the iterator pointing to the first boundary position at
  * or after "offset".
  *
@@ -812,7 +826,7 @@ int32_t RuleBasedBreakIterator::handleNext() {
         }
     #endif
 
-    // handleNext alway sets the break tag value.
+    // handleNext always sets the break tag value.
     // Set the default for it.
     fRuleStatusIndex = 0;
 
@@ -1037,7 +1051,7 @@ int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
 
         if (state == STOP_STATE) {
             // This is the normal exit from the lookup state machine.
-            // Transistion to state zero means we have found a safe point.
+            // Transition to state zero means we have found a safe point.
             break;
         }
     }
@@ -1260,6 +1274,7 @@ RuleBasedBreakIterator::getLanguageBreakEngine(UChar32 c) {
         // first.
         fLanguageBreakEngines->insertElementAt(fUnhandledBreakEngine, 0, status);
         // If we can't insert it, or creation failed, get rid of it
+        U_ASSERT(!fLanguageBreakEngines->hasDeleter());
         if (U_FAILURE(status)) {
             delete fUnhandledBreakEngine;
             fUnhandledBreakEngine = 0;

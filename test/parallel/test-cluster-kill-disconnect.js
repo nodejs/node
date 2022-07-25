@@ -9,7 +9,7 @@ const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   function forkWorker(action) {
     const worker = cluster.fork({ action });
     worker.on('disconnect', common.mustCall(() => {

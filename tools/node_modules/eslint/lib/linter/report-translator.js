@@ -32,18 +32,18 @@ const interpolate = require("./interpolate");
 /**
  * Information about the report
  * @typedef {Object} ReportInfo
- * @property {string} ruleId
- * @property {(0|1|2)} severity
- * @property {(string|undefined)} message
- * @property {(string|undefined)} [messageId]
- * @property {number} line
- * @property {number} column
- * @property {(number|undefined)} [endLine]
- * @property {(number|undefined)} [endColumn]
- * @property {(string|null)} nodeType
- * @property {string} source
- * @property {({text: string, range: (number[]|null)}|null)} [fix]
- * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions]
+ * @property {string} ruleId The rule ID
+ * @property {(0|1|2)} severity Severity of the error
+ * @property {(string|undefined)} message The message
+ * @property {(string|undefined)} [messageId] The message ID
+ * @property {number} line The line number
+ * @property {number} column The column number
+ * @property {(number|undefined)} [endLine] The ending line number
+ * @property {(number|undefined)} [endColumn] The ending column number
+ * @property {(string|null)} nodeType Type of node
+ * @property {string} source Source text
+ * @property {({text: string, range: (number[]|null)}|null)} [fix] The fix object
+ * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions] Suggestion info
  */
 
 //------------------------------------------------------------------------------
@@ -116,6 +116,17 @@ function normalizeReportLoc(descriptor) {
 }
 
 /**
+ * Check that a fix has a valid range.
+ * @param {Fix|null} fix The fix to validate.
+ * @returns {void}
+ */
+function assertValidFix(fix) {
+    if (fix) {
+        assert(fix.range && typeof fix.range[0] === "number" && typeof fix.range[1] === "number", `Fix has invalid range: ${JSON.stringify(fix, null, 2)}`);
+    }
+}
+
+/**
  * Compares items in a fixes array by range.
  * @param {Fix} a The first message.
  * @param {Fix} b The second message.
@@ -133,6 +144,10 @@ function compareFixesByRange(a, b) {
  * @returns {{text: string, range: number[]}} The merged fixes
  */
 function mergeFixes(fixes, sourceCode) {
+    for (const fix of fixes) {
+        assertValidFix(fix);
+    }
+
     if (fixes.length === 0) {
         return null;
     }
@@ -181,6 +196,8 @@ function normalizeFixes(descriptor, sourceCode) {
     if (fix && Symbol.iterator in fix) {
         return mergeFixes(Array.from(fix), sourceCode);
     }
+
+    assertValidFix(fix);
     return fix;
 }
 

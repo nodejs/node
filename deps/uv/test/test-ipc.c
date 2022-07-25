@@ -203,7 +203,7 @@ static void on_read(uv_stream_t* handle,
     /* Make sure that the expected data is correctly multiplexed. */
     ASSERT_MEM_EQ("hello\n", buf->base, nread);
 
-    outbuf = uv_buf_init("world\n", 6);
+    outbuf = uv_buf_init("foobar\n", 7);
     r = uv_write(&write_req, (uv_stream_t*)pipe, &outbuf, 1, NULL);
     ASSERT_EQ(r, 0);
 
@@ -693,6 +693,11 @@ static void ipc_on_connection(uv_stream_t* server, int status) {
 }
 
 
+static void close_and_free_cb(uv_handle_t* handle) {
+  close_cb_called++;
+  free(handle);
+}
+
 static void ipc_on_connection_tcp_conn(uv_stream_t* server, int status) {
   int r;
   uv_buf_t buf;
@@ -721,7 +726,7 @@ static void ipc_on_connection_tcp_conn(uv_stream_t* server, int status) {
                     on_tcp_child_process_read);
   ASSERT_EQ(r, 0);
 
-  uv_close((uv_handle_t*)conn, close_cb);
+  uv_close((uv_handle_t*)conn, close_and_free_cb);
 }
 
 

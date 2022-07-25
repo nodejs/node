@@ -2048,185 +2048,6 @@ __bn_post4x_internal:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	__bn_post4x_internal,.-__bn_post4x_internal
-.globl	bn_from_montgomery
-.type	bn_from_montgomery,@function
-.align	32
-bn_from_montgomery:
-.cfi_startproc	
-	testl	$7,%r9d
-	jz	bn_from_mont8x
-	xorl	%eax,%eax
-	.byte	0xf3,0xc3
-.cfi_endproc	
-.size	bn_from_montgomery,.-bn_from_montgomery
-
-.type	bn_from_mont8x,@function
-.align	32
-bn_from_mont8x:
-.cfi_startproc	
-.byte	0x67
-	movq	%rsp,%rax
-.cfi_def_cfa_register	%rax
-	pushq	%rbx
-.cfi_offset	%rbx,-16
-	pushq	%rbp
-.cfi_offset	%rbp,-24
-	pushq	%r12
-.cfi_offset	%r12,-32
-	pushq	%r13
-.cfi_offset	%r13,-40
-	pushq	%r14
-.cfi_offset	%r14,-48
-	pushq	%r15
-.cfi_offset	%r15,-56
-.Lfrom_prologue:
-
-	shll	$3,%r9d
-	leaq	(%r9,%r9,2),%r10
-	negq	%r9
-	movq	(%r8),%r8
-
-
-
-
-
-
-
-
-	leaq	-320(%rsp,%r9,2),%r11
-	movq	%rsp,%rbp
-	subq	%rdi,%r11
-	andq	$4095,%r11
-	cmpq	%r11,%r10
-	jb	.Lfrom_sp_alt
-	subq	%r11,%rbp
-	leaq	-320(%rbp,%r9,2),%rbp
-	jmp	.Lfrom_sp_done
-
-.align	32
-.Lfrom_sp_alt:
-	leaq	4096-320(,%r9,2),%r10
-	leaq	-320(%rbp,%r9,2),%rbp
-	subq	%r10,%r11
-	movq	$0,%r10
-	cmovcq	%r10,%r11
-	subq	%r11,%rbp
-.Lfrom_sp_done:
-	andq	$-64,%rbp
-	movq	%rsp,%r11
-	subq	%rbp,%r11
-	andq	$-4096,%r11
-	leaq	(%r11,%rbp,1),%rsp
-	movq	(%rsp),%r10
-	cmpq	%rbp,%rsp
-	ja	.Lfrom_page_walk
-	jmp	.Lfrom_page_walk_done
-
-.Lfrom_page_walk:
-	leaq	-4096(%rsp),%rsp
-	movq	(%rsp),%r10
-	cmpq	%rbp,%rsp
-	ja	.Lfrom_page_walk
-.Lfrom_page_walk_done:
-
-	movq	%r9,%r10
-	negq	%r9
-
-
-
-
-
-
-
-
-
-
-	movq	%r8,32(%rsp)
-	movq	%rax,40(%rsp)
-.cfi_escape	0x0f,0x05,0x77,0x28,0x06,0x23,0x08
-.Lfrom_body:
-	movq	%r9,%r11
-	leaq	48(%rsp),%rax
-	pxor	%xmm0,%xmm0
-	jmp	.Lmul_by_1
-
-.align	32
-.Lmul_by_1:
-	movdqu	(%rsi),%xmm1
-	movdqu	16(%rsi),%xmm2
-	movdqu	32(%rsi),%xmm3
-	movdqa	%xmm0,(%rax,%r9,1)
-	movdqu	48(%rsi),%xmm4
-	movdqa	%xmm0,16(%rax,%r9,1)
-.byte	0x48,0x8d,0xb6,0x40,0x00,0x00,0x00
-	movdqa	%xmm1,(%rax)
-	movdqa	%xmm0,32(%rax,%r9,1)
-	movdqa	%xmm2,16(%rax)
-	movdqa	%xmm0,48(%rax,%r9,1)
-	movdqa	%xmm3,32(%rax)
-	movdqa	%xmm4,48(%rax)
-	leaq	64(%rax),%rax
-	subq	$64,%r11
-	jnz	.Lmul_by_1
-
-.byte	102,72,15,110,207
-.byte	102,72,15,110,209
-.byte	0x67
-	movq	%rcx,%rbp
-.byte	102,73,15,110,218
-	movl	OPENSSL_ia32cap_P+8(%rip),%r11d
-	andl	$0x80108,%r11d
-	cmpl	$0x80108,%r11d
-	jne	.Lfrom_mont_nox
-
-	leaq	(%rax,%r9,1),%rdi
-	call	__bn_sqrx8x_reduction
-	call	__bn_postx4x_internal
-
-	pxor	%xmm0,%xmm0
-	leaq	48(%rsp),%rax
-	jmp	.Lfrom_mont_zero
-
-.align	32
-.Lfrom_mont_nox:
-	call	__bn_sqr8x_reduction
-	call	__bn_post4x_internal
-
-	pxor	%xmm0,%xmm0
-	leaq	48(%rsp),%rax
-	jmp	.Lfrom_mont_zero
-
-.align	32
-.Lfrom_mont_zero:
-	movq	40(%rsp),%rsi
-.cfi_def_cfa	%rsi,8
-	movdqa	%xmm0,0(%rax)
-	movdqa	%xmm0,16(%rax)
-	movdqa	%xmm0,32(%rax)
-	movdqa	%xmm0,48(%rax)
-	leaq	64(%rax),%rax
-	subq	$32,%r9
-	jnz	.Lfrom_mont_zero
-
-	movq	$1,%rax
-	movq	-48(%rsi),%r15
-.cfi_restore	%r15
-	movq	-40(%rsi),%r14
-.cfi_restore	%r14
-	movq	-32(%rsi),%r13
-.cfi_restore	%r13
-	movq	-24(%rsi),%r12
-.cfi_restore	%r12
-	movq	-16(%rsi),%rbp
-.cfi_restore	%rbp
-	movq	-8(%rsi),%rbx
-.cfi_restore	%rbx
-	leaq	(%rsi),%rsp
-.cfi_def_cfa_register	%rsp
-.Lfrom_epilogue:
-	.byte	0xf3,0xc3
-.cfi_endproc	
-.size	bn_from_mont8x,.-bn_from_mont8x
 .type	bn_mulx4x_mont_gather5,@function
 .align	32
 bn_mulx4x_mont_gather5:
@@ -3780,3 +3601,24 @@ bn_gather5:
 .long	0,0, 1,1
 .long	2,2, 2,2
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,119,105,116,104,32,115,99,97,116,116,101,114,47,103,97,116,104,101,114,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

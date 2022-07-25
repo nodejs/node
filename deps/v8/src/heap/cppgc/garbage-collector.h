@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 #define V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 
+#include "include/cppgc/common.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/sweeper.h"
 
@@ -19,7 +20,9 @@ class GarbageCollector {
     using CollectionType = Marker::MarkingConfig::CollectionType;
     using StackState = cppgc::Heap::StackState;
     using MarkingType = Marker::MarkingConfig::MarkingType;
-    using SweepingType = Sweeper::Config;
+    using SweepingType = Sweeper::SweepingConfig::SweepingType;
+    using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
+    using IsForcedGC = Marker::MarkingConfig::IsForcedGC;
 
     static constexpr Config ConservativeAtomicConfig() {
       return {CollectionType::kMajor, StackState::kMayContainHeapPointers,
@@ -41,8 +44,20 @@ class GarbageCollector {
               MarkingType::kIncremental, SweepingType::kAtomic};
     }
 
+    static constexpr Config
+    PreciseIncrementalMarkingConcurrentSweepingConfig() {
+      return {CollectionType::kMajor, StackState::kNoHeapPointers,
+              MarkingType::kIncremental,
+              SweepingType::kIncrementalAndConcurrent};
+    }
+
     static constexpr Config MinorPreciseAtomicConfig() {
       return {CollectionType::kMinor, StackState::kNoHeapPointers,
+              MarkingType::kAtomic, SweepingType::kAtomic};
+    }
+
+    static constexpr Config MinorConservativeAtomicConfig() {
+      return {CollectionType::kMinor, StackState::kMayContainHeapPointers,
               MarkingType::kAtomic, SweepingType::kAtomic};
     }
 
@@ -50,6 +65,8 @@ class GarbageCollector {
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kAtomic;
     SweepingType sweeping_type = SweepingType::kAtomic;
+    FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
+    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
   };
 
   // Executes a garbage collection specified in config.
@@ -59,6 +76,9 @@ class GarbageCollector {
   // The current epoch that the GC maintains. The epoch is increased on every
   // GC invocation.
   virtual size_t epoch() const = 0;
+
+  // Returns a non-null state if the stack state if overriden.
+  virtual const EmbedderStackState* override_stack_state() const = 0;
 };
 
 }  // namespace internal

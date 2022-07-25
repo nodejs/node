@@ -68,7 +68,7 @@ const tests = [
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
     expected: 'Uncaught Error: Whoops!--->\nREPL5:*:*\n'
-  }
+  },
 ];
 
 tests.forEach(run);

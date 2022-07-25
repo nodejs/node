@@ -8,9 +8,11 @@
 
 <!-- source_link=lib/vm.js -->
 
-The `vm` module enables compiling and running code within V8 Virtual
-Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code**.
+The `node:vm` module enables compiling and running code within V8 Virtual
+Machine contexts.
+
+<strong class="critical">The `node:vm` module is not a security
+mechanism. Do not use it to run untrusted code.</strong>
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
@@ -24,7 +26,7 @@ global variable. Any changes to global variables caused by the invoked
 code are reflected in the context object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const x = 1;
 
@@ -43,6 +45,7 @@ console.log(x); // 1; y is not defined.
 ```
 
 ## Class: `vm.Script`
+
 <!-- YAML
 added: v0.3.1
 -->
@@ -51,9 +54,16 @@ Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific contexts.
 
 ### `new vm.Script(code[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: The `produceCachedData` is deprecated in favour of
@@ -70,12 +80,12 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -91,6 +101,9 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -102,6 +115,7 @@ compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
 
 ### `script.createCachedData()`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -129,6 +143,7 @@ const cacheWithX = script.createCachedData();
 ```
 
 ### `script.runInContext(contextifiedObject[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -162,7 +177,7 @@ the value of another global variable, then execute the code multiple times.
 The globals are contained in the `context` object.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const context = {
   animal: 'cat',
@@ -185,6 +200,7 @@ and corresponding threads being started, which have a non-zero performance
 overhead.
 
 ### `script.runInNewContext([contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -243,7 +259,7 @@ the code multiple times in different contexts. The globals are set on and
 contained within each individual `context`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const script = new vm.Script('globalVar = "set"');
 
@@ -257,6 +273,7 @@ console.log(contexts);
 ```
 
 ### `script.runInThisContext([options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -281,13 +298,13 @@ changes:
 
 Runs the compiled code contained by the `vm.Script` within the context of the
 current `global` object. Running code does not have access to local scope, but
-*does* have access to the current `global` object.
+_does_ have access to the current `global` object.
 
 The following example compiles code that increments a `global` variable then
 executes that code multiple times:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 0;
 
@@ -302,83 +319,8 @@ console.log(globalVar);
 // 1000
 ```
 
-## `vm.measureMemory([options])`
-
-<!-- YAML
-added: v13.10.0
--->
-
-> Stability: 1 - Experimental
-
-Measure the memory known to V8 and used by all contexts known to the
-current V8 isolate, or the main context.
-
-* `options` {Object} Optional.
-  * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
-    only the memory measured for the main context will be returned. In
-    detailed mode, the measure measured for all contexts known to the
-    current V8 isolate will be returned.
-    **Default:** `'summary'`
-  * `execution` {string} Either `'default'` or `'eager'`. With default
-    execution, the promise will not resolve until after the next scheduled
-    garbage collection starts, which may take a while (or never if the program
-    exits before the next GC). With eager execution, the GC will be started
-    right away to measure the memory.
-    **Default:** `'default'`
-* Returns: {Promise} If the memory is successfully measured the promise will
-  resolve with an object containing information about the memory usage.
-
-The format of the object that the returned Promise may resolve with is
-specific to the V8 engine and may change from one version of V8 to the next.
-
-The returned result is different from the statistics returned by
-`v8.getHeapSpaceStatistics()` in that `vm.measureMemory()` measure the
-memory reachable by each V8 specific contexts in the current instance of
-the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
-the memory occupied by each heap space in the current V8 instance.
-
-```js
-const vm = require('vm');
-// Measure the memory used by the main context.
-vm.measureMemory({ mode: 'summary' })
-  // This is the same as vm.measureMemory()
-  .then((result) => {
-    // The current format is:
-    // {
-    //   total: {
-    //      jsMemoryEstimate: 2418479, jsMemoryRange: [ 2418479, 2745799 ]
-    //    }
-    // }
-    console.log(result);
-  });
-
-const context = vm.createContext({ a: 1 });
-vm.measureMemory({ mode: 'detailed', execution: 'eager' })
-  .then((result) => {
-    // Reference the context here so that it won't be GC'ed
-    // until the measurement is complete.
-    console.log(context.a);
-    // {
-    //   total: {
-    //     jsMemoryEstimate: 2574732,
-    //     jsMemoryRange: [ 2574732, 2904372 ]
-    //   },
-    //   current: {
-    //     jsMemoryEstimate: 2438996,
-    //     jsMemoryRange: [ 2438996, 2768636 ]
-    //   },
-    //   other: [
-    //     {
-    //       jsMemoryEstimate: 135736,
-    //       jsMemoryRange: [ 135736, 465376 ]
-    //     }
-    //   ]
-    // }
-    console.log(result);
-  });
-```
-
 ## Class: `vm.Module`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -387,8 +329,8 @@ added:
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 The `vm.Module` class provides a low-level interface for using
 ECMAScript modules in VM contexts. It is the counterpart of the `vm.Script`
@@ -408,8 +350,79 @@ This implementation lies at a lower level than the [ECMAScript Module
 loader][]. There is also no way to interact with the Loader yet, though
 support is planned.
 
-```js
-const vm = require('vm');
+```mjs
+import vm from 'node:vm';
+
+const contextifiedObject = vm.createContext({
+  secret: 42,
+  print: console.log,
+});
+
+// Step 1
+//
+// Create a Module by constructing a new `vm.SourceTextModule` object. This
+// parses the provided source text, throwing a `SyntaxError` if anything goes
+// wrong. By default, a Module is created in the top context. But here, we
+// specify `contextifiedObject` as the context this Module belongs to.
+//
+// Here, we attempt to obtain the default export from the module "foo", and
+// put it into local binding "secret".
+
+const bar = new vm.SourceTextModule(`
+  import s from 'foo';
+  s;
+  print(s);
+`, { context: contextifiedObject });
+
+// Step 2
+//
+// "Link" the imported dependencies of this Module to it.
+//
+// The provided linking callback (the "linker") accepts two arguments: the
+// parent module (`bar` in this case) and the string that is the specifier of
+// the imported module. The callback is expected to return a Module that
+// corresponds to the provided specifier, with certain requirements documented
+// in `module.link()`.
+//
+// If linking has not started for the returned Module, the same linker
+// callback will be called on the returned Module.
+//
+// Even top-level Modules without dependencies must be explicitly linked. The
+// callback provided would never be called, however.
+//
+// The link() method returns a Promise that will be resolved when all the
+// Promises returned by the linker resolve.
+//
+// Note: This is a contrived example in that the linker function creates a new
+// "foo" module every time it is called. In a full-fledged module system, a
+// cache would probably be used to avoid duplicated modules.
+
+async function linker(specifier, referencingModule) {
+  if (specifier === 'foo') {
+    return new vm.SourceTextModule(`
+      // The "secret" variable refers to the global variable we added to
+      // "contextifiedObject" when creating the context.
+      export default secret;
+    `, { context: referencingModule.context });
+
+    // Using `contextifiedObject` instead of `referencingModule.context`
+    // here would work as well.
+  }
+  throw new Error(`Unable to resolve dependency: ${specifier}`);
+}
+await bar.link(linker);
+
+// Step 3
+//
+// Evaluate the Module. The evaluate() method returns a promise which will
+// resolve after the module has finished evaluating.
+
+// Prints 42.
+await bar.evaluate();
+```
+
+```cjs
+const vm = require('node:vm');
 
 const contextifiedObject = vm.createContext({
   secret: 42,
@@ -483,7 +496,7 @@ const contextifiedObject = vm.createContext({
 
 ### `module.dependencySpecifiers`
 
-* {string[]}
+* {string\[]}
 
 The specifiers of all dependencies of this module. The returned array is frozen
 to disallow any changes to it.
@@ -516,7 +529,7 @@ in the ECMAScript specification.
     [`Error`][]. Existing handlers for the event that have been attached via
     `process.on('SIGINT')` are disabled during script execution, but continue to
     work after that. **Default:** `false`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Evaluate the module.
 
@@ -532,17 +545,34 @@ This method cannot be called while the module is being evaluated
 Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
+### `module.identifier`
+
+* {string}
+
+The identifier of the current module, as set in the constructor.
+
 ### `module.link(linker)`
 
 * `linker` {Function}
   * `specifier` {string} The specifier of the requested module:
-    <!-- eslint-skip -->
-    ```js
+    ```mjs
     import foo from 'foo';
     //              ^^^^^ the module specifier
     ```
 
   * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
+
+  * `extra` {Object}
+    * `assert` {Object} The data from the assertion:
+      <!-- eslint-skip -->
+      ```js
+      import foo from 'foo' assert { name: 'value' };
+      //                           ^^^^^^^^^^^^^^^^^ the assertion
+      ```
+      Per ECMA-262, hosts are expected to ignore assertions that they do not
+      support, as opposed to, for example, triggering an error if an
+      unsupported assertion is present.
+
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
 
@@ -616,21 +646,16 @@ Other than `'errored'`, this status string corresponds to the specification's
 `'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
 value that is not `undefined`.
 
-### `module.identifier`
-
-* {string}
-
-The identifier of the current module, as set in the constructor.
-
 ## Class: `vm.SourceTextModule`
+
 <!-- YAML
 added: v9.6.0
 -->
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 * Extends: {vm.Module}
 
@@ -639,6 +664,16 @@ defined in the ECMAScript specification.
 
 ### `new vm.SourceTextModule(code[, options])`
 
+<!-- YAML
+changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
+-->
+
 * `code` {string} JavaScript Module code to parse
 * `options`
   * `identifier` {string} String used in stack traces.
@@ -646,14 +681,14 @@ defined in the ECMAScript specification.
     index.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. The `code` must be the same as the module from which this
-     `cachedData` was created.
+    source. The `code` must be the same as the module from which this
+    `cachedData` was created.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this `Module`. **Default:** `0`.
-  * `columnOffset` {integer} Specifies the column number offset that is
-    displayed in stack traces produced by this `Module`. **Default:** `0`.
+  * `columnOffset` {integer} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this `Module`. **Default:** `0`.
   * `initializeImportMeta` {Function} Called during evaluation of this `Module`
     to initialize the `import.meta`.
     * `meta` {import.meta}
@@ -663,6 +698,9 @@ defined in the ECMAScript specification.
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     * `specifier` {string} specifier passed to `import()`
     * `module` {vm.Module}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -673,11 +711,37 @@ Properties assigned to the `import.meta` object that are objects may
 allow the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
-```js
-const vm = require('vm');
+```mjs
+import vm from 'node:vm';
 
 const contextifiedObject = vm.createContext({ secret: 42 });
 
+const module = new vm.SourceTextModule(
+  'Object.getPrototypeOf(import.meta.prop).secret = secret;',
+  {
+    initializeImportMeta(meta) {
+      // Note: this object is created in the top context. As such,
+      // Object.getPrototypeOf(import.meta.prop) points to the
+      // Object.prototype in the top context rather than that in
+      // the contextified object.
+      meta.prop = {};
+    }
+  });
+// Since module has no dependencies, the linker function will never be called.
+await module.link(() => {});
+await module.evaluate();
+
+// Now, Object.prototype.secret will be equal to 42.
+//
+// To fix this problem, replace
+//     meta.prop = {};
+// above with
+//     meta.prop = vm.runInContext('{}', contextifiedObject);
+```
+
+```cjs
+const vm = require('node:vm');
+const contextifiedObject = vm.createContext({ secret: 42 });
 (async () => {
   const module = new vm.SourceTextModule(
     'Object.getPrototypeOf(import.meta.prop).secret = secret;',
@@ -693,7 +757,6 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // Since module has no dependencies, the linker function will never be called.
   await module.link(() => {});
   await module.evaluate();
-
   // Now, Object.prototype.secret will be equal to 42.
   //
   // To fix this problem, replace
@@ -704,6 +767,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 ```
 
 ### `sourceTextModule.createCachedData()`
+
 <!-- YAML
 added:
  - v13.7.0
@@ -728,6 +792,7 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 ```
 
 ## Class: `vm.SyntheticModule`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -736,8 +801,8 @@ added:
 
 > Stability: 1 - Experimental
 
-*This feature is only available with the `--experimental-vm-modules` command
-flag enabled.*
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 * Extends: {vm.Module}
 
@@ -747,7 +812,7 @@ provide a generic interface for exposing non-JavaScript sources to ECMAScript
 module graphs.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const source = '{ "a": 1 }';
 const module = new vm.SyntheticModule(['default'], function() {
@@ -759,17 +824,19 @@ const module = new vm.SyntheticModule(['default'], function() {
 ```
 
 ### `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
+
 <!-- YAML
 added:
  - v13.0.0
  - v12.16.0
 -->
 
-* `exportNames` {string[]} Array of names that will be exported from the module.
+* `exportNames` {string\[]} Array of names that will be exported from the
+  module.
 * `evaluateCallback` {Function} Called when the module is evaluated.
 * `options`
   * `identifier` {string} String used in stack traces.
-   **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
+    **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
     index.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
@@ -781,6 +848,7 @@ the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
 ### `syntheticModule.setExport(name, value)`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -794,25 +862,45 @@ This method is used after the module is linked to set the values of exports. If
 it is called before the module is linked, an [`ERR_VM_MODULE_STATUS`][] error
 will be thrown.
 
-```js
-const vm = require('vm');
+```mjs
+import vm from 'node:vm';
 
+const m = new vm.SyntheticModule(['x'], () => {
+  m.setExport('x', 1);
+});
+
+await m.link(() => {});
+await m.evaluate();
+
+assert.strictEqual(m.namespace.x, 1);
+```
+
+```cjs
+const vm = require('node:vm');
 (async () => {
   const m = new vm.SyntheticModule(['x'], () => {
     m.setExport('x', 1);
   });
-
   await m.link(() => {});
   await m.evaluate();
-
   assert.strictEqual(m.namespace.x, 1);
 })();
 ```
 
 ## `vm.compileFunction(code[, params[, options]])`
+
 <!-- YAML
 added: v10.10.0
 changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
+  - version: v15.9.0
+    pr-url: https://github.com/nodejs/node/pull/35431
+    description: Added `importModuleDynamically` option again.
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33364
     description: Removal of `importModuleDynamically` due to compatibility
@@ -825,25 +913,38 @@ changes:
 -->
 
 * `code` {string} The body of the function to compile.
-* `params` {string[]} An array of strings containing all parameters for the
+* `params` {string\[]} An array of strings containing all parameters for the
   function.
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `''`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source.
+    source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
   * `parsingContext` {Object} The [contextified][] object in which the said
     function should be compiled in.
-  * `contextExtensions` {Object[]} An array containing a collection of context
+  * `contextExtensions` {Object\[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    This option is part of the experimental modules API, and should not be
+    considered stable.
+    * `specifier` {string} specifier passed to `import()`
+    * `function` {Function}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
@@ -851,6 +952,7 @@ supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
 ## `vm.createContext([contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -897,7 +999,7 @@ properties but also having the built-in objects and functions any standard
 will remain unchanged.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 global.globalVar = 3;
 
@@ -926,6 +1028,7 @@ The provided `name` and `origin` of the context are made visible through the
 Inspector API.
 
 ## `vm.isContext(object)`
+
 <!-- YAML
 added: v0.11.7
 -->
@@ -933,13 +1036,96 @@ added: v0.11.7
 * `object` {Object}
 * Returns: {boolean}
 
-Returns `true` if the given `oject` object has been [contextified][] using
+Returns `true` if the given `object` object has been [contextified][] using
 [`vm.createContext()`][].
 
+## `vm.measureMemory([options])`
+
+<!-- YAML
+added: v13.10.0
+-->
+
+> Stability: 1 - Experimental
+
+Measure the memory known to V8 and used by all contexts known to the
+current V8 isolate, or the main context.
+
+* `options` {Object} Optional.
+  * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
+    only the memory measured for the main context will be returned. In
+    detailed mode, the memory measured for all contexts known to the
+    current V8 isolate will be returned.
+    **Default:** `'summary'`
+  * `execution` {string} Either `'default'` or `'eager'`. With default
+    execution, the promise will not resolve until after the next scheduled
+    garbage collection starts, which may take a while (or never if the program
+    exits before the next GC). With eager execution, the GC will be started
+    right away to measure the memory.
+    **Default:** `'default'`
+* Returns: {Promise} If the memory is successfully measured the promise will
+  resolve with an object containing information about the memory usage.
+
+The format of the object that the returned Promise may resolve with is
+specific to the V8 engine and may change from one version of V8 to the next.
+
+The returned result is different from the statistics returned by
+`v8.getHeapSpaceStatistics()` in that `vm.measureMemory()` measure the
+memory reachable by each V8 specific contexts in the current instance of
+the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
+the memory occupied by each heap space in the current V8 instance.
+
+```js
+const vm = require('node:vm');
+// Measure the memory used by the main context.
+vm.measureMemory({ mode: 'summary' })
+  // This is the same as vm.measureMemory()
+  .then((result) => {
+    // The current format is:
+    // {
+    //   total: {
+    //      jsMemoryEstimate: 2418479, jsMemoryRange: [ 2418479, 2745799 ]
+    //    }
+    // }
+    console.log(result);
+  });
+
+const context = vm.createContext({ a: 1 });
+vm.measureMemory({ mode: 'detailed', execution: 'eager' })
+  .then((result) => {
+    // Reference the context here so that it won't be GC'ed
+    // until the measurement is complete.
+    console.log(context.a);
+    // {
+    //   total: {
+    //     jsMemoryEstimate: 2574732,
+    //     jsMemoryRange: [ 2574732, 2904372 ]
+    //   },
+    //   current: {
+    //     jsMemoryEstimate: 2438996,
+    //     jsMemoryRange: [ 2438996, 2768636 ]
+    //   },
+    //   other: [
+    //     {
+    //       jsMemoryEstimate: 135736,
+    //       jsMemoryRange: [ 135736, 465376 ]
+    //     }
+    //   ]
+    // }
+    console.log(result);
+  });
+```
+
 ## `vm.runInContext(code, contextifiedObject[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
     description: The `breakOnSigint` option is supported now.
@@ -953,8 +1139,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
@@ -968,8 +1154,8 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -985,6 +1171,9 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -992,7 +1181,7 @@ changes:
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedObject`, then returns the result. Running code does not have
-access to the local scope. The `contextifiedObject` object *must* have been
+access to the local scope. The `contextifiedObject` object _must_ have been
 previously [contextified][] using the [`vm.createContext()`][] method.
 
 If `options` is a string, then it specifies the filename.
@@ -1001,7 +1190,7 @@ The following example compiles and executes different scripts using a single
 [contextified][] object:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = { globalVar: 1 };
 vm.createContext(contextObject);
@@ -1014,9 +1203,16 @@ console.log(contextObject);
 ```
 
 ## `vm.runInNewContext(code[, contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
@@ -1036,8 +1232,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
@@ -1066,8 +1262,8 @@ changes:
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -1083,6 +1279,9 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1103,7 +1302,7 @@ The following example compiles and executes code that increments a global
 variable and sets a new one. These globals are contained in the `contextObject`.
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 const contextObject = {
   animal: 'cat',
@@ -1116,9 +1315,16 @@ console.log(contextObject);
 ```
 
 ## `vm.runInThisContext(code[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/40249
+    description: Added support for import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
     description: The `breakOnSigint` option is supported now.
@@ -1130,8 +1336,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
@@ -1145,8 +1351,8 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -1162,6 +1368,9 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `importAssertions` {Object} The `"assert"` value passed to the
+      [`optionsExpression`][] optional parameter, or an empty object if no value
+      was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1177,8 +1386,9 @@ The following example illustrates using both `vm.runInThisContext()` and
 the JavaScript [`eval()`][] function to run the same code:
 
 <!-- eslint-disable prefer-const -->
+
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 let localVar = 'initial value';
 
 const vmResult = vm.runInThisContext('localVar = "vm";');
@@ -1191,7 +1401,7 @@ console.log(`evalResult: '${evalResult}', localVar: '${localVar}'`);
 ```
 
 Because `vm.runInThisContext()` does not have access to the local scope,
-`localVar` is unchanged. In contrast, [`eval()`][] *does* have access to the
+`localVar` is unchanged. In contrast, [`eval()`][] _does_ have access to the
 local scope, so the value `localVar` is changed. In this way
 `vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
 `(0,eval)('code')`.
@@ -1202,17 +1412,17 @@ When using either [`script.runInThisContext()`][] or
 [`vm.runInThisContext()`][], the code is executed within the current V8 global
 context. The code passed to this VM context will have its own isolated scope.
 
-In order to run a simple web server using the `http` module the code passed to
-the context must either call `require('http')` on its own, or have a reference
-to the `http` module passed to it. For instance:
+In order to run a simple web server using the `node:http` module the code passed
+to the context must either call `require('node:http')` on its own, or have a
+reference to the `node:http` module passed to it. For instance:
 
 ```js
 'use strict';
-const vm = require('vm');
+const vm = require('node:vm');
 
 const code = `
 ((require) => {
-  const http = require('http');
+  const http = require('node:http');
 
   http.createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -1241,9 +1451,9 @@ According to the [V8 Embedder's Guide][]:
 When the method `vm.createContext()` is called, the `contextObject` argument
 (or a newly-created object if `contextObject` is `undefined`) is associated
 internally with a new instance of a V8 Context. This V8 Context provides the
-`code` run using the `vm` module's methods with an isolated global environment
-within which it can operate. The process of creating the V8 Context and
-associating it with the `contextObject` is what this document refers to as
+`code` run using the `node:vm` module's methods with an isolated global
+environment within which it can operate. The process of creating the V8 Context
+and associating it with the `contextObject` is what this document refers to as
 "contextifying" the object.
 
 ## Timeout interactions with asynchronous tasks and Promises
@@ -1259,7 +1469,7 @@ timeout of 5 milliseconds schedules an infinite loop to run after a promise
 resolves. The scheduled loop is never interrupted by the timeout:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   console.log('entering loop');
@@ -1279,7 +1489,7 @@ This can be addressed by passing `microtaskMode: 'afterEvaluate'` to the code
 that creates the `Context`:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 
 function loop() {
   while (1) console.log(Date.now());
@@ -1310,7 +1520,7 @@ which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
-[ECMAScript Module Loader]: esm.md#esm_modules_ecmascript_modules
+[ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
@@ -1319,18 +1529,19 @@ are not controllable through the timeout either.
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
-[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
-[`ERR_VM_MODULE_STATUS`]: errors.md#ERR_VM_MODULE_STATUS
-[`Error`]: errors.md#errors_class_error
-[`URL`]: url.md#url_class_url
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
+[`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
+[`Error`]: errors.md#class-error
+[`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[`script.runInContext()`]: #vm_script_runincontext_contextifiedobject_options
-[`script.runInThisContext()`]: #vm_script_runinthiscontext_options
-[`url.origin`]: url.md#url_url_origin
-[`vm.createContext()`]: #vm_vm_createcontext_contextobject_options
-[`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedobject_options
-[`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
-[contextified]: #vm_what_does_it_mean_to_contextify_an_object
+[`optionsExpression`]: https://tc39.es/proposal-import-assertions/#sec-evaluate-import-call
+[`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
+[`script.runInThisContext()`]: #scriptruninthiscontextoptions
+[`url.origin`]: url.md#urlorigin
+[`vm.createContext()`]: #vmcreatecontextcontextobject-options
+[`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
+[`vm.runInThisContext()`]: #vmruninthiscontextcode-options
+[contextified]: #what-does-it-mean-to-contextify-an-object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

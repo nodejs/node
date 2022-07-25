@@ -1,8 +1,9 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
@@ -14,7 +15,7 @@ new RuleTester().run('require-common-first', rule, {
     {
       code: 'require("common")\n' +
             'require("assert")'
-    }
+    },
   ],
   invalid: [
     {
@@ -22,6 +23,6 @@ new RuleTester().run('require-common-first', rule, {
             'require("common")',
       errors: [{ message: 'Mandatory module "common" must be loaded ' +
                           'before any other modules.' }]
-    }
+    },
   ]
 });

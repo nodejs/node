@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-token</title>
 <style>
 body {
@@ -141,20 +142,27 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>  npm token list [--json|--parseable]
-  npm token create [--read-only] [--cidr=1.1.1.1/24,2.2.2.2/16]
-  npm token revoke &lt;id|token&gt;
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm token list
+npm token revoke &lt;id|token&gt;
+npm token create [--read-only] [--cidr=list]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>This lets you list, create and revoke authentication tokens.</p>
 <ul>
 <li><code>npm token list</code>:
-Shows a table of all active authentication tokens. You can request this as
-JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.</li>
+Shows a table of all active authentication tokens. You can request
+this as JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.</li>
 </ul>
 <pre lang="bash"><code>+--------+---------+------------+----------+----------------+
 | id     | token   | created    | read-only | CIDR whitelist |
@@ -175,11 +183,19 @@ JSON with <code>--json</code> or tab-separated values with <code>--parseable</co
 +--------+---------+------------+----------+----------------+
 </code></pre>
 <ul>
-<li><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
-Create a new authentication token. It can be <code>--read-only</code> or accept a list of
-<a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> ranges to
-limit use of this token to. This will prompt you for your password, and, if you have
-two-factor authentication enabled, an otp.</li>
+<li>
+<p><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
+Create a new authentication token. It can be <code>--read-only</code>, or accept
+a list of
+<a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a>
+ranges with which to limit use of this token. This will prompt you for
+your password, and, if you have two-factor authentication enabled, an
+otp.</p>
+<p>Currently, the cli can not generate automation tokens. Please refer to
+the <a href="https://docs.npmjs.com/creating-and-viewing-access-tokens">docs
+website</a>
+for more information on generating automation tokens.</p>
+</li>
 </ul>
 <pre lang="bash"><code>+----------------+--------------------------------------+
 | token          | a73c9572-f1b9-8983-983d-ba3ac3cc913d |
@@ -193,10 +209,64 @@ two-factor authentication enabled, an otp.</li>
 </code></pre>
 <ul>
 <li><code>npm token revoke &lt;token|id&gt;</code>:
-This removes an authentication token, making it immediately unusable. This can accept
-both complete tokens (as you get back from <code>npm token create</code> and will
-find in your <code>.npmrc</code>) and ids as seen in the <code>npm token list</code> output.
-This will NOT accept the truncated token found in <code>npm token list</code> output.</li>
+Immediately removes an authentication token from the registry.  You
+will no longer be able to use it.  This can accept both complete
+tokens (such as those you get back from <code>npm token create</code>, and those
+found in your <code>.npmrc</code>), and ids as seen in the parseable or json
+output of <code>npm token list</code>.  This will NOT accept the truncated token
+found in the normal <code>npm token list</code> output.</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="read-only"><code>read-only</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>This is used to mark a token as unable to publish when configuring limited
+access tokens with the <code>npm token create</code> command.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="cidr"><code>cidr</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String (can be set multiple times)</li>
+</ul>
+<p>This is a list of CIDR address to be used when configuring limited access
+tokens with the <code>npm token create</code> command.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../commands/npm-adduser.html">npm adduser</a></li>
+<li><a href="../using-npm/registry.html">npm registry</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+<li><a href="../commands/npm-owner.html">npm owner</a></li>
+<li><a href="../commands/npm-whoami.html">npm whoami</a></li>
+<li><a href="../commands/npm-profile.html">npm profile</a></li>
 </ul>
 </div>
 

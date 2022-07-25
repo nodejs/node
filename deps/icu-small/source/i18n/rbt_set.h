@@ -120,7 +120,7 @@ public:
      * @param status     Output parameter filled in with success or failure status.
      */
     virtual void freeze(UParseError& parseError, UErrorCode& status);
-
+    
     /**
      * Transliterate the given text with the given UTransPosition
      * indices.  Return true if the transliteration should continue
@@ -129,7 +129,7 @@ public:
      * @param text the text to be transliterated
      * @param index the position indices, which will be updated
      * @param isIncremental if true, assume new text may be inserted
-     * at index.limit, and return false if thre is a partial match.
+     * at index.limit, and return false if thrre is a partial match.
      * @return true unless a U_PARTIAL_MATCH has been obtained,
      * indicating that transliteration should stop until more text
      * arrives.

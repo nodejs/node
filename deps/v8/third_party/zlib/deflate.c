@@ -176,10 +176,15 @@ local const config configuration_table[10] = {
 /* ===========================================================================
  * Initialize the hash table (avoiding 64K overflow for 16 bit systems).
  * prev[] will be initialized on the fly.
+ * TODO(cavalcantii): optimization opportunity, check comments on:
+ * https://chromium-review.googlesource.com/c/chromium/src/+/3561506/
  */
 #define CLEAR_HASH(s) \
-    s->head[s->hash_size-1] = NIL; \
-    zmemzero((Bytef *)s->head, (unsigned)(s->hash_size-1)*sizeof(*s->head));
+    do { \
+        s->head[s->hash_size-1] = NIL; \
+        zmemzero((Bytef *)s->head, \
+                 (unsigned)(s->hash_size-1)*sizeof(*s->head)); \
+    } while (0)
 
 /* ===========================================================================
  * Slide the hash table when sliding the window down (could be avoided with 32
@@ -321,6 +326,9 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     s->window = (Bytef *) ZALLOC(strm,
                                  s->w_size + window_padding,
                                  2*sizeof(Byte));
+    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+     * crbug.com/1144420 */
+    zmemzero(s->window, (s->w_size + window_padding) * (2 * sizeof(Byte)));
     s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
     /* Avoid use of uninitialized value, see:
      * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
@@ -531,13 +539,13 @@ int ZEXPORT deflateResetKeep (strm)
 #ifdef GZIP
         s->wrap == 2 ? GZIP_STATE :
 #endif
-        s->wrap ? INIT_STATE : BUSY_STATE;
+        INIT_STATE;
     strm->adler =
 #ifdef GZIP
         s->wrap == 2 ? crc32(0L, Z_NULL, 0) :
 #endif
         adler32(0L, Z_NULL, 0);
-    s->last_flush = Z_NO_FLUSH;
+    s->last_flush = -2;
 
     _tr_init(s);
 
@@ -592,7 +600,8 @@ int ZEXPORT deflatePrime (strm, bits, value)
 
     if (deflateStateCheck(strm)) return Z_STREAM_ERROR;
     s = strm->state;
-    if (s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
+    if (bits < 0 || bits > 16 ||
+        s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
         return Z_BUF_ERROR;
     do {
         put = Buf_size - s->bi_valid;
@@ -630,12 +639,12 @@ int ZEXPORT deflateParams(strm, level, strategy)
     func = configuration_table[s->level].func;
 
     if ((strategy != s->strategy || func != configuration_table[level].func) &&
-        s->high_water) {
+        s->last_flush != -2) {
         /* Flush the last buffer: */
         int err = deflate(strm, Z_BLOCK);
         if (err == Z_STREAM_ERROR)
             return err;
-        if (strm->avail_out == 0)
+        if (strm->avail_in || (s->strstart - s->block_start) + s->lookahead)
             return Z_BUF_ERROR;
     }
     if (s->level != level) {
@@ -854,6 +863,8 @@ int ZEXPORT deflate (strm, flush)
     }
 
     /* Write the header */
+    if (s->status == INIT_STATE && s->wrap == 0)
+        s->status = BUSY_STATE;
     if (s->status == INIT_STATE) {
         /* zlib header */
         uInt header = (Z_DEFLATED + ((s->w_bits-8)<<4)) << 8;
@@ -1586,6 +1597,8 @@ local void fill_window_c(s)
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
             s->block_start -= (long) wsize;
+            if (s->insert > s->strstart)
+                s->insert = s->strstart;
             slide_hash(s);
             more += wsize;
         }
@@ -1815,6 +1828,7 @@ local block_state deflate_stored(s, flush)
             s->matches = 2;         /* clear hash */
             zmemcpy(s->window, s->strm->next_in - s->w_size, s->w_size);
             s->strstart = s->w_size;
+            s->insert = s->strstart;
         }
         else {
             if (s->window_size - s->strstart <= used) {
@@ -1823,12 +1837,14 @@ local block_state deflate_stored(s, flush)
                 zmemcpy(s->window, s->window + s->w_size, s->strstart);
                 if (s->matches < 2)
                     s->matches++;   /* add a pending slide_hash() */
+                if (s->insert > s->strstart)
+                    s->insert = s->strstart;
             }
             zmemcpy(s->window + s->strstart, s->strm->next_in - used, used);
             s->strstart += used;
+            s->insert += MIN(used, s->w_size - s->insert);
         }
         s->block_start = s->strstart;
-        s->insert += MIN(used, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;
@@ -1843,7 +1859,7 @@ local block_state deflate_stored(s, flush)
         return block_done;
 
     /* Fill the window with any remaining input. */
-    have = s->window_size - s->strstart - 1;
+    have = s->window_size - s->strstart;
     if (s->strm->avail_in > have && s->block_start >= (long)s->w_size) {
         /* Slide the window down. */
         s->block_start -= s->w_size;
@@ -1852,12 +1868,15 @@ local block_state deflate_stored(s, flush)
         if (s->matches < 2)
             s->matches++;           /* add a pending slide_hash() */
         have += s->w_size;          /* more space now */
+        if (s->insert > s->strstart)
+            s->insert = s->strstart;
     }
     if (have > s->strm->avail_in)
         have = s->strm->avail_in;
     if (have) {
         deflate_read_buf(s->strm, s->window + s->strstart, have);
         s->strstart += have;
+        s->insert += MIN(have, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;

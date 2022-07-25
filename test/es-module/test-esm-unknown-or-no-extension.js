@@ -31,6 +31,10 @@ const assert = require('assert');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
     assert.strictEqual(stdout, '');
-    assert.ok(stderr.indexOf('ERR_UNKNOWN_FILE_EXTENSION') !== -1);
+    assert.ok(stderr.includes('ERR_UNKNOWN_FILE_EXTENSION'));
+    if (fixturePath.includes('noext')) {
+      // Check for explanation to users
+      assert.ok(stderr.includes('extensionless'));
+    }
   }));
 });

@@ -30,15 +30,15 @@ var defaults = {
 // Characters.
 var tab = 9 // '\t'
 var lineFeed = 10 // '\n'
-var formFeed = 12 //  '\f'
+var formFeed = 12 // '\f'
 var space = 32 // ' '
-var ampersand = 38 //  '&'
-var semicolon = 59 //  ';'
-var lessThan = 60 //  '<'
-var equalsTo = 61 //  '='
-var numberSign = 35 //  '#'
-var uppercaseX = 88 //  'X'
-var lowercaseX = 120 //  'x'
+var ampersand = 38 // '&'
+var semicolon = 59 // ';'
+var lessThan = 60 // '<'
+var equalsTo = 61 // '='
+var numberSign = 35 // '#'
+var uppercaseX = 88 // 'X'
+var lowercaseX = 120 // 'x'
 var replacementCharacter = 65533 // '�'
 
 // Reference types.
@@ -160,7 +160,8 @@ function parse(value, settings) {
   // Wrap `handleWarning`.
   warning = handleWarning ? parseError : noop
 
-  // Ensure the algorithm walks over the first character and the end (inclusive).
+  // Ensure the algorithm walks over the first character and the end
+  // (inclusive).
   index--
   length++
 
@@ -393,7 +394,7 @@ function parse(value, settings) {
     }
   }
 
-  // Return the reduced nodes, and any possible warnings.
+  // Return the reduced nodes.
   return result.join('')
 
   // Get current position.

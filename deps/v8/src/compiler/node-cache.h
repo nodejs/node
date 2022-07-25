@@ -33,6 +33,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
  public:
   explicit NodeCache(Zone* zone) : map_(zone) {}
   ~NodeCache() = default;
+  NodeCache(const NodeCache&) = delete;
+  NodeCache& operator=(const NodeCache&) = delete;
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
@@ -50,8 +52,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
 
  private:
   ZoneUnorderedMap<Key, Node*, Hash, Pred> map_;
-
-  DISALLOW_COPY_AND_ASSIGN(NodeCache);
 };
 
 // Various default cache types.

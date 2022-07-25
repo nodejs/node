@@ -57,7 +57,7 @@ performance reasons. As a result they do not support nonces.
 
 The return values of OCSP_check_nonce() can be checked to cover each case.  A
 positive return value effectively indicates success: nonces are both present
-and match, both absent or present in the response only. A non-zero return
+and match, both absent or present in the response only. A nonzero return
 additionally covers the case where the nonce is present in the request only:
 this will happen if the responder doesn't support nonces. A zero return value
 indicates present and mismatched nonces: this should be treated as an error
@@ -76,7 +76,7 @@ L<OCSP_sendreq_new(3)>
 
 Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

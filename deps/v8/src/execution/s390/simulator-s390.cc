@@ -9,10 +9,13 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/once.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
@@ -31,7 +34,7 @@ namespace internal {
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 const Simulator::fpr_t Simulator::fp_zero;
 
@@ -85,11 +88,11 @@ double S390Debugger::GetRegisterPairDoubleValue(int regnum) {
 }
 
 double S390Debugger::GetFPDoubleRegisterValue(int regnum) {
-  return sim_->get_double_from_d_register(regnum);
+  return sim_->get_fpr<double>(regnum);
 }
 
 float S390Debugger::GetFPFloatRegisterValue(int regnum) {
-  return sim_->get_float32_from_d_register(regnum);
+  return sim_->get_fpr<float>(regnum);
 }
 
 bool S390Debugger::GetValue(const char* desc, intptr_t* value) {
@@ -106,13 +109,12 @@ bool S390Debugger::GetValue(const char* desc, intptr_t* value) {
              1;
     }
   }
-  return false;
 }
 
 bool S390Debugger::GetFPDoubleValue(const char* desc, double* value) {
   int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
-    *value = sim_->get_double_from_d_register(regnum);
+    *value = sim_->get_fpr<double>(regnum);
     return true;
   }
   return false;
@@ -194,7 +196,7 @@ void S390Debugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
-      v8::internal::EmbeddedVector<char, 256> buffer;
+      v8::base::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
       PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
@@ -233,7 +235,7 @@ void S390Debugger::Debug() {
           disasm::NameConverter converter;
           disasm::Disassembler dasm(converter);
           // use a reasonably large buffer
-          v8::internal::EmbeddedVector<char, 256> buffer;
+          v8::base::EmbeddedVector<char, 256> buffer;
 
           if (GetValue(arg1, &value)) {
             // Interpret a numeric argument as the number of instructions to
@@ -434,7 +436,7 @@ void S390Debugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
-        v8::internal::EmbeddedVector<char, 256> buffer;
+        v8::base::EmbeddedVector<char, 256> buffer;
 
         byte* prev = nullptr;
         byte* cur = nullptr;
@@ -755,38 +757,53 @@ void Simulator::EvalTableInit() {
   V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */        \
   V(vrepi, VREPI, 0xE745) /* type = VRI_A VECTOR REPLICATE IMMEDIATE  */       \
   V(vlr, VLR, 0xE756)     /* type = VRR_A VECTOR LOAD  */                      \
+  V(vsteb, VSTEB, 0xE708) /* type = VRX   VECTOR STORE ELEMENT (8)  */         \
+  V(vsteh, VSTEH, 0xE709) /* type = VRX   VECTOR STORE ELEMENT (16)  */        \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */        \
+  V(vsteg, VSTEG, 0xE70A) /* type = VRX   VECTOR STORE ELEMENT (64)  */        \
+  V(vleb, VLEB, 0xE701)   /* type = VRX   VECTOR LOAD ELEMENT (8)  */          \
+  V(vleh, VLEH, 0xE701)   /* type = VRX   VECTOR LOAD ELEMENT (16)  */         \
   V(vlef, VLEF, 0xE703)   /* type = VRX   VECTOR LOAD ELEMENT (32)  */         \
+  V(vleg, VLEG, 0xE702)   /* type = VRX   VECTOR LOAD ELEMENT (64)  */         \
   V(vavgl, VAVGL, 0xE7F0) /* type = VRR_C VECTOR AVERAGE LOGICAL  */           \
   V(va, VA, 0xE7F3)       /* type = VRR_C VECTOR ADD  */                       \
   V(vs, VS, 0xE7F7)       /* type = VRR_C VECTOR SUBTRACT  */                  \
   V(vml, VML, 0xE7A2)     /* type = VRR_C VECTOR MULTIPLY LOW  */              \
   V(vme, VME, 0xE7A6)     /* type = VRR_C VECTOR MULTIPLY EVEN  */             \
+  V(vmle, VMLE, 0xE7A4)   /* type = VRR_C VECTOR MULTIPLY EVEN LOGICAL */      \
   V(vmo, VMO, 0xE7A7)     /* type = VRR_C VECTOR MULTIPLY ODD  */              \
+  V(vmlo, VMLO, 0xE7A75)  /* type = VRR_C VECTOR MULTIPLY LOGICAL ODD */       \
   V(vnc, VNC, 0xE769)     /* type = VRR_C VECTOR AND WITH COMPLEMENT */        \
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
   V(vpk, VPK, 0xE794)     /* type = VRR_C VECTOR PACK  */                      \
+  V(vmrl, VMRL, 0xE760)   /* type = VRR_C VECTOR MERGE LOW */                  \
+  V(vmrh, VMRH, 0xE761)   /* type = VRR_C VECTOR MERGE HIGH */                 \
   V(vpks, VPKS, 0xE797)   /* type = VRR_B VECTOR PACK SATURATE  */             \
   V(vpkls, VPKLS, 0xE795) /* type = VRR_B VECTOR PACK LOGICAL SATURATE  */     \
   V(vupll, VUPLL, 0xE7D4) /* type = VRR_A VECTOR UNPACK LOGICAL LOW  */        \
   V(vuplh, VUPLH, 0xE7D5) /* type = VRR_A VECTOR UNPACK LOGICAL HIGH  */       \
   V(vupl, VUPL, 0xE7D6)   /* type = VRR_A VECTOR UNPACK LOW  */                \
   V(vuph, VUPH, 0xE7D7)   /* type = VRR_A VECTOR UNPACK HIGH  */               \
-  V(vmnl, VMNL, 0xE7FC)   /* type = VRR_C VECTOR MINIMUM LOGICAL  */           \
-  V(vmxl, VMXL, 0xE7FD)   /* type = VRR_C VECTOR MAXIMUM LOGICAL  */           \
-  V(vmn, VMN, 0xE7FE)     /* type = VRR_C VECTOR MINIMUM  */                   \
-  V(vmx, VMX, 0xE7FF)     /* type = VRR_C VECTOR MAXIMUM  */                   \
-  V(vceq, VCEQ, 0xE7F8)   /* type = VRR_B VECTOR COMPARE EQUAL  */             \
-  V(vx, VX, 0xE76D)       /* type = VRR_C VECTOR EXCLUSIVE OR  */              \
-  V(vchl, VCHL, 0xE7F9)   /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */      \
-  V(vch, VCH, 0xE7FB)     /* type = VRR_B VECTOR COMPARE HIGH  */              \
-  V(vo, VO, 0xE76A)       /* type = VRR_C VECTOR OR  */                        \
-  V(vn, VN, 0xE768)       /* type = VRR_C VECTOR AND  */                       \
-  V(vno, VNO, 0xE768B)    /* type = VRR_C VECTOR NOR  */                       \
-  V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
-  V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
-  V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
+  V(vpopct, VPOPCT, 0xE750) /* type = VRR_A VECTOR POPULATION COUNT  */        \
+  V(vcdg, VCDG, 0xE7C3)     /* VECTOR FP CONVERT FROM FIXED  */                \
+  V(vcdlg, VCDLG, 0xE7C1)   /* VECTOR FP CONVERT FROM LOGICAL  */              \
+  V(vcgd, VCGD, 0xE7C2)     /* VECTOR FP CONVERT TO FIXED */                   \
+  V(vclgd, VCLGD, 0xE7C0)   /* VECTOR FP CONVERT TO LOGICAL */                 \
+  V(vmnl, VMNL, 0xE7FC)     /* type = VRR_C VECTOR MINIMUM LOGICAL  */         \
+  V(vmxl, VMXL, 0xE7FD)     /* type = VRR_C VECTOR MAXIMUM LOGICAL  */         \
+  V(vmn, VMN, 0xE7FE)       /* type = VRR_C VECTOR MINIMUM  */                 \
+  V(vmx, VMX, 0xE7FF)       /* type = VRR_C VECTOR MAXIMUM  */                 \
+  V(vceq, VCEQ, 0xE7F8)     /* type = VRR_B VECTOR COMPARE EQUAL  */           \
+  V(vx, VX, 0xE76D)         /* type = VRR_C VECTOR EXCLUSIVE OR  */            \
+  V(vchl, VCHL, 0xE7F9)     /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */    \
+  V(vch, VCH, 0xE7FB)       /* type = VRR_B VECTOR COMPARE HIGH  */            \
+  V(vo, VO, 0xE76A)         /* type = VRR_C VECTOR OR  */                      \
+  V(vn, VN, 0xE768)         /* type = VRR_C VECTOR AND  */                     \
+  V(vno, VNO, 0xE768B)      /* type = VRR_C VECTOR NOR  */                     \
+  V(vlc, VLC, 0xE7DE)       /* type = VRR_A VECTOR LOAD COMPLEMENT  */         \
+  V(vsel, VSEL, 0xE78D)     /* type = VRR_E VECTOR SELECT  */                  \
+  V(vperm, VPERM, 0xE78C)   /* type = VRR_E VECTOR PERMUTE  */                 \
   V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
   V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
   V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
@@ -1548,7 +1565,7 @@ void Simulator::EvalTableInit() {
   EvalTable[CZXT] = &Simulator::Evaluate_CZXT;
   EvalTable[CDZT] = &Simulator::Evaluate_CDZT;
   EvalTable[CXZT] = &Simulator::Evaluate_CXZT;
-}  // NOLINT
+}
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   static base::OnceType once = V8_ONCE_INIT;
@@ -1561,7 +1578,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   size_t stack_size = MB;  // allocate 1MB for stack
 #endif
   stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -1596,7 +1613,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-Simulator::~Simulator() { free(stack_); }
+Simulator::~Simulator() { base::Free(stack_); }
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -1650,6 +1667,56 @@ T Simulator::get_high_register(int reg) const {
   return static_cast<T>(registers_[reg] >> 32);
 }
 
+template <class T, class R>
+static R ComputeSignedRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MN =
+      static_cast<long double>(std::numeric_limits<R>::min());
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a < MN && n < MN) {
+    return std::numeric_limits<R>::min();
+  } else if (NINF < a && a < MN && n == MN) {
+    return std::numeric_limits<R>::min();
+  } else if (MN <= a && a < 0.0) {
+    return static_cast<R>(n);
+  } else if (a == 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF && n == MP) {
+    return std::numeric_limits<R>::max();
+  } else if (MP < a && a <= PINF && n > MP) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return std::numeric_limits<R>::min();
+  }
+  UNIMPLEMENTED();
+  return 0;
+}
+
+template <class T, class R>
+static R ComputeLogicalRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a <= 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return 0;
+  }
+  UNIMPLEMENTED();
+  return 0;
+}
+
 void Simulator::set_low_register(int reg, uint32_t value) {
   uint64_t shifted_val = static_cast<uint64_t>(value);
   uint64_t orig_val = static_cast<uint64_t>(registers_[reg]);
@@ -1696,15 +1763,13 @@ intptr_t Simulator::get_pc() const { return special_reg_pc_; }
 // - one double argument and zero or one integer arguments.
 // All are consructed here from d1, d2 and r2.
 void Simulator::GetFpArgs(double* x, double* y, intptr_t* z) {
-  *x = get_double_from_d_register(0);
-  *y = get_double_from_d_register(2);
+  *x = get_fpr<double>(0);
+  *y = get_fpr<double>(2);
   *z = get_register(2);
 }
 
 // The return value is in d0.
-void Simulator::SetFpResult(const double& result) {
-  set_d_register_from_double(0, result);
-}
+void Simulator::SetFpResult(const double& result) { set_fpr(0, result); }
 
 void Simulator::TrashCallerSaveRegisters() {
 // We don't trash the registers with the return value.
@@ -1715,50 +1780,50 @@ void Simulator::TrashCallerSaveRegisters() {
 #endif
 }
 
-uint32_t Simulator::ReadWU(intptr_t addr, Instruction* instr) {
+uint32_t Simulator::ReadWU(intptr_t addr) {
   uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
   return *ptr;
 }
 
-int64_t Simulator::ReadW64(intptr_t addr, Instruction* instr) {
+int64_t Simulator::ReadW64(intptr_t addr) {
   int64_t* ptr = reinterpret_cast<int64_t*>(addr);
   return *ptr;
 }
 
-int32_t Simulator::ReadW(intptr_t addr, Instruction* instr) {
+int32_t Simulator::ReadW(intptr_t addr) {
   int32_t* ptr = reinterpret_cast<int32_t*>(addr);
   return *ptr;
 }
 
-void Simulator::WriteW(intptr_t addr, uint32_t value, Instruction* instr) {
+void Simulator::WriteW(intptr_t addr, uint32_t value) {
   uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
   *ptr = value;
   return;
 }
 
-void Simulator::WriteW(intptr_t addr, int32_t value, Instruction* instr) {
+void Simulator::WriteW(intptr_t addr, int32_t value) {
   int32_t* ptr = reinterpret_cast<int32_t*>(addr);
   *ptr = value;
   return;
 }
 
-uint16_t Simulator::ReadHU(intptr_t addr, Instruction* instr) {
+uint16_t Simulator::ReadHU(intptr_t addr) {
   uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
   return *ptr;
 }
 
-int16_t Simulator::ReadH(intptr_t addr, Instruction* instr) {
+int16_t Simulator::ReadH(intptr_t addr) {
   int16_t* ptr = reinterpret_cast<int16_t*>(addr);
   return *ptr;
 }
 
-void Simulator::WriteH(intptr_t addr, uint16_t value, Instruction* instr) {
+void Simulator::WriteH(intptr_t addr, uint16_t value) {
   uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
   *ptr = value;
   return;
 }
 
-void Simulator::WriteH(intptr_t addr, int16_t value, Instruction* instr) {
+void Simulator::WriteH(intptr_t addr, int16_t value) {
   int16_t* ptr = reinterpret_cast<int16_t*>(addr);
   *ptr = value;
   return;
@@ -1812,7 +1877,7 @@ float Simulator::ReadFloat(intptr_t addr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -1871,16 +1936,18 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 }
 
 // Calls into the V8 runtime.
-using SimulatorRuntimeCall = intptr_t (*)(intptr_t arg0, intptr_t arg1,
-                                          intptr_t arg2, intptr_t arg3,
-                                          intptr_t arg4, intptr_t arg5,
-                                          intptr_t arg6, intptr_t arg7,
-                                          intptr_t arg8, intptr_t arg9);
-using SimulatorRuntimePairCall = ObjectPair (*)(intptr_t arg0, intptr_t arg1,
-                                                intptr_t arg2, intptr_t arg3,
-                                                intptr_t arg4, intptr_t arg5,
-                                                intptr_t arg6, intptr_t arg7,
-                                                intptr_t arg8, intptr_t arg9);
+using SimulatorRuntimeCall = intptr_t (*)(
+    intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4,
+    intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9,
+    intptr_t arg10, intptr_t arg11, intptr_t arg12, intptr_t arg13,
+    intptr_t arg14, intptr_t arg15, intptr_t arg16, intptr_t arg17,
+    intptr_t arg18, intptr_t arg19);
+using SimulatorRuntimePairCall = ObjectPair (*)(
+    intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4,
+    intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9,
+    intptr_t arg10, intptr_t arg11, intptr_t arg12, intptr_t arg13,
+    intptr_t arg14, intptr_t arg15, intptr_t arg16, intptr_t arg17,
+    intptr_t arg18, intptr_t arg19);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int (*)(double darg0, double darg1);
@@ -1910,7 +1977,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
           0;
       Redirection* redirection = Redirection::FromInstruction(instr);
-      const int kArgCount = 10;
+      const int kArgCount = 20;
       const int kRegisterArgCount = 5;
       int arg0_regnum = 2;
       intptr_t result_buffer = 0;
@@ -1933,7 +2000,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             stack_pointer[(kCalleeRegisterSaveAreaSize / kSystemPointerSize) +
                           (i - kRegisterArgCount)];
       }
-      STATIC_ASSERT(kArgCount == kRegisterArgCount + 5);
+      STATIC_ASSERT(kArgCount == kRegisterArgCount + 15);
       STATIC_ASSERT(kMaxCParameters == kArgCount);
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -1942,8 +2009,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
 
       // Place the return address on the stack, making the call GC safe.
-      *reinterpret_cast<intptr_t*>(get_register(sp) +
-                                   kStackFrameRASlot * kSystemPointerSize) =
+      *bit_cast<intptr_t*>(get_register(sp) +
+                           kStackFrameRASlot * kSystemPointerSize) =
           get_register(r14);
 
       intptr_t external =
@@ -1976,7 +2043,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               break;
             default:
               UNREACHABLE();
-              break;
           }
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
@@ -2016,7 +2082,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           }
           default:
             UNREACHABLE();
-            break;
         }
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           switch (redirection->type()) {
@@ -2030,7 +2095,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               break;
             default:
               UNREACHABLE();
-              break;
           }
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
@@ -2083,7 +2147,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
@@ -2102,7 +2166,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
@@ -2115,9 +2179,14 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
-              ", %08" V8PRIxPTR,
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
               reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
-              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9]);
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9],
+              arg[10], arg[11], arg[12], arg[13], arg[14], arg[15], arg[16],
+              arg[17], arg[18], arg[19]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    static_cast<intptr_t>(get_register(sp)));
@@ -2128,8 +2197,10 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
           SimulatorRuntimePairCall target =
               reinterpret_cast<SimulatorRuntimePairCall>(external);
-          ObjectPair result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
-                                     arg[5], arg[6], arg[7], arg[8], arg[9]);
+          ObjectPair result =
+              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6],
+                     arg[7], arg[8], arg[9], arg[10], arg[11], arg[12], arg[13],
+                     arg[14], arg[15], arg[16], arg[17], arg[18], arg[19]);
           intptr_t x;
           intptr_t y;
           decodeObjectPair(&result, &x, &y);
@@ -2145,11 +2216,24 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             set_register(r2, result_buffer);
           }
         } else {
-          DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+          // FAST_C_CALL is temporarily handled here as well, because we lack
+          // proper support for direct C calls with FP params in the simulator.
+          // The generic BUILTIN_CALL path assumes all parameters are passed in
+          // the GP registers, thus supporting calling the slow callback without
+          // crashing. The reason for that is that in the mjsunit tests we check
+          // the `fast_c_api.supports_fp_params` (which is false on
+          // non-simulator builds for arm/arm64), thus we expect that the slow
+          // path will be called. And since the slow path passes the arguments
+          // as a `const FunctionCallbackInfo<Value>&` (which is a GP argument),
+          // the call is made correctly.
+          DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
+                 redirection->type() == ExternalReference::FAST_C_CALL);
           SimulatorRuntimeCall target =
               reinterpret_cast<SimulatorRuntimeCall>(external);
-          intptr_t result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
-                                   arg[5], arg[6], arg[7], arg[8], arg[9]);
+          intptr_t result =
+              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6],
+                     arg[7], arg[8], arg[9], arg[10], arg[11], arg[12], arg[13],
+                     arg[14], arg[15], arg[16], arg[17], arg[18], arg[19]);
           if (::v8::internal::FLAG_trace_sim) {
             PrintF("Returned %08" V8PRIxPTR "\n", result);
           }
@@ -2210,7 +2294,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         //         }
         // #endif
       }
-      int64_t saved_lr = *reinterpret_cast<intptr_t*>(
+      int64_t saved_lr = *bit_cast<intptr_t*>(
           get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
 #if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
       // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
@@ -2346,34 +2430,6 @@ void Simulator::PrintStopInfo(uint32_t code) {
 #define CheckOverflowForShiftLeft(src1, src2) \
   (((src1) << (src2)) >> (src2) != (src1))
 
-int16_t Simulator::ByteReverse(int16_t hword) {
-#if defined(__GNUC__)
-  return __builtin_bswap16(hword);
-#else
-  return (hword << 8) | ((hword >> 8) & 0x00FF);
-#endif
-}
-
-int32_t Simulator::ByteReverse(int32_t word) {
-#if defined(__GNUC__)
-  return __builtin_bswap32(word);
-#else
-  int32_t result = word << 24;
-  result |= (word << 8) & 0x00FF0000;
-  result |= (word >> 8) & 0x0000FF00;
-  result |= (word >> 24) & 0x00000FF;
-  return result;
-#endif
-}
-
-int64_t Simulator::ByteReverse(int64_t dword) {
-#if defined(__GNUC__)
-  return __builtin_bswap64(dword);
-#else
-#error unsupport __builtin_bswap64
-#endif
-}
-
 int Simulator::DecodeInstruction(Instruction* instr) {
   Opcode op = instr->S390OpcodeValue();
   DCHECK_NOT_NULL(EvalTable[op]);
@@ -2394,7 +2450,7 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
-    v8::internal::EmbeddedVector<char, 256> buffer;
+    v8::base::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
     PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
            reinterpret_cast<intptr_t>(instr), buffer.begin());
@@ -2455,7 +2511,7 @@ void Simulator::CallInternal(Address entry, int reg_arg_count) {
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
-    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+    set_pc(*(bit_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
     set_pc(static_cast<intptr_t>(entry));
@@ -2577,7 +2633,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 // Prepare to execute the code at entry
 #if ABI_USES_FUNCTION_DESCRIPTORS
   // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  set_pc(*(bit_cast<intptr_t*>(entry)));
 #else
   // entry is the instruction address
   set_pc(static_cast<intptr_t>(entry));
@@ -2656,8 +2712,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 }
 
 void Simulator::CallFP(Address entry, double d0, double d1) {
-  set_d_register_from_double(0, d0);
-  set_d_register_from_double(1, d1);
+  set_fpr(0, d0);
+  set_fpr(1, d1);
   CallInternal(entry);
 }
 
@@ -2669,7 +2725,7 @@ int32_t Simulator::CallFPReturnsInt(Address entry, double d0, double d1) {
 
 double Simulator::CallFPReturnsDouble(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
-  return get_double_from_d_register(0);
+  return get_fpr<double>(0);
 }
 
 uintptr_t Simulator::PushAddress(uintptr_t address) {
@@ -2940,7 +2996,7 @@ EVALUATE(VST) {
 }
 
 EVALUATE(VL) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VL);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   USE(m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
@@ -2957,7 +3013,7 @@ EVALUATE(VL) {
         r1, i, abs(get_simd_register_by_lane<type>(r2, i)));            \
   }
 EVALUATE(VLP) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VLP);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   USE(m4);
@@ -2994,7 +3050,7 @@ EVALUATE(VLP) {
         r1, i, (static_cast<type>(src0) + static_cast<type>(src1) + 1) >> 1); \
   }
 EVALUATE(VAVGL) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VAVGL);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
@@ -3028,10 +3084,19 @@ EVALUATE(VLGV) {
   DECODE_VRS_INSTRUCTION(r1, r3, b2, d2, m4);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t index = b2_val + d2;
-  const int size_by_byte = 1 << m4;
-  int8_t* src = get_simd_register(r3).int8 + index * size_by_byte;
-  set_register(r1, 0);
-  memcpy(&get_register(r1), src, size_by_byte);
+#define CASE(i, type)                                             \
+  case i:                                                         \
+    set_register(r1, get_simd_register_by_lane<type>(r3, index)); \
+    break;
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3040,9 +3105,20 @@ EVALUATE(VLVG) {
   DECODE_VRS_INSTRUCTION(r1, r3, b2, d2, m4);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t index = b2_val + d2;
-  const int size_by_byte = 1 << m4;
-  int8_t* dst = get_simd_register(r1).int8 + index * size_by_byte;
-  memcpy(dst, &get_register(r3), size_by_byte);
+#define CASE(i, type)                                                     \
+  case i:                                                                 \
+    set_simd_register_by_lane<type>(r1, index,                            \
+                                    static_cast<type>(get_register(r3))); \
+    break;
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3054,16 +3130,29 @@ EVALUATE(VLVGP) {
   return length;
 }
 
+#define FOR_EACH_LANE(i, type) \
+  for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
+
 EVALUATE(VREP) {
   DCHECK_OPCODE(VREP);
   DECODE_VRI_C_INSTRUCTION(r1, r3, i2, m4);
-  const int size_by_byte = 1 << m4;
-  DCHECK(i2 >= 0 && i2 < kSimd128Size / size_by_byte);
-  int8_t* src = get_simd_register(r3).int8;
-  int8_t* dst = get_simd_register(r1).int8;
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
+#define CASE(i, type)                                      \
+  case i: {                                                \
+    FOR_EACH_LANE(j, type) {                               \
+      set_simd_register_by_lane<type>(                     \
+          r1, j, get_simd_register_by_lane<type>(r3, i2)); \
+    }                                                      \
+    break;                                                 \
   }
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3071,26 +3160,44 @@ EVALUATE(VLREP) {
   DCHECK_OPCODE(VLREP);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-  const int size_by_byte = 1 << m3;
-  int8_t* dst = get_simd_register(r1).int8;
-  int8_t* src = reinterpret_cast<int8_t*>(addr);
-  set_simd_register(r1, fp_zero);
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src, size_by_byte);
+#define CASE(i, type)                                                 \
+  case i: {                                                           \
+    FOR_EACH_LANE(j, type) {                                          \
+      set_simd_register_by_lane<type>(r1, j, *bit_cast<type*>(addr)); \
+    }                                                                 \
+    break;                                                            \
   }
+  switch (m3) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
 EVALUATE(VREPI) {
   DCHECK_OPCODE(VREPI);
   DECODE_VRI_A_INSTRUCTION(r1, i2, m3);
-  const int size_by_byte = 1 << m3;
-  int8_t* dst = get_simd_register(r1).int8;
-  uint64_t immediate = static_cast<uint64_t>(i2);
-  set_simd_register(r1, fp_zero);
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, &immediate, size_by_byte);
+#define CASE(i, type)                                                \
+  case i: {                                                          \
+    FOR_EACH_LANE(j, type) {                                         \
+      set_simd_register_by_lane<type>(r1, j, static_cast<type>(i2)); \
+    }                                                                \
+    break;                                                           \
   }
+  switch (m3) {
+    CASE(0, int8_t);
+    CASE(1, int16_t);
+    CASE(2, int32_t);
+    CASE(3, int64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3104,12 +3211,57 @@ EVALUATE(VLR) {
   return length;
 }
 
+EVALUATE(VSTEB) {
+  DCHECK_OPCODE(VSTEB);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int8_t value = get_simd_register_by_lane<int8_t>(r1, m3);
+  WriteB(addr, value);
+  return length;
+}
+
+EVALUATE(VSTEH) {
+  DCHECK_OPCODE(VSTEH);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int16_t value = get_simd_register_by_lane<int16_t>(r1, m3);
+  WriteH(addr, value);
+  return length;
+}
+
 EVALUATE(VSTEF) {
   DCHECK_OPCODE(VSTEF);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
   int32_t value = get_simd_register_by_lane<int32_t>(r1, m3);
-  WriteW(addr, value, instr);
+  WriteW(addr, value);
+  return length;
+}
+
+EVALUATE(VSTEG) {
+  DCHECK_OPCODE(VSTEG);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int64_t value = get_simd_register_by_lane<int64_t>(r1, m3);
+  WriteDW(addr, value);
+  return length;
+}
+
+EVALUATE(VLEB) {
+  DCHECK_OPCODE(VLEB);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int8_t value = ReadB(addr);
+  set_simd_register_by_lane<int8_t>(r1, m3, value);
+  return length;
+}
+
+EVALUATE(VLEH) {
+  DCHECK_OPCODE(VLEH);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int16_t value = ReadH(addr);
+  set_simd_register_by_lane<int16_t>(r1, m3, value);
   return length;
 }
 
@@ -3117,30 +3269,34 @@ EVALUATE(VLEF) {
   DCHECK_OPCODE(VLEF);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-  int32_t value = ReadW(addr, instr);
+  int32_t value = ReadW(addr);
   set_simd_register_by_lane<int32_t>(r1, m3, value);
   return length;
 }
 
+EVALUATE(VLEG) {
+  DCHECK_OPCODE(VLEG);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint64_t value = ReadDW(addr);
+  set_simd_register_by_lane<uint64_t>(r1, m3, value);
+  return length;
+}
+
+// TODO(john): unify most fp binary operations
 template <class T, class Operation>
-inline static void VectorBinaryOp(void* dst, void* src1, void* src2,
+inline static void VectorBinaryOp(Simulator* sim, int dst, int src1, int src2,
                                   Operation op) {
-  int8_t* src1_ptr = reinterpret_cast<int8_t*>(src1);
-  int8_t* src2_ptr = reinterpret_cast<int8_t*>(src2);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    T& src1_val = *reinterpret_cast<T*>(src1_ptr + i);
-    T& src2_val = *reinterpret_cast<T*>(src2_ptr + i);
-    dst_val = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+  FOR_EACH_LANE(i, T) {
+    T src1_val = sim->get_simd_register_by_lane<T>(src1, i);
+    T src2_val = sim->get_simd_register_by_lane<T>(src2, i);
+    T dst_val = op(src1_val, src2_val);
+    sim->set_simd_register_by_lane<T>(dst, i, dst_val);
   }
 }
 
-#define VECTOR_BINARY_OP_FOR_TYPE(type, op)                            \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
-                       [](type a, type b) { return a op b; });
+#define VECTOR_BINARY_OP_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3, [](type a, type b) { return a op b; });
 
 #define VECTOR_BINARY_OP(op)                 \
   switch (m4) {                              \
@@ -3162,7 +3318,7 @@ inline static void VectorBinaryOp(void* dst, void* src1, void* src2,
   }
 
 EVALUATE(VA) {
-  DCHECK(VA);
+  DCHECK_OPCODE(VA);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
@@ -3197,33 +3353,38 @@ EVALUATE(VML) {
     j = lane_size;                                                         \
   }                                                                        \
   for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
-    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
-    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    result_type src0 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r2, i));                     \
+    result_type src1 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r3, i));                     \
     set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
   }
-#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd)                      \
-  switch (m4) {                                                           \
-    case 0: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int8_t, int16_t, is_odd)  \
-      break;                                                              \
-    }                                                                     \
-    case 1: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int16_t, int32_t, is_odd) \
-      break;                                                              \
-    }                                                                     \
-    case 2: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int32_t, int64_t, is_odd) \
-      break;                                                              \
-    }                                                                     \
-    default:                                                              \
-      UNREACHABLE();                                                      \
+#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd, sign)                    \
+  switch (m4) {                                                               \
+    case 0: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int8_t, sign##int16_t,  \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    case 1: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int16_t, sign##int32_t, \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    case 2: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int32_t, sign##int64_t, \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    default:                                                                  \
+      UNREACHABLE();                                                          \
   }
 EVALUATE(VME) {
   DCHECK_OPCODE(VME);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
-  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false)
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false, )
   return length;
 }
 
@@ -3232,14 +3393,31 @@ EVALUATE(VMO) {
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
-  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true)
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true, )
+  return length;
+}
+EVALUATE(VMLE) {
+  DCHECK_OPCODE(VMLE);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false, u)
+  return length;
+}
+
+EVALUATE(VMLO) {
+  DCHECK_OPCODE(VMLO);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true, u)
   return length;
 }
 #undef VECTOR_MULTIPLY_EVEN_ODD
 #undef VECTOR_MULTIPLY_EVEN_ODD_TYPE
 
 EVALUATE(VNC) {
-  DCHECK(VNC);
+  DCHECK_OPCODE(VNC);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
@@ -3253,33 +3431,31 @@ EVALUATE(VNC) {
 }
 
 template <class S, class D>
-void VectorSum(void* dst, void* src1, void* src2) {
+void VectorSum(Simulator* sim, int dst, int src1, int src2) {
   D value = 0;
-  for (size_t i = 0; i < kSimd128Size / sizeof(S); i++) {
-    value += *(reinterpret_cast<S*>(src1) + i);
+  FOR_EACH_LANE(i, S) {
+    value += sim->get_simd_register_by_lane<S>(src1, i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
-      value += *(reinterpret_cast<S*>(src2) + i);
-      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)), &value,
-             sizeof(D));
+      value += sim->get_simd_register_by_lane<S>(src2, i);
+      sim->set_simd_register_by_lane<D>(dst, i / (sizeof(D) / sizeof(S)),
+                                        value);
       value = 0;
     }
   }
 }
 
+#define CASE(i, S, D)                  \
+  case i:                              \
+    VectorSum<S, D>(this, r1, r2, r3); \
+    break;
 EVALUATE(VSUM) {
   DCHECK_OPCODE(VSUM);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 0:
-      VectorSum<int8_t, int32_t>(&get_simd_register(r1), &src1, &src2);
-      break;
-    case 1:
-      VectorSum<int16_t, int32_t>(&get_simd_register(r1), &src1, &src2);
-      break;
+    CASE(0, uint8_t, uint32_t);
+    CASE(1, uint16_t, uint32_t);
     default:
       UNREACHABLE();
   }
@@ -3291,60 +3467,101 @@ EVALUATE(VSUMG) {
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorSum<int16_t, int64_t>(&get_simd_register(r1), &src1, &src2);
-      break;
-    case 2:
-      VectorSum<int32_t, int64_t>(&get_simd_register(r1), &src1, &src2);
-      break;
+    CASE(1, uint16_t, uint64_t);
+    CASE(2, uint32_t, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define VECTOR_MERGE(type, is_low_side)                                      \
+  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;          \
+  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;       \
+       i < index_limit; i++, source_index++) {                               \
+    set_simd_register_by_lane<type>(                                         \
+        r1, 2 * i, get_simd_register_by_lane<type>(r2, source_index));       \
+    set_simd_register_by_lane<type>(                                         \
+        r1, (2 * i) + 1, get_simd_register_by_lane<type>(r3, source_index)); \
+  }
+#define CASE(i, type, is_low_side)  \
+  case i: {                         \
+    VECTOR_MERGE(type, is_low_side) \
+  } break;
+EVALUATE(VMRL) {
+  DCHECK_OPCODE(VMRL);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, true);
+    CASE(1, int16_t, true);
+    CASE(2, int32_t, true);
+    CASE(3, int64_t, true);
     default:
       UNREACHABLE();
   }
   return length;
 }
 
+EVALUATE(VMRH) {
+  DCHECK_OPCODE(VMRH);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    CASE(0, int8_t, false);
+    CASE(1, int16_t, false);
+    CASE(2, int32_t, false);
+    CASE(3, int64_t, false);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+#undef VECTOR_MERGE
+
 template <class S, class D>
-void VectorPack(void* dst, void* src1, void* src2, bool saturate,
+void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
                 const D& max = 0, const D& min = 0) {
-  S* src = reinterpret_cast<S*>(src1);
+  int src = src1;
   int count = 0;
   S value = 0;
+  // Setup a temp array to avoid overwriting dst mid loop.
+  D temps[kSimd128Size / sizeof(D)] = {0};
   for (size_t i = 0; i < kSimd128Size / sizeof(D); i++, count++) {
     if (count == kSimd128Size / sizeof(S)) {
-      src = reinterpret_cast<S*>(src2);
+      src = src2;
       count = 0;
     }
-    memcpy(&value, src + count, sizeof(S));
+    value = sim->get_simd_register_by_lane<S>(src, count);
     if (saturate) {
       if (value > max)
         value = max;
       else if (value < min)
         value = min;
     }
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    temps[i] = value;
   }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
 
+#define CASE(i, S, D, SAT, MAX, MIN)                   \
+  case i:                                              \
+    VectorPack<S, D>(this, r1, r2, r3, SAT, MAX, MIN); \
+    break;
 EVALUATE(VPK) {
   DCHECK_OPCODE(VPK);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<int16_t, int8_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
-    case 2:
-      VectorPack<int32_t, int16_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
-    case 3:
-      VectorPack<int64_t, int32_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
+    CASE(1, uint16_t, uint8_t, false, 0, 0);
+    CASE(2, uint32_t, uint16_t, false, 0, 0);
+    CASE(3, uint64_t, uint32_t, false, 0, 0);
     default:
       UNREACHABLE();
   }
@@ -3356,21 +3573,10 @@ EVALUATE(VPKS) {
   DECODE_VRR_B_INSTRUCTION(r1, r2, r3, m5, m4);
   USE(m5);
   USE(m4);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<int16_t, int8_t>(&get_simd_register(r1), &src1, &src2, true,
-                                  INT8_MAX, INT8_MIN);
-      break;
-    case 2:
-      VectorPack<int32_t, int16_t>(&get_simd_register(r1), &src1, &src2, true,
-                                   INT16_MAX, INT16_MIN);
-      break;
-    case 3:
-      VectorPack<int64_t, int32_t>(&get_simd_register(r1), &src1, &src2, true,
-                                   INT32_MAX, INT32_MIN);
-      break;
+    CASE(1, int16_t, int8_t, true, INT8_MAX, INT8_MIN);
+    CASE(2, int32_t, int16_t, true, INT16_MAX, INT16_MIN);
+    CASE(3, int64_t, int32_t, true, INT32_MAX, INT32_MIN);
     default:
       UNREACHABLE();
   }
@@ -3382,35 +3588,30 @@ EVALUATE(VPKLS) {
   DECODE_VRR_B_INSTRUCTION(r1, r2, r3, m5, m4);
   USE(m5);
   USE(m4);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<uint16_t, uint8_t>(&get_simd_register(r1), &src1, &src2, true,
-                                    UINT8_MAX, 0);
-      break;
-    case 2:
-      VectorPack<uint32_t, uint16_t>(&get_simd_register(r1), &src1, &src2, true,
-                                     UINT16_MAX, 0);
-      break;
-    case 3:
-      VectorPack<uint64_t, uint32_t>(&get_simd_register(r1), &src1, &src2, true,
-                                     UINT32_MAX, 0);
-      break;
+    CASE(1, uint16_t, uint8_t, true, UINT8_MAX, 0);
+    CASE(2, uint32_t, uint16_t, true, UINT16_MAX, 0);
+    CASE(3, uint64_t, uint32_t, true, UINT32_MAX, 0);
     default:
       UNREACHABLE();
   }
   return length;
 }
 
+#undef CASE
 template <class S, class D>
-void VectorUnpackHigh(void* dst, void* src) {
-  D value = 0;
-  for (size_t i = 0; i < kSimd128Size / sizeof(D); i++) {
-    value = *(reinterpret_cast<S*>(src) + i);
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
-  }
+void VectorUnpackHigh(Simulator* sim, int dst, int src) {
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
+
+#define CASE(i, S, D)                     \
+  case i:                                 \
+    VectorUnpackHigh<S, D>(this, r1, r2); \
+    break;
 
 EVALUATE(VUPH) {
   DCHECK_OPCODE(VUPH);
@@ -3418,18 +3619,9 @@ EVALUATE(VUPH) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackHigh<int8_t, int16_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackHigh<int16_t, int32_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackHigh<int32_t, int64_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
+    CASE(0, int8_t, int16_t);
+    CASE(1, int16_t, int32_t);
+    CASE(2, int32_t, int64_t);
     default:
       UNREACHABLE();
   }
@@ -3442,52 +3634,146 @@ EVALUATE(VUPLH) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackHigh<uint8_t, uint16_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackHigh<uint16_t, uint32_t>(&get_simd_register(r1),
-                                           &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackHigh<uint32_t, uint64_t>(&get_simd_register(r1),
-                                           &get_simd_register(r2));
-      break;
+    CASE(0, uint8_t, uint16_t);
+    CASE(1, uint16_t, uint32_t);
+    CASE(2, uint32_t, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+template <class S>
+void VectorPopulationCount(Simulator* sim, int dst, int src) {
+  FOR_EACH_LANE(i, S) {
+    sim->set_simd_register_by_lane<S>(
+        dst, i,
+        base::bits::CountPopulation(sim->get_simd_register_by_lane<S>(src, i)));
+  }
+}
+
+#define CASE(i, S)                          \
+  case i:                                   \
+    VectorPopulationCount<S>(this, r1, r2); \
+    break;
+EVALUATE(VPOPCT) {
+  DCHECK_OPCODE(VPOPCT);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m5);
+  USE(m4);
+  switch (m3) {
+    CASE(0, uint8_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D)                                                          \
+  case i: {                                                                    \
+    FOR_EACH_LANE(index, S) {                                                  \
+      set_simd_register_by_lane<D>(                                            \
+          r1, index, static_cast<D>(get_simd_register_by_lane<S>(r2, index))); \
+    }                                                                          \
+    break;                                                                     \
+  }
+EVALUATE(VCDG) {
+  DCHECK_OPCODE(VCDG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, int32_t, float);
+    CASE(3, int64_t, double);
     default:
       UNREACHABLE();
   }
   return length;
 }
 
+EVALUATE(VCDLG) {
+  DCHECK_OPCODE(VCDLG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, uint32_t, float);
+    CASE(3, uint64_t, double);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D, type)                                           \
+  case i: {                                                           \
+    FOR_EACH_LANE(index, S) {                                         \
+      S a = get_simd_register_by_lane<S>(r2, index);                  \
+      S n = ComputeRounding<S>(a, m5);                                \
+      set_simd_register_by_lane<D>(                                   \
+          r1, index,                                                  \
+          static_cast<D>(Compute##type##RoundingResult<S, D>(a, n))); \
+    }                                                                 \
+    break;                                                            \
+  }
+EVALUATE(VCGD) {
+  DCHECK_OPCODE(VCGD);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, int32_t, Signed);
+    CASE(3, double, int64_t, Signed);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VCLGD) {
+  DCHECK_OPCODE(VCLGD);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, uint32_t, Logical);
+    CASE(3, double, uint64_t, Logical);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
 template <class S, class D>
-void VectorUnpackLow(void* dst, void* src) {
-  D value = 0;
-  size_t count = kSimd128Size / sizeof(D);
-  for (size_t i = 0; i < count; i++) {
-    value = *(reinterpret_cast<S*>(src) + i + count);
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+void VectorUnpackLow(Simulator* sim, int dst, int src) {
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  // Using the "false" argument here to make sure we use the "Low" side of the
+  // Simd register, being simulated by the LSB in memory.
+  FOR_EACH_LANE(i, D) {
+    temps[i] = sim->get_simd_register_by_lane<S>(src, i, false);
+  }
+  FOR_EACH_LANE(i, D) {
+    sim->set_simd_register_by_lane<D>(dst, i, temps[i], false);
   }
 }
 
+#define CASE(i, S, D)                    \
+  case i:                                \
+    VectorUnpackLow<S, D>(this, r1, r2); \
+    break;
 EVALUATE(VUPL) {
   DCHECK_OPCODE(VUPL);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackLow<int8_t, int16_t>(&get_simd_register(r1),
-                                       &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackLow<int16_t, int32_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackLow<int32_t, int64_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
+    CASE(0, int8_t, int16_t);
+    CASE(1, int16_t, int32_t);
+    CASE(2, int32_t, int64_t);
     default:
       UNREACHABLE();
   }
@@ -3500,27 +3786,18 @@ EVALUATE(VUPLL) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackLow<uint8_t, uint16_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackLow<uint16_t, uint32_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackLow<uint32_t, uint64_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
+    CASE(0, uint8_t, uint16_t);
+    CASE(1, uint16_t, uint32_t);
+    CASE(2, uint32_t, uint64_t);
     default:
       UNREACHABLE();
   }
   return length;
 }
+#undef CASE
 
-#define VECTOR_MAX_MIN_FOR_TYPE(type, op)                              \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
+#define VECTOR_MAX_MIN_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3,  \
                        [](type a, type b) { return (a op b) ? a : b; });
 
 #define VECTOR_MAX_MIN(op, sign)                 \
@@ -3578,9 +3855,8 @@ EVALUATE(VMNL) {
   return length;
 }
 
-#define VECTOR_COMPARE_FOR_TYPE(type, op)                              \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
+#define VECTOR_COMPARE_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3,  \
                        [](type a, type b) { return (a op b) ? -1 : 0; });
 
 #define VECTOR_COMPARE(op, sign)                 \
@@ -3666,7 +3942,7 @@ EVALUATE(VX) {
     set_simd_register_by_lane<type>(r1, i, ~(src0 | src1));             \
   }
 EVALUATE(VNO) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VNO);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
@@ -3696,14 +3972,10 @@ EVALUATE(VNO) {
 #undef VECTOR_NOR
 
 template <class T>
-void VectorLoadComplement(void* dst, void* src) {
-  int8_t* src_ptr = reinterpret_cast<int8_t*>(src);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& src_val = *reinterpret_cast<T*>(src_ptr + i);
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    dst_val = -(uint64_t)src_val;
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+void VectorLoadComplement(Simulator* sim, int dst, int src) {
+  FOR_EACH_LANE(i, T) {
+    T src_val = sim->get_simd_register_by_lane<T>(src, i);
+    sim->set_simd_register_by_lane<T>(dst, i, -src_val);
   }
 }
 
@@ -3713,24 +3985,17 @@ EVALUATE(VLC) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorLoadComplement<int8_t>(&get_simd_register(r1),
-                                   &get_simd_register(r2));
-      break;
-    case 1:
-      VectorLoadComplement<int16_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
-    case 2:
-      VectorLoadComplement<int32_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
-    case 3:
-      VectorLoadComplement<int64_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
+#define CASE(i, type)                         \
+  case i:                                     \
+    VectorLoadComplement<type>(this, r1, r2); \
+    break;
+    CASE(0, int8_t);
+    CASE(1, int16_t);
+    CASE(2, int32_t);
+    CASE(3, int64_t);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
 }
@@ -3740,18 +4005,20 @@ EVALUATE(VPERM) {
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
   USE(m5);
   USE(m6);
+  int8_t temp[kSimd128Size] = {0};
   for (int i = 0; i < kSimd128Size; i++) {
     int8_t lane_num = get_simd_register_by_lane<int8_t>(r4, i);
+    // Get the five least significant bits.
+    lane_num = (lane_num << 3) >> 3;
     int reg = r2;
     if (lane_num >= kSimd128Size) {
       lane_num = lane_num - kSimd128Size;
       reg = r3;
     }
-    int8_t result = 0;
-    if (lane_num >= 0 && lane_num < kSimd128Size * 2) {
-      result = get_simd_register_by_lane<int8_t>(reg, lane_num);
-    }
-    set_simd_register_by_lane<int8_t>(r1, i, result);
+    temp[i] = get_simd_register_by_lane<int8_t>(reg, lane_num);
+  }
+  for (int i = 0; i < kSimd128Size; i++) {
+    set_simd_register_by_lane<int8_t>(r1, i, temp[i]);
   }
   return length;
 }
@@ -3763,11 +4030,10 @@ EVALUATE(VBPERM) {
   USE(m5);
   USE(m6);
   uint16_t result_bits = 0;
+  unsigned __int128 src_bits = bit_cast<__int128>(get_simd_register(r2).int8);
   for (int i = 0; i < kSimd128Size; i++) {
     result_bits <<= 1;
     uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
-    unsigned __int128 src_bits =
-        *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
     if (selected_bit_index < (kSimd128Size * kBitsPerByte)) {
       unsigned __int128 bit_value =
           (src_bits << selected_bit_index) >> (kSimd128Size * kBitsPerByte - 1);
@@ -3789,32 +4055,27 @@ EVALUATE(VSEL) {
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
   USE(m5);
   USE(m6);
-  fpr_t scratch = get_simd_register(r2);
-  fpr_t mask = get_simd_register(r4);
-  scratch.int64[0] ^= get_simd_register_by_lane<int64_t>(r3, 0);
-  scratch.int64[1] ^= get_simd_register_by_lane<int64_t>(r3, 1);
-  mask.int64[0] &= scratch.int64[0];
-  mask.int64[1] &= scratch.int64[1];
-  mask.int64[0] ^= get_simd_register_by_lane<int64_t>(r3, 0);
-  mask.int64[1] ^= get_simd_register_by_lane<int64_t>(r3, 1);
-  set_simd_register(r1, mask);
+  unsigned __int128 src_1 = bit_cast<__int128>(get_simd_register(r2).int8);
+  unsigned __int128 src_2 = bit_cast<__int128>(get_simd_register(r3).int8);
+  unsigned __int128 src_3 = bit_cast<__int128>(get_simd_register(r4).int8);
+  unsigned __int128 tmp = (src_1 & src_3) | (src_2 & ~src_3);
+  fpr_t* result = bit_cast<fpr_t*>(&tmp);
+  set_simd_register(r1, *result);
   return length;
 }
 
 template <class T, class Operation>
-void VectorShift(void* dst, void* src, unsigned int shift, Operation op) {
-  int8_t* src_ptr = reinterpret_cast<int8_t*>(src);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    T& src_val = *reinterpret_cast<T*>(src_ptr + i);
-    dst_val = op(src_val, shift);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+void VectorShift(Simulator* sim, int dst, int src, unsigned int shift,
+                 Operation op) {
+  FOR_EACH_LANE(i, T) {
+    T src_val = sim->get_simd_register_by_lane<T>(src, i);
+    T dst_val = op(src_val, shift);
+    sim->set_simd_register_by_lane<T>(dst, i, dst_val);
   }
 }
 
-#define VECTOR_SHIFT_FOR_TYPE(type, op, shift)                             \
-  VectorShift<type>(&get_simd_register(r1), &get_simd_register(r3), shift, \
+#define VECTOR_SHIFT_FOR_TYPE(type, op, shift) \
+  VectorShift<type>(this, r1, r3, shift,       \
                     [](type a, unsigned int shift) { return a op shift; });
 
 #define VECTOR_SHIFT(op, sign)                        \
@@ -4058,68 +4319,112 @@ EVALUATE(VFNMS) {
 #undef VECTOR_FP_MULTIPLY_QFMS
 #undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
 
-template <class T, class Operation>
-void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
-  T* dst_ptr = reinterpret_cast<T*>(dst);
-  T* src1_ptr = reinterpret_cast<T*>(src1);
-  T* src2_ptr = reinterpret_cast<T*>(src2);
-  for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-    T src1_val = *(src1_ptr + i);
-    T src2_val = *(src2_ptr + i);
-    T value = op(src1_val, src2_val, mode);
-    memcpy(dst_ptr + i, &value, sizeof(T));
+template <class FP_Type>
+static FP_Type JavaMathMax(FP_Type x, FP_Type y) {
+  if (std::isnan(x) || std::isnan(y)) return NAN;
+  if (std::signbit(x) < std::signbit(y)) return x;
+  return x > y ? x : y;
+}
+
+template <class FP_Type>
+static FP_Type IEEE_maxNum(FP_Type x, FP_Type y) {
+  if (x > y) return x;
+  if (x < y) return y;
+  if (x == y) return x;
+  if (!std::isnan(x)) return x;
+  if (!std::isnan(y)) return y;
+  return NAN;
+}
+
+template <class FP_Type>
+static FP_Type FPMax(int m6, FP_Type lhs, FP_Type rhs) {
+  switch (m6) {
+    case 0:
+      return IEEE_maxNum(lhs, rhs);
+    case 1:
+      return JavaMathMax(lhs, rhs);
+    case 3:
+      return std::max(lhs, rhs);
+    case 4:
+      return std::fmax(lhs, rhs);
+    default:
+      UNIMPLEMENTED();
+  }
+  return static_cast<FP_Type>(0);
+}
+
+template <class FP_Type>
+static FP_Type JavaMathMin(FP_Type x, FP_Type y) {
+  if (isnan(x) || isnan(y))
+    return NAN;
+  else if (signbit(y) < signbit(x))
+    return x;
+  else if (signbit(y) != signbit(x))
+    return y;
+  return (x < y) ? x : y;
+}
+
+template <class FP_Type>
+static FP_Type IEEE_minNum(FP_Type x, FP_Type y) {
+  if (x > y) return y;
+  if (x < y) return x;
+  if (x == y) return x;
+  if (!std::isnan(x)) return x;
+  if (!std::isnan(y)) return y;
+  return NAN;
+}
+
+template <class FP_Type>
+static FP_Type FPMin(int m6, FP_Type lhs, FP_Type rhs) {
+  switch (m6) {
+    case 0:
+      return IEEE_minNum(lhs, rhs);
+    case 1:
+      return JavaMathMin(lhs, rhs);
+    case 3:
+      return std::min(lhs, rhs);
+    case 4:
+      return std::fmin(lhs, rhs);
+    default:
+      UNIMPLEMENTED();
+  }
+  return static_cast<FP_Type>(0);
+}
+
+// TODO(john.yan): use generic binary operation
+template <class FP_Type, class Operation>
+static void FPMinMaxForEachLane(Simulator* sim, Operation Op, int dst, int lhs,
+                                int rhs, int m5, int m6) {
+  DCHECK(m5 == 8 || m5 == 0);
+  if (m5 == 8) {
+    FP_Type src1 = sim->get_fpr<FP_Type>(lhs);
+    FP_Type src2 = sim->get_fpr<FP_Type>(rhs);
+    FP_Type res = Op(m6, src1, src2);
+    sim->set_fpr(dst, res);
+  } else {
+    FOR_EACH_LANE(i, FP_Type) {
+      FP_Type src1 = sim->get_simd_register_by_lane<FP_Type>(lhs, i);
+      FP_Type src2 = sim->get_simd_register_by_lane<FP_Type>(rhs, i);
+      FP_Type res = Op(m6, src1, src2);
+      sim->set_simd_register_by_lane<FP_Type>(dst, i, res);
+    }
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                   \
-  VectorFPMaxMin<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3), m6,                     \
-                       [](type a, type b, int mode) {                  \
-                         if (mode == 3) {                              \
-                           return std::std_op(a, b);                   \
-                         }                                             \
-                         if (isnan(a) || isnan(b))                     \
-                           return static_cast<type>(NAN);              \
-                         else if (signbit(b) op signbit(a))            \
-                           return a;                                   \
-                         else if (signbit(b) != signbit(a))            \
-                           return b;                                   \
-                         return (a op b) ? a : b;                      \
-                       });
-
-#define VECTOR_FP_MAX_MIN(op, std_op)                                          \
-  switch (m4) {                                                                \
-    case 2:                                                                    \
-      if (m5 == 8) {                                                           \
-        float src1 = get_simd_register_by_lane<float>(r2, 0);                  \
-        float src2 = get_simd_register_by_lane<float>(r3, 0);                  \
-        set_simd_register_by_lane<float>(r1, 0, (src1 op src2) ? src1 : src2); \
-      } else {                                                                 \
-        DCHECK_EQ(m5, 0);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op, std_op)                          \
-      }                                                                        \
-      break;                                                                   \
-    case 3:                                                                    \
-      if (m5 == 8) {                                                           \
-        double src1 = get_simd_register_by_lane<double>(r2, 0);                \
-        double src2 = get_simd_register_by_lane<double>(r3, 0);                \
-        set_simd_register_by_lane<double>(r1, 0,                               \
-                                          (src1 op src2) ? src1 : src2);       \
-      } else {                                                                 \
-        DCHECK_EQ(m5, 0);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op, std_op)                         \
-      }                                                                        \
-      break;                                                                   \
-    default:                                                                   \
-      UNREACHABLE();                                                           \
-      break;                                                                   \
-  }
-
+#define CASE(i, type, op)                                          \
+  case i:                                                          \
+    FPMinMaxForEachLane<type>(this, op<type>, r1, r2, r3, m5, m6); \
+    break;
 EVALUATE(VFMIN) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  VECTOR_FP_MAX_MIN(<, min)  // NOLINT
+  switch (m4) {
+    CASE(2, float, FPMin);
+    CASE(3, double, FPMin);
+    default:
+      UNIMPLEMENTED();
+  }
   return length;
 }
 
@@ -4127,27 +4432,46 @@ EVALUATE(VFMAX) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
-  VECTOR_FP_MAX_MIN(>, max)  // NOLINT
+  switch (m4) {
+    CASE(2, float, FPMax);
+    CASE(3, double, FPMax);
+    default:
+      UNIMPLEMENTED();
+  }
   return length;
 }
+#undef CASE
 
 template <class S, class D, class Operation>
-void VectorFPCompare(void* dst, void* src1, void* src2, Operation op) {
-  D* dst_ptr = reinterpret_cast<D*>(dst);
-  S* src1_ptr = reinterpret_cast<S*>(src1);
-  S* src2_ptr = reinterpret_cast<S*>(src2);
-  for (size_t i = 0; i < kSimd128Size / sizeof(D); i++) {
-    S src1_val = *(src1_ptr + i);
-    S src2_val = *(src2_ptr + i);
+void VectorFPCompare(Simulator* sim, int dst, int src1, int src2, int m6,
+                     Operation op) {
+  static_assert(sizeof(S) == sizeof(D),
+                "Expect input type size == output type size");
+  bool some_zero = false;
+  bool all_zero = true;
+  FOR_EACH_LANE(i, D) {
+    S src1_val = sim->get_simd_register_by_lane<S>(src1, i);
+    S src2_val = sim->get_simd_register_by_lane<S>(src2, i);
     D value = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &value, sizeof(D));
+    sim->set_simd_register_by_lane<D>(dst, i, value);
+    if (value) {
+      all_zero = false;
+    } else {
+      some_zero = true;
+    }
+  }
+  // TODO(miladfarca) implement other conditions.
+  if (m6) {
+    if (all_zero) {
+      sim->condition_reg_ = CC_OF;
+    } else if (some_zero) {
+      sim->condition_reg_ = 0x04;
+    }
   }
 }
 
-#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op)                            \
-  VectorFPCompare<S, D>(&get_simd_register(r1), &get_simd_register(r2), \
-                        &get_simd_register(r3),                         \
+#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op)  \
+  VectorFPCompare<S, D>(this, r1, r2, r3, m6, \
                         [](S a, S b) { return (a op b) ? -1 : 0; });
 
 #define VECTOR_FP_COMPARE(op)                                               \
@@ -4181,7 +4505,6 @@ void VectorFPCompare(void* dst, void* src1, void* src2, Operation op) {
 EVALUATE(VFCE) {
   DCHECK_OPCODE(VFCE);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
   VECTOR_FP_COMPARE(==)
   return length;
 }
@@ -4202,79 +4525,54 @@ EVALUATE(VFCH) {
   return length;
 }
 
+// TODO(john): unify most fp unary operations
+// sec = Single Element Control mask
+template <class T, class Op>
+static void VectorUnaryOp(Simulator* sim, int dst, int src, int sec, Op op) {
+  if (sec == 8) {
+    T value = op(sim->get_fpr<T>(src));
+    sim->set_fpr(dst, value);
+  } else {
+    CHECK_EQ(sec, 0);
+    FOR_EACH_LANE(i, T) {
+      T value = op(sim->get_simd_register_by_lane<T>(src, i));
+      sim->set_simd_register_by_lane<T>(dst, i, value);
+    }
+  }
+}
+
+#define CASE(i, T, op)                       \
+  case i:                                    \
+    VectorUnaryOp<T>(sim, dst, src, m4, op); \
+    break;
+
 template <class T>
-void VectorSignOp(void* dst, void* src, int m4, int m5) {
-  T* src_ptr = reinterpret_cast<T*>(src);
-  T* dst_ptr = reinterpret_cast<T*>(dst);
+void VectorSignOp(Simulator* sim, int dst, int src, int m4, int m5) {
   switch (m5) {
-    case 0:
-      if (m4 == 8) {
-        T value = -(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = -(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
-    case 1:
-      if (m4 == 8) {
-        T value = -abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = -abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
-    case 2:
-      if (m4 == 8) {
-        T value = abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
+    CASE(0, T, [](T value) { return -value; });
+    CASE(1, T, [](T value) { return -std::abs(value); });
+    CASE(2, T, [](T value) { return std::abs(value); });
     default:
       UNREACHABLE();
   }
 }
+#undef CASE
 
 EVALUATE(VFPSO) {
   DCHECK_OPCODE(VFPSO);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
-  USE(m5);
-  USE(m4);
-  USE(m3);
   switch (m3) {
-    case 2:
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-      VectorSignOp<float>(&get_simd_register(r1), &get_simd_register(r2), m4,
-                          m5);
-      break;
-    case 3:
-      VectorSignOp<double>(&get_simd_register(r1), &get_simd_register(r2), m4,
-                           m5);
-      break;
+#define CASE(i, T)                         \
+  case i:                                  \
+    VectorSignOp<T>(this, r1, r2, m4, m5); \
+    break;
+    CASE(2, float);
+    CASE(3, double);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
-}
-
-template <class T>
-void VectorFPSqrt(void* dst, void* src) {
-  T* dst_ptr = reinterpret_cast<T*>(dst);
-  T* src_ptr = reinterpret_cast<T*>(src);
-  for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-    T value = sqrt(*(src_ptr + i));
-    memcpy(dst_ptr + i, &value, sizeof(T));
-  }
 }
 
 EVALUATE(VFSQ) {
@@ -4282,62 +4580,39 @@ EVALUATE(VFSQ) {
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   switch (m3) {
-    case 2:
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-      if (m4 == 8) {
-        float src = get_simd_register_by_lane<float>(r2, 0);
-        set_simd_register_by_lane<float>(r1, 0, sqrt(src));
-      } else {
-        VectorFPSqrt<float>(&get_simd_register(r1), &get_simd_register(r2));
-      }
-      break;
-    case 3:
-      if (m4 == 8) {
-        double src = get_simd_register_by_lane<double>(r2, 0);
-        set_simd_register_by_lane<double>(r1, 0, sqrt(src));
-      } else {
-        VectorFPSqrt<double>(&get_simd_register(r1), &get_simd_register(r2));
-      }
-      break;
+#define CASE(i, T)                                                            \
+  case i:                                                                     \
+    VectorUnaryOp<T>(this, r1, r2, m4, [](T val) { return std::sqrt(val); }); \
+    break;
+    CASE(2, float);
+    CASE(3, double);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
 }
 
-#define ROUNDING_SWITCH(type)                                   \
-  switch (m5) {                                                 \
-    case 4:                                                     \
-      set_simd_register_by_lane<type>(r1, i, nearbyint(value)); \
-      break;                                                    \
-    case 5:                                                     \
-      set_simd_register_by_lane<type>(r1, i, trunc(value));     \
-      break;                                                    \
-    case 6:                                                     \
-      set_simd_register_by_lane<type>(r1, i, ceil(value));      \
-      break;                                                    \
-    case 7:                                                     \
-      set_simd_register_by_lane<type>(r1, i, floor(value));     \
-      break;                                                    \
-    default:                                                    \
-      UNREACHABLE();                                            \
-  }
 EVALUATE(VFI) {
   DCHECK_OPCODE(VFI);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  DCHECK_EQ(m4, 0);
   USE(m4);
+
   switch (m3) {
     case 2:
       DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
-        ROUNDING_SWITCH(float)
+        float n = ComputeRounding<float>(value, m5);
+        set_simd_register_by_lane<float>(r1, i, n);
       }
       break;
     case 3:
       for (int i = 0; i < 2; i++) {
         double value = get_simd_register_by_lane<double>(r2, i);
-        ROUNDING_SWITCH(double)
+        double n = ComputeRounding<double>(value, m5);
+        set_simd_register_by_lane<double>(r1, i, n);
       }
       break;
     default:
@@ -4345,7 +4620,6 @@ EVALUATE(VFI) {
   }
   return length;
 }
-#undef ROUNDING_SWITCH
 
 EVALUATE(DUMY) {
   DCHECK_OPCODE(DUMY);
@@ -4393,7 +4667,7 @@ EVALUATE(L) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = ReadW(addr, instr);
+  int32_t mem_val = ReadW(addr);
   set_low_register(r1, mem_val);
   return length;
 }
@@ -4542,7 +4816,7 @@ EVALUATE(LGF) {
   DCHECK_OPCODE(LGF);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-  int64_t mem_val = static_cast<int64_t>(ReadW(addr, instr));
+  int64_t mem_val = static_cast<int64_t>(ReadW(addr));
   set_register(r1, mem_val);
   return length;
 }
@@ -4554,7 +4828,7 @@ EVALUATE(ST) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  WriteW(addr, r1_val, instr);
+  WriteW(addr, r1_val);
   return length;
 }
 
@@ -4572,7 +4846,7 @@ EVALUATE(STY) {
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
   uint32_t value = get_low_register<uint32_t>(r1);
-  WriteW(addr, value, instr);
+  WriteW(addr, value);
   return length;
 }
 
@@ -4580,7 +4854,7 @@ EVALUATE(LY) {
   DCHECK_OPCODE(LY);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-  uint32_t mem_val = ReadWU(addr, instr);
+  uint32_t mem_val = ReadWU(addr);
   set_low_register(r1, mem_val);
   return length;
 }
@@ -4955,8 +5229,8 @@ EVALUATE(SLR) {
 EVALUATE(LDR) {
   DCHECK_OPCODE(LDR);
   DECODE_RR_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
-  set_d_register(r1, r2_val);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  set_fpr(r1, r2_val);
   return length;
 }
 
@@ -4967,9 +5241,11 @@ EVALUATE(CDR) {
 }
 
 EVALUATE(LER) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LER);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  set_fpr(r1, r2_val);
+  return length;
 }
 
 EVALUATE(STH) {
@@ -4979,7 +5255,7 @@ EVALUATE(STH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t mem_addr = b2_val + x2_val + d2_val;
-  WriteH(mem_addr, r1_val, instr);
+  WriteH(mem_addr, r1_val);
 
   return length;
 }
@@ -5061,7 +5337,7 @@ EVALUATE(LH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = x2_val + b2_val + d2_val;
 
-  int32_t result = static_cast<int32_t>(ReadH(mem_addr, instr));
+  int32_t result = static_cast<int32_t>(ReadH(mem_addr));
   set_low_register(r1, result);
   return length;
 }
@@ -5079,7 +5355,7 @@ EVALUATE(AH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr));
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
@@ -5098,7 +5374,7 @@ EVALUATE(SH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr));
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
@@ -5116,7 +5392,7 @@ EVALUATE(MH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t mem_val = static_cast<int32_t>(ReadH(addr));
   int32_t alu_out = 0;
   alu_out = r1_val * mem_val;
   set_low_register(r1, alu_out);
@@ -5154,7 +5430,7 @@ EVALUATE(N) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t alu_out = 0;
   alu_out = r1_val & mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
@@ -5169,7 +5445,7 @@ EVALUATE(CL) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = ReadW(addr, instr);
+  int32_t mem_val = ReadW(addr);
   SetS390ConditionCode<uint32_t>(r1_val, mem_val);
   return length;
 }
@@ -5181,7 +5457,7 @@ EVALUATE(O) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t alu_out = 0;
   alu_out = r1_val | mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
@@ -5196,7 +5472,7 @@ EVALUATE(X) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t alu_out = 0;
   alu_out = r1_val ^ mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
@@ -5211,7 +5487,7 @@ EVALUATE(C) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int32_t mem_val = ReadW(addr, instr);
+  int32_t mem_val = ReadW(addr);
   SetS390ConditionCode<int32_t>(r1_val, mem_val);
   return length;
 }
@@ -5223,7 +5499,7 @@ EVALUATE(A) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
@@ -5241,7 +5517,7 @@ EVALUATE(S) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
@@ -5259,7 +5535,7 @@ EVALUATE(M) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
   DCHECK_EQ(r1 % 2, 0);
-  int32_t mem_val = ReadW(addr, instr);
+  int32_t mem_val = ReadW(addr);
   int32_t r1_val = get_low_register<int32_t>(r1 + 1);
   int64_t product =
       static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
@@ -5295,7 +5571,7 @@ EVALUATE(STD) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t frs_val = get_d_register(r1);
+  int64_t frs_val = get_fpr<int64_t>(r1);
   WriteDW(addr, frs_val);
   return length;
 }
@@ -5306,8 +5582,8 @@ EVALUATE(LD) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t dbl_val = *reinterpret_cast<int64_t*>(addr);
-  set_d_register(r1, dbl_val);
+  int64_t dbl_val = *bit_cast<int64_t*>(addr);
+  set_fpr(r1, dbl_val);
   return length;
 }
 
@@ -5323,8 +5599,8 @@ EVALUATE(STE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t frs_val = get_d_register(r1) >> 32;
-  WriteW(addr, static_cast<int32_t>(frs_val), instr);
+  int32_t frs_val = get_fpr<int32_t>(r1);
+  WriteW(addr, frs_val);
   return length;
 }
 
@@ -5333,7 +5609,7 @@ EVALUATE(MS) {
   DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2_val, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2_val);
   int32_t r1_val = get_low_register<int32_t>(r1);
   set_low_register(r1, r1_val * mem_val);
   return length;
@@ -5345,8 +5621,8 @@ EVALUATE(LE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  float float_val = *reinterpret_cast<float*>(addr);
-  set_d_register_from_float32(r1, float_val);
+  float float_val = *bit_cast<float*>(addr);
+  set_fpr(r1, float_val);
   return length;
 }
 
@@ -5410,11 +5686,13 @@ EVALUATE(SRL) {
   DCHECK_OPCODE(SRL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5423,11 +5701,13 @@ EVALUATE(SLL) {
   DCHECK_OPCODE(SLL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2)
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5439,9 +5719,11 @@ EVALUATE(SRA) {
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r1_val = get_low_register<int32_t>(r1);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -5458,7 +5740,9 @@ EVALUATE(SLA) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r1_val, shiftBits);
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -5538,7 +5822,7 @@ EVALUATE(STM) {
   // Store each register in ascending order.
   for (int i = 0; i <= r3 - r1; i++) {
     int32_t value = get_low_register<int32_t>((r1 + i) % 16);
-    WriteW(rb_val + offset + 4 * i, value, instr);
+    WriteW(rb_val + offset + 4 * i, value);
   }
   return length;
 }
@@ -5598,7 +5882,7 @@ EVALUATE(LM) {
 
   // Store each register in ascending order.
   for (int i = 0; i <= r3 - r1; i++) {
-    int32_t value = ReadW(rb_val + offset + 4 * i, instr);
+    int32_t value = ReadW(rb_val + offset + 4 * i);
     set_low_register((r1 + i) % 16, value);
   }
   return length;
@@ -5945,29 +6229,35 @@ EVALUATE(OILL) {
 }
 
 EVALUATE(LLIHH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLIHL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 48);
+  return length;
 }
 
 EVALUATE(LLIHL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLIHL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 32);
+  return length;
 }
 
 EVALUATE(LLILH) {
   DCHECK_OPCODE(LLILH);
   DECODE_RI_A_INSTRUCTION(instr, r1, i2);
-  uint64_t imm = static_cast<uint64_t>(i2);
-  set_register(r1, (imm << 48) >> 32);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 16);
   return length;
 }
 
 EVALUATE(LLILL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLILL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm);
+  return length;
 }
 
 inline static int TestUnderMask(uint16_t val, uint16_t mask,
@@ -6431,9 +6721,12 @@ EVALUATE(STHRL) {
 }
 
 EVALUATE(LGRL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LGRL);
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  intptr_t offset = i2 * 2;
+  int64_t mem_val = ReadDW(get_pc() + offset);
+  set_register(r1, mem_val);
+  return length;
 }
 
 EVALUATE(STGRL) {
@@ -6834,10 +7127,10 @@ EVALUATE(TRAP4) {
 EVALUATE(LPEBR) {
   DCHECK_OPCODE(LPEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = std::fabs(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   if (fr2_val != fr2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (fr2_val == 0) {
@@ -6858,20 +7151,20 @@ EVALUATE(LNEBR) {
 EVALUATE(LTEBR) {
   DCHECK_OPCODE(LTEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
-  float fr2_val = get_float32_from_d_register(r2);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  float fr2_val = get_fpr<float>(r2);
   SetS390ConditionCode<float>(fr2_val, 0.0);
-  set_d_register(r1, r2_val);
+  set_fpr(r1, r2_val);
   return length;
 }
 
 EVALUATE(LCEBR) {
   DCHECK_OPCODE(LCEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = -fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   if (fr2_val != fr2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (fr2_val == 0) {
@@ -6887,9 +7180,9 @@ EVALUATE(LCEBR) {
 EVALUATE(LDEBR) {
   DCHECK_OPCODE(LDEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fp_val = get_float32_from_d_register(r2);
+  float fp_val = get_fpr<float>(r2);
   double db_val = static_cast<double>(fp_val);
-  set_d_register_from_double(r1, db_val);
+  set_fpr(r1, db_val);
   return length;
 }
 
@@ -6920,8 +7213,8 @@ EVALUATE(KEBR) {
 EVALUATE(CEBR) {
   DCHECK_OPCODE(CEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   if (isNaN(fr1_val) || isNaN(fr2_val)) {
     condition_reg_ = CC_OF;
   } else {
@@ -6934,10 +7227,10 @@ EVALUATE(CEBR) {
 EVALUATE(AEBR) {
   DCHECK_OPCODE(AEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val += fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
   return length;
@@ -6946,10 +7239,10 @@ EVALUATE(AEBR) {
 EVALUATE(SEBR) {
   DCHECK_OPCODE(SEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val -= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
   return length;
@@ -6964,10 +7257,10 @@ EVALUATE(MDEBR) {
 EVALUATE(DEBR) {
   DCHECK_OPCODE(DEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val /= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -6986,10 +7279,10 @@ EVALUATE(MSEBR) {
 EVALUATE(LPDBR) {
   DCHECK_OPCODE(LPDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = std::fabs(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   if (r2_val != r2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (r2_val == 0) {
@@ -7009,19 +7302,19 @@ EVALUATE(LNDBR) {
 EVALUATE(LTDBR) {
   DCHECK_OPCODE(LTDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
+  int64_t r2_val = get_fpr<int64_t>(r2);
   SetS390ConditionCode<double>(bit_cast<double, int64_t>(r2_val), 0.0);
-  set_d_register(r1, r2_val);
+  set_fpr(r1, r2_val);
   return length;
 }
 
 EVALUATE(LCDBR) {
   DCHECK_OPCODE(LCDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = -r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   if (r2_val != r2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (r2_val == 0) {
@@ -7037,20 +7330,20 @@ EVALUATE(LCDBR) {
 EVALUATE(SQEBR) {
   DCHECK_OPCODE(SQEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = std::sqrt(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
 EVALUATE(SQDBR) {
   DCHECK_OPCODE(SQDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = std::sqrt(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7063,10 +7356,10 @@ EVALUATE(SQXBR) {
 EVALUATE(MEEBR) {
   DCHECK_OPCODE(MEEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val *= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7079,8 +7372,8 @@ EVALUATE(KDBR) {
 EVALUATE(CDBR) {
   DCHECK_OPCODE(CDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   if (isNaN(r1_val) || isNaN(r2_val)) {
     condition_reg_ = CC_OF;
   } else {
@@ -7092,10 +7385,10 @@ EVALUATE(CDBR) {
 EVALUATE(ADBR) {
   DCHECK_OPCODE(ADBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val += r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7103,10 +7396,10 @@ EVALUATE(ADBR) {
 EVALUATE(SDBR) {
   DCHECK_OPCODE(SDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val -= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7114,31 +7407,31 @@ EVALUATE(SDBR) {
 EVALUATE(MDBR) {
   DCHECK_OPCODE(MDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val *= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
 EVALUATE(DDBR) {
   DCHECK_OPCODE(DDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val /= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
 EVALUATE(MADBR) {
   DCHECK_OPCODE(MADBR);
   DECODE_RRD_INSTRUCTION(r1, r2, r3);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
-  double r3_val = get_double_from_d_register(r3);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
+  double r3_val = get_fpr<double>(r3);
   r1_val += r2_val * r3_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7176,8 +7469,8 @@ EVALUATE(LCXBR) {
 EVALUATE(LEDBRA) {
   DCHECK_OPCODE(LEDBRA);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r2_val = get_double_from_d_register(r2);
-  set_d_register_from_float32(r1, static_cast<float>(r2_val));
+  double r2_val = get_fpr<double>(r2);
+  set_fpr(r1, static_cast<float>(r2_val));
   return length;
 }
 
@@ -7253,31 +7546,6 @@ EVALUATE(DIEBR) {
   return 0;
 }
 
-EVALUATE(FIEBRA) {
-  DCHECK_OPCODE(FIEBRA);
-  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
-  float r2_val = get_float32_from_d_register(r2);
-  CHECK_EQ(m4, 0);
-  switch (m3) {
-    case Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0:
-      set_d_register_from_float32(r1, round(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_0:
-      set_d_register_from_float32(r1, trunc(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_POS_INF:
-      set_d_register_from_float32(r1, std::ceil(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_NEG_INF:
-      set_d_register_from_float32(r1, std::floor(r2_val));
-      break;
-    default:
-      UNIMPLEMENTED();
-      break;
-  }
-  return length;
-}
-
 EVALUATE(THDER) {
   UNIMPLEMENTED();
   USE(instr);
@@ -7294,31 +7562,6 @@ EVALUATE(DIDBR) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;
-}
-
-EVALUATE(FIDBRA) {
-  DCHECK_OPCODE(FIDBRA);
-  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
-  double r2_val = get_double_from_d_register(r2);
-  CHECK_EQ(m4, 0);
-  switch (m3) {
-    case Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0:
-      set_d_register_from_double(r1, round(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_0:
-      set_d_register_from_double(r1, trunc(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_POS_INF:
-      set_d_register_from_double(r1, std::ceil(r2_val));
-      break;
-    case Assembler::FIDBRA_ROUND_TOWARD_NEG_INF:
-      set_d_register_from_double(r1, std::floor(r2_val));
-      break;
-    default:
-      UNIMPLEMENTED();
-      break;
-  }
-  return length;
 }
 
 EVALUATE(LXR) {
@@ -7346,15 +7589,16 @@ EVALUATE(LCDFR) {
 }
 
 EVALUATE(LZER) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LZER);
+  DECODE_RRE_INSTRUCTION_NO_R2(r1);
+  set_fpr<float>(r1, 0.0);
+  return length;
 }
 
 EVALUATE(LZDR) {
   DCHECK_OPCODE(LZDR);
   DECODE_RRE_INSTRUCTION_NO_R2(r1);
-  set_d_register_from_double(r1, 0.0);
+  set_fpr<double>(r1, 0.0);
   return length;
 }
 
@@ -7387,7 +7631,7 @@ EVALUATE(CELFBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   float r1_val = static_cast<float>(r2_val);
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7396,7 +7640,7 @@ EVALUATE(CDLFBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7411,7 +7655,7 @@ EVALUATE(CEFBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t fr2_val = get_low_register<int32_t>(r2);
   float fr1_val = static_cast<float>(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7420,7 +7664,7 @@ EVALUATE(CDFBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7430,177 +7674,118 @@ EVALUATE(CXFBRA) {
   return 0;
 }
 
-EVALUATE(CFEBRA) {
-  DCHECK_OPCODE(CFEBRA);
-  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
-  float r2_fval = get_float32_from_d_register(r2);
-  int32_t r1_val = 0;
-
-  SetS390RoundConditionCode(r2_fval, INT32_MAX, INT32_MIN);
-
-  switch (mask_val) {
-    case CURRENT_ROUNDING_MODE:
-    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
-      r1_val = static_cast<int32_t>(r2_fval);
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0: {
-      float ceil_val = std::ceil(r2_fval);
-      float floor_val = std::floor(r2_fval);
-      float sub_val1 = std::fabs(r2_fval - floor_val);
-      float sub_val2 = std::fabs(r2_fval - ceil_val);
-      if (sub_val1 > sub_val2) {
-        r1_val = static_cast<int32_t>(ceil_val);
-      } else if (sub_val1 < sub_val2) {
-        r1_val = static_cast<int32_t>(floor_val);
-      } else {  // round away from zero:
-        if (r2_fval > 0.0) {
-          r1_val = static_cast<int32_t>(ceil_val);
-        } else {
-          r1_val = static_cast<int32_t>(floor_val);
-        }
-      }
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
-      float ceil_val = std::ceil(r2_fval);
-      float floor_val = std::floor(r2_fval);
-      float sub_val1 = std::fabs(r2_fval - floor_val);
-      float sub_val2 = std::fabs(r2_fval - ceil_val);
-      if (sub_val1 > sub_val2) {
-        r1_val = static_cast<int32_t>(ceil_val);
-      } else if (sub_val1 < sub_val2) {
-        r1_val = static_cast<int32_t>(floor_val);
-      } else {  // check which one is even:
-        int32_t c_v = static_cast<int32_t>(ceil_val);
-        int32_t f_v = static_cast<int32_t>(floor_val);
-        if (f_v % 2 == 0)
-          r1_val = f_v;
-        else
-          r1_val = c_v;
-      }
-      break;
-    }
-    case ROUND_TOWARD_0: {
-      // check for overflow, cast r2_fval to double
-      // then check value within the range of INT_MIN and INT_MAX
-      // and set condition code accordingly
-      double temp = static_cast<double>(r2_fval);
-      if (temp < INT_MIN) {
-        r1_val = kMinInt;
-        condition_reg_ = CC_OF;
-      } else if (temp > INT_MAX) {
-        r1_val = kMaxInt;
-        condition_reg_ = CC_OF;
-      } else {
-        r1_val = static_cast<int32_t>(r2_fval);
-      }
-      break;
-    }
-    case ROUND_TOWARD_PLUS_INFINITE: {
-      r1_val = static_cast<int32_t>(std::ceil(r2_fval));
-      break;
-    }
-    case ROUND_TOWARD_MINUS_INFINITE: {
-      // check for overflow, cast r2_fval to 64bit integer
-      // then check value within the range of INT_MIN and INT_MAX
-      // and set condition code accordingly
-      int64_t temp = static_cast<int64_t>(std::floor(r2_fval));
-      if (temp < INT_MIN || temp > INT_MAX) {
-        condition_reg_ = CC_OF;
-      }
-      r1_val = static_cast<int32_t>(std::floor(r2_fval));
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  set_low_register(r1, r1_val);
+EVALUATE(FIDBRA) {
+  DCHECK_OPCODE(FIDBRA);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  double a = get_fpr<double>(r2);
+  double n = ComputeRounding<double>(a, m3);
+  set_fpr(r1, n);
   return length;
+}
+
+EVALUATE(FIEBRA) {
+  DCHECK_OPCODE(FIEBRA);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  float a = get_fpr<float>(r2);
+  float n = ComputeRounding<float>(a, m3);
+  set_fpr(r1, n);
+  return length;
+}
+
+template <class T, class R>
+static int ComputeSignedRoundingConditionCode(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MN =
+      static_cast<long double>(std::numeric_limits<R>::min());
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a < MN && n < MN) {
+    return 0x1;
+  } else if (NINF < a && a < MN && n == MN) {
+    return 0x4;
+  } else if (MN <= a && a < 0.0) {
+    return 0x4;
+  } else if (a == 0.0) {
+    return 0x8;
+  } else if (0.0 < a && a <= MP) {
+    return 0x2;
+  } else if (MP < a && a <= PINF && n == MP) {
+    return 0x2;
+  } else if (MP < a && a <= PINF && n > MP) {
+    return 0x1;
+  } else if (std::isnan(a)) {
+    return 0x1;
+  }
+  UNIMPLEMENTED();
+  return 0;
 }
 
 EVALUATE(CFDBRA) {
   DCHECK_OPCODE(CFDBRA);
-  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
-  double r2_val = get_double_from_d_register(r2);
-  int32_t r1_val = 0;
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  double a = get_fpr<double>(r2);
+  double n = ComputeRounding<double>(a, m3);
+  int32_t r1_val = ComputeSignedRoundingResult<double, int32_t>(a, n);
+  condition_reg_ = ComputeSignedRoundingConditionCode<double, int32_t>(a, n);
 
-  SetS390RoundConditionCode(r2_val, INT32_MAX, INT32_MIN);
-
-  switch (mask_val) {
-    case CURRENT_ROUNDING_MODE:
-    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
-      r1_val = static_cast<int32_t>(r2_val);
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0: {
-      double ceil_val = std::ceil(r2_val);
-      double floor_val = std::floor(r2_val);
-      double sub_val1 = std::fabs(r2_val - floor_val);
-      double sub_val2 = std::fabs(r2_val - ceil_val);
-      if (sub_val1 > sub_val2) {
-        r1_val = static_cast<int32_t>(ceil_val);
-      } else if (sub_val1 < sub_val2) {
-        r1_val = static_cast<int32_t>(floor_val);
-      } else {  // round away from zero:
-        if (r2_val > 0.0) {
-          r1_val = static_cast<int32_t>(ceil_val);
-        } else {
-          r1_val = static_cast<int32_t>(floor_val);
-        }
-      }
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
-      double ceil_val = std::ceil(r2_val);
-      double floor_val = std::floor(r2_val);
-      double sub_val1 = std::fabs(r2_val - floor_val);
-      double sub_val2 = std::fabs(r2_val - ceil_val);
-      if (sub_val1 > sub_val2) {
-        r1_val = static_cast<int32_t>(ceil_val);
-      } else if (sub_val1 < sub_val2) {
-        r1_val = static_cast<int32_t>(floor_val);
-      } else {  // check which one is even:
-        int32_t c_v = static_cast<int32_t>(ceil_val);
-        int32_t f_v = static_cast<int32_t>(floor_val);
-        if (f_v % 2 == 0)
-          r1_val = f_v;
-        else
-          r1_val = c_v;
-      }
-      break;
-    }
-    case ROUND_TOWARD_0: {
-      // check for overflow, cast r2_val to 64bit integer
-      // then check value within the range of INT_MIN and INT_MAX
-      // and set condition code accordingly
-      int64_t temp = static_cast<int64_t>(r2_val);
-      if (temp < INT_MIN || temp > INT_MAX) {
-        condition_reg_ = CC_OF;
-      }
-      r1_val = static_cast<int32_t>(r2_val);
-      break;
-    }
-    case ROUND_TOWARD_PLUS_INFINITE: {
-      r1_val = static_cast<int32_t>(std::ceil(r2_val));
-      break;
-    }
-    case ROUND_TOWARD_MINUS_INFINITE: {
-      // check for overflow, cast r2_val to 64bit integer
-      // then check value within the range of INT_MIN and INT_MAX
-      // and set condition code accordingly
-      int64_t temp = static_cast<int64_t>(std::floor(r2_val));
-      if (temp < INT_MIN || temp > INT_MAX) {
-        condition_reg_ = CC_OF;
-      }
-      r1_val = static_cast<int32_t>(std::floor(r2_val));
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
   set_low_register(r1, r1_val);
   return length;
+}
+
+EVALUATE(CFEBRA) {
+  DCHECK_OPCODE(CFEBRA);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  float a = get_fpr<float>(r2);
+  float n = ComputeRounding<float>(a, m3);
+  int32_t r1_val = ComputeSignedRoundingResult<float, int32_t>(a, n);
+  condition_reg_ = ComputeSignedRoundingConditionCode<float, int32_t>(a, n);
+
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CGEBRA) {
+  DCHECK_OPCODE(CGEBRA);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  float a = get_fpr<float>(r2);
+  float n = ComputeRounding<float>(a, m3);
+  int64_t r1_val = ComputeSignedRoundingResult<float, int64_t>(a, n);
+  condition_reg_ = ComputeSignedRoundingConditionCode<float, int64_t>(a, n);
+
+  set_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CGDBRA) {
+  DCHECK_OPCODE(CGDBRA);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  double a = get_fpr<double>(r2);
+  double n = ComputeRounding<double>(a, m3);
+  int64_t r1_val = ComputeSignedRoundingResult<double, int64_t>(a, n);
+  condition_reg_ = ComputeSignedRoundingConditionCode<double, int64_t>(a, n);
+
+  set_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CGXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
 }
 
 EVALUATE(CFXBRA) {
@@ -7609,37 +7794,81 @@ EVALUATE(CFXBRA) {
   return 0;
 }
 
+template <class T, class R>
+static int ComputeLogicalRoundingConditionCode(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a < 0.0) {
+    return (n < 0.0) ? 0x1 : 0x4;
+  } else if (a == 0.0) {
+    return 0x8;
+  } else if (0.0 < a && a <= MP) {
+    return 0x2;
+  } else if (MP < a && a <= PINF) {
+    return n == MP ? 0x2 : 0x1;
+  } else if (std::isnan(a)) {
+    return 0x1;
+  }
+  UNIMPLEMENTED();
+  return 0;
+}
+
 EVALUATE(CLFEBR) {
   DCHECK_OPCODE(CLFEBR);
-  DECODE_RRE_INSTRUCTION(r1, r2);
-  float r2_val = get_float32_from_d_register(r2);
-  uint32_t r1_val = static_cast<uint32_t>(r2_val);
-  SetS390ConvertConditionCode<double>(r2_val, r1_val, UINT32_MAX);
-  double temp = static_cast<double>(r2_val);
-  if (temp < 0) r1_val = 0;
-  if (temp > kMaxUInt32) r1_val = kMaxUInt32;
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  float a = get_fpr<float>(r2);
+  float n = ComputeRounding<float>(a, m3);
+  uint32_t r1_val = ComputeLogicalRoundingResult<float, uint32_t>(a, n);
+  condition_reg_ = ComputeLogicalRoundingConditionCode<float, uint32_t>(a, n);
+
   set_low_register(r1, r1_val);
   return length;
 }
 
 EVALUATE(CLFDBR) {
   DCHECK_OPCODE(CLFDBR);
-  DECODE_RRE_INSTRUCTION(r1, r2);
-  double a = get_double_from_d_register(r2);
-  double n = std::round(a);
-  uint32_t r1_val = static_cast<uint32_t>(n);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  double a = get_fpr<double>(r2);
+  double n = ComputeRounding<double>(a, m3);
+  uint32_t r1_val = ComputeLogicalRoundingResult<double, uint32_t>(a, n);
+  condition_reg_ = ComputeLogicalRoundingConditionCode<double, uint32_t>(a, n);
+
   set_low_register(r1, r1_val);
-  if (std::isfinite(a) && a < 0.0) {
-    DCHECK(n <= 0.0 && std::isfinite(n));
-    condition_reg_ = (n < 0.0) ? 0x1 : 0x4;
-  } else if (a == 0.0) {
-    condition_reg_ = 0x8;
-  } else if (std::isfinite(a) && a > 0.0) {
-    DCHECK(n >= 0.0 && std::isfinite(n));
-    condition_reg_ = (n <= static_cast<double>(UINT32_MAX)) ? 0x2 : 0x1;
-  } else {
-    condition_reg_ = 0x1;
-  }
+  return length;
+}
+
+EVALUATE(CLGDBR) {
+  DCHECK_OPCODE(CLGDBR);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  double a = get_fpr<double>(r2);
+  double n = ComputeRounding<double>(a, m3);
+  uint64_t r1_val = ComputeLogicalRoundingResult<double, uint64_t>(a, n);
+  condition_reg_ = ComputeLogicalRoundingConditionCode<double, uint64_t>(a, n);
+
+  set_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CLGEBR) {
+  DCHECK_OPCODE(CLGEBR);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  DCHECK_EQ(m4, 0);
+  USE(m4);
+  float a = get_fpr<float>(r2);
+  float n = ComputeRounding<float>(a, m3);
+  uint64_t r1_val = ComputeLogicalRoundingResult<float, uint64_t>(a, n);
+  condition_reg_ = ComputeLogicalRoundingConditionCode<float, uint64_t>(a, n);
+
+  set_register(r1, r1_val);
   return length;
 }
 
@@ -7654,7 +7883,7 @@ EVALUATE(CELGBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r2_val = get_register(r2);
   float r1_val = static_cast<float>(r2_val);
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7663,7 +7892,7 @@ EVALUATE(CDLGBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r2_val = get_register(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7678,7 +7907,7 @@ EVALUATE(CEGBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t fr2_val = get_register(r2);
   float fr1_val = static_cast<float>(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7687,7 +7916,7 @@ EVALUATE(CDGBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7695,134 +7924,6 @@ EVALUATE(CXGBRA) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;
-}
-
-EVALUATE(CGEBRA) {
-  DCHECK_OPCODE(CGEBRA);
-  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
-  float r2_fval = get_float32_from_d_register(r2);
-  int64_t r1_val = 0;
-
-  SetS390RoundConditionCode(r2_fval, INT64_MAX, INT64_MIN);
-
-  switch (mask_val) {
-    case CURRENT_ROUNDING_MODE:
-    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
-    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
-      UNIMPLEMENTED();
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
-      float ceil_val = std::ceil(r2_fval);
-      float floor_val = std::floor(r2_fval);
-      if (std::abs(r2_fval - floor_val) > std::abs(r2_fval - ceil_val)) {
-        r1_val = static_cast<int64_t>(ceil_val);
-      } else if (std::abs(r2_fval - floor_val) < std::abs(r2_fval - ceil_val)) {
-        r1_val = static_cast<int64_t>(floor_val);
-      } else {  // check which one is even:
-        int64_t c_v = static_cast<int64_t>(ceil_val);
-        int64_t f_v = static_cast<int64_t>(floor_val);
-        if (f_v % 2 == 0)
-          r1_val = f_v;
-        else
-          r1_val = c_v;
-      }
-      break;
-    }
-    case ROUND_TOWARD_0: {
-      r1_val = static_cast<int64_t>(r2_fval);
-      break;
-    }
-    case ROUND_TOWARD_PLUS_INFINITE: {
-      r1_val = static_cast<int64_t>(std::ceil(r2_fval));
-      break;
-    }
-    case ROUND_TOWARD_MINUS_INFINITE: {
-      r1_val = static_cast<int64_t>(std::floor(r2_fval));
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  set_register(r1, r1_val);
-  return length;
-}
-
-EVALUATE(CGDBRA) {
-  DCHECK_OPCODE(CGDBRA);
-  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
-  double r2_val = get_double_from_d_register(r2);
-  int64_t r1_val = 0;
-
-  SetS390RoundConditionCode(r2_val, INT64_MAX, INT64_MIN);
-
-  switch (mask_val) {
-    case CURRENT_ROUNDING_MODE:
-    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
-    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
-      UNIMPLEMENTED();
-      break;
-    }
-    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
-      double ceil_val = std::ceil(r2_val);
-      double floor_val = std::floor(r2_val);
-      if (std::abs(r2_val - floor_val) > std::abs(r2_val - ceil_val)) {
-        r1_val = static_cast<int64_t>(ceil_val);
-      } else if (std::abs(r2_val - floor_val) < std::abs(r2_val - ceil_val)) {
-        r1_val = static_cast<int64_t>(floor_val);
-      } else {  // check which one is even:
-        int64_t c_v = static_cast<int64_t>(ceil_val);
-        int64_t f_v = static_cast<int64_t>(floor_val);
-        if (f_v % 2 == 0)
-          r1_val = f_v;
-        else
-          r1_val = c_v;
-      }
-      break;
-    }
-    case ROUND_TOWARD_0: {
-      r1_val = static_cast<int64_t>(r2_val);
-      break;
-    }
-    case ROUND_TOWARD_PLUS_INFINITE: {
-      r1_val = static_cast<int64_t>(std::ceil(r2_val));
-      break;
-    }
-    case ROUND_TOWARD_MINUS_INFINITE: {
-      r1_val = static_cast<int64_t>(std::floor(r2_val));
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  set_register(r1, r1_val);
-  return length;
-}
-
-EVALUATE(CGXBRA) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
-EVALUATE(CLGEBR) {
-  DCHECK_OPCODE(CLGEBR);
-  DECODE_RRE_INSTRUCTION(r1, r2);
-  float r2_val = get_float32_from_d_register(r2);
-  uint64_t r1_val = static_cast<uint64_t>(r2_val);
-  set_register(r1, r1_val);
-  SetS390ConvertConditionCode<double>(r2_val, r1_val, UINT64_MAX);
-  return length;
-}
-
-EVALUATE(CLGDBR) {
-  DCHECK_OPCODE(CLGDBR);
-  DECODE_RRE_INSTRUCTION(r1, r2);
-  double r2_val = get_double_from_d_register(r2);
-  uint64_t r1_val = static_cast<uint64_t>(r2_val);
-  set_register(r1, r1_val);
-  SetS390ConvertConditionCode<double>(r2_val, r1_val, UINT64_MAX);
-  return length;
 }
 
 EVALUATE(CFER) {
@@ -7848,9 +7949,7 @@ EVALUATE(LDGR) {
   // Load FPR from GPR (L <- 64)
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t int_val = get_register(r2);
-  // double double_val = bit_cast<double, uint64_t>(int_val);
-  // set_d_register_from_double(rreInst->R1Value(), double_val);
-  set_d_register(r1, int_val);
+  set_fpr(r1, int_val);
   return length;
 }
 
@@ -7876,7 +7975,7 @@ EVALUATE(LGDR) {
   DCHECK_OPCODE(LGDR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   // Load GPR from FPR (64 <- L)
-  int64_t double_val = get_d_register(r2);
+  int64_t double_val = get_fpr<int64_t>(r2);
   set_register(r1, double_val);
   return length;
 }
@@ -8211,9 +8310,16 @@ EVALUATE(SGR) {
 }
 
 EVALUATE(ALGR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(ALGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  // 64-bit Non-clobbering unsigned arithmetics
+  uint64_t r1_val = get_register(r1);
+  uint64_t r2_val = get_register(r2);
+  bool isOF = CheckOverflowForUIntAdd(r1_val, r2_val);
+  SetS390ConditionCode<uint64_t>(r1_val + r2_val, 0);
+  SetS390OverflowCode(isOF);
+  set_register(r1, r1_val + r2_val);
+  return length;
 }
 
 EVALUATE(SLGR) {
@@ -9247,7 +9353,7 @@ EVALUATE(LT) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int32_t value = ReadW(addr, instr);
+  int32_t value = ReadW(addr);
   set_low_register(r1, value);
   SetS390ConditionCode<int32_t>(value, 0);
   return length;
@@ -9260,7 +9366,7 @@ EVALUATE(LGH) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t mem_val = static_cast<int64_t>(ReadH(addr, instr));
+  int64_t mem_val = static_cast<int64_t>(ReadH(addr));
   set_register(r1, mem_val);
   return length;
 }
@@ -9272,7 +9378,7 @@ EVALUATE(LLGF) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  uint64_t mem_val = static_cast<uint64_t>(ReadWU(addr, instr));
+  uint64_t mem_val = static_cast<uint64_t>(ReadWU(addr));
   set_register(r1, mem_val);
   return length;
 }
@@ -9291,7 +9397,7 @@ EVALUATE(AGF) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
   uint64_t alu_out = r1_val;
-  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val);
   alu_out += mem_val;
   SetS390ConditionCode<int64_t>(alu_out, 0);
   set_register(r1, alu_out);
@@ -9306,7 +9412,7 @@ EVALUATE(SGF) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
   uint64_t alu_out = r1_val;
-  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val);
   alu_out -= mem_val;
   SetS390ConditionCode<int64_t>(alu_out, 0);
   set_register(r1, alu_out);
@@ -9331,8 +9437,7 @@ EVALUATE(MSGF) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int64_t mem_val =
-      static_cast<int64_t>(ReadW(b2_val + d2_val + x2_val, instr));
+  int64_t mem_val = static_cast<int64_t>(ReadW(b2_val + d2_val + x2_val));
   int64_t r1_val = get_register(r1);
   int64_t product = r1_val * mem_val;
   set_register(r1, product);
@@ -9346,8 +9451,7 @@ EVALUATE(DSGF) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int64_t mem_val =
-      static_cast<int64_t>(ReadW(b2_val + d2_val + x2_val, instr));
+  int64_t mem_val = static_cast<int64_t>(ReadW(b2_val + d2_val + x2_val));
   int64_t r1_val = get_register(r1 + 1);
   int64_t quotient = r1_val / mem_val;
   int64_t remainder = r1_val % mem_val;
@@ -9362,7 +9466,7 @@ EVALUATE(LRVG) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  int64_t mem_val = ReadW64(mem_addr, instr);
+  int64_t mem_val = ReadW64(mem_addr);
   set_register(r1, ByteReverse(mem_val));
   return length;
 }
@@ -9373,7 +9477,7 @@ EVALUATE(LRV) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  int32_t mem_val = ReadW(mem_addr, instr);
+  int32_t mem_val = ReadW(mem_addr);
   set_low_register(r1, ByteReverse(mem_val));
   return length;
 }
@@ -9385,7 +9489,7 @@ EVALUATE(LRVH) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  int16_t mem_val = ReadH(mem_addr, instr);
+  int16_t mem_val = ReadH(mem_addr);
   int32_t result = ByteReverse(mem_val) & 0x0000FFFF;
   result |= r1_val & 0xFFFF0000;
   set_low_register(r1, result);
@@ -9471,7 +9575,7 @@ EVALUATE(STRV) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  WriteW(mem_addr, ByteReverse(r1_val), instr);
+  WriteW(mem_addr, ByteReverse(r1_val));
   return length;
 }
 
@@ -9494,7 +9598,7 @@ EVALUATE(STRVH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int16_t result = static_cast<int16_t>(r1_val >> 16);
-  WriteH(mem_addr, ByteReverse(result), instr);
+  WriteH(mem_addr, ByteReverse(result));
   return length;
 }
 
@@ -9510,7 +9614,7 @@ EVALUATE(MSY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  int32_t mem_val = ReadW(b2_val + d2_val + x2_val);
   int32_t r1_val = get_low_register<int32_t>(r1);
   set_low_register(r1, mem_val * r1_val);
   return length;
@@ -9522,7 +9626,7 @@ EVALUATE(MSC) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  int32_t mem_val = ReadW(b2_val + d2_val + x2_val);
   int32_t r1_val = get_low_register<int32_t>(r1);
   int64_t result64 =
       static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
@@ -9541,7 +9645,7 @@ EVALUATE(NY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   alu_out &= mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
   set_low_register(r1, alu_out);
@@ -9554,7 +9658,7 @@ EVALUATE(CLY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   uint32_t alu_out = get_low_register<uint32_t>(r1);
-  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2);
   SetS390ConditionCode<uint32_t>(alu_out, mem_val);
   return length;
 }
@@ -9565,7 +9669,7 @@ EVALUATE(OY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   alu_out |= mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
   set_low_register(r1, alu_out);
@@ -9578,7 +9682,7 @@ EVALUATE(XY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   alu_out ^= mem_val;
   SetS390BitWiseConditionCode<uint32_t>(alu_out);
   set_low_register(r1, alu_out);
@@ -9591,7 +9695,7 @@ EVALUATE(CY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   SetS390ConditionCode<int32_t>(alu_out, mem_val);
   return length;
 }
@@ -9602,7 +9706,7 @@ EVALUATE(AY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   bool isOF = false;
   isOF = CheckOverflowForIntAdd(alu_out, mem_val, int32_t);
   alu_out += mem_val;
@@ -9618,7 +9722,7 @@ EVALUATE(SY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int32_t alu_out = get_low_register<int32_t>(r1);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   bool isOF = false;
   isOF = CheckOverflowForIntSub(alu_out, mem_val, int32_t);
   alu_out -= mem_val;
@@ -9634,7 +9738,7 @@ EVALUATE(MFY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   DCHECK_EQ(r1 % 2, 0);
-  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2);
   int32_t r1_val = get_low_register<int32_t>(r1 + 1);
   int64_t product =
       static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
@@ -9652,7 +9756,7 @@ EVALUATE(ALY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   uint32_t alu_out = get_low_register<uint32_t>(r1);
-  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2);
   alu_out += mem_val;
   set_low_register(r1, alu_out);
   SetS390ConditionCode<uint32_t>(alu_out, 0);
@@ -9665,7 +9769,7 @@ EVALUATE(SLY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   uint32_t alu_out = get_low_register<uint32_t>(r1);
-  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2);
   alu_out -= mem_val;
   set_low_register(r1, alu_out);
   SetS390ConditionCode<uint32_t>(alu_out, 0);
@@ -9680,7 +9784,7 @@ EVALUATE(STHY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
   uint16_t value = get_low_register<uint32_t>(r1);
-  WriteH(addr, value, instr);
+  WriteH(addr, value);
   return length;
 }
 
@@ -9752,7 +9856,7 @@ EVALUATE(LHY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int32_t result = static_cast<int32_t>(ReadH(addr, instr));
+  int32_t result = static_cast<int32_t>(ReadH(addr));
   set_low_register(r1, result);
   return length;
 }
@@ -9770,8 +9874,7 @@ EVALUATE(AHY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int32_t mem_val =
-      static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val, instr));
+  int32_t mem_val = static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val));
   int32_t alu_out = 0;
   bool isOF = false;
   alu_out = r1_val + mem_val;
@@ -9789,8 +9892,7 @@ EVALUATE(SHY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  int32_t mem_val =
-      static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val, instr));
+  int32_t mem_val = static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val));
   int32_t alu_out = 0;
   bool isOF = false;
   alu_out = r1_val - mem_val;
@@ -9912,7 +10014,7 @@ EVALUATE(LLGH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val, instr);
+  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val);
   set_register(r1, mem_val);
   return length;
 }
@@ -9924,7 +10026,7 @@ EVALUATE(LLH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val, instr);
+  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val);
   set_low_register(r1, mem_val);
   return length;
 }
@@ -9935,7 +10037,7 @@ EVALUATE(ML) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   DCHECK_EQ(r1 % 2, 0);
-  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2);
   uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
   uint64_t product =
       static_cast<uint64_t>(r1_val) * static_cast<uint64_t>(mem_val);
@@ -9953,7 +10055,7 @@ EVALUATE(DL) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   DCHECK_EQ(r1 % 2, 0);
-  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2);
   uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
   uint64_t quotient =
       static_cast<uint64_t>(r1_val) / static_cast<uint64_t>(mem_val);
@@ -10082,7 +10184,7 @@ EVALUATE(MVHI) {
   DECODE_SIL_INSTRUCTION(b1, d1, i2);
   int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
   intptr_t src_addr = b1_val + d1;
-  WriteW(src_addr, i2, instr);
+  WriteW(src_addr, i2);
   return length;
 }
 
@@ -10454,12 +10556,12 @@ EVALUATE(ASI) {
   int d1_val = d1;
   intptr_t addr = b1_val + d1_val;
 
-  int32_t mem_val = ReadW(addr, instr);
+  int32_t mem_val = ReadW(addr);
   bool isOF = CheckOverflowForIntAdd(mem_val, i2, int32_t);
   int32_t alu_out = mem_val + i2;
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
-  WriteW(addr, alu_out, instr);
+  WriteW(addr, alu_out);
   return length;
 }
 
@@ -10538,7 +10640,7 @@ EVALUATE(STMY) {
   // Store each register in ascending order.
   for (int i = 0; i <= r3 - r1; i++) {
     int32_t value = get_low_register<int32_t>((r1 + i) % 16);
-    WriteW(b2_val + offset + 4 * i, value, instr);
+    WriteW(b2_val + offset + 4 * i, value);
   }
   return length;
 }
@@ -10564,7 +10666,7 @@ EVALUATE(LMY) {
 
   // Store each register in ascending order.
   for (int i = 0; i <= r3 - r1; i++) {
-    int32_t value = ReadW(b2_val + offset + 4 * i, instr);
+    int32_t value = ReadW(b2_val + offset + 4 * i);
     set_low_register((r1 + i) % 16, value);
   }
   return length;
@@ -10584,9 +10686,11 @@ EVALUATE(SRAK) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r3_val = get_low_register<int32_t>(r3);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10604,7 +10708,9 @@ EVALUATE(SLAK) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r3_val, shiftBits);
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10620,12 +10726,14 @@ EVALUATE(SRLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -10639,12 +10747,14 @@ EVALUATE(SLLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -10889,7 +10999,7 @@ EVALUATE(LDEB) {
   int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
   int64_t rx_val = (rx == 0) ? 0 : get_register(rx);
   float fval = ReadFloat(rx_val + rb_val + offset);
-  set_d_register_from_double(r1, static_cast<double>(fval));
+  set_fpr(r1, static_cast<double>(fval));
   return length;
 }
 
@@ -10924,7 +11034,7 @@ EVALUATE(CEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   SetS390ConditionCode<float>(r1_val, fval);
   return length;
@@ -10936,10 +11046,10 @@ EVALUATE(AEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val += fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<float>(r1_val, 0);
   return length;
 }
@@ -10950,10 +11060,10 @@ EVALUATE(SEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val -= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<float>(r1_val, 0);
   return length;
 }
@@ -10970,10 +11080,10 @@ EVALUATE(DEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val /= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11019,10 +11129,10 @@ EVALUATE(SQDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val = std::sqrt(dbl_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11032,10 +11142,10 @@ EVALUATE(MEEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val *= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11052,7 +11162,7 @@ EVALUATE(CDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   SetS390ConditionCode<double>(r1_val, dbl_val);
   return length;
@@ -11065,10 +11175,10 @@ EVALUATE(ADB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val += dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -11079,10 +11189,10 @@ EVALUATE(SDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val -= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -11093,10 +11203,10 @@ EVALUATE(MDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val *= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11106,10 +11216,10 @@ EVALUATE(DDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val /= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11192,8 +11302,8 @@ EVALUATE(LEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  float float_val = *reinterpret_cast<float*>(addr);
-  set_d_register_from_float32(r1, float_val);
+  float float_val = *bit_cast<float*>(addr);
+  set_fpr(r1, float_val);
   return length;
 }
 
@@ -11204,8 +11314,8 @@ EVALUATE(LDY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  uint64_t dbl_val = *reinterpret_cast<uint64_t*>(addr);
-  set_d_register(r1, dbl_val);
+  uint64_t dbl_val = *bit_cast<uint64_t*>(addr);
+  set_fpr(r1, dbl_val);
   return length;
 }
 
@@ -11216,8 +11326,8 @@ EVALUATE(STEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t frs_val = get_d_register(r1) >> 32;
-  WriteW(addr, static_cast<int32_t>(frs_val), instr);
+  int32_t frs_val = get_fpr<int32_t>(r1);
+  WriteW(addr, frs_val);
   return length;
 }
 
@@ -11228,7 +11338,7 @@ EVALUATE(STDY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t frs_val = get_d_register(r1);
+  int64_t frs_val = get_fpr<int64_t>(r1);
   WriteDW(addr, frs_val);
   return length;
 }

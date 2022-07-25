@@ -22,16 +22,13 @@ typedef enum {
 } napi_threadsafe_function_call_mode;
 #endif  // NAPI_VERSION >= 4
 
-typedef void (*napi_async_execute_callback)(napi_env env,
-                                            void* data);
-typedef void (*napi_async_complete_callback)(napi_env env,
-                                             napi_status status,
-                                             void* data);
+typedef void(NAPI_CDECL* napi_async_execute_callback)(napi_env env, void* data);
+typedef void(NAPI_CDECL* napi_async_complete_callback)(napi_env env,
+                                                       napi_status status,
+                                                       void* data);
 #if NAPI_VERSION >= 4
-typedef void (*napi_threadsafe_function_call_js)(napi_env env,
-                                                 napi_value js_callback,
-                                                 void* context,
-                                                 void* data);
+typedef void(NAPI_CDECL* napi_threadsafe_function_call_js)(
+    napi_env env, napi_value js_callback, void* context, void* data);
 #endif  // NAPI_VERSION >= 4
 
 typedef struct {
@@ -41,10 +38,10 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 8
 typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
-typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
-                                        void* data);
-#endif  // NAPI_EXPERIMENTAL
+typedef void(NAPI_CDECL* napi_async_cleanup_hook)(
+    napi_async_cleanup_hook_handle handle, void* data);
+#endif  // NAPI_VERSION >= 8
 
 #endif  // SRC_NODE_API_TYPES_H_

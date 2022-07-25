@@ -25,7 +25,7 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#if !UCONFIG_NO_REGULAR_EXPRESSIONS
+#if !UCONFIG_NO_REGULAR_EXPRESSIONS 
 
 #include "unicode/uregex.h"
 #include "uhash.h"
@@ -39,11 +39,12 @@ U_NAMESPACE_BEGIN
 //              Instances of SPUString exist during the compilation process only.
 
 struct SPUString : public UMemory {
-    UnicodeString  *fStr;             // The actual string.
-    int32_t         fCharOrStrTableIndex;   // Index into the final runtime data for this
-                                      // string (or, for length 1, the single string char
-                                      // itself, there being no string table entry for it.)
-    SPUString(UnicodeString *s);
+    LocalPointer<UnicodeString> fStr;     // The actual string.
+    int32_t      fCharOrStrTableIndex;    // Index into the final runtime data for this
+                                          // string (or, for length 1, the single string char
+                                          // itself, there being no string table entry for it.)
+
+    SPUString(LocalPointer<UnicodeString> s);
     ~SPUString();
 };
 
@@ -60,7 +61,7 @@ class SPUStringPool : public UMemory {
   public:
     SPUStringPool(UErrorCode &status);
     ~SPUStringPool();
-
+    
     // Add a string. Return the string from the table.
     // If the input parameter string is already in the table, delete the
     //  input parameter and return the existing string.
@@ -98,7 +99,7 @@ class ConfusabledataBuilder : public UMemory {
     UVector            *fKeyVec;
     UVector            *fValueVec;
     UnicodeString      *fStringTable;
-
+    
     SPUStringPool      *stringPool;
     URegularExpression *fParseLine;
     URegularExpression *fParseHexNum;
@@ -110,7 +111,7 @@ class ConfusabledataBuilder : public UMemory {
 
     // Add an entry to the key and value tables being built
     //   input:  data from SLTable, MATable, etc.
-    //   outut:  entry added to fKeyVec and fValueVec
+    //   output:  entry added to fKeyVec and fValueVec
     void addKeyEntry(UChar32     keyChar,     // The key character
                      UHashtable *table,       // The table, one of SATable, MATable, etc.
                      int32_t     tableFlag,   // One of USPOOF_SA_TABLE_FLAG, etc.
@@ -130,5 +131,5 @@ class ConfusabledataBuilder : public UMemory {
 U_NAMESPACE_END
 
 #endif
-#endif  // !UCONFIG_NO_REGULAR_EXPRESSIONS
+#endif  // !UCONFIG_NO_REGULAR_EXPRESSIONS 
 #endif  // __USPOOF_BUILDCONF_H__

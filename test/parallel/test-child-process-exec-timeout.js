@@ -67,7 +67,7 @@ if (common.isWindows) {
       'where',
       `commandline like '%${basename}%child'`,
       'delete',
-      '/nointeractive'
+      '/nointeractive',
     ]);
   });
 }

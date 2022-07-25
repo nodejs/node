@@ -95,19 +95,19 @@ class Header {
     }
 
     let sum = 8 * 0x20
-    for (let i = off; i < off + 148; i++) {
+    for (let i = off; i < off + 148; i++)
       sum += buf[i]
-    }
-    for (let i = off + 156; i < off + 512; i++) {
+
+    for (let i = off + 156; i < off + 512; i++)
       sum += buf[i]
-    }
+
     this.cksumValid = sum === this.cksum
     if (this.cksum === null && sum === 8 * 0x20)
       this.nullBlock = true
   }
 
   [SLURP] (ex, global) {
-    for (let k in ex) {
+    for (const k in ex) {
       // we slurp in everything except for the path attribute in
       // a global extended header, because that's weird.
       if (ex[k] !== null && ex[k] !== undefined &&
@@ -157,12 +157,12 @@ class Header {
     }
 
     let sum = 8 * 0x20
-    for (let i = off; i < off + 148; i++) {
+    for (let i = off; i < off + 148; i++)
       sum += buf[i]
-    }
-    for (let i = off + 156; i < off + 512; i++) {
+
+    for (let i = off + 156; i < off + 512; i++)
       sum += buf[i]
-    }
+
     this.cksum = sum
     encNumber(buf, off + 148, 8, this.cksum)
     this.cksumValid = true
@@ -171,7 +171,7 @@ class Header {
   }
 
   set (data) {
-    for (let i in data) {
+    for (const i in data) {
       if (data[i] !== null && data[i] !== undefined)
         this[i] = data[i]
     }
@@ -242,7 +242,7 @@ const numToDate = num => num === null ? null : new Date(num * 1000)
 
 const decNumber = (buf, off, size) =>
   buf[off] & 0x80 ? large.parse(buf.slice(off, off + size))
-    : decSmallNumber(buf, off, size)
+  : decSmallNumber(buf, off, size)
 
 const nanNull = value => isNaN(value) ? null : value
 
@@ -254,7 +254,7 @@ const decSmallNumber = (buf, off, size) =>
 // the maximum encodable as a null-terminated octal, by field size
 const MAXNUM = {
   12: 0o77777777777,
-  8 : 0o7777777
+  8: 0o7777777,
 }
 
 const encNumber = (buf, off, size, number) =>
@@ -283,6 +283,6 @@ const NULLS = new Array(156).join('\0')
 const encString = (buf, off, size, string) =>
   string === null ? false :
   (buf.write(string + NULLS, off, size, 'utf8'),
-   string.length !== Buffer.byteLength(string) || string.length > size)
+  string.length !== Buffer.byteLength(string) || string.length > size)
 
 module.exports = Header

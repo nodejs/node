@@ -6,7 +6,7 @@
 #define V8_OBJECTS_EMBEDDER_DATA_ARRAY_INL_H_
 
 #include "src/objects/embedder-data-array.h"
-
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
 
@@ -16,15 +16,16 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/embedder-data-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
 
 Address EmbedderDataArray::slots_start() {
-  return FIELD_ADDR(*this, OffsetOfElementAt(0));
+  return field_address(OffsetOfElementAt(0));
 }
 
 Address EmbedderDataArray::slots_end() {
-  return FIELD_ADDR(*this, OffsetOfElementAt(length()));
+  return field_address(OffsetOfElementAt(length()));
 }
 
 }  // namespace internal

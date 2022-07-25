@@ -12,6 +12,20 @@ assert.throws(() => crypto.diffieHellman(), {
   message: 'The "options" argument must be of type object. Received undefined'
 });
 
+assert.throws(() => crypto.diffieHellman(null), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "options" argument must be of type object. Received null'
+});
+
+assert.throws(() => crypto.diffieHellman([]), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message:
+    'The "options" argument must be of type object. ' +
+    'Received an instance of Array',
+});
+
 function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
               { publicKey: bobPublicKey, privateKey: bobPrivateKey },
               expectedValue) {
@@ -43,7 +57,6 @@ const alicePrivateKey = crypto.createPrivateKey({
        '-----END PRIVATE KEY-----',
   format: 'pem'
 });
-
 const alicePublicKey = crypto.createPublicKey({
   key: '-----BEGIN PUBLIC KEY-----\n' +
        'MIIBnzCB1QYJKoZIhvcNAQMBMIHHAoHBAP//////////yQ/aoiFowjTExmKLgNwc\n' +
@@ -121,7 +134,6 @@ const dh = crypto.createDiffieHellman(group.getPrime(), group.getGenerator());
 dh.setPrivateKey(privateKey);
 
 // Test simple Diffie-Hellman, no curves involved.
-
 test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
      { publicKey: bobPublicKey, privateKey: bobPrivateKey },
      dh.computeSecret(publicKey));
@@ -132,23 +144,31 @@ test(crypto.generateKeyPairSync('dh', { group: 'modp5' }),
 test(crypto.generateKeyPairSync('dh', { group: 'modp5' }),
      crypto.generateKeyPairSync('dh', { prime: group.getPrime() }));
 
-for (const [params1, params2] of [
+const list = [
   // Same generator, but different primes.
-  [{ group: 'modp5' }, { group: 'modp18' }],
+  [{ group: 'modp5' }, { group: 'modp18' }]];
+
+// TODO(danbev): Take a closer look if there should be a check in OpenSSL3
+// when the dh parameters differ.
+if (!common.hasOpenSSL3) {
   // Same primes, but different generator.
-  [{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }],
+  list.push([{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }]);
   // Same generator, but different primes.
-  [{ primeLength: 1024 }, { primeLength: 1024 }]
-]) {
+  list.push([{ primeLength: 1024 }, { primeLength: 1024 }]);
+}
+
+for (const [params1, params2] of list) {
   assert.throws(() => {
     test(crypto.generateKeyPairSync('dh', params1),
          crypto.generateKeyPairSync('dh', params2));
-  }, {
+  }, common.hasOpenSSL3 ? {
+    name: 'Error',
+    code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
+  } : {
     name: 'Error',
     code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
   });
 }
-
 {
   const privateKey = crypto.createPrivateKey({
     key: '-----BEGIN PRIVATE KEY-----\n' +
@@ -200,7 +220,10 @@ const not256k1 = crypto.getCurves().find((c) => /^sec.*(224|384|512)/.test(c));
 assert.throws(() => {
   test(crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }),
        crypto.generateKeyPairSync('ec', { namedCurve: not256k1 }));
-}, {
+}, common.hasOpenSSL3 ? {
+  name: 'Error',
+  code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
+} : {
   name: 'Error',
   code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
 });

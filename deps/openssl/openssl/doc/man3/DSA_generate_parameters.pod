@@ -8,20 +8,28 @@ DSA_generate_parameters_ex, DSA_generate_parameters - generate DSA parameters
 
  #include <openssl/dsa.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  int DSA_generate_parameters_ex(DSA *dsa, int bits,
                                 const unsigned char *seed, int seed_len,
                                 int *counter_ret, unsigned long *h_ret,
                                 BN_GENCB *cb);
 
-Deprecated:
+The following functions have been deprecated since OpenSSL 0.9.8, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
- #if OPENSSL_API_COMPAT < 0x00908000L
  DSA *DSA_generate_parameters(int bits, unsigned char *seed, int seed_len,
                               int *counter_ret, unsigned long *h_ret,
                               void (*callback)(int, int, void *), void *cb_arg);
- #endif
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use L<EVP_PKEY_paramgen_init(3)> and
+L<EVP_PKEY_keygen(3)> as described in L<EVP_PKEY-DSA(7)>.
 
 DSA_generate_parameters_ex() generates primes p and q and a generator g
 for use in the DSA and stores the result in B<dsa>.
@@ -111,14 +119,16 @@ L<DSA_free(3)>, L<BN_generate_prime(3)>
 
 =head1 HISTORY
 
+DSA_generate_parameters_ex() was deprecated in OpenSSL 3.0.
+
 DSA_generate_parameters() was deprecated in OpenSSL 0.9.8; use
 DSA_generate_parameters_ex() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

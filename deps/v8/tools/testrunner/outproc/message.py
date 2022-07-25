@@ -2,16 +2,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import itertools
 import os
 import re
+
+from itertools import zip_longest
 
 from . import base
 
 
-class OutProc(base.OutProc):
-  def __init__(self, expected_outcomes, basepath, expected_fail):
-    super(OutProc, self).__init__(expected_outcomes)
+class OutProc(base.ExpectedOutProc):
+  def __init__(self, expected_outcomes, basepath, expected_fail,
+               expected_filename, regenerate_expected_files):
+    super(OutProc, self).__init__(expected_outcomes, expected_filename,
+                                  regenerate_expected_files)
     self._basepath = basepath
     self._expected_fail = expected_fail
 
@@ -42,7 +45,7 @@ class OutProc(base.OutProc):
     env = {
       'basename': os.path.basename(base_path),
     }
-    for (expected, actual) in itertools.izip_longest(
+    for (expected, actual) in zip_longest(
         expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')

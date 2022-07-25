@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { GNode } from "./node";
+
 export class MySelection {
   selection: any;
   stringKey: (o: any) => string;
+  originStringKey: (node: GNode) => string;
 
-  constructor(stringKeyFnc) {
+  constructor(stringKeyFnc, originStringKeyFnc?) {
     this.selection = new Map();
     this.stringKey = stringKeyFnc;
+    this.originStringKey = originStringKeyFnc;
   }
 
   isEmpty(): boolean {
@@ -21,7 +25,7 @@ export class MySelection {
 
   select(s: Iterable<any>, isSelected?: boolean) {
     for (const i of s) {
-      if (!i) continue;
+      if (i == undefined) continue;
       if (isSelected == undefined) {
         isSelected = !this.selection.has(this.stringKey(i));
       }
@@ -50,7 +54,7 @@ export class MySelection {
   }
 
   detachSelection() {
-    const result = this.selectedKeys();
+    const result = this.selection;
     this.clear();
     return result;
   }

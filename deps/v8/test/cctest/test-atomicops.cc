@@ -286,5 +286,44 @@ TEST(Load) {
   TestLoad<AtomicWord>();
 }
 
+TEST(Relaxed_Memmove) {
+  constexpr size_t kLen = 6;
+  Atomic8 arr[kLen];
+  {
+    for (size_t i = 0; i < kLen; ++i) arr[i] = i;
+    Relaxed_Memmove(arr + 2, arr + 3, 2);
+    uint8_t expected[]{0, 1, 3, 4, 4, 5};
+    for (size_t i = 0; i < kLen; ++i) CHECK_EQ(arr[i], expected[i]);
+  }
+  {
+    for (size_t i = 0; i < kLen; ++i) arr[i] = i;
+    Relaxed_Memmove(arr + 3, arr + 2, 2);
+    uint8_t expected[]{0, 1, 2, 2, 3, 5};
+    for (size_t i = 0; i < kLen; ++i) CHECK_EQ(arr[i], expected[i]);
+  }
+}
+
+TEST(Relaxed_Memcmp) {
+  constexpr size_t kLen = 50;
+  Atomic8 arr1[kLen];
+  Atomic8 arr1_same[kLen];
+  Atomic8 arr2[kLen];
+  for (size_t i = 0; i < kLen; ++i) {
+    arr1[i] = arr1_same[i] = i;
+    arr2[i] = i + 1;
+  }
+
+  for (size_t offset = 0; offset < kLen; offset++) {
+    const Atomic8* arr1p = arr1 + offset;
+    const Atomic8* arr1_samep = arr1_same + offset;
+    const Atomic8* arr2p = arr2 + offset;
+    const size_t len = kLen - offset;
+    CHECK_EQ(0, Relaxed_Memcmp(arr1p, arr1p, len));
+    CHECK_EQ(0, Relaxed_Memcmp(arr1p, arr1_samep, len));
+    CHECK_LT(Relaxed_Memcmp(arr1p, arr2p, len), 0);
+    CHECK_GT(Relaxed_Memcmp(arr2p, arr1p, len), 0);
+  }
+}
+
 }  // namespace base
 }  // namespace v8

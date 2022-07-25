@@ -34,13 +34,13 @@ http.createServer(function(req, res) {
     'x-BaR',
     'yoyoyo',
     'Connection',
-    'close'
+    'keep-alive',
   ];
   const expectHeaders = {
     'host': `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
-    'connection': 'close'
+    'connection': 'keep-alive'
   };
   const expectRawTrailers = [
     'x-bAr',
@@ -50,7 +50,7 @@ http.createServer(function(req, res) {
     'X-bAr',
     'yOyOyOy',
     'X-baR',
-    'OyOyOyO'
+    'OyOyOyO',
   ];
   const expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
 
@@ -65,12 +65,13 @@ http.createServer(function(req, res) {
   });
 
   req.resume();
+  res.setHeader('Keep-Alive', 'timeout=1');
   res.setHeader('Trailer', 'x-foo');
   res.addTrailers([
     ['x-fOo', 'xOxOxOx'],
     ['x-foO', 'OxOxOxO'],
     ['X-fOo', 'xOxOxOx'],
-    ['X-foO', 'OxOxOxO']
+    ['X-foO', 'OxOxOxO'],
   ]);
   res.end('x f o o');
 }).listen(0, function() {
@@ -79,29 +80,32 @@ http.createServer(function(req, res) {
     ['x-bAr', 'yOyOyOy'],
     ['x-baR', 'OyOyOyO'],
     ['X-bAr', 'yOyOyOy'],
-    ['X-baR', 'OyOyOyO']
+    ['X-baR', 'OyOyOyO'],
   ]);
   req.setHeader('transfer-ENCODING', 'CHUNKED');
   req.setHeader('x-BaR', 'yoyoyo');
   req.end('y b a r');
   req.on('response', function(res) {
     const expectRawHeaders = [
+      'Keep-Alive',
+      'timeout=1',
       'Trailer',
       'x-foo',
       'Date',
       null,
       'Connection',
-      'close',
+      'keep-alive',
       'Transfer-Encoding',
-      'chunked'
+      'chunked',
     ];
     const expectHeaders = {
+      'keep-alive': 'timeout=1',
       'trailer': 'x-foo',
       'date': null,
-      'connection': 'close',
+      'connection': 'keep-alive',
       'transfer-encoding': 'chunked'
     };
-    res.rawHeaders[3] = null;
+    res.rawHeaders[5] = null;
     res.headers.date = null;
     assert.deepStrictEqual(res.rawHeaders, expectRawHeaders);
     assert.deepStrictEqual(res.headers, expectHeaders);
@@ -114,7 +118,7 @@ http.createServer(function(req, res) {
         'X-fOo',
         'xOxOxOx',
         'X-foO',
-        'OxOxOxO'
+        'OxOxOxO',
       ];
       const expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
 

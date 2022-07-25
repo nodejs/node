@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -29,8 +29,7 @@
 
 #undef SPARC_T4_MONT
 #if defined(OPENSSL_BN_ASM_MONT) && (defined(__sparc__) || defined(__sparc))
-# include "sparc_arch.h"
-extern unsigned int OPENSSL_sparcv9cap_P[];
+# include "crypto/sparc_arch.h"
 # define SPARC_T4_MONT
 #endif
 
@@ -46,7 +45,7 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
             || BN_get_flags(a, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-        BNerr(BN_F_BN_EXP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -172,7 +171,7 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
             || BN_get_flags(a, BN_FLG_CONSTTIME) != 0
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-        BNerr(BN_F_BN_MOD_EXP_RECP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -188,13 +187,14 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
         return ret;
     }
 
+    BN_RECP_CTX_init(&recp);
+
     BN_CTX_start(ctx);
     aa = BN_CTX_get(ctx);
     val[0] = BN_CTX_get(ctx);
     if (val[0] == NULL)
         goto err;
 
-    BN_RECP_CTX_init(&recp);
     if (m->neg) {
         /* ignore sign of 'm' */
         if (!BN_copy(aa, m))
@@ -252,7 +252,6 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
          * a window to do.  To do this we need to scan forward until the last
          * set bit before the end of the window
          */
-        j = wstart;
         wvalue = 1;
         wend = 0;
         for (i = 1; i < window; i++) {
@@ -315,7 +314,7 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     bn_check_top(m);
 
     if (!BN_is_odd(m)) {
-        BNerr(BN_F_BN_MOD_EXP_MONT, BN_R_CALLED_WITH_EVEN_MODULUS);
+        ERR_raise(ERR_LIB_BN, BN_R_CALLED_WITH_EVEN_MODULUS);
         return 0;
     }
     bits = BN_num_bits(p);
@@ -409,7 +408,6 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
          * a window to do.  To do this we need to scan forward until the last
          * set bit before the end of the window
          */
-        j = wstart;
         wvalue = 1;
         wend = 0;
         for (i = 1; i < window; i++) {
@@ -611,7 +609,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     bn_check_top(m);
 
     if (!BN_is_odd(m)) {
-        BNerr(BN_F_BN_MOD_EXP_MONT_CONSTTIME, BN_R_CALLED_WITH_EVEN_MODULUS);
+        ERR_raise(ERR_LIB_BN, BN_R_CALLED_WITH_EVEN_MODULUS);
         return 0;
     }
 
@@ -821,7 +819,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
         /*
          * BN_to_montgomery can contaminate words above .top [in
-         * BN_DEBUG[_DEBUG] build]...
+         * BN_DEBUG build...
          */
         for (i = am.top; i < top; i++)
             am.d[i] = 0;
@@ -899,14 +897,21 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 #if defined(OPENSSL_BN_ASM_MONT5)
     if (window == 5 && top > 1) {
         /*
-         * This optimization uses ideas from http://eprint.iacr.org/2011/239,
-         * specifically optimization of cache-timing attack countermeasures
-         * and pre-computation optimization.
-         */
-
-        /*
-         * Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
-         * 512-bit RSA is hardly relevant, we omit it to spare size...
+         * This optimization uses ideas from https://eprint.iacr.org/2011/239,
+         * specifically optimization of cache-timing attack countermeasures,
+         * pre-computation optimization, and Almost Montgomery Multiplication.
+         *
+         * The paper discusses a 4-bit window to optimize 512-bit modular
+         * exponentiation, used in RSA-1024 with CRT, but RSA-1024 is no longer
+         * important.
+         *
+         * |bn_mul_mont_gather5| and |bn_power5| implement the "almost"
+         * reduction variant, so the values here may not be fully reduced.
+         * They are bounded by R (i.e. they fit in |top| words), not |m|.
+         * Additionally, we pass these "almost" reduced inputs into
+         * |bn_mul_mont|, which implements the normal reduction variant.
+         * Given those inputs, |bn_mul_mont| may not give reduced
+         * output, but it will still produce "almost" reduced output.
          */
         void bn_mul_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
                                  const void *table, const BN_ULONG *np,
@@ -918,15 +923,12 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
                        const void *table, const BN_ULONG *np,
                        const BN_ULONG *n0, int num, int power);
         int bn_get_bits5(const BN_ULONG *ap, int off);
-        int bn_from_montgomery(BN_ULONG *rp, const BN_ULONG *ap,
-                               const BN_ULONG *not_used, const BN_ULONG *np,
-                               const BN_ULONG *n0, int num);
 
         BN_ULONG *n0 = mont->n0, *np;
 
         /*
          * BN_to_montgomery can contaminate words above .top [in
-         * BN_DEBUG[_DEBUG] build]...
+         * BN_DEBUG build...
          */
         for (i = am.top; i < top; i++)
             am.d[i] = 0;
@@ -1009,14 +1011,18 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
             }
         }
 
-        ret = bn_from_montgomery(tmp.d, tmp.d, NULL, np, n0, top);
         tmp.top = top;
-        bn_correct_top(&tmp);
-        if (ret) {
-            if (!BN_copy(rr, &tmp))
-                ret = 0;
-            goto err;           /* non-zero ret means it's not error */
-        }
+        /*
+         * The result is now in |tmp| in Montgomery form, but it may not be
+         * fully reduced. This is within bounds for |BN_from_montgomery|
+         * (tmp < R <= m*R) so it will, when converting from Montgomery form,
+         * produce a fully reduced result.
+         *
+         * This differs from Figure 2 of the paper, which uses AMM(h, 1) to
+         * convert from Montgomery form with unreduced output, followed by an
+         * extra reduction step. In the paper's terminology, we replace
+         * steps 9 and 10 with MM(h, 1).
+         */
     } else
 #endif
     {
@@ -1155,7 +1161,7 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
     if (BN_get_flags(p, BN_FLG_CONSTTIME) != 0
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-        BNerr(BN_F_BN_MOD_EXP_MONT_WORD, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -1163,7 +1169,7 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
     bn_check_top(m);
 
     if (!BN_is_odd(m)) {
-        BNerr(BN_F_BN_MOD_EXP_MONT_WORD, BN_R_CALLED_WITH_EVEN_MODULUS);
+        ERR_raise(ERR_LIB_BN, BN_R_CALLED_WITH_EVEN_MODULUS);
         return 0;
     }
     if (m->top == 1)
@@ -1287,7 +1293,7 @@ int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
             || BN_get_flags(a, BN_FLG_CONSTTIME) != 0
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
-        BNerr(BN_F_BN_MOD_EXP_SIMPLE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ERR_raise(ERR_LIB_BN, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -1354,7 +1360,6 @@ int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
          * a window to do.  To do this we need to scan forward until the last
          * set bit before the end of the window
          */
-        j = wstart;
         wvalue = 1;
         wend = 0;
         for (i = 1; i < window; i++) {
@@ -1391,5 +1396,87 @@ int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
  err:
     BN_CTX_end(ctx);
     bn_check_top(r);
+    return ret;
+}
+
+/*
+ * This is a variant of modular exponentiation optimization that does
+ * parallel 2-primes exponentiation using 256-bit (AVX512VL) AVX512_IFMA ISA
+ * in 52-bit binary redundant representation.
+ * If such instructions are not available, or input data size is not supported,
+ * it falls back to two BN_mod_exp_mont_consttime() calls.
+ */
+int BN_mod_exp_mont_consttime_x2(BIGNUM *rr1, const BIGNUM *a1, const BIGNUM *p1,
+                                 const BIGNUM *m1, BN_MONT_CTX *in_mont1,
+                                 BIGNUM *rr2, const BIGNUM *a2, const BIGNUM *p2,
+                                 const BIGNUM *m2, BN_MONT_CTX *in_mont2,
+                                 BN_CTX *ctx)
+{
+    int ret = 0;
+
+#ifdef RSAZ_ENABLED
+    BN_MONT_CTX *mont1 = NULL;
+    BN_MONT_CTX *mont2 = NULL;
+
+    if (ossl_rsaz_avx512ifma_eligible() &&
+        ((a1->top == 16) && (p1->top == 16) && (BN_num_bits(m1) == 1024) &&
+         (a2->top == 16) && (p2->top == 16) && (BN_num_bits(m2) == 1024))) {
+
+        if (bn_wexpand(rr1, 16) == NULL)
+            goto err;
+        if (bn_wexpand(rr2, 16) == NULL)
+            goto err;
+
+        /*  Ensure that montgomery contexts are initialized */
+        if (in_mont1 != NULL) {
+            mont1 = in_mont1;
+        } else {
+            if ((mont1 = BN_MONT_CTX_new()) == NULL)
+                goto err;
+            if (!BN_MONT_CTX_set(mont1, m1, ctx))
+                goto err;
+        }
+        if (in_mont2 != NULL) {
+            mont2 = in_mont2;
+        } else {
+            if ((mont2 = BN_MONT_CTX_new()) == NULL)
+                goto err;
+            if (!BN_MONT_CTX_set(mont2, m2, ctx))
+                goto err;
+        }
+
+        ret = ossl_rsaz_mod_exp_avx512_x2(rr1->d, a1->d, p1->d, m1->d,
+                                          mont1->RR.d, mont1->n0[0],
+                                          rr2->d, a2->d, p2->d, m2->d,
+                                          mont2->RR.d, mont2->n0[0],
+                                          1024 /* factor bit size */);
+
+        rr1->top = 16;
+        rr1->neg = 0;
+        bn_correct_top(rr1);
+        bn_check_top(rr1);
+
+        rr2->top = 16;
+        rr2->neg = 0;
+        bn_correct_top(rr2);
+        bn_check_top(rr2);
+
+        goto err;
+    }
+#endif
+
+    /* rr1 = a1^p1 mod m1 */
+    ret = BN_mod_exp_mont_consttime(rr1, a1, p1, m1, ctx, in_mont1);
+    /* rr2 = a2^p2 mod m2 */
+    ret &= BN_mod_exp_mont_consttime(rr2, a2, p2, m2, ctx, in_mont2);
+
+#ifdef RSAZ_ENABLED
+err:
+    if (in_mont2 == NULL)
+        BN_MONT_CTX_free(mont2);
+    if (in_mont1 == NULL)
+        BN_MONT_CTX_free(mont1);
+#endif
+
     return ret;
 }

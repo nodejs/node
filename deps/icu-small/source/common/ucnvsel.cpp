@@ -658,7 +658,7 @@ static const UEnumeration defaultEncodings = {
     ucnvsel_close_selector_iterator,
     ucnvsel_count_encodings,
     uenum_unextDefault,
-    ucnvsel_next_encoding,
+    ucnvsel_next_encoding, 
     ucnvsel_reset_iterator
 };
 
@@ -711,7 +711,7 @@ static UEnumeration *selectForMask(const UConverterSelector* sel,
     return nullptr;
   }
   memcpy(en.getAlias(), &defaultEncodings, sizeof(UEnumeration));
-
+  
   int32_t columns = (sel->encodingsCount+31)/32;
   int16_t numOnes = countOnes(mask.getAlias(), columns);
   // now, we know the exact space we need for index
@@ -767,7 +767,7 @@ ucnvsel_selectForString(const UConverterSelector* sel,
     } else {
       limit = NULL;
     }
-
+    
     while (limit == NULL ? *s != 0 : s != limit) {
       UChar32 c;
       uint16_t pvIndex;
@@ -808,7 +808,7 @@ ucnvsel_selectForUTF8(const UConverterSelector* sel,
 
   if(s!=NULL) {
     const char *limit = s + length;
-
+    
     while (s != limit) {
       uint16_t pvIndex;
       UTRIE2_U8_NEXT16(sel->trie, s, limit, pvIndex);

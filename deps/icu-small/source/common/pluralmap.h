@@ -24,7 +24,7 @@ class U_COMMON_API PluralMapBase : public UMemory {
 public:
     /**
      * The names of all the plural categories. NONE is not an actual plural
-     * category, but rather represents the absense of a plural category.
+     * category, but rather represents the absence of a plural category.
      */
     enum Category {
         NONE = -1,
@@ -46,7 +46,7 @@ public:
 
     /**
      * Converts a category name such as "zero", "one", "two", "few", "many"
-     * or "other" to a category enum.  Returns NONE for urecongized
+     * or "other" to a category enum.  Returns NONE for unrecognized
      * category name.
      */
     static Category toCategory(const UnicodeString &categoryName);
@@ -62,7 +62,7 @@ public:
  * A Map of plural categories to values. It maintains ownership of the
  * values.
  *
- * Type T is the value type. T must provide the followng:
+ * Type T is the value type. T must provide the following:
  * 1) Default constructor
  * 2) Copy constructor
  * 3) Assignment operator

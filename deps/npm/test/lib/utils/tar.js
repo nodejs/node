@@ -1,24 +1,25 @@
-const { test } = require('tap')
+const t = require('tap')
 const pack = require('libnpmpack')
 const ssri = require('ssri')
-const requireInject = require('require-inject')
 
-const { logTar, getContents } = require('../../../lib/utils/tar.js')
+const { getContents } = require('../../../lib/utils/tar.js')
 
-const printLogs = (tarball, unicode) => {
+const mockTar = ({ notice }) => t.mock('../../../lib/utils/tar.js', {
+  'proc-log': {
+    notice,
+  },
+})
+
+const printLogs = (tarball, options) => {
   const logs = []
-  logTar(tarball, {
-    log: {
-      notice: (...args) => {
-        args.map(el => logs.push(el))
-      },
-    },
-    unicode,
+  const { logTar } = mockTar({
+    notice: (...args) => args.map(el => logs.push(el)),
   })
+  logTar(tarball, options)
   return logs.join('\n')
 }
 
-test('should log tarball contents', async (t) => {
+t.test('should log tarball contents', async (t) => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
@@ -27,6 +28,9 @@ test('should log tarball contents', async (t) => {
         'bundle-dep',
       ],
     }, null, 2),
+    cat: 'meow',
+    chai: 'blub',
+    dog: 'woof',
     node_modules: {
       'bundle-dep': 'toto',
     },
@@ -39,46 +43,28 @@ test('should log tarball contents', async (t) => {
     version: '1.0.0',
   }, tarball)
 
-  t.matchSnapshot(printLogs(tarballContents, false))
+  t.matchSnapshot(printLogs(tarballContents))
 })
 
-test('should log tarball contents with unicode', async (t) => {
-  const { logTar } = requireInject('../../../lib/utils/tar.js', {
-    npmlog: {
-      notice: (str) => {
-        t.ok(true, 'defaults to npmlog')
-        return str
-      },
+t.test('should log tarball contents with unicode', async (t) => {
+  const { logTar } = mockTar({
+    notice: (str) => {
+      t.ok(true, 'defaults to proc-log')
+      return str
     },
   })
 
   logTar({
     files: [],
     bundled: [],
+    size: 0,
+    unpackedSize: 0,
     integrity: '',
   }, { unicode: true })
   t.end()
 })
 
-test('should default to npmlog', async (t) => {
-  const { logTar } = requireInject('../../../lib/utils/tar.js', {
-    npmlog: {
-      notice: (str) => {
-        t.ok(true, 'defaults to npmlog')
-        return str
-      },
-    },
-  })
-
-  logTar({
-    files: [],
-    bundled: [],
-    integrity: '',
-  })
-  t.end()
-})
-
-test('should getContents of a tarball', async (t) => {
+t.test('should getContents of a tarball', async (t) => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
@@ -101,9 +87,9 @@ test('should getContents of a tarball', async (t) => {
     id: 'my-cool-pkg@1.0.0',
     name: 'my-cool-pkg',
     version: '1.0.0',
-    size: 149,
+    size: 146,
     unpackedSize: 49,
-    shasum: 'c0bfd67a5142104e429afda09119eedd6a30d2fc',
+    shasum: 'b8379c5e69693cdda73aec3d81dae1d11c1e75bd',
     integrity: ssri.parse(integrity.sha512[0]),
     filename: 'my-cool-pkg-1.0.0.tgz',
     files: [{ path: 'package.json', size: 49, mode: 420 }],

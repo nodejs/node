@@ -69,12 +69,12 @@ public:
     bool     findDuplCharClassFrom(IntPair *categories);
 
     /** Remove a column from the state table. Used when two character categories
-     *  have been found equivalent, and merged together, to eliminate the uneeded table column.
+     *  have been found equivalent, and merged together, to eliminate the unneeded table column.
      */
     void     removeColumn(int32_t column);
 
     /**
-     * Check for, and remove dupicate states (table rows).
+     * Check for, and remove duplicate states (table rows).
      * @return the number of states removed.
      */
     int32_t  removeDuplicateStates();

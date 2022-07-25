@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -20,6 +20,9 @@
  */
 #ifndef OSSL_CRYPTO_CTYPE_H
 # define OSSL_CRYPTO_CTYPE_H
+# pragma once
+
+# include <openssl/e_os2.h>
 
 # define CTYPE_MASK_lower       0x1
 # define CTYPE_MASK_upper       0x2
@@ -54,10 +57,15 @@ int ossl_fromascii(int c);
 #  define ossl_fromascii(c)     (c)
 # endif
 int ossl_ctype_check(int c, unsigned int mask);
+
 int ossl_tolower(int c);
 int ossl_toupper(int c);
 
-int ascii_isdigit(const char inchar);
+int ossl_isdigit(int c);
+int ossl_islower(int c);
+int ossl_isupper(int c);
+
+int ossl_ascii_isdigit(int c);
 
 # define ossl_isalnum(c)        (ossl_ctype_check((c), CTYPE_MASK_alnum))
 # define ossl_isalpha(c)        (ossl_ctype_check((c), CTYPE_MASK_alpha))
@@ -68,15 +76,11 @@ int ascii_isdigit(const char inchar);
 # endif
 # define ossl_isblank(c)        (ossl_ctype_check((c), CTYPE_MASK_blank))
 # define ossl_iscntrl(c)        (ossl_ctype_check((c), CTYPE_MASK_cntrl))
-# define ossl_isdigit(c)        (ossl_ctype_check((c), CTYPE_MASK_digit))
 # define ossl_isgraph(c)        (ossl_ctype_check((c), CTYPE_MASK_graph))
-# define ossl_islower(c)        (ossl_ctype_check((c), CTYPE_MASK_lower))
 # define ossl_isprint(c)        (ossl_ctype_check((c), CTYPE_MASK_print))
 # define ossl_ispunct(c)        (ossl_ctype_check((c), CTYPE_MASK_punct))
 # define ossl_isspace(c)        (ossl_ctype_check((c), CTYPE_MASK_space))
-# define ossl_isupper(c)        (ossl_ctype_check((c), CTYPE_MASK_upper))
 # define ossl_isxdigit(c)       (ossl_ctype_check((c), CTYPE_MASK_xdigit))
 # define ossl_isbase64(c)       (ossl_ctype_check((c), CTYPE_MASK_base64))
 # define ossl_isasn1print(c)    (ossl_ctype_check((c), CTYPE_MASK_asn1print))
-
 #endif

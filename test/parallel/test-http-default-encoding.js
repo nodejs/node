@@ -32,9 +32,9 @@ const server = http.Server((req, res) => {
   req.on('data', (chunk) => {
     result += chunk;
   }).on('end', () => {
-    server.close();
     res.writeHead(200);
     res.end('hello world\n');
+    server.close();
   });
 
 });

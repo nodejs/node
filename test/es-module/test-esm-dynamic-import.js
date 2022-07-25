@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { URL } = require('url');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
 const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
@@ -52,14 +51,16 @@ function expectFsNamespace(result) {
 
   expectModuleError(import('node:unknown'),
                     'ERR_UNKNOWN_BUILTIN_MODULE');
+  expectModuleError(import('node:internal/test/binding'),
+                    'ERR_UNKNOWN_BUILTIN_MODULE');
   expectModuleError(import('./not-an-existing-module.mjs'),
                     'ERR_MODULE_NOT_FOUND');
   expectModuleError(import('http://example.com/foo.js'),
                     'ERR_UNSUPPORTED_ESM_URL_SCHEME');
   if (common.isWindows) {
     const msg =
-      'Only file and data URLs are supported by the default ESM loader. ' +
-      'On Windows, absolute paths must be valid file:// URLs. ' +
+      'Only URLs with a scheme in: file, data are supported by the default ' +
+      'ESM loader. On Windows, absolute paths must be valid file:// URLs. ' +
       "Received protocol 'c:'";
     expectModuleError(import('C:\\example\\foo.mjs'),
                       'ERR_UNSUPPORTED_ESM_URL_SCHEME',

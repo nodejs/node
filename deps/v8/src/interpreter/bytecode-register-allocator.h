@@ -30,6 +30,9 @@ class BytecodeRegisterAllocator final {
         max_register_count_(start_index),
         observer_(nullptr) {}
   ~BytecodeRegisterAllocator() = default;
+  BytecodeRegisterAllocator(const BytecodeRegisterAllocator&) = delete;
+  BytecodeRegisterAllocator& operator=(const BytecodeRegisterAllocator&) =
+      delete;
 
   // Returns a new register.
   Register NewRegister() {
@@ -101,8 +104,6 @@ class BytecodeRegisterAllocator final {
   int next_register_index_;
   int max_register_count_;
   Observer* observer_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeRegisterAllocator);
 };
 
 }  // namespace interpreter

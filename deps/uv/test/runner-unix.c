@@ -197,7 +197,7 @@ static void* dowait(void* data) {
   process_info_t* p;
 
   for (i = 0; i < args->n; i++) {
-    p = (process_info_t*)(args->vec + i * sizeof(process_info_t));
+    p = &args->vec[i];
     if (p->terminated) continue;
     r = waitpid(p->pid, &p->status, 0);
     if (r < 0) {
@@ -323,7 +323,7 @@ int process_wait(process_info_t* vec, int n, int timeout) {
   } else {
     /* Timeout. Kill all the children. */
     for (i = 0; i < n; i++) {
-      p = (process_info_t*)(vec + i * sizeof(process_info_t));
+      p = &vec[i];
       kill(p->pid, SIGTERM);
     }
     retval = -2;

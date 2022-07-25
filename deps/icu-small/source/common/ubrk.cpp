@@ -168,12 +168,16 @@ ubrk_safeClone(
     BreakIterator *newBI = ((BreakIterator *)bi)->clone();
     if (newBI == NULL) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-    } else {
+    } else if (pBufferSize != NULL) {
         *status = U_SAFECLONE_ALLOCATED_WARNING;
     }
     return (UBreakIterator *)newBI;
 }
 
+U_CAPI UBreakIterator * U_EXPORT2
+ubrk_clone(const UBreakIterator *bi, UErrorCode *status) {
+    return ubrk_safeClone(bi, nullptr, nullptr, status);
+}
 
 
 U_CAPI void U_EXPORT2

@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,9 @@
 
 /* Test first part of SSL server handshake. */
 
+/* We need to use some deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
+
 #include <time.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
@@ -21,8 +24,6 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include "fuzzer.h"
-
-#include "rand.inc"
 
 static const uint8_t kCertificateDER[] = {
     0x30, 0x82, 0x02, 0xff, 0x30, 0x82, 0x01, 0xe7, 0xa0, 0x03, 0x02, 0x01,
@@ -92,6 +93,7 @@ static const uint8_t kCertificateDER[] = {
     0x76, 0x8a, 0xbb,
 };
 
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 static const uint8_t kRSAPrivateKeyDER[] = {
     0x30, 0x82, 0x04, 0xa5, 0x02, 0x01, 0x00, 0x02, 0x82, 0x01, 0x01, 0x00,
     0xce, 0x47, 0xcb, 0x11, 0xbb, 0xd2, 0x9d, 0x8e, 0x9e, 0xd2, 0x1e, 0x14,
@@ -194,9 +196,10 @@ static const uint8_t kRSAPrivateKeyDER[] = {
     0xb2, 0xc6, 0xb2, 0x0a, 0x2a, 0x7c, 0x6d, 0x6a, 0x40, 0xfc, 0xf5, 0x50,
     0x98, 0x46, 0x89, 0x82, 0x40,
 };
-
+#endif
 
 #ifndef OPENSSL_NO_EC
+# ifndef OPENSSL_NO_DEPRECATED_3_0
 /*
  *  -----BEGIN EC PRIVATE KEY-----
  *  MHcCAQEEIJLyl7hJjpQL/RhP1x2zS79xdiPJQB683gWeqcqHPeZkoAoGCCqGSM49
@@ -225,6 +228,7 @@ static const char ECDSAPrivateKeyPEM[] = {
     0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54,
     0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a
 };
+# endif
 
 /*
  * -----BEGIN CERTIFICATE-----
@@ -287,7 +291,7 @@ static const char ECDSACertPEM[] = {
 };
 #endif
 
-#ifndef OPENSSL_NO_DSA
+#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
 /*
  * -----BEGIN DSA PRIVATE KEY-----
  * MIIBuwIBAAKBgQDdkFKzNABLOha7Eqj7004+p5fhtR6bxpujToMmSZTYi8igVVXP
@@ -489,12 +493,12 @@ int FuzzerInitialize(int *argc, char ***argv)
 {
     STACK_OF(SSL_COMP) *comp_methods;
 
+    FuzzerSetRand();
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS | OPENSSL_INIT_ASYNC, NULL);
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
-    ERR_get_state();
+    ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
     idx = SSL_get_ex_data_X509_STORE_CTX_idx();
-    FuzzerSetRand();
     comp_methods = SSL_COMP_get_compression_methods();
     if (comp_methods != NULL)
         sk_SSL_COMP_sort(comp_methods);
@@ -507,29 +511,32 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     SSL *server;
     BIO *in;
     BIO *out;
-#if !defined(OPENSSL_NO_EC) || !defined(OPENSSL_NO_DSA)
+#if !defined(OPENSSL_NO_EC)                     \
+    || (!defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0))
     BIO *bio_buf;
 #endif
     SSL_CTX *ctx;
     int ret;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     RSA *privkey;
-    const uint8_t *bufp;
-    EVP_PKEY *pkey;
-    X509 *cert;
-#ifndef OPENSSL_NO_EC
-    EC_KEY *ecdsakey = NULL;
 #endif
-#ifndef OPENSSL_NO_DSA
+    const uint8_t *bufp;
+#if !defined(OPENSSL_NO_DEPRECATED_3_0)
+    EVP_PKEY *pkey;
+#endif
+    X509 *cert;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+# ifndef OPENSSL_NO_EC
+    EC_KEY *ecdsakey = NULL;
+# endif
+#endif
+#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
     DSA *dsakey = NULL;
 #endif
     uint8_t opt;
 
     if (len < 2)
         return 0;
-
-    /*
-     * TODO: use the ossltest engine (optionally?) to disable crypto checks.
-     */
 
     /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(SSLv23_method());
@@ -539,6 +546,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     ret = SSL_CTX_set_cipher_list(ctx, "ALL:eNULL:@SECLEVEL=0");
     OPENSSL_assert(ret == 1);
 
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     /* RSA */
     bufp = kRSAPrivateKeyDER;
     privkey = d2i_RSAPrivateKey(NULL, &bufp, sizeof(kRSAPrivateKeyDER));
@@ -548,6 +556,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     ret = SSL_CTX_use_PrivateKey(ctx, pkey);
     OPENSSL_assert(ret == 1);
     EVP_PKEY_free(pkey);
+#endif
 
     bufp = kCertificateDER;
     cert = d2i_X509(NULL, &bufp, sizeof(kCertificateDER));
@@ -557,6 +566,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     X509_free(cert);
 
 #ifndef OPENSSL_NO_EC
+# ifndef OPENSSL_NO_DEPRECATED_3_0
     /* ECDSA */
     bio_buf = BIO_new(BIO_s_mem());
     OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSAPrivateKeyPEM, sizeof(ECDSAPrivateKeyPEM)) == sizeof(ECDSAPrivateKeyPEM));
@@ -569,7 +579,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     ret = SSL_CTX_use_PrivateKey(ctx, pkey);
     OPENSSL_assert(ret == 1);
     EVP_PKEY_free(pkey);
-
+# endif
     bio_buf = BIO_new(BIO_s_mem());
     OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSACertPEM, sizeof(ECDSACertPEM)) == sizeof(ECDSACertPEM));
     cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
@@ -580,7 +590,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     X509_free(cert);
 #endif
 
-#ifndef OPENSSL_NO_DSA
+#if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
     /* DSA */
     bio_buf = BIO_new(BIO_s_mem());
     OPENSSL_assert((size_t)BIO_write(bio_buf, DSAPrivateKeyPEM, sizeof(DSAPrivateKeyPEM)) == sizeof(DSAPrivateKeyPEM));
@@ -603,8 +613,6 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     OPENSSL_assert(ret == 1);
     X509_free(cert);
 #endif
-
-    /* TODO: Set up support for SRP and PSK */
 
     server = SSL_new(ctx);
     in = BIO_new(BIO_s_mem());
@@ -647,4 +655,5 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
 void FuzzerCleanup(void)
 {
+    FuzzerClearRand();
 }

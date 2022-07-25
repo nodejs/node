@@ -16,8 +16,11 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/wasm/simd-shuffle.h"
 #include "src/zone/zone-containers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/simd-shuffle.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -51,29 +54,22 @@ class FlagsContinuation final {
     return FlagsContinuation(kFlags_branch, condition, true_block, false_block);
   }
 
-  static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
-                                              BasicBlock* true_block,
-                                              BasicBlock* false_block) {
-    return FlagsContinuation(kFlags_branch_and_poison, condition, true_block,
-                             false_block);
-  }
-
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeKind kind,
                                          DeoptimizeReason reason,
+                                         NodeId node_id,
                                          FeedbackSource const& feedback,
-                                         Node* frame_state) {
-    return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
+                                         FrameState frame_state) {
+    return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
                              feedback, frame_state);
   }
-
-  // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimizeAndPoison(
-      FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
+  static FlagsContinuation ForDeoptimizeForTesting(
+      FlagsCondition condition, DeoptimizeReason reason, NodeId node_id,
       FeedbackSource const& feedback, Node* frame_state) {
-    return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
-                             reason, feedback, frame_state);
+    // test-instruction-scheduler.cc passes a dummy Node* as frame_state.
+    // Contents don't matter as long as it's not nullptr.
+    return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
+                             feedback, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -87,30 +83,28 @@ class FlagsContinuation final {
     return FlagsContinuation(condition, trap_id, result);
   }
 
+  static FlagsContinuation ForSelect(FlagsCondition condition, Node* result,
+                                     Node* true_value, Node* false_value) {
+    return FlagsContinuation(condition, result, true_value, false_value);
+  }
+
   bool IsNone() const { return mode_ == kFlags_none; }
-  bool IsBranch() const {
-    return mode_ == kFlags_branch || mode_ == kFlags_branch_and_poison;
-  }
-  bool IsDeoptimize() const {
-    return mode_ == kFlags_deoptimize || mode_ == kFlags_deoptimize_and_poison;
-  }
-  bool IsPoisoned() const {
-    return mode_ == kFlags_branch_and_poison ||
-           mode_ == kFlags_deoptimize_and_poison;
-  }
+  bool IsBranch() const { return mode_ == kFlags_branch; }
+  bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
+  bool IsSelect() const { return mode_ == kFlags_select; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
   }
-  DeoptimizeKind kind() const {
-    DCHECK(IsDeoptimize());
-    return kind_;
-  }
   DeoptimizeReason reason() const {
     DCHECK(IsDeoptimize());
     return reason_;
+  }
+  NodeId node_id() const {
+    DCHECK(IsDeoptimize());
+    return node_id_;
   }
   FeedbackSource const& feedback() const {
     DCHECK(IsDeoptimize());
@@ -121,7 +115,7 @@ class FlagsContinuation final {
     return frame_state_or_result_;
   }
   Node* result() const {
-    DCHECK(IsSet());
+    DCHECK(IsSet() || IsSelect());
     return frame_state_or_result_;
   }
   TrapId trap_id() const {
@@ -135,6 +129,14 @@ class FlagsContinuation final {
   BasicBlock* false_block() const {
     DCHECK(IsBranch());
     return false_block_;
+  }
+  Node* true_value() const {
+    DCHECK(IsSelect());
+    return true_value_;
+  }
+  Node* false_value() const {
+    DCHECK(IsSelect());
+    return false_value_;
   }
 
   void Negate() {
@@ -191,21 +193,21 @@ class FlagsContinuation final {
         condition_(condition),
         true_block_(true_block),
         false_block_(false_block) {
-    DCHECK(mode == kFlags_branch || mode == kFlags_branch_and_poison);
+    DCHECK(mode == kFlags_branch);
     DCHECK_NOT_NULL(true_block);
     DCHECK_NOT_NULL(false_block);
   }
 
   FlagsContinuation(FlagsMode mode, FlagsCondition condition,
-                    DeoptimizeKind kind, DeoptimizeReason reason,
+                    DeoptimizeReason reason, NodeId node_id,
                     FeedbackSource const& feedback, Node* frame_state)
       : mode_(mode),
         condition_(condition),
-        kind_(kind),
         reason_(reason),
+        node_id_(node_id),
         feedback_(feedback),
         frame_state_or_result_(frame_state) {
-    DCHECK(mode == kFlags_deoptimize || mode == kFlags_deoptimize_and_poison);
+    DCHECK(mode == kFlags_deoptimize);
     DCHECK_NOT_NULL(frame_state);
   }
 
@@ -224,16 +226,30 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
+  FlagsContinuation(FlagsCondition condition, Node* result, Node* true_value,
+                    Node* false_value)
+      : mode_(kFlags_select),
+        condition_(condition),
+        frame_state_or_result_(result),
+        true_value_(true_value),
+        false_value_(false_value) {
+    DCHECK_NOT_NULL(result);
+    DCHECK_NOT_NULL(true_value);
+    DCHECK_NOT_NULL(false_value);
+  }
+
   FlagsMode const mode_;
   FlagsCondition condition_;
-  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
-  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
-  FeedbackSource feedback_;      // Only valid if mode_ == kFlags_deoptimize*
-  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
-                                 // or mode_ == kFlags_set.
-  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
-  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
-  TrapId trap_id_;               // Only valid if mode_ == kFlags_trap.
+  DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
+  NodeId node_id_;                  // Only valid if mode_ == kFlags_deoptimize*
+  FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
+  Node* frame_state_or_result_;     // Only valid if mode_ == kFlags_deoptimize*
+                                    // or mode_ == kFlags_set.
+  BasicBlock* true_block_;          // Only valid if mode_ == kFlags_branch*.
+  BasicBlock* false_block_;         // Only valid if mode_ == kFlags_branch*.
+  TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
+  Node* true_value_;                // Only valid if mode_ == kFlags_select.
+  Node* false_value_;               // Only valid if mode_ == kFlags_select.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -272,7 +288,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -280,8 +297,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                                : kDisableScheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing =
           kDisableRootsRelativeAddressing,
-      PoisoningMitigationLevel poisoning_level =
-          PoisoningMitigationLevel::kDontPoison,
       EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
@@ -385,8 +400,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
-  bool NeedsPoisoning(IsSafetyCheck safety_check) const;
-
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================
@@ -394,12 +407,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Used in pattern matching during code generation.
   // Check if {node} can be covered while generating code for the current
   // instruction. A node can be covered if the {user} of the node has the only
-  // edge and the two are in the same basic block.
+  // edge, the two are in the same basic block, and there are no side-effects
+  // in-between. The last check is crucial for soundness.
+  // For pure nodes, CanCover(a,b) is checked to avoid duplicated execution:
+  // If this is not the case, code for b must still be generated for other
+  // users, and fusing is unlikely to improve performance.
   bool CanCover(Node* user, Node* node) const;
-  // CanCover is not transitive.  The counter example are Nodes A,B,C such that
-  // CanCover(A, B) and CanCover(B,C) and B is pure: The the effect level of A
-  // and B might differ. CanCoverTransitively does the additional checks.
-  bool CanCoverTransitively(Node* user, Node* node, Node* node_input) const;
 
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
@@ -469,9 +482,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   }
 
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
-                                 DeoptimizeKind kind, DeoptimizeReason reason,
+                                 DeoptimizeReason reason, NodeId node_id,
                                  FeedbackSource const& feedback,
-                                 Node* frame_state);
+                                 FrameState frame_state);
 
   void EmitTableSwitch(const SwitchInfo& sw,
                        InstructionOperand const& index_operand);
@@ -538,16 +551,14 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            CallBufferFlags flags, bool is_tail_call,
-                            int stack_slot_delta = 0);
+                            CallBufferFlags flags, int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
-  int GetTempsCountForTailCallFromJSFunction();
 
   void UpdateMaxPushedArgumentCount(size_t count);
 
-  FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  FrameStateDescriptor* GetFrameStateDescriptor(FrameState node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
-                                         Node* state, OperandGenerator* g,
+                                         FrameState state, OperandGenerator* g,
                                          StateObjectDeduplicator* deduplicator,
                                          InstructionOperandVector* inputs,
                                          FrameStateInputKind kind, Zone* zone);
@@ -600,14 +611,16 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
+  void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(Node* node, TrapId trap_id);
   void VisitTrapUnless(Node* node, TrapId trap_id);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
-  void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback, Node* frame_state);
+  void VisitDeoptimize(DeoptimizeReason reason, NodeId node_id,
+                       FeedbackSource const& feedback, FrameState frame_state);
+  void VisitSelect(Node* node);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
@@ -619,8 +632,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
-  void EmitWordPoisonOnSpeculation(Node* node);
-
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
@@ -628,10 +639,14 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   bool CanProduceSignalingNaN(Node* node);
 
+  void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
+                                     Node* node);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
 
+#if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
@@ -639,6 +654,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
   void SwapShuffleInputs(Node* node);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
 
@@ -678,6 +694,31 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   };
 #endif  // V8_TARGET_ARCH_64_BIT
 
+  struct FrameStateInput {
+    FrameStateInput(Node* node_, FrameStateInputKind kind_)
+        : node(node_), kind(kind_) {}
+
+    Node* node;
+    FrameStateInputKind kind;
+
+    struct Hash {
+      size_t operator()(FrameStateInput const& source) const {
+        return base::hash_combine(source.node,
+                                  static_cast<size_t>(source.kind));
+      }
+    };
+
+    struct Equal {
+      bool operator()(FrameStateInput const& lhs,
+                      FrameStateInput const& rhs) const {
+        return lhs.node == rhs.node && lhs.kind == rhs.kind;
+      }
+    };
+  };
+
+  struct CachedStateValues;
+  class CachedStateValuesBuilder;
+
   // ===========================================================================
 
   Zone* const zone_;
@@ -695,19 +736,25 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   BoolVector defined_;
   BoolVector used_;
   IntVector effect_level_;
+  int current_effect_level_;
   IntVector virtual_registers_;
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
   EnableRootsRelativeAddressing enable_roots_relative_addressing_;
   EnableSwitchJumpTable enable_switch_jump_table_;
+  ZoneUnorderedMap<FrameStateInput, CachedStateValues*, FrameStateInput::Hash,
+                   FrameStateInput::Equal>
+      state_values_cache_;
 
-  PoisoningMitigationLevel poisoning_level_;
   Frame* frame_;
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
+  // The broker is only used for unparking the LocalHeap for diagnostic printing
+  // for failed StaticAsserts.
+  JSHeapBroker* const broker_;
 
   // Store the maximal unoptimized frame height and an maximal number of pushed
   // arguments (for calls). Later used to apply an offset to stack checks.

@@ -27,7 +27,7 @@ writer1.once('chunk-received', () => {
     reader._readableState.awaitDrainWriters.size,
     0,
     'awaitDrain initial value should be 0, actual is ' +
-    reader._readableState.awaitDrainWriters
+    reader._readableState.awaitDrainWriters.size
   );
   setImmediate(() => {
     // This one should *not* get through to writer1 because writer2 is not

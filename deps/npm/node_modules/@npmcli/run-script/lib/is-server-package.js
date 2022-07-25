@@ -1,4 +1,6 @@
-const { stat } = require('fs').promises
+const util = require('util')
+const fs = require('fs')
+const { stat } = fs.promises || { stat: util.promisify(fs.stat) }
 const { resolve } = require('path')
 module.exports = async path => {
   try {

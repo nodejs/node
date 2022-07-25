@@ -3,7 +3,7 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "util.h"
 
 #include <string>
@@ -12,12 +12,6 @@
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
 #else
 #define NODE_BUILTIN_OPENSSL_MODULES(V)
-#endif
-
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-#define NODE_BUILTIN_QUIC_MODULES(V) V(quic)
-#else
-#define NODE_BUILTIN_QUIC_MODULES(V)
 #endif
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -32,12 +26,6 @@
 #define NODE_BUILTIN_PROFILER_MODULES(V)
 #endif
 
-#if HAVE_DTRACE || HAVE_ETW
-#define NODE_BUILTIN_DTRACE_MODULES(V) V(dtrace)
-#else
-#define NODE_BUILTIN_DTRACE_MODULES(V)
-#endif
-
 // A list of built-in modules. In order to do module registration
 // in node::Init(), need to add built-in modules in the following list.
 // Then in binding::RegisterBuiltinModules(), it calls modules' registration
@@ -46,6 +34,7 @@
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
   V(async_wrap)                                                                \
+  V(blob)                                                                      \
   V(block_list)                                                                \
   V(buffer)                                                                    \
   V(cares_wrap)                                                                \
@@ -64,6 +53,7 @@
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
@@ -91,17 +81,16 @@
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(wasi)                                                                      \
-  V(worker)                                                                    \
+  V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
+  V(worker)                                                                    \
   V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                                \
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
-  NODE_BUILTIN_QUIC_MODULES(V)                                                 \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
-  NODE_BUILTIN_PROFILER_MODULES(V)                                             \
-  NODE_BUILTIN_DTRACE_MODULES(V)
+  NODE_BUILTIN_PROFILER_MODULES(V)
 
 // This is used to load built-in modules. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
@@ -421,6 +410,12 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  if (env->no_native_addons()) {
+    return THROW_ERR_DLOPEN_DISABLED(
+      env, "Cannot load native addon because loading addons is disabled.");
+  }
+
   auto context = env->context();
 
   CHECK_NULL(thread_local_modpending);
@@ -589,19 +584,21 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
+    env->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(
         exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = native_module::NativeModuleEnv::GetSourceObject(env->context());
+    exports =
+        native_module::NativeModuleLoader::GetSourceObject(env->context());
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
               ->Set(env->context(),
                     env->config_string(),
-                    native_module::NativeModuleEnv::GetConfigString(
+                    native_module::NativeModuleLoader::GetConfigString(
                         env->isolate()))
               .FromJust());
   } else {

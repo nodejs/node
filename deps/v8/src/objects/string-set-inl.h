@@ -26,11 +26,11 @@ bool StringSetShape::IsMatch(String key, Object value) {
 }
 
 uint32_t StringSetShape::Hash(ReadOnlyRoots roots, String key) {
-  return key.Hash();
+  return key.EnsureHash();
 }
 
 uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object).Hash();
+  return String::cast(object).EnsureHash();
 }
 
 }  // namespace internal

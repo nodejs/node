@@ -8,6 +8,8 @@
 #include "node_errors.h"
 
 namespace node {
+class ExternalReferenceRegistry;
+
 namespace contextify {
 
 class MicrotaskQueueWrap : public BaseObject {
@@ -17,6 +19,7 @@ class MicrotaskQueueWrap : public BaseObject {
   const std::shared_ptr<v8::MicrotaskQueue>& microtask_queue() const;
 
   static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // This could have methods for running the microtask queue, if we ever decide
@@ -52,6 +55,7 @@ class ContextifyContext {
                                               v8::Local<v8::Object> sandbox_obj,
                                               const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
       Environment* env,
@@ -70,8 +74,8 @@ class ContextifyContext {
   }
 
   inline v8::Local<v8::Object> sandbox() const {
-    return v8::Local<v8::Object>::Cast(
-        context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject));
+    return context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject)
+        .As<v8::Object>();
   }
 
   inline std::shared_ptr<v8::MicrotaskQueue> microtask_queue() const {
@@ -141,11 +145,10 @@ class ContextifyScript : public BaseObject {
   ~ContextifyScript() override;
 
   static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
-  static void CreateCachedData(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,

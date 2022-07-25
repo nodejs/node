@@ -15,7 +15,7 @@ function opt(){
     (((function(){})())?.v)()
 }
 %PrepareFunctionForOptimization(opt)
-assertThrows(opt());
-assertThrows(opt());
+assertThrows(() => opt());
+assertThrows(() => opt());
 %OptimizeFunctionOnNextCall(opt)
-assertThrows(opt());
+assertThrows(() => opt());

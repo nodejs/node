@@ -8,7 +8,8 @@
 }
 
 .hljs-attribute,
-.hljs-keyword {
+.hljs-keyword,
+.hljs-type {
   color: #338;
 }
 
@@ -27,4 +28,23 @@
 .hljs-comment {
   color: #666;
   font-weight: lighter;
+}
+
+.dark-mode .hljs-number,
+.dark-mode .hljs-string,
+.dark-mode .hljs-regexp {
+  color: var(--green4);
+}
+
+.dark-mode .hljs-attribute,
+.dark-mode .hljs-doctag,
+.dark-mode .hljs-keyword,
+.dark-mode .hljs-type {
+  color: #66d9ef;
+}
+
+.dark-mode .hljs-doctag .hljs-type,
+.dark-mode .hljs-doctag .hljs-variable,
+.dark-mode .hljs-comment {
+  color: var(--gray7);
 }

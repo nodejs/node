@@ -37,8 +37,9 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
   }
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow("TestWithHeapWithCustomSpaces", "Testing",
-                                      cppgc::Heap::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
@@ -76,6 +77,14 @@ class CustomGCedFinal2 final : public CustomGCedBase {
   ~CustomGCedFinal2() { g_destructor_callcount++; }
 };
 
+constexpr size_t kDoubleWord = 2 * sizeof(void*);
+
+class alignas(kDoubleWord) CustomGCedWithDoubleWordAlignment final
+    : public GarbageCollected<CustomGCedWithDoubleWordAlignment> {
+ public:
+  void Trace(Visitor*) const {}
+};
+
 }  // namespace
 
 }  // namespace internal
@@ -96,6 +105,11 @@ struct SpaceTrait<
   using Space = CustomSpace1;
 };
 
+template <>
+struct SpaceTrait<internal::CustomGCedWithDoubleWordAlignment> {
+  using Space = CustomSpace1;
+};
+
 namespace internal {
 
 TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
@@ -106,11 +120,31 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
   auto* custom2 =
       MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces + 1,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
+}
+
+TEST_F(TestWithHeapWithCustomSpaces, AllocateDoubleWordAlignedOnCustomSpace) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* custom_aligned =
+      MakeGarbageCollected<CustomGCedWithDoubleWordAlignment>(
+          GetHeap()->GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(custom_aligned) & kAlignmentMask);
+}
+
+TEST_F(TestWithHeapWithCustomSpaces, DifferentSpacesUsesDifferentPages) {
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom1));
+  EXPECT_NE(NormalPage::FromPayload(regular), NormalPage::FromPayload(custom2));
+  EXPECT_NE(NormalPage::FromPayload(custom1), NormalPage::FromPayload(custom2));
 }
 
 TEST_F(TestWithHeapWithCustomSpaces,
@@ -122,11 +156,11 @@ TEST_F(TestWithHeapWithCustomSpaces,
   auto* custom2 =
       MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
@@ -140,4 +174,106 @@ TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
 }
 
 }  // namespace internal
+
+// Test custom space compactability.
+
+class CompactableCustomSpace : public CustomSpace<CompactableCustomSpace> {
+ public:
+  static constexpr size_t kSpaceIndex = 0;
+  static constexpr bool kSupportsCompaction = true;
+};
+
+class NotCompactableCustomSpace
+    : public CustomSpace<NotCompactableCustomSpace> {
+ public:
+  static constexpr size_t kSpaceIndex = 1;
+  static constexpr bool kSupportsCompaction = false;
+};
+
+class DefaultCompactableCustomSpace
+    : public CustomSpace<DefaultCompactableCustomSpace> {
+ public:
+  static constexpr size_t kSpaceIndex = 2;
+  // By default space are not compactable.
+};
+
+namespace internal {
+namespace {
+
+class TestWithHeapWithCompactableCustomSpaces
+    : public testing::TestWithPlatform {
+ protected:
+  TestWithHeapWithCompactableCustomSpaces() {
+    Heap::HeapOptions options;
+    options.custom_spaces.emplace_back(
+        std::make_unique<CompactableCustomSpace>());
+    options.custom_spaces.emplace_back(
+        std::make_unique<NotCompactableCustomSpace>());
+    options.custom_spaces.emplace_back(
+        std::make_unique<DefaultCompactableCustomSpace>());
+    heap_ = Heap::Create(platform_, std::move(options));
+    g_destructor_callcount = 0;
+  }
+
+  void PreciseGC() {
+    heap_->ForceGarbageCollectionSlow("TestWithHeapWithCompactableCustomSpaces",
+                                      "Testing",
+                                      cppgc::Heap::StackState::kNoHeapPointers);
+  }
+
+  cppgc::Heap* GetHeap() const { return heap_.get(); }
+
+ private:
+  std::unique_ptr<cppgc::Heap> heap_;
+};
+
+class CompactableGCed final : public GarbageCollected<CompactableGCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
+class NotCompactableGCed final : public GarbageCollected<NotCompactableGCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
+class DefaultCompactableGCed final
+    : public GarbageCollected<DefaultCompactableGCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
+
+}  // namespace
+}  // namespace internal
+
+template <>
+struct SpaceTrait<internal::CompactableGCed> {
+  using Space = CompactableCustomSpace;
+};
+template <>
+struct SpaceTrait<internal::NotCompactableGCed> {
+  using Space = NotCompactableCustomSpace;
+};
+template <>
+struct SpaceTrait<internal::DefaultCompactableGCed> {
+  using Space = DefaultCompactableCustomSpace;
+};
+
+namespace internal {
+
+TEST_F(TestWithHeapWithCompactableCustomSpaces,
+       AllocateOnCompactableCustomSpaces) {
+  auto* compactable =
+      MakeGarbageCollected<CompactableGCed>(GetHeap()->GetAllocationHandle());
+  auto* not_compactable = MakeGarbageCollected<NotCompactableGCed>(
+      GetHeap()->GetAllocationHandle());
+  auto* default_compactable = MakeGarbageCollected<DefaultCompactableGCed>(
+      GetHeap()->GetAllocationHandle());
+  EXPECT_TRUE(NormalPage::FromPayload(compactable)->space().is_compactable());
+  EXPECT_FALSE(
+      NormalPage::FromPayload(not_compactable)->space().is_compactable());
+  EXPECT_FALSE(
+      NormalPage::FromPayload(default_compactable)->space().is_compactable());
+}
+
+}  // namespace internal
+
 }  // namespace cppgc

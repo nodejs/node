@@ -8,7 +8,7 @@
 #include <ostream>
 
 #include "src/codegen/code-factory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
@@ -21,7 +21,6 @@ namespace internal {
 namespace interpreter {
 
 using compiler::CodeAssemblerState;
-using compiler::Node;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,
@@ -30,25 +29,25 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       TVARIABLE_CONSTRUCTOR(interpreted_frame_pointer_),
-      TVARIABLE_CONSTRUCTOR(
-          bytecode_array_,
-          CAST(Parameter(InterpreterDispatchDescriptor::kBytecodeArray))),
+      TVARIABLE_CONSTRUCTOR(bytecode_array_,
+                            Parameter<BytecodeArray>(
+                                InterpreterDispatchDescriptor::kBytecodeArray)),
       TVARIABLE_CONSTRUCTOR(
           bytecode_offset_,
-          UncheckedCast<IntPtrT>(
-              Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))),
-      TVARIABLE_CONSTRUCTOR(
-          dispatch_table_, UncheckedCast<ExternalReference>(Parameter(
-                               InterpreterDispatchDescriptor::kDispatchTable))),
+          UncheckedParameter<IntPtrT>(
+              InterpreterDispatchDescriptor::kBytecodeOffset)),
+      TVARIABLE_CONSTRUCTOR(dispatch_table_,
+                            UncheckedParameter<ExternalReference>(
+                                InterpreterDispatchDescriptor::kDispatchTable)),
       TVARIABLE_CONSTRUCTOR(
           accumulator_,
-          CAST(Parameter(InterpreterDispatchDescriptor::kAccumulator))),
-      accumulator_use_(AccumulatorUse::kNone),
+          Parameter<Object>(InterpreterDispatchDescriptor::kAccumulator)),
+      implicit_register_use_(ImplicitRegisterUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
@@ -65,7 +64,8 @@ InterpreterAssembler::~InterpreterAssembler() {
   // If the following check fails the handler does not use the
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
   UnregisterCallGenerationCallbacks();
 }
 
@@ -83,7 +83,8 @@ TNode<RawPtrT> InterpreterAssembler::GetInterpretedFramePointer() {
 TNode<IntPtrT> InterpreterAssembler::BytecodeOffset() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (bytecode_offset_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
+       UncheckedParameter<IntPtrT>(
+           InterpreterDispatchDescriptor::kBytecodeOffset))) {
     bytecode_offset_ = ReloadBytecodeOffset();
   }
   return bytecode_offset_.value();
@@ -140,7 +141,8 @@ TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
 TNode<ExternalReference> InterpreterAssembler::DispatchTablePointer() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (dispatch_table_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kDispatchTable))) {
+       UncheckedParameter<ExternalReference>(
+           InterpreterDispatchDescriptor::kDispatchTable))) {
     dispatch_table_ = ExternalConstant(
         ExternalReference::interpreter_dispatch_table_address(isolate()));
   }
@@ -153,13 +155,15 @@ TNode<Object> InterpreterAssembler::GetAccumulatorUnchecked() {
 
 TNode<Object> InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
-  return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kReadAccumulator;
+  return GetAccumulatorUnchecked();
 }
 
 void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   DCHECK(Bytecodes::WritesAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
   accumulator_ = value;
 }
 
@@ -198,45 +202,10 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
   return cur_context.value();
 }
 
-void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
-    TNode<Context> context, TNode<Uint32T> depth, Label* target) {
-  TVARIABLE(Context, cur_context, context);
-  TVARIABLE(Uint32T, cur_depth, depth);
-
-  Label context_search(this, {&cur_depth, &cur_context});
-  Label no_extension(this);
-
-  // Loop until the depth is 0.
-  Goto(&context_search);
-  BIND(&context_search);
-  {
-    // Check if context has an extension slot.
-    TNode<BoolT> has_extension =
-        LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));
-    GotoIfNot(has_extension, &no_extension);
-
-    // Jump to the target if the extension slot is not an undefined value.
-    TNode<Object> extension_slot =
-        LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
-    Branch(TaggedNotEqual(extension_slot, UndefinedConstant()), target,
-           &no_extension);
-
-    BIND(&no_extension);
-    {
-      cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-      cur_context = CAST(
-          LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
-
-      GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
-             &context_search);
-    }
-  }
-}
-
 TNode<IntPtrT> InterpreterAssembler::RegisterLocation(
     TNode<IntPtrT> reg_index) {
-  return Signed(WordPoisonOnSpeculation(
-      IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index))));
+  return Signed(
+      IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
 }
 
 TNode<IntPtrT> InterpreterAssembler::RegisterLocation(Register reg) {
@@ -249,8 +218,7 @@ TNode<IntPtrT> InterpreterAssembler::RegisterFrameOffset(TNode<IntPtrT> index) {
 
 TNode<Object> InterpreterAssembler::LoadRegister(TNode<IntPtrT> reg_index) {
   return LoadFullTagged(GetInterpretedFramePointer(),
-                        RegisterFrameOffset(reg_index),
-                        LoadSensitivity::kCritical);
+                        RegisterFrameOffset(reg_index));
 }
 
 TNode<Object> InterpreterAssembler::LoadRegister(Register reg) {
@@ -273,16 +241,14 @@ TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
 
 TNode<Object> InterpreterAssembler::LoadRegisterAtOperandIndex(
     int operand_index) {
-  return LoadRegister(
-      BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
+  return LoadRegister(BytecodeOperandReg(operand_index));
 }
 
 std::pair<TNode<Object>, TNode<Object>>
 InterpreterAssembler::LoadRegisterPairAtOperandIndex(int operand_index) {
   DCHECK_EQ(OperandType::kRegPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  TNode<IntPtrT> first_reg_index =
-      BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
+  TNode<IntPtrT> first_reg_index = BytecodeOperandReg(operand_index);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
   return std::make_pair(LoadRegister(first_reg_index),
                         LoadRegister(second_reg_index));
@@ -294,8 +260,7 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   DCHECK_EQ(OperandType::kRegCount,
             Bytecodes::GetOperandType(bytecode_, operand_index + 1));
-  TNode<IntPtrT> base_reg = RegisterLocation(
-      BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
+  TNode<IntPtrT> base_reg = RegisterLocation(BytecodeOperandReg(operand_index));
   TNode<Uint32T> reg_count = BytecodeOperandCount(operand_index + 1);
   return RegListNodePair(base_reg, reg_count);
 }
@@ -303,13 +268,12 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
 TNode<Object> InterpreterAssembler::LoadRegisterFromRegisterList(
     const RegListNodePair& reg_list, int index) {
   TNode<IntPtrT> location = RegisterLocationInRegisterList(reg_list, index);
-  // Location is already poisoned on speculation, so no need to poison here.
   return LoadFullTagged(location);
 }
 
 TNode<IntPtrT> InterpreterAssembler::RegisterLocationInRegisterList(
     const RegListNodePair& reg_list, int index) {
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Uint32GreaterThan(reg_list.reg_count(), Int32Constant(index)));
   TNode<IntPtrT> offset = RegisterFrameOffset(IntPtrConstant(index));
   // Register indexes are negative, so subtract index from base location to get
@@ -329,10 +293,38 @@ void InterpreterAssembler::StoreRegister(TNode<Object> value,
                                 RegisterFrameOffset(reg_index), value);
 }
 
+void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
+                                                     TNode<WordT> opcode) {
+  DCHECK(Bytecodes::IsShortStar(bytecode_));
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteShortStar;
+
+  CSA_DCHECK(
+      this, UintPtrGreaterThanOrEqual(opcode, UintPtrConstant(static_cast<int>(
+                                                  Bytecode::kFirstShortStar))));
+  CSA_DCHECK(
+      this,
+      UintPtrLessThanOrEqual(
+          opcode, UintPtrConstant(static_cast<int>(Bytecode::kLastShortStar))));
+
+  // Compute the constant that we can add to a Bytecode value to map the range
+  // [Bytecode::kStar15, Bytecode::kStar0] to the range
+  // [Register(15).ToOperand(), Register(0).ToOperand()].
+  constexpr int short_star_to_operand =
+      Register(0).ToOperand() - static_cast<int>(Bytecode::kStar0);
+  // Make sure the values count in the right direction.
+  STATIC_ASSERT(short_star_to_operand ==
+                Register(1).ToOperand() - static_cast<int>(Bytecode::kStar1));
+
+  TNode<IntPtrT> offset =
+      IntPtrAdd(RegisterFrameOffset(Signed(opcode)),
+                IntPtrConstant(short_star_to_operand * kSystemPointerSize));
+  StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(), offset, value);
+}
+
 void InterpreterAssembler::StoreRegisterAtOperandIndex(TNode<Object> value,
                                                        int operand_index) {
-  StoreRegister(value,
-                BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
+  StoreRegister(value, BytecodeOperandReg(operand_index));
 }
 
 void InterpreterAssembler::StoreRegisterPairAtOperandIndex(TNode<Object> value1,
@@ -340,8 +332,7 @@ void InterpreterAssembler::StoreRegisterPairAtOperandIndex(TNode<Object> value1,
                                                            int operand_index) {
   DCHECK_EQ(OperandType::kRegOutPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  TNode<IntPtrT> first_reg_index =
-      BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
+  TNode<IntPtrT> first_reg_index = BytecodeOperandReg(operand_index);
   StoreRegister(value1, first_reg_index);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
   StoreRegister(value2, second_reg_index);
@@ -352,8 +343,7 @@ void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
     int operand_index) {
   DCHECK_EQ(OperandType::kRegOutTriple,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  TNode<IntPtrT> first_reg_index =
-      BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
+  TNode<IntPtrT> first_reg_index = BytecodeOperandReg(operand_index);
   StoreRegister(value1, first_reg_index);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
   StoreRegister(value2, second_reg_index);
@@ -372,30 +362,27 @@ TNode<IntPtrT> InterpreterAssembler::OperandOffset(int operand_index) {
 }
 
 TNode<Uint8T> InterpreterAssembler::BytecodeOperandUnsignedByte(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
   TNode<IntPtrT> operand_offset = OperandOffset(operand_index);
   return Load<Uint8T>(BytecodeArrayTaggedPointer(),
-                      IntPtrAdd(BytecodeOffset(), operand_offset),
-                      needs_poisoning);
+                      IntPtrAdd(BytecodeOffset(), operand_offset));
 }
 
 TNode<Int8T> InterpreterAssembler::BytecodeOperandSignedByte(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
   TNode<IntPtrT> operand_offset = OperandOffset(operand_index);
   return Load<Int8T>(BytecodeArrayTaggedPointer(),
-                     IntPtrAdd(BytecodeOffset(), operand_offset),
-                     needs_poisoning);
+                     IntPtrAdd(BytecodeOffset(), operand_offset));
 }
 
 TNode<Word32T> InterpreterAssembler::BytecodeOperandReadUnaligned(
-    int relative_offset, MachineType result_type,
-    LoadSensitivity needs_poisoning) {
+    int relative_offset, MachineType result_type) {
   static const int kMaxCount = 4;
   DCHECK(!TargetSupportsUnalignedAccess());
 
@@ -432,9 +419,8 @@ TNode<Word32T> InterpreterAssembler::BytecodeOperandReadUnaligned(
     TNode<IntPtrT> offset =
         IntPtrConstant(relative_offset + msb_offset + i * kStep);
     TNode<IntPtrT> array_offset = IntPtrAdd(BytecodeOffset(), offset);
-    bytes[i] =
-        UncheckedCast<Word32T>(Load(machine_type, BytecodeArrayTaggedPointer(),
-                                    array_offset, needs_poisoning));
+    bytes[i] = UncheckedCast<Word32T>(
+        Load(machine_type, BytecodeArrayTaggedPointer(), array_offset));
   }
 
   // Pack LSB to MSB.
@@ -448,7 +434,7 @@ TNode<Word32T> InterpreterAssembler::BytecodeOperandReadUnaligned(
 }
 
 TNode<Uint16T> InterpreterAssembler::BytecodeOperandUnsignedShort(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
       OperandSize::kShort,
@@ -458,16 +444,15 @@ TNode<Uint16T> InterpreterAssembler::BytecodeOperandUnsignedShort(
   if (TargetSupportsUnalignedAccess()) {
     return Load<Uint16T>(
         BytecodeArrayTaggedPointer(),
-        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-        needs_poisoning);
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return UncheckedCast<Uint16T>(BytecodeOperandReadUnaligned(
-        operand_offset, MachineType::Uint16(), needs_poisoning));
+    return UncheckedCast<Uint16T>(
+        BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint16()));
   }
 }
 
 TNode<Int16T> InterpreterAssembler::BytecodeOperandSignedShort(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
       OperandSize::kShort,
@@ -477,16 +462,15 @@ TNode<Int16T> InterpreterAssembler::BytecodeOperandSignedShort(
   if (TargetSupportsUnalignedAccess()) {
     return Load<Int16T>(
         BytecodeArrayTaggedPointer(),
-        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-        needs_poisoning);
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return UncheckedCast<Int16T>(BytecodeOperandReadUnaligned(
-        operand_offset, MachineType::Int16(), needs_poisoning));
+    return UncheckedCast<Int16T>(
+        BytecodeOperandReadUnaligned(operand_offset, MachineType::Int16()));
   }
 }
 
 TNode<Uint32T> InterpreterAssembler::BytecodeOperandUnsignedQuad(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -495,16 +479,15 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandUnsignedQuad(
   if (TargetSupportsUnalignedAccess()) {
     return Load<Uint32T>(
         BytecodeArrayTaggedPointer(),
-        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-        needs_poisoning);
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return UncheckedCast<Uint32T>(BytecodeOperandReadUnaligned(
-        operand_offset, MachineType::Uint32(), needs_poisoning));
+    return UncheckedCast<Uint32T>(
+        BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint32()));
   }
 }
 
 TNode<Int32T> InterpreterAssembler::BytecodeOperandSignedQuad(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -513,43 +496,40 @@ TNode<Int32T> InterpreterAssembler::BytecodeOperandSignedQuad(
   if (TargetSupportsUnalignedAccess()) {
     return Load<Int32T>(
         BytecodeArrayTaggedPointer(),
-        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-        needs_poisoning);
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return UncheckedCast<Int32T>(BytecodeOperandReadUnaligned(
-        operand_offset, MachineType::Int32(), needs_poisoning));
+    return UncheckedCast<Int32T>(
+        BytecodeOperandReadUnaligned(operand_offset, MachineType::Int32()));
   }
 }
 
 TNode<Int32T> InterpreterAssembler::BytecodeSignedOperand(
-    int operand_index, OperandSize operand_size,
-    LoadSensitivity needs_poisoning) {
+    int operand_index, OperandSize operand_size) {
   DCHECK(!Bytecodes::IsUnsignedOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   switch (operand_size) {
     case OperandSize::kByte:
-      return BytecodeOperandSignedByte(operand_index, needs_poisoning);
+      return BytecodeOperandSignedByte(operand_index);
     case OperandSize::kShort:
-      return BytecodeOperandSignedShort(operand_index, needs_poisoning);
+      return BytecodeOperandSignedShort(operand_index);
     case OperandSize::kQuad:
-      return BytecodeOperandSignedQuad(operand_index, needs_poisoning);
+      return BytecodeOperandSignedQuad(operand_index);
     case OperandSize::kNone:
       UNREACHABLE();
   }
 }
 
 TNode<Uint32T> InterpreterAssembler::BytecodeUnsignedOperand(
-    int operand_index, OperandSize operand_size,
-    LoadSensitivity needs_poisoning) {
+    int operand_index, OperandSize operand_size) {
   DCHECK(Bytecodes::IsUnsignedOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   switch (operand_size) {
     case OperandSize::kByte:
-      return BytecodeOperandUnsignedByte(operand_index, needs_poisoning);
+      return BytecodeOperandUnsignedByte(operand_index);
     case OperandSize::kShort:
-      return BytecodeOperandUnsignedShort(operand_index, needs_poisoning);
+      return BytecodeOperandUnsignedShort(operand_index);
     case OperandSize::kQuad:
-      return BytecodeOperandUnsignedQuad(operand_index, needs_poisoning);
+      return BytecodeOperandUnsignedQuad(operand_index);
     case OperandSize::kNone:
       UNREACHABLE();
   }
@@ -631,23 +611,22 @@ TNode<TaggedIndex> InterpreterAssembler::BytecodeOperandIdxTaggedIndex(
 }
 
 TNode<UintPtrT> InterpreterAssembler::BytecodeOperandConstantPoolIdx(
-    int operand_index, LoadSensitivity needs_poisoning) {
+    int operand_index) {
   DCHECK_EQ(OperandType::kIdx,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
       Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
   return ChangeUint32ToWord(
-      BytecodeUnsignedOperand(operand_index, operand_size, needs_poisoning));
+      BytecodeUnsignedOperand(operand_index, operand_size));
 }
 
-TNode<IntPtrT> InterpreterAssembler::BytecodeOperandReg(
-    int operand_index, LoadSensitivity needs_poisoning) {
+TNode<IntPtrT> InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   DCHECK(Bytecodes::IsRegisterOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   OperandSize operand_size =
       Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
   return ChangeInt32ToIntPtr(
-      BytecodeSignedOperand(operand_index, operand_size, needs_poisoning));
+      BytecodeSignedOperand(operand_index, operand_size));
 }
 
 TNode<Uint32T> InterpreterAssembler::BytecodeOperandRuntimeId(
@@ -684,8 +663,7 @@ TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
   TNode<FixedArray> constant_pool = CAST(LoadObjectField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
   return UnsafeLoadFixedArrayElement(constant_pool,
-                                     UncheckedCast<IntPtrT>(index), 0,
-                                     LoadSensitivity::kCritical);
+                                     UncheckedCast<IntPtrT>(index), 0);
 }
 
 TNode<IntPtrT> InterpreterAssembler::LoadAndUntagConstantPoolEntry(
@@ -695,8 +673,7 @@ TNode<IntPtrT> InterpreterAssembler::LoadAndUntagConstantPoolEntry(
 
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntryAtOperandIndex(
     int operand_index) {
-  TNode<UintPtrT> index =
-      BytecodeOperandConstantPoolIdx(operand_index, LoadSensitivity::kSafe);
+  TNode<UintPtrT> index = BytecodeOperandConstantPoolIdx(operand_index);
   return LoadConstantPoolEntry(index);
 }
 
@@ -725,8 +702,7 @@ void InterpreterAssembler::CallPrologue() {
   made_call_ = true;
 }
 
-void InterpreterAssembler::CallEpilogue() {
-}
+void InterpreterAssembler::CallEpilogue() {}
 
 void InterpreterAssembler::CallJSAndDispatch(
     TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
@@ -736,25 +712,22 @@ void InterpreterAssembler::CallJSAndDispatch(
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
 
-  TNode<Word32T> args_count;
+  TNode<Word32T> args_count = args.reg_count();
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // The receiver is implied, so it is not in the argument list.
-    args_count = args.reg_count();
-  } else {
-    // Subtract the receiver from the argument count.
-    TNode<Int32T> receiver_count = Int32Constant(1);
-    args_count = Int32Sub(args.reg_count(), receiver_count);
+    // Add receiver. It is not included in args as it is implicit.
+    args_count = Int32Add(args_count, Int32Constant(kJSArgcReceiverSlots));
   }
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<CodeT> code_target = HeapConstant(callable.code());
 
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 template <class... TArgs>
@@ -768,25 +741,21 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
   Callable callable = CodeFactory::Call(isolate());
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<CodeT> code_target = HeapConstant(callable.code());
 
+  arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-#ifdef V8_REVERSE_JSARGS
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...,
                                      UndefinedConstant());
-#else
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count,
-                                     UndefinedConstant(), args...);
-#endif
   } else {
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...);
   }
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
@@ -810,20 +779,22 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+  LazyNode<Object> receiver = [=] { return LoadRegisterAtOperandIndex(1); };
+  CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                      slot_id);
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
       InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<CodeT> code_target = HeapConstant(callable.code());
 
-  TNode<Int32T> receiver_count = Int32Constant(1);
-  TNode<Word32T> args_count = Int32Sub(args.reg_count(), receiver_count);
+  TNode<Word32T> args_count = args.reg_count();
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 TNode<Object> InterpreterAssembler::Construct(
@@ -836,9 +807,10 @@ TNode<Object> InterpreterAssembler::Construct(
   Label return_result(this), construct_generic(this),
       construct_array(this, &var_site);
 
+  TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           slot_id, &construct_generic, &construct_array,
-                           &var_site);
+                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           &construct_generic, &construct_array, &var_site);
 
   BIND(&construct_generic);
   {
@@ -846,10 +818,9 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
-    TNode<Code> code_target = HeapConstant(callable.code());
-    var_result = CallStub(callable.descriptor(), code_target, context,
-                          args.reg_count(), args.base_reg_location(), target,
-                          new_target, UndefinedConstant());
+    var_result =
+        CallStub(callable, context, args_count, args.base_reg_location(),
+                 target, new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -860,10 +831,9 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using ConstructArray builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kArrayFunction);
-    TNode<Code> code_target = HeapConstant(callable.code());
-    var_result = CallStub(callable.descriptor(), code_target, context,
-                          args.reg_count(), args.base_reg_location(), target,
-                          new_target, var_site.value());
+    var_result =
+        CallStub(callable, context, args_count, args.base_reg_location(),
+                 target, new_target, var_site.value());
     Goto(&return_result);
   }
 
@@ -936,8 +906,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
-        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
-               &if_function, &mark_megamorphic);
+        Branch(IsJSFunctionInstanceType(current_instance_type), &if_function,
+               &mark_megamorphic);
 
         BIND(&if_function);
         {
@@ -988,20 +958,20 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), code_target, context, args.reg_count(),
-                  args.base_reg_location(), target, new_target,
-                  UndefinedConstant());
+  TNode<Word32T> args_count = JSParameterCount(args.reg_count());
+  return CallStub(callable, context, args_count, args.base_reg_location(),
+                  target, new_target, UndefinedConstant());
 }
 
-Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
-                                         TNode<Context> context,
-                                         const RegListNodePair& args,
-                                         int result_size) {
+template <class T>
+TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
+                                            TNode<Context> context,
+                                            const RegListNodePair& args,
+                                            int return_count) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
-  Callable callable = CodeFactory::InterpreterCEntry(isolate(), result_size);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
+  TNode<CodeT> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
@@ -1013,10 +983,19 @@ Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   TNode<RawPtrT> function_entry = Load<RawPtrT>(
       function, IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(),
-                   result_size, code_target, context, args.reg_count(),
-                   args.base_reg_location(), function_entry);
+  return CallStub<T>(callable.descriptor(), code_target, context,
+                     args.reg_count(), args.base_reg_location(),
+                     function_entry);
 }
+
+template V8_EXPORT_PRIVATE TNode<Object> InterpreterAssembler::CallRuntimeN(
+    TNode<Uint32T> function_id, TNode<Context> context,
+    const RegListNodePair& args, int return_count);
+template V8_EXPORT_PRIVATE TNode<PairT<Object, Object>>
+InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
+                                   TNode<Context> context,
+                                   const RegListNodePair& args,
+                                   int return_count);
 
 void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
                                                  bool backward) {
@@ -1024,7 +1003,7 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
 
   // Assert that the weight is positive (negative weights should be implemented
   // as backward updates).
-  CSA_ASSERT(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
 
   Label load_budget_from_bytecode(this), load_budget_done(this);
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
@@ -1048,8 +1027,11 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
     Branch(condition, &ok, &interrupt_check);
 
     BIND(&interrupt_check);
-    CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, GetContext(),
-                function);
+    // JumpLoop should do a stack check as part of the interrupt.
+    CallRuntime(bytecode() == Bytecode::kJumpLoop
+                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck
+                    : Runtime::kBytecodeBudgetInterrupt,
+                GetContext(), function);
     Goto(&done);
 
     BIND(&ok);
@@ -1077,8 +1059,8 @@ TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
 
 TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta,
                                              bool backward) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
 #endif
   TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
                                         : IntPtrAdd(BytecodeOffset(), delta);
@@ -1115,16 +1097,65 @@ void InterpreterAssembler::JumpConditional(TNode<BoolT> condition,
   Dispatch();
 }
 
+void InterpreterAssembler::JumpConditionalByImmediateOperand(
+    TNode<BoolT> condition, int operand_index) {
+  Label match(this), no_match(this);
+
+  Branch(condition, &match, &no_match);
+  BIND(&match);
+  TNode<IntPtrT> jump_offset = Signed(BytecodeOperandUImmWord(operand_index));
+  Jump(jump_offset);
+  BIND(&no_match);
+  Dispatch();
+}
+
+void InterpreterAssembler::JumpConditionalByConstantOperand(
+    TNode<BoolT> condition, int operand_index) {
+  Label match(this), no_match(this);
+
+  Branch(condition, &match, &no_match);
+  BIND(&match);
+  TNode<IntPtrT> jump_offset =
+      LoadAndUntagConstantPoolEntryAtOperandIndex(operand_index);
+  Jump(jump_offset);
+  BIND(&no_match);
+  Dispatch();
+}
+
 void InterpreterAssembler::JumpIfTaggedEqual(TNode<Object> lhs,
                                              TNode<Object> rhs,
                                              TNode<IntPtrT> jump_offset) {
   JumpConditional(TaggedEqual(lhs, rhs), jump_offset);
 }
 
+void InterpreterAssembler::JumpIfTaggedEqual(TNode<Object> lhs,
+                                             TNode<Object> rhs,
+                                             int operand_index) {
+  JumpConditionalByImmediateOperand(TaggedEqual(lhs, rhs), operand_index);
+}
+
+void InterpreterAssembler::JumpIfTaggedEqualConstant(TNode<Object> lhs,
+                                                     TNode<Object> rhs,
+                                                     int operand_index) {
+  JumpConditionalByConstantOperand(TaggedEqual(lhs, rhs), operand_index);
+}
+
 void InterpreterAssembler::JumpIfTaggedNotEqual(TNode<Object> lhs,
                                                 TNode<Object> rhs,
                                                 TNode<IntPtrT> jump_offset) {
   JumpConditional(TaggedNotEqual(lhs, rhs), jump_offset);
+}
+
+void InterpreterAssembler::JumpIfTaggedNotEqual(TNode<Object> lhs,
+                                                TNode<Object> rhs,
+                                                int operand_index) {
+  JumpConditionalByImmediateOperand(TaggedNotEqual(lhs, rhs), operand_index);
+}
+
+void InterpreterAssembler::JumpIfTaggedNotEqualConstant(TNode<Object> lhs,
+                                                        TNode<Object> rhs,
+                                                        int operand_index) {
+  JumpConditionalByConstantOperand(TaggedNotEqual(lhs, rhs), operand_index);
 }
 
 TNode<WordT> InterpreterAssembler::LoadBytecode(
@@ -1134,46 +1165,58 @@ TNode<WordT> InterpreterAssembler::LoadBytecode(
   return ChangeUint32ToWord(bytecode);
 }
 
-TNode<WordT> InterpreterAssembler::StarDispatchLookahead(
-    TNode<WordT> target_bytecode) {
+void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
   Label do_inline_star(this), done(this);
 
-  TVARIABLE(WordT, var_bytecode, target_bytecode);
-
-  TNode<Int32T> star_bytecode =
-      Int32Constant(static_cast<int>(Bytecode::kStar));
-  TNode<BoolT> is_star =
-      Word32Equal(TruncateWordToInt32(target_bytecode), star_bytecode);
+  // Check whether the following opcode is one of the short Star codes. All
+  // opcodes higher than the short Star variants are invalid, and invalid
+  // opcodes are never deliberately written, so we can use a one-sided check.
+  // This is no less secure than the normal-length Star handler, which performs
+  // no validation on its operand.
+  STATIC_ASSERT(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
+                static_cast<int>(Bytecode::kIllegal));
+  STATIC_ASSERT(Bytecode::kIllegal == Bytecode::kLast);
+  TNode<Int32T> first_short_star_bytecode =
+      Int32Constant(static_cast<int>(Bytecode::kFirstShortStar));
+  TNode<BoolT> is_star = Uint32GreaterThanOrEqual(
+      TruncateWordToInt32(target_bytecode), first_short_star_bytecode);
   Branch(is_star, &do_inline_star, &done);
 
   BIND(&do_inline_star);
   {
-    InlineStar();
-    var_bytecode = LoadBytecode(BytecodeOffset());
-    Goto(&done);
+    InlineShortStar(target_bytecode);
+
+    // Rather than merging control flow to a single indirect jump, we can get
+    // better branch prediction by duplicating it. This is because the
+    // instruction following a merged X + StarN is a bad predictor of the
+    // instruction following a non-merged X, and vice versa.
+    DispatchToBytecode(LoadBytecode(BytecodeOffset()), BytecodeOffset());
   }
   BIND(&done);
-  return var_bytecode.value();
 }
 
-void InterpreterAssembler::InlineStar() {
+void InterpreterAssembler::InlineShortStar(TNode<WordT> target_bytecode) {
   Bytecode previous_bytecode = bytecode_;
-  AccumulatorUse previous_acc_use = accumulator_use_;
+  ImplicitRegisterUse previous_acc_use = implicit_register_use_;
 
-  bytecode_ = Bytecode::kStar;
-  accumulator_use_ = AccumulatorUse::kNone;
+  // At this point we don't know statically what bytecode we're executing, but
+  // kStar0 has the right attributes (namely, no operands) for any of the short
+  // Star codes.
+  bytecode_ = Bytecode::kStar0;
+  implicit_register_use_ = ImplicitRegisterUse::kNone;
 
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
-  StoreRegister(GetAccumulator(),
-                BytecodeOperandReg(0, LoadSensitivity::kSafe));
 
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  StoreRegisterForShortStar(GetAccumulator(), target_bytecode);
+
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
 
   Advance();
   bytecode_ = previous_bytecode;
-  accumulator_use_ = previous_acc_use;
+  implicit_register_use_ = previous_acc_use;
 }
 
 void InterpreterAssembler::Dispatch() {
@@ -1181,16 +1224,20 @@ void InterpreterAssembler::Dispatch() {
   DCHECK_IMPLIES(Bytecodes::MakesCallAlongCriticalPath(bytecode_), made_call_);
   TNode<IntPtrT> target_offset = Advance();
   TNode<WordT> target_bytecode = LoadBytecode(target_offset);
+  DispatchToBytecodeWithOptionalStarLookahead(target_bytecode);
+}
 
+void InterpreterAssembler::DispatchToBytecodeWithOptionalStarLookahead(
+    TNode<WordT> target_bytecode) {
   if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
-    target_bytecode = StarDispatchLookahead(target_bytecode);
+    StarDispatchLookahead(target_bytecode);
   }
   DispatchToBytecode(target_bytecode, BytecodeOffset());
 }
 
 void InterpreterAssembler::DispatchToBytecode(
     TNode<WordT> target_bytecode, TNode<IntPtrT> new_bytecode_offset) {
-  if (FLAG_trace_ignition_dispatches) {
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
     TraceBytecodeDispatch(target_bytecode);
   }
 
@@ -1202,13 +1249,9 @@ void InterpreterAssembler::DispatchToBytecode(
 
 void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     TNode<RawPtrT> handler_entry, TNode<IntPtrT> bytecode_offset) {
-  // Propagate speculation poisoning.
-  TNode<RawPtrT> poisoned_handler_entry =
-      UncheckedCast<RawPtrT>(WordPoisonOnSpeculation(handler_entry));
-  TailCallBytecodeDispatch(InterpreterDispatchDescriptor{},
-                           poisoned_handler_entry, GetAccumulatorUnchecked(),
-                           bytecode_offset, BytecodeArrayTaggedPointer(),
-                           DispatchTablePointer());
+  TailCallBytecodeDispatch(
+      InterpreterDispatchDescriptor{}, handler_entry, GetAccumulatorUnchecked(),
+      bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTablePointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -1223,7 +1266,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   TNode<IntPtrT> next_bytecode_offset = Advance(1);
   TNode<WordT> next_bytecode = LoadBytecode(next_bytecode_offset);
 
-  if (FLAG_trace_ignition_dispatches) {
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
     TraceBytecodeDispatch(next_bytecode);
   }
 
@@ -1264,16 +1307,18 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   // length of the back-edge, so we just have to correct for the non-zero offset
   // of the first bytecode.
 
-  const int kFirstBytecodeOffset = BytecodeArray::kHeaderSize - kHeapObjectTag;
   TNode<Int32T> profiling_weight =
       Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()),
                Int32Constant(kFirstBytecodeOffset));
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-TNode<Int8T> InterpreterAssembler::LoadOsrNestingLevel() {
-  return LoadObjectField<Int8T>(BytecodeArrayTaggedPointer(),
-                                BytecodeArray::kOsrNestingLevelOffset);
+TNode<Int16T> InterpreterAssembler::LoadOsrUrgencyAndInstallTarget() {
+  // We're loading a 16-bit field, mask it.
+  return UncheckedCast<Int16T>(Word32And(
+      LoadObjectField<Int16T>(BytecodeArrayTaggedPointer(),
+                              BytecodeArray::kOsrUrgencyAndInstallTargetOffset),
+      0xFFFF));
 }
 
 void InterpreterAssembler::Abort(AbortReason abort_reason) {
@@ -1294,24 +1339,32 @@ void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
   BIND(&ok);
 }
 
-void InterpreterAssembler::MaybeDropFrames(TNode<Context> context) {
-  TNode<ExternalReference> restart_fp_address =
-      ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
+void InterpreterAssembler::OnStackReplacement(TNode<Context> context,
+                                              TNode<IntPtrT> relative_jump) {
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<HeapObject> shared_info = LoadJSFunctionSharedFunctionInfo(function);
+  TNode<Object> sfi_data =
+      LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
 
-  TNode<IntPtrT> restart_fp = Load<IntPtrT>(restart_fp_address);
-  TNode<IntPtrT> null = IntPtrConstant(0);
+  Label baseline(this);
+  GotoIf(InstanceTypeEqual(data_type, CODET_TYPE), &baseline);
+  {
+    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
+    CallStub(callable, context);
+    JumpBackward(relative_jump);
+  }
 
-  Label ok(this), drop_frames(this);
-  Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
-
-  BIND(&drop_frames);
-  // We don't expect this call to return since the frame dropper tears down
-  // the stack and jumps into the function on the target frame to restart it.
-  CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
-  Abort(AbortReason::kUnexpectedReturnFromFrameDropper);
-  Goto(&ok);
-
-  BIND(&ok);
+  BIND(&baseline);
+  {
+    Callable callable =
+        CodeFactory::InterpreterOnStackReplacement_ToBaseline(isolate());
+    // We already compiled the baseline code, so we don't need to handle failed
+    // compilation as in the Ignition -> Turbofan case. Therefore we can just
+    // tailcall to the OSR builtin.
+    SaveBytecodeOffset();
+    TailCallStub(callable, context);
+  }
 }
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
@@ -1348,11 +1401,11 @@ void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
 
 // static
 bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
   return false;
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390 || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC ||   \
-    V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_LOONG64
   return true;
 #else
 #error "Unknown Architecture"
@@ -1386,7 +1439,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
-    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+    CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
                                 register_count);
@@ -1399,14 +1452,8 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     // Iterate over parameters and write them into the array.
     Label loop(this, &var_index), done_loop(this);
 
-#ifdef V8_REVERSE_JSARGS
     TNode<IntPtrT> reg_base =
-        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() + 1);
-#else
-    TNode<IntPtrT> reg_base = IntPtrAdd(
-        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
-        formal_parameter_count_intptr);
-#endif
+        IntPtrConstant(Register::FromParameterIndex(0).ToOperand() + 1);
 
     Goto(&loop);
     BIND(&loop);
@@ -1415,11 +1462,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
                 &done_loop);
 
-#ifdef V8_REVERSE_JSARGS
       TNode<IntPtrT> reg_index = IntPtrAdd(reg_base, index);
-#else
-      TNode<IntPtrT> reg_index = IntPtrSub(reg_base, index);
-#endif
       TNode<Object> value = LoadRegister(reg_index);
 
       StoreFixedArrayElement(array, index, value);
@@ -1468,7 +1511,7 @@ TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
-    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+    CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
                                 register_count);
@@ -1535,9 +1578,9 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   BIND(&if_objectisother);
   {
-    auto builtin = Builtins::kNonNumberToNumber;
+    auto builtin = Builtin::kNonNumberToNumber;
     if (mode == Object::Conversion::kToNumeric) {
-      builtin = Builtins::kNonNumberToNumeric;
+      builtin = Builtin::kNonNumberToNumeric;
       // Special case for collecting BigInt feedback.
       Label not_bigint(this);
       GotoIfNot(IsBigInt(CAST(object)), &not_bigint);
@@ -1561,7 +1604,8 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
+  MaybeUpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
+                      slot_index);
 
   SetAccumulator(var_result.value());
   Dispatch();

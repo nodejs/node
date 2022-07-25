@@ -13,7 +13,7 @@ function listener(event, execState, eventData, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     if (!done) {
-      execState.prepareStep(Debug.StepAction.StepIn);
+      execState.prepareStep(Debug.StepAction.StepInto);
       var s = execState.frame().sourceLineText();
       assertTrue(s.indexOf('// ' + stepCount + '.') !== -1);
       stepCount++;

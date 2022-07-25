@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>registry</title>
 <style>
 body {
@@ -141,30 +142,34 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</a></li><li><a href="#can-i-run-my-own-private-registry">Can I run my own private registry?</a></li><li><a href="#i-dont-want-my-package-published-in-the-official-registry-its-private">I don’t want my package published in the official registry. It’s private.</a></li><li><a href="#will-you-replicate-from-my-registry-into-the-public-one">Will you replicate from my registry into the public one?</a></li><li><a href="#do-i-have-to-use-couchdb-to-build-a-registry-that-npm-can-talk-to">Do I have to use couchdb to build a registry that npm can talk to?</a></li><li><a href="#is-there-a-website-or-something-to-see-package-docs-and-such">Is there a website or something to see package docs and such?</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</a></li><li><a href="#how-can-i-prevent-my-package-from-being-published-in-the-official-registry">How can I prevent my package from being published in the official registry?</a></li><li><a href="#where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other's, published packages?</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
 <p>To resolve packages by name and version, npm talks to a registry website
 that implements the CommonJS Package Registry specification for reading
 package info.</p>
-<p>npm is configured to use npm, Inc.’s public registry at
+<p>npm is configured to use the <strong>npm public registry</strong> at
 <a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default. Use of the npm public registry is
-subject to terms of use available at <a href="https://www.npmjs.com/policies/terms">https://www.npmjs.com/policies/terms</a>.</p>
+subject to terms of use available at <a href="https://docs.npmjs.com/policies/terms">https://docs.npmjs.com/policies/terms</a>.</p>
 <p>You can configure npm to use any compatible registry you like, and even run
-your own registry. Use of someone else’s registry may be governed by their
+your own registry. Use of someone else's registry may be governed by their
 terms of use.</p>
-<p>npm’s package registry implementation supports several
+<p>npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.</p>
 <p>The npm public registry is powered by a CouchDB database,
-of which there is a public mirror at
-<a href="https://skimdb.npmjs.com/registry">https://skimdb.npmjs.com/registry</a>.  The code for the couchapp is
-available at <a href="https://github.com/npm/npm-registry-couchapp">https://github.com/npm/npm-registry-couchapp</a>.</p>
+of which there is a public mirror at <a href="https://skimdb.npmjs.com/registry">https://skimdb.npmjs.com/registry</a>.</p>
 <p>The registry URL used is determined by the scope of the package (see
 <a href="../using-npm/scope.html"><code>scope</code></a>. If no scope is specified, the default registry is used, which is
 supplied by the <code>registry</code> config parameter.  See <a href="../commands/npm-config.html"><code>npm config</code></a>,
-<a href="../configuring-npm/npmrc.html"><code>npmrc</code></a>, and <a href="../using-npm/config.html"><code>config</code></a> for more on managing npm’s configuration.</p>
+<a href="../configuring-npm/npmrc.html"><code>npmrc</code></a>, and <a href="../using-npm/config.html"><code>config</code></a> for more on managing npm's configuration.</p>
+<p>When the default registry is used in a package-lock or shrinkwrap is has the
+special meaning of "the currently configured registry". If you create a lock
+file while using the default registry you can switch to another registry and
+npm will install packages from the new registry, but if you create a lock
+file while using a custom registry packages will be installed from that
+registry even after you change to another registry.</p>
 <h3 id="does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</h3>
 <p>Yes.</p>
 <p>When making requests of the registry npm adds two headers with information
@@ -174,10 +179,10 @@ about your environment:</p>
 scope. In the future npm hopes to build registry features that use this
 information to allow you to customize your experience for your
 organization.</li>
-<li><code>Npm-In-CI</code> – Set to “true” if npm believes this install is running in a
-continuous integration environment, “false” otherwise. This is detected by
+<li><code>Npm-In-CI</code> – Set to "true" if npm believes this install is running in a
+continuous integration environment, "false" otherwise. This is detected by
 looking for the following environment variables: <code>CI</code>, <code>TDDIUM</code>,
-<code>JENKINS_URL</code>, <code>bamboo.buildKey</code>. If you’d like to learn more you may find
+<code>JENKINS_URL</code>, <code>bamboo.buildKey</code>. If you'd like to learn more you may find
 the <a href="https://github.com/npm/npm-registry-client/pull/129">original PR</a>
 interesting.
 This is used to gather better metrics on how npm is used by humans, versus
@@ -185,38 +190,20 @@ build farms.</li>
 </ul>
 <p>The npm registry does not try to correlate the information in these headers
 with any authenticated accounts that may be used in the same requests.</p>
-<h3 id="can-i-run-my-own-private-registry">Can I run my own private registry?</h3>
-<p>Yes!</p>
-<p>The easiest way is to replicate the couch database, and use the same (or
-similar) design doc to implement the APIs.</p>
-<p>If you set up continuous replication from the official CouchDB, and then
-set your internal CouchDB as the registry config, then you’ll be able
-to read any published packages, in addition to your private ones, and by
-default will only publish internally.</p>
-<p>If you then want to publish a package for the whole world to see, you can
-simply override the <code>--registry</code> option for that <code>publish</code> command.</p>
-<h3 id="i-dont-want-my-package-published-in-the-official-registry-its-private">I don’t want my package published in the official registry. It’s private.</h3>
-<p>Set <code>"private": true</code> in your package.json to prevent it from being
+<h3 id="how-can-i-prevent-my-package-from-being-published-in-the-official-registry">How can I prevent my package from being published in the official registry?</h3>
+<p>Set <code>"private": true</code> in your <code>package.json</code> to prevent it from being
 published at all, or
 <code>"publishConfig":{"registry":"http://my-internal-registry.local"}</code>
-to force it to be published only to your internal registry.</p>
+to force it to be published only to your internal/private registry.</p>
 <p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more info on what goes in the package.json file.</p>
-<h3 id="will-you-replicate-from-my-registry-into-the-public-one">Will you replicate from my registry into the public one?</h3>
-<p>No.  If you want things to be public, then publish them into the public
-registry using npm.  What little security there is would be for nought
-otherwise.</p>
-<h3 id="do-i-have-to-use-couchdb-to-build-a-registry-that-npm-can-talk-to">Do I have to use couchdb to build a registry that npm can talk to?</h3>
-<p>No, but it’s way easier.  Basically, yes, you do, or you have to
-effectively implement the entire CouchDB API anyway.</p>
-<h3 id="is-there-a-website-or-something-to-see-package-docs-and-such">Is there a website or something to see package docs and such?</h3>
-<p>Yes, head over to <a href="https://www.npmjs.com/">https://www.npmjs.com/</a></p>
+<h3 id="where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other's, published packages?</h3>
+<p><a href="https://www.npmjs.com/">https://www.npmjs.com/</a></p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../using-npm/developers.html">npm developers</a></li>
-<li><a href="../using-npm/disputes.html">npm disputes</a></li>
 </ul>
 </div>
 

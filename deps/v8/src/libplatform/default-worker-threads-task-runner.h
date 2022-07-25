@@ -47,13 +47,14 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
     explicit WorkerThread(DefaultWorkerThreadsTaskRunner* runner);
     ~WorkerThread() override;
 
+    WorkerThread(const WorkerThread&) = delete;
+    WorkerThread& operator=(const WorkerThread&) = delete;
+
     // This thread attempts to get tasks in a loop from |runner_| and run them.
     void Run() override;
 
    private:
     DefaultWorkerThreadsTaskRunner* runner_;
-
-    DISALLOW_COPY_AND_ASSIGN(WorkerThread);
   };
 
   // Called by the WorkerThread. Gets the next take (delayed or immediate) to be

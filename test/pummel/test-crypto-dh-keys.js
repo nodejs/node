@@ -21,8 +21,14 @@
 
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+
+if (!common.hasCrypto) {
   common.skip('node compiled without OpenSSL.');
+}
+
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
+}
 
 const assert = require('assert');
 const crypto = require('crypto');

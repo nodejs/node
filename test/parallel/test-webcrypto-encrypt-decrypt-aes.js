@@ -6,9 +6,13 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { getRandomValues, subtle } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
+  // Using a copy of plaintext to prevent tampering of the original
+  plaintext = Buffer.from(plaintext);
+
   const key = await subtle.importKey(
     'raw',
     keyBuffer,
@@ -23,8 +27,10 @@ async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
     Buffer.from(output).toString('hex'),
     Buffer.from(result).toString('hex'));
 
-  const check = await subtle.decrypt(algorithm, key, output);
-  output[0] = 255 - output[0];
+  // Converting the returned ArrayBuffer into a Buffer right away,
+  // so that the next line works
+  const check = Buffer.from(await subtle.decrypt(algorithm, key, output));
+  check[0] = 255 - check[0];
 
   assert.strictEqual(
     Buffer.from(check).toString('hex'),
@@ -208,8 +214,8 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
       ['encrypt', 'decrypt'],
     );
 
-    const iv = getRandomValues(new Uint8Array(12));
-    const aad = getRandomValues(new Uint8Array(32));
+    const iv = webcrypto.getRandomValues(new Uint8Array(12));
+    const aad = webcrypto.getRandomValues(new Uint8Array(32));
 
     const encrypted = await subtle.encrypt(
       {
@@ -219,7 +225,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
         tagLength: 128
       },
       secretKey,
-      getRandomValues(new Uint8Array(32))
+      webcrypto.getRandomValues(new Uint8Array(32))
     );
 
     await subtle.decrypt(

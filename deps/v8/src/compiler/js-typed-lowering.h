@@ -20,6 +20,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -93,6 +94,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
+  CompilationDependencies* dependencies() const;
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;

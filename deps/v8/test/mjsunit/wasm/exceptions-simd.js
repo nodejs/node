@@ -4,14 +4,14 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --experimental-wasm-simd --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 (function TestThrowS128Default() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var kSig_v_s = makeSig([kWasmS128], []);
-  var except = builder.addException(kSig_v_s);
+  var except = builder.addTag(kSig_v_s);
   builder.addFunction("throw_simd", kSig_v_v)
       .addLocals(kWasmS128, 1)
       .addBody([
@@ -29,20 +29,18 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var kSig_v_s = makeSig([kWasmS128], []);
-  var except = builder.addException(kSig_v_s);
+  var except = builder.addTag(kSig_v_s);
   builder.addFunction("throw_catch_simd", kSig_i_v)
       .addLocals(kWasmS128, 1)
       .addBody([
         kExprTry, kWasmS128,
           kExprLocalGet, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kExprLocalGet, 0,
         kSimdPrefix, kExprI32x4Eq,
-        kSimdPrefix, kExprV8x16AllTrue,
+        kSimdPrefix, kExprI8x16AllTrue,
       ])
       .exportFunc();
   var instance = builder.instantiate();
@@ -54,7 +52,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var kSig_v_s = makeSig([kWasmS128], []);
-  var except = builder.addException(kSig_v_s);
+  var except = builder.addTag(kSig_v_s);
   const in_idx = 0x10;   // Input index in memory.
   const out_idx = 0x20;  // Output index in memory.
   builder.addImportedMemory("env", "memory");
@@ -65,9 +63,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Const, in_idx,
           kSimdPrefix, kExprS128LoadMem, 0, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kSimdPrefix, kExprS128StoreMem, 0, 0,
       ])

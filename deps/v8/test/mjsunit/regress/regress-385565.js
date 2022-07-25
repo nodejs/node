@@ -50,10 +50,6 @@ callsFReceiver(o1);
 var r2 = callsFReceiver(o1);
 assertOptimized(callsFReceiver);
 callsFReceiver(o2);
-if (%DynamicMapChecksEnabled()) {
-  // Call it again to ensure a deopt when dynamic map checks is enabled.
-  callsFReceiver(o2);
-}
 assertUnoptimized(callsFReceiver);
 
 %PrepareFunctionForOptimization(callsFReceiver);
@@ -76,9 +72,4 @@ assertEquals(1, r1);
 assertTrue(r1 === r2);
 assertTrue(r2 === r3);
 
-
-if (%DynamicMapChecksEnabled()) {
-  assertEquals(11, calls);
-} else {
-  assertEquals(10, calls);
-}
+assertEquals(10, calls);

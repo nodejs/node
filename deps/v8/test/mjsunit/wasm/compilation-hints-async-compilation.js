@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-compilation-hints
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testCompileWithBadLazyHint() {
   print(arguments.callee.name);
@@ -35,7 +35,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertPromiseResult(WebAssembly.compile(bytes)
     .then(assertUnreachable,
           error => assertEquals("WebAssembly.compile(): type error in " +
-          "merge[0] (expected i32, got i64) @+56", error.message)));
+          "fallthru[0] (expected i32, got i64) @+56", error.message)));
 })();
 
 (function testCompileEmptyModule() {

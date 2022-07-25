@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let mem = new WebAssembly.Memory({initial: 0});
 let builder = new WasmModuleBuilder();

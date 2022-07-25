@@ -21,7 +21,6 @@
 // ignored entries get .resume() called on them straight away
 
 const warner = require('./warn-mixin.js')
-const path = require('path')
 const Header = require('./header.js')
 const EE = require('events')
 const Yallist = require('yallist')
@@ -85,13 +84,14 @@ module.exports = warner(class Parser extends EE {
 
     if (opt.ondone)
       this.on(DONE, opt.ondone)
-    else
+    else {
       this.on(DONE, _ => {
         this.emit('prefinish')
         this.emit('finish')
         this.emit('end')
         this.emit('close')
       })
+    }
 
     this.strict = !!opt.strict
     this.maxMetaEntrySize = opt.maxMetaEntrySize || maxMetaEntrySize
@@ -166,9 +166,8 @@ module.exports = warner(class Parser extends EE {
                   this[SAW_VALID_ENTRY] = true
               }
               entry.on('end', onend)
-            } else {
+            } else
               this[SAW_VALID_ENTRY] = true
-            }
           }
 
           if (entry.meta) {
@@ -249,7 +248,7 @@ module.exports = warner(class Parser extends EE {
           this.emit('drain')
       } else
         re.once('drain', _ => this.emit('drain'))
-     }
+    }
   }
 
   [CONSUMEBODY] (chunk, position) {
@@ -352,7 +351,7 @@ module.exports = warner(class Parser extends EE {
           this[CONSUMECHUNK]()
         })
         this[WRITING] = true
-        const ret = this[UNZIP][ended ? 'end' : 'write' ](chunk)
+        const ret = this[UNZIP][ended ? 'end' : 'write'](chunk)
         this[WRITING] = false
         return ret
       }
@@ -415,9 +414,8 @@ module.exports = warner(class Parser extends EE {
         const c = this[BUFFER]
         this[BUFFER] = null
         this[CONSUMECHUNKSUB](c)
-      } else {
+      } else
         this[CONSUMECHUNKSUB](chunk)
-      }
 
       while (this[BUFFER] &&
           this[BUFFER].length >= 512 &&
@@ -438,7 +436,7 @@ module.exports = warner(class Parser extends EE {
     // we know that we are in CONSUMING mode, so anything written goes into
     // the buffer.  Advance the position and put any remainder in the buffer.
     let position = 0
-    let length = chunk.length
+    const length = chunk.length
     while (position + 512 <= length && !this[ABORTED] && !this[SAW_EOF]) {
       switch (this[STATE]) {
         case 'begin':

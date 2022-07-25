@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --no-warnings
+// Flags: --expose-internals --no-warnings
 
 const common = require('../common');
 const { once, EventEmitter } = require('events');
@@ -9,6 +9,7 @@ const {
   fail,
   rejects,
 } = require('assert');
+const { kEvents } = require('internal/event_target');
 
 async function onceAnEvent() {
   const ee = new EventEmitter();
@@ -22,6 +23,18 @@ async function onceAnEvent() {
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
 }
+
+async function onceAnEventWithNullOptions() {
+  const ee = new EventEmitter();
+
+  process.nextTick(() => {
+    ee.emit('myevent', 42);
+  });
+
+  const [value] = await once(ee, 'myevent', null);
+  strictEqual(value, 42);
+}
+
 
 async function onceAnEventWithTwoArgs() {
   const ee = new EventEmitter();
@@ -51,6 +64,32 @@ async function catchesErrors() {
   strictEqual(err, expected);
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
+}
+
+async function catchesErrorsWithAbortSignal() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+  const signal = ac.signal;
+
+  const expected = new Error('boom');
+  let err;
+  process.nextTick(() => {
+    ee.emit('error', expected);
+  });
+
+  try {
+    const promise = once(ee, 'myevent', { signal });
+    strictEqual(ee.listenerCount('error'), 1);
+    strictEqual(signal[kEvents].size, 1);
+
+    await promise;
+  } catch (e) {
+    err = e;
+  }
+  strictEqual(err, expected);
+  strictEqual(ee.listenerCount('error'), 0);
+  strictEqual(ee.listenerCount('myevent'), 0);
+  strictEqual(signal[kEvents].size, 0);
 }
 
 async function stopListeningAfterCatchingError() {
@@ -121,9 +160,8 @@ async function prioritizesEventEmitter() {
 
 async function abortSignalBefore() {
   const ee = new EventEmitter();
-  const ac = new AbortController();
   ee.on('error', common.mustNotCall());
-  ac.abort();
+  const abortedSignal = AbortSignal.abort();
 
   await Promise.all([1, {}, 'hi', null, false].map((signal) => {
     return rejects(once(ee, 'foo', { signal }), {
@@ -131,7 +169,7 @@ async function abortSignalBefore() {
     });
   }));
 
-  return rejects(once(ee, 'foo', { signal: ac.signal }), {
+  return rejects(once(ee, 'foo', { signal: abortedSignal }), {
     name: 'AbortError'
   });
 }
@@ -154,13 +192,28 @@ async function abortSignalAfterEvent() {
     ee.emit('foo');
     ac.abort();
   });
-  await once(ee, 'foo', { signal: ac.signal });
+  const promise = once(ee, 'foo', { signal: ac.signal });
+  strictEqual(ac.signal[kEvents].size, 1);
+  await promise;
+  strictEqual(ac.signal[kEvents].size, 0);
+}
+
+async function abortSignalRemoveListener() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+
+  try {
+    process.nextTick(() => ac.abort());
+    await once(ee, 'test', { signal: ac.signal });
+  } catch {
+    strictEqual(ee.listeners('test').length, 0);
+    strictEqual(ee.listeners('error').length, 0);
+  }
 }
 
 async function eventTargetAbortSignalBefore() {
   const et = new EventTarget();
-  const ac = new AbortController();
-  ac.abort();
+  const abortedSignal = AbortSignal.abort();
 
   await Promise.all([1, {}, 'hi', null, false].map((signal) => {
     return rejects(once(et, 'foo', { signal }), {
@@ -168,7 +221,7 @@ async function eventTargetAbortSignalBefore() {
     });
   }));
 
-  return rejects(once(et, 'foo', { signal: ac.signal }), {
+  return rejects(once(et, 'foo', { signal: abortedSignal }), {
     name: 'AbortError'
   });
 }
@@ -195,8 +248,10 @@ async function eventTargetAbortSignalAfterEvent() {
 
 Promise.all([
   onceAnEvent(),
+  onceAnEventWithNullOptions(),
   onceAnEventWithTwoArgs(),
   catchesErrors(),
+  catchesErrorsWithAbortSignal(),
   stopListeningAfterCatchingError(),
   onceError(),
   onceWithEventTarget(),
@@ -205,6 +260,7 @@ Promise.all([
   abortSignalBefore(),
   abortSignalAfter(),
   abortSignalAfterEvent(),
+  abortSignalRemoveListener(),
   eventTargetAbortSignalBefore(),
   eventTargetAbortSignalAfter(),
   eventTargetAbortSignalAfterEvent(),

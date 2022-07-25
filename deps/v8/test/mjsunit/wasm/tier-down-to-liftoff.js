@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_functions = 200;
 
@@ -39,7 +39,7 @@ function checkTieredUp(instance) {
 }
 
 function check(instance) {
-  %WasmTierDownModule(instance);
+  %WasmTierDown();
   checkTieredDown(instance);
 
   for (let i = 0; i < num_functions; ++i) {
@@ -47,7 +47,7 @@ function check(instance) {
   }
   checkTieredDown(instance);
 
-  %WasmTierUpModule(instance);
+  %WasmTierUp();
   checkTieredUp(instance);
 }
 

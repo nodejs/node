@@ -98,7 +98,7 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* req,
                            int status,
                            struct addrinfo* res) {
   ASSERT(status == UV_EAI_CANCELED);
-  ASSERT(res == NULL);
+  ASSERT_NULL(res);
   uv_freeaddrinfo(res);  /* Should not crash. */
 }
 
@@ -108,8 +108,8 @@ static void getnameinfo_cb(uv_getnameinfo_t* handle,
                            const char* hostname,
                            const char* service) {
   ASSERT(status == UV_EAI_CANCELED);
-  ASSERT(hostname == NULL);
-  ASSERT(service == NULL);
+  ASSERT_NULL(hostname);
+  ASSERT_NULL(service);
 }
 
 

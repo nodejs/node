@@ -30,6 +30,7 @@ namespace internal {
   T(InvalidQuantifier, "Invalid quantifier")                              \
   T(InvalidGroup, "Invalid group")                                        \
   T(MultipleFlagDashes, "Multiple dashes in flag group")                  \
+  T(NotLinear, "Cannot be executed in linear time")                       \
   T(RepeatedFlag, "Repeated flag in flag group")                          \
   T(InvalidFlagGroup, "Invalid flag group")                               \
   T(TooManyCaptures, "Too many captures")                                 \
@@ -51,6 +52,11 @@ enum class RegExpError : uint32_t {
 };
 
 V8_EXPORT_PRIVATE const char* RegExpErrorString(RegExpError error);
+
+inline constexpr bool RegExpErrorIsStackOverflow(RegExpError error) {
+  return error == RegExpError::kStackOverflow ||
+         error == RegExpError::kAnalysisStackOverflow;
+}
 
 }  // namespace internal
 }  // namespace v8

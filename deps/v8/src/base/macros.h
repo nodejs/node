@@ -10,12 +10,18 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(x) x
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
+
+#define CONCAT_(a, b) a##b
+#define CONCAT(a, b) CONCAT_(a, b)
+// Creates an unique identifier. Useful for scopes to avoid shadowing names.
+#define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field
@@ -109,21 +115,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
 }
 
 // Explicitly declare the assignment operator as deleted.
+// Note: This macro is deprecated and will be removed soon. Please explicitly
+// delete the assignment operator instead.
 #define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
-
-// Explicitly declare the copy constructor and assignment operator as deleted.
-// This also deletes the implicit move constructor and implicit move assignment
-// operator, but still allows to manually define them.
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&) = delete;      \
-  DISALLOW_ASSIGN(TypeName)
 
 // Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
 // This is especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName() = delete;                           \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
+  TypeName(const TypeName&) = delete;            \
+  DISALLOW_ASSIGN(TypeName)
 
 // Disallow copying a type, but provide default construction, move construction
 // and move assignment. Especially useful for move-only structs.
@@ -136,7 +138,8 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)       \
   TypeName(TypeName&&) V8_NOEXCEPT = default;            \
   TypeName& operator=(TypeName&&) V8_NOEXCEPT = default; \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
+  TypeName(const TypeName&) = delete;                    \
+  DISALLOW_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.
 // This should be used in the private: declarations for a class
@@ -157,17 +160,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
-// Define DISABLE_ASAN macro.
-#ifdef V8_USE_ADDRESS_SANITIZER
-#define DISABLE_ASAN __attribute__((no_sanitize_address))
-#else
-#define DISABLE_ASAN
-#endif
-
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
 #define V8_USE_MEMORY_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(undefined_behavior_sanitizer)
+#define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
 #endif
 #endif
 
@@ -183,12 +186,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
   __declspec(guard(nocf))
 #else
 #define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
-#endif
-
-#if V8_CC_GNU
-#define V8_IMMEDIATE_CRASH() __builtin_trap()
-#else
-#define V8_IMMEDIATE_CRASH() ((void(*)())0)()
 #endif
 
 // A convenience wrapper around static_assert without a string message argument.
@@ -254,12 +251,6 @@ struct Use {
     (void)unused_tmp_array_for_use_macro;                          \
   } while (false)
 
-// Evaluate the instantiations of an expression with parameter packs.
-// Since USE has left-to-right evaluation order of it's arguments,
-// the parameter pack is iterated from left to right and side effects
-// have defined behavior.
-#define ITERATE_PACK(...) USE(0, ((__VA_ARGS__), 0)...)
-
 }  // namespace base
 }  // namespace v8
 
@@ -316,7 +307,7 @@ V8_INLINE A implicit_cast(A x) {
 #endif
 
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
 #undef V8PRIdPTR
@@ -418,5 +409,28 @@ bool is_inbounds(float_t v) {
 #endif
 
 #endif  // V8_OS_WIN
+
+// Defines IF_WASM, to be used in macro lists for elements that should only be
+// there if WebAssembly is enabled.
+#if V8_ENABLE_WEBASSEMBLY
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_WASM(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM(V, ...)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+// Defines IF_TSAN, to be used in macro lists for elements that should only be
+// there if TSAN is enabled.
+#ifdef V8_IS_TSAN
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSAN(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_TSAN(V, ...)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef GOOGLE3
+// Disable FRIEND_TEST macro in Google3.
+#define FRIEND_TEST(test_case_name, test_name)
+#endif
 
 #endif  // V8_BASE_MACROS_H_

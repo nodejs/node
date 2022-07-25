@@ -14,8 +14,8 @@ const kSmallOrderedHashTableNotFound: constexpr int31
 const kSmallOrderedHashTableLoadFactor: constexpr int31
     generates 'SmallOrderedHashTable<int>::kLoadFactor';
 
-@noVerifier
 @abstract
+@doNotGenerateCppClass
 extern class SmallOrderedHashTable extends HeapObject
     generates 'TNode<HeapObject>' {
 }
@@ -23,7 +23,7 @@ extern class SmallOrderedHashTable extends HeapObject
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();
 
-@noVerifier
+@doNotGenerateCppClass
 extern class SmallOrderedHashSet extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -40,7 +40,7 @@ extern class SmallOrderedHashSet extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashSet(capacity: intptr): SmallOrderedHashSet {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashSet{
     map: kSmallOrderedHashSetMap,
@@ -62,7 +62,7 @@ struct HashMapEntry {
 extern macro SmallOrderedHashMapMapConstant(): Map;
 const kSmallOrderedHashMapMap: Map = SmallOrderedHashMapMapConstant();
 
-@noVerifier
+@doNotGenerateCppClass
 extern class SmallOrderedHashMap extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -79,7 +79,7 @@ extern class SmallOrderedHashMap extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashMap(capacity: intptr): SmallOrderedHashMap {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashMap{
     map: kSmallOrderedHashMapMap,
@@ -99,13 +99,16 @@ struct NameDictionaryEntry {
   property_details: Smi|TheHole;
 }
 
-@noVerifier
+@doNotGenerateCppClass
 extern class SmallOrderedNameDictionary extends SmallOrderedHashTable {
   hash: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding_0: int32;
+  @ifnot(TAGGED_SIZE_8_BYTES) padding_0: void;
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
   const number_of_buckets: uint8;
-  padding: uint8;
+  @if(TAGGED_SIZE_8_BYTES) padding_1[5]: uint8;
+  @ifnot(TAGGED_SIZE_8_BYTES) padding_1[1]: uint8;
   data_table[Convert<intptr>(number_of_buckets) * kSmallOrderedHashTableLoadFactor]:
       NameDictionaryEntry;
   hash_table[number_of_buckets]: uint8;

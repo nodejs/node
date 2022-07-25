@@ -21,7 +21,7 @@ TEST_F(WasmCapiTest, StartupErrors) {
   start_func->EmitCode(code, static_cast<uint32_t>(sizeof(code)));
   start_func->Emit(kExprEnd);
   builder()->MarkStartFunction(start_func);
-  builder()->AddImport(CStrVector("dummy"), &sig);
+  builder()->AddImport(base::CStrVector("dummy"), &sig);
   Compile();
   own<Trap> trap;
 

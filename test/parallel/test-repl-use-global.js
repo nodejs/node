@@ -11,7 +11,7 @@ const assert = require('assert');
 const globalTestCases = [
   [false, 'undefined'],
   [true, '\'tacos\''],
-  [undefined, 'undefined']
+  [undefined, 'undefined'],
 ];
 
 const globalTest = (useGlobal, cb, output) => (err, repl) => {

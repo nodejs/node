@@ -1,8 +1,0 @@
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
-const cmd = (args, cb) => root(args).then(() => cb()).catch(cb)
-const usage = usageUtil('root', 'npm root [-g]')
-const root = async (args, cb) => output(npm.dir)
-module.exports = Object.assign(cmd, { usage, completion })

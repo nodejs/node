@@ -56,3 +56,17 @@ for (const obj of throwsObjs) {
 }
 
 e.emit('maxListeners');
+
+{
+  const { EventEmitter, defaultMaxListeners } = events;
+  for (const obj of throwsObjs) {
+    assert.throws(() => EventEmitter.setMaxListeners(obj), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+  }
+
+  assert.throws(
+    () => EventEmitter.setMaxListeners(defaultMaxListeners, 'INVALID_EMITTER'),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+}

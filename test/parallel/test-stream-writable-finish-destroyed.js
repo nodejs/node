@@ -31,3 +31,13 @@ const { Writable } = require('stream');
   w.write('asd');
   w.destroy();
 }
+
+{
+  const w = new Writable({
+    write() {
+    }
+  });
+  w.on('finish', common.mustNotCall());
+  w.end();
+  w.destroy();
+}

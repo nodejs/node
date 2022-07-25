@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-private-methods
-
 let { session, contextGroup, Protocol } = InspectorTest.start(
   "Test private class methods"
 );
@@ -58,7 +56,15 @@ InspectorTest.runAsyncTestSuite([
       objectId: frame.this.objectId
     });
 
-    InspectorTest.log('privateProperties on the base class instance');
+    InspectorTest.log('private properties on the base class instance');
+    InspectorTest.logMessage(result.privateProperties);
+
+    ({ result } = await Protocol.Runtime.getProperties({
+      objectId: frame.this.objectId,
+      accessorPropertiesOnly: true,
+    }));
+
+    InspectorTest.log('private accessors properties on the base class instance');
     InspectorTest.logMessage(result.privateProperties);
 
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({

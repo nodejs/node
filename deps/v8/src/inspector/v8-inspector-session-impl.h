@@ -38,6 +38,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                                                         V8Inspector::Channel*,
                                                         StringView state);
   ~V8InspectorSessionImpl() override;
+  V8InspectorSessionImpl(const V8InspectorSessionImpl&) = delete;
+  V8InspectorSessionImpl& operator=(const V8InspectorSessionImpl&) = delete;
 
   V8InspectorImpl* inspector() const { return m_inspector; }
   V8ConsoleAgentImpl* consoleAgent() { return m_consoleAgent.get(); }
@@ -47,6 +49,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
+
+  std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+  initializeCommandLineAPIScope(int executionContextId) override;
 
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
@@ -93,7 +98,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
 
-  void triggerPreciseCoverageDeltaUpdate(StringView occassion) override;
+  void triggerPreciseCoverageDeltaUpdate(StringView occasion) override;
 
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
@@ -129,8 +134,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   std::vector<std::unique_ptr<V8InspectorSession::Inspectable>>
       m_inspectedObjects;
   bool use_binary_protocol_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorSessionImpl);
 };
 
 }  // namespace v8_inspector

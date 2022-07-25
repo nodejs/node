@@ -80,7 +80,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with no filter.
+     * Convenience constructor with no filter.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -89,7 +89,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with no filter and FORWARD direction.
+     * Convenience constructor with no filter and FORWARD direction.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -97,7 +97,7 @@ public:
                             UErrorCode& status);*/
 
     /**
-     * Covenience constructor with FORWARD direction.
+     * Convenience constructor with FORWARD direction.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     /*RuleBasedTransliterator(const UnicodeString& id,
@@ -108,7 +108,7 @@ private:
 
      friend class TransliteratorRegistry; // to access TransliterationRuleData convenience ctor
     /**
-     * Covenience constructor.
+     * Convenience constructor.
      * @param id            the id for the transliterator.
      * @param theData       the rule data for the transliterator.
      * @param adoptedFilter the filter for the transliterator
@@ -144,7 +144,7 @@ public:
      * Implement Transliterator API.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    virtual RuleBasedTransliterator* clone() const;
+    virtual RuleBasedTransliterator* clone() const override;
 
 protected:
     /**
@@ -152,7 +152,7 @@ protected:
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offsets,
-                                     UBool isIncremental) const;
+                                     UBool isIncremental) const override;
 
 public:
     /**
@@ -168,19 +168,19 @@ public:
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     virtual UnicodeString& toRules(UnicodeString& result,
-                                   UBool escapeUnprintable) const;
+                                   UBool escapeUnprintable) const override;
 
 protected:
     /**
      * Implement Transliterator framework
      */
-    virtual void handleGetSourceSet(UnicodeSet& result) const;
+    virtual void handleGetSourceSet(UnicodeSet& result) const override;
 
 public:
     /**
      * Override Transliterator framework
      */
-    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const;
+    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const override;
 
     /**
      * Return the class ID for this class.  This is useful only for
@@ -200,12 +200,12 @@ public:
      * is to implement a simple version of RTTI, since not all C++
      * compilers support genuine RTTI.  Polymorphic operator==() and
      * clone() methods call this method.
-     *
+     * 
      * @return The class ID for this object. All objects of a given
      * class have the same class ID.  Objects of other classes have
      * different class IDs.
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
 private:
 

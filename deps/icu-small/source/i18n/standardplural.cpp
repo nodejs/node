@@ -23,7 +23,7 @@
 U_NAMESPACE_BEGIN
 
 static const char *gKeywords[StandardPlural::COUNT] = {
-    "zero", "one", "two", "few", "many", "other"
+    "zero", "one", "two", "few", "many", "other", "=0", "=1"
 };
 
 const char *StandardPlural::getKeyword(Form p) {
@@ -60,21 +60,55 @@ int32_t StandardPlural::indexOrNegativeFromString(const char *keyword) {
             return ZERO;
         }
         break;
+    case '=':
+        if (uprv_strcmp(keyword, "0") == 0) {
+            return EQ_0;
+        } else if (uprv_strcmp(keyword, "1") == 0) {
+            return EQ_1;
+        }
+        break;
+    // Also allow "0" and "1"
+    case '0':
+        if (*keyword == 0) {
+            return EQ_0;
+        }
+        break;
+    case '1':
+        if (*keyword == 0) {
+            return EQ_1;
+        }
+        break;
     default:
         break;
     }
     return -1;
 }
 
-static const UChar gZero[] = { 0x7A, 0x65, 0x72, 0x6F };
-static const UChar gOne[] = { 0x6F, 0x6E, 0x65 };
-static const UChar gTwo[] = { 0x74, 0x77, 0x6F };
-static const UChar gFew[] = { 0x66, 0x65, 0x77 };
-static const UChar gMany[] = { 0x6D, 0x61, 0x6E, 0x79 };
-static const UChar gOther[] = { 0x6F, 0x74, 0x68, 0x65, 0x72 };
+static const UChar gZero[] = u"zero";
+static const UChar gOne[] = u"one";
+static const UChar gTwo[] = u"two";
+static const UChar gFew[] = u"few";
+static const UChar gMany[] = u"many";
+static const UChar gOther[] = u"other";
+static const UChar gEq0[] = u"=0";
+static const UChar gEq1[] = u"=1";
 
 int32_t StandardPlural::indexOrNegativeFromString(const UnicodeString &keyword) {
     switch (keyword.length()) {
+    case 1:
+        if (keyword.charAt(0) == '0') {
+            return EQ_0;
+        } else if (keyword.charAt(0) == '1') {
+            return EQ_1;
+        }
+        break;
+    case 2:
+        if (keyword.compare(gEq0, 2) == 0) {
+            return EQ_0;
+        } else if (keyword.compare(gEq1, 2) == 0) {
+            return EQ_1;
+        }
+        break;
     case 3:
         if (keyword.compare(gOne, 3) == 0) {
             return ONE;

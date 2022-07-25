@@ -15,9 +15,10 @@
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
 #include "src/base/bits.h"
+#include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/numbers/conversions.h"
-#include "src/numbers/double.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -90,14 +91,14 @@ inline double DoubleToInteger(double x) {
 // Implements most of https://tc39.github.io/ecma262/#sec-toint32.
 int32_t DoubleToInt32(double x) {
   if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
-    int32_t i = static_cast<int32_t>(x);
-    if (FastI2D(i) == x) return i;
+    // All doubles within these limits are trivially convertable to an int.
+    return static_cast<int32_t>(x);
   }
-  Double d(x);
+  base::Double d(x);
   int exponent = d.Exponent();
   uint64_t bits;
   if (exponent < 0) {
-    if (exponent <= -Double::kSignificandSize) return 0;
+    if (exponent <= -base::Double::kSignificandSize) return 0;
     bits = d.Significand() >> -exponent;
   } else {
     if (exponent > 31) return 0;
@@ -107,6 +108,35 @@ int32_t DoubleToInt32(double x) {
     bits = (d.Significand() << exponent) & 0xFFFFFFFFul;
   }
   return static_cast<int32_t>(d.Sign() * static_cast<int64_t>(bits));
+}
+
+// Implements https://heycam.github.io/webidl/#abstract-opdef-converttoint for
+// the general case (step 1 and steps 8 to 12). Support for Clamp and
+// EnforceRange will come in the future.
+inline int64_t DoubleToWebIDLInt64(double x) {
+  if ((std::isfinite(x)) && (x <= kMaxSafeInteger) && (x >= kMinSafeInteger)) {
+    // All doubles within these limits are trivially convertable to an int.
+    return static_cast<int64_t>(x);
+  }
+  base::Double d(x);
+  int exponent = d.Exponent();
+  uint64_t bits;
+  if (exponent < 0) {
+    if (exponent <= -base::Double::kSignificandSize) return 0;
+    bits = d.Significand() >> -exponent;
+  } else {
+    if (exponent > 63) return 0;
+    bits = (d.Significand() << exponent);
+    int64_t bits_int64 = static_cast<int64_t>(bits);
+    if (bits_int64 == std::numeric_limits<int64_t>::min()) {
+      return bits_int64;
+    }
+  }
+  return static_cast<int64_t>(d.Sign() * static_cast<int64_t>(bits));
+}
+
+inline uint64_t DoubleToWebIDLUint64(double x) {
+  return static_cast<uint64_t>(DoubleToWebIDLInt64(x));
 }
 
 bool DoubleToSmiInteger(double value, int* smi_int_value) {
@@ -163,12 +193,12 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
 
 int32_t NumberToInt32(Object number) {
   if (number.IsSmi()) return Smi::ToInt(number);
-  return DoubleToInt32(number.Number());
+  return DoubleToInt32(HeapNumber::cast(number).value());
 }
 
 uint32_t NumberToUint32(Object number) {
   if (number.IsSmi()) return Smi::ToInt(number);
-  return DoubleToUint32(number.Number());
+  return DoubleToUint32(HeapNumber::cast(number).value());
 }
 
 uint32_t PositiveNumberToUint32(Object number) {
@@ -177,8 +207,7 @@ uint32_t PositiveNumberToUint32(Object number) {
     if (value <= 0) return 0;
     return value;
   }
-  DCHECK(number.IsHeapNumber());
-  double value = number.Number();
+  double value = HeapNumber::cast(number).value();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint32_t max = std::numeric_limits<uint32_t>::max();
@@ -188,7 +217,7 @@ uint32_t PositiveNumberToUint32(Object number) {
 
 int64_t NumberToInt64(Object number) {
   if (number.IsSmi()) return Smi::ToInt(number);
-  double d = number.Number();
+  double d = HeapNumber::cast(number).value();
   if (std::isnan(d)) return 0;
   if (d >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
     return std::numeric_limits<int64_t>::max();
@@ -205,8 +234,7 @@ uint64_t PositiveNumberToUint64(Object number) {
     if (value <= 0) return 0;
     return value;
   }
-  DCHECK(number.IsHeapNumber());
-  double value = number.Number();
+  double value = HeapNumber::cast(number).value();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint64_t max = std::numeric_limits<uint64_t>::max();
@@ -227,7 +255,6 @@ bool TryNumberToSize(Object number, size_t* result) {
     }
     return false;
   } else {
-    DCHECK(number.IsHeapNumber());
     double value = HeapNumber::cast(number).value();
     // If value is compared directly to the limit, the limit will be
     // casted to a double and could end up as limit + 1,

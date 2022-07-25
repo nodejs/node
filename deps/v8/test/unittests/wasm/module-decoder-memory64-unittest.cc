@@ -4,6 +4,7 @@
 
 #include "src/objects/objects-inl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -35,7 +36,7 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
         module_bytes.data() + module_bytes.size(), false, kWasmOrigin,
         isolate()->counters(), isolate()->metrics_recorder(),
         v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
-        isolate()->wasm_engine()->allocator());
+        wasm::GetWasmEngine()->allocator());
   }
 };
 

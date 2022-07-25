@@ -5,8 +5,8 @@
 #ifndef V8_STRINGS_UNICODE_DECODER_H_
 #define V8_STRINGS_UNICODE_DECODER_H_
 
+#include "src/base/vector.h"
 #include "src/strings/unicode.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -52,7 +52,7 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
  public:
   enum class Encoding : uint8_t { kAscii, kLatin1, kUtf16 };
 
-  explicit Utf8Decoder(const Vector<const uint8_t>& chars);
+  explicit Utf8Decoder(const base::Vector<const uint8_t>& chars);
 
   bool is_ascii() const { return encoding_ == Encoding::kAscii; }
   bool is_one_byte() const { return encoding_ <= Encoding::kLatin1; }
@@ -60,7 +60,8 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
   int non_ascii_start() const { return non_ascii_start_; }
 
   template <typename Char>
-  V8_EXPORT_PRIVATE void Decode(Char* out, const Vector<const uint8_t>& data);
+  V8_EXPORT_PRIVATE void Decode(Char* out,
+                                const base::Vector<const uint8_t>& data);
 
  private:
   Encoding encoding_;

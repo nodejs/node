@@ -12,38 +12,105 @@
 #include "src/heap/cppgc/marking-visitor.h"
 
 namespace cppgc {
+
+class SourceLocation;
+
 namespace internal {
-class MarkingState;
+class ConcurrentMarkingState;
+class BasicMarkingState;
+class MutatorMarkingState;
 }  // namespace internal
 }  // namespace cppgc
 
 namespace v8 {
 namespace internal {
 
+using cppgc::SourceLocation;
 using cppgc::TraceDescriptor;
 using cppgc::WeakCallback;
 using cppgc::internal::HeapBase;
-using cppgc::internal::MarkingState;
+using cppgc::internal::MutatorMarkingState;
 
-class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitor : public JSVisitor {
+class UnifiedHeapMarker;
+
+class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
  public:
-  UnifiedHeapMarkingVisitor(HeapBase&, MarkingState&, UnifiedHeapMarkingState&);
-  ~UnifiedHeapMarkingVisitor() override = default;
+  UnifiedHeapMarkingVisitorBase(HeapBase&, cppgc::internal::BasicMarkingState&,
+                                UnifiedHeapMarkingState&);
+  ~UnifiedHeapMarkingVisitorBase() override = default;
 
- private:
+ protected:
   // C++ handling.
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
-  void VisitRoot(const void*, TraceDescriptor) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final;
+  void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
+  void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
+                          TraceDescriptor weak_desc, WeakCallback callback,
+                          const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
+  void HandleMovableReference(const void**) final;
 
   // JS handling.
-  void Visit(const internal::JSMemberBase& ref) final;
+  void Visit(const TracedReferenceBase& ref) override;
 
-  MarkingState& marking_state_;
+  cppgc::internal::BasicMarkingState& marking_state_;
   UnifiedHeapMarkingState& unified_heap_marking_state_;
+
+  friend class UnifiedHeapMarker;
+};
+
+class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
+    : public UnifiedHeapMarkingVisitorBase {
+ public:
+  MutatorUnifiedHeapMarkingVisitor(HeapBase&, MutatorMarkingState&,
+                                   UnifiedHeapMarkingState&);
+  ~MutatorUnifiedHeapMarkingVisitor() override = default;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final;
+};
+
+class V8_EXPORT_PRIVATE MutatorMinorGCMarkingVisitor final
+    : public MutatorUnifiedHeapMarkingVisitor {
+ public:
+  using MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor;
+  ~MutatorMinorGCMarkingVisitor() override = default;
+
+ protected:
+  // Override and make the function empty, since we don't want to trace V8
+  // reference during cppgc's minor GC.
+  void Visit(const TracedReferenceBase&) final {}
+};
+
+class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor final
+    : public UnifiedHeapMarkingVisitorBase {
+ public:
+  ConcurrentUnifiedHeapMarkingVisitor(HeapBase&, Heap*,
+                                      cppgc::internal::ConcurrentMarkingState&);
+  ~ConcurrentUnifiedHeapMarkingVisitor() override;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final {
+    UNREACHABLE();
+  }
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final {
+    UNREACHABLE();
+  }
+
+  bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
+                                             size_t) final;
+
+ private:
+  // Visitor owns the local worklist. All remaining items are published on
+  // destruction of the visitor. This is good enough as concurrent visitation
+  // ends before computing the rest of the transitive closure on the main
+  // thread. Dynamically allocated as it is only present when the heaps are
+  // attached.
+  std::unique_ptr<MarkingWorklists::Local> local_marking_worklist_;
+  UnifiedHeapMarkingState concurrent_unified_heap_marking_state_;
 };
 
 }  // namespace internal

@@ -4,7 +4,7 @@ const common = require('../common');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.fork().on('message', function(msg) {
     if (msg === 'done') this.kill();
   });

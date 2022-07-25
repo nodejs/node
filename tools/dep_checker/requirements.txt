@@ -1,0 +1,3 @@
+gql[aiohttp]
+nvdlib==0.5.8
+packaging

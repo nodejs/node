@@ -289,12 +289,17 @@ const Conversion kFloat32RoundInstructions[] = {
 
 // MIPS64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {
-    {&RawMachineAssembler::Uint32Div, "Uint32Div", kMips64DivU,
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kMips64Cmp,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kMips64ModU,
+    {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kMips64Cmp,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kMips64MulHighU,
-     MachineType::Uint32()}};
+    {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
+     kMips64Cmp, MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kMips64Cmp,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
+     kMips64Cmp, MachineType::Uint32()},
+};
 
 }  // namespace
 
@@ -1159,10 +1164,22 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
       (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
   // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(1U, s[0]->OutputCount());
+  if (FLAG_debug_code && binop.arch_opcode == kMips64Cmp) {
+    ASSERT_EQ(6U, s.size());
+    EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kMips64Dshl, s[1]->arch_opcode());
+    EXPECT_EQ(kMips64Dshl, s[2]->arch_opcode());
+    EXPECT_EQ(kMips64Cmp, s[3]->arch_opcode());
+    EXPECT_EQ(kMips64AssertEqual, s[4]->arch_opcode());
+    EXPECT_EQ(kMips64Cmp, s[5]->arch_opcode());
+    EXPECT_EQ(2U, s[5]->InputCount());
+    EXPECT_EQ(1U, s[5]->OutputCount());
+  } else {
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,

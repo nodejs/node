@@ -56,6 +56,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   V(retaining_path_targets)               \
   V(serialized_global_proxy_sizes)        \
   V(serialized_objects)                   \
+  IF_WASM(V, wasm_canonical_rtts)         \
   V(weak_refs_keep_during_job)
 
 #define TEST_CAN_BE_READ_ONLY(name) \

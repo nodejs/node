@@ -95,7 +95,7 @@ public:
 
     const UnicodeString emptyString;
 
-    // Mappping from source to target styles for alias fallback.
+    // Mapping from source to target styles for alias fallback.
     int32_t fallBackCache[UDAT_STYLE_COUNT];
 
     void adoptCombinedDateAndTime(SimpleFormatter *fmtToAdopt) {
@@ -588,7 +588,7 @@ struct RelDateTimeFmtDataSink : public ResourceSink {
     }
 
     virtual void put(const char *key, ResourceValue &value,
-                     UBool /*noFallback*/, UErrorCode &errorCode) {
+                     UBool /*noFallback*/, UErrorCode &errorCode) override {
         // Main entry point to sink
         ResourceTable table = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
@@ -1126,7 +1126,7 @@ void RelativeDateTimeFormatter::formatRelativeImpl(
     // leaves some holes (even for data that is currently available, such as quarter).
     // When the new CLDR data is available, update the data storage accordingly,
     // rewrite this to use it directly, and rewrite the old format method to call this
-    // new one; that is covered by http://bugs.icu-project.org/trac/ticket/12171.
+    // new one; that is covered by https://unicode-org.atlassian.net/browse/ICU-12171.
     UDateDirection direction = UDAT_DIRECTION_COUNT;
     if (offset > -2.1 && offset < 2.1) {
         // Allow a 1% epsilon, so offsets in -1.01..-0.99 map to LAST
@@ -1139,7 +1139,7 @@ void RelativeDateTimeFormatter::formatRelativeImpl(
             case  100/* 1*/: direction = UDAT_DIRECTION_NEXT; break;
             case  200/* 2*/: direction = UDAT_DIRECTION_NEXT_2; break;
             default: break;
-	}
+    	}
     }
     UDateAbsoluteUnit absunit = UDAT_ABSOLUTE_UNIT_COUNT;
     switch (unit) {

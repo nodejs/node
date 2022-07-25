@@ -25,7 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --opt --no-lazy-feedback-allocation
+
+// Lazy feedback allocation is disabled to guard against the case that a
+// second-level function like assertTrue gets its feedback vector allocated
+// immediately before the top-level function like f25 is compiled. In that case,
+// assertTrue would be inlined but would cause a deopt because it had not yet
+// collected any feedback data, and then the subsequent assertOptimized would
+// fail.
 
 // Check that the following functions are optimizable.
 var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14,

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_RESULT_H_
 #define V8_WASM_WASM_RESULT_H_
 
@@ -63,6 +67,8 @@ template <typename T>
 class Result {
  public:
   Result() = default;
+  Result(const Result&) = delete;
+  Result& operator=(const Result&) = delete;
 
   template <typename S>
   explicit Result(S&& value) : value_(std::forward<S>(value)) {}
@@ -104,8 +110,6 @@ class Result {
 
   T value_ = T{};
   WasmError error_;
-
-  DISALLOW_COPY_AND_ASSIGN(Result);
 };
 
 // A helper for generating error messages that bubble up to JS exceptions.
@@ -113,8 +117,10 @@ class V8_EXPORT_PRIVATE ErrorThrower {
  public:
   ErrorThrower(Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}
-  // Explicitly allow move-construction. Disallow copy (below).
+  // Explicitly allow move-construction. Disallow copy.
   ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT;
+  ErrorThrower(const ErrorThrower&) = delete;
+  ErrorThrower& operator=(const ErrorThrower&) = delete;
   ~ErrorThrower();
 
   PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
@@ -165,7 +171,6 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   // ErrorThrower should always be stack-allocated, since it constitutes a scope
   // (things happen in the destructor).
   DISALLOW_NEW_AND_DELETE()
-  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
 
 // Like an ErrorThrower, but turns all pending exceptions into scheduled

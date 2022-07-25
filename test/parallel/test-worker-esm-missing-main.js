@@ -12,5 +12,5 @@ const worker = new Worker(missing);
 
 worker.on('error', common.mustCall((err) => {
   // eslint-disable-next-line node-core/no-unescaped-regexp-dot
-  assert(/Cannot find module .+does-not-exist.js/.test(err.message), err);
+  assert.match(err.message, /Cannot find module .+does-not-exist.js/);
 }));

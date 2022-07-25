@@ -9,8 +9,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
-const { internalBinding } = require('internal/test/binding');
-
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
@@ -19,7 +17,7 @@ const { internalBinding } = require('internal/test/binding');
   async function test(namedCurve) {
     const [alice, bob] = await Promise.all([
       subtle.generateKey({ name: 'ECDH', namedCurve }, true, ['deriveBits']),
-      subtle.generateKey({ name: 'ECDH', namedCurve }, true, ['deriveBits'])
+      subtle.generateKey({ name: 'ECDH', namedCurve }, true, ['deriveBits']),
     ]);
 
     const [secret1, secret2] = await Promise.all([
@@ -28,9 +26,11 @@ const { internalBinding } = require('internal/test/binding');
       }, bob.privateKey, 128),
       subtle.deriveBits({
         name: 'ECDH', namedCurve, public: bob.publicKey
-      }, alice.privateKey, 128)
+      }, alice.privateKey, 128),
     ]);
 
+    assert(secret1 instanceof ArrayBuffer);
+    assert(secret2 instanceof ArrayBuffer);
     assert.deepStrictEqual(secret1, secret2);
   }
 
@@ -61,7 +61,7 @@ const { internalBinding } = require('internal/test/binding');
      '41ef21bdeb0fa87b6b6bfa5c54466aa5bf76cdc2685fb' +
      'a4408ea5b94c049fe035649b46f92fdc519374'],
     ['hello', 'there', 'my friend', 'SHA-384', 128,
-     'e36cf2cf943d8f3a88adb80f478745c3']
+     'e36cf2cf943d8f3a88adb80f478745c3'],
   ];
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
@@ -93,7 +93,7 @@ const { internalBinding } = require('internal/test/binding');
      'ce7678b4cb16fad88098110a83e71f4483ce73203f7a64' +
      '719d293280f780f9fafdcf46925c5c0588b3'],
     ['hello', 'there', 5, 'SHA-384', 128,
-     '201509b012c9cd2fbe7ea938f0c509b3']
+     '201509b012c9cd2fbe7ea938f0c509b3'],
   ];
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
@@ -101,31 +101,28 @@ const { internalBinding } = require('internal/test/binding');
   tests.then(common.mustCall());
 }
 
-// Test Scrypt bit derivation
-if (typeof internalBinding('crypto').ScryptJob === 'function') {
-  async function test(pass, salt, length, expected) {
-    const ec = new TextEncoder();
-    const key = await subtle.importKey(
-      'raw',
-      ec.encode(pass),
-      { name: 'NODE-SCRYPT' },
-      false, ['deriveBits']);
-    const secret = await subtle.deriveBits({
-      name: 'NODE-SCRYPT',
-      salt: ec.encode(salt),
-    }, key, length);
-    assert.strictEqual(Buffer.from(secret).toString('hex'), expected);
+// Test X25519 and X448 bit derivation
+{
+  async function test(name) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name }, true, ['deriveBits']),
+      subtle.generateKey({ name }, true, ['deriveBits']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveBits({
+        name, public: alice.publicKey
+      }, bob.privateKey, 128),
+      subtle.deriveBits({
+        name, public: bob.publicKey
+      }, alice.privateKey, 128),
+    ]);
+
+    assert(secret1 instanceof ArrayBuffer);
+    assert(secret2 instanceof ArrayBuffer);
+    assert.deepStrictEqual(secret1, secret2);
   }
 
-  const kTests = [
-    ['hello', 'there', 512,
-     '30ddda6feabaac788eb81cc38f496cd5d9a165d320c537ea05331fe720db1061b3a27' +
-     'b91a8428e49d44078c1fa395cb1c6db336ba44ccb80faa6d74918769374'],
-    ['hello', 'there', 128,
-     '30ddda6feabaac788eb81cc38f496cd5']
-  ];
-
-  const tests = Promise.all(kTests.map((args) => test(...args)));
-
-  tests.then(common.mustCall());
+  test('X25519').then(common.mustCall());
+  test('X448').then(common.mustCall());
 }

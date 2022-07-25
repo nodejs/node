@@ -52,6 +52,6 @@ process.on('exit', () => {
     'compress end',
     { read: 'abc' },
     { read: 'def' },
-    { read: 'ghi' }
+    { read: 'ghi' },
   ]);
 });

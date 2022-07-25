@@ -502,7 +502,7 @@ typedef enum USpoofChecks {
     USPOOF_ALL_CHECKS               = 0xFFFF,
 
     /**
-      * Enable the return of auxillary (non-error) information in the
+      * Enable the return of auxiliary (non-error) information in the
       * upper bits of the check results value.
       *
       * If this "check" is not enabled, the results of {@link uspoof_check} will be
@@ -1134,7 +1134,7 @@ uspoof_getCheckResultNumerics(const USpoofCheckResult *checkResult, UErrorCode *
  * @param sc      The USpoofChecker
  * @param id1     The first of the two identifiers to be compared for
  *                confusability.  The strings are in UTF-16 format.
- * @param length1 the length of the first identifer, expressed in
+ * @param length1 the length of the first identifier, expressed in
  *                16 bit UTF-16 code units, or -1 if the string is
  *                nul terminated.
  * @param id2     The second of the two identifiers to be compared for

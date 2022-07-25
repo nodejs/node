@@ -25,14 +25,14 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
         resolver_(resolver) {}
 
   // The buffer passed into OnBytesReceived is owned by the caller.
-  void OnBytesReceived(Vector<const uint8_t> bytes) override {
+  void OnBytesReceived(base::Vector<const uint8_t> bytes) override {
     buffer_.emplace_back(bytes.size());
     CHECK_EQ(buffer_.back().size(), bytes.size());
     std::memcpy(buffer_.back().data(), bytes.data(), bytes.size());
     buffer_size_ += bytes.size();
   }
 
-  void Finish() override {
+  void Finish(bool can_use_compiled_module) override {
     // We copy all received chunks into one byte buffer.
     auto bytes = std::make_unique<uint8_t[]>(buffer_size_);
     uint8_t* destination = bytes.get();
@@ -43,13 +43,13 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
     CHECK_EQ(destination - bytes.get(), buffer_size_);
 
     // Check if we can deserialize the module from cache.
-    if (deserializing()) {
+    if (can_use_compiled_module && deserializing()) {
       HandleScope scope(isolate_);
       SaveAndSwitchContext saved_context(isolate_, *context_);
 
       MaybeHandle<WasmModuleObject> module_object = DeserializeNativeModule(
           isolate_, compiled_module_bytes_,
-          Vector<const uint8_t>(bytes.get(), buffer_size_), url());
+          base::Vector<const uint8_t>(bytes.get(), buffer_size_), url());
 
       if (!module_object.is_null()) {
         Handle<WasmModuleObject> module = module_object.ToHandleChecked();
@@ -62,8 +62,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
     ModuleWireBytes wire_bytes(bytes.get(), bytes.get() + buffer_size_);
     ErrorThrower thrower(isolate_, api_method_name_for_errors_);
     MaybeHandle<WasmModuleObject> module_object =
-        isolate_->wasm_engine()->SyncCompile(isolate_, enabled_, &thrower,
-                                             wire_bytes);
+        GetWasmEngine()->SyncCompile(isolate_, enabled_, &thrower, wire_bytes);
     if (thrower.error()) {
       resolver_->OnCompilationFailed(thrower.Reify());
       return;

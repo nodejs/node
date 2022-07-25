@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """gyptest.py -- test runner for GYP tests."""
 
-from __future__ import print_function
 
 import argparse
 import os
@@ -141,10 +140,7 @@ def main(argv=None):
     if not args.quiet:
         runner.print_results()
 
-    if runner.failures:
-        return 1
-    else:
-        return 0
+    return 1 if runner.failures else 0
 
 
 def print_configuration_info():
@@ -153,8 +149,8 @@ def print_configuration_info():
         sys.path.append(os.path.abspath("test/lib"))
         import TestMac
 
-        print("  Mac %s %s" % (platform.mac_ver()[0], platform.mac_ver()[2]))
-        print("  Xcode %s" % TestMac.Xcode.Version())
+        print(f"  Mac {platform.mac_ver()[0]} {platform.mac_ver()[2]}")
+        print(f"  Xcode {TestMac.Xcode.Version()}")
     elif sys.platform == "win32":
         sys.path.append(os.path.abspath("pylib"))
         import gyp.MSVSVersion
@@ -163,12 +159,12 @@ def print_configuration_info():
         print("  MSVS %s" % gyp.MSVSVersion.SelectVisualStudioVersion().Description())
     elif sys.platform in ("linux", "linux2"):
         print("  Linux %s" % " ".join(platform.linux_distribution()))
-    print("  Python %s" % platform.python_version())
-    print("  PYTHONPATH=%s" % os.environ["PYTHONPATH"])
+    print(f"  Python {platform.python_version()}")
+    print(f"  PYTHONPATH={os.environ['PYTHONPATH']}")
     print()
 
 
-class Runner(object):
+class Runner:
     def __init__(self, formats, tests, gyp_options, verbose):
         self.formats = formats
         self.tests = tests
@@ -217,19 +213,15 @@ class Runner(object):
             res = "skipped"
         elif proc.returncode:
             res = "failed"
-            self.failures.append("(%s) %s" % (test, fmt))
+            self.failures.append(f"({test}) {fmt}")
         else:
             res = "passed"
-        res_msg = " %s %.3fs" % (res, took)
+        res_msg = f" {res} {took:.3f}s"
         self.print_(res_msg)
 
-        if (
-            stdout
-            and not stdout.endswith("PASSED\n")
-            and not (stdout.endswith("NO RESULT\n"))
-        ):
+        if stdout and not stdout.endswith(("PASSED\n", "NO RESULT\n")):
             print()
-            print("\n".join("    %s" % line for line in stdout.splitlines()))
+            print("\n".join(f"    {line}" for line in stdout.splitlines()))
         elif not self.isatty:
             print()
 

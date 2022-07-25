@@ -5,15 +5,12 @@ const assert = require('assert');
 const http = require('http');
 
 const { PerformanceObserver } = require('perf_hooks');
+const entries = [];
+const obs = new PerformanceObserver(common.mustCallAtLeast((items) => {
+  entries.push(...items.getEntries());
+}));
 
-const obs = new PerformanceObserver(common.mustCall((items) => {
-  const entry = items.getEntries()[0];
-  assert.strictEqual(entry.entryType, 'http');
-  assert.strictEqual(typeof entry.startTime, 'number');
-  assert.strictEqual(typeof entry.duration, 'number');
-}, 2));
-
-obs.observe({ entryTypes: ['http'] });
+obs.observe({ type: 'http' });
 
 const expected = 'Post Body For Test';
 const makeRequest = (options) => {
@@ -52,7 +49,30 @@ server.listen(0, common.mustCall(async () => {
       path: '/',
       method: 'POST',
       data: expected
-    })
+    }),
   ]);
   server.close();
 }));
+
+process.on('exit', () => {
+  let numberOfHttpClients = 0;
+  let numberOfHttpRequests = 0;
+  entries.forEach((entry) => {
+    assert.strictEqual(entry.entryType, 'http');
+    assert.strictEqual(typeof entry.startTime, 'number');
+    assert.strictEqual(typeof entry.duration, 'number');
+    if (entry.name === 'HttpClient') {
+      numberOfHttpClients++;
+    } else if (entry.name === 'HttpRequest') {
+      numberOfHttpRequests++;
+    }
+    assert.strictEqual(typeof entry.detail.req.method, 'string');
+    assert.strictEqual(typeof entry.detail.req.url, 'string');
+    assert.strictEqual(typeof entry.detail.req.headers, 'object');
+    assert.strictEqual(typeof entry.detail.res.statusCode, 'number');
+    assert.strictEqual(typeof entry.detail.res.statusMessage, 'string');
+    assert.strictEqual(typeof entry.detail.res.headers, 'object');
+  });
+  assert.strictEqual(numberOfHttpClients, 2);
+  assert.strictEqual(numberOfHttpRequests, 2);
+});

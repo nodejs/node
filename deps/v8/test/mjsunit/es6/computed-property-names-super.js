@@ -24,8 +24,6 @@ function ID(x) {
     [ID(1)]() { return '1' + super.m(); },
   };
 
-  assertSame(object, object.a[%HomeObjectSymbol()]);
-
   assertEquals('a proto m', object.a());
   assertEquals('b proto m', object.b());
   assertEquals('0 proto m', object[0]());

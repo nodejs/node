@@ -5,6 +5,7 @@
 #include "src/logging/local-logger.h"
 
 #include "src/execution/isolate.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -23,9 +24,15 @@ void LocalLogger::ScriptEvent(Logger::ScriptEventType type, int script_id) {
   logger_->ScriptEvent(type, script_id);
 }
 void LocalLogger::CodeLinePosInfoRecordEvent(Address code_start,
-                                             ByteArray source_position_table) {
-  logger_->CodeLinePosInfoRecordEvent(code_start, source_position_table);
+                                             ByteArray source_position_table,
+                                             JitCodeEvent::CodeType code_type) {
+  logger_->CodeLinePosInfoRecordEvent(code_start, source_position_table,
+                                      code_type);
 }
+
+void LocalLogger::MapCreate(Map map) { logger_->MapCreate(map); }
+
+void LocalLogger::MapDetails(Map map) { logger_->MapDetails(map); }
 
 }  // namespace internal
 }  // namespace v8

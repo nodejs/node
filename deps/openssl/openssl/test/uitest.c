@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,11 +11,9 @@
 #include <string.h>
 #include <openssl/opensslconf.h>
 #include <openssl/err.h>
-#include "apps.h"
+#include "apps_ui.h"
 #include "testutil.h"
 
-/* apps/apps.c depend on these */
-char *default_config_file = NULL;
 
 #include <openssl/ui.h>
 
@@ -46,8 +44,8 @@ static int test_old(void)
     /* The wrapper passes the UI userdata as the callback userdata param */
     UI_add_user_data(ui, defpass);
 
-    if (!UI_add_input_string(ui, "prompt", UI_INPUT_FLAG_DEFAULT_PWD,
-                             pass, 0, sizeof(pass) - 1))
+    if (UI_add_input_string(ui, "prompt", UI_INPUT_FLAG_DEFAULT_PWD,
+                             pass, 0, sizeof(pass) - 1) <= 0)
         goto err;
 
     switch (UI_process(ui)) {
@@ -80,7 +78,7 @@ static int test_new_ui(void)
     char pass[16];
     int ok = 0;
 
-    setup_ui_method();
+    (void)setup_ui_method();
     if (TEST_int_gt(password_callback(pass, sizeof(pass), 0, &cb_data), 0)
             && TEST_str_eq(pass, cb_data.password))
         ok = 1;

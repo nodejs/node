@@ -25,15 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
-
-#include <include/libplatform/libplatform.h>
-
 #include <stdlib.h>
 #include <string.h>
 
 #include <map>
 #include <string>
+
+#include "include/libplatform/libplatform.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-external.h"
+#include "include/v8-function.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-persistent-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
+#include "include/v8-snapshot.h"
+#include "include/v8-template.h"
+#include "include/v8-value.h"
 
 using std::map;
 using std::pair;
@@ -219,7 +232,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   }
 
   // It is a function; cast it to a Function
-  Local<Function> process_fun = Local<Function>::Cast(process_val);
+  Local<Function> process_fun = process_val.As<Function>();
 
   // Store the function in a Global handle, since we also want
   // that to remain after this call returns
@@ -375,7 +388,7 @@ Local<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 // Utility function that extracts the C++ map pointer from a wrapper
 // object.
 map<string, string>* JsHttpRequestProcessor::UnwrapMap(Local<Object> obj) {
-  Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
+  Local<External> field = obj->GetInternalField(0).As<External>();
   void* ptr = field->Value();
   return static_cast<map<string, string>*>(ptr);
 }
@@ -397,7 +410,7 @@ void JsHttpRequestProcessor::MapGet(Local<Name> name,
   map<string, string>* obj = UnwrapMap(info.Holder());
 
   // Convert the JavaScript string to a std::string.
-  string key = ObjectToString(info.GetIsolate(), Local<String>::Cast(name));
+  string key = ObjectToString(info.GetIsolate(), name.As<String>());
 
   // Look up the value if it exists using the standard STL ideom.
   map<string, string>::iterator iter = obj->find(key);
@@ -422,7 +435,7 @@ void JsHttpRequestProcessor::MapSet(Local<Name> name, Local<Value> value_obj,
   map<string, string>* obj = UnwrapMap(info.Holder());
 
   // Convert the key and value to std::strings.
-  string key = ObjectToString(info.GetIsolate(), Local<String>::Cast(name));
+  string key = ObjectToString(info.GetIsolate(), name.As<String>());
   string value = ObjectToString(info.GetIsolate(), value_obj);
 
   // Update the map.
@@ -491,7 +504,7 @@ Local<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
  * wrapper object.
  */
 HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Local<Object> obj) {
-  Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
+  Local<External> field = obj->GetInternalField(0).As<External>();
   void* ptr = field->Value();
   return static_cast<HttpRequest*>(ptr);
 }
@@ -690,6 +703,12 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    fprintf(stderr, "Error initializing the V8 sandbox\n");
+    return 1;
+  }
+#endif
   v8::V8::Initialize();
   map<string, string> options;
   string file;

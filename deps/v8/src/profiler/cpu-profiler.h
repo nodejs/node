@@ -27,19 +27,24 @@ class CodeEntry;
 class CodeMap;
 class CpuProfilesCollection;
 class Isolate;
-class ProfileGenerator;
+class Symbolizer;
 
-#define CODE_EVENTS_TYPE_LIST(V)                 \
-  V(CODE_CREATION, CodeCreateEventRecord)        \
-  V(CODE_MOVE, CodeMoveEventRecord)              \
-  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
-  V(CODE_DEOPT, CodeDeoptEventRecord)            \
-  V(REPORT_BUILTIN, ReportBuiltinEventRecord)
+#define CODE_EVENTS_TYPE_LIST(V)                \
+  V(kCodeCreation, CodeCreateEventRecord)       \
+  V(kCodeMove, CodeMoveEventRecord)             \
+  V(kCodeDisableOpt, CodeDisableOptEventRecord) \
+  V(kCodeDeopt, CodeDeoptEventRecord)           \
+  V(kReportBuiltin, ReportBuiltinEventRecord)   \
+  V(kCodeDelete, CodeDeleteEventRecord)
+
+#define VM_EVENTS_TYPE_LIST(V) \
+  CODE_EVENTS_TYPE_LIST(V)     \
+  V(kNativeContextMove, NativeContextMoveEventRecord)
 
 class CodeEventRecord {
  public:
 #define DECLARE_TYPE(type, ignore) type,
-  enum Type { NONE = 0, CODE_EVENTS_TYPE_LIST(DECLARE_TYPE) };
+  enum class Type { kNoEvent = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
 #undef DECLARE_TYPE
 
   Type type;
@@ -93,9 +98,16 @@ class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
   Address instruction_start;
   unsigned instruction_size;
-  Builtins::Name builtin_id;
+  Builtin builtin;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
+};
+
+// Signals that a native context's address has changed.
+class NativeContextMoveEventRecord : public CodeEventRecord {
+ public:
+  Address from_address;
+  Address to_address;
 };
 
 // A record type for sending samples from the main thread/signal handler to the
@@ -111,25 +123,32 @@ class TickSampleEventRecord {
   TickSample sample;
 };
 
+class CodeDeleteEventRecord : public CodeEventRecord {
+ public:
+  CodeEntry* entry;
+
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
+};
+
 // A record type for sending code events (e.g. create, move, delete) to the
 // profiling thread.
 class CodeEventsContainer {
  public:
   explicit CodeEventsContainer(
-      CodeEventRecord::Type type = CodeEventRecord::NONE) {
+      CodeEventRecord::Type type = CodeEventRecord::Type::kNoEvent) {
     generic.type = type;
   }
   union  {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
-    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
+    VM_EVENTS_TYPE_LIST(DECLARE_CLASS)
 #undef DECLARE_CLASS
   };
 };
 
 // Maintains the number of active CPU profilers in an isolate, and routes
 // logging to a given ProfilerListener.
-class ProfilingScope {
+class V8_NODISCARD ProfilingScope {
  public:
   ProfilingScope(Isolate* isolate, ProfilerListener* listener);
   ~ProfilingScope();
@@ -165,8 +184,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   virtual void SetSamplingInterval(base::TimeDelta) {}
 
  protected:
-  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
-                          ProfilerCodeObserver* code_observer);
+  ProfilerEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
+                          ProfilerCodeObserver* code_observer,
+                          CpuProfilesCollection* profiles);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -178,8 +198,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   };
   virtual SampleProcessingResult ProcessOneSample() = 0;
 
-  ProfileGenerator* generator_;
+  Symbolizer* symbolizer_;
   ProfilerCodeObserver* code_observer_;
+  CpuProfilesCollection* profiles_;
   std::atomic_bool running_{true};
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
@@ -193,8 +214,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 class V8_EXPORT_PRIVATE SamplingEventsProcessor
     : public ProfilerEventsProcessor {
  public:
-  SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
+  SamplingEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
+                          CpuProfilesCollection* profiles,
                           base::TimeDelta period, bool use_precise_sampling);
   ~SamplingEventsProcessor() override;
 
@@ -221,6 +243,7 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
 
  private:
   SampleProcessingResult ProcessOneSample() override;
+  void SymbolizeAndAddToProfiles(const TickSampleEventRecord* record);
 
   static const size_t kTickSampleBufferSize = 512 * KB;
   static const size_t kTickSampleQueueLength =
@@ -235,14 +258,19 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
 
 // Builds and maintains a CodeMap tracking code objects on the VM heap. While
 // alive, logs generated code, callbacks, and builtins from the isolate.
-// Redirects events to the profiler events processor when present.
+// Redirects events to the profiler events processor when present. CodeEntry
+// lifetime is associated with the given CodeEntryStorage.
 class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
  public:
-  explicit ProfilerCodeObserver(Isolate*);
+  explicit ProfilerCodeObserver(Isolate*, CodeEntryStorage&);
 
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
-
+  CodeEntryStorage* code_entries() { return &code_entries_; }
   CodeMap* code_map() { return &code_map_; }
+  WeakCodeRegistry* weak_code_registry() { return &weak_code_registry_; }
+  size_t GetEstimatedMemoryUsage() const;
+
+  void ClearCodeMap();
 
  private:
   friend class ProfilerEventsProcessor;
@@ -263,7 +291,9 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   void clear_processor() { processor_ = nullptr; }
 
   Isolate* const isolate_;
+  CodeEntryStorage& code_entries_;
   CodeMap code_map_;
+  WeakCodeRegistry weak_code_registry_;
   ProfilerEventsProcessor* processor_;
 };
 
@@ -294,26 +324,42 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
               CpuProfilingLoggingMode logging_mode,
-              CpuProfilesCollection* profiles, ProfileGenerator* test_generator,
-              ProfilerEventsProcessor* test_processor);
+              CpuProfilesCollection* profiles, Symbolizer* test_symbolizer,
+              ProfilerEventsProcessor* test_processor,
+              ProfilerCodeObserver* test_code_observer);
 
   ~CpuProfiler();
+  CpuProfiler(const CpuProfiler&) = delete;
+  CpuProfiler& operator=(const CpuProfiler&) = delete;
 
   static void CollectSample(Isolate* isolate);
+  static size_t GetAllProfilersMemorySize(Isolate* isolate);
 
   using ProfilingMode = v8::CpuProfilingMode;
+  using CpuProfilingResult = v8::CpuProfilingResult;
   using NamingMode = v8::CpuProfilingNamingMode;
   using LoggingMode = v8::CpuProfilingLoggingMode;
+  using StartProfilingStatus = CpuProfilingStatus;
 
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
   void CollectSample();
-  void StartProfiling(const char* title, CpuProfilingOptions options = {});
-  void StartProfiling(String title, CpuProfilingOptions options = {});
+  size_t GetEstimatedMemoryUsage() const;
+  CpuProfilingResult StartProfiling(
+      CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfilingResult StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfilingResult StartProfiling(
+      String title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
+  CpuProfile* StopProfiling(ProfilerId id);
+
   int GetProfilesCount();
   CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();
@@ -321,17 +367,18 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   bool is_profiling() const { return is_profiling_; }
 
-  ProfileGenerator* generator() const { return generator_.get(); }
+  Symbolizer* symbolizer() const { return symbolizer_.get(); }
   ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
+  CodeEntryStorage* code_entries() { return &code_entries_; }
 
   ProfilerListener* profiler_listener_for_test() const {
     return profiler_listener_.get();
   }
+  CodeMap* code_map_for_test() { return code_observer_->code_map(); }
 
  private:
   void StartProcessorIfNotStarted();
-  void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
 
@@ -351,15 +398,18 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   // Sampling interval to which per-profile sampling intervals will be clamped
   // to a multiple of, or used as the default if unspecified.
   base::TimeDelta base_sampling_interval_;
+
+  // Storage for CodeEntry objects allocated by the profiler. May live for
+  // multiple profiling sessions, independent of heap listener state.
+  CodeEntryStorage code_entries_;
+
+  std::unique_ptr<ProfilerCodeObserver> code_observer_;
   std::unique_ptr<CpuProfilesCollection> profiles_;
-  std::unique_ptr<ProfileGenerator> generator_;
+  std::unique_ptr<Symbolizer> symbolizer_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
   std::unique_ptr<ProfilingScope> profiling_scope_;
-  ProfilerCodeObserver code_observer_;
   bool is_profiling_;
-
-  DISALLOW_COPY_AND_ASSIGN(CpuProfiler);
 };
 
 }  // namespace internal

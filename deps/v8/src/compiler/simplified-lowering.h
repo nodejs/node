@@ -7,6 +7,7 @@
 
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 
@@ -19,6 +20,7 @@ namespace compiler {
 
 // Forward declarations.
 class NodeOriginTable;
+class ObserveNodeManager;
 class RepresentationChanger;
 class RepresentationSelector;
 class SourcePositionTable;
@@ -28,9 +30,9 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
                      SourcePositionTable* source_position,
-                     NodeOriginTable* node_origins,
-                     PoisoningMitigationLevel poisoning_level,
-                     TickCounter* tick_counter);
+                     NodeOriginTable* node_origins, TickCounter* tick_counter,
+                     Linkage* linkage, OptimizedCompilationInfo* info,
+                     ObserveNodeManager* observe_node_manager = nullptr);
   ~SimplifiedLowering() = default;
 
   void LowerAllNodes();
@@ -50,6 +52,17 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   void DoUnsigned32ToUint8Clamped(Node* node);
 
  private:
+  // The purpose of this nested class is to hide method
+  // v8::internal::compiler::NodeProperties::ChangeOp which should not be
+  // directly used by code in SimplifiedLowering.
+  // SimplifiedLowering code should call SimplifiedLowering::ChangeOp instead,
+  // in order to notify the changes to ObserveNodeManager and support the
+  // %ObserveNode intrinsic.
+  class NodeProperties : public compiler::NodeProperties {
+    static void ChangeOp(Node* node, const Operator* new_op) { UNREACHABLE(); }
+  };
+  void ChangeOp(Node* node, const Operator* new_op);
+
   JSGraph* const jsgraph_;
   JSHeapBroker* broker_;
   Zone* const zone_;
@@ -69,9 +82,11 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
 
-  PoisoningMitigationLevel poisoning_level_;
-
   TickCounter* const tick_counter_;
+  Linkage* const linkage_;
+  OptimizedCompilationInfo* info_;
+
+  ObserveNodeManager* const observe_node_manager_;
 
   Node* Float64Round(Node* const node);
   Node* Float64Sign(Node* const node);
@@ -98,6 +113,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
+  Linkage* linkage() { return linkage_; }
 };
 
 }  // namespace compiler

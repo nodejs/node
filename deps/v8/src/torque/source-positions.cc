@@ -58,6 +58,7 @@ SourceId SourceFileMap::GetSourceId(const std::string& path) {
 std::vector<SourceId> SourceFileMap::AllSources() {
   SourceFileMap& self = Get();
   std::vector<SourceId> result;
+  result.reserve(static_cast<int>(self.sources_.size()));
   for (int i = 0; i < static_cast<int>(self.sources_.size()); ++i) {
     result.push_back(SourceId(i));
   }

@@ -360,12 +360,21 @@ int nghttp2_http_on_header(nghttp2_session *session, nghttp2_stream *stream,
     return NGHTTP2_ERR_IGN_HTTP_HEADER;
   }
 
-  if (nv->token == NGHTTP2_TOKEN__AUTHORITY ||
-      nv->token == NGHTTP2_TOKEN_HOST) {
+  switch (nv->token) {
+  case NGHTTP2_TOKEN__METHOD:
+    rv = nghttp2_check_method(nv->value->base, nv->value->len);
+    break;
+  case NGHTTP2_TOKEN__PATH:
+    rv = nghttp2_check_path(nv->value->base, nv->value->len);
+    break;
+  case NGHTTP2_TOKEN__AUTHORITY:
+  case NGHTTP2_TOKEN_HOST:
     rv = nghttp2_check_authority(nv->value->base, nv->value->len);
-  } else if (nv->token == NGHTTP2_TOKEN__SCHEME) {
+    break;
+  case NGHTTP2_TOKEN__SCHEME:
     rv = check_scheme(nv->value->base, nv->value->len);
-  } else {
+    break;
+  default:
     rv = nghttp2_check_header_value(nv->value->base, nv->value->len);
   }
 

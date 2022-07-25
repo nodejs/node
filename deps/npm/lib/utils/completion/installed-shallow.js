@@ -1,13 +1,12 @@
-const npm = require('../../npm.js')
 const { promisify } = require('util')
 const readdir = promisify(require('readdir-scoped-modules'))
 
-const names = global => readdir(global ? npm.globalDir : npm.localDir)
-
-const installedShallow = async opts => {
+const installedShallow = async (npm, opts) => {
+  const names = global => readdir(global ? npm.globalDir : npm.localDir)
   const { conf: { argv: { remain } } } = opts
-  if (remain.length > 3)
+  if (remain.length > 3) {
     return null
+  }
 
   const { global } = npm.flatOptions
   const locals = global ? [] : await names(false)
@@ -15,5 +14,4 @@ const installedShallow = async opts => {
   return [...locals, ...globals]
 }
 
-module.exports = (opts, cb) =>
-  installedShallow(opts).then(list => cb(null, list)).catch(cb)
+module.exports = installedShallow

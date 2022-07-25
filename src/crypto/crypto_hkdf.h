@@ -3,11 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "v8.h"
 
 namespace node {
@@ -29,8 +28,8 @@ struct HKDFConfig final : public MemoryRetainer {
   HKDFConfig& operator=(HKDFConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(HKDFConfig);
-  SET_SELF_SIZE(HKDFConfig);
+  SET_MEMORY_INFO_NAME(HKDFConfig)
+  SET_SELF_SIZE(HKDFConfig)
 };
 
 struct HKDFTraits final {

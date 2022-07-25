@@ -26,13 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --concurrent-recompilation
 // Flags: --opt --no-always-opt
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
 
 function f(x) {
   var xx = x * x;
@@ -55,15 +50,13 @@ f(g(2));
 assertUnoptimized(f);
 assertUnoptimized(g);
 
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(f, "concurrent");
 %OptimizeFunctionOnNextCall(g, "concurrent");
-f(g(3));  // Kick off recompilation.
+f(g(3));
 
-assertUnoptimized(f, 'no sync');  // Not yet optimized since recompilation
-assertUnoptimized(g, 'no sync');  // is still blocked.
-
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
-
-assertOptimized(f, 'sync');  // Optimized once we sync with the
-assertOptimized(g, 'sync');  // background thread.
+assertUnoptimized(f);
+assertUnoptimized(g);
+%FinalizeOptimization();
+assertOptimized(f);
+assertOptimized(g);

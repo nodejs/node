@@ -4,6 +4,8 @@
 
 #include "src/wasm/simd-shuffle.h"
 
+#include <algorithm>
+
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -54,6 +56,25 @@ void SimdShuffle::CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
 bool SimdShuffle::TryMatchIdentity(const uint8_t* shuffle) {
   for (int i = 0; i < kSimd128Size; ++i) {
     if (shuffle[i] != i) return false;
+  }
+  return true;
+}
+
+bool SimdShuffle::TryMatch32x4Rotate(const uint8_t* shuffle,
+                                     uint8_t* shuffle32x4, bool is_swizzle) {
+  uint8_t offset;
+  bool is_concat = TryMatchConcat(shuffle, &offset);
+  DCHECK_NE(offset, 0);  // 0 is identity, it should not be matched.
+  // Since we already have a concat shuffle, we know that the indices goes from:
+  // [ offset, ..., 15, 0, ... ], it suffices to check that the offset points
+  // to the low byte of a 32x4 element.
+  if (!is_concat || !is_swizzle || offset % 4 != 0) {
+    return false;
+  }
+
+  uint8_t offset_32 = offset / 4;
+  for (int i = 0; i < 4; i++) {
+    shuffle32x4[i] = (offset_32 + i) % 4;
   }
   return true;
 }
@@ -140,6 +161,12 @@ void SimdShuffle::Pack16Lanes(uint32_t* dst, const uint8_t* shuffle) {
   for (int i = 0; i < 4; i++) {
     dst[i] = wasm::SimdShuffle::Pack4Lanes(shuffle + (i * 4));
   }
+}
+
+bool SimdSwizzle::AllInRangeOrTopBitSet(
+    std::array<uint8_t, kSimd128Size> shuffle) {
+  return std::all_of(shuffle.begin(), shuffle.end(),
+                     [](auto i) { return (i < kSimd128Size) || (i & 0x80); });
 }
 
 }  // namespace wasm

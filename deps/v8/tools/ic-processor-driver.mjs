@@ -2,35 +2,46 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { IcProcessor, ArgumentsProcessor, readFile } from "./ic-processor.mjs";
-import { WebInspector } from "./sourcemap.mjs";
+import { Processor } from "./system-analyzer/processor.mjs";
+import { BaseArgumentsProcessor} from "./arguments.mjs";
 
-function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
+class ArgumentsProcessor extends BaseArgumentsProcessor {
+  getArgsDispatch() {
+    return {
+      '--range': ['range', 'auto,auto',
+          'Specify the range limit as [start],[end]'],
+    };
+  }
+  getDefaultResults() {
+   return {
+      logFileName: 'v8.log',
+      range: 'auto,auto',
+    };
   }
 }
 
-function initSourceMapSupport() {
-  // Pull dev tools source maps into our name space.
-  SourceMap = WebInspector.SourceMap;
+const params = ArgumentsProcessor.process(arguments);
+const processor = new Processor();
+await processor.processLogFile(params.logFileName);
 
-  // Overwrite the load function to load scripts synchronously.
-  SourceMap.load = function(sourceMapURL) {
-    var content = readFile(sourceMapURL);
-    var sourceMapObject = (JSON.parse(content));
-    return new SourceMap(sourceMapURL, sourceMapObject);
-  };
+const typeAccumulator = new Map();
+
+const accumulator = {
+  __proto__: null,
+  LoadGlobalIC: 0,
+  StoreGlobalIC: 0,
+  LoadIC: 0,
+  StoreIC: 0,
+  KeyedLoadIC: 0,
+  KeyedStoreIC: 0,
+  StoreInArrayLiteralIC: 0,
+}
+for (const ic of processor.icTimeline.all) {
+  console.log(Object.values(ic));
+  accumulator[ic.type]++;
 }
 
-var params = processArguments(arguments);
-var sourceMap = null;
-if (params.sourceMap) {
-  initSourceMapSupport();
-  sourceMap = SourceMap.load(params.sourceMap);
+console.log("========================================");
+for (const key of Object.keys(accumulator)) {
+  console.log(key + ": " + accumulator[key]);
 }
-var icProcessor = new IcProcessor();
-icProcessor.processLogFile(params.logFileName);

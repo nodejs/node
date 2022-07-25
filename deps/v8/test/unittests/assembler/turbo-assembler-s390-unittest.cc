@@ -47,7 +47,7 @@ TEST_F(TurboAssemblerTest, TestCheck) {
 
   // Fail if the first parameter is 17.
   __ lgfi(r3, Operand(17));
-  __ CmpP(r2, r3);  // 1st parameter is in {r2}.
+  __ CmpS64(r2, r3);  // 1st parameter is in {r2}.
   __ Check(Condition::ne, AbortReason::kNoReason);
   __ Ret();
 

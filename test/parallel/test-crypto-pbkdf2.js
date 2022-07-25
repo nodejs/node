@@ -58,7 +58,7 @@ testPBKDF2('password', 'salt', 32, 32,
 assert.throws(
   () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   }
 );
@@ -69,8 +69,6 @@ for (const iterations of [-1, 0]) {
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "iterations" is out of range. ' +
-               `It must be >= 1 && < 4294967296. Received ${iterations}`
     }
   );
 }
@@ -108,8 +106,6 @@ for (const iterations of [-1, 0]) {
     }, {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "keylen" is out of range. It must be >= 0 && < ' +
-               `4294967296. Received ${input === -1 ? '-1' : '4_294_967_297'}`
     });
 });
 
@@ -223,9 +219,23 @@ assert.throws(
   }
 );
 
-const kNotPBKDF2Supported = ['shake128', 'shake256'];
-crypto.getHashes()
-  .filter((hash) => !kNotPBKDF2Supported.includes(hash))
-  .forEach((hash) => {
-    runPBKDF2(new Uint8Array(10), 'salt', 8, 8, hash);
-  });
+if (!common.hasOpenSSL3) {
+  const kNotPBKDF2Supported = ['shake128', 'shake256'];
+  crypto.getHashes()
+    .filter((hash) => !kNotPBKDF2Supported.includes(hash))
+    .forEach((hash) => {
+      runPBKDF2(new Uint8Array(10), 'salt', 8, 8, hash);
+    });
+}
+
+{
+  // This should not crash.
+  assert.throws(
+    () => crypto.pbkdf2Sync('1', '2', 1, 1, '%'),
+    {
+      code: 'ERR_CRYPTO_INVALID_DIGEST',
+      name: 'TypeError',
+      message: 'Invalid digest: %'
+    }
+  );
+}

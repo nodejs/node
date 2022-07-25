@@ -53,50 +53,12 @@ struct pass_value_or_ref {
 };
 
 // Uses expression SFINAE to detect whether using operator<< would work.
-template <typename T, typename = void>
+template <typename T, typename TStream = std::ostream, typename = void>
 struct has_output_operator : std::false_type {};
-template <typename T>
-struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
-                                            << std::declval<T>()))>
+template <typename T, typename TStream>
+struct has_output_operator<
+    T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
     : std::true_type {};
-
-// Fold all arguments from left to right with a given function.
-template <typename Func, typename T>
-constexpr auto fold(Func func, T&& t) {
-  return std::forward<T>(t);
-}
-
-template <typename Func, typename T1, typename T2, typename... Ts>
-constexpr auto fold(Func func, T1&& first, T2&& second, Ts&&... more) {
-  auto&& folded = func(std::forward<T1>(first), std::forward<T2>(second));
-  return fold(std::move(func), std::forward<decltype(folded)>(folded),
-              std::forward<Ts>(more)...);
-}
-
-// {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
-template <typename... Ts>
-struct is_same : public std::false_type {};
-template <>
-struct is_same<> : public std::true_type {};
-template <typename T>
-struct is_same<T> : public std::true_type {};
-template <typename T, typename... Ts>
-struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
-
-// Returns true, iff all values (implicitly converted to bool) are trueish.
-template <typename... Args>
-constexpr bool all(Args... rest) {
-  return fold(std::logical_and<>{}, true, rest...);
-}
-
-template <class... Ts>
-struct make_void {
-  using type = void;
-};
-// Corresponds to C++17's std::void_t.
-// Used for SFINAE based on type errors.
-template <class... Ts>
-using void_t = typename make_void<Ts...>::type;
 
 }  // namespace base
 }  // namespace v8

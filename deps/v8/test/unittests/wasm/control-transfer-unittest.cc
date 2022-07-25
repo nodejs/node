@@ -72,9 +72,9 @@ class ControlTransferTest : public TestWithZone {
     // Check all control targets in the map.
     for (auto& expected_transfer : expected_transfers) {
       pc_t pc = expected_transfer.pc;
-      EXPECT_TRUE(map.count(pc) > 0) << "expected control target @" << pc;
-      if (!map.count(pc)) continue;
-      auto& entry = map[pc];
+      EXPECT_TRUE(map.map.count(pc) > 0) << "expected control target @" << pc;
+      if (!map.map.count(pc)) continue;
+      auto& entry = map.map[pc];
       EXPECT_THAT(entry, MakeMatcher(new ControlTransferMatcher(
                              pc, expected_transfer)));
     }
@@ -97,7 +97,7 @@ class ControlTransferTest : public TestWithZone {
         }
       }
       if (found) continue;
-      EXPECT_TRUE(map.count(pc) == 0) << "expected no control @ +" << pc;
+      EXPECT_TRUE(map.map.count(pc) == 0) << "expected no control @ +" << pc;
     }
   }
 };

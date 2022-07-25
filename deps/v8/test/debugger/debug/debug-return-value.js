@@ -59,7 +59,7 @@ function listener(event, exec_state, event_data, data) {
           default:
             fail("Unexpected");
         }
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
       } else {
         // Position at the end of the function.
         assertEquals(expected_source_position.shift() + debugger_source_position,

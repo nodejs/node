@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MODULE_INSTANTIATE_H_
 #define V8_WASM_MODULE_INSTANTIATE_H_
 
 #include <stdint.h>
 
-#include "include/v8-metrics.h"
 #include "include/v8config.h"
 
 namespace v8 {
@@ -18,6 +21,7 @@ class JSArrayBuffer;
 class JSReceiver;
 class WasmModuleObject;
 class WasmInstanceObject;
+class Zone;
 
 template <typename T>
 class Handle;

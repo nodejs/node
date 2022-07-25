@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
@@ -26,12 +25,10 @@ extern class JSGeneratorObject extends JSObject {
   parameters_and_registers: FixedArray;
 }
 
-@generateCppClass
 extern class JSAsyncFunctionObject extends JSGeneratorObject {
   promise: JSPromise;
 }
 
-@generateCppClass
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
@@ -40,7 +37,6 @@ extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   is_awaiting: Smi;
 }
 
-@generateCppClass
 extern class AsyncGeneratorRequest extends Struct {
   next: AsyncGeneratorRequest|Undefined;
   resume_mode: Smi;

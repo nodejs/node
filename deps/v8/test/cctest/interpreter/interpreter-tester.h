@@ -5,11 +5,11 @@
 #ifndef V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
 #define V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
 #include "src/api/api.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/feedback-cell.h"
@@ -86,6 +86,8 @@ class InterpreterTester {
                     const char* filter = kFunctionName);
 
   virtual ~InterpreterTester();
+  InterpreterTester(const InterpreterTester&) = delete;
+  InterpreterTester& operator=(const InterpreterTester&) = delete;
 
   template <class... A>
   InterpreterCallableUndefinedReceiver<A...> GetCallable() {
@@ -152,7 +154,8 @@ class InterpreterTester {
     }
 
     if (!bytecode_.is_null()) {
-      function->shared().set_function_data(*bytecode_.ToHandleChecked());
+      function->shared().set_function_data(*bytecode_.ToHandleChecked(),
+                                           kReleaseStore);
       is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {
@@ -161,12 +164,10 @@ class InterpreterTester {
       // overwriting existing metadata.
       function->shared().set_raw_outer_scope_info_or_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
-      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+      JSFunction::EnsureFeedbackVector(isolate_, function, &is_compiled_scope);
     }
     return function;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
 };
 
 }  // namespace interpreter

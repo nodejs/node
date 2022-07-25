@@ -14,6 +14,10 @@
 namespace v8 {
 namespace internal {
 
+class StructBodyDescriptor;
+
+#include "torque-generated/src/objects/microtask-tq.inc"
+
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
@@ -28,8 +32,7 @@ class Microtask : public TorqueGeneratedMicrotask<Microtask, Struct> {
 class CallbackTask
     : public TorqueGeneratedCallbackTask<CallbackTask, Microtask> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(CallbackTask)
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(CallbackTask)
 };
@@ -41,9 +44,10 @@ class CallableTask
     : public TorqueGeneratedCallableTask<CallableTask, Microtask> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(CallableTask)
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(CallableTask)
 };

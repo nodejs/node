@@ -1,0 +1,41 @@
+=pod
+
+=head1 NAME
+
+EVP_ASYM_CIPHER-SM2
+- SM2 Asymmetric Cipher algorithm support
+
+=head1 DESCRIPTION
+
+Asymmetric Cipher support for the B<SM2> key type.
+
+=head2 SM2 Asymmetric Cipher parameters
+
+=over 4
+
+=item "digest" (B<OSSL_ASYM_CIPHER_PARAM_DIGEST>) <UTF8 string>
+
+=item "digest-props" (B<OSSL_ASYM_CIPHER_PARAM_DIGEST_PROPS>) <UTF8 string>
+
+See L<provider-asym_cipher(7)/Asymmetric Cipher Parameters>.
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_PKEY-SM2(7)>,
+L<EVP_PKEY(3)>,
+L<provider-asym_cipher(7)>,
+L<provider-keymgmt(7)>,
+L<OSSL_PROVIDER-default(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

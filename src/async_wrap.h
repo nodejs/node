@@ -38,6 +38,7 @@ namespace node {
   V(ELDHISTOGRAM)                                                             \
   V(FILEHANDLE)                                                               \
   V(FILEHANDLECLOSEREQ)                                                       \
+  V(FIXEDSIZEBLOBCOPY)                                                        \
   V(FSEVENTWRAP)                                                              \
   V(FSREQCALLBACK)                                                            \
   V(FSREQPROMISE)                                                             \
@@ -59,12 +60,6 @@ namespace node {
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
-  V(QLOGSTREAM)                                                               \
-  V(QUICCLIENTSESSION)                                                        \
-  V(QUICSERVERSESSION)                                                        \
-  V(QUICSENDWRAP)                                                             \
-  V(QUICSOCKET)                                                               \
-  V(QUICSTREAM)                                                               \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
@@ -83,6 +78,7 @@ namespace node {
 
 #if HAVE_OPENSSL
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
+  V(CHECKPRIMEREQUEST)                                                        \
   V(PBKDF2REQUEST)                                                            \
   V(KEYPAIRGENREQUEST)                                                        \
   V(KEYGENREQUEST)                                                            \
@@ -91,6 +87,7 @@ namespace node {
   V(DERIVEBITSREQUEST)                                                        \
   V(HASHREQUEST)                                                              \
   V(RANDOMBYTESREQUEST)                                                       \
+  V(RANDOMPRIMEREQUEST)                                                       \
   V(SCRYPTREQUEST)                                                            \
   V(SIGNREQUEST)                                                              \
   V(TLSWRAP)                                                                  \
@@ -239,7 +236,7 @@ class AsyncWrap : public BaseObject {
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
-  double trigger_async_id_;
+  double trigger_async_id_ = kInvalidAsyncId;
 };
 
 }  // namespace node

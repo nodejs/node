@@ -41,6 +41,8 @@ RegionAllocator::RegionAllocator(Address memory_region_begin,
 }
 
 RegionAllocator::~RegionAllocator() {
+  // TODO(chromium:1218005) either (D)CHECK that all allocated regions have
+  // been freed again (and thus merged into a single region) or do that now.
   for (Region* region : all_regions_) {
     delete region;
   }
@@ -87,6 +89,8 @@ RegionAllocator::Region* RegionAllocator::Split(Region* region,
   DCHECK_NE(new_size, 0);
   DCHECK_GT(region->size(), new_size);
 
+  if (on_split_) on_split_(region->begin(), new_size);
+
   // Create new region and put it to the lists after the |region|.
   DCHECK(!region->is_excluded());
   RegionState state = region->state();
@@ -112,6 +116,9 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
   Region* prev = *prev_iter;
   Region* next = *next_iter;
   DCHECK_EQ(prev->end(), next->begin());
+
+  if (on_merge_) on_merge_(prev->begin(), prev->size() + next->size());
+
   prev->set_size(prev->size() + next->size());
 
   all_regions_.erase(next_iter);  // prev_iter stays valid.
@@ -198,6 +205,58 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
   FreeListRemoveRegion(region);
   region->set_state(region_state);
   return true;
+}
+
+RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
+    size_t size, size_t alignment) {
+  DCHECK(IsAligned(size, page_size_));
+  DCHECK(IsAligned(alignment, page_size_));
+  DCHECK_GE(alignment, page_size_);
+
+  const size_t padded_size = size + alignment - page_size_;
+  Region* region = FreeListFindRegion(padded_size);
+  if (region == nullptr) return kAllocationFailure;
+
+  if (!IsAligned(region->begin(), alignment)) {
+    size_t start = RoundUp(region->begin(), alignment);
+    region = Split(region, start - region->begin());
+    DCHECK_EQ(region->begin(), start);
+    DCHECK(IsAligned(region->begin(), alignment));
+  }
+
+  if (region->size() != size) {
+    Split(region, size);
+  }
+  DCHECK(IsAligned(region->begin(), alignment));
+  DCHECK_EQ(region->size(), size);
+
+  // Mark region as used.
+  FreeListRemoveRegion(region);
+  region->set_state(RegionState::kAllocated);
+  return region->begin();
+}
+
+RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
+                                                         size_t size,
+                                                         size_t alignment) {
+  DCHECK(IsAligned(alignment, page_size()));
+  DCHECK(IsAligned(hint, alignment));
+
+  if (hint && contains(hint, size)) {
+    if (AllocateRegionAt(hint, size)) {
+      return hint;
+    }
+  }
+
+  Address address;
+  if (alignment <= page_size()) {
+    // TODO(chromium:1218005): Consider using randomized version here.
+    address = AllocateRegion(size);
+  } else {
+    address = AllocateAlignedRegion(size, alignment);
+  }
+
+  return address;
 }
 
 size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {

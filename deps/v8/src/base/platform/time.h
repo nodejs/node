@@ -433,11 +433,6 @@ class V8_BASE_EXPORT TimeTicks final
   // This method never returns a null TimeTicks.
   static TimeTicks Now();
 
-  // This is equivalent to Now() but DCHECKs that IsHighResolution(). Useful for
-  // test frameworks that rely on high resolution clocks (in practice all
-  // platforms but low-end Windows devices have high resolution clocks).
-  static TimeTicks HighResolutionNow();
-
   // Returns true if the high-resolution clock is working on this system.
   static bool IsHighResolution();
 

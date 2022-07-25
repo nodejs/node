@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -43,6 +43,7 @@ my $fatal_alert = 0;    # set by filters at expected fatal alerts
 my $content_type = TLSProxy::Record::RT_APPLICATION_DATA;
 my $inject_recs_num = 1;
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
 plan tests => 20;
 ok($fatal_alert, "Out of context empty records test");
@@ -51,6 +52,7 @@ ok($fatal_alert, "Out of context empty records test");
 $proxy->clear();
 $content_type = TLSProxy::Record::RT_HANDSHAKE;
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
 $proxy->start();
 ok(TLSProxy::Message->success(), "In context empty records test");
 
@@ -60,6 +62,7 @@ $proxy->clear();
 #We allow 32 consecutive in context empty records
 $inject_recs_num = 33;
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
 $proxy->start();
 ok($fatal_alert, "Too many in context empty records test");
 
@@ -70,6 +73,7 @@ $fatal_alert = 0;
 $proxy->clear();
 $proxy->filter(\&add_frag_alert_filter);
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
 $proxy->start();
 ok($fatal_alert, "Fragmented alert records test");
 
@@ -82,11 +86,18 @@ use constant {
     FRAGMENTED_IN_SSLV2 => 3,
     ALERT_BEFORE_SSLV2 => 4
 };
+
+# The TLSv1.2 in SSLv2 ClientHello need to run at security level 0
+# because in a SSLv2 ClientHello we can't send extentions to indicate
+# which signature algorithm we want to use, and the default is SHA1.
+
 #Test 5: Inject an SSLv2 style record format for a TLSv1.2 ClientHello
 my $sslv2testtype = TLSV1_2_IN_SSLV2;
 $proxy->clear();
 $proxy->filter(\&add_sslv2_filter);
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3 -legacy_renegotiation");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $proxy->start();
 ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
 
@@ -96,6 +107,8 @@ ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
 $sslv2testtype = SSLV2_IN_SSLV2;
 $proxy->clear();
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $proxy->start();
 ok(TLSProxy::Message->fail(), "SSLv2 in SSLv2 ClientHello test");
 
@@ -105,6 +118,8 @@ ok(TLSProxy::Message->fail(), "SSLv2 in SSLv2 ClientHello test");
 $sslv2testtype = FRAGMENTED_IN_TLSV1_2;
 $proxy->clear();
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $proxy->start();
 ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
 
@@ -113,6 +128,8 @@ ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
 $sslv2testtype = FRAGMENTED_IN_SSLV2;
 $proxy->clear();
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $proxy->start();
 ok(TLSProxy::Message->fail(), "Fragmented ClientHello in TLSv1.2/SSLv2 test");
 
@@ -121,6 +138,8 @@ ok(TLSProxy::Message->fail(), "Fragmented ClientHello in TLSv1.2/SSLv2 test");
 $sslv2testtype = ALERT_BEFORE_SSLV2;
 $proxy->clear();
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $proxy->start();
 ok(TLSProxy::Message->fail(), "Alert before SSLv2 ClientHello test");
 
@@ -130,6 +149,7 @@ ok(TLSProxy::Message->fail(), "Alert before SSLv2 ClientHello test");
 $fatal_alert = 0;
 $proxy->clear();
 $proxy->serverflags("-tls1_2");
+$proxy->clientflags("-no_tls1_3");
 $proxy->filter(\&add_unknown_record_type);
 $proxy->start();
 ok($fatal_alert, "Unrecognised record type in TLS1.2");
@@ -140,7 +160,8 @@ SKIP: {
     #Test 11: Sending an unrecognised record type in TLS1.1 should fail
     $fatal_alert = 0;
     $proxy->clear();
-    $proxy->clientflags("-tls1_1");
+    $proxy->clientflags("-tls1_1 -cipher DEFAULT:\@SECLEVEL=0");
+    $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
     $proxy->start();
     ok($fatal_alert, "Unrecognised record type in TLS1.1");
 }
@@ -155,7 +176,8 @@ ok($fatal_alert, "Changed record version in TLS1.2");
 
 #TLS1.3 specific tests
 SKIP: {
-    skip "TLSv1.3 disabled", 8 if disabled("tls1_3");
+    skip "TLSv1.3 disabled", 8
+        if disabled("tls1_3") || (disabled("ec") && disabled("dh"));
 
     #Test 13: Sending a different record version in TLS1.3 should fail
     $proxy->clear();

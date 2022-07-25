@@ -62,7 +62,7 @@ assert.throws(
 
 [
   { user: 3, system: 'b' },
-  { user: 3, system: null }
+  { user: 3, system: null },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),
@@ -78,7 +78,7 @@ assert.throws(
 // Check invalid values.
 [
   { user: -1, system: 2 },
-  { user: Number.POSITIVE_INFINITY, system: 4 }
+  { user: Number.POSITIVE_INFINITY, system: 4 },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),
@@ -93,7 +93,7 @@ assert.throws(
 
 [
   { user: 3, system: -2 },
-  { user: 5, system: Number.NEGATIVE_INFINITY }
+  { user: 5, system: Number.NEGATIVE_INFINITY },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),

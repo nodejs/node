@@ -39,11 +39,24 @@ struct ControlTransferEntry {
   uint32_t target_arity;
 };
 
-using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
+struct CatchControlTransferEntry : public ControlTransferEntry {
+  int tag_index;
+  int target_control_index;
+};
+
+struct ControlTransferMap {
+  explicit ControlTransferMap(Zone* zone) : map(zone), catch_map(zone) {}
+
+  ZoneMap<pc_t, ControlTransferEntry> map;
+  ZoneMap<pc_t, ZoneVector<CatchControlTransferEntry>> catch_map;
+};
 
 // An interpreter capable of executing WebAssembly.
 class WasmInterpreter {
  public:
+  WasmInterpreter(const WasmInterpreter&) = delete;
+  WasmInterpreter& operator=(const WasmInterpreter&) = delete;
+
   // State machine for the interpreter:
   //    +----------------------------------------------------------+
   //    |                    +--------Run()/Step()---------+       |
@@ -104,8 +117,6 @@ class WasmInterpreter {
  private:
   Zone zone_;
   std::unique_ptr<WasmInterpreterInternals> internals_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmInterpreter);
 };
 
 }  // namespace wasm

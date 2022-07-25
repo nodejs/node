@@ -45,7 +45,7 @@ for (const tr in tests) {
                             [ '--trace-event-categories',
                               'node.dns.native',
                               '-e',
-                              test_str + tests[tr]
+                              test_str + tests[tr],
                             ],
                             { encoding: 'utf8' });
 

@@ -5,7 +5,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-const { inspect } = require('util');
 
 const server = h2.createServer();
 
@@ -38,7 +37,7 @@ server.listen(0, common.mustCall(() => {
     ['enablePush', 1, TypeError],
     ['enablePush', 0, TypeError],
     ['enablePush', null, TypeError],
-    ['enablePush', {}, TypeError]
+    ['enablePush', {}, TypeError],
   ].forEach(([name, value, errorType]) =>
     assert.throws(
       () => client.settings({ [name]: value }),
@@ -54,9 +53,7 @@ server.listen(0, common.mustCall(() => {
       () => client.settings({}, invalidCallback),
       {
         name: 'TypeError',
-        code: 'ERR_INVALID_CALLBACK',
-        message:
-          `Callback must be a function. Received ${inspect(invalidCallback)}`
+        code: 'ERR_INVALID_ARG_TYPE',
       }
     )
   );

@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-dedupe</title>
 <style>
 body {
@@ -136,20 +137,25 @@ npm command-line interface
 <section id="content">
 <header class="title">
 <h1 id="npm-dedupe">npm-dedupe</h1>
-<span class="description">Reduce duplication</span>
+<span class="description">Reduce duplication in the package tree</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm dedupe
-npm ddp
 
-aliases: find-dupes, ddp
+alias: ddp
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>Searches the local package tree and attempts to simplify the overall
 structure by moving dependencies further up the tree, where they can
@@ -167,7 +173,7 @@ be more effectively shared by multiple dependent packages.</p>
 +-- d
 `-- c@1.0.10
 </code></pre>
-<p>Because of the hierarchical nature of node’s module lookup, b and d
+<p>Because of the hierarchical nature of node's module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree.</p>
 <p>In some cases, you may have a dependency graph like this:</p>
@@ -178,7 +184,7 @@ level of the tree.</p>
     `-- c@1.9.9
 </code></pre>
 <p>During the installation process, the <code>c@1.0.3</code> dependency for <code>b</code> was
-placed in the root of the tree.  Though <code>d</code>’s dependency on <code>c@1.x</code> could
+placed in the root of the tree.  Though <code>d</code>'s dependency on <code>c@1.x</code> could
 have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.0</code> dependency was used,
 because npm favors updates by default, even when doing so causes
 duplication.</p>
@@ -191,11 +197,206 @@ sufficient.</p>
 <p>Note that this operation transforms the dependency tree, but will never
 result in new modules being installed.</p>
 <p>Using <code>npm find-dupes</code> will run the command in <code>--dry-run</code> mode.</p>
+<p>Note: <code>npm dedupe</code> will never update the semver values of direct
+dependencies in your project <code>package.json</code>, if you want to update
+values in <code>package.json</code> you can run: <code>npm update --save</code> instead.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder. Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders. This obviously will
+eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
+will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package. This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to <code>true</code>, and <code>--legacy-peer-deps</code> is not set, then <em>any</em>
+conflicting <code>peerDependencies</code> will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non-peer
+dependency relationships.</p>
+<p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
+be resolved using the nearest non-peer dependency specification, even if
+doing so will result in some packages receiving a peer dependency outside
+the range set in their package's <code>peerDependencies</code> object.</p>
+<p>When such and override is performed, a warning is printed, explaining the
+conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
+this warning is treated as a failure.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="package-lock"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
+will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>This configuration does not affect <code>npm ci</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
+it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
+variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="audit"><code>audit</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
+submitted.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="bin-links"><code>bin-links</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this. This can be used to work around the
+fact that some file systems don't support symlinks, even on ostensibly Unix
+systems.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="fund"><code>fund</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" displays the message at the end of each <code>npm install</code>
+acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
+<code>owner</code>, etc.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="install-links"><code>install-links</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
-<li><a href="../cli-commands/ls.html">npm ls</a></li>
-<li><a href="../cli-commands/update.html">npm update</a></li>
-<li><a href="../cli-commands/install.html">npm install</a></li>
+<li><a href="../commands/npm-find-dupes.html">npm find-dupes</a></li>
+<li><a href="../commands/npm-ls.html">npm ls</a></li>
+<li><a href="../commands/npm-update.html">npm update</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
 </ul>
 </div>
 

@@ -6,13 +6,14 @@
 #define V8_OBJECTS_PRIMITIVE_HEAP_OBJECT_H_
 
 #include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/primitive-heap-object-tq.inc"
 
 // An abstract superclass for classes representing JavaScript primitive values
 // other than Smi. It doesn't carry any functionality but allows primitive

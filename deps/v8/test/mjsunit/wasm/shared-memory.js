@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-threads
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertMemoryIsValid(memory, shared) {
   assertSame(WebAssembly.Memory.prototype, memory.__proto__);

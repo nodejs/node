@@ -7,9 +7,7 @@
 
 #include <stdint.h>
 
-#include <map>
-
-#include "include/v8.h"
+#include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -28,6 +26,8 @@
 // found here: https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
+
+class Promise;
 
 namespace base {
 class TimeDelta;
@@ -65,6 +65,8 @@ class FutexWaitListNode {
                     size_t wait_addr, Handle<JSObject> promise_capability,
                     Isolate* isolate);
   ~FutexWaitListNode();
+  FutexWaitListNode(const FutexWaitListNode&) = delete;
+  FutexWaitListNode& operator=(const FutexWaitListNode&) = delete;
 
   void NotifyWake();
 
@@ -73,15 +75,15 @@ class FutexWaitListNode {
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
 
-  class ResetWaitingOnScopeExit {
+  class V8_NODISCARD ResetWaitingOnScopeExit {
    public:
     explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
     ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
+    ResetWaitingOnScopeExit(const ResetWaitingOnScopeExit&) = delete;
+    ResetWaitingOnScopeExit& operator=(const ResetWaitingOnScopeExit&) = delete;
 
    private:
     FutexWaitListNode* node_;
-
-    DISALLOW_COPY_AND_ASSIGN(ResetWaitingOnScopeExit);
   };
 
  private:
@@ -132,13 +134,12 @@ class FutexWaitListNode {
 
   CancelableTaskManager::Id timeout_task_id_ =
       CancelableTaskManager::kInvalidTaskId;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitListNode);
 };
 
 class FutexEmulation : public AllStatic {
  public:
   enum WaitMode { kSync = 0, kAsync };
+  enum class CallType { kIsNotWasm = 0, kIsWasm };
 
   // Pass to Wake() to wake all waiters.
   static const uint32_t kWakeAll = UINT32_MAX;
@@ -212,17 +213,18 @@ class FutexEmulation : public AllStatic {
   template <typename T>
   static Object Wait(Isolate* isolate, WaitMode mode,
                      Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     bool use_timeout, int64_t rel_timeout_ns);
+                     bool use_timeout, int64_t rel_timeout_ns,
+                     CallType call_type = CallType::kIsNotWasm);
 
   template <typename T>
   static Object WaitSync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                          size_t addr, T value, bool use_timeout,
-                         int64_t rel_timeout_ns);
+                         int64_t rel_timeout_ns, CallType call_type);
 
   template <typename T>
   static Object WaitAsync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                           size_t addr, T value, bool use_timeout,
-                          int64_t rel_timeout_ns);
+                          int64_t rel_timeout_ns, CallType call_type);
 
   // Resolve the Promises of the async waiters which belong to |isolate|.
   static void ResolveAsyncWaiterPromises(Isolate* isolate);

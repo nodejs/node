@@ -38,7 +38,7 @@ const dirconcurrentError = {
 };
 
 const invalidCallbackObj = {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 };
 
@@ -67,18 +67,16 @@ const invalidCallbackObj = {
 // Check the opendir async version
 fs.opendir(testDir, common.mustSucceed((dir) => {
   let sync = true;
-  dir.read(common.mustCall((err, dirent) => {
+  dir.read(common.mustSucceed((dirent) => {
     assert(!sync);
-    assert.ifError(err);
 
     // Order is operating / file system dependent
     assert(files.includes(dirent.name), `'files' should include ${dirent}`);
     assertDirent(dirent);
 
     let syncInner = true;
-    dir.read(common.mustCall((err, dirent) => {
+    dir.read(common.mustSucceed((dirent) => {
       assert(!syncInner);
-      assert.ifError(err);
 
       dir.close(common.mustSucceed());
     }));
@@ -94,7 +92,7 @@ assert.throws(function() {
 
 assert.throws(function() {
   fs.opendir(__filename);
-}, /TypeError \[ERR_INVALID_CALLBACK\]: Callback must be a function/);
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "callback" argument must be of type function/);
 
 fs.opendir(__filename, common.mustCall(function(e) {
   assert.strictEqual(e.code, 'ENOTDIR');
@@ -168,7 +166,7 @@ doAsyncIterBreakTest().then(common.mustCall());
 async function doAsyncIterReturnTest() {
   const dir = await fs.promises.opendir(testDir);
   await (async function() {
-    for await (const dirent of dir) { // eslint-disable-line no-unused-vars
+    for await (const dirent of dir) {
       return;
     }
   })();
@@ -196,14 +194,14 @@ doAsyncIterThrowTest().then(common.mustCall());
 // Check error thrown on invalid values of bufferSize
 for (const bufferSize of [-1, 0, 0.5, 1.5, Infinity, NaN]) {
   assert.throws(
-    () => fs.opendirSync(testDir, { bufferSize }),
+    () => fs.opendirSync(testDir, common.mustNotMutateObjectDeep({ bufferSize })),
     {
       code: 'ERR_OUT_OF_RANGE'
     });
 }
 for (const bufferSize of ['', '1', null]) {
   assert.throws(
-    () => fs.opendirSync(testDir, { bufferSize }),
+    () => fs.opendirSync(testDir, common.mustNotMutateObjectDeep({ bufferSize })),
     {
       code: 'ERR_INVALID_ARG_TYPE'
     });
@@ -211,7 +209,7 @@ for (const bufferSize of ['', '1', null]) {
 
 // Check that passing a positive integer as bufferSize works
 {
-  const dir = fs.opendirSync(testDir, { bufferSize: 1024 });
+  const dir = fs.opendirSync(testDir, common.mustNotMutateObjectDeep({ bufferSize: 1024 }));
   assertDirent(dir.readSync());
   dir.close();
 }
@@ -223,12 +221,11 @@ async function doAsyncIterInvalidCallbackTest() {
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
 
-// Check if directory already closed - throw an exception
+// Check first call to close() - should not report an error.
 async function doAsyncIterDirClosedTest() {
   const dir = await fs.promises.opendir(testDir);
   await dir.close();
-
-  assert.throws(() => dir.close(), dirclosedError);
+  await assert.rejects(() => dir.close(), dirclosedError);
 }
 doAsyncIterDirClosedTest().then(common.mustCall());
 
@@ -244,6 +241,12 @@ async function doConcurrentAsyncAndSyncOps() {
   dir.closeSync();
 }
 doConcurrentAsyncAndSyncOps().then(common.mustCall());
+
+// Check read throw exceptions on invalid callback
+{
+  const dir = fs.opendirSync(testDir);
+  assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_ARG_TYPE/);
+}
 
 // Check that concurrent read() operations don't do weird things.
 async function doConcurrentAsyncOps() {
@@ -267,3 +270,19 @@ async function doConcurrentAsyncMixedOps() {
   await promise2;
 }
 doConcurrentAsyncMixedOps().then(common.mustCall());
+
+// Check if directory already closed - the callback should pass an error.
+{
+  const dir = fs.opendirSync(testDir);
+  dir.closeSync();
+  dir.close(common.mustCall((error) => {
+    assert.strictEqual(error.code, dirclosedError.code);
+  }));
+}
+
+// Check if directory already closed - throw an promise exception.
+{
+  const dir = fs.opendirSync(testDir);
+  dir.closeSync();
+  assert.rejects(dir.close(), dirclosedError).then(common.mustCall());
+}

@@ -26,19 +26,24 @@
 
 #include "v8.h"
 
+#include "node.h"
+
 #include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include <functional>  // std::function
-#include <limits>
-#include <set>
-#include <string>
 #include <array>
+#include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <set>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #ifdef __GNUC__
 #define MUST_USE_RESULT __attribute__((warn_unused_result))
@@ -91,7 +96,7 @@ inline T MultiplyWithOverflowCheck(T a, T b);
 
 namespace per_process {
 // Tells whether the per-process V8::Initialize() is called and
-// if it is safe to call v8::Isolate::GetCurrent().
+// if it is safe to call v8::Isolate::TryGetCurrent().
 extern bool v8_initialized;
 }  // namespace per_process
 
@@ -107,8 +112,8 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void Assert(const AssertionInfo& info);
-[[noreturn]] void Abort();
+[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
+[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
 void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
@@ -268,6 +273,34 @@ template <typename Inner, typename Outer>
 constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
                                                       Inner* pointer);
 
+class KVStore {
+ public:
+  KVStore() = default;
+  virtual ~KVStore() = default;
+  KVStore(const KVStore&) = delete;
+  KVStore& operator=(const KVStore&) = delete;
+  KVStore(KVStore&&) = delete;
+  KVStore& operator=(KVStore&&) = delete;
+
+  virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
+                                         v8::Local<v8::String> key) const = 0;
+  virtual v8::Maybe<std::string> Get(const char* key) const = 0;
+  virtual void Set(v8::Isolate* isolate,
+                   v8::Local<v8::String> key,
+                   v8::Local<v8::String> value) = 0;
+  virtual int32_t Query(v8::Isolate* isolate,
+                        v8::Local<v8::String> key) const = 0;
+  virtual int32_t Query(const char* key) const = 0;
+  virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
+  virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
+
+  virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
+  virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> entries);
+
+  static std::shared_ptr<KVStore> CreateMapKVStore();
+};
+
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const char* data,
@@ -404,7 +437,7 @@ class MaybeStackBuffer {
     buf_[length] = T();
   }
 
-  // Make derefencing this object return nullptr.
+  // Make dereferencing this object return nullptr.
   // This method can be called multiple times throughout the lifetime of the
   // buffer, but once this has been called AllocateSufficientStorage() cannot
   // be used.
@@ -640,10 +673,12 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-std::vector<std::string> SplitString(const std::string& in, char delim);
+std::vector<std::string> SplitString(const std::string& in,
+                                     char delim,
+                                     bool skipEmpty = true);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           const std::string& str,
+                                           std::string_view str,
                                            v8::Isolate* isolate = nullptr);
 template <typename T, typename test_for_number =
     typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
@@ -653,6 +688,10 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 template <typename T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::vector<T>& vec,
+                                           v8::Isolate* isolate = nullptr);
+template <typename T>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::set<T>& set,
                                            v8::Isolate* isolate = nullptr);
 template <typename T, typename U>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
@@ -772,6 +811,7 @@ class PersistentToLocal {
   template <class TypeName>
   static inline v8::Local<TypeName> Strong(
       const v8::PersistentBase<TypeName>& persistent) {
+    DCHECK(!persistent.IsWeak());
     return *reinterpret_cast<v8::Local<TypeName>*>(
         const_cast<v8::PersistentBase<TypeName>*>(&persistent));
   }
@@ -812,6 +852,10 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 }
 
 #define MAYBE_FIELD_PTR(ptr, field) ptr == nullptr ? nullptr : &(ptr->field)
+
+// Returns a non-zero code if it fails to open or read the file,
+// aborts if it fails to close the file.
+int ReadFileSync(std::string* result, const char* path);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

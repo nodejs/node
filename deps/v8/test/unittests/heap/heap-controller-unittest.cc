@@ -79,13 +79,13 @@ TEST_F(MemoryControllerTest, OldGenerationAllocationLimit) {
                 heap, old_gen_size, 0u, max_old_generation_size,
                 new_space_capacity, factor, Heap::HeapGrowingMode::kDefault));
 
-  factor = Min(factor, V8HeapTrait::kConservativeGrowingFactor);
+  factor = std::min({factor, V8HeapTrait::kConservativeGrowingFactor});
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::CalculateAllocationLimit(
                 heap, old_gen_size, 0u, max_old_generation_size,
                 new_space_capacity, factor, Heap::HeapGrowingMode::kSlow));
 
-  factor = Min(factor, V8HeapTrait::kConservativeGrowingFactor);
+  factor = std::min({factor, V8HeapTrait::kConservativeGrowingFactor});
   EXPECT_EQ(
       static_cast<size_t>(old_gen_size * factor + new_space_capacity),
       V8Controller::CalculateAllocationLimit(

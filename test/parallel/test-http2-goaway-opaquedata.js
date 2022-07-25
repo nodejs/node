@@ -22,8 +22,8 @@ server.on('close', common.mustCall());
 server.listen(0, () => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   client.once('goaway', common.mustCall((code, lastStreamID, buf) => {
-    assert.deepStrictEqual(code, 0);
-    assert.deepStrictEqual(lastStreamID, 1);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(lastStreamID, 1);
     assert.deepStrictEqual(data, buf);
     session.close();
     server.close();

@@ -29,7 +29,7 @@ server.listen(0, common.mustCall(() => {
   });
 
   function doRequest() {
-    const req = client.request({ ':method': 'POST ' });
+    const req = client.request({ ':method': 'POST' });
 
     let data = '';
     req.setEncoding('utf8');

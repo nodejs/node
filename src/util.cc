@@ -128,7 +128,7 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
 
 void LowMemoryNotification() {
   if (per_process::v8_initialized) {
-    auto isolate = Isolate::GetCurrent();
+    auto isolate = Isolate::TryGetCurrent();
     if (isolate != nullptr) {
       isolate->LowMemoryNotification();
     }
@@ -164,7 +164,9 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-std::vector<std::string> SplitString(const std::string& in, char delim) {
+std::vector<std::string> SplitString(const std::string& in,
+                                     char delim,
+                                     bool skipEmpty) {
   std::vector<std::string> out;
   if (in.empty())
     return out;
@@ -172,7 +174,7 @@ std::vector<std::string> SplitString(const std::string& in, char delim) {
   while (in_stream.good()) {
     std::string item;
     std::getline(in_stream, item, delim);
-    if (item.empty()) continue;
+    if (item.empty() && skipEmpty) continue;
     out.emplace_back(std::move(item));
   }
   return out;
@@ -219,6 +221,45 @@ int WriteFileSync(v8::Isolate* isolate,
   node::Utf8Value utf8(isolate, string);
   uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
   return WriteFileSync(path, buf);
+}
+
+int ReadFileSync(std::string* result, const char* path) {
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() {
+    uv_fs_req_cleanup(&req);
+  });
+
+  uv_file file = uv_fs_open(nullptr, &req, path, O_RDONLY, 0, nullptr);
+  if (req.result < 0) {
+    // req will be cleaned up by scope leave.
+    return req.result;
+  }
+  uv_fs_req_cleanup(&req);
+
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  *result = std::string("");
+  char buffer[4096];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  while (true) {
+    const int r =
+        uv_fs_read(nullptr, &req, file, &buf, 1, result->length(), nullptr);
+    if (req.result < 0) {
+      // req will be cleaned up by scope leave.
+      return req.result;
+    }
+    uv_fs_req_cleanup(&req);
+    if (r <= 0) {
+      break;
+    }
+    result->append(buf.base, r);
+  }
+  return 0;
 }
 
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {

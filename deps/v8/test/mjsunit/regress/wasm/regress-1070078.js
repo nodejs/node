@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(16, 32, false);
@@ -30,7 +30,7 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   0x04, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // i8x16.shuffle
   kSimdPrefix, kExprI8x16LeU,  // i8x16.le_u
-  kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
+  kSimdPrefix, kExprV128AnyTrue,  // v128.any_true
   kExprMemoryGrow, 0x00,  // memory.grow
   kExprDrop,
   kExprEnd,  // end @233

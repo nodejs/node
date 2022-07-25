@@ -4,7 +4,6 @@ const { mustCall, skipIfInspectorDisabled } = require('../common');
 skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { URL } = require('url');
 const { spawn } = require('child_process');
 
 function test(arg, port = '') {
@@ -20,7 +19,7 @@ function test(arg, port = '') {
   proc.stderr.on('close', (hadErr) => assert(!hadErr));
   proc.stderr.on('data', () => {
     if (!stderr.includes('\n')) return;
-    assert(/Debugger listening on (.+)/.test(stderr));
+    assert.match(stderr, /Debugger listening on (.+)/);
     port = new URL(RegExp.$1).port;
     assert(+port > 0);
   });

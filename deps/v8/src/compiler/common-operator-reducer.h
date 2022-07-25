@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -26,7 +27,8 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
  public:
   CommonOperatorReducer(Editor* editor, Graph* graph, JSHeapBroker* broker,
                         CommonOperatorBuilder* common,
-                        MachineOperatorBuilder* machine, Zone* temp_zone);
+                        MachineOperatorBuilder* machine, Zone* temp_zone,
+                        BranchSemantics branch_semantics);
   ~CommonOperatorReducer() final = default;
 
   const char* reducer_name() const override { return "CommonOperatorReducer"; }
@@ -43,9 +45,13 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSwitch(Node* node);
   Reduction ReduceStaticAssert(Node* node);
+  Reduction ReduceTrapConditional(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
+
+  // Helper to determine if conditions are true or false.
+  Decision DecideCondition(Node* const cond);
 
   Graph* graph() const { return graph_; }
   JSHeapBroker* broker() const { return broker_; }
@@ -59,6 +65,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   MachineOperatorBuilder* const machine_;
   Node* const dead_;
   Zone* zone_;
+  BranchSemantics branch_semantics_;
 };
 
 }  // namespace compiler

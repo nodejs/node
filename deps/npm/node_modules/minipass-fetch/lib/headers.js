@@ -1,24 +1,27 @@
 'use strict'
-const invalidTokenRegex = /[^\^_`a-zA-Z\-0-9!#$%&'*+.|~]/
+const invalidTokenRegex = /[^^_`a-zA-Z\-0-9!#$%&'*+.|~]/
 const invalidHeaderCharRegex = /[^\t\x20-\x7e\x80-\xff]/
 
 const validateName = name => {
   name = `${name}`
-  if (invalidTokenRegex.test(name) || name === '')
+  if (invalidTokenRegex.test(name) || name === '') {
     throw new TypeError(`${name} is not a legal HTTP header name`)
+  }
 }
 
 const validateValue = value => {
   value = `${value}`
-  if (invalidHeaderCharRegex.test(value))
+  if (invalidHeaderCharRegex.test(value)) {
     throw new TypeError(`${value} is not a legal HTTP header value`)
+  }
 }
 
 const find = (map, name) => {
   name = name.toLowerCase()
   for (const key in map) {
-    if (key.toLowerCase() === name)
+    if (key.toLowerCase() === name) {
       return key
+    }
   }
   return undefined
 }
@@ -39,25 +42,29 @@ class Headers {
     }
 
     // no-op
-    if (init === undefined || init === null)
+    if (init === undefined || init === null) {
       return
+    }
 
     if (typeof init === 'object') {
       const method = init[Symbol.iterator]
       if (method !== null && method !== undefined) {
-        if (typeof method !== 'function')
+        if (typeof method !== 'function') {
           throw new TypeError('Header pairs must be iterable')
+        }
 
         // sequence<sequence<ByteString>>
         // Note: per spec we have to first exhaust the lists then process them
         const pairs = []
         for (const pair of init) {
           if (typeof pair !== 'object' ||
-              typeof pair[Symbol.iterator] !== 'function')
+              typeof pair[Symbol.iterator] !== 'function') {
             throw new TypeError('Each header pair must be iterable')
+          }
           const arrPair = Array.from(pair)
-          if (arrPair.length !== 2)
+          if (arrPair.length !== 2) {
             throw new TypeError('Each header pair must be a name/value tuple')
+          }
           pairs.push(arrPair)
         }
 
@@ -70,16 +77,18 @@ class Headers {
           this.append(key, init[key])
         }
       }
-    } else
+    } else {
       throw new TypeError('Provided initializer must be an object')
+    }
   }
 
   get (name) {
     name = `${name}`
     validateName(name)
     const key = find(this[MAP], name)
-    if (key === undefined)
+    if (key === undefined) {
       return null
+    }
 
     return this[MAP][key].join(', ')
   }
@@ -109,10 +118,11 @@ class Headers {
     validateName(name)
     validateValue(value)
     const key = find(this[MAP], name)
-    if (key !== undefined)
+    if (key !== undefined) {
       this[MAP][key].push(value)
-    else
+    } else {
       this[MAP][name] = [value]
+    }
   }
 
   has (name) {
@@ -125,8 +135,9 @@ class Headers {
     name = `${name}`
     validateName(name)
     const key = find(this[MAP], name)
-    if (key !== undefined)
+    if (key !== undefined) {
       delete this[MAP][key]
+    }
   }
 
   raw () {
@@ -141,7 +152,7 @@ class Headers {
     return new HeadersIterator(this, 'value')
   }
 
-  [Symbol.iterator]() {
+  [Symbol.iterator] () {
     return new HeadersIterator(this, 'key+value')
   }
 
@@ -159,8 +170,9 @@ class Headers {
     // http.request() only supports string as Host header. This hack makes
     // specifying custom Host header possible.
     const hostHeaderKey = find(headers[MAP], 'Host')
-    if (hostHeaderKey !== undefined)
+    if (hostHeaderKey !== undefined) {
       obj[hostHeaderKey] = obj[hostHeaderKey][0]
+    }
 
     return obj
   }
@@ -168,21 +180,25 @@ class Headers {
   static createHeadersLenient (obj) {
     const headers = new Headers()
     for (const name of Object.keys(obj)) {
-      if (invalidTokenRegex.test(name))
+      if (invalidTokenRegex.test(name)) {
         continue
+      }
 
       if (Array.isArray(obj[name])) {
         for (const val of obj[name]) {
-          if (invalidHeaderCharRegex.test(val))
+          if (invalidHeaderCharRegex.test(val)) {
             continue
+          }
 
-          if (headers[MAP][name] === undefined)
+          if (headers[MAP][name] === undefined) {
             headers[MAP][name] = [val]
-          else
+          } else {
             headers[MAP][name].push(val)
+          }
         }
-      } else if (!invalidHeaderCharRegex.test(obj[name]))
+      } else if (!invalidHeaderCharRegex.test(obj[name])) {
         headers[MAP][name] = [obj[name]]
+      }
     }
     return headers
   }
@@ -224,8 +240,9 @@ class HeadersIterator {
 
   next () {
     /* istanbul ignore if: should be impossible */
-    if (!this || Object.getPrototypeOf(this) !== HeadersIterator.prototype)
+    if (!this || Object.getPrototypeOf(this) !== HeadersIterator.prototype) {
       throw new TypeError('Value of `this` is not a HeadersIterator')
+    }
 
     const { target, kind, index } = this[INTERNAL]
     const values = getHeaders(target, kind)

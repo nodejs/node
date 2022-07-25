@@ -27,23 +27,24 @@ LoadElement<array::FastPackedDoubleElements, float64>(
 }
 
 macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
-    implicit context: Context)(elements: FixedArrayBase, index: Smi, value: T);
+    implicit context: Context)(
+    elements: FixedArrayBase, index: Smi, value: T): void;
 
 StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: Smi) {
+    elements: FixedArrayBase, index: Smi, value: Smi): void {
   const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-  StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(elems, index, value);
 }
 
 StoreElement<array::FastPackedObjectElements, JSAny>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: JSAny) {
+    elements: FixedArrayBase, index: Smi, value: JSAny): void {
   const elements: FixedArray = UnsafeCast<FixedArray>(elements);
   elements.objects[index] = value;
 }
 
 StoreElement<array::FastPackedDoubleElements, float64>(
     implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: float64) {
+    elements: FixedArrayBase, index: Smi, value: float64): void {
   const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
   StoreFixedDoubleArrayElement(elems, index, value);
 }
@@ -52,7 +53,7 @@ StoreElement<array::FastPackedDoubleElements, float64>(
 // whether a property is present, so we can simply swap them using fast
 // FixedArray loads/stores.
 macro FastPackedArrayReverse<Accessor: type, T: type>(
-    implicit context: Context)(elements: FixedArrayBase, length: Smi) {
+    implicit context: Context)(elements: FixedArrayBase, length: Smi): void {
   let lower: Smi = 0;
   let upper: Smi = length - 1;
 
@@ -138,8 +139,8 @@ transitioning macro GenericArrayReverse(
   return object;
 }
 
-macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny)
-    labels Slow {
+macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny):
+    void labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
   const kind: ElementsKind = array.map.elements_kind;

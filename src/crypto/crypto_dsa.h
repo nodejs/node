@@ -16,8 +16,8 @@ struct DsaKeyPairParams final : public MemoryRetainer {
   unsigned int modulus_bits;
   int divisor_bits;
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(DsaKeyPairParams);
-  SET_SELF_SIZE(DsaKeyPairParams);
+  SET_MEMORY_INFO_NAME(DsaKeyPairParams)
+  SET_SELF_SIZE(DsaKeyPairParams)
 };
 
 using DsaKeyPairGenConfig = KeyPairGenConfig<DsaKeyPairParams>;
@@ -38,9 +38,9 @@ struct DsaKeyGenTraits final {
 using DsaKeyPairGenJob = KeyGenJob<KeyPairGenTraits<DsaKeyGenTraits>>;
 
 struct DSAKeyExportConfig final : public MemoryRetainer {
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(DSAKeyExportConfig);
-  SET_SELF_SIZE(DSAKeyExportConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DSAKeyExportConfig)
+  SET_SELF_SIZE(DSAKeyExportConfig)
 };
 
 struct DSAKeyExportTraits final {
@@ -61,17 +61,6 @@ struct DSAKeyExportTraits final {
 
 using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
 
-v8::Maybe<bool> ExportJWKDsaKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
-
-std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
-    Environment* env,
-    v8::Local<v8::Object> jwk,
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    unsigned int offset);
-
 v8::Maybe<bool> GetDsaKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
@@ -79,6 +68,7 @@ v8::Maybe<bool> GetDsaKeyDetail(
 
 namespace DSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace DSAAlg
 }  // namespace crypto
 }  // namespace node

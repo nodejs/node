@@ -1,0 +1,42 @@
+{
+  "name": "electron-to-chromium",
+  "version": "1.4.192",
+  "description": "Provides a list of electron-to-chromium version mappings",
+  "main": "index.js",
+  "files": [
+    "versions.js",
+    "full-versions.js",
+    "chromium-versions.js",
+    "full-chromium-versions.js",
+    "versions.json",
+    "full-versions.json",
+    "chromium-versions.json",
+    "full-chromium-versions.json",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "update": "node automated-update.js",
+    "test": "nyc ava --verbose",
+    "report": "nyc report --reporter=text-lcov > coverage.lcov && codecov"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kilian/electron-to-chromium/"
+  },
+  "keywords": [
+    "electron",
+    "chrome",
+    "browserlist"
+  ],
+  "author": "Kilian Valkhof",
+  "license": "ISC",
+  "devDependencies": {
+    "ava": "^4.0.1",
+    "codecov": "^3.8.0",
+    "electron-releases": "^3.1072.0",
+    "nyc": "^15.1.0",
+    "request": "^2.65.0",
+    "shelljs": "^0.8.4"
+  }
+}

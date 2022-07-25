@@ -301,11 +301,11 @@ class ServerHolder {
 
 class TestSocketServerDelegate : public SocketServerDelegate {
  public:
-  explicit TestSocketServerDelegate(
-      ServerHolder* server,
-      const std::vector<std::string>& target_ids)
+  explicit TestSocketServerDelegate(ServerHolder* server,
+                                    const std::vector<std::string>& target_ids)
       : harness_(server),
         targets_(target_ids),
+        server_(nullptr),
         session_id_(0) {}
 
   ~TestSocketServerDelegate() override {
@@ -354,6 +354,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
 
 ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
                            const std::string& host, int port, FILE* out) {
+  session_id_ = 0;
   std::vector<std::string> targets;
   if (has_targets)
     targets = { MAIN_TARGET_ID };

@@ -32,8 +32,6 @@ const assert = require('assert');
 const https = require('https');
 const url = require('url');
 
-const URL = url.URL;
-
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')

@@ -50,5 +50,28 @@
   },
   "streams/*.js": {
     "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  },
+  "encodeInto.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-copy.any.js": {
+    "requires": ["small-icu"]
+  },
+  "legacy-mb-schinese/gbk/gbk-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gbk encoding is not supported"
+  },
+  "legacy-mb-schinese/gb18030/gb18030-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gb18030 encoding is not supported"
+  },
+  "textdecoder-arguments.any.js": {
+    "requires": ["small-icu"]
+  },
+  "single-byte-decoder.window.js": {
+    "skip": "location is not defined"
+  },
+  "textdecoder-eof.any.js": {
+    "requires": ["small-icu"]
   }
 }

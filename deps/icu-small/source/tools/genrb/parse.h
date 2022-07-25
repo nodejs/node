@@ -25,7 +25,7 @@
 #include "ucbuf.h"
 
 U_CDECL_BEGIN
-/* One time parser initalisation */
+/* One time parser initialization */
 void initParser();
 
 /* Parse a ResourceBundle text file */

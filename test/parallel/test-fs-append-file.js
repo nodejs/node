@@ -121,7 +121,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 }
 
 // Test that appendFile does not accept invalid data type (callback API).
-[false, 5, {}, [], null, undefined].forEach(async (data) => {
+[false, 5, {}, null, undefined].forEach(async (data) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     message: /"data"|"buffer"/
@@ -191,4 +191,4 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
 assert.throws(
   () => fs.appendFile(join(tmpdir.path, 'append6.txt'), console.log),
-  { code: 'ERR_INVALID_CALLBACK' });
+  { code: 'ERR_INVALID_ARG_TYPE' });

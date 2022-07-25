@@ -13,10 +13,10 @@
 #ifndef ICU_UTIL_H
 #define ICU_UTIL_H
 
-#include "unicode/utypes.h"
-#include "unicode/uobject.h"
+#include "charstr.h"
 #include "unicode/unistr.h"
-
+#include "unicode/uobject.h"
+#include "unicode/utypes.h"
 //--------------------------------------------------------------------
 // class ICU_Utility
 // i18n utility functions, scoped into the class ICU_Utility.
@@ -55,19 +55,29 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
 
     /**
      * Return true if the character is NOT printable ASCII.
-     *
-     * This method should really be in UnicodeString (or similar).  For
-     * now, we implement it here and share it with friend classes.
+     * The tab, newline and linefeed characters are considered unprintable.
      */
     static UBool isUnprintable(UChar32 c);
 
     /**
-     * Escape unprintable characters using \uxxxx notation for U+0000 to
+     * @return true for control codes and for surrogate and noncharacter code points
+     */
+    static UBool shouldAlwaysBeEscaped(UChar32 c);
+
+    /**
+     * Escapes one unprintable code point using \uxxxx notation for U+0000 to
      * U+FFFF and \Uxxxxxxxx for U+10000 and above.  If the character is
      * printable ASCII, then do nothing and return false.  Otherwise,
      * append the escaped notation and return true.
      */
     static UBool escapeUnprintable(UnicodeString& result, UChar32 c);
+
+    /**
+     * Escapes one code point using \uxxxx notation
+     * for U+0000 to U+FFFF and \Uxxxxxxxx for U+10000 and above.
+     * @return result
+     */
+    static UnicodeString &escape(UnicodeString& result, UChar32 c);
 
     /**
      * Returns the index of a character, ignoring quoted text.
@@ -153,7 +163,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      */
     static int32_t parsePattern(const UnicodeString& rule, int32_t pos, int32_t limit,
                                 const UnicodeString& pattern, int32_t* parsedInts);
-
+        
     /**
      * Parse a pattern string within the given Replaceable and a parsing
      * pattern.  Characters are matched literally and case-sensitively
@@ -199,7 +209,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      * position.  Return the identifier, or an empty string if there
      * is no identifier.
      * @param str the string to parse
-     * @param pos INPUT-OUPUT parameter.  On INPUT, pos is the
+     * @param pos INPUT-OUTPUT parameter.  On INPUT, pos is the
      * first character to examine.  It must be less than str.length(),
      * and it must not point to a whitespace character.  That is, must
      * have pos < str.length() and
@@ -234,7 +244,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
                              UBool isLiteral,
                              UBool escapeUnprintable,
                              UnicodeString& quoteBuf);
-
+    
     static void appendToRule(UnicodeString& rule,
                              const UnicodeString& text,
                              UBool isLiteral,

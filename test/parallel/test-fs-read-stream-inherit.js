@@ -199,7 +199,7 @@ const rangeFile = fixtures.path('x.txt');
   file.on('error', common.mustCall());
 
   process.on('exit', function() {
-    assert(!file.closed);
+    assert(file.closed);
     assert(file.destroyed);
   });
 }

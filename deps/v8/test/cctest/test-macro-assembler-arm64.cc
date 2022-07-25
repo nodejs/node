@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/base/platform/platform.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
-#include "src/codegen/macro-assembler.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
@@ -66,7 +66,7 @@ TEST(EmbeddedObj) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -77,18 +77,47 @@ TEST(EmbeddedObj) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 
+  PtrComprCageBase cage_base(isolate);
+
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
-      CHECK_EQ(*my_array, it.rinfo()->target_object());
+      CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
-      CHECK_EQ(*old_array, it.rinfo()->target_object());
+      CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));
     }
   }
 #endif  // V8_COMPRESS_POINTERS
+}
+
+TEST(DeoptExitSizeIsFixed) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      buffer->CreateView());
+
+  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    Label before_exit;
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    // Mirroring logic in code-generator.cc.
+    if (kind == DeoptimizeKind::kLazy) {
+      // CFI emits an extra instruction here.
+      masm.BindExceptionHandler(&before_exit);
+    } else {
+      masm.bind(&before_exit);
+    }
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               &before_exit);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
+  }
 }
 
 #undef __

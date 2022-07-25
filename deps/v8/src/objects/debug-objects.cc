@@ -4,8 +4,10 @@
 
 #include "src/objects/debug-objects.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/utils/ostreams.h"
 
@@ -13,26 +15,27 @@ namespace v8 {
 namespace internal {
 
 bool DebugInfo::IsEmpty() const {
-  return flags() == kNone && debugger_hints() == 0;
+  return flags(kRelaxedLoad) == kNone && debugger_hints() == 0;
 }
 
-bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
+bool DebugInfo::HasBreakInfo() const {
+  return (flags(kRelaxedLoad) & kHasBreakInfo) != 0;
+}
 
 DebugInfo::ExecutionMode DebugInfo::DebugExecutionMode() const {
-  return (flags() & kDebugExecutionMode) != 0 ? kSideEffects : kBreakpoints;
+  return (flags(kRelaxedLoad) & kDebugExecutionMode) != 0 ? kSideEffects
+                                                          : kBreakpoints;
 }
 
 void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
-  set_flags(value == kSideEffects ? (flags() | kDebugExecutionMode)
-                                  : (flags() & ~kDebugExecutionMode));
+  set_flags(value == kSideEffects
+                ? (flags(kRelaxedLoad) | kDebugExecutionMode)
+                : (flags(kRelaxedLoad) & ~kDebugExecutionMode),
+            kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   if (HasInstrumentedBytecodeArray()) {
-    // Reset function's bytecode array field to point to the original bytecode
-    // array.
-    shared().SetDebugBytecodeArray(OriginalBytecodeArray());
-
     // If the function is currently running on the stack, we need to update the
     // bytecode pointers on the stack so they point to the original
     // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
@@ -44,32 +47,33 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
       isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
     }
 
-    set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
-    set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
+    SharedFunctionInfo::UninstallDebugBytecode(shared(), isolate);
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
-  int new_flags = flags();
+  int new_flags = flags(kRelaxedLoad);
   new_flags &= ~kHasBreakInfo & ~kPreparedForDebugExecution;
   new_flags &= ~kBreakAtEntry & ~kCanBreakAtEntry;
   new_flags &= ~kDebugExecutionMode;
-  set_flags(new_flags);
+  set_flags(new_flags, kRelaxedStore);
 }
 
 void DebugInfo::SetBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags() | kBreakAtEntry);
+  set_flags(flags(kRelaxedLoad) | kBreakAtEntry, kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags() & ~kBreakAtEntry);
+  set_flags(flags(kRelaxedLoad) & ~kBreakAtEntry, kRelaxedStore);
 }
 
-bool DebugInfo::BreakAtEntry() const { return (flags() & kBreakAtEntry) != 0; }
+bool DebugInfo::BreakAtEntry() const {
+  return (flags(kRelaxedLoad) & kBreakAtEntry) != 0;
+}
 
 bool DebugInfo::CanBreakAtEntry() const {
-  return (flags() & kCanBreakAtEntry) != 0;
+  return (flags(kRelaxedLoad) & kCanBreakAtEntry) != 0;
 }
 
 // Check if there is a break point at this source position.
@@ -203,15 +207,15 @@ Handle<Object> DebugInfo::FindBreakPointInfo(Isolate* isolate,
 }
 
 bool DebugInfo::HasCoverageInfo() const {
-  return (flags() & kHasCoverageInfo) != 0;
+  return (flags(kRelaxedLoad) & kHasCoverageInfo) != 0;
 }
 
 void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
     set_coverage_info(ReadOnlyRoots(isolate).undefined_value());
 
-    int new_flags = flags() & ~kHasCoverageInfo;
-    set_flags(new_flags);
+    int new_flags = flags(kRelaxedLoad) & ~kHasCoverageInfo;
+    set_flags(new_flags, kRelaxedStore);
   }
 }
 
@@ -360,44 +364,21 @@ int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return FixedArray::cast(break_points()).length();
 }
 
-int CoverageInfo::SlotFieldOffset(int slot_index, int field_offset) const {
-  DCHECK_LT(field_offset, Slot::kSize);
-  DCHECK_LT(slot_index, slot_count());
-  return kSlotsOffset + slot_index * Slot::kSize + field_offset;
-}
-
-int CoverageInfo::StartSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset));
-}
-
-int CoverageInfo::EndSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset));
-}
-
-int CoverageInfo::BlockCount(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kBlockCountOffset));
-}
-
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset), from_pos);
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset), to_pos);
+  set_slots_start_source_position(slot_index, from_pos);
+  set_slots_end_source_position(slot_index, to_pos);
   ResetBlockCount(slot_index);
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kPaddingOffset), 0);
+  set_slots_padding(slot_index, 0);
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kBlockCountOffset), 0);
+  set_slots_block_count(slot_index, 0);
 }
 
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   os << "Coverage info (";
   if (function_name == nullptr) {
@@ -410,9 +391,81 @@ void CoverageInfo::CoverageInfoPrint(std::ostream& os,
   os << "):" << std::endl;
 
   for (int i = 0; i < slot_count(); i++) {
-    os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
-       << std::endl;
+    os << "{" << slots_start_source_position(i) << ","
+       << slots_end_source_position(i) << "}" << std::endl;
   }
+}
+
+// static
+int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
+  if (info->shared_or_script().IsScript()) {
+    return info->bytecode_offset_or_source_position();
+  }
+  Isolate* isolate = info->GetIsolate();
+  Handle<SharedFunctionInfo> shared(
+      SharedFunctionInfo::cast(info->shared_or_script()), isolate);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
+  int source_position = shared->abstract_code(isolate).SourcePosition(
+      info->bytecode_offset_or_source_position());
+  info->set_shared_or_script(shared->script());
+  info->set_bytecode_offset_or_source_position(source_position);
+  return source_position;
+}
+
+// static
+void ErrorStackData::EnsureStackFrameInfos(Isolate* isolate,
+                                           Handle<ErrorStackData> error_stack) {
+  if (!error_stack->limit_or_stack_frame_infos().IsSmi()) {
+    return;
+  }
+  int limit = Smi::cast(error_stack->limit_or_stack_frame_infos()).value();
+  Handle<FixedArray> call_site_infos(error_stack->call_site_infos(), isolate);
+  Handle<FixedArray> stack_frame_infos =
+      isolate->factory()->NewFixedArray(call_site_infos->length());
+  int index = 0;
+  for (int i = 0; i < call_site_infos->length(); ++i) {
+    Handle<CallSiteInfo> call_site_info(
+        CallSiteInfo::cast(call_site_infos->get(i)), isolate);
+    if (call_site_info->IsAsync()) {
+      break;
+    }
+    Handle<Script> script;
+    if (!CallSiteInfo::GetScript(isolate, call_site_info).ToHandle(&script) ||
+        !script->IsSubjectToDebugging()) {
+      continue;
+    }
+    Handle<StackFrameInfo> stack_frame_info =
+        isolate->factory()->NewStackFrameInfo(
+            script, CallSiteInfo::GetSourcePosition(call_site_info),
+            CallSiteInfo::GetFunctionDebugName(call_site_info),
+            call_site_info->IsConstructor());
+    stack_frame_infos->set(index++, *stack_frame_info);
+  }
+  stack_frame_infos =
+      FixedArray::ShrinkOrEmpty(isolate, stack_frame_infos, index);
+  if (limit < 0 && -limit < index) {
+    // Negative limit encodes cap to be applied to |stack_frame_infos|.
+    stack_frame_infos =
+        FixedArray::ShrinkOrEmpty(isolate, stack_frame_infos, -limit);
+  } else if (limit >= 0 && limit < call_site_infos->length()) {
+    // Positive limit means we need to cap the |call_site_infos|
+    // to that number before exposing them to the world.
+    call_site_infos =
+        FixedArray::ShrinkOrEmpty(isolate, call_site_infos, limit);
+    error_stack->set_call_site_infos(*call_site_infos);
+  }
+  error_stack->set_limit_or_stack_frame_infos(*stack_frame_infos);
+}
+
+// static
+MaybeHandle<JSObject> PromiseOnStack::GetPromise(
+    Handle<PromiseOnStack> promise_on_stack) {
+  HeapObject promise;
+  Isolate* isolate = promise_on_stack->GetIsolate();
+  if (promise_on_stack->promise()->GetHeapObjectIfWeak(isolate, &promise)) {
+    return handle(JSObject::cast(promise), isolate);
+  }
+  return {};
 }
 
 }  // namespace internal

@@ -31,7 +31,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const http = require('http');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const worker = cluster.fork();

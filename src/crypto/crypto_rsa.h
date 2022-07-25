@@ -7,7 +7,6 @@
 #include "crypto/crypto_keygen.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -15,7 +14,7 @@
 namespace node {
 namespace crypto {
 enum RSAKeyVariant {
-  kKeyVariantRSA_SSA_PKCS1_V1_5,
+  kKeyVariantRSA_SSA_PKCS1_v1_5,
   kKeyVariantRSA_PSS,
   kKeyVariantRSA_OAEP
 };
@@ -25,14 +24,15 @@ struct RsaKeyPairParams final : public MemoryRetainer {
   unsigned int modulus_bits;
   unsigned int exponent;
 
-  // The following used for RSA-PSS
+  // The following options are used for RSA-PSS. If any of them are set, a
+  // RSASSA-PSS-params sequence will be added to the key.
   const EVP_MD* md = nullptr;
   const EVP_MD* mgf1_md = nullptr;
-  int saltlen = 0;
+  int saltlen = -1;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(RsaKeyPairParams);
-  SET_SELF_SIZE(RsaKeyPairParams);
+  SET_MEMORY_INFO_NAME(RsaKeyPairParams)
+  SET_SELF_SIZE(RsaKeyPairParams)
 };
 
 using RsaKeyPairGenConfig = KeyPairGenConfig<RsaKeyPairParams>;
@@ -53,7 +53,7 @@ struct RsaKeyGenTraits final {
 using RSAKeyPairGenJob = KeyGenJob<KeyPairGenTraits<RsaKeyGenTraits>>;
 
 struct RSAKeyExportConfig final : public MemoryRetainer {
-  RSAKeyVariant variant = kKeyVariantRSA_SSA_PKCS1_V1_5;
+  RSAKeyVariant variant = kKeyVariantRSA_SSA_PKCS1_v1_5;
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RSAKeyExportConfig)
   SET_SELF_SIZE(RSAKeyExportConfig)
@@ -88,8 +88,8 @@ struct RSACipherConfig final : public MemoryRetainer {
   RSACipherConfig(RSACipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(RSACipherConfig);
-  SET_SELF_SIZE(RSACipherConfig);
+  SET_MEMORY_INFO_NAME(RSACipherConfig)
+  SET_SELF_SIZE(RSACipherConfig)
 };
 
 struct RSACipherTraits final {
@@ -132,6 +132,7 @@ v8::Maybe<bool> GetRsaKeyDetail(
 
 namespace RSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace RSAAlg
 }  // namespace crypto
 }  // namespace node

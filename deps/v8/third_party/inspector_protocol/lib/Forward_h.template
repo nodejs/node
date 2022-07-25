@@ -12,11 +12,8 @@
 {% endif %}
 #include {{format_include(config.lib.string_header)}}
 
-#include <cstddef>
 #include <memory>
 #include <vector>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "{{config.crdtp.dir}}/error_support.h"
 #include "{{config.crdtp.dir}}/dispatch.h"
@@ -64,6 +61,10 @@ struct ArrayTypedef<double> { typedef std::vector<double> type; };
 
 template <>
 struct ArrayTypedef<bool> { typedef std::vector<bool> type; };
+
+template <>
+struct ArrayTypedef<Binary> { typedef std::vector<Binary> type; };
+
 }  // namespace detail
 
 template <typename T>

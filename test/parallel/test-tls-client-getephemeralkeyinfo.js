@@ -23,7 +23,8 @@ function test(size, type, name, cipher) {
   const options = {
     key: key,
     cert: cert,
-    ciphers: cipher
+    ciphers: cipher,
+    maxVersion: 'TLSv1.2',
   };
 
   if (name) options.ecdhCurve = name;
@@ -37,7 +38,7 @@ function test(size, type, name, cipher) {
 
   server.on('close', common.mustSucceed());
 
-  server.listen(0, '127.0.0.1', common.mustCall(() => {
+  server.listen(0, common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
       rejectUnauthorized: false

@@ -21,9 +21,14 @@
 
 'use strict';
 const common = require('../common');
+
+if (common.isIBMi) {
+  common.skip('IBMi does not support fs.watch()');
+}
+
 const path = require('path');
 const fs = require('fs');
-
+const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
@@ -33,13 +38,14 @@ const filepath = path.join(testsubdir, 'watch.txt');
 
 fs.mkdirSync(testsubdir, 0o700);
 
-// Need a grace period, else the mkdirSync() above fires off an event.
-setTimeout(function() {
-  const watcher = fs.watch(testDir, { persistent: true }, common.mustNotCall());
-  setTimeout(function() {
-    fs.writeFileSync(filepath, 'test');
-  }, 100);
-  setTimeout(function() {
-    watcher.close();
-  }, 500);
-}, 50);
+const watcher = fs.watch(testDir, { persistent: true }, (event, filename) => {
+  // This function may be called with the directory depending on timing but
+  // must not be called with the file..
+  assert.strictEqual(filename, 'testsubdir');
+});
+setTimeout(() => {
+  fs.writeFileSync(filepath, 'test');
+}, 100);
+setTimeout(() => {
+  watcher.close();
+}, 500);

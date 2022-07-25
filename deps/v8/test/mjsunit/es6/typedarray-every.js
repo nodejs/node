@@ -82,18 +82,16 @@ function TestTypedArrayForEach(constructor) {
   CheckWrapping({}, Object);
 
   // Detaching the buffer backing the typed array mid-way should
-  // still make .forEach() finish, and the array should keep being
+  // still make .every() finish, and the array should keep being
   // empty after detaching it.
   count = 0;
   a = new constructor(3);
   result = a.every(function (n, index, array) {
-    assertFalse(array[index] === undefined);  // don't get here if detached
-    if (count > 0) %ArrayBufferDetach(array.buffer);
-    array[index] = n + 1;
     count++;
-    return count > 1 ? array[index] === undefined : true;
+    if (count > 1) %ArrayBufferDetach(array.buffer);
+    return count > 2 ? n === undefined : true;
   });
-  assertEquals(2, count);
+  assertEquals(3, count);
   assertEquals(true, result);
   CheckTypedArrayIsDetached(a);
   assertEquals(undefined, a[0]);

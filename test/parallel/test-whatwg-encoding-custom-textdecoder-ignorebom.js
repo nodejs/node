@@ -15,7 +15,7 @@ const cases = [
   {
     encoding: 'utf-16le',
     bytes: [0xFF, 0xFE, 0x61, 0x00, 0x62, 0x00, 0x63, 0x00]
-  }
+  },
 ];
 
 cases.forEach((testCase) => {

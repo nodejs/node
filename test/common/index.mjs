@@ -1,5 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
-
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -18,11 +16,11 @@ const {
   isLinux,
   isOSX,
   enoughTestMem,
-  enoughTestCpu,
   buildType,
   localIPv6Hosts,
   opensslCli,
   PIPE,
+  hasCrypto,
   hasIPv6,
   childShouldThrowAndAbort,
   createZeroFilledFile,
@@ -30,12 +28,14 @@ const {
   allowGlobals,
   mustCall,
   mustCallAtLeast,
+  mustSucceed,
   hasMultiLocalhost,
   skipIfDumbTerminal,
   skipIfEslintMissing,
   canCreateSymLink,
   getCallSite,
   mustNotCall,
+  mustNotMutateObjectDeep,
   printSkipMessage,
   skip,
   nodeProcessAborted,
@@ -46,7 +46,6 @@ const {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD
 } = common;
@@ -64,11 +63,11 @@ export {
   isLinux,
   isOSX,
   enoughTestMem,
-  enoughTestCpu,
   buildType,
   localIPv6Hosts,
   opensslCli,
   PIPE,
+  hasCrypto,
   hasIPv6,
   childShouldThrowAndAbort,
   createZeroFilledFile,
@@ -76,12 +75,14 @@ export {
   allowGlobals,
   mustCall,
   mustCallAtLeast,
+  mustSucceed,
   hasMultiLocalhost,
   skipIfDumbTerminal,
   skipIfEslintMissing,
   canCreateSymLink,
   getCallSite,
   mustNotCall,
+  mustNotMutateObjectDeep,
   printSkipMessage,
   skip,
   nodeProcessAborted,
@@ -92,7 +93,6 @@ export {
   skipIf32Bits,
   getArrayBufferViews,
   getBufferSources,
-  disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD,
   createRequire

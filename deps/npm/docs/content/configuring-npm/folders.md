@@ -45,14 +45,16 @@ Global installs on Windows go to `{prefix}/node_modules` (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub-folder of the relevant `node_modules` folder with the name of that
 scope prefix by the @ symbol, e.g. `npm install @myorg/package` would place
-the package in `{prefix}/node_modules/@myorg/package`. See [`scope`](/using-npm/scope) for more details.
+the package in `{prefix}/node_modules/@myorg/package`. See
+[`scope`](/using-npm/scope) for more details.
 
 If you wish to `require()` a package, then install it locally.
 
 #### Executables
 
 When in global mode, executables are linked into `{prefix}/bin` on Unix,
-or directly into `{prefix}` on Windows.
+or directly into `{prefix}` on Windows.  Ensure that path is in your
+terminal's `PATH` environment to run them.
 
 When in local mode, executables are linked into
 `./node_modules/.bin` so that they can be made available to scripts run
@@ -200,12 +202,12 @@ For a graphical breakdown of what is installed where, use `npm ls`.
 #### Publishing
 
 Upon publishing, npm will look in the `node_modules` folder.  If any of
-the items there are not in the `bundledDependencies` array, then they will
+the items there are not in the `bundleDependencies` array, then they will
 not be included in the package tarball.
 
 This allows a package maintainer to install all of their dependencies
 (and dev dependencies) locally, but only re-publish those items that
-cannot be found elsewhere.  See [`package.json`](/configuring-npm/package.json) for more information.
+cannot be found elsewhere.  See [`package.json`](/configuring-npm/package-json) for more information.
 
 ### See also
 

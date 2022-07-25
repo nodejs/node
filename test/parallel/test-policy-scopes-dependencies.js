@@ -19,7 +19,7 @@ const assert = require('assert');
     'file:///root/dir1',
     'file:///root/dir1/',
     'file:///root/dir1/dir2',
-    'file:///root/dir1/dir2/'
+    'file:///root/dir1/dir2/',
   ];
 
   {
@@ -27,6 +27,41 @@ const assert = require('assert');
       scopes: {
         'file:///': {
           dependencies: true
+        }
+      }
+    });
+
+    for (const href of baseURLs) {
+      assert.strictEqual(
+        manifest.getDependencyMapper(href).resolve('fs'),
+        true
+      );
+    }
+  }
+  {
+    const manifest = new Manifest({
+      scopes: {
+        '': {
+          dependencies: true
+        }
+      }
+    });
+
+    for (const href of baseURLs) {
+      assert.strictEqual(
+        manifest.getDependencyMapper(href).resolve('fs'),
+        true
+      );
+    }
+  }
+  {
+    const manifest = new Manifest({
+      scopes: {
+        '': {
+          dependencies: true
+        },
+        'file:': {
+          cascade: true
         }
       }
     });

@@ -25,64 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import { WebInspector} from "./sourcemap.mjs";
-import {
-    ArgumentsProcessor, TickProcessor, UnixCppEntriesProvider,
-    WindowsCppEntriesProvider, MacCppEntriesProvider, readFile,
-  } from "./tickprocessor.mjs";
+import { ArgumentsProcessor, TickProcessor } from "./tickprocessor.mjs";
 
-// Tick Processor's code flow.
-
-function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
-  }
+const params = ArgumentsProcessor.process(arguments);
+const tickProcessor = TickProcessor.fromParams(params);
+await tickProcessor.processLogFile(params.logFileName);
+if (params.serializeVMSymbols) {
+  tickProcessor.printVMSymbols();
+} else {
+  tickProcessor.printStatistics();
 }
-
-function initSourceMapSupport() {
-  // Pull dev tools source maps  into our name space.
-  SourceMap = WebInspector.SourceMap;
-
-  // Overwrite the load function to load scripts synchronously.
-  SourceMap.load = function(sourceMapURL) {
-    var content = readFile(sourceMapURL);
-    var sourceMapObject = (JSON.parse(content));
-    return new SourceMap(sourceMapURL, sourceMapObject);
-  };
-}
-
-var entriesProviders = {
-  'unix': UnixCppEntriesProvider,
-  'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
-};
-
-var params = processArguments(arguments);
-var sourceMap = null;
-if (params.sourceMap) {
-  initSourceMapSupport();
-  sourceMap = SourceMap.load(params.sourceMap);
-}
-var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.objdump, params.targetRootFS,
-                                          params.apkEmbeddedLibrary),
-  params.separateIc,
-  params.separateBytecodes,
-  params.separateBuiltins,
-  params.separateStubs,
-  params.callGraphSize,
-  params.ignoreUnknown,
-  params.stateFilter,
-  params.distortion,
-  params.range,
-  sourceMap,
-  params.timedRange,
-  params.pairwiseTimedRange,
-  params.onlySummary,
-  params.runtimeTimerFilter,
-  params.preprocessJson);
-tickProcessor.processLogFile(params.logFileName);
-tickProcessor.printStatistics();

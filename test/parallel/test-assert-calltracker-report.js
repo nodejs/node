@@ -11,22 +11,16 @@ function foo() {}
 const callsfoo = tracker.calls(foo, 1);
 
 // Ensures that foo was added to the callChecks array.
-if (tracker.report()[0].operator !== 'foo') {
-  process.exit(1);
-}
+assert.strictEqual(tracker.report()[0].operator, 'foo');
 
 callsfoo();
 
 // Ensures that foo was removed from the callChecks array after being called the
 // expected number of times.
-if (typeof tracker.report()[0] === undefined) {
-  process.exit(1);
-}
+assert.strictEqual(typeof tracker.report()[0], 'undefined');
 
 callsfoo();
 
 // Ensures that foo was added back to the callChecks array after being called
 // more than the expected number of times.
-if (tracker.report()[0].operator !== 'foo') {
-  process.exit(1);
-}
+assert.strictEqual(tracker.report()[0].operator, 'foo');

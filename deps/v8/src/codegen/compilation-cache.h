@@ -6,7 +6,7 @@
 #define V8_CODEGEN_COMPILATION_CACHE_H_
 
 #include "src/base/hashmap.h"
-#include "src/objects/compilation-cache.h"
+#include "src/objects/compilation-cache-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -16,6 +16,7 @@ template <typename T>
 class Handle;
 
 class RootVisitor;
+struct ScriptDetails;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
@@ -82,23 +83,15 @@ class CompilationCacheScript : public CompilationSubCache {
   explicit CompilationCacheScript(Isolate* isolate);
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         MaybeHandle<Object> name,
-                                         int line_offset, int column_offset,
-                                         ScriptOriginOptions resource_options,
-                                         Handle<Context> native_context,
+                                         const ScriptDetails& script_details,
                                          LanguageMode language_mode);
 
-  void Put(Handle<String> source, Handle<Context> context,
-           LanguageMode language_mode,
+  void Put(Handle<String> source, LanguageMode language_mode,
            Handle<SharedFunctionInfo> function_info);
 
   void Age() override;
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 MaybeHandle<Object> name, int line_offset, int column_offset,
-                 ScriptOriginOptions resource_options);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
 
@@ -152,45 +145,21 @@ class CompilationCacheRegExp : public CompilationSubCache {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
 
-// Sub-cache for Code objects. All code inserted into this cache must
-// be usable across different native contexts.
-class CompilationCacheCode : public CompilationSubCache {
- public:
-  explicit CompilationCacheCode(Isolate* isolate)
-      : CompilationSubCache(isolate, kGenerations) {}
-
-  MaybeHandle<Code> Lookup(Handle<SharedFunctionInfo> key);
-  void Put(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
-  void Age() override;
-
-  // TODO(jgruber,v8:8888): For simplicity we use the generational
-  // approach here, but could consider something else (or more
-  // generations) in the future.
-  static constexpr int kGenerations = 2;
-
-  static void TraceAgeing();
-  static void TraceInsertion(Handle<SharedFunctionInfo> key,
-                             Handle<Code> value);
-  static void TraceHit(Handle<SharedFunctionInfo> key, Handle<Code> value);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheCode);
-};
-
 // The compilation cache keeps shared function infos for compiled
 // scripts and evals. The shared function infos are looked up using
 // the source string as the key. For regular expressions the
 // compilation data is cached.
 class V8_EXPORT_PRIVATE CompilationCache {
  public:
+  CompilationCache(const CompilationCache&) = delete;
+  CompilationCache& operator=(const CompilationCache&) = delete;
+
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
   MaybeHandle<SharedFunctionInfo> LookupScript(
-      Handle<String> source, MaybeHandle<Object> name, int line_offset,
-      int column_offset, ScriptOriginOptions resource_options,
-      Handle<Context> native_context, LanguageMode language_mode);
+      Handle<String> source, const ScriptDetails& script_details,
+      LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
@@ -205,12 +174,9 @@ class V8_EXPORT_PRIVATE CompilationCache {
   MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> sfi);
-
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
-  void PutScript(Handle<String> source, Handle<Context> native_context,
-                 LanguageMode language_mode,
+  void PutScript(Handle<String> source, LanguageMode language_mode,
                  Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
@@ -224,8 +190,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // This may overwrite an existing mapping.
   void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                  Handle<FixedArray> data);
-
-  void PutCode(Handle<SharedFunctionInfo> shared, Handle<Code> code);
 
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();
@@ -269,17 +233,14 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCacheEval eval_global_;
   CompilationCacheEval eval_contextual_;
   CompilationCacheRegExp reg_exp_;
-  CompilationCacheCode code_;
 
-  static constexpr int kSubCacheCount = 5;
+  static constexpr int kSubCacheCount = 4;
   CompilationSubCache* subcaches_[kSubCacheCount];
 
   // Current enable state of the compilation cache for scripts and eval.
   bool enabled_script_and_eval_;
 
   friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilationCache);
 };
 
 }  // namespace internal

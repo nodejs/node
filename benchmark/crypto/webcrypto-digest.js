@@ -3,11 +3,9 @@
 const common = require('../common.js');
 const {
   createHash,
-  webcrypto: {
-    subtle,
-    getRandomValues
-  }
+  webcrypto,
 } = require('crypto');
+const { subtle } = webcrypto;
 
 const bench = common.createBenchmark(main, {
   sync: ['createHash', 'subtle'],
@@ -50,7 +48,7 @@ function measureSubtle(n, data, method) {
 }
 
 function main({ n, sync, data, method }) {
-  data = getRandomValues(Buffer.alloc(data));
+  data = webcrypto.getRandomValues(Buffer.alloc(data));
   switch (sync) {
     case 'createHash': return measureLegacy(n, data, method);
     case 'subtle': return measureSubtle(n, data, method);

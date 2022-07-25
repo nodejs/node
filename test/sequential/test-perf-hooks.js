@@ -17,42 +17,6 @@ assert(Math.abs(performance.timeOrigin - Date.now()) < 15000);
 const inited = performance.now();
 assert(inited < 15000);
 
-{
-  // Should work without throwing any errors
-  performance.mark('A');
-  performance.clearMarks('A');
-
-  performance.mark('B');
-  performance.clearMarks();
-}
-
-{
-  performance.mark('A');
-  [undefined, null, 'foo', 'initialize', 1].forEach((i) => {
-    performance.measure('test', i, 'A'); // Should not throw.
-  });
-
-  [undefined, null, 'foo', 1].forEach((i) => {
-    assert.throws(
-      () => performance.measure('test', 'A', i),
-      {
-        code: 'ERR_INVALID_PERFORMANCE_MARK',
-        name: 'Error',
-        message: `The "${i}" performance mark has not been set`
-      });
-  });
-
-  performance.clearMarks();
-}
-
-{
-  performance.mark('A');
-  setImmediate(() => {
-    performance.mark('B');
-    performance.measure('foo', 'A', 'B');
-  });
-}
-
 assert.strictEqual(performance.nodeTiming.name, 'node');
 assert.strictEqual(performance.nodeTiming.entryType, 'node');
 

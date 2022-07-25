@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-private-methods
-
 let { session, contextGroup, Protocol } = InspectorTest.start(
   "Test static private class methods"
 );
@@ -43,7 +41,7 @@ InspectorTest.runAsyncTestSuite([
     let { result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     });
-    InspectorTest.logObject(result.privateProperties);
+    InspectorTest.logMessage(result.privateProperties);
     Protocol.Debugger.resume();
 
     ({ params: { callFrames } } = await Protocol.Debugger.oncePaused());  // B.test();

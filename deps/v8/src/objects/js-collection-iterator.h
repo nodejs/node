@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-collection-iterator-tq.inc"
+
 class JSCollectionIterator
     : public TorqueGeneratedJSCollectionIterator<JSCollectionIterator,
                                                  JSObject> {

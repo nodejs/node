@@ -42,8 +42,7 @@
  * many other callback actions that can be used instead of a character substitution.</p>
  *
  * <p>More information about this API can be found in our
- * <a href="http://icu-project.org/userguide/conversion.html">User's
- * Guide</a>.</p>
+ * <a href="https://unicode-org.github.io/icu/userguide/conversion/">User Guide</a>.</p>
  */
 
 #ifndef UCNV_H
@@ -340,7 +339,7 @@ ucnv_compareNames(const char *name1, const char *name2);
  *
  * <p>The conversion behavior and names can vary between platforms. ICU may
  * convert some characters differently from other platforms. Details on this topic
- * are in the <a href="http://icu-project.org/userguide/conversion.html">User's
+ * are in the <a href="https://unicode-org.github.io/icu/userguide/conversion/">User
  * Guide</a>. Aliases starting with a "cp" prefix have no specific meaning
  * other than its an alias starting with the letters "cp". Please do not
  * associate any meaning to these aliases.</p>
@@ -478,7 +477,7 @@ ucnv_openCCSID(int32_t codepage,
  *
  * <p>The name will NOT be looked up in the alias mechanism, nor will the converter be
  * stored in the converter cache or the alias table. The only way to open further converters
- * is call this function multiple times, or use the ucnv_safeClone() function to clone a
+ * is call this function multiple times, or use the ucnv_clone() function to clone a
  * 'primary' converter.</p>
  *
  * <p>A future version of ICU may add alias table lookups and/or caching
@@ -494,12 +493,26 @@ ucnv_openCCSID(int32_t codepage,
  * @return the created Unicode converter object, or <TT>NULL</TT> if an error occurred
  * @see udata_open
  * @see ucnv_open
- * @see ucnv_safeClone
+ * @see ucnv_clone
  * @see ucnv_close
  * @stable ICU 2.2
  */
 U_CAPI UConverter* U_EXPORT2
 ucnv_openPackage(const char *packageName, const char *converterName, UErrorCode *err);
+
+/**
+ * Thread safe converter cloning operation.
+ *
+ * You must ucnv_close() the clone.
+ *
+ * @param cnv converter to be cloned
+ * @param status to indicate whether the operation went on smoothly or there were errors
+ * @return pointer to the new clone
+ * @stable ICU 71
+ */
+U_CAPI UConverter* U_EXPORT2 ucnv_clone(const UConverter *cnv, UErrorCode *status);
+
+#ifndef U_HIDE_DEPRECATED_API
 
 /**
  * Thread safe converter cloning operation.
@@ -533,20 +546,18 @@ ucnv_openPackage(const char *packageName, const char *converterName, UErrorCode 
  *  pointer to size of allocated space.
  * @param status to indicate whether the operation went on smoothly or there were errors
  *  An informational status value, U_SAFECLONE_ALLOCATED_WARNING,
- *  is used if any allocations were necessary.
+ *  is used if pBufferSize != NULL and any allocations were necessary
  *  However, it is better to check if *pBufferSize grew for checking for
  *  allocations because warning codes can be overridden by subsequent
  *  function calls.
  * @return pointer to the new clone
- * @stable ICU 2.0
+ * @deprecated ICU 71 Use ucnv_clone() instead.
  */
-U_CAPI UConverter * U_EXPORT2
+U_DEPRECATED UConverter * U_EXPORT2
 ucnv_safeClone(const UConverter *cnv,
                void             *stackBuffer,
                int32_t          *pBufferSize,
                UErrorCode       *status);
-
-#ifndef U_HIDE_DEPRECATED_API
 
 /**
  * \def U_CNV_SAFECLONE_BUFFERSIZE
@@ -1007,7 +1018,7 @@ ucnv_getUnicodeSet(const UConverter *cnv,
                    UErrorCode *pErrorCode);
 
 /**
- * Gets the current calback function used by the converter when an illegal
+ * Gets the current callback function used by the converter when an illegal
  *  or invalid codepage sequence is found.
  * Context pointers are always owned by the caller.
  *
@@ -1699,10 +1710,10 @@ ucnv_countAvailable(void);
 
 /**
  * Gets the canonical converter name of the specified converter from a list of
- * all available converters contaied in the alias file. All converters
+ * all available converters contained in the alias file. All converters
  * in this list can be opened.
  *
- * @param n the index to a converter available on the system (in the range <TT>[0..ucnv_countAvaiable()]</TT>)
+ * @param n the index to a converter available on the system (in the range <TT>[0..ucnv_countAvailable()]</TT>)
  * @return a pointer a string (library owned), or <TT>NULL</TT> if the index is out of bounds.
  * @see ucnv_countAvailable
  * @stable ICU 2.0
@@ -1935,7 +1946,7 @@ ucnv_isAmbiguous(const UConverter *cnv);
  * reverse fallbacks (to Unicode).
  * For details see ".ucm File Format"
  * in the Conversion Data chapter of the ICU User Guide:
- * http://www.icu-project.org/userguide/conversion-data.html#ucmformat
+ * https://unicode-org.github.io/icu/userguide/conversion/data.html#ucm-file-format
  *
  * @param cnv The converter to set the fallback mapping usage on.
  * @param usesFallback true if the user wants the converter to take advantage of the fallback
@@ -2032,7 +2043,7 @@ ucnv_toUCountPending(const UConverter* cnv, UErrorCode* status);
  * fixed ratio of bytes to Unicode codes <i>units</i> for any particular Unicode encoding form.
  * false is returned with the UErrorCode if error occurs or cnv is NULL.
  * @param cnv       The converter to be tested
- * @param status    ICU error code in/out paramter
+ * @param status    ICU error code in/out parameter
  * @return true if the converter is fixed-width
  * @stable ICU 4.8
  */

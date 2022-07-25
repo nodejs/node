@@ -12,7 +12,7 @@ function doCheck(arg, expression, check) {
   let out = '';
   arg = arg.concat([
     '-pe',
-    expression
+    expression,
   ]);
   spawn(process.execPath, arg, {})
     .on('error', common.mustNotCall())

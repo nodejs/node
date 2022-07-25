@@ -5,9 +5,6 @@
 #ifndef V8_HEAP_LOCAL_FACTORY_H_
 #define V8_HEAP_LOCAL_FACTORY_H_
 
-#include <map>
-#include <vector>
-
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -57,7 +54,7 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // ------
   // Customization points for FactoryBase.
   HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+                         AllocationAlignment alignment = kTaggedAligned);
 
   LocalIsolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -66,14 +63,29 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
     // NOLINTNEXTLINE (google-readability-casting)
     return (LocalIsolate*)this;  // NOLINT(readability/casting)
   }
+
+  // This is the real Isolate that will be used for allocating and accessing
+  // external pointer entries when V8_SANDBOXED_EXTERNAL_POINTERS is enabled.
+  Isolate* isolate_for_sandbox() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    return isolate_for_sandbox_;
+#else
+    return nullptr;
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+  }
+
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
+  inline AllocationType AllocationTypeForInPlaceInternalizableString();
   // ------
 
   void AddToScriptList(Handle<Script> shared);
   // ------
 
   ReadOnlyRoots roots_;
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  Isolate* isolate_for_sandbox_;
+#endif
 #ifdef DEBUG
   bool a_script_was_added_to_the_script_list_ = false;
 #endif

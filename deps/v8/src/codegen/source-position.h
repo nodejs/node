@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_SOURCE_POSITION_H_
 #define V8_CODEGEN_SOURCE_POSITION_H_
 
-#include <ostream>
+#include <iosfwd>
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
@@ -84,6 +84,7 @@ class SourcePosition final {
   std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
   std::vector<SourcePositionInfo> InliningStack(
       OptimizedCompilationInfo* cinfo) const;
+  SourcePositionInfo FirstInfo(Handle<Code> code) const;
 
   void Print(std::ostream& out, Code code) const;
   void PrintJson(std::ostream& out) const;

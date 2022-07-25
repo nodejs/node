@@ -56,7 +56,7 @@ for (const filename of benchmarks) {
 // queue.length = binary.length * runs * benchmarks.length
 
 // Print csv header
-console.log('"binary", "filename", "configuration", "rate", "time"');
+console.log('"binary","filename","configuration","rate","time"');
 
 const kStartOfQueue = 0;
 
@@ -85,8 +85,8 @@ if (showProgress) {
       // Escape quotes (") for correct csv formatting
       conf = conf.replace(/"/g, '""');
 
-      console.log(`"${job.binary}", "${job.filename}", "${conf}", ` +
-                  `${data.rate}, ${data.time}`);
+      console.log(`"${job.binary}","${job.filename}","${conf}",` +
+                  `${data.rate},${data.time}`);
       if (showProgress) {
         // One item in the subqueue has been completed.
         progress.completeConfig(data);

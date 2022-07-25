@@ -62,7 +62,7 @@ SnapshotData SnapshotCompression::Compress(
 }
 
 SnapshotData SnapshotCompression::Decompress(
-    Vector<const byte> compressed_data) {
+    base::Vector<const byte> compressed_data) {
   SnapshotData snapshot_data;
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();

@@ -17,8 +17,8 @@ module.exports = function(context) {
 
   /**
    * Function to check if the path is a module and return its name.
-   * @param {String} str The path to check
-   * @returns {String} module name
+   * @param {string} str The path to check
+   * @returns {string} module name
    */
   function getModuleName(str) {
     if (str === '../common/index.mjs') {
@@ -32,7 +32,7 @@ module.exports = function(context) {
    * Function to check if a node has an argument that is a module and
    * return its name.
    * @param {ASTNode} node The node to check
-   * @returns {undefined|String} module name or undefined
+   * @returns {undefined | string} module name or undefined
    */
   function getModuleNameFromCall(node) {
     // Node has arguments and first argument is string

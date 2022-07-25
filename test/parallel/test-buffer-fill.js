@@ -131,20 +131,36 @@ assert.throws(() => {
 });
 
 // BASE64
-testBufs('YWJj', 'ucs2');
-testBufs('yKJhYQ==', 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 'ucs2');
-testBufs('YWJj', 4, 'ucs2');
-testBufs('YWJj', SIZE, 'ucs2');
-testBufs('yKJhYQ==', 2, 'ucs2');
-testBufs('yKJhYQ==', 8, 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 4, 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 12, 'ucs2');
-testBufs('YWJj', 4, 1, 'ucs2');
-testBufs('YWJj', 5, 1, 'ucs2');
-testBufs('yKJhYQ==', 8, 1, 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 4, 1, 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 12, 1, 'ucs2');
+testBufs('YWJj', 'base64');
+testBufs('yKJhYQ==', 'base64');
+testBufs('Yci0Ysi1Y8i2', 'base64');
+testBufs('YWJj', 4, 'base64');
+testBufs('YWJj', SIZE, 'base64');
+testBufs('yKJhYQ==', 2, 'base64');
+testBufs('yKJhYQ==', 8, 'base64');
+testBufs('Yci0Ysi1Y8i2', 4, 'base64');
+testBufs('Yci0Ysi1Y8i2', 12, 'base64');
+testBufs('YWJj', 4, 1, 'base64');
+testBufs('YWJj', 5, 1, 'base64');
+testBufs('yKJhYQ==', 8, 1, 'base64');
+testBufs('Yci0Ysi1Y8i2', 4, 1, 'base64');
+testBufs('Yci0Ysi1Y8i2', 12, 1, 'base64');
+
+// BASE64URL
+testBufs('YWJj', 'base64url');
+testBufs('yKJhYQ', 'base64url');
+testBufs('Yci0Ysi1Y8i2', 'base64url');
+testBufs('YWJj', 4, 'base64url');
+testBufs('YWJj', SIZE, 'base64url');
+testBufs('yKJhYQ', 2, 'base64url');
+testBufs('yKJhYQ', 8, 'base64url');
+testBufs('Yci0Ysi1Y8i2', 4, 'base64url');
+testBufs('Yci0Ysi1Y8i2', 12, 'base64url');
+testBufs('YWJj', 4, 1, 'base64url');
+testBufs('YWJj', 5, 1, 'base64url');
+testBufs('yKJhYQ', 8, 1, 'base64url');
+testBufs('Yci0Ysi1Y8i2', 4, 1, 'base64url');
+testBufs('Yci0Ysi1Y8i2', 12, 1, 'base64url');
 
 // Buffer
 function deepStrictEqualValues(buf, arr) {
@@ -189,7 +205,7 @@ assert.throws(
 
 [
   ['a', 0, 0, NaN],
-  ['a', 0, 0, false]
+  ['a', 0, 0, false],
 ].forEach((args) => {
   assert.throws(
     () => buf1.fill(...args),
@@ -299,7 +315,7 @@ Buffer.alloc(8, '');
 
   buf.fill('h');
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual('h'.charCodeAt(0), buf[i]);
+    assert.strictEqual(buf[i], 'h'.charCodeAt(0));
 
   buf.fill(0);
   for (let i = 0; i < buf.length; i++)

@@ -17,7 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segments.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "unicode/brkiter.h"
 
@@ -55,7 +55,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Handle<JSSegmentIterator> segment_iterator =
       Handle<JSSegmentIterator>::cast(result);
 

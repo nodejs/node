@@ -21,7 +21,7 @@
 #define RESLIST_H
 
 #define KEY_SPACE_SIZE 65536
-#define RESLIST_MAX_INT_VECTOR 2048
+#define RESLIST_INT_VECTOR_INIT_SIZE 2048
 
 #include <functional>
 
@@ -124,7 +124,7 @@ public:
 
 /* write a java resource file */
 // TODO: C++ify
-void bundle_write_java(struct SRBRoot *bundle, const char *outputDir, const char* outputEnc, char *writtenFilename,
+void bundle_write_java(struct SRBRoot *bundle, const char *outputDir, const char* outputEnc, char *writtenFilename, 
                        int writtenFilenameLen, const char* packageName, const char* bundleName, UErrorCode *status);
 
 /* write a xml resource file */
@@ -219,7 +219,7 @@ struct SResource {
     /**
      * Applies the given filter with the given base path to this resource.
      * Removes child resources rejected by the filter recursively.
-     *
+     * 
      * @param bundle Needed in order to access the key for this and child resources.
      */
     virtual void applyFilter(const PathFilter& filter, ResKeyPath& path, const SRBRoot* bundle);
@@ -294,9 +294,9 @@ public:
 
     void add(SResource *res);
 
-    virtual void handleWrite16(SRBRoot *bundle);
-    virtual void handlePreWrite(uint32_t *byteOffset);
-    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset);
+    virtual void handleWrite16(SRBRoot *bundle) override;
+    virtual void handlePreWrite(uint32_t *byteOffset) override;
+    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) override;
 
     SResource *fLast;
 };
@@ -313,7 +313,7 @@ public:
 
     void add(SResource *res);
 
-    virtual void handleWrite16(SRBRoot *bundle);
+    virtual void handleWrite16(SRBRoot *bundle) override;
 };
 
 class StringBaseResource : public SResource {
@@ -329,8 +329,8 @@ public:
     const UChar *getBuffer() const { return icu::toUCharPtr(fString.getBuffer()); }
     int32_t length() const { return fString.length(); }
 
-    virtual void handlePreWrite(uint32_t *byteOffset);
-    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset);
+    virtual void handlePreWrite(uint32_t *byteOffset) override;
+    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) override;
 
     // TODO: private with getter?
     icu::UnicodeString fString;
@@ -363,8 +363,8 @@ public:
         return fNumCharsForLength + length() + 1;  // +1 for the NUL
     }
 
-    virtual void handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet, UErrorCode &errorCode);
-    virtual void handleWrite16(SRBRoot *bundle);
+    virtual void handlePreflightStrings(SRBRoot *bundle, UHashtable *stringSet, UErrorCode &errorCode) override;
+    virtual void handleWrite16(SRBRoot *bundle) override;
 
     void writeUTF16v2(int32_t base, icu::UnicodeString &dest);
 
@@ -401,11 +401,12 @@ public:
 
     void add(int32_t value, UErrorCode &errorCode);
 
-    virtual void handlePreWrite(uint32_t *byteOffset);
-    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset);
+    virtual void handlePreWrite(uint32_t *byteOffset) override;
+    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) override;
 
     // TODO: UVector32
-    uint32_t fCount;
+    size_t fCount;
+    size_t fSize;
     uint32_t *fArray;
 };
 
@@ -416,8 +417,8 @@ public:
                    const UString* comment, UErrorCode &errorCode);
     virtual ~BinaryResource();
 
-    virtual void handlePreWrite(uint32_t *byteOffset);
-    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset);
+    virtual void handlePreWrite(uint32_t *byteOffset) override;
+    virtual void handleWrite(UNewDataMemory *mem, uint32_t *byteOffset) override;
 
     // TODO: CharString?
     uint32_t fLength;

@@ -68,8 +68,8 @@ String16::String16(std::basic_string<UChar>&& impl) : m_impl(impl) {}
 // static
 String16 String16::fromInteger(int number) {
   char arr[50];
-  v8::internal::Vector<char> buffer(arr, arraysize(arr));
-  return String16(IntToCString(number, buffer));
+  v8::base::Vector<char> buffer(arr, arraysize(arr));
+  return String16(v8::internal::IntToCString(number, buffer));
 }
 
 // static
@@ -94,8 +94,8 @@ String16 String16::fromInteger64(int64_t number) {
 // static
 String16 String16::fromDouble(double number) {
   char arr[50];
-  v8::internal::Vector<char> buffer(arr, arraysize(arr));
-  return String16(DoubleToCString(number, buffer));
+  v8::base::Vector<char> buffer(arr, arraysize(arr));
+  return String16(v8::internal::DoubleToCString(number, buffer));
 }
 
 // static
@@ -238,13 +238,3 @@ std::string String16::utf8() const {
 }
 
 }  // namespace v8_inspector
-
-namespace v8_crdtp {
-void SerializerTraits<v8_inspector::String16>::Serialize(
-    const v8_inspector::String16& str, std::vector<uint8_t>* out) {
-  cbor::EncodeFromUTF16(
-      span<uint16_t>(reinterpret_cast<const uint16_t*>(str.characters16()),
-                     str.length()),
-      out);
-}
-}  // namespace v8_crdtp

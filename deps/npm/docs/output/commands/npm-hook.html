@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-hook</title>
 <style>
 body {
@@ -141,15 +142,22 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm hook ls [pkg]
-npm hook add &lt;entity&gt; &lt;url&gt; &lt;secret&gt;
-npm hook update &lt;id&gt; &lt;url&gt; [secret]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm hook add &lt;pkg&gt; &lt;url&gt; &lt;secret&gt; [--type=&lt;type&gt;]
+npm hook ls [pkg]
 npm hook rm &lt;id&gt;
+npm hook update &lt;id&gt; &lt;url&gt; &lt;secret&gt;
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Allows you to manage <a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">npm
 hooks</a>,
@@ -182,15 +190,39 @@ the request came from your own configured hook.</p>
 <p>List your active hooks for the <code>lodash</code> package:</p>
 <pre lang="bash"><code>$ npm hook ls lodash
 </code></pre>
-<p>Update an existing hook’s url:</p>
+<p>Update an existing hook's url:</p>
 <pre lang="bash"><code>$ npm hook update id-deadbeef https://my-new-website.here/
 </code></pre>
 <p>Remove a hook:</p>
 <pre lang="bash"><code>$ npm hook rm id-deadbeef
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
-<li><a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">“Introducing Hooks” blog post</a></li>
+<li><a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">"Introducing Hooks" blog post</a></li>
 </ul>
 </div>
 

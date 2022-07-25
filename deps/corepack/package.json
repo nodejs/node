@@ -1,0 +1,103 @@
+{
+  "name": "corepack",
+  "version": "0.12.1",
+  "homepage": "https://github.com/nodejs/corepack#readme",
+  "bugs": {
+    "url": "https://github.com/nodejs/corepack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodejs/corepack.git"
+  },
+  "license": "MIT",
+  "packageManager": "yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e",
+  "devDependencies": {
+    "@babel/core": "^7.14.3",
+    "@babel/plugin-transform-modules-commonjs": "^7.14.0",
+    "@babel/preset-typescript": "^7.13.0",
+    "@types/debug": "^4.1.5",
+    "@types/jest": "^28.0.0",
+    "@types/node": "^18.0.0",
+    "@types/semver": "^7.1.0",
+    "@types/tar": "^6.0.0",
+    "@types/which": "^2.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "@yarnpkg/eslint-config": "^1.0.0-rc.5",
+    "@yarnpkg/fslib": "^2.1.0",
+    "@zkochan/cmd-shim": "^5.0.0",
+    "babel-plugin-dynamic-import-node": "^2.3.3",
+    "clipanion": "^3.0.1",
+    "debug": "^4.1.1",
+    "eslint": "^8.0.0",
+    "eslint-plugin-arca": "^0.15.0",
+    "jest": "^28.0.0",
+    "nock": "^13.0.4",
+    "proxy-agent": "^5.0.0",
+    "semver": "^7.1.3",
+    "supports-color": "^9.0.0",
+    "tar": "^6.0.1",
+    "terser-webpack-plugin": "^5.1.2",
+    "ts-loader": "^9.0.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.3.2",
+    "v8-compile-cache": "^2.3.0",
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.0.0",
+    "which": "^2.0.2"
+  },
+  "scripts": {
+    "build": "rm -rf dist shims && webpack && ts-node ./mkshims.ts",
+    "corepack": "ts-node ./sources/_entryPoint.ts",
+    "lint": "yarn eslint",
+    "prepack": "yarn build",
+    "postpack": "rm -rf dist shims",
+    "typecheck": "tsc --noEmit",
+    "test": "yarn jest"
+  },
+  "files": [
+    "dist",
+    "shims",
+    "LICENSE.md"
+  ],
+  "publishConfig": {
+    "bin": {
+      "corepack": "./dist/corepack.js",
+      "pnpm": "./dist/pnpm.js",
+      "pnpx": "./dist/pnpx.js",
+      "yarn": "./dist/yarn.js",
+      "yarnpkg": "./dist/yarnpkg.js"
+    },
+    "executableFiles": [
+      "./dist/npm.js",
+      "./dist/npx.js",
+      "./dist/pnpm.js",
+      "./dist/pnpx.js",
+      "./dist/yarn.js",
+      "./dist/yarnpkg.js",
+      "./dist/corepack.js",
+      "./shims/npm",
+      "./shims/npm.ps1",
+      "./shims/npx",
+      "./shims/npx.ps1",
+      "./shims/pnpm",
+      "./shims/pnpm.ps1",
+      "./shims/pnpx",
+      "./shims/pnpx.ps1",
+      "./shims/yarn",
+      "./shims/yarn.ps1",
+      "./shims/yarnpkg",
+      "./shims/yarnpkg.ps1"
+    ]
+  },
+  "resolutions": {
+    "vm2": "patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"
+  },
+  "bin": {
+    "corepack": "./dist/corepack.js",
+    "pnpm": "./dist/pnpm.js",
+    "pnpx": "./dist/pnpx.js",
+    "yarn": "./dist/yarn.js",
+    "yarnpkg": "./dist/yarnpkg.js"
+  }
+}

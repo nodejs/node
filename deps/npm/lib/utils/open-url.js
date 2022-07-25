@@ -1,20 +1,12 @@
-'use strict'
-const npm = require('../npm.js')
-const output = require('./output.js')
 const opener = require('opener')
 
 const { URL } = require('url')
 
-const isUrlValid = url => {
-  try {
-    return /^(https?|file):$/.test(new URL(url).protocol)
-  } catch (_) {
-    return false
-  }
-}
-
 // attempt to open URL in web-browser, print address otherwise:
-module.exports = function open (url, errMsg, cb, browser = npm.config.get('browser')) {
+const open = async (npm, url, errMsg, isFile) => {
+  url = encodeURI(url)
+  const browser = npm.config.get('browser')
+
   function printAlternateMsg () {
     const json = npm.config.get('json')
     const alternateMsg = json
@@ -24,23 +16,39 @@ module.exports = function open (url, errMsg, cb, browser = npm.config.get('brows
       }, null, 2)
       : `${errMsg}:\n  ${url}\n`
 
-    output(alternateMsg)
+    npm.output(alternateMsg)
   }
 
   if (browser === false) {
     printAlternateMsg()
-    return cb()
+    return
   }
 
-  if (!isUrlValid(url))
-    return cb(new Error('Invalid URL: ' + url))
+  // We pass this in as true from the help command so we know we don't have to
+  // check the protocol
+  if (!isFile) {
+    try {
+      if (!/^https?:$/.test(new URL(url).protocol)) {
+        throw new Error()
+      }
+    } catch (_) {
+      throw new Error('Invalid URL: ' + url)
+    }
+  }
 
   const command = browser === true ? null : browser
-  opener(url, { command }, (er) => {
-    if (er && er.code === 'ENOENT') {
-      printAlternateMsg()
-      return cb()
-    } else
-      return cb(er)
+  await new Promise((resolve, reject) => {
+    opener(url, { command }, (err) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          printAlternateMsg()
+        } else {
+          return reject(err)
+        }
+      }
+      return resolve()
+    })
   })
 }
+
+module.exports = open

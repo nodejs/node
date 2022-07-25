@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generatePrint
-@generateCppClass
 extern class EnumCache extends Struct {
   keys: FixedArray;
   indices: FixedArray;
@@ -16,7 +14,8 @@ struct DescriptorEntry {
   value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
 }
 
-@generateCppClass
+@generateBodyDescriptor
+@generateUniqueMap
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
@@ -25,3 +24,6 @@ extern class DescriptorArray extends HeapObject {
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }
+
+// A descriptor array where all values are held strongly.
+class StrongDescriptorArray extends DescriptorArray {}

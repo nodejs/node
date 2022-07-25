@@ -29,10 +29,17 @@ class GCed : public GarbageCollected<GCed> {
 
   virtual void Trace(cppgc::Visitor* visitor) const { trace_callcount++; }
 };
-
 size_t GCed::trace_callcount;
 
-class GCedMixin : public GarbageCollectedMixin {};
+class GCedMixin : public GarbageCollectedMixin {
+ public:
+  static size_t trace_callcount;
+
+  GCedMixin() { trace_callcount = 0; }
+
+  virtual void Trace(cppgc::Visitor* visitor) const { trace_callcount++; }
+};
+size_t GCedMixin::trace_callcount;
 
 class OtherPayload {
  public:
@@ -98,6 +105,33 @@ TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
   TraceDescriptor desc = TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin);
   desc.callback(nullptr, desc.base_object_payload);
   EXPECT_EQ(1u, GCed::trace_callcount);
+}
+
+namespace {
+class MixinInstanceWithoutTrace
+    : public GarbageCollected<MixinInstanceWithoutTrace>,
+      public GCedMixin {};
+}  // namespace
+
+TEST_F(TraceTraitTest, MixinInstanceWithoutTrace) {
+  // Verify that a mixin instance without any traceable
+  // references inherits the mixin's trace implementation.
+  auto* mixin_without_trace =
+      MakeGarbageCollected<MixinInstanceWithoutTrace>(GetAllocationHandle());
+  auto* mixin = static_cast<GCedMixin*>(mixin_without_trace);
+  EXPECT_EQ(0u, GCedMixin::trace_callcount);
+  TraceDescriptor mixin_without_trace_desc =
+      TraceTrait<MixinInstanceWithoutTrace>::GetTraceDescriptor(
+          mixin_without_trace);
+  TraceDescriptor mixin_desc = TraceTrait<GCedMixin>::GetTraceDescriptor(mixin);
+  EXPECT_EQ(mixin_without_trace_desc.callback, mixin_desc.callback);
+  EXPECT_EQ(mixin_without_trace_desc.base_object_payload,
+            mixin_desc.base_object_payload);
+  TraceDescriptor desc =
+      TraceTrait<MixinInstanceWithoutTrace>::GetTraceDescriptor(
+          mixin_without_trace);
+  desc.callback(nullptr, desc.base_object_payload);
+  EXPECT_EQ(1u, GCedMixin::trace_callcount);
 }
 
 namespace {

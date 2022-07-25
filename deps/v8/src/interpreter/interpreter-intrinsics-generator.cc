@@ -20,39 +20,28 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-using compiler::Node;
-
 class IntrinsicsGenerator {
  public:
   explicit IntrinsicsGenerator(InterpreterAssembler* assembler)
       : isolate_(assembler->isolate()),
         zone_(assembler->zone()),
         assembler_(assembler) {}
+  IntrinsicsGenerator(const IntrinsicsGenerator&) = delete;
+  IntrinsicsGenerator& operator=(const IntrinsicsGenerator&) = delete;
 
   TNode<Object> InvokeIntrinsic(
       TNode<Uint32T> function_id, TNode<Context> context,
       const InterpreterAssembler::RegListNodePair& args);
 
  private:
-  enum InstanceTypeCompareMode {
-    kInstanceTypeEqual,
-    kInstanceTypeGreaterThanOrEqual
-  };
-
-  TNode<Oddball> IsInstanceType(TNode<Object> input, int type);
-  TNode<BoolT> CompareInstanceType(TNode<HeapObject> map, int type,
-                                   InstanceTypeCompareMode mode);
-  TNode<Object> IntrinsicAsStubCall(
-      const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-      Callable const& callable);
   TNode<Object> IntrinsicAsBuiltinCall(
       const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-      Builtins::Name name);
+      Builtin name, int arg_count);
   void AbortIfArgCountMismatch(int expected, TNode<Word32T> actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count)               \
   TNode<Object> name(const InterpreterAssembler::RegListNodePair& args, \
-                     TNode<Context> context);
+                     TNode<Context> context, int arg_count);
   INTRINSICS_LIST(DECLARE_INTRINSIC_HELPER)
 #undef DECLARE_INTRINSIC_HELPER
 
@@ -63,8 +52,6 @@ class IntrinsicsGenerator {
   Isolate* isolate_;
   Zone* zone_;
   InterpreterAssembler* assembler_;
-
-  DISALLOW_COPY_AND_ASSIGN(IntrinsicsGenerator);
 };
 
 TNode<Object> GenerateInvokeIntrinsic(
@@ -103,7 +90,7 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
     if (FLAG_debug_code && expected_arg_count >= 0) {                \
       AbortIfArgCountMismatch(expected_arg_count, args.reg_count()); \
     }                                                                \
-    TNode<Object> value = name(args, context);                       \
+    TNode<Object> value = name(args, context, expected_arg_count);   \
     if (value) {                                                     \
       result = value;                                                \
       __ Goto(&end);                                                 \
@@ -123,189 +110,74 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
   return result.value();
 }
 
-TNode<BoolT> IntrinsicsGenerator::CompareInstanceType(
-    TNode<HeapObject> object, int type, InstanceTypeCompareMode mode) {
-  TNode<Uint16T> instance_type = __ LoadInstanceType(object);
-
-  if (mode == kInstanceTypeEqual) {
-    return __ Word32Equal(instance_type, __ Int32Constant(type));
-  } else {
-    DCHECK_EQ(mode, kInstanceTypeGreaterThanOrEqual);
-    return __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
-  }
-}
-
-TNode<Oddball> IntrinsicsGenerator::IsInstanceType(TNode<Object> input,
-                                                   int type) {
-  TNode<Oddball> result = __ Select<Oddball>(
-      __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] {
-        return __ SelectBooleanConstant(
-            CompareInstanceType(__ CAST(input), type, kInstanceTypeEqual));
-      });
-  return result;
-}
-
-TNode<Object> IntrinsicsGenerator::IsJSReceiver(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  TNode<Oddball> result = __ Select<Oddball>(
-      __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] {
-        return __ SelectBooleanConstant(__ IsJSReceiver(__ CAST(input)));
-      });
-  return result;
-}
-
-TNode<Object> IntrinsicsGenerator::IsArray(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_ARRAY_TYPE);
-}
-
-TNode<Object> IntrinsicsGenerator::IsSmi(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  return __ SelectBooleanConstant(__ TaggedIsSmi(input));
-}
-
-TNode<Object> IntrinsicsGenerator::IntrinsicAsStubCall(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    Callable const& callable) {
-  int param_count = callable.descriptor().GetParameterCount();
-  int input_count = param_count + 2;  // +2 for target and context
-  Node** stub_args = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  stub_args[index++] = __ HeapConstant(callable.code());
-  for (int i = 0; i < param_count; i++) {
-    stub_args[index++] = __ LoadRegisterFromRegisterList(args, i);
-  }
-  stub_args[index++] = context;
-  return __ CAST(__ CallStubN(StubCallMode::kCallCodeObject,
-                              callable.descriptor(), 1, input_count,
-                              stub_args));
-}
-
 TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    Builtins::Name name) {
+    Builtin name, int arg_count) {
   Callable callable = Builtins::CallableFor(isolate_, name);
-  return IntrinsicAsStubCall(args, context, callable);
+  switch (arg_count) {
+    case 1:
+      return __ CallStub(callable, context,
+                         __ LoadRegisterFromRegisterList(args, 0));
+    case 2:
+      return __ CallStub(callable, context,
+                         __ LoadRegisterFromRegisterList(args, 0),
+                         __ LoadRegisterFromRegisterList(args, 1));
+    case 3:
+      return __ CallStub(callable, context,
+                         __ LoadRegisterFromRegisterList(args, 0),
+                         __ LoadRegisterFromRegisterList(args, 1),
+                         __ LoadRegisterFromRegisterList(args, 2));
+    default:
+      UNREACHABLE();
+  }
 }
 
 TNode<Object> IntrinsicsGenerator::CopyDataProperties(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kCopyDataProperties));
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kCopyDataProperties,
+                                arg_count);
+}
+
+TNode<Object>
+IntrinsicsGenerator::CopyDataPropertiesWithExcludedPropertiesOnStack(
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  TNode<IntPtrT> offset = __ TimesSystemPointerSize(__ IntPtrConstant(1));
+  auto base = __ Signed(__ IntPtrSub(args.base_reg_location(), offset));
+  Callable callable = Builtins::CallableFor(
+      isolate_, Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack);
+  TNode<IntPtrT> excluded_property_count = __ IntPtrSub(
+      __ ChangeInt32ToIntPtr(args.reg_count()), __ IntPtrConstant(1));
+  return __ CallStub(callable, context,
+                     __ LoadRegisterFromRegisterList(args, 0),
+                     excluded_property_count, base);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject));
-}
-
-TNode<Object> IntrinsicsGenerator::HasProperty(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
-}
-
-TNode<Object> IntrinsicsGenerator::ToString(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToString));
-}
-
-TNode<Object> IntrinsicsGenerator::ToLength(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
-}
-
-TNode<Object> IntrinsicsGenerator::ToObject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsStubCall(
-      args, context, Builtins::CallableFor(isolate(), Builtins::kToObject));
-}
-
-TNode<Object> IntrinsicsGenerator::Call(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  // First argument register contains the function target.
-  TNode<Object> function = __ LoadRegisterFromRegisterList(args, 0);
-
-  // The arguments for the target function are from the second runtime call
-  // argument.
-  InterpreterAssembler::RegListNodePair target_args(
-      __ RegisterLocationInRegisterList(args, 1),
-      __ Int32Sub(args.reg_count(), __ Int32Constant(1)));
-
-  if (FLAG_debug_code) {
-    InterpreterAssembler::Label arg_count_positive(assembler_);
-    TNode<BoolT> comparison =
-        __ Int32LessThan(target_args.reg_count(), __ Int32Constant(0));
-    __ GotoIfNot(comparison, &arg_count_positive);
-    __ Abort(AbortReason::kWrongArgumentCountForInvokeIntrinsic);
-    __ Goto(&arg_count_positive);
-    __ BIND(&arg_count_positive);
-  }
-
-  __ CallJSAndDispatch(function, context, target_args,
-                       ConvertReceiverMode::kAny);
-  return TNode<Object>();  // We never return from the CallJSAndDispatch above.
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kCreateIterResultObject,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  InterpreterAssembler::Label not_receiver(
-      assembler_, InterpreterAssembler::Label::kDeferred);
-  InterpreterAssembler::Label done(assembler_);
-  InterpreterAssembler::TVariable<Object> return_value(assembler_);
-
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
   TNode<Object> sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
-
-  __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
-  __ GotoIfNot(__ IsJSReceiver(__ CAST(sync_iterator)), &not_receiver);
-
-  const TNode<Object> next =
-      __ GetProperty(context, sync_iterator, factory()->next_string());
-
-  const TNode<NativeContext> native_context = __ LoadNativeContext(context);
-  const TNode<Map> map = __ CAST(__ LoadContextElement(
-      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
-  const TNode<JSObject> iterator = __ AllocateJSObjectFromMap(map);
-
-  __ StoreObjectFieldNoWriteBarrier(
-      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
-  __ StoreObjectFieldNoWriteBarrier(iterator,
-                                    JSAsyncFromSyncIterator::kNextOffset, next);
-
-  return_value = iterator;
-  __ Goto(&done);
-
-  __ BIND(&not_receiver);
-  {
-    return_value =
-        __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
-
-    // Unreachable due to the Throw in runtime call.
-    __ Goto(&done);
-  }
-
-  __ BIND(&done);
-  return return_value.value();
+  return __ CreateAsyncFromSyncIterator(context, sync_iterator);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateJSGeneratorObject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kCreateGeneratorObject);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kCreateGeneratorObject,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::GeneratorGetResumeMode(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
   TNode<JSGeneratorObject> generator =
       __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   const TNode<Object> value =
@@ -315,7 +187,8 @@ TNode<Object> IntrinsicsGenerator::GeneratorGetResumeMode(
 }
 
 TNode<Object> IntrinsicsGenerator::GeneratorClose(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
   TNode<JSGeneratorObject> generator =
       __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   __ StoreObjectFieldNoWriteBarrier(
@@ -325,79 +198,79 @@ TNode<Object> IntrinsicsGenerator::GeneratorClose(
 }
 
 TNode<Object> IntrinsicsGenerator::GetImportMetaObject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  const TNode<Context> module_context = __ LoadModuleContext(context);
-  const TNode<HeapObject> module =
-      __ CAST(__ LoadContextElement(module_context, Context::EXTENSION_INDEX));
-  const TNode<Object> import_meta =
-      __ LoadObjectField(module, SourceTextModule::kImportMetaOffset);
-
-  InterpreterAssembler::TVariable<Object> return_value(assembler_);
-  return_value = import_meta;
-
-  InterpreterAssembler::Label end(assembler_);
-  __ GotoIfNot(__ IsTheHole(import_meta), &end);
-
-  return_value = __ CallRuntime(Runtime::kGetImportMetaObject, context);
-  __ Goto(&end);
-
-  __ BIND(&end);
-  return return_value.value();
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return __ GetImportMetaObject(context);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionAwaitCaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
   return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncFunctionAwaitCaught);
+                                Builtin::kAsyncFunctionAwaitCaught, arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncFunctionAwaitUncaught);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(
+      args, context, Builtin::kAsyncFunctionAwaitUncaught, arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionEnter(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionEnter);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncFunctionEnter,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionReject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionReject);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncFunctionReject,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionResolve(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionResolve);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncFunctionResolve,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorAwaitCaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
   return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncGeneratorAwaitCaught);
+                                Builtin::kAsyncGeneratorAwaitCaught, arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncGeneratorAwaitUncaught);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(
+      args, context, Builtin::kAsyncGeneratorAwaitUncaught, arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorReject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorReject);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorReject,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorResolve(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncGeneratorResolve);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorResolve,
+                                arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncGeneratorYield(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorYield);
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorYield,
+                                arg_count);
 }
 
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,

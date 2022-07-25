@@ -18,6 +18,18 @@ namespace torque {
 
 DEFINE_CONTEXTUAL_VARIABLE(CurrentScope)
 
+QualifiedName QualifiedName::Parse(std::string qualified_name) {
+  std::vector<std::string> qualifications;
+  while (true) {
+    size_t namespace_delimiter_index = qualified_name.find("::");
+    if (namespace_delimiter_index == std::string::npos) break;
+    qualifications.push_back(
+        qualified_name.substr(0, namespace_delimiter_index));
+    qualified_name = qualified_name.substr(namespace_delimiter_index + 2);
+  }
+  return QualifiedName(qualifications, qualified_name);
+}
+
 std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
   for (const std::string& qualifier : name.namespace_qualification) {
     os << qualifier << "::";
@@ -70,13 +82,12 @@ std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
 }
 
 SpecializationRequester::SpecializationRequester(SourcePosition position,
-                                                 Scope* scope, std::string name)
+                                                 Scope* s, std::string name)
     : position(position), name(std::move(name)) {
   // Skip scopes that are not related to template specializations, they might be
   // stack-allocated and not live for long enough.
-  while (scope && scope->GetSpecializationRequester().IsNone())
-    scope = scope->ParentScope();
-  this->scope = scope;
+  while (s && s->GetSpecializationRequester().IsNone()) s = s->ParentScope();
+  this->scope = s;
 }
 
 std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
@@ -153,11 +164,11 @@ TypeArgumentInference GenericCallable::InferSpecializationTypes(
 }
 
 base::Optional<Statement*> GenericCallable::CallableBody() {
-  if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
-    return decl->body;
-  } else if (auto* decl =
+  if (auto* macro_decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
+    return macro_decl->body;
+  } else if (auto* builtin_decl =
                  TorqueBuiltinDeclaration::DynamicCast(declaration())) {
-    return decl->body;
+    return builtin_decl->body;
   } else {
     return base::nullopt;
   }

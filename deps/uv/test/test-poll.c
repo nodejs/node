@@ -147,7 +147,7 @@ static connection_context_t* create_connection_context(
   connection_context_t* context;
 
   context = (connection_context_t*) malloc(sizeof *context);
-  ASSERT(context != NULL);
+  ASSERT_NOT_NULL(context);
 
   context->sock = sock;
   context->is_server_connection = is_server_connection;
@@ -464,7 +464,7 @@ static server_context_t* create_server_context(
   server_context_t* context;
 
   context = (server_context_t*) malloc(sizeof *context);
-  ASSERT(context != NULL);
+  ASSERT_NOT_NULL(context);
 
   context->sock = sock;
   context->connections = 0;

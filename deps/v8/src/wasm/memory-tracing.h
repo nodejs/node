@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MEMORY_TRACING_H_
 #define V8_WASM_MEMORY_TRACING_H_
 
@@ -17,7 +21,7 @@ namespace wasm {
 
 // This struct is create in generated code, hence use low-level types.
 struct MemoryTracingInfo {
-  uint32_t address;
+  uintptr_t offset;
   uint8_t is_store;  // 0 or 1
   uint8_t mem_rep;
   static_assert(
@@ -25,8 +29,10 @@ struct MemoryTracingInfo {
                    std::underlying_type<MachineRepresentation>::type>::value,
       "MachineRepresentation uses uint8_t");
 
-  MemoryTracingInfo(uint32_t addr, bool is_store, MachineRepresentation rep)
-      : address(addr), is_store(is_store), mem_rep(static_cast<uint8_t>(rep)) {}
+  MemoryTracingInfo(uintptr_t offset, bool is_store, MachineRepresentation rep)
+      : offset(offset),
+        is_store(is_store),
+        mem_rep(static_cast<uint8_t>(rep)) {}
 };
 
 // Callback for tracing a memory operation for debugging.

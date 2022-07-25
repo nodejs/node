@@ -1,3 +1,5 @@
+// Flags: --pending-deprecation
+
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20,7 +22,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
+
+const punycodeWarning =
+  'The `punycode` module is deprecated. Please use a userland alternative ' +
+  'instead.';
+common.expectWarning('DeprecationWarning', punycodeWarning, 'DEP0040');
+
 const punycode = require('punycode');
 const assert = require('assert');
 
@@ -194,7 +202,7 @@ const tests = [
     encoded: '-> $1.00 <--',
     decoded: '\u002D\u003E\u0020\u0024\u0031\u002E\u0030\u0030\u0020\u003C' +
       '\u002D'
-  }
+  },
 ];
 
 let errors = 0;

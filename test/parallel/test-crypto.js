@@ -27,7 +27,7 @@ if (!common.hasCrypto)
 
 common.expectWarning({
   DeprecationWarning: [
-    ['crypto.createCipher is deprecated.', 'DEP0106']
+    ['crypto.createCipher is deprecated.', 'DEP0106'],
   ]
 });
 
@@ -121,6 +121,19 @@ function validateList(list) {
 const cryptoCiphers = crypto.getCiphers();
 assert(crypto.getCiphers().includes('aes-128-cbc'));
 validateList(cryptoCiphers);
+// Make sure all of the ciphers are supported by OpenSSL
+for (const algo of cryptoCiphers) {
+  const { ivLength, keyLength, mode } = crypto.getCipherInfo(algo);
+  let options;
+  if (mode === 'ccm')
+    options = { authTagLength: 8 };
+  else if (mode === 'ocb' || algo === 'chacha20-poly1305')
+    options = { authTagLength: 16 };
+  crypto.createCipheriv(algo,
+                        crypto.randomBytes(keyLength),
+                        crypto.randomBytes(ivLength || 0),
+                        options);
+}
 
 // Assume that we have at least AES256-SHA.
 const tlsCiphers = tls.getCiphers();
@@ -140,6 +153,9 @@ assert(!crypto.getHashes().includes('SHA256'));
 assert(crypto.getHashes().includes('RSA-SHA1'));
 assert(!crypto.getHashes().includes('rsa-sha1'));
 validateList(crypto.getHashes());
+// Make sure all of the hashes are supported by OpenSSL
+for (const algo of crypto.getHashes())
+  crypto.createHash(algo);
 
 // Assume that we have at least secp384r1.
 assert.notStrictEqual(crypto.getCurves().length, 0);
@@ -212,12 +228,17 @@ assert.throws(() => {
     'eKN7LggbF3Dk5wIQN6SL+fQ5H/+7NgARsVBp0QIRANxYRukavs4QvuyNhMx+vrkCEQCbf6j/',
     'Ig6/HueCK/0Jkmp+',
     '-----END RSA PRIVATE KEY-----',
-    ''
+    '',
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  assert.ok(!('opensslErrorStack' in err));
-  assert.throws(() => { throw err; }, {
+  if (!common.hasOpenSSL3)
+    assert.ok(!('opensslErrorStack' in err));
+  assert.throws(() => { throw err; }, common.hasOpenSSL3 ? {
+    name: 'Error',
+    message: 'error:02000070:rsa routines::digest too big for rsa key',
+    library: 'rsa routines',
+  } : {
     name: 'Error',
     message: /routines:RSA_sign:digest too big for rsa key$/,
     library: 'rsa routines',
@@ -228,30 +249,33 @@ assert.throws(() => {
   return true;
 });
 
-assert.throws(() => {
-  // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
-  // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
-  // instead of
-  // -----BEGIN RSA PRIVATE KEY----- and -----END RSA PRIVATE KEY-----
-  const sha1_privateKey = fixtures.readKey('rsa_private_pkcs8_bad.pem',
-                                           'ascii');
-  // This would inject errors onto OpenSSL's error stack
-  crypto.createSign('sha1').sign(sha1_privateKey);
-}, (err) => {
-  // Do the standard checks, but then do some custom checks afterwards.
-  assert.throws(() => { throw err; }, {
-    message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:wrong tag',
-    library: 'asn1 encoding routines',
-    function: 'asn1_check_tlen',
-    reason: 'wrong tag',
-    code: 'ERR_OSSL_ASN1_WRONG_TAG',
+if (!common.hasOpenSSL3) {
+  assert.throws(() => {
+    // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
+    // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
+    // instead of
+    // -----BEGIN RSA PRIVATE KEY----- and -----END RSA PRIVATE KEY-----
+    const sha1_privateKey = fixtures.readKey('rsa_private_pkcs8_bad.pem',
+                                             'ascii');
+    // This would inject errors onto OpenSSL's error stack
+    crypto.createSign('sha1').sign(sha1_privateKey);
+  }, (err) => {
+    // Do the standard checks, but then do some custom checks afterwards.
+    assert.throws(() => { throw err; }, {
+      message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:' +
+               'wrong tag',
+      library: 'asn1 encoding routines',
+      function: 'asn1_check_tlen',
+      reason: 'wrong tag',
+      code: 'ERR_OSSL_ASN1_WRONG_TAG',
+    });
+    // Throws crypto error, so there is an opensslErrorStack property.
+    // The openSSL stack should have content.
+    assert(Array.isArray(err.opensslErrorStack));
+    assert(err.opensslErrorStack.length > 0);
+    return true;
   });
-  // Throws crypto error, so there is an opensslErrorStack property.
-  // The openSSL stack should have content.
-  assert(Array.isArray(err.opensslErrorStack));
-  assert(err.opensslErrorStack.length > 0);
-  return true;
-});
+}
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));

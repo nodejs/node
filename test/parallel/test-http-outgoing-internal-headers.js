@@ -13,7 +13,7 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   // Tests for _headers get method
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.getHeaders = common.mustCall();
-  outgoingMessage._headers;
+  outgoingMessage._headers; // eslint-disable-line no-unused-expressions
 }
 
 {
@@ -30,4 +30,15 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
       host: ['host', 'risingstack.com'],
       origin: ['Origin', 'localhost']
     }));
+}
+
+{
+  // Tests for _headers set method `null`
+  const outgoingMessage = new OutgoingMessage();
+  outgoingMessage._headers = null;
+
+  assert.strictEqual(
+    outgoingMessage[kOutHeaders],
+    null
+  );
 }

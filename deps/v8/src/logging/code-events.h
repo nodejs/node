@@ -8,12 +8,12 @@
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -25,9 +25,10 @@ class String;
 
 namespace wasm {
 class WasmCode;
-using WasmName = Vector<const char>;
+using WasmName = base::Vector<const char>;
 }  // namespace wasm
 
+// clang-format off
 #define LOG_EVENTS_LIST(V)                             \
   V(CODE_CREATION_EVENT, code-creation)                \
   V(CODE_DISABLE_OPT_EVENT, code-disable-optimization) \
@@ -37,21 +38,21 @@ using WasmName = Vector<const char>;
   V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
   V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
   V(TICK_EVENT, tick)
+// clang-format on
 
-#define TAGS_LIST(V)                               \
-  V(BUILTIN_TAG, Builtin)                          \
-  V(CALLBACK_TAG, Callback)                        \
-  V(EVAL_TAG, Eval)                                \
-  V(FUNCTION_TAG, Function)                        \
-  V(INTERPRETED_FUNCTION_TAG, InterpretedFunction) \
-  V(HANDLER_TAG, Handler)                          \
-  V(BYTECODE_HANDLER_TAG, BytecodeHandler)         \
-  V(LAZY_COMPILE_TAG, LazyCompile)                 \
-  V(REG_EXP_TAG, RegExp)                           \
-  V(SCRIPT_TAG, Script)                            \
-  V(STUB_TAG, Stub)                                \
-  V(NATIVE_FUNCTION_TAG, Function)                 \
-  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)          \
+#define TAGS_LIST(V)                       \
+  V(BUILTIN_TAG, Builtin)                  \
+  V(CALLBACK_TAG, Callback)                \
+  V(EVAL_TAG, Eval)                        \
+  V(FUNCTION_TAG, Function)                \
+  V(HANDLER_TAG, Handler)                  \
+  V(BYTECODE_HANDLER_TAG, BytecodeHandler) \
+  V(LAZY_COMPILE_TAG, LazyCompile)         \
+  V(REG_EXP_TAG, RegExp)                   \
+  V(SCRIPT_TAG, Script)                    \
+  V(STUB_TAG, Stub)                        \
+  V(NATIVE_FUNCTION_TAG, Function)         \
+  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)  \
   V(NATIVE_SCRIPT_TAG, Script)
 // Note that 'NATIVE_' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
@@ -83,8 +84,11 @@ class CodeEventListener {
                                Handle<SharedFunctionInfo> shared,
                                Handle<Name> script_name, int line,
                                int column) = 0;
+#if V8_ENABLE_WEBASSEMBLY
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                               wasm::WasmName name) = 0;
+                               wasm::WasmName name, const char* source_url,
+                               int code_offset, int script_id) = 0;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -94,17 +98,20 @@ class CodeEventListener {
   // Not handlified as this happens during GC. No allocation allowed.
   virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
+  virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared) = 0;
   virtual void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                              Address pc, int fp_to_sp_delta,
-                              bool reuse_code) = 0;
+                              Address pc, int fp_to_sp_delta) = 0;
   // These events can happen when 1. an assumption made by optimized code fails
   // or 2. a weakly embedded object dies.
   virtual void CodeDependencyChangeEvent(Handle<Code> code,
                                          Handle<SharedFunctionInfo> shared,
                                          const char* reason) = 0;
+  // Called during GC shortly after any weak references to code objects are
+  // cleared.
+  virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
@@ -115,6 +122,8 @@ class CodeEventDispatcher : public CodeEventListener {
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
   CodeEventDispatcher() = default;
+  CodeEventDispatcher(const CodeEventDispatcher&) = delete;
+  CodeEventDispatcher& operator=(const CodeEventDispatcher&) = delete;
 
   bool AddListener(CodeEventListener* listener) {
     base::MutexGuard guard(&mutex_);
@@ -167,12 +176,16 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeCreateEvent(tag, code, shared, source, line, column);
     });
   }
+#if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) override {
+                       wasm::WasmName name, const char* source_url,
+                       int code_offset, int script_id) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, name);
+      listener->CodeCreateEvent(tag, code, name, source_url, code_offset,
+                                script_id);
     });
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   void CallbackEvent(Handle<Name> name, Address entry_point) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
       listener->CallbackEvent(name, entry_point);
@@ -204,6 +217,11 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->SharedFunctionInfoMoveEvent(from, to);
     });
   }
+  void NativeContextMoveEvent(Address from, Address to) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->NativeContextMoveEvent(from, to);
+    });
+  }
   void CodeMovingGCEvent() override {
     DispatchEventToListeners(
         [](CodeEventListener* listener) { listener->CodeMovingGCEvent(); });
@@ -215,9 +233,9 @@ class CodeEventDispatcher : public CodeEventListener {
     });
   }
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {
+                      int fp_to_sp_delta) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta, reuse_code);
+      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta);
     });
   }
   void CodeDependencyChangeEvent(Handle<Code> code,
@@ -227,12 +245,14 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
     });
   }
+  void WeakCodeClearEvent() override {
+    DispatchEventToListeners(
+        [=](CodeEventListener* listener) { listener->WeakCodeClearEvent(); });
+  }
 
  private:
   std::unordered_set<CodeEventListener*> listeners_;
   base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };
 
 }  // namespace internal

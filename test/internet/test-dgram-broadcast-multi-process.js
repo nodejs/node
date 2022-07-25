@@ -184,7 +184,9 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch {}
+      try { sendSocket.close(); } catch {
+        // Continue regardless of error.
+      }
       return;
     }
 

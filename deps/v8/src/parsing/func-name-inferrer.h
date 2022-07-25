@@ -8,22 +8,28 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/utils/pointer-with-payload.h"
+#include "src/base/pointer-with-payload.h"
 
 namespace v8 {
+
+namespace internal {
+class AstRawString;
+}
+
+namespace base {
+template <>
+struct PointerWithPayloadTraits<v8::internal::AstRawString> {
+  static constexpr int kAvailableBits = 2;
+};
+}  // namespace base
+
 namespace internal {
 
 class AstConsString;
-class AstRawString;
 class AstValueFactory;
 class FunctionLiteral;
 
 enum class InferName { kYes, kNo };
-
-template <>
-struct PointerWithPayloadTraits<AstRawString> {
-  static constexpr int value = 2;
-};
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
@@ -39,6 +45,9 @@ class FuncNameInferrer {
  public:
   explicit FuncNameInferrer(AstValueFactory* ast_value_factory);
 
+  FuncNameInferrer(const FuncNameInferrer&) = delete;
+  FuncNameInferrer& operator=(const FuncNameInferrer&) = delete;
+
   // To enter function name inference state, put a FuncNameInferrer::State
   // on the stack.
   class State {
@@ -52,12 +61,12 @@ class FuncNameInferrer {
       fni_->names_stack_.resize(top_);
       --fni_->scope_depth_;
     }
+    State(const State&) = delete;
+    State& operator=(const State&) = delete;
 
    private:
     FuncNameInferrer* fni_;
     size_t top_;
-
-    DISALLOW_COPY_AND_ASSIGN(State);
   };
 
   // Returns whether we have entered name collection state.
@@ -102,7 +111,7 @@ class FuncNameInferrer {
     Name(const AstRawString* name, NameType type)
         : name_and_type_(name, type) {}
 
-    PointerWithPayload<const AstRawString, NameType, 2> name_and_type_;
+    base::PointerWithPayload<const AstRawString, NameType, 2> name_and_type_;
     inline const AstRawString* name() const {
       return name_and_type_.GetPointer();
     }
@@ -119,8 +128,6 @@ class FuncNameInferrer {
   std::vector<Name> names_stack_;
   std::vector<FunctionLiteral*> funcs_to_infer_;
   size_t scope_depth_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
 };
 
 

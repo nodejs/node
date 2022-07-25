@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -132,15 +132,15 @@ __owur int ossl_statem_accept(SSL *s);
 __owur int ossl_statem_connect(SSL *s);
 void ossl_statem_clear(SSL *s);
 void ossl_statem_set_renegotiate(SSL *s);
-void ossl_statem_fatal(SSL *s, int al, int func, int reason, const char *file,
-                       int line);
+void ossl_statem_send_fatal(SSL *s, int al);
+void ossl_statem_fatal(SSL *s, int al, int reason, const char *fmt, ...);
 # define SSL_AD_NO_ALERT    -1
-# ifndef OPENSSL_NO_ERR
-#  define SSLfatal(s, al, f, r)  ossl_statem_fatal((s), (al), (f), (r), \
-                                                   OPENSSL_FILE, OPENSSL_LINE)
-# else
-#  define SSLfatal(s, al, f, r)  ossl_statem_fatal((s), (al), (f), (r), NULL, 0)
-# endif
+# define SSLfatal_alert(s, al) ossl_statem_send_fatal((s), (al))
+# define SSLfatal(s, al, r) SSLfatal_data((s), (al), (r), NULL)
+# define SSLfatal_data                                          \
+    (ERR_new(),                                                 \
+     ERR_set_debug(OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC),   \
+     ossl_statem_fatal)
 
 int ossl_statem_in_error(const SSL *s);
 void ossl_statem_set_in_init(SSL *s, int init);

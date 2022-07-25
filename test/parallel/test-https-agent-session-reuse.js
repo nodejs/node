@@ -90,7 +90,7 @@ const server = https.createServer(options, function(req, res) {
       servername: 'agent1',
       ca: ca,
       port: this.address().port
-    }
+    },
   ];
 
   function request() {

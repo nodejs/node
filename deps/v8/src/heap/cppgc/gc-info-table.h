@@ -23,9 +23,8 @@ namespace internal {
 struct GCInfo final {
   FinalizationCallback finalize;
   TraceCallback trace;
+  NameCallback name;
   bool has_v_table;
-  // Keep sizeof(GCInfo) a power of 2.
-  size_t padding = 0;
 };
 
 class V8_EXPORT GCInfoTable final {
@@ -52,8 +51,10 @@ class V8_EXPORT GCInfoTable final {
   // of testing code.
   explicit GCInfoTable(PageAllocator* page_allocator);
   ~GCInfoTable();
+  GCInfoTable(const GCInfoTable&) = delete;
+  GCInfoTable& operator=(const GCInfoTable&) = delete;
 
-  GCInfoIndex RegisterNewGCInfo(const GCInfo& info);
+  GCInfoIndex RegisterNewGCInfo(std::atomic<uint16_t>&, const GCInfo& info);
 
   const GCInfo& GCInfoFromIndex(GCInfoIndex index) const {
     DCHECK_GE(index, kMinIndex);
@@ -62,9 +63,12 @@ class V8_EXPORT GCInfoTable final {
     return table_[index];
   }
 
-  GCInfoIndex NumberOfGCInfosForTesting() const { return current_index_; }
+  GCInfoIndex NumberOfGCInfos() const { return current_index_; }
+
   GCInfoIndex LimitForTesting() const { return limit_; }
   GCInfo& TableSlotForTesting(GCInfoIndex index) { return table_[index]; }
+
+  PageAllocator* allocator() const { return page_allocator_; }
 
  private:
   void Resize();
@@ -85,14 +89,17 @@ class V8_EXPORT GCInfoTable final {
   GCInfoIndex limit_ = 0;
 
   v8::base::Mutex table_mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(GCInfoTable);
 };
 
 class V8_EXPORT GlobalGCInfoTable final {
  public:
-  // Sets up a singleton table that can be acquired using Get().
-  static void Create(PageAllocator* page_allocator);
+  GlobalGCInfoTable(const GlobalGCInfoTable&) = delete;
+  GlobalGCInfoTable& operator=(const GlobalGCInfoTable&) = delete;
+
+  // Sets up the table with the provided `page_allocator`. Will use an internal
+  // allocator in case no PageAllocator is provided. May be called multiple
+  // times with the same `page_allocator` argument.
+  static void Initialize(PageAllocator* page_allocator);
 
   // Accessors for the singleton table.
   static GCInfoTable& GetMutable() { return *global_table_; }
@@ -107,7 +114,6 @@ class V8_EXPORT GlobalGCInfoTable final {
   static GCInfoTable* global_table_;
 
   DISALLOW_NEW_AND_DELETE()
-  DISALLOW_COPY_AND_ASSIGN(GlobalGCInfoTable);
 };
 
 }  // namespace internal

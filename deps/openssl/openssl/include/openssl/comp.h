@@ -1,14 +1,20 @@
 /*
  * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_COMP_H
-# define HEADER_COMP_H
+#ifndef OPENSSL_COMP_H
+# define OPENSSL_COMP_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_COMP_H
+# endif
 
 # include <openssl/opensslconf.h>
 
@@ -35,11 +41,11 @@ int COMP_expand_block(COMP_CTX *ctx, unsigned char *out, int olen,
 
 COMP_METHOD *COMP_zlib(void);
 
-#if OPENSSL_API_COMPAT < 0x10100000L
-#define COMP_zlib_cleanup() while(0) continue
+#ifndef OPENSSL_NO_DEPRECATED_1_1_0
+# define COMP_zlib_cleanup() while(0) continue
 #endif
 
-# ifdef HEADER_BIO_H
+# ifdef OPENSSL_BIO_H
 #  ifdef ZLIB
 const BIO_METHOD *BIO_f_zlib(void);
 #  endif

@@ -5,6 +5,8 @@
 #ifndef V8_UTILS_LOCKED_QUEUE_H_
 #define V8_UTILS_LOCKED_QUEUE_H_
 
+#include <atomic>
+
 #include "src/base/platform/platform.h"
 #include "src/utils/allocation.h"
 
@@ -20,11 +22,14 @@ template <typename Record>
 class LockedQueue final {
  public:
   inline LockedQueue();
+  LockedQueue(const LockedQueue&) = delete;
+  LockedQueue& operator=(const LockedQueue&) = delete;
   inline ~LockedQueue();
-  inline void Enqueue(const Record& record);
+  inline void Enqueue(Record record);
   inline bool Dequeue(Record* record);
   inline bool IsEmpty() const;
   inline bool Peek(Record* record) const;
+  inline size_t size() const;
 
  private:
   struct Node;
@@ -33,8 +38,7 @@ class LockedQueue final {
   base::Mutex tail_mutex_;
   Node* head_;
   Node* tail_;
-
-  DISALLOW_COPY_AND_ASSIGN(LockedQueue);
+  std::atomic<size_t> size_;
 };
 
 }  // namespace internal

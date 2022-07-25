@@ -41,10 +41,10 @@ TEST(OperandConversion, Parameters) {
   for (size_t p = 0; p < count; p++) {
     int parameter_count = parameter_counts[p];
     for (int i = 0; i < parameter_count; i++) {
-      Register r = Register::FromParameterIndex(i, parameter_count);
+      Register r = Register::FromParameterIndex(i);
       uint32_t operand_value = r.ToOperand();
       Register s = Register::FromOperand(operand_value);
-      CHECK_EQ(i, s.ToParameterIndex(parameter_count));
+      CHECK_EQ(i, s.ToParameterIndex());
     }
   }
 }
@@ -67,7 +67,7 @@ TEST(OperandConversion, RegistersParametersNoOverlap) {
   }
 
   for (int i = 0; i < parameter_count; i += 1) {
-    Register r = Register::FromParameterIndex(i, parameter_count);
+    Register r = Register::FromParameterIndex(i);
     uint32_t operand = r.ToOperand();
     uint8_t index = static_cast<uint8_t>(operand);
     CHECK_LT(index, operand_count.size());
@@ -333,30 +333,33 @@ TEST(OperandScale, PrefixesRequired) {
            Bytecode::kExtraWide);
 }
 
-TEST(AccumulatorUse, LogicalOperators) {
-  CHECK_EQ(AccumulatorUse::kNone | AccumulatorUse::kRead,
-           AccumulatorUse::kRead);
-  CHECK_EQ(AccumulatorUse::kRead | AccumulatorUse::kWrite,
-           AccumulatorUse::kReadWrite);
-  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kReadWrite,
-           AccumulatorUse::kRead);
-  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kWrite,
-           AccumulatorUse::kNone);
+TEST(ImplicitRegisterUse, LogicalOperators) {
+  CHECK_EQ(ImplicitRegisterUse::kNone | ImplicitRegisterUse::kReadAccumulator,
+           ImplicitRegisterUse::kReadAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator |
+               ImplicitRegisterUse::kWriteAccumulator,
+           ImplicitRegisterUse::kReadWriteAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator &
+               ImplicitRegisterUse::kReadWriteAccumulator,
+           ImplicitRegisterUse::kReadAccumulator);
+  CHECK_EQ(ImplicitRegisterUse::kReadAccumulator &
+               ImplicitRegisterUse::kWriteAccumulator,
+           ImplicitRegisterUse::kNone);
 }
 
-TEST(AccumulatorUse, SampleBytecodes) {
+TEST(ImplicitRegisterUse, SampleBytecodes) {
   CHECK(Bytecodes::ReadsAccumulator(Bytecode::kStar));
   CHECK(!Bytecodes::WritesAccumulator(Bytecode::kStar));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kStar),
-           AccumulatorUse::kRead);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kStar),
+           ImplicitRegisterUse::kReadAccumulator);
   CHECK(!Bytecodes::ReadsAccumulator(Bytecode::kLdar));
   CHECK(Bytecodes::WritesAccumulator(Bytecode::kLdar));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kLdar),
-           AccumulatorUse::kWrite);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kLdar),
+           ImplicitRegisterUse::kWriteAccumulator);
   CHECK(Bytecodes::ReadsAccumulator(Bytecode::kAdd));
   CHECK(Bytecodes::WritesAccumulator(Bytecode::kAdd));
-  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kAdd),
-           AccumulatorUse::kReadWrite);
+  CHECK_EQ(Bytecodes::GetImplicitRegisterUse(Bytecode::kAdd),
+           ImplicitRegisterUse::kReadWriteAccumulator);
 }
 
 }  // namespace interpreter

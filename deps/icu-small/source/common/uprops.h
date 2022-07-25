@@ -224,7 +224,8 @@ enum {
 /*
  * Properties in vector word 2
  * Bits
- * 31..26   http://www.unicode.org/reports/tr51/#Emoji_Properties
+ * 31..26   unused since ICU 70 added uemoji.icu;
+ *          in ICU 57..69 stored emoji properties
  * 25..20   Line Break
  * 19..15   Sentence Break
  * 14..10   Word Break
@@ -232,12 +233,12 @@ enum {
  *  4.. 0   Decomposition Type
  */
 enum {
-    UPROPS_2_EXTENDED_PICTOGRAPHIC=26,
-    UPROPS_2_EMOJI_COMPONENT,
-    UPROPS_2_EMOJI,
-    UPROPS_2_EMOJI_PRESENTATION,
-    UPROPS_2_EMOJI_MODIFIER,
-    UPROPS_2_EMOJI_MODIFIER_BASE
+    UPROPS_2_UNUSED_WAS_EXTENDED_PICTOGRAPHIC=26,  // ICU 62..69
+    UPROPS_2_UNUSED_WAS_EMOJI_COMPONENT,  // ICU 60..69
+    UPROPS_2_UNUSED_WAS_EMOJI,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_PRESENTATION,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_MODIFIER,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_MODIFIER_BASE  // ICU 57..69
 };
 
 #define UPROPS_LB_MASK          0x03f00000
@@ -310,55 +311,12 @@ u_isgraphPOSIX(UChar32 c);
 U_CFUNC UBool
 u_isprintPOSIX(UChar32 c);
 
-/** Turn a bit index into a bit flag. @internal */
-#define FLAG(n) ((uint32_t)1<<(n))
-
-/** Flags for general categories in the order of UCharCategory. @internal */
-#define _Cn     FLAG(U_GENERAL_OTHER_TYPES)
-#define _Lu     FLAG(U_UPPERCASE_LETTER)
-#define _Ll     FLAG(U_LOWERCASE_LETTER)
-#define _Lt     FLAG(U_TITLECASE_LETTER)
-#define _Lm     FLAG(U_MODIFIER_LETTER)
-/* #define _Lo     FLAG(U_OTHER_LETTER) -- conflicts with MS Visual Studio 9.0 xiosbase */
-#define _Mn     FLAG(U_NON_SPACING_MARK)
-#define _Me     FLAG(U_ENCLOSING_MARK)
-#define _Mc     FLAG(U_COMBINING_SPACING_MARK)
-#define _Nd     FLAG(U_DECIMAL_DIGIT_NUMBER)
-#define _Nl     FLAG(U_LETTER_NUMBER)
-#define _No     FLAG(U_OTHER_NUMBER)
-#define _Zs     FLAG(U_SPACE_SEPARATOR)
-#define _Zl     FLAG(U_LINE_SEPARATOR)
-#define _Zp     FLAG(U_PARAGRAPH_SEPARATOR)
-#define _Cc     FLAG(U_CONTROL_CHAR)
-#define _Cf     FLAG(U_FORMAT_CHAR)
-#define _Co     FLAG(U_PRIVATE_USE_CHAR)
-#define _Cs     FLAG(U_SURROGATE)
-#define _Pd     FLAG(U_DASH_PUNCTUATION)
-#define _Ps     FLAG(U_START_PUNCTUATION)
-/* #define _Pe     FLAG(U_END_PUNCTUATION) -- conflicts with MS Visual Studio 9.0 xlocnum */
-/* #define _Pc     FLAG(U_CONNECTOR_PUNCTUATION) -- conflicts with MS Visual Studio 9.0 streambuf */
-#define _Po     FLAG(U_OTHER_PUNCTUATION)
-#define _Sm     FLAG(U_MATH_SYMBOL)
-#define _Sc     FLAG(U_CURRENCY_SYMBOL)
-#define _Sk     FLAG(U_MODIFIER_SYMBOL)
-#define _So     FLAG(U_OTHER_SYMBOL)
-#define _Pi     FLAG(U_INITIAL_PUNCTUATION)
-/* #define _Pf     FLAG(U_FINAL_PUNCTUATION) -- conflicts with MS Visual Studio 9.0 streambuf */
-
 /** Some code points. @internal */
 enum {
     TAB     =0x0009,
     LF      =0x000a,
     FF      =0x000c,
     CR      =0x000d,
-    U_A     =0x0041,
-    U_F     =0x0046,
-    U_Z     =0x005a,
-    U_a     =0x0061,
-    U_f     =0x0066,
-    U_z     =0x007a,
-    DEL     =0x007f,
-    NL      =0x0085,
     NBSP    =0x00a0,
     CGJ     =0x034f,
     FIGURESP=0x2007,
@@ -367,15 +325,6 @@ enum {
     ZWJ     =0x200d,
     RLM     =0x200f,
     NNBSP   =0x202f,
-    WJ      =0x2060,
-    INHSWAP =0x206a,
-    NOMDIG  =0x206f,
-    U_FW_A  =0xff21,
-    U_FW_F  =0xff26,
-    U_FW_Z  =0xff3a,
-    U_FW_a  =0xff41,
-    U_FW_f  =0xff46,
-    U_FW_z  =0xff5a,
     ZWNBSP  =0xfeff
 };
 
@@ -429,6 +378,7 @@ enum UPropertySource {
     UPROPS_SRC_INPC,
     UPROPS_SRC_INSC,
     UPROPS_SRC_VO,
+    UPROPS_SRC_EMOJI,
     /** One more than the highest UPropertySource (UPROPS_SRC_) constant. */
     UPROPS_SRC_COUNT
 };

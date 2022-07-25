@@ -1,4 +1,6 @@
 Tests if breakpoint set is first breakable location
+
+Running test: test
 Running test function...
 Set breakpoint outside of any function: (0, 0).
 Setting breakpoint for id: 4 at 0, 0.
@@ -18,4 +20,3 @@ Set breakpoint at non-breakable location: (0, 42).
 Setting breakpoint for id: 4 at 0, 42.
 Location match for (0, 43).
 Initial location is expected to be breakable: false.
-Finished!

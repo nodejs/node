@@ -14,7 +14,7 @@ namespace debug_helper_internal {
 
 bool IsPointerCompressed(uintptr_t address) {
 #if COMPRESS_POINTERS_BOOL
-  return address < i::kPtrComprHeapReservationSize;
+  return address < i::kPtrComprCageReservationSize;
 #else
   return false;
 #endif

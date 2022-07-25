@@ -15,7 +15,6 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -26,6 +25,8 @@ class BreakIterator;
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-break-iterator-tq.inc"
 
 class JSV8BreakIterator
     : public TorqueGeneratedJSV8BreakIterator<JSV8BreakIterator, JSObject> {

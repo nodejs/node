@@ -22,8 +22,7 @@
 'use strict';
 
 const common = require('../common');
-const R = require('_stream_readable');
-const W = require('_stream_writable');
+const { Readable: R, Writable: W } = require('stream');
 const assert = require('assert');
 
 const EE = require('events').EventEmitter;
@@ -423,7 +422,7 @@ class TestWriter extends EE {
 
 {
   // Verify readableEncoding property
-  assert(R.prototype.hasOwnProperty('readableEncoding'));
+  assert(Object.hasOwn(R.prototype, 'readableEncoding'));
 
   const r = new R({ encoding: 'utf8' });
   assert.strictEqual(r.readableEncoding, 'utf8');
@@ -431,7 +430,7 @@ class TestWriter extends EE {
 
 {
   // Verify readableObjectMode property
-  assert(R.prototype.hasOwnProperty('readableObjectMode'));
+  assert(Object.hasOwn(R.prototype, 'readableObjectMode'));
 
   const r = new R({ objectMode: true });
   assert.strictEqual(r.readableObjectMode, true);
@@ -439,7 +438,7 @@ class TestWriter extends EE {
 
 {
   // Verify writableObjectMode property
-  assert(W.prototype.hasOwnProperty('writableObjectMode'));
+  assert(Object.hasOwn(W.prototype, 'writableObjectMode'));
 
   const w = new W({ objectMode: true });
   assert.strictEqual(w.writableObjectMode, true);

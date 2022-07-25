@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-prefix</title>
 <style>
 body {
@@ -141,18 +142,53 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global"><code>global</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm prefix [-g]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Print the local prefix to standard out. This is the closest parent directory
+<p>Print the local prefix to standard output. This is the closest parent directory
 to contain a <code>package.json</code> file or <code>node_modules</code> directory, unless <code>-g</code> is
 also specified.</p>
 <p>If <code>-g</code> is specified, this will be the value of the global prefix. See
 <a href="../commands/npm-config.html"><code>npm config</code></a> for more detail.</p>
+<h3 id="example">Example</h3>
+<pre lang="bash"><code>npm prefix
+/usr/local/projects/foo
+</code></pre>
+<pre lang="bash"><code>npm prefix -g
+/usr/local
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-root.html">npm root</a></li>

@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-team</title>
 <style>
 body {
@@ -141,59 +142,135 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#json"><code>json</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm team create &lt;scope:team&gt;
-npm team destroy &lt;scope:team&gt;
-
-npm team add &lt;scope:team&gt; &lt;user&gt;
-npm team rm &lt;scope:team&gt; &lt;user&gt;
-
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm team create &lt;scope:team&gt; [--otp &lt;otpcode&gt;]
+npm team destroy &lt;scope:team&gt; [--otp &lt;otpcode&gt;]
+npm team add &lt;scope:team&gt; &lt;user&gt; [--otp &lt;otpcode&gt;]
+npm team rm &lt;scope:team&gt; &lt;user&gt; [--otp &lt;otpcode&gt;]
 npm team ls &lt;scope&gt;|&lt;scope:team&gt;
-
-npm team edit &lt;scope:team&gt;
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Used to manage teams in organizations, and change team memberships. Does not
 handle permissions for packages.</p>
 <p>Teams must always be fully qualified with the organization/scope they belong to
-when operating on them, separated by a colon (<code>:</code>). That is, if you have a <code>wombats</code> team in a <code>wisdom</code> organization, you must always refer to that team as <code>wisdom:wombats</code> in these commands.</p>
-<p>If you have two-factor authentication enabled in <code>auth-and-writes</code> mode, then you can provide a code from your authenticator with <code>[--otp &lt;otpcode&gt;]</code>. If you don’t include this then you will be prompted.</p>
+when operating on them, separated by a colon (<code>:</code>). That is, if you have a
+<code>newteam</code> team in an <code>org</code> organization, you must always refer to that team
+as <code>@org:newteam</code> in these commands.</p>
+<p>If you have two-factor authentication enabled in <code>auth-and-writes</code> mode, then
+you can provide a code from your authenticator with <code>[--otp &lt;otpcode&gt;]</code>.
+If you don't include this then you will be prompted.</p>
 <ul>
 <li>
 <p>create / destroy:
-Create a new team, or destroy an existing one. Note: You cannot remove the <code>developers</code> team, <!-- raw HTML omitted -->learn more.<!-- raw HTML omitted --></p>
+Create a new team, or destroy an existing one. Note: You cannot remove the
+<code>developers</code> team, <!-- raw HTML omitted -->learn more.<!-- raw HTML omitted --></p>
+<p>Here's how to create a new team <code>newteam</code> under the <code>org</code> org:</p>
+<pre lang="bash"><code>npm team create @org:newteam
+</code></pre>
+<p>You should see a confirming message such as: <code>+@org:newteam</code> once the new
+team has been created.</p>
 </li>
 <li>
-<p>add / rm:
-Add a user to an existing team, or remove a user from a team they belong to.</p>
+<p>add:
+Add a user to an existing team.</p>
+<p>Adding a new user <code>username</code> to a team named <code>newteam</code> under the <code>org</code> org:</p>
+<pre lang="bash"><code>npm team add @org:newteam username
+</code></pre>
+<p>On success, you should see a message: <code>username added to @org:newteam</code></p>
+</li>
+<li>
+<p>rm:
+Using <code>npm team rm</code> you can also remove users from a team they belong to.</p>
+<p>Here's an example removing user <code>username</code> from <code>newteam</code> team
+in <code>org</code> organization:</p>
+<pre lang="bash"><code>npm team rm @org:newteam username
+</code></pre>
+<p>Once the user is removed a confirmation message is displayed:
+<code>username removed from @org:newteam</code></p>
 </li>
 <li>
 <p>ls:
 If performed on an organization name, will return a list of existing teams
 under that organization. If performed on a team, it will instead return a list
 of all users belonging to that particular team.</p>
-</li>
-<li>
-<p>edit:
-Edit a current team.</p>
+<p>Here's an example of how to list all teams from an org named <code>org</code>:</p>
+<pre lang="bash"><code>npm team ls @org
+</code></pre>
+<p>Example listing all members of a team named <code>newteam</code>:</p>
+<pre lang="bash"><code>npm team ls @org:newteam
+</code></pre>
 </li>
 </ul>
 <h3 id="details">Details</h3>
 <p><code>npm team</code> always operates directly on the current registry, configurable from
 the command line using <code>--registry=&lt;registry url&gt;</code>.</p>
-<p>In order to create teams and manage team membership, you must be a <em>team admin</em>
-under the given organization. Listing teams and team memberships may be done by
-any member of the organizations.</p>
+<p>You must be a <em>team admin</em> to create teams and manage team membership, under
+the given organization. Listing teams and team memberships may be done by
+any member of the organization.</p>
 <p>Organization creation and management of team admins and <em>organization</em> members
 is done through the website, not the npm CLI.</p>
 <p>To use teams to manage permissions on packages belonging to your organization,
 use the <code>npm access</code> command to grant or revoke the appropriate permissions.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="otp"><code>otp</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="parseable"><code>parseable</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-access.html">npm access</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 </ul>
 </div>

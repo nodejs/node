@@ -45,7 +45,14 @@ typedef struct pollfd {
 #endif
 
 #include <mswsock.h>
+// Disable the typedef in mstcpip.h of MinGW.
+#define _TCP_INITIAL_RTO_PARAMETERS _TCP_INITIAL_RTO_PARAMETERS__AVOID
+#define TCP_INITIAL_RTO_PARAMETERS TCP_INITIAL_RTO_PARAMETERS__AVOID
+#define PTCP_INITIAL_RTO_PARAMETERS PTCP_INITIAL_RTO_PARAMETERS__AVOID
 #include <ws2tcpip.h>
+#undef _TCP_INITIAL_RTO_PARAMETERS
+#undef TCP_INITIAL_RTO_PARAMETERS
+#undef PTCP_INITIAL_RTO_PARAMETERS
 #include <windows.h>
 
 #include <process.h>

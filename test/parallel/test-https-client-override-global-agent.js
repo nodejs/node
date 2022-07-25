@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(() => {
   https.globalAgent = agent;
 
   makeRequest();
-  assert(agent.sockets.hasOwnProperty(name)); // Agent has indeed been used
+  assert(name in agent.sockets); // Agent has indeed been used
 }));
 
 function makeRequest() {

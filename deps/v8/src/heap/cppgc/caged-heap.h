@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_CAGED_HEAP_H_
 #define V8_HEAP_CPPGC_CAGED_HEAP_H_
 
+#include <limits>
 #include <memory>
 
 #include "include/cppgc/platform.h"
@@ -22,7 +23,21 @@ class CagedHeap final {
  public:
   using AllocatorType = v8::base::BoundedPageAllocator;
 
-  CagedHeap(HeapBase* heap, PageAllocator* platform_allocator);
+  template <typename RetType = uintptr_t>
+  static RetType OffsetFromAddress(const void* address) {
+    static_assert(
+        std::numeric_limits<RetType>::max() >= (kCagedHeapReservationSize - 1),
+        "The return type should be large enough");
+    return reinterpret_cast<uintptr_t>(address) &
+           (kCagedHeapReservationAlignment - 1);
+  }
+
+  static uintptr_t BaseFromAddress(const void* address) {
+    return reinterpret_cast<uintptr_t>(address) &
+           ~(kCagedHeapReservationAlignment - 1);
+  }
+
+  CagedHeap(HeapBase& heap, PageAllocator& platform_allocator);
 
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
@@ -37,13 +52,15 @@ class CagedHeap final {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
   }
 
-  static uintptr_t OffsetFromAddress(void* address) {
-    return reinterpret_cast<uintptr_t>(address) &
-           (kCagedHeapReservationAlignment - 1);
+  bool IsOnHeap(const void* address) const {
+    return reinterpret_cast<void*>(BaseFromAddress(address)) ==
+           reserved_area_.address();
   }
 
+  void* base() const { return reserved_area_.address(); }
+
  private:
-  VirtualMemory reserved_area_;
+  const VirtualMemory reserved_area_;
   std::unique_ptr<AllocatorType> bounded_allocator_;
 };
 

@@ -360,7 +360,7 @@ TEST_F(MoveOptimizerTest, ClobberedFPDestinationsAreEliminated) {
   EmitNop();
   Instruction* first_instr = LastInstruction();
   AddMove(first_instr, FPReg(4, kFloat64), FPReg(1, kFloat64));
-  if (!kSimpleFPAliasing) {
+  if (kFPAliasing == AliasingKind::kCombine) {
     // We clobber q0 below. This is aliased by d0, d1, s0, s1, s2, and s3.
     // Add moves to registers s2 and s3.
     AddMove(first_instr, FPReg(10, kFloat32), FPReg(0, kFloat32));

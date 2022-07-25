@@ -1,5 +1,3 @@
-/* eslint-disable node-core/required-modules,node-core/require-common-first */
-
 'use strict';
 
 const { runInThisContext } = require('vm');
@@ -10,7 +8,8 @@ const resource = new ResourceLoader(workerData.wptPath);
 
 global.self = global;
 global.GLOBAL = {
-  isWindow() { return false; }
+  isWindow() { return false; },
+  isShadowRealm() { return false; }
 };
 global.require = require;
 
@@ -18,7 +17,7 @@ global.require = require;
 // in Node.js, but some tests and harness depend on this to pull
 // resources.
 global.fetch = function fetch(file) {
-  return resource.read(workerData.filename, file, true);
+  return resource.read(workerData.testRelativePath, file, true);
 };
 
 if (workerData.initScript) {

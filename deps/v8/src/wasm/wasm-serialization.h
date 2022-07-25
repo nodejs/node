@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_SERIALIZATION_H_
 #define V8_WASM_WASM_SERIALIZATION_H_
 
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -23,7 +28,7 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 
   // Serialize the {NativeModule} into the provided {buffer}. Returns true on
   // success and false if the given buffer it too small for serialization.
-  bool SerializeNativeModule(Vector<byte> buffer) const;
+  bool SerializeNativeModule(base::Vector<byte> buffer) const;
 
   // The data header consists of uint32_t-sized entries (see {WriteVersion}):
   // [0] magic number
@@ -42,17 +47,19 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 
  private:
   NativeModule* native_module_;
+  // The {WasmCodeRefScope} keeps the pointers in {code_table_} alive.
+  WasmCodeRefScope code_ref_scope_;
   std::vector<WasmCode*> code_table_;
 };
 
 // Support for deserializing WebAssembly {NativeModule} objects.
 // Checks the version header of the data against the current version.
-bool IsSupportedVersion(Vector<const byte> data);
+bool IsSupportedVersion(base::Vector<const byte> data);
 
 // Deserializes the given data to create a Wasm module object.
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate*, Vector<const byte> data, Vector<const byte> wire_bytes,
-    Vector<const char> source_url);
+    Isolate*, base::Vector<const byte> data,
+    base::Vector<const byte> wire_bytes, base::Vector<const char> source_url);
 
 }  // namespace wasm
 }  // namespace internal

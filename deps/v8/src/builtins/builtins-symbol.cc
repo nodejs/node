@@ -52,7 +52,7 @@ BUILTIN(SymbolKeyFor) {
         isolate, NewTypeError(MessageTemplate::kSymbolKeyFor, obj));
   }
   Handle<Symbol> symbol = Handle<Symbol>::cast(obj);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object result;
   if (symbol->is_in_public_symbol_table()) {
     result = symbol->description();

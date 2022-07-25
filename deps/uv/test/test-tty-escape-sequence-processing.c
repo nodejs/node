@@ -212,9 +212,9 @@ static void capture_screen(uv_tty_t* tty_out, struct captured_screen* cs) {
   origin.X = 0;
   origin.Y = cs->si.csbi.srWindow.Top;
   cs->text = malloc(cs->si.length * sizeof(*cs->text));
-  ASSERT(cs->text != NULL);
+  ASSERT_NOT_NULL(cs->text);
   cs->attributes = (WORD*) malloc(cs->si.length * sizeof(*cs->attributes));
-  ASSERT(cs->attributes != NULL);
+  ASSERT_NOT_NULL(cs->attributes);
   ASSERT(ReadConsoleOutputCharacter(
       tty_out->handle, cs->text, cs->si.length, origin, &length));
   ASSERT((unsigned int) cs->si.length == length);
@@ -271,7 +271,7 @@ static void make_expect_screen_erase(struct captured_screen* cs,
 static void make_expect_screen_write(struct captured_screen* cs,
                                      COORD cursor_position,
                                      const char* text) {
-  /* postion of cursor */
+  /* position of cursor */
   char* start;
   start = cs->text + cs->si.width * (cursor_position.Y - 1) +
                 cursor_position.X - 1;
@@ -1070,6 +1070,11 @@ TEST_IMPL(tty_set_style) {
   WORD attr;
   int i, length;
 
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#endif
+
   loop = uv_default_loop();
 
   initialize_tty(&tty_out);
@@ -1261,7 +1266,7 @@ TEST_IMPL(tty_save_restore_cursor_position) {
   cursor_pos.Y = si.height / 4;
   set_cursor_position(&tty_out, cursor_pos);
 
-  /* restore the cursor postion */
+  /* restore the cursor position */
   snprintf(buffer, sizeof(buffer), "%su", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
@@ -1280,7 +1285,7 @@ TEST_IMPL(tty_save_restore_cursor_position) {
   cursor_pos.Y = si.height / 4;
   set_cursor_position(&tty_out, cursor_pos);
 
-  /* restore the cursor postion */
+  /* restore the cursor position */
   snprintf(buffer, sizeof(buffer), "%s8", ESC);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
@@ -1347,6 +1352,11 @@ TEST_IMPL(tty_escape_sequence_processing) {
   char buffer[1024];
   struct captured_screen actual = {0}, expect = {0};
   int dir;
+
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#endif
 
   loop = uv_default_loop();
 

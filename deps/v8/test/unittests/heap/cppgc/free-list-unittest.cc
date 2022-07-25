@@ -151,7 +151,7 @@ TEST(FreeListTest, Contains) {
   FreeList list = CreatePopulatedFreeList(blocks);
 
   for (const auto& block : blocks) {
-    EXPECT_TRUE(list.Contains({block.Address(), block.Size()}));
+    EXPECT_TRUE(list.ContainsForTesting({block.Address(), block.Size()}));
   }
 }
 

@@ -11,7 +11,7 @@
 
 const path = require("path");
 const spawn = require("cross-spawn");
-const { isEmpty } = require("lodash");
+const os = require("os");
 const log = require("../shared/logging");
 const packageJson = require("../../package.json");
 
@@ -40,6 +40,7 @@ function environment() {
      * Synchronously executes a shell command and formats the result.
      * @param {string} cmd The command to execute.
      * @param {Array} args The arguments to be executed with the command.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The version returned by the command.
      */
     function execCommand(cmd, args) {
@@ -73,6 +74,7 @@ function environment() {
     /**
      * Gets bin version.
      * @param {string} bin The bin to check.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The normalized version returned by the command.
      */
     function getBinVersion(bin) {
@@ -90,6 +92,7 @@ function environment() {
      * Gets installed npm package version.
      * @param {string} pkg The package to check.
      * @param {boolean} global Whether to check globally or not.
+     * @throws {Error} As may be collected by `cross-spawn.sync`.
      * @returns {string} The normalized version returned by the command.
      */
     function getNpmPackageVersion(pkg, { global = false } = {}) {
@@ -107,7 +110,7 @@ function environment() {
              * Checking globally returns an empty JSON object, while local checks
              * include the name and version of the local project.
              */
-            if (isEmpty(parsedStdout) || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
+            if (Object.keys(parsedStdout).length === 0 || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
                 return "Not found";
             }
 
@@ -141,7 +144,8 @@ function environment() {
         `Node version: ${getBinVersion("node")}`,
         `npm version: ${getBinVersion("npm")}`,
         `Local ESLint version: ${getNpmPackageVersion("eslint", { global: false })}`,
-        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`
+        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`,
+        `Operating System: ${os.platform()} ${os.release()}`
     ].join("\n");
 }
 

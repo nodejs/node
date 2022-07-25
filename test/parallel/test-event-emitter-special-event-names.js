@@ -19,7 +19,7 @@ ee.on('toString', handler);
 assert.deepStrictEqual(ee.eventNames(), [
   '__proto__',
   '__defineGetter__',
-  'toString'
+  'toString',
 ]);
 
 assert.deepStrictEqual(ee.listeners('__proto__'), [handler]);

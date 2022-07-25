@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-if (!cluster.isMaster) {
+if (!cluster.isPrimary) {
   process.exit(42);
 } else {
   const worker = cluster.fork();

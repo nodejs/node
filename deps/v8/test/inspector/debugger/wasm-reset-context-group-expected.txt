@@ -1,4 +1,6 @@
 Checks resetting context group with wasm.
+
+Running test: test
 {
     id : <messageId>
     result : {

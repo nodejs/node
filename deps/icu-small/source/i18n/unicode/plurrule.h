@@ -71,8 +71,8 @@ class UFormattedNumberRangeData;
  * default rule(other) is returned.
  *
  * For more information, details, and tips for writing rules, see the
- * LDML spec, C.11 Language Plural Rules:
- * http://www.unicode.org/draft/reports/tr35/tr35.html#Language_Plural_Rules
+ * LDML spec, Part 3.5 Language Plural Rules:
+ * https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules
  *
  * Examples:<pre>
  *   "one: n is 1; few: n in 2..4"</pre>
@@ -200,7 +200,7 @@ class UFormattedNumberRangeData;
  *  <p>
  *   ICU defines plural rules for many locales based on CLDR <i>Language Plural Rules</i>.
  *   For these predefined rules, see CLDR page at
- *    http://unicode.org/repos/cldr-tmp/trunk/diff/supplemental/language_plural_rules.html
+ *   https://unicode-org.github.io/cldr-staging/charts/latest/supplemental/language_plural_rules.html
  * </p>
  */
 class U_I18N_API PluralRules : public UObject {
@@ -373,25 +373,23 @@ public:
      */
     UnicodeString select(const number::FormattedNumber& number, UErrorCode& status) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Given a formatted number range, returns the overall plural form of the
      * range. For example, "3-5" returns "other" in English.
      *
      * To get a FormattedNumberRange, see NumberRangeFormatter.
-     *
+     * 
      * This method only works if PluralRules was created with a locale. If it was created
      * from PluralRules::createRules(), this method sets status code U_UNSUPPORTED_ERROR.
-     *
+     * 
      * @param range  The number range onto which the rules will be applied.
      * @param status Set if an error occurs while selecting plural keyword.
      *               This could happen if the FormattedNumberRange is invalid,
      *               or if plural ranges data is unavailable.
      * @return       The keyword of the selected rule.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     UnicodeString select(const number::FormattedNumberRange& range, UErrorCode& status) const;
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -534,21 +532,21 @@ public:
      * Compares the equality of two PluralRules objects.
      *
      * @param other The other PluralRules object to be compared with.
-     * @return      True if the given PluralRules is the same as this
+     * @return      true if the given PluralRules is the same as this
      *              PluralRules; false otherwise.
      * @stable ICU 4.0
      */
-    virtual UBool operator==(const PluralRules& other) const;
+    virtual bool operator==(const PluralRules& other) const;
 
     /**
      * Compares the inequality of two PluralRules objects.
      *
      * @param other The PluralRules object to be compared with.
-     * @return      True if the given PluralRules is not the same as this
+     * @return      true if the given PluralRules is not the same as this
      *              PluralRules; false otherwise.
      * @stable ICU 4.0
      */
-    UBool operator!=(const PluralRules& other) const  {return !operator==(other);}
+    bool operator!=(const PluralRules& other) const  {return !operator==(other);}
 
 
     /**
@@ -564,7 +562,7 @@ public:
      *
      * @stable ICU 4.0
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 
 private:

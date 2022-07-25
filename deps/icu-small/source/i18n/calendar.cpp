@@ -308,7 +308,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
 
     calTypeBuf[0] = 0;
     if (U_SUCCESS(status) && order != NULL) {
-        // the first calender type is the default for the region
+        // the first calendar type is the default for the region
         int32_t len = 0;
         const UChar *uCalType = ures_getStringByIndex(order, 0, &len, &status);
         if (len < (int32_t)sizeof(calTypeBuf)) {
@@ -427,7 +427,7 @@ protected:
     //  return isStandardSupportedKeyword(keyword, status);
     //}
 
-    virtual void updateVisibleIDs(Hashtable& result, UErrorCode& status) const
+    virtual void updateVisibleIDs(Hashtable& result, UErrorCode& status) const override
     {
         if (U_SUCCESS(status)) {
             for(int32_t i=0;gCalTypes[i] != NULL;i++) {
@@ -439,7 +439,7 @@ protected:
         }
     }
 
-    virtual UObject* create(const ICUServiceKey& key, const ICUService* /*service*/, UErrorCode& status) const {
+    virtual UObject* create(const ICUServiceKey& key, const ICUService* /*service*/, UErrorCode& status) const override {
 #ifdef U_DEBUG_CALSVC
         if(dynamic_cast<const LocaleKey*>(&key) == NULL) {
             fprintf(stderr, "::create - not a LocaleKey!\n");
@@ -485,7 +485,7 @@ public:
     DefaultCalendarFactory() : ICUResourceBundleFactory() { }
     virtual ~DefaultCalendarFactory();
 protected:
-    virtual UObject* create(const ICUServiceKey& key, const ICUService* /*service*/, UErrorCode& status) const  {
+    virtual UObject* create(const ICUServiceKey& key, const ICUService* /*service*/, UErrorCode& status) const override {
 
         LocaleKey &lkey = (LocaleKey&)key;
         Locale loc;
@@ -517,7 +517,7 @@ public:
 
     virtual ~CalendarService();
 
-    virtual UObject* cloneInstance(UObject* instance) const {
+    virtual UObject* cloneInstance(UObject* instance) const override {
         UnicodeString *s = dynamic_cast<UnicodeString *>(instance);
         if(s != NULL) {
             return s->clone();
@@ -530,7 +530,7 @@ public:
         }
     }
 
-    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const {
+    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const override {
         LocaleKey& lkey = (LocaleKey&)key;
         //int32_t kind = lkey.kind();
 
@@ -555,7 +555,7 @@ public:
         return nc;
     }
 
-    virtual UBool isDefault() const {
+    virtual UBool isDefault() const override {
         return countFactories() == 1;
     }
 };
@@ -956,7 +956,7 @@ Calendar::makeInstance(const Locale& aLocale, UErrorCode& success) {
 #ifdef U_DEBUG_CALSVC
         fprintf(stderr, "%p: setting week count data to locale %s, actual locale %s\n", c, (const char*)aLocale.getName(), (const char *)actualLoc.getName());
 #endif
-        c->setWeekData(aLocale, c->getType(), success);  // set the correct locale (this was an indirected calendar)
+        c->setWeekData(aLocale, c->getType(), success);  // set the correct locale (this was an indirect calendar)
 
         char keyword[ULOC_FULLNAME_CAPACITY] = "";
         UErrorCode tmpStatus = U_ZERO_ERROR;
@@ -1031,7 +1031,7 @@ Calendar::getCalendarTypeFromLocale(
     }
 }
 
-UBool
+bool
 Calendar::operator==(const Calendar& that) const
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -1167,8 +1167,8 @@ Calendar::setTimeInMillis( double millis, UErrorCode& status ) {
         if(isLenient()) {
             millis = MIN_MILLIS;
         } else {
-		status = U_ILLEGAL_ARGUMENT_ERROR;
-		return;
+    		status = U_ILLEGAL_ARGUMENT_ERROR;
+	    	return;
         }
     }
 
@@ -1558,7 +1558,7 @@ void Calendar::computeFields(UErrorCode &ec)
     // fields computed by handleComputeFields().
     computeWeekFields(ec);
 
-    // Compute time-related fields.  These are indepent of the date and
+    // Compute time-related fields.  These are independent of the date and
     // of the subclass algorithm.  They depend only on the local zone
     // wall milliseconds in day.
     int32_t millisInDay =  (int32_t) (localMillis - (days * kOneDay));
@@ -2291,7 +2291,7 @@ int32_t Calendar::fieldDifference(UDate targetMs, UCalendarDateFields field, UEr
     if (U_FAILURE(ec)) return 0;
     int32_t min = 0;
     double startMs = getTimeInMillis(ec);
-    // Always add from the start millis.  This accomodates
+    // Always add from the start millis.  This accommodates
     // operations like adding years from February 29, 2000 up to
     // February 29, 2004.  If 1, 1, 1, 1 is added to the year
     // field, the DOM gets pinned to 28 and stays there, giving an
@@ -3083,7 +3083,7 @@ void Calendar::computeTime(UErrorCode& status) {
 }
 
 /**
- * Find the previous zone transtion near the given time.
+ * Find the previous zone transition near the given time.
  */
 UBool Calendar::getImmediatePreviousZoneTransition(UDate base, UDate *transitionTime, UErrorCode& status) const {
     BasicTimeZone *btz = getBasicTimeZone();
@@ -3163,8 +3163,8 @@ int32_t Calendar::computeZoneOffset(double millis, double millisInDay, UErrorCod
     UDate wall = millis + millisInDay;
     BasicTimeZone* btz = getBasicTimeZone();
     if (btz) {
-        int duplicatedTimeOpt = (fRepeatedWallTime == UCAL_WALLTIME_FIRST) ? BasicTimeZone::kFormer : BasicTimeZone::kLatter;
-        int nonExistingTimeOpt = (fSkippedWallTime == UCAL_WALLTIME_FIRST) ? BasicTimeZone::kLatter : BasicTimeZone::kFormer;
+        UTimeZoneLocalOption duplicatedTimeOpt = (fRepeatedWallTime == UCAL_WALLTIME_FIRST) ? UCAL_TZ_LOCAL_FORMER : UCAL_TZ_LOCAL_LATTER;
+        UTimeZoneLocalOption nonExistingTimeOpt = (fSkippedWallTime == UCAL_WALLTIME_FIRST) ? UCAL_TZ_LOCAL_LATTER : UCAL_TZ_LOCAL_FORMER;
         btz->getOffsetFromLocal(wall, nonExistingTimeOpt, duplicatedTimeOpt, rawOffset, dstOffset, ec);
     } else {
         const TimeZone& tz = getTimeZone();
@@ -3197,7 +3197,7 @@ int32_t Calendar::computeZoneOffset(double millis, double millisInDay, UErrorCod
             // recalculate offsets from the resolved time (non-wall).
             // When the given wall time falls into skipped wall time,
             // the offsets will be based on the zone offsets AFTER
-            // the transition (which means, earliest possibe interpretation).
+            // the transition (which means, earliest possible interpretation).
             UDate tgmt = wall - (rawOffset + dstOffset);
             tz.getOffset(tgmt, FALSE, rawOffset, dstOffset, ec);
         }

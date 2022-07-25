@@ -6,7 +6,6 @@
 #define V8_OBJECTS_TAGGED_IMPL_H_
 
 #include "include/v8-internal.h"
-#include "include/v8.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -88,8 +87,7 @@ class TaggedImpl {
 
   // Returns true if this tagged value is a strong pointer to a HeapObject.
   constexpr inline bool IsStrong() const {
-    CONSTEXPR_DCHECK(kCanBeWeak ||
-                     (!IsSmi() == HAS_STRONG_HEAP_OBJECT_TAG(ptr_)));
+    DCHECK(kCanBeWeak || (!IsSmi() == HAS_STRONG_HEAP_OBJECT_TAG(ptr_)));
     return kCanBeWeak ? HAS_STRONG_HEAP_OBJECT_TAG(ptr_) : !IsSmi();
   }
 

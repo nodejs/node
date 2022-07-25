@@ -11,14 +11,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 20
 bytecodes: [
                 B(Mov), R(context), R(0),
   /*   40 S> */ B(LdaSmi), I8(1),
   /*   49 S> */ B(Return),
-                B(Star), R(1),
+                B(Star1),
                 B(CreateCatchContext), R(1), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(0),
@@ -41,15 +41,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 47
 bytecodes: [
                 B(Mov), R(context), R(1),
   /*   47 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
-                B(Jump), U8(17),
-                B(Star), R(2),
+                B(Star0),
+                B(Jump), U8(15),
+                B(Star2),
   /*   49 E> */ B(CreateCatchContext), R(2), U8(0),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(1),
@@ -57,17 +57,17 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(Mov), R(context), R(1),
   /*   75 S> */ B(LdaSmi), I8(2),
-                B(Star), R(0),
-                B(Jump), U8(21),
-                B(Star), R(2),
+                B(Star0),
+                B(Jump), U8(18),
+                B(Star2),
   /*   77 E> */ B(CreateCatchContext), R(2), U8(1),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(1),
                 B(PushContext), R(2),
   /*   95 S> */ B(LdaSmi), I8(3),
-                B(Star), R(0),
+                B(Star0),
                 B(PopContext), R(2),
                 B(LdaUndefined),
   /*  103 S> */ B(Return),
@@ -77,7 +77,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [3, 7, 9],
-  [27, 31, 33],
+  [3, 6, 8],
+  [24, 27, 29],
 ]
 

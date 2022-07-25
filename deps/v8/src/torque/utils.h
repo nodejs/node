@@ -105,10 +105,10 @@ std::string SnakeifyString(const std::string& camel_string);
 std::string DashifyString(const std::string& underscore_string);
 std::string UnderlinifyPath(std::string path);
 
+bool StartsWithSingleUnderscore(const std::string& str);
+
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
-
-std::string CurrentPositionAsString();
 
 template <class T>
 class Deduplicator {
@@ -174,8 +174,8 @@ void PrintCommaSeparatedList(std::ostream& os, const T& list) {
 struct BottomOffset {
   size_t offset;
 
-  BottomOffset& operator=(std::size_t offset) {
-    this->offset = offset;
+  BottomOffset& operator=(std::size_t other_offset) {
+    this->offset = other_offset;
     return *this;
   }
   BottomOffset& operator++() {
@@ -365,7 +365,7 @@ inline bool StringEndsWith(const std::string& s, const std::string& suffix) {
   return s.substr(s.size() - suffix.size()) == suffix;
 }
 
-class IfDefScope {
+class V8_NODISCARD IfDefScope {
  public:
   IfDefScope(std::ostream& os, std::string d);
   ~IfDefScope();
@@ -377,7 +377,7 @@ class IfDefScope {
   std::string d_;
 };
 
-class NamespaceScope {
+class V8_NODISCARD NamespaceScope {
  public:
   NamespaceScope(std::ostream& os,
                  std::initializer_list<std::string> namespaces);
@@ -390,7 +390,7 @@ class NamespaceScope {
   std::vector<std::string> d_;
 };
 
-class IncludeGuardScope {
+class V8_NODISCARD IncludeGuardScope {
  public:
   IncludeGuardScope(std::ostream& os, std::string file_name);
   ~IncludeGuardScope();
@@ -402,7 +402,7 @@ class IncludeGuardScope {
   std::string d_;
 };
 
-class IncludeObjectMacrosScope {
+class V8_NODISCARD IncludeObjectMacrosScope {
  public:
   explicit IncludeObjectMacrosScope(std::ostream& os);
   ~IncludeObjectMacrosScope();

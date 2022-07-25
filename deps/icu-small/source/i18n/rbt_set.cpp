@@ -143,19 +143,19 @@ static void maskingError(const icu::TransliterationRule& rule1,
     int32_t len;
 
     parseError.line = parseError.offset = -1;
-
+    
     // for pre-context
     rule1.toRule(r, FALSE);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.preContext);
-    parseError.preContext[len] = 0;
-
+    parseError.preContext[len] = 0;   
+    
     //for post-context
     r.truncate(0);
     rule2.toRule(r, FALSE);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.postContext);
-    parseError.postContext[len] = 0;
+    parseError.postContext[len] = 0;   
 }
 
 U_NAMESPACE_BEGIN
@@ -163,16 +163,13 @@ U_NAMESPACE_BEGIN
 /**
  * Construct a new empty rule set.
  */
-TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) : UMemory() {
-    ruleVector = new UVector(&_deleteRule, NULL, status);
+TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) :
+        UMemory(), ruleVector(nullptr), rules(nullptr), index {}, maxContextLength(0) {
+    LocalPointer<UVector> lpRuleVector(new UVector(_deleteRule, nullptr, status), status);
     if (U_FAILURE(status)) {
         return;
     }
-    if (ruleVector == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
-    rules = NULL;
-    maxContextLength = 0;
+    ruleVector = lpRuleVector.orphan();
 }
 
 /**
@@ -180,27 +177,24 @@ TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) : UMemory() {
  */
 TransliterationRuleSet::TransliterationRuleSet(const TransliterationRuleSet& other) :
     UMemory(other),
-    ruleVector(0),
-    rules(0),
+    ruleVector(nullptr),
+    rules(nullptr),
     maxContextLength(other.maxContextLength) {
 
     int32_t i, len;
     uprv_memcpy(index, other.index, sizeof(index));
     UErrorCode status = U_ZERO_ERROR;
-    ruleVector = new UVector(&_deleteRule, NULL, status);
-    if (other.ruleVector != 0 && ruleVector != 0 && U_SUCCESS(status)) {
+    LocalPointer<UVector> lpRuleVector(new UVector(_deleteRule, nullptr, status), status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    ruleVector = lpRuleVector.orphan();
+    if (other.ruleVector != nullptr && U_SUCCESS(status)) {
         len = other.ruleVector->size();
         for (i=0; i<len && U_SUCCESS(status); ++i) {
-            TransliterationRule *tempTranslitRule = new TransliterationRule(*(TransliterationRule*)other.ruleVector->elementAt(i));
-            // Null pointer test
-            if (tempTranslitRule == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                break;
-            }
-            ruleVector->addElement(tempTranslitRule, status);
-            if (U_FAILURE(status)) {
-                break;
-            }
+            LocalPointer<TransliterationRule> tempTranslitRule(
+                new TransliterationRule(*(TransliterationRule*)other.ruleVector->elementAt(i)), status);
+            ruleVector->adoptElement(tempTranslitRule.orphan(), status);
         }
     }
     if (other.rules != 0 && U_SUCCESS(status)) {
@@ -247,11 +241,11 @@ int32_t TransliterationRuleSet::getMaximumContextLength(void) const {
  */
 void TransliterationRuleSet::addRule(TransliterationRule* adoptedRule,
                                      UErrorCode& status) {
+    LocalPointer<TransliterationRule> lpAdoptedRule(adoptedRule);
+    ruleVector->adoptElement(lpAdoptedRule.orphan(), status);
     if (U_FAILURE(status)) {
-        delete adoptedRule;
         return;
     }
-    ruleVector->addElement(adoptedRule, status);
 
     int32_t len;
     if ((len = adoptedRule->getContextLength()) > maxContextLength) {
@@ -322,7 +316,7 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
                 // If the indexValue is < 0, then the first key character is
                 // a set, and we must use the more time-consuming
                 // matchesIndexValue check.  In practice this happens
-                // rarely, so we seldom tread this code path.
+                // rarely, so we seldom treat this code path.
                 TransliterationRule* r = (TransliterationRule*) ruleVector->elementAt(j);
                 if (r->matchesIndexValue((uint8_t)x)) {
                     v.addElement(r, status);
@@ -332,6 +326,9 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
     }
     uprv_free(indexValue);
     index[256] = v.size();
+    if (U_FAILURE(status)) {
+        return;
+    }
 
     /* Freeze things into an array.
      */
@@ -396,7 +393,7 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
  * @param text the text to be transliterated
  * @param pos the position indices, which will be updated
  * @param incremental if TRUE, assume new text may be inserted
- * at index.limit, and return FALSE if thre is a partial match.
+ * at index.limit, and return FALSE if there is a partial match.
  * @return TRUE unless a U_PARTIAL_MATCH has been obtained,
  * indicating that transliteration should stop until more text
  * arrives.

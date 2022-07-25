@@ -38,7 +38,7 @@
   assertThrows(
       () => Object.defineProperty(o, '0', {get: function() {}}), TypeError);
   assertEquals(
-      {value: 0, writable: true, enumerable: true, configurable: false},
+      {value: 0, writable: true, enumerable: true, configurable: true},
       Object.getOwnPropertyDescriptor(o, '0'));
 })();
 

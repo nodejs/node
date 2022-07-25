@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npmrc</title>
 <style>
 body {
@@ -145,11 +146,12 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>npm gets its config settings from the command line, environment
-variables, and <code>npmrc</code> files.</p>
-<p>The <code>npm config</code> command can be used to update and edit the contents
-of the user and global npmrc files.</p>
-<p>For a list of available configuration options, see <a href="../using-npm/config.html">config</a>.</p>
+<p>npm gets its config settings from the command line, environment variables,
+and <code>npmrc</code> files.</p>
+<p>The <code>npm config</code> command can be used to update and edit the contents of the
+user and global npmrc files.</p>
+<p>For a list of available configuration options, see
+<a href="../using-npm/config.html">config</a>.</p>
 <h3 id="files">Files</h3>
 <p>The four relevant files are:</p>
 <ul>
@@ -158,21 +160,22 @@ of the user and global npmrc files.</p>
 <li>global config file ($PREFIX/etc/npmrc)</li>
 <li>npm builtin config file (/path/to/npm/npmrc)</li>
 </ul>
-<p>All npm config files are an ini-formatted list of <code>key = value</code>
-parameters.  Environment variables can be replaced using
-<code>${VARIABLE_NAME}</code>. For example:</p>
+<p>All npm config files are an ini-formatted list of <code>key = value</code> parameters.
+Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For
+example:</p>
 <pre lang="bash"><code>prefix = ${HOME}/.npm-packages
 </code></pre>
-<p>Each of these files is loaded, and config options are resolved in
-priority order.  For example, a setting in the userconfig file would
-override the setting in the globalconfig file.</p>
-<p>Array values are specified by adding “[]” after the key name. For
-example:</p>
+<p>Each of these files is loaded, and config options are resolved in priority
+order.  For example, a setting in the userconfig file would override the
+setting in the globalconfig file.</p>
+<p>Array values are specified by adding "[]" after the key name. For example:</p>
 <pre lang="bash"><code>key[] = "first value"
 key[] = "second value"
 </code></pre>
 <h4 id="comments">Comments</h4>
-<p>Lines in <code>.npmrc</code> files are interpreted as comments when they begin with a <code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by <a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
+<p>Lines in <code>.npmrc</code> files are interpreted as comments when they begin with a
+<code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by
+<a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
 <p>For example:</p>
 <pre lang="bash"><code># last modified: 01 Jan 2016
 ; Set a new registry for a scoped package
@@ -182,26 +185,25 @@ key[] = "second value"
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>
-<p>Note that this only applies to the root of the project that you’re
-running npm in.  It has no effect when your module is published.  For
-example, you can’t publish a module that forces itself to install
-globally, or in a different location.</p>
+<p>Note that this only applies to the root of the project that you're running
+npm in.  It has no effect when your module is published.  For example, you
+can't publish a module that forces itself to install globally, or in a
+different location.</p>
 <p>Additionally, this file is not read in global mode, such as when running
 <code>npm install -g</code>.</p>
 <h4 id="per-user-config-file">Per-user config file</h4>
-<p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment
-or on the command line)</p>
+<p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment or on
+the command line)</p>
 <h4 id="global-config-file">Global config file</h4>
-<p><code>$PREFIX/etc/npmrc</code> (or the <code>globalconfig</code> param, if set above):
-This file is an ini-file formatted list of <code>key = value</code> parameters.
-Environment variables can be replaced as above.</p>
+<p><code>$PREFIX/etc/npmrc</code> (or the <code>globalconfig</code> param, if set above): This file
+is an ini-file formatted list of <code>key = value</code> parameters.  Environment
+variables can be replaced as above.</p>
 <h4 id="built-in-config-file">Built-in config file</h4>
 <p><code>path/to/npm/itself/npmrc</code></p>
-<p>This is an unchangeable “builtin” configuration file that npm keeps
+<p>This is an unchangeable "builtin" configuration file that npm keeps
 consistent across updates.  Set fields in here using the <code>./configure</code>
-script that comes with npm.  This is primarily for distribution
-maintainers to override default configs in a standard and consistent
-manner.</p>
+script that comes with npm.  This is primarily for distribution maintainers
+to override default configs in a standard and consistent manner.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>

@@ -5,7 +5,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks async stack for late .then handlers with gc');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function foo1() {
   gc();
   debugger;
@@ -24,8 +25,8 @@ function test() {
   var p4 = p1.then(foo1);
   gc();
   return Promise.all([p2,p3,p4]);
-}
-//# sourceURL=test.js`, 8, 26);
+}`,
+    'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

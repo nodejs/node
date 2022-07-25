@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -17,10 +18,11 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "src/utils/vector.h"
 
 #if defined(V8_USE_SIPHASH)
 #include "src/third_party/siphash/halfsiphash.h"
@@ -36,22 +38,6 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
-// Returns the value (0 .. 15) of a hexadecimal character c.
-// If c is not a legal hexadecimal character, returns a value < 0.
-inline int HexValue(uc32 c) {
-  c -= '0';
-  if (static_cast<unsigned>(c) <= 9) return c;
-  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
-  if (static_cast<unsigned>(c) <= 5) return c + 10;
-  return -1;
-}
-
-inline char HexCharOfValue(int value) {
-  DCHECK(0 <= value && value <= 16);
-  if (value < 10) return value + '0';
-  return value - 10 + 'A';
-}
-
 template <typename T>
 static T ArithmeticShiftRight(T x, int shift) {
   DCHECK_LE(0, shift);
@@ -64,18 +50,6 @@ static T ArithmeticShiftRight(T x, int shift) {
   } else {
     return x >> shift;
   }
-}
-
-// Returns the maximum of the two parameters.
-template <typename T>
-constexpr T Max(T a, T b) {
-  return a < b ? b : a;
-}
-
-// Returns the minimum of the two parameters.
-template <typename T>
-constexpr T Min(T a, T b) {
-  return a < b ? a : b;
 }
 
 // Returns the maximum of the two parameters according to JavaScript semantics.
@@ -176,6 +150,60 @@ T SaturateSub(T a, T b) {
   return a - b;
 }
 
+template <typename T>
+T SaturateRoundingQMul(T a, T b) {
+  // Saturating rounding multiplication for Q-format numbers. See
+  // https://en.wikipedia.org/wiki/Q_(number_format) for a description.
+  // Specifically this supports Q7, Q15, and Q31. This follows the
+  // implementation in simulator-logic-arm64.cc (sqrdmulh) to avoid overflow
+  // when a == b == int32 min.
+  static_assert(std::is_integral<T>::value, "only integral types");
+
+  constexpr int size_in_bits = sizeof(T) * 8;
+  int round_const = 1 << (size_in_bits - 2);
+  int64_t product = a * b;
+  product += round_const;
+  product >>= (size_in_bits - 1);
+  return base::saturated_cast<T>(product);
+}
+
+// Multiply two numbers, returning a result that is twice as wide, no overflow.
+// Put Wide first so we can use function template argument deduction for Narrow,
+// and callers can provide only Wide.
+template <typename Wide, typename Narrow>
+Wide MultiplyLong(Narrow a, Narrow b) {
+  static_assert(
+      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
+      "only integral types");
+  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+                "both must have same signedness");
+  static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
+
+  return static_cast<Wide>(a) * static_cast<Wide>(b);
+}
+
+// Add two numbers, returning a result that is twice as wide, no overflow.
+// Put Wide first so we can use function template argument deduction for Narrow,
+// and callers can provide only Wide.
+template <typename Wide, typename Narrow>
+Wide AddLong(Narrow a, Narrow b) {
+  static_assert(
+      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
+      "only integral types");
+  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+                "both must have same signedness");
+  static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
+
+  return static_cast<Wide>(a) + static_cast<Wide>(b);
+}
+
+template <typename T>
+inline T RoundingAverageUnsigned(T a, T b) {
+  static_assert(std::is_unsigned<T>::value, "Only for unsiged types");
+  static_assert(sizeof(T) < sizeof(uint64_t), "Must be smaller than uint64_t");
+  return (static_cast<uint64_t>(a) + static_cast<uint64_t>(b) + 1) >> 1;
+}
+
 // Helper macros for defining a contiguous sequence of field offset constants.
 // Example: (backslashes at the ends of respective lines of this multi-line
 // macro definition are omitted here to please the compiler)
@@ -189,7 +217,8 @@ T SaturateSub(T a, T b) {
 //
 // DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
 //
-#define DEFINE_ONE_FIELD_OFFSET(Name, Size) Name, Name##End = Name + (Size)-1,
+#define DEFINE_ONE_FIELD_OFFSET(Name, Size, ...) \
+  Name, Name##End = Name + (Size)-1,
 
 #define DEFINE_FIELD_OFFSET_CONSTANTS(StartOffset, LIST_MACRO) \
   enum {                                                       \
@@ -293,46 +322,54 @@ class SetOncePointer {
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
+inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
+                                      size_t chars) {
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  if (sizeof(*lhs) == sizeof(*rhs)) {
+    // memcmp compares byte-by-byte, but for equality it doesn't matter whether
+    // two-byte char comparison is little- or big-endian.
+    return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
+  }
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
+    if (*lhs != *rhs) return false;
+  }
+  return true;
+}
+
+template <typename lchar, typename rchar>
+inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
+                              size_t chars) {
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                                   reinterpret_cast<const urchar*>(rhs), chars);
+}
+
+// Compare 8bit/16bit chars to 8bit/16bit chars.
+template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  const lchar* limit = lhs + chars;
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
     return memcmp(lhs, rhs, chars);
   }
-  while (lhs < limit) {
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
-    ++lhs;
-    ++rhs;
   }
   return 0;
 }
 
 template <typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
-  DCHECK_LE(sizeof(lchar), 2);
-  DCHECK_LE(sizeof(rchar), 2);
-  if (sizeof(lchar) == 1) {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  } else {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  }
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                              reinterpret_cast<const urchar*>(rhs), chars);
 }
 
 // Calculate 10^exponent.
@@ -343,72 +380,6 @@ inline int TenToThe(int exponent) {
   for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
 }
-
-// Helper class for building result strings in a character buffer. The
-// purpose of the class is to use safe operations that checks the
-// buffer bounds on all operations in debug mode.
-// This simple base class does not allow formatted output.
-class SimpleStringBuilder {
- public:
-  // Create a string builder with a buffer of the given size. The
-  // buffer is allocated through NewArray<char> and must be
-  // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(int size);
-
-  SimpleStringBuilder(char* buffer, int size)
-      : buffer_(buffer, size), position_(0) {}
-
-  ~SimpleStringBuilder() {
-    if (!is_finalized()) Finalize();
-  }
-
-  int size() const { return buffer_.length(); }
-
-  // Get the current position in the builder.
-  int position() const {
-    DCHECK(!is_finalized());
-    return position_;
-  }
-
-  // Reset the position.
-  void Reset() { position_ = 0; }
-
-  // Add a single character to the builder. It is not allowed to add
-  // 0-characters; use the Finalize() method to terminate the string
-  // instead.
-  void AddCharacter(char c) {
-    DCHECK_NE(c, '\0');
-    DCHECK(!is_finalized() && position_ < buffer_.length());
-    buffer_[position_++] = c;
-  }
-
-  // Add an entire string to the builder. Uses strlen() internally to
-  // compute the length of the input string.
-  void AddString(const char* s);
-
-  // Add the first 'n' characters of the given 0-terminated string 's' to the
-  // builder. The input string must have enough characters.
-  void AddSubstring(const char* s, int n);
-
-  // Add character padding to the builder. If count is non-positive,
-  // nothing is added to the builder.
-  void AddPadding(char c, int count);
-
-  // Add the decimal representation of the value.
-  void AddDecimalInteger(int value);
-
-  // Finalize the string by 0-terminating it and returning the buffer.
-  char* Finalize();
-
- protected:
-  Vector<char> buffer_;
-  int position_;
-
-  bool is_finalized() const { return position_ < 0; }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
-};
 
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {
@@ -517,29 +488,34 @@ class FeedbackSlot {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
-class BailoutId {
+class BytecodeOffset {
  public:
-  explicit BailoutId(int id) : id_(id) {}
-  int ToInt() const { return id_; }
+  explicit constexpr BytecodeOffset(int id) : id_(id) {}
+  constexpr int ToInt() const { return id_; }
 
-  static BailoutId None() { return BailoutId(kNoneId); }
+  static constexpr BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
   //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
   //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
-  static BailoutId ConstructStubCreate() { return BailoutId(1); }
-  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  static BytecodeOffset ConstructStubCreate() { return BytecodeOffset(1); }
+  static BytecodeOffset ConstructStubInvoke() { return BytecodeOffset(2); }
   bool IsValidForConstructStub() const {
     return id_ == ConstructStubCreate().ToInt() ||
            id_ == ConstructStubInvoke().ToInt();
   }
 
-  bool IsNone() const { return id_ == kNoneId; }
-  bool operator==(const BailoutId& other) const { return id_ == other.id_; }
-  bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
-  friend size_t hash_value(BailoutId);
-  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
+  constexpr bool IsNone() const { return id_ == kNoneId; }
+  bool operator==(const BytecodeOffset& other) const {
+    return id_ == other.id_;
+  }
+  bool operator!=(const BytecodeOffset& other) const {
+    return id_ != other.id_;
+  }
+  friend size_t hash_value(BytecodeOffset);
+  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&,
+                                                    BytecodeOffset);
 
  private:
   friend class Builtins;
@@ -548,7 +524,7 @@ class BailoutId {
 
   // Using 0 could disguise errors.
   // Builtin continuations bailout ids start here. If you need to add a
-  // non-builtin BailoutId, add it before this id so that this Id has the
+  // non-builtin BytecodeOffset, add it before this id so that this Id has the
   // highest number.
   static const int kFirstBuiltinContinuationId = 1;
 
@@ -568,15 +544,6 @@ void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);
 
 // Prepends the current process ID and given isolate pointer to the output.
 void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
-
-// Safe formatting print. Ensures that str is always null-terminated.
-// Returns the number of chars written, or -1 if output was truncated.
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 3)
-    SNPrintF(Vector<char> str, const char* format, ...);
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
-    VSNPrintF(Vector<char> str, const char* format, va_list args);
-
-void StrNCpy(Vector<char> dest, const char* src, size_t n);
 
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
@@ -598,21 +565,6 @@ V8_EXPORT_PRIVATE std::string ReadFile(const char* filename, bool* exists,
                                        bool verbose = true);
 V8_EXPORT_PRIVATE std::string ReadFile(FILE* file, bool* exists,
                                        bool verbose = true);
-
-class StringBuilder : public SimpleStringBuilder {
- public:
-  explicit StringBuilder(int size) : SimpleStringBuilder(size) {}
-  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) {}
-
-  // Add formatted contents to the builder just like printf().
-  void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
-
-  // Add formatted contents like printf based on a va_list.
-  void PRINTF_FORMAT(2, 0) AddFormattedList(const char* format, va_list list);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
-};
 
 bool DoubleToBoolean(double d);
 
@@ -682,8 +634,21 @@ static inline V ByteReverse(V value) {
   }
 }
 
-V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
-                                    Vector<const char> filter);
+#if V8_OS_AIX
+// glibc on aix has a bug when using ceil, trunc or nearbyint:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
+template <typename T>
+T FpOpWorkaround(T input, T value) {
+  if (/*if -*/ std::signbit(input) && value == 0.0 &&
+      /*if +*/ !std::signbit(value)) {
+    return -0.0;
+  }
+  return value;
+}
+#endif
+
+V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,
+                                    base::Vector<const char> filter);
 
 // Zap the specified area with a specific byte pattern. This currently defaults
 // to int3 on x64 and ia32. On other architectures this will produce unspecified
@@ -692,6 +657,16 @@ V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
 V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
   static constexpr int kZapByte = 0xCC;
   std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
+}
+
+inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
+                              size_t max_allowed_byte_length, size_t* pages) {
+  size_t bytes_wanted = RoundUp(byte_length, page_size);
+  if (bytes_wanted > max_allowed_byte_length) {
+    return false;
+  }
+  *pages = bytes_wanted / page_size;
+  return true;
 }
 
 }  // namespace internal

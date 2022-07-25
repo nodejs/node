@@ -60,7 +60,7 @@ p.spawn({
   stdio: [
     { type: 'ignore' },
     { type: 'pipe', handle: pipe },
-    { type: 'ignore' }
+    { type: 'ignore' },
   ]
 });
 
@@ -74,7 +74,7 @@ assert.throws(function() {
     stdio: [
       { type: 'ignore' },
       { type: 'pipe', handle: pipe },
-      { type: 'ignore' }
+      { type: 'ignore' },
     ]
   });
 }, TypeError);

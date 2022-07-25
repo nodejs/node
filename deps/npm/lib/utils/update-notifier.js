@@ -11,38 +11,37 @@ const stat = promisify(require('fs').stat)
 const writeFile = promisify(require('fs').writeFile)
 const { resolve } = require('path')
 
+const SKIP = Symbol('SKIP')
+
 const isGlobalNpmUpdate = npm => {
   return npm.flatOptions.global &&
     ['install', 'update'].includes(npm.command) &&
-    npm.argv.includes('npm')
+    npm.argv.some(arg => /^npm(@|$)/.test(arg))
 }
 
 // update check frequency
 const DAILY = 1000 * 60 * 60 * 24
 const WEEKLY = DAILY * 7
 
-const updateTimeout = async (npm, duration) => {
+// don't put it in the _cacache folder, just in npm's cache
+const lastCheckedFile = npm =>
+  resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
+
+const checkTimeout = async (npm, duration) => {
   const t = new Date(Date.now() - duration)
-  // don't put it in the _cacache folder, just in npm's cache
-  const f = resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
+  const f = lastCheckedFile(npm)
   // if we don't have a file, then definitely check it.
   const st = await stat(f).catch(() => ({ mtime: t - 1 }))
-
-  if (t > st.mtime) {
-    // best effort, if this fails, it's ok.
-    // might be using /dev/null as the cache or something weird like that.
-    await writeFile(f, '').catch(() => {})
-    return true
-  } else
-    return false
+  return t > st.mtime
 }
 
-const updateNotifier = module.exports = async (npm, spec = 'latest') => {
+const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
       isGlobalNpmUpdate(npm) ||
-      ciDetect())
-    return null
+      ciDetect()) {
+    return SKIP
+  }
 
   // if we're on a prerelease train, then updates are coming fast
   // check for a new one daily.  otherwise, weekly.
@@ -50,19 +49,21 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
   const current = semver.parse(version)
 
   // if we're on a beta train, always get the next beta
-  if (current.prerelease.length)
+  if (current.prerelease.length) {
     spec = `^${version}`
+  }
 
   // while on a beta train, get updates daily
   const duration = spec !== 'latest' ? DAILY : WEEKLY
 
   // if we've already checked within the specified duration, don't check again
-  if (!(await updateTimeout(npm, duration)))
+  if (!(await checkTimeout(npm, duration))) {
     return null
+  }
 
   // if they're currently using a prerelease, nudge to the next prerelease
   // otherwise, nudge to latest.
-  const useColor = npm.log.useColor()
+  const useColor = npm.logColor
 
   const mani = await pacote.manifest(`npm@${spec}`, {
     // always prefer latest, even if doing --tag=whatever on the cmd
@@ -71,8 +72,9 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
   }).catch(() => null)
 
   // if pacote failed, give up
-  if (!mani)
+  if (!mani) {
     return null
+  }
 
   const latest = mani.version
 
@@ -80,12 +82,14 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
   // and should get the updates from that release train.
   // Note that this isn't another http request over the network, because
   // the packument will be cached by pacote from previous request.
-  if (semver.gt(version, latest) && spec === 'latest')
+  if (semver.gt(version, latest) && spec === 'latest') {
     return updateNotifier(npm, `^${version}`)
+  }
 
   // if we already have something >= the desired spec, then we're done
-  if (semver.gte(version, latest))
+  if (semver.gte(version, latest)) {
     return null
+  }
 
   // ok!  notify the user about this update they should get.
   // The message is saved for printing at process exit so it will not get
@@ -109,7 +113,22 @@ const updateNotifier = module.exports = async (npm, spec = 'latest') => {
     `${oldc} -> ${latestc}\n` +
     `Changelog: ${changelogc}\n` +
     `Run ${cmdc} to update!\n`
-  const messagec = !useColor ? message : chalk.bgBlack.white(message)
 
-  return messagec
+  return message
+}
+
+// only update the notification timeout if we actually finished checking
+module.exports = async npm => {
+  const notification = await updateNotifier(npm)
+
+  // dont write the file if we skipped checking altogether
+  if (notification === SKIP) {
+    return null
+  }
+
+  // intentional.  do not await this.  it's a best-effort update.  if this
+  // fails, it's ok.  might be using /dev/null as the cache or something weird
+  // like that.
+  writeFile(lastCheckedFile(npm), '').catch(() => {})
+  return notification
 }

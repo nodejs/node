@@ -4,9 +4,14 @@ const common = require('../common');
 const assert = require('assert');
 
 const {
+  createHistogram,
   performance,
   PerformanceObserver
 } = require('perf_hooks');
+
+const {
+  setTimeout: sleep
+} = require('timers/promises');
 
 {
   // Intentional non-op. Do not wrap in common.mustCall();
@@ -70,14 +75,70 @@ const {
   });
 }
 
-// Function can only be wrapped once, also check length and name
+// Function can be wrapped many times, also check length and name
 {
   const m = (a, b = 1) => {};
   const n = performance.timerify(m);
   const o = performance.timerify(m);
   const p = performance.timerify(n);
-  assert.strictEqual(n, o);
-  assert.strictEqual(n, p);
+  assert.notStrictEqual(n, o);
+  assert.notStrictEqual(n, p);
+  assert.notStrictEqual(o, p);
   assert.strictEqual(n.length, m.length);
   assert.strictEqual(n.name, 'timerified m');
+  assert.strictEqual(p.name, 'timerified timerified m');
+}
+
+(async () => {
+  const histogram = createHistogram();
+  const m = (a, b = 1) => {};
+  const n = performance.timerify(m, { histogram });
+  assert.strictEqual(histogram.max, 0);
+  for (let i = 0; i < 10; i++) {
+    n();
+    await sleep(10);
+  }
+  assert.notStrictEqual(histogram.max, 0);
+  [1, '', {}, [], false].forEach((histogram) => {
+    assert.throws(() => performance.timerify(m, { histogram }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+})().then(common.mustCall());
+
+(async () => {
+  const histogram = createHistogram();
+  const m = async (a, b = 1) => {
+    await sleep(10);
+  };
+  const n = performance.timerify(m, { histogram });
+  assert.strictEqual(histogram.max, 0);
+  for (let i = 0; i < 10; i++) {
+    await n();
+  }
+  assert.notStrictEqual(histogram.max, 0);
+  [1, '', {}, [], false].forEach((histogram) => {
+    assert.throws(() => performance.timerify(m, { histogram }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+})().then(common.mustCall());
+
+// Regression tests for https://github.com/nodejs/node/issues/40623
+{
+  assert.strictEqual(performance.timerify(function func() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(function() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(() => {
+    return 1;
+  })(), 1);
+  class C {}
+  const wrap = performance.timerify(C);
+  assert.ok(new wrap() instanceof C);
+  assert.throws(() => wrap(), {
+    name: 'TypeError',
+  });
 }

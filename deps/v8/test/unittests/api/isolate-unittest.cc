@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include "src/execution/isolate.h"
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
-#include "include/v8.h"
+#include "include/v8-template.h"
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
 #include "src/execution/execution.h"
-#include "src/execution/isolate.h"
 #include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 
@@ -25,6 +25,8 @@ class MemoryPressureTask : public v8::Task {
   MemoryPressureTask(Isolate* isolate, base::Semaphore* semaphore)
       : isolate_(isolate), semaphore_(semaphore) {}
   ~MemoryPressureTask() override = default;
+  MemoryPressureTask(const MemoryPressureTask&) = delete;
+  MemoryPressureTask& operator=(const MemoryPressureTask&) = delete;
 
   // v8::Task implementation.
   void Run() override {
@@ -35,8 +37,6 @@ class MemoryPressureTask : public v8::Task {
  private:
   Isolate* isolate_;
   base::Semaphore* semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemoryPressureTask);
 };
 
 }  // namespace

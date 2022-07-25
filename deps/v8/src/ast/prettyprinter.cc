@@ -9,10 +9,12 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +35,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
   is_user_js_ = is_user_js;
   error_in_spread_args_ = error_in_spread_args;
   spread_arg_ = nullptr;
-  function_kind_ = kNormalFunction;
+  function_kind_ = FunctionKind::kNormalFunction;
   InitializeAstVisitor(isolate);
 }
 
@@ -69,6 +71,12 @@ void CallPrinter::Find(AstNode* node, bool print) {
   } else {
     Visit(node);
   }
+}
+
+void CallPrinter::Print(char c) {
+  if (!found_ || done_) return;
+  num_prints_++;
+  builder_->AppendCharacter(c);
 }
 
 void CallPrinter::Print(const char* str) {
@@ -235,6 +243,18 @@ void CallPrinter::VisitInitializeClassMembersStatement(
   }
 }
 
+void CallPrinter::VisitInitializeClassStaticElementsStatement(
+    InitializeClassStaticElementsStatement* node) {
+  for (int i = 0; i < node->elements()->length(); i++) {
+    ClassLiteral::StaticElement* element = node->elements()->at(i);
+    if (element->kind() == ClassLiteral::StaticElement::PROPERTY) {
+      Find(element->property()->value());
+    } else {
+      Find(element->static_block());
+    }
+  }
+}
+
 void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
 
 
@@ -256,11 +276,10 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
   PrintLiteral(node->pattern(), false);
   Print("/");
-  if (node->flags() & RegExp::kGlobal) Print("g");
-  if (node->flags() & RegExp::kIgnoreCase) Print("i");
-  if (node->flags() & RegExp::kMultiline) Print("m");
-  if (node->flags() & RegExp::kUnicode) Print("u");
-  if (node->flags() & RegExp::kSticky) Print("y");
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (node->flags() & RegExp::k##Camel) Print(Char);
+  REGEXP_FLAG_LIST(V)
+#undef V
 }
 
 
@@ -327,17 +346,12 @@ void CallPrinter::VisitAssignment(Assignment* node) {
     Find(node->target());
     if (node->target()->IsArrayLiteral()) {
       // Special case the visit for destructuring array assignment.
-      bool was_found = false;
       if (node->value()->position() == position_) {
         is_iterator_error_ = true;
         was_found = !found_;
         found_ = true;
       }
       Find(node->value(), true);
-      if (was_found) {
-        done_ = true;
-        found_ = false;
-      }
     } else {
       Find(node->value());
     }
@@ -550,7 +564,10 @@ void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
-  Find(node->argument(), true);
+  Find(node->specifier(), true);
+  if (node->import_assertions()) {
+    Find(node->import_assertions(), true);
+  }
   Print(")");
 }
 
@@ -631,9 +648,8 @@ void AstPrinter::Print(const char* format, ...) {
   for (;;) {
     va_list arguments;
     va_start(arguments, format);
-    int n = VSNPrintF(Vector<char>(output_, size_) + pos_,
-                      format,
-                      arguments);
+    int n = base::VSNPrintF(base::Vector<char>(output_, size_) + pos_, format,
+                            arguments);
     va_end(arguments);
 
     if (n >= 0) {
@@ -657,14 +673,6 @@ void AstPrinter::PrintLiteral(Literal* literal, bool quote) {
   switch (literal->type()) {
     case Literal::kString:
       PrintLiteral(literal->AsRawString(), quote);
-      break;
-    case Literal::kSymbol:
-      const char* symbol;
-      switch (literal->AsSymbol()) {
-        case AstSymbol::kHomeObjectSymbol:
-          symbol = "HomeObjectSymbol";
-      }
-      Print("%s", symbol);
       break;
     case Literal::kSmi:
       Print("%d", Smi::ToInt(literal->AsSmiLiteral()));
@@ -720,7 +728,7 @@ void AstPrinter::PrintLiteral(const AstConsString* value, bool quote) {
 
 //-----------------------------------------------------------------------------
 
-class IndentedScope {
+class V8_NODISCARD IndentedScope {
  public:
   IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {
@@ -743,7 +751,6 @@ class IndentedScope {
  private:
   AstPrinter* ast_printer_;
 };
-
 
 //-----------------------------------------------------------------------------
 
@@ -794,7 +801,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
   if (var == nullptr) {
     PrintLiteralIndented(info, value, true);
   } else {
-    EmbeddedVector<char, 256> buf;
+    base::EmbeddedVector<char, 256> buf;
     int pos =
         SNPrintF(buf, "%s (%p) (mode = %s, assigned = %s", info,
                  reinterpret_cast<void*>(var), VariableMode2String(var->mode()),
@@ -816,7 +823,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   Init();
   { IndentedScope indent(this, "FUNC", program->position());
     PrintIndented("KIND");
-    Print(" %d\n", program->kind());
+    Print(" %d\n", static_cast<uint32_t>(program->kind()));
     PrintIndented("LITERAL ID");
     Print(" %d\n", program->function_literal_id());
     PrintIndented("SUSPEND COUNT");
@@ -955,7 +962,7 @@ void AstPrinter::VisitWithStatement(WithStatement* node) {
 
 
 void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
-  IndentedScope indent(this, "SWITCH", node->position());
+  IndentedScope switch_indent(this, "SWITCH", node->position());
   PrintIndentedVisit("TAG", node->tag());
   for (CaseClause* clause : *node->cases()) {
     if (clause->is_default()) {
@@ -1030,9 +1037,6 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
     case HandlerTable::CAUGHT:
       prediction = "CAUGHT";
       break;
-    case HandlerTable::DESUGARING:
-      prediction = "DESUGARING";
-      break;
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;
@@ -1090,9 +1094,8 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
       PrintLiteralWithModeIndented("BRAND", brand, brand->raw_name());
     }
   }
-  if (node->static_fields_initializer() != nullptr) {
-    PrintIndentedVisit("STATIC FIELDS INITIALIZER",
-                       node->static_fields_initializer());
+  if (node->static_initializer() != nullptr) {
+    PrintIndentedVisit("STATIC INITIALIZER", node->static_initializer());
   }
   if (node->instance_members_initializer_function() != nullptr) {
     PrintIndentedVisit("INSTANCE MEMBERS INITIALIZER",
@@ -1108,34 +1111,58 @@ void AstPrinter::VisitInitializeClassMembersStatement(
   PrintClassProperties(node->fields());
 }
 
+void AstPrinter::VisitInitializeClassStaticElementsStatement(
+    InitializeClassStaticElementsStatement* node) {
+  IndentedScope indent(this, "INITIALIZE CLASS STATIC ELEMENTS",
+                       node->position());
+  PrintClassStaticElements(node->elements());
+}
+
+void AstPrinter::PrintClassProperty(ClassLiteral::Property* property) {
+  const char* prop_kind = nullptr;
+  switch (property->kind()) {
+    case ClassLiteral::Property::METHOD:
+      prop_kind = "METHOD";
+      break;
+    case ClassLiteral::Property::GETTER:
+      prop_kind = "GETTER";
+      break;
+    case ClassLiteral::Property::SETTER:
+      prop_kind = "SETTER";
+      break;
+    case ClassLiteral::Property::FIELD:
+      prop_kind = "FIELD";
+      break;
+  }
+  base::EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
+           property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
+  IndentedScope prop(this, buf.begin());
+  PrintIndentedVisit("KEY", property->key());
+  PrintIndentedVisit("VALUE", property->value());
+}
+
 void AstPrinter::PrintClassProperties(
     const ZonePtrList<ClassLiteral::Property>* properties) {
   for (int i = 0; i < properties->length(); i++) {
-    ClassLiteral::Property* property = properties->at(i);
-    const char* prop_kind = nullptr;
-    switch (property->kind()) {
-      case ClassLiteral::Property::METHOD:
-        prop_kind = "METHOD";
-        break;
-      case ClassLiteral::Property::GETTER:
-        prop_kind = "GETTER";
-        break;
-      case ClassLiteral::Property::SETTER:
-        prop_kind = "SETTER";
-        break;
-      case ClassLiteral::Property::FIELD:
-        prop_kind = "FIELD";
-        break;
-    }
-    EmbeddedVector<char, 128> buf;
-    SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
-             property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
-    IndentedScope prop(this, buf.begin());
-    PrintIndentedVisit("KEY", properties->at(i)->key());
-    PrintIndentedVisit("VALUE", properties->at(i)->value());
+    PrintClassProperty(properties->at(i));
   }
 }
 
+void AstPrinter::PrintClassStaticElements(
+    const ZonePtrList<ClassLiteral::StaticElement>* static_elements) {
+  for (int i = 0; i < static_elements->length(); i++) {
+    ClassLiteral::StaticElement* element = static_elements->at(i);
+    switch (element->kind()) {
+      case ClassLiteral::StaticElement::PROPERTY:
+        PrintClassProperty(element->property());
+        break;
+      case ClassLiteral::StaticElement::STATIC_BLOCK:
+        PrintIndentedVisit("STATIC BLOCK", element->static_block());
+        break;
+    }
+  }
+}
 
 void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   IndentedScope indent(this, "NATIVE FUNC LITERAL", node->position());
@@ -1160,12 +1187,11 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent(this, "REGEXP LITERAL", node->position());
   PrintLiteralIndented("PATTERN", node->raw_pattern(), false);
   int i = 0;
-  EmbeddedVector<char, 128> buf;
-  if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
-  if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
-  if (node->flags() & RegExp::kMultiline) buf[i++] = 'm';
-  if (node->flags() & RegExp::kUnicode) buf[i++] = 'u';
-  if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
+  base::EmbeddedVector<char, 128> buf;
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (node->flags() & RegExp::k##Camel) buf[i++] = Char;
+  REGEXP_FLAG_LIST(V)
+#undef V
   buf[i] = '\0';
   PrintIndented("FLAGS ");
   Print("%s", buf.begin());
@@ -1206,7 +1232,7 @@ void AstPrinter::PrintObjectProperties(
         prop_kind = "SPREAD";
         break;
     }
-    EmbeddedVector<char, 128> buf;
+    base::EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY - %s", prop_kind);
     IndentedScope prop(this, buf.begin());
     PrintIndentedVisit("KEY", properties->at(i)->key());
@@ -1216,7 +1242,7 @@ void AstPrinter::PrintObjectProperties(
 
 
 void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
-  IndentedScope indent(this, "ARRAY LITERAL", node->position());
+  IndentedScope array_indent(this, "ARRAY LITERAL", node->position());
   if (node->values()->length() > 0) {
     IndentedScope indent(this, "VALUES", node->position());
     for (int i = 0; i < node->values()->length(); i++) {
@@ -1227,7 +1253,7 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   int pos = SNPrintF(buf, "VAR PROXY");
 
   if (!node->is_resolved()) {
@@ -1274,21 +1300,21 @@ void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
 }
 
 void AstPrinter::VisitYield(Yield* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitYieldStar(YieldStar* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD_STAR");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitAwait(Await* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "AWAIT");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
@@ -1305,7 +1331,7 @@ void AstPrinter::VisitOptionalChain(OptionalChain* node) {
 }
 
 void AstPrinter::VisitProperty(Property* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "PROPERTY");
   IndentedScope indent(this, buf.begin(), node->position());
 
@@ -1344,7 +1370,7 @@ void AstPrinter::VisitProperty(Property* node) {
 }
 
 void AstPrinter::VisitCall(Call* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL");
   IndentedScope indent(this, buf.begin());
 
@@ -1361,7 +1387,7 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL RUNTIME %s%s", node->debug_name(),
            node->is_jsruntime() ? " (JS function)" : "");
   IndentedScope indent(this, buf.begin(), node->position());
@@ -1376,7 +1402,7 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 
 
 void AstPrinter::VisitCountOperation(CountOperation* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
            Token::Name(node->op()));
   IndentedScope indent(this, buf.begin(), node->position());
@@ -1433,7 +1459,10 @@ void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   IndentedScope indent(this, "IMPORT-CALL", node->position());
-  Visit(node->argument());
+  Visit(node->specifier());
+  if (node->import_assertions()) {
+    Visit(node->import_assertions());
+  }
 }
 
 void AstPrinter::VisitThisExpression(ThisExpression* node) {

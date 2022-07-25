@@ -46,8 +46,6 @@ which is converted to binary.
 
 =head1 NOTES
 
-All these functions are implemented as macros.
-
 A context for the TLS PRF can be obtained by calling:
 
  EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_TLS1_PRF, NULL);
@@ -97,11 +95,16 @@ L<EVP_PKEY_CTX_new(3)>,
 L<EVP_PKEY_CTX_ctrl_str(3)>,
 L<EVP_PKEY_derive(3)>
 
+=head1 HISTORY
+
+All of the functions described here were converted from macros to functions in
+OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

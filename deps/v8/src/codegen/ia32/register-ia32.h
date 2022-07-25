@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_IA32_REGISTER_IA32_H_
 #define V8_CODEGEN_IA32_REGISTER_IA32_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -67,7 +66,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -76,8 +75,13 @@ GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = true;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleCode {
@@ -106,17 +110,6 @@ constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // Note that the bit values must match those used in actual instruction encoding
 constexpr int kNumRegs = 8;
-
-// Caller-saved registers
-constexpr RegList kJSCallerSaved =
-    Register::ListOf(eax, ecx, edx,
-                     ebx,   // used as caller-saved register in JavaScript code
-                     edi);  // callee function
-
-constexpr int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 8;
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
@@ -155,9 +148,6 @@ constexpr Register kWasmInstanceRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
-
-// TODO(860429): Remove remaining poisoning infrastructure on ia32.
-constexpr Register kSpeculationPoisonRegister = no_reg;
 
 constexpr DoubleRegister kFPReturnRegister0 = xmm1;  // xmm0 isn't allocatable.
 

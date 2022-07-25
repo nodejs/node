@@ -1,8 +1,9 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 common.skipIfEslintMissing();
 
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
@@ -14,7 +15,7 @@ new RuleTester().run('alphabetize-errors', rule, {
       E('AAA', 'foo');
       E('BBB', 'bar');
       E('CCC', 'baz');
-    `
+    `,
   ],
   invalid: [
     {
@@ -24,6 +25,6 @@ new RuleTester().run('alphabetize-errors', rule, {
         E('CCC', 'baz');
       `,
       errors: [{ message: 'Out of ASCIIbetical order - BBB >= AAA', line: 3 }]
-    }
+    },
   ]
 });

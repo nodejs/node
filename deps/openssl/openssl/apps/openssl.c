@@ -1,18 +1,18 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#include <internal/cryptlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
+#include <openssl/trace.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
 #include <openssl/x509.h>
@@ -27,19 +27,7 @@
 # include <unixio.h>
 #endif
 #include "apps.h"
-#define INCLUDE_FUNCTION_TABLE
 #include "progs.h"
-
-/* Structure to hold the number of columns to be displayed and the
- * field width used to display them.
- */
-typedef struct {
-    int columns;
-    int width;
-} DISPLAY_COLUMNS;
-
-/* Special sentinel to exit the program. */
-#define EXIT_THE_PROGRAM (-1)
 
 /*
  * The LHASH callbacks ("hash" & "cmp") have been replaced by functions with
@@ -49,32 +37,27 @@ typedef struct {
  */
 static LHASH_OF(FUNCTION) *prog_init(void);
 static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[]);
-static void list_pkey(void);
-static void list_pkey_meth(void);
-static void list_type(FUNC_TYPE ft, int one);
-static void list_disabled(void);
 char *default_config_file = NULL;
 
 BIO *bio_in = NULL;
 BIO *bio_out = NULL;
 BIO *bio_err = NULL;
 
-static void calculate_columns(DISPLAY_COLUMNS *dc)
+static void warn_deprecated(const FUNCTION *fp)
 {
-    FUNCTION *f;
-    int len, maxlen = 0;
-
-    for (f = functions; f->name != NULL; ++f)
-        if (f->type == FT_general || f->type == FT_md || f->type == FT_cipher)
-            if ((len = strlen(f->name)) > maxlen)
-                maxlen = len;
-
-    dc->width = maxlen + 2;
-    dc->columns = (80 - 1) / dc->width;
+    if (fp->deprecated_version != NULL)
+        BIO_printf(bio_err, "The command %s was deprecated in version %s.",
+                   fp->name, fp->deprecated_version);
+    else
+        BIO_printf(bio_err, "The command %s is deprecated.", fp->name);
+    if (strcmp(fp->deprecated_alternative, DEPRECATED_NO_ALTERNATIVE) != 0)
+        BIO_printf(bio_err, " Use '%s' instead.", fp->deprecated_alternative);
+    BIO_printf(bio_err, "\n");
 }
 
 static int apps_startup(void)
 {
+    const char *use_libctx = NULL;
 #ifdef SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 #endif
@@ -84,365 +67,248 @@ static int apps_startup(void)
                           | OPENSSL_INIT_LOAD_CONFIG, NULL))
         return 0;
 
-    setup_ui_method();
+    (void)setup_ui_method();
+    (void)setup_engine_loader();
+
+    /*
+     * NOTE: This is an undocumented feature required for testing only.
+     * There are no guarantees that it will exist in future builds.
+     */
+    use_libctx = getenv("OPENSSL_TEST_LIBCTX");
+    if (use_libctx != NULL) {
+        /* Set this to "1" to create a global libctx */
+        if (strcmp(use_libctx, "1") == 0) {
+            if (app_create_libctx() == NULL)
+                return 0;
+        }
+    }
 
     return 1;
 }
 
 static void apps_shutdown(void)
 {
+    app_providers_cleanup();
+    OSSL_LIB_CTX_free(app_get0_libctx());
+    destroy_engine_loader();
     destroy_ui_method();
-    destroy_prefix_method();
 }
 
-static char *make_config_name(void)
+
+#ifndef OPENSSL_NO_TRACE
+typedef struct tracedata_st {
+    BIO *bio;
+    unsigned int ingroup:1;
+} tracedata;
+
+static size_t internal_trace_cb(const char *buf, size_t cnt,
+                                int category, int cmd, void *vdata)
 {
-    const char *t;
-    size_t len;
-    char *p;
+    int ret = 0;
+    tracedata *trace_data = vdata;
+    char buffer[256], *hex;
+    CRYPTO_THREAD_ID tid;
 
-    if ((t = getenv("OPENSSL_CONF")) != NULL)
-        return OPENSSL_strdup(t);
+    switch (cmd) {
+    case OSSL_TRACE_CTRL_BEGIN:
+        if (trace_data->ingroup) {
+            BIO_printf(bio_err, "ERROR: tracing already started\n");
+            return 0;
+        }
+        trace_data->ingroup = 1;
 
-    t = X509_get_default_cert_area();
-    len = strlen(t) + 1 + strlen(OPENSSL_CONF) + 1;
-    p = app_malloc(len, "config filename buffer");
-    strcpy(p, t);
-#ifndef OPENSSL_SYS_VMS
-    strcat(p, "/");
-#endif
-    strcat(p, OPENSSL_CONF);
+        tid = CRYPTO_THREAD_get_current_id();
+        hex = OPENSSL_buf2hexstr((const unsigned char *)&tid, sizeof(tid));
+        BIO_snprintf(buffer, sizeof(buffer), "TRACE[%s]:%s: ",
+                     hex == NULL ? "<null>" : hex,
+                     OSSL_trace_get_category_name(category));
+        OPENSSL_free(hex);
+        BIO_set_prefix(trace_data->bio, buffer);
+        break;
+    case OSSL_TRACE_CTRL_WRITE:
+        if (!trace_data->ingroup) {
+            BIO_printf(bio_err, "ERROR: writing when tracing not started\n");
+            return 0;
+        }
 
-    return p;
+        ret = BIO_write(trace_data->bio, buf, cnt);
+        break;
+    case OSSL_TRACE_CTRL_END:
+        if (!trace_data->ingroup) {
+            BIO_printf(bio_err, "ERROR: finishing when tracing not started\n");
+            return 0;
+        }
+        trace_data->ingroup = 0;
+
+        BIO_set_prefix(trace_data->bio, NULL);
+
+        break;
+    }
+
+    return ret < 0 ? 0 : ret;
 }
+
+DEFINE_STACK_OF(tracedata)
+static STACK_OF(tracedata) *trace_data_stack;
+
+static void tracedata_free(tracedata *data)
+{
+    BIO_free_all(data->bio);
+    OPENSSL_free(data);
+}
+
+static STACK_OF(tracedata) *trace_data_stack;
+
+static void cleanup_trace(void)
+{
+    sk_tracedata_pop_free(trace_data_stack, tracedata_free);
+}
+
+static void setup_trace_category(int category)
+{
+    BIO *channel;
+    tracedata *trace_data;
+    BIO *bio = NULL;
+
+    if (OSSL_trace_enabled(category))
+        return;
+
+    bio = BIO_new(BIO_f_prefix());
+    channel = BIO_push(bio, dup_bio_err(FORMAT_TEXT));
+    trace_data = OPENSSL_zalloc(sizeof(*trace_data));
+
+    if (trace_data == NULL
+        || bio == NULL
+        || (trace_data->bio = channel) == NULL
+        || OSSL_trace_set_callback(category, internal_trace_cb,
+                                   trace_data) == 0
+        || sk_tracedata_push(trace_data_stack, trace_data) == 0) {
+
+        fprintf(stderr,
+                "warning: unable to setup trace callback for category '%s'.\n",
+                OSSL_trace_get_category_name(category));
+
+        OSSL_trace_set_callback(category, NULL, NULL);
+        BIO_free_all(channel);
+    }
+}
+
+static void setup_trace(const char *str)
+{
+    char *val;
+
+    /*
+     * We add this handler as early as possible to ensure it's executed
+     * as late as possible, i.e. after the TRACE code has done its cleanup
+     * (which happens last in OPENSSL_cleanup).
+     */
+    atexit(cleanup_trace);
+
+    trace_data_stack = sk_tracedata_new_null();
+    val = OPENSSL_strdup(str);
+
+    if (val != NULL) {
+        char *valp = val;
+        char *item;
+
+        for (valp = val; (item = strtok(valp, ",")) != NULL; valp = NULL) {
+            int category = OSSL_trace_get_category_num(item);
+
+            if (category == OSSL_TRACE_CATEGORY_ALL) {
+                while (++category < OSSL_TRACE_CATEGORY_NUM)
+                    setup_trace_category(category);
+                break;
+            } else if (category > 0) {
+                setup_trace_category(category);
+            } else {
+                fprintf(stderr,
+                        "warning: unknown trace category: '%s'.\n", item);
+            }
+        }
+    }
+
+    OPENSSL_free(val);
+}
+#endif /* OPENSSL_NO_TRACE */
+
+static char *help_argv[] = { "help", NULL };
 
 int main(int argc, char *argv[])
 {
     FUNCTION f, *fp;
     LHASH_OF(FUNCTION) *prog = NULL;
-    char **copied_argv = NULL;
-    char *p, *pname;
-    char buf[1024];
-    const char *prompt;
+    char *pname;
+    const char *fname;
     ARGS arg;
-    int first, n, i, ret = 0;
+    int global_help = 0;
+    int ret = 0;
 
     arg.argv = NULL;
     arg.size = 0;
 
     /* Set up some of the environment. */
-    default_config_file = make_config_name();
     bio_in = dup_bio_in(FORMAT_TEXT);
     bio_out = dup_bio_out(FORMAT_TEXT);
     bio_err = dup_bio_err(FORMAT_TEXT);
 
 #if defined(OPENSSL_SYS_VMS) && defined(__DECC)
-    copied_argv = argv = copy_argv(&argc, argv);
+    argv = copy_argv(&argc, argv);
 #elif defined(_WIN32)
-    /*
-     * Replace argv[] with UTF-8 encoded strings.
-     */
+    /* Replace argv[] with UTF-8 encoded strings. */
     win32_utf8argv(&argc, &argv);
 #endif
 
-    p = getenv("OPENSSL_DEBUG_MEMORY");
-    if (p != NULL && strcmp(p, "on") == 0)
-        CRYPTO_set_mem_debug(1);
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
+#ifndef OPENSSL_NO_TRACE
+    setup_trace(getenv("OPENSSL_TRACE"));
+#endif
 
-    if (getenv("OPENSSL_FIPS")) {
-        BIO_printf(bio_err, "FIPS mode not supported.\n");
-        return 1;
-    }
-
-    if (!apps_startup()) {
+    if ((fname = "apps_startup", !apps_startup())
+            || (fname = "prog_init", (prog = prog_init()) == NULL)) {
         BIO_printf(bio_err,
-                   "FATAL: Startup failure (dev note: apps_startup() failed)\n");
-        ERR_print_errors(bio_err);
-        ret = 1;
-        goto end;
-    }
-
-    prog = prog_init();
-    if (prog == NULL) {
-        BIO_printf(bio_err,
-                   "FATAL: Startup failure (dev note: prog_init() failed)\n");
+                   "FATAL: Startup failure (dev note: %s()) for %s\n",
+                   fname, argv[0]);
         ERR_print_errors(bio_err);
         ret = 1;
         goto end;
     }
     pname = opt_progname(argv[0]);
 
+    default_config_file = CONF_get1_default_config_file();
+    if (default_config_file == NULL)
+        app_bail_out("%s: could not get default config file\n", pname);
+
     /* first check the program name */
     f.name = pname;
     fp = lh_FUNCTION_retrieve(prog, &f);
-    if (fp != NULL) {
-        argv[0] = pname;
-        ret = fp->func(argc, argv);
-        goto end;
-    }
-
-    /* If there is stuff on the command line, run with that. */
-    if (argc != 1) {
+    if (fp == NULL) {
+        /* We assume we've been called as 'openssl ...' */
+        global_help = argc > 1
+            && (strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "--help") == 0
+                || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--h") == 0);
         argc--;
         argv++;
-        ret = do_cmd(prog, argc, argv);
-        if (ret < 0)
-            ret = 0;
-        goto end;
+        opt_appname(argc == 1 || global_help ? "help" : argv[0]);
+    } else {
+        argv[0] = pname;
     }
 
-    /* ok, lets enter interactive mode */
-    for (;;) {
-        ret = 0;
-        /* Read a line, continue reading if line ends with \ */
-        for (p = buf, n = sizeof(buf), i = 0, first = 1; n > 0; first = 0) {
-            prompt = first ? "OpenSSL> " : "> ";
-            p[0] = '\0';
-#ifndef READLINE
-            fputs(prompt, stdout);
-            fflush(stdout);
-            if (!fgets(p, n, stdin))
-                goto end;
-            if (p[0] == '\0')
-                goto end;
-            i = strlen(p);
-            if (i <= 1)
-                break;
-            if (p[i - 2] != '\\')
-                break;
-            i -= 2;
-            p += i;
-            n -= i;
-#else
-            {
-                extern char *readline(const char *);
-                extern void add_history(const char *cp);
-                char *text;
+    /* If there's a command, run with that, otherwise "help". */
+    ret = argc == 0 || global_help
+        ? do_cmd(prog, 1, help_argv)
+        : do_cmd(prog, argc, argv);
 
-                text = readline(prompt);
-                if (text == NULL)
-                    goto end;
-                i = strlen(text);
-                if (i == 0 || i > n)
-                    break;
-                if (text[i - 1] != '\\') {
-                    p += strlen(strcpy(p, text));
-                    free(text);
-                    add_history(buf);
-                    break;
-                }
-
-                text[i - 1] = '\0';
-                p += strlen(strcpy(p, text));
-                free(text);
-                n -= i;
-            }
-#endif
-        }
-
-        if (!chopup_args(&arg, buf)) {
-            BIO_printf(bio_err, "Can't parse (no memory?)\n");
-            break;
-        }
-
-        ret = do_cmd(prog, arg.argc, arg.argv);
-        if (ret == EXIT_THE_PROGRAM) {
-            ret = 0;
-            goto end;
-        }
-        if (ret != 0)
-            BIO_printf(bio_err, "error in %s\n", arg.argv[0]);
-        (void)BIO_flush(bio_out);
-        (void)BIO_flush(bio_err);
-    }
-    ret = 1;
  end:
-    OPENSSL_free(copied_argv);
     OPENSSL_free(default_config_file);
     lh_FUNCTION_free(prog);
     OPENSSL_free(arg.argv);
-    app_RAND_write();
+    if (!app_RAND_write())
+        ret = EXIT_FAILURE;
 
     BIO_free(bio_in);
     BIO_free_all(bio_out);
     apps_shutdown();
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (CRYPTO_mem_leaks(bio_err) <= 0)
-        ret = 1;
-#endif
     BIO_free(bio_err);
     EXIT(ret);
-}
-
-static void list_cipher_fn(const EVP_CIPHER *c,
-                           const char *from, const char *to, void *arg)
-{
-    if (c != NULL) {
-        BIO_printf(arg, "%s\n", EVP_CIPHER_name(c));
-    } else {
-        if (from == NULL)
-            from = "<undefined>";
-        if (to == NULL)
-            to = "<undefined>";
-        BIO_printf(arg, "%s => %s\n", from, to);
-    }
-}
-
-static void list_md_fn(const EVP_MD *m,
-                       const char *from, const char *to, void *arg)
-{
-    if (m != NULL) {
-        BIO_printf(arg, "%s\n", EVP_MD_name(m));
-    } else {
-        if (from == NULL)
-            from = "<undefined>";
-        if (to == NULL)
-            to = "<undefined>";
-        BIO_printf((BIO *)arg, "%s => %s\n", from, to);
-    }
-}
-
-static void list_missing_help(void)
-{
-    const FUNCTION *fp;
-    const OPTIONS *o;
-
-    for (fp = functions; fp->name != NULL; fp++) {
-        if ((o = fp->help) != NULL) {
-            /* If there is help, list what flags are not documented. */
-            for ( ; o->name != NULL; o++) {
-                if (o->helpstr == NULL)
-                    BIO_printf(bio_out, "%s %s\n", fp->name, o->name);
-            }
-        } else if (fp->func != dgst_main) {
-            /* If not aliased to the dgst command, */
-            BIO_printf(bio_out, "%s *\n", fp->name);
-        }
-    }
-}
-
-static void list_options_for_command(const char *command)
-{
-    const FUNCTION *fp;
-    const OPTIONS *o;
-
-    for (fp = functions; fp->name != NULL; fp++)
-        if (strcmp(fp->name, command) == 0)
-            break;
-    if (fp->name == NULL) {
-        BIO_printf(bio_err, "Invalid command '%s'; type \"help\" for a list.\n",
-                command);
-        return;
-    }
-
-    if ((o = fp->help) == NULL)
-        return;
-
-    for ( ; o->name != NULL; o++) {
-        if (o->name == OPT_HELP_STR
-                || o->name == OPT_MORE_STR
-                || o->name[0] == '\0')
-            continue;
-        BIO_printf(bio_out, "%s %c\n", o->name, o->valtype);
-    }
-}
-
-
-/* Unified enum for help and list commands. */
-typedef enum HELPLIST_CHOICE {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP, OPT_ONE,
-    OPT_COMMANDS, OPT_DIGEST_COMMANDS, OPT_OPTIONS,
-    OPT_DIGEST_ALGORITHMS, OPT_CIPHER_COMMANDS, OPT_CIPHER_ALGORITHMS,
-    OPT_PK_ALGORITHMS, OPT_PK_METHOD, OPT_DISABLED, OPT_MISSING_HELP
-} HELPLIST_CHOICE;
-
-const OPTIONS list_options[] = {
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"1", OPT_ONE, '-', "List in one column"},
-    {"commands", OPT_COMMANDS, '-', "List of standard commands"},
-    {"digest-commands", OPT_DIGEST_COMMANDS, '-',
-     "List of message digest commands"},
-    {"digest-algorithms", OPT_DIGEST_ALGORITHMS, '-',
-     "List of message digest algorithms"},
-    {"cipher-commands", OPT_CIPHER_COMMANDS, '-', "List of cipher commands"},
-    {"cipher-algorithms", OPT_CIPHER_ALGORITHMS, '-',
-     "List of cipher algorithms"},
-    {"public-key-algorithms", OPT_PK_ALGORITHMS, '-',
-     "List of public key algorithms"},
-    {"public-key-methods", OPT_PK_METHOD, '-',
-     "List of public key methods"},
-    {"disabled", OPT_DISABLED, '-',
-     "List of disabled features"},
-    {"missing-help", OPT_MISSING_HELP, '-',
-     "List missing detailed help strings"},
-    {"options", OPT_OPTIONS, 's',
-     "List options for specified command"},
-    {NULL}
-};
-
-int list_main(int argc, char **argv)
-{
-    char *prog;
-    HELPLIST_CHOICE o;
-    int one = 0, done = 0;
-
-    prog = opt_init(argc, argv, list_options);
-    while ((o = opt_next()) != OPT_EOF) {
-        switch (o) {
-        case OPT_EOF:  /* Never hit, but suppresses warning */
-        case OPT_ERR:
-opthelp:
-            BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
-            return 1;
-        case OPT_HELP:
-            opt_help(list_options);
-            break;
-        case OPT_ONE:
-            one = 1;
-            break;
-        case OPT_COMMANDS:
-            list_type(FT_general, one);
-            break;
-        case OPT_DIGEST_COMMANDS:
-            list_type(FT_md, one);
-            break;
-        case OPT_DIGEST_ALGORITHMS:
-            EVP_MD_do_all_sorted(list_md_fn, bio_out);
-            break;
-        case OPT_CIPHER_COMMANDS:
-            list_type(FT_cipher, one);
-            break;
-        case OPT_CIPHER_ALGORITHMS:
-            EVP_CIPHER_do_all_sorted(list_cipher_fn, bio_out);
-            break;
-        case OPT_PK_ALGORITHMS:
-            list_pkey();
-            break;
-        case OPT_PK_METHOD:
-            list_pkey_meth();
-            break;
-        case OPT_DISABLED:
-            list_disabled();
-            break;
-        case OPT_MISSING_HELP:
-            list_missing_help();
-            break;
-        case OPT_OPTIONS:
-            list_options_for_command(opt_arg());
-            break;
-        }
-        done = 1;
-    }
-    if (opt_num_rest() != 0) {
-        BIO_printf(bio_err, "Extra arguments given.\n");
-        goto opthelp;
-    }
-
-    if (!done)
-        goto opthelp;
-
-    return 0;
 }
 
 typedef enum HELP_CHOICE {
@@ -450,9 +316,13 @@ typedef enum HELP_CHOICE {
 } HELP_CHOICE;
 
 const OPTIONS help_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: help [options]\n"},
-    {OPT_HELP_STR, 1, '-', "       help [command]\n"},
+    {OPT_HELP_STR, 1, '-', "Usage: help [options] [command]\n"},
+
+    OPT_SECTION("General"),
     {"help", OPT_hHELP, '-', "Display this summary"},
+
+    OPT_PARAMETERS(),
+    {"command", 0, 0, "Name of command to display help (optional)"},
     {NULL}
 };
 
@@ -465,6 +335,7 @@ int help_main(int argc, char **argv)
     char *prog;
     HELP_CHOICE o;
     DISPLAY_COLUMNS dc;
+    char *new_argv[3];
 
     prog = opt_init(argc, argv, help_options);
     while ((o = opt_next()) != OPT_hEOF) {
@@ -479,9 +350,8 @@ int help_main(int argc, char **argv)
         }
     }
 
+    /* One optional argument, the command to get help for. */
     if (opt_num_rest() == 1) {
-        char *new_argv[3];
-
         new_argv[0] = opt_rest()[0];
         new_argv[1] = "--help";
         new_argv[2] = NULL;
@@ -492,8 +362,8 @@ int help_main(int argc, char **argv)
         return 1;
     }
 
-    calculate_columns(&dc);
-    BIO_printf(bio_err, "Standard commands");
+    calculate_columns(functions, &dc);
+    BIO_printf(bio_err, "%s:\n\nStandard commands", prog);
     i = 0;
     tp = FT_none;
     for (fp = functions; fp->name != NULL; fp++) {
@@ -522,37 +392,13 @@ int help_main(int argc, char **argv)
     return 0;
 }
 
-static void list_type(FUNC_TYPE ft, int one)
-{
-    FUNCTION *fp;
-    int i = 0;
-    DISPLAY_COLUMNS dc = {0};
-
-    if (!one)
-        calculate_columns(&dc);
-
-    for (fp = functions; fp->name != NULL; fp++) {
-        if (fp->type != ft)
-            continue;
-        if (one) {
-            BIO_printf(bio_out, "%s\n", fp->name);
-        } else {
-            if (i % dc.columns == 0 && i > 0)
-                BIO_printf(bio_out, "\n");
-            BIO_printf(bio_out, "%-*s", dc.width, fp->name);
-            i++;
-        }
-    }
-    if (!one)
-        BIO_printf(bio_out, "\n\n");
-}
-
 static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
 {
     FUNCTION f, *fp;
 
     if (argc <= 0 || argv[0] == NULL)
         return 0;
+    memset(&f, 0, sizeof(f));
     f.name = argv[0];
     fp = lh_FUNCTION_retrieve(prog, &f);
     if (fp == NULL) {
@@ -567,6 +413,8 @@ static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
         }
     }
     if (fp != NULL) {
+        if (fp->deprecated_alternative != NULL)
+            warn_deprecated(fp);
         return fp->func(argc, argv);
     }
     if ((strncmp(argv[0], "no-", 3)) == 0) {
@@ -582,59 +430,10 @@ static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
         BIO_printf(bio_out, "%s\n", argv[0] + 3);
         return 1;
     }
-    if (strcmp(argv[0], "quit") == 0 || strcmp(argv[0], "q") == 0 ||
-        strcmp(argv[0], "exit") == 0 || strcmp(argv[0], "bye") == 0)
-        /* Special value to mean "exit the program. */
-        return EXIT_THE_PROGRAM;
 
     BIO_printf(bio_err, "Invalid command '%s'; type \"help\" for a list.\n",
                argv[0]);
     return 1;
-}
-
-static void list_pkey(void)
-{
-    int i;
-
-    for (i = 0; i < EVP_PKEY_asn1_get_count(); i++) {
-        const EVP_PKEY_ASN1_METHOD *ameth;
-        int pkey_id, pkey_base_id, pkey_flags;
-        const char *pinfo, *pem_str;
-        ameth = EVP_PKEY_asn1_get0(i);
-        EVP_PKEY_asn1_get0_info(&pkey_id, &pkey_base_id, &pkey_flags,
-                                &pinfo, &pem_str, ameth);
-        if (pkey_flags & ASN1_PKEY_ALIAS) {
-            BIO_printf(bio_out, "Name: %s\n", OBJ_nid2ln(pkey_id));
-            BIO_printf(bio_out, "\tAlias for: %s\n",
-                       OBJ_nid2ln(pkey_base_id));
-        } else {
-            BIO_printf(bio_out, "Name: %s\n", pinfo);
-            BIO_printf(bio_out, "\tType: %s Algorithm\n",
-                       pkey_flags & ASN1_PKEY_DYNAMIC ?
-                       "External" : "Builtin");
-            BIO_printf(bio_out, "\tOID: %s\n", OBJ_nid2ln(pkey_id));
-            if (pem_str == NULL)
-                pem_str = "(none)";
-            BIO_printf(bio_out, "\tPEM string: %s\n", pem_str);
-        }
-
-    }
-}
-
-static void list_pkey_meth(void)
-{
-    size_t i;
-    size_t meth_count = EVP_PKEY_meth_get_count();
-
-    for (i = 0; i < meth_count; i++) {
-        const EVP_PKEY_METHOD *pmeth = EVP_PKEY_meth_get0(i);
-        int pkey_id, pkey_flags;
-
-        EVP_PKEY_meth_get0_info(&pkey_id, &pkey_flags, pmeth);
-        BIO_printf(bio_out, "%s\n", OBJ_nid2ln(pkey_id));
-        BIO_printf(bio_out, "\tType: %s Algorithm\n",
-                   pkey_flags & ASN1_PKEY_DYNAMIC ?  "External" : "Builtin");
-    }
 }
 
 static int function_cmp(const FUNCTION * a, const FUNCTION * b)
@@ -655,155 +454,6 @@ static int SortFnByName(const void *_f1, const void *_f2)
     if (f1->type != f2->type)
         return f1->type - f2->type;
     return strcmp(f1->name, f2->name);
-}
-
-static void list_disabled(void)
-{
-    BIO_puts(bio_out, "Disabled algorithms:\n");
-#ifdef OPENSSL_NO_ARIA
-    BIO_puts(bio_out, "ARIA\n");
-#endif
-#ifdef OPENSSL_NO_BF
-    BIO_puts(bio_out, "BF\n");
-#endif
-#ifdef OPENSSL_NO_BLAKE2
-    BIO_puts(bio_out, "BLAKE2\n");
-#endif
-#ifdef OPENSSL_NO_CAMELLIA
-    BIO_puts(bio_out, "CAMELLIA\n");
-#endif
-#ifdef OPENSSL_NO_CAST
-    BIO_puts(bio_out, "CAST\n");
-#endif
-#ifdef OPENSSL_NO_CMAC
-    BIO_puts(bio_out, "CMAC\n");
-#endif
-#ifdef OPENSSL_NO_CMS
-    BIO_puts(bio_out, "CMS\n");
-#endif
-#ifdef OPENSSL_NO_COMP
-    BIO_puts(bio_out, "COMP\n");
-#endif
-#ifdef OPENSSL_NO_DES
-    BIO_puts(bio_out, "DES\n");
-#endif
-#ifdef OPENSSL_NO_DGRAM
-    BIO_puts(bio_out, "DGRAM\n");
-#endif
-#ifdef OPENSSL_NO_DH
-    BIO_puts(bio_out, "DH\n");
-#endif
-#ifdef OPENSSL_NO_DSA
-    BIO_puts(bio_out, "DSA\n");
-#endif
-#if defined(OPENSSL_NO_DTLS)
-    BIO_puts(bio_out, "DTLS\n");
-#endif
-#if defined(OPENSSL_NO_DTLS1)
-    BIO_puts(bio_out, "DTLS1\n");
-#endif
-#if defined(OPENSSL_NO_DTLS1_2)
-    BIO_puts(bio_out, "DTLS1_2\n");
-#endif
-#ifdef OPENSSL_NO_EC
-    BIO_puts(bio_out, "EC\n");
-#endif
-#ifdef OPENSSL_NO_EC2M
-    BIO_puts(bio_out, "EC2M\n");
-#endif
-#ifdef OPENSSL_NO_ENGINE
-    BIO_puts(bio_out, "ENGINE\n");
-#endif
-#ifdef OPENSSL_NO_GOST
-    BIO_puts(bio_out, "GOST\n");
-#endif
-#ifdef OPENSSL_NO_HEARTBEATS
-    BIO_puts(bio_out, "HEARTBEATS\n");
-#endif
-#ifdef OPENSSL_NO_IDEA
-    BIO_puts(bio_out, "IDEA\n");
-#endif
-#ifdef OPENSSL_NO_MD2
-    BIO_puts(bio_out, "MD2\n");
-#endif
-#ifdef OPENSSL_NO_MD4
-    BIO_puts(bio_out, "MD4\n");
-#endif
-#ifdef OPENSSL_NO_MD5
-    BIO_puts(bio_out, "MD5\n");
-#endif
-#ifdef OPENSSL_NO_MDC2
-    BIO_puts(bio_out, "MDC2\n");
-#endif
-#ifdef OPENSSL_NO_OCB
-    BIO_puts(bio_out, "OCB\n");
-#endif
-#ifdef OPENSSL_NO_OCSP
-    BIO_puts(bio_out, "OCSP\n");
-#endif
-#ifdef OPENSSL_NO_PSK
-    BIO_puts(bio_out, "PSK\n");
-#endif
-#ifdef OPENSSL_NO_RC2
-    BIO_puts(bio_out, "RC2\n");
-#endif
-#ifdef OPENSSL_NO_RC4
-    BIO_puts(bio_out, "RC4\n");
-#endif
-#ifdef OPENSSL_NO_RC5
-    BIO_puts(bio_out, "RC5\n");
-#endif
-#ifdef OPENSSL_NO_RMD160
-    BIO_puts(bio_out, "RMD160\n");
-#endif
-#ifdef OPENSSL_NO_RSA
-    BIO_puts(bio_out, "RSA\n");
-#endif
-#ifdef OPENSSL_NO_SCRYPT
-    BIO_puts(bio_out, "SCRYPT\n");
-#endif
-#ifdef OPENSSL_NO_SCTP
-    BIO_puts(bio_out, "SCTP\n");
-#endif
-#ifdef OPENSSL_NO_SEED
-    BIO_puts(bio_out, "SEED\n");
-#endif
-#ifdef OPENSSL_NO_SM2
-    BIO_puts(bio_out, "SM2\n");
-#endif
-#ifdef OPENSSL_NO_SM3
-    BIO_puts(bio_out, "SM3\n");
-#endif
-#ifdef OPENSSL_NO_SM4
-    BIO_puts(bio_out, "SM4\n");
-#endif
-#ifdef OPENSSL_NO_SOCK
-    BIO_puts(bio_out, "SOCK\n");
-#endif
-#ifdef OPENSSL_NO_SRP
-    BIO_puts(bio_out, "SRP\n");
-#endif
-#ifdef OPENSSL_NO_SRTP
-    BIO_puts(bio_out, "SRTP\n");
-#endif
-#ifdef OPENSSL_NO_SSL3
-    BIO_puts(bio_out, "SSL3\n");
-#endif
-#ifdef OPENSSL_NO_TLS1
-    BIO_puts(bio_out, "TLS1\n");
-#endif
-#ifdef OPENSSL_NO_TLS1_1
-    BIO_puts(bio_out, "TLS1_1\n");
-#endif
-#ifdef OPENSSL_NO_TLS1_2
-    BIO_puts(bio_out, "TLS1_2\n");
-#endif
-#ifdef OPENSSL_NO_WHIRLPOOL
-    BIO_puts(bio_out, "WHIRLPOOL\n");
-#endif
-#ifndef ZLIB
-    BIO_puts(bio_out, "ZLIB\n");
-#endif
 }
 
 static LHASH_OF(FUNCTION) *prog_init(void)

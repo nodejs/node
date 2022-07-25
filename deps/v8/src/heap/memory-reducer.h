@@ -115,6 +115,8 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   };
 
   explicit MemoryReducer(Heap* heap);
+  MemoryReducer(const MemoryReducer&) = delete;
+  MemoryReducer& operator=(const MemoryReducer&) = delete;
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
   void NotifyPossibleGarbage(const Event& event);
@@ -146,12 +148,13 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   class TimerTask : public v8::internal::CancelableTask {
    public:
     explicit TimerTask(MemoryReducer* memory_reducer);
+    TimerTask(const TimerTask&) = delete;
+    TimerTask& operator=(const TimerTask&) = delete;
 
    private:
     // v8::internal::CancelableTask overrides.
     void RunInternal() override;
     MemoryReducer* memory_reducer_;
-    DISALLOW_COPY_AND_ASSIGN(TimerTask);
   };
 
   void NotifyTimer(const Event& event);
@@ -166,7 +169,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 
   // Used in cctest.
   friend class heap::HeapTester;
-  DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
 
 }  // namespace internal

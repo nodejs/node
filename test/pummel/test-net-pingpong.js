@@ -38,7 +38,8 @@ function pingPongTest(host, on_complete) {
     if (host === '127.0.0.1') {
       assert.strictEqual(address, '127.0.0.1');
     } else if (host == null || host === 'localhost') {
-      assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1');
+      assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1' ||
+        address === '::1');
     } else {
       console.log(`host = ${host}, remoteAddress = ${address}`);
       assert.strictEqual(address, '::1');
@@ -110,9 +111,8 @@ function pingPongTest(host, on_complete) {
 }
 
 // All are run at once and will run on different ports.
-pingPongTest('localhost');
 pingPongTest(null);
-
+pingPongTest('127.0.0.1');
 if (common.hasIPv6) pingPongTest('::1');
 
 process.on('exit', function() {

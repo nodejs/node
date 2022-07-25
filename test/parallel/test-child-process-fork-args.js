@@ -19,7 +19,7 @@ const expectedEnv = { foo: 'bar' };
     [],
     {},
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidModulePath.forEach((modulePath) => {
     assert.throws(() => fork(modulePath), {
@@ -46,7 +46,7 @@ const expectedEnv = { foo: 'bar' };
     0,
     true,
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidSecondArgs.forEach((arg) => {
     assert.throws(
@@ -54,7 +54,7 @@ const expectedEnv = { foo: 'bar' };
         fork(fixtures.path('child-process-echo-options.js'), arg);
       },
       {
-        code: 'ERR_INVALID_ARG_VALUE',
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );
@@ -89,7 +89,7 @@ const expectedEnv = { foo: 'bar' };
     0,
     true,
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidThirdArgs.forEach((arg) => {
     assert.throws(
@@ -97,7 +97,7 @@ const expectedEnv = { foo: 'bar' };
         fork(fixtures.path('child-process-echo-options.js'), [], arg);
       },
       {
-        code: 'ERR_INVALID_ARG_VALUE',
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );

@@ -21,6 +21,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -31,8 +32,7 @@ V8_INLINE constexpr bool operator<(RootIndex lhs, RootIndex rhs) {
   return static_cast<type>(lhs) < static_cast<type>(rhs);
 }
 
-V8_INLINE RootIndex
-operator++(RootIndex& index) {  // NOLINT(runtime/references)
+V8_INLINE RootIndex operator++(RootIndex& index) {
   using type = typename std::underlying_type<RootIndex>::type;
   index = static_cast<RootIndex>(static_cast<type>(index) + 1);
   return index;

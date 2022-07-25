@@ -13,11 +13,12 @@ const fixtures = require('../common/fixtures');
 const clientConfigs = [
   { secureProtocol: 'TLSv1_method', version: 'TLSv1' },
   { secureProtocol: 'TLSv1_1_method', version: 'TLSv1.1' },
-  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' }
+  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' },
 ];
 
 const serverConfig = {
   secureProtocol: 'TLS_method',
+  ciphers: 'RSA@SECLEVEL=0',
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem')
 };

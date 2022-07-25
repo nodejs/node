@@ -14,19 +14,15 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/keys.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -110,55 +106,55 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
                                    Handle<JSMessageObject> message) {
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
-  if (api_message_obj->ErrorLevel() == v8::Isolate::kMessageError) {
-    // We are calling into embedder's code which can throw exceptions.
-    // Thus we need to save current exception state, reset it to the clean one
-    // and ignore scheduled exceptions callbacks can throw.
-
-    // We pass the exception object into the message handler callback though.
-    Object exception_object = ReadOnlyRoots(isolate).undefined_value();
-    if (isolate->has_pending_exception()) {
-      exception_object = isolate->pending_exception();
-    }
-    Handle<Object> exception(exception_object, isolate);
-
-    Isolate::ExceptionScope exception_scope(isolate);
-    isolate->clear_pending_exception();
-    isolate->set_external_caught_exception(false);
-
-    // Turn the exception on the message into a string if it is an object.
-    if (message->argument().IsJSObject()) {
-      HandleScope scope(isolate);
-      Handle<Object> argument(message->argument(), isolate);
-
-      MaybeHandle<Object> maybe_stringified;
-      Handle<Object> stringified;
-      // Make sure we don't leak uncaught internally generated Error objects.
-      if (argument->IsJSError()) {
-        maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
-      } else {
-        v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
-        catcher.SetVerbose(false);
-        catcher.SetCaptureMessage(false);
-
-        maybe_stringified = Object::ToString(isolate, argument);
-      }
-
-      if (!maybe_stringified.ToHandle(&stringified)) {
-        DCHECK(isolate->has_pending_exception());
-        isolate->clear_pending_exception();
-        isolate->set_external_caught_exception(false);
-        stringified =
-            isolate->factory()->NewStringFromAsciiChecked("exception");
-      }
-      message->set_argument(*stringified);
-    }
-
-    v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
-    ReportMessageNoExceptions(isolate, loc, message, api_exception_obj);
-  } else {
+  if (api_message_obj->ErrorLevel() != v8::Isolate::kMessageError) {
     ReportMessageNoExceptions(isolate, loc, message, v8::Local<v8::Value>());
+    return;
   }
+
+  // We are calling into embedder's code which can throw exceptions.
+  // Thus we need to save current exception state, reset it to the clean one
+  // and ignore scheduled exceptions callbacks can throw.
+
+  // We pass the exception object into the message handler callback though.
+  Object exception_object = ReadOnlyRoots(isolate).undefined_value();
+  if (isolate->has_pending_exception()) {
+    exception_object = isolate->pending_exception();
+  }
+  Handle<Object> exception(exception_object, isolate);
+
+  Isolate::ExceptionScope exception_scope(isolate);
+  isolate->clear_pending_exception();
+  isolate->set_external_caught_exception(false);
+
+  // Turn the exception on the message into a string if it is an object.
+  if (message->argument().IsJSObject()) {
+    HandleScope scope(isolate);
+    Handle<Object> argument(message->argument(), isolate);
+
+    MaybeHandle<Object> maybe_stringified;
+    Handle<Object> stringified;
+    // Make sure we don't leak uncaught internally generated Error objects.
+    if (argument->IsJSError()) {
+      maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
+    } else {
+      v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+      catcher.SetVerbose(false);
+      catcher.SetCaptureMessage(false);
+
+      maybe_stringified = Object::ToString(isolate, argument);
+    }
+
+    if (!maybe_stringified.ToHandle(&stringified)) {
+      DCHECK(isolate->has_pending_exception());
+      isolate->clear_pending_exception();
+      isolate->set_external_caught_exception(false);
+      stringified = isolate->factory()->exception_string();
+    }
+    message->set_argument(*stringified);
+  }
+
+  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
+  ReportMessageNoExceptions(isolate, loc, message, api_exception_obj);
 }
 
 void MessageHandler::ReportMessageNoExceptions(
@@ -190,8 +186,7 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj.foreign_address());
       Handle<Object> callback_data(listener.get(1), isolate);
       {
-        RuntimeCallTimerScope timer(
-            isolate, RuntimeCallCounterId::kMessageListenerCallback);
+        RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)
@@ -220,586 +215,29 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
 
 namespace {
 
-Object EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
-  if (!script->has_eval_from_shared()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
-  // Find the name of the function calling eval.
-  if (shared->Name().BooleanValue(isolate)) {
-    return shared->Name();
-  }
-
-  return shared->inferred_name();
-}
-
-MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
-  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
-  if (!sourceURL->IsUndefined(isolate)) {
-    DCHECK(sourceURL->IsString());
-    return Handle<String>::cast(sourceURL);
-  }
-
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("eval at ");
-
-  Handle<Object> eval_from_function_name =
-      handle(EvalFromFunctionName(isolate, script), isolate);
-  if (eval_from_function_name->BooleanValue(isolate)) {
-    Handle<String> str;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, str, Object::ToString(isolate, eval_from_function_name),
-        String);
-    builder.AppendString(str);
-  } else {
-    builder.AppendCString("<anonymous>");
-  }
-
-  if (script->has_eval_from_shared()) {
-    Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
-                                                isolate);
-    if (eval_from_shared->script().IsScript()) {
-      Handle<Script> eval_from_script =
-          handle(Script::cast(eval_from_shared->script()), isolate);
-      builder.AppendCString(" (");
-      if (eval_from_script->compilation_type() ==
-          Script::COMPILATION_TYPE_EVAL) {
-        // Eval script originated from another eval.
-        Handle<String> str;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
-        builder.AppendString(str);
-      } else {
-        DCHECK(eval_from_script->compilation_type() !=
-               Script::COMPILATION_TYPE_EVAL);
-        // eval script originated from "real" source.
-        Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
-        if (eval_from_script->name().IsString()) {
-          builder.AppendString(Handle<String>::cast(name_obj));
-
-          Script::PositionInfo info;
-
-          if (Script::GetPositionInfo(eval_from_script,
-                                      Script::GetEvalPosition(isolate, script),
-                                      &info, Script::NO_OFFSET)) {
-            builder.AppendCString(":");
-
-            Handle<String> str = isolate->factory()->NumberToString(
-                handle(Smi::FromInt(info.line + 1), isolate));
-            builder.AppendString(str);
-
-            builder.AppendCString(":");
-
-            str = isolate->factory()->NumberToString(
-                handle(Smi::FromInt(info.column + 1), isolate));
-            builder.AppendString(str);
-          }
-        } else {
-          DCHECK(!eval_from_script->name().IsString());
-          builder.AppendCString("unknown source");
-        }
-      }
-    }
-    builder.AppendCString(")");
-  }
-
-  Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, builder.Finish(), String);
-  return result;
-}
-
-}  // namespace
-
-Handle<PrimitiveHeapObject> StackFrameBase::GetEvalOrigin() {
-  if (!HasScript() || !IsEval()) return isolate_->factory()->undefined_value();
-  return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
-}
-
-Handle<PrimitiveHeapObject> StackFrameBase::GetWasmModuleName() {
-  return isolate_->factory()->undefined_value();
-}
-
-int StackFrameBase::GetWasmFunctionIndex() { return StackFrameBase::kNone; }
-
-Handle<HeapObject> StackFrameBase::GetWasmInstance() {
-  return isolate_->factory()->undefined_value();
-}
-
-int StackFrameBase::GetScriptId() const {
-  if (!HasScript()) return kNone;
-  return GetScript()->id();
-}
-
-bool StackFrameBase::IsEval() {
-  return HasScript() &&
-         GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
-}
-
-void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
-                                  int frame_ix) {
-  DCHECK(!array->IsWasmFrame(frame_ix));
-  isolate_ = isolate;
-  receiver_ = handle(array->Receiver(frame_ix), isolate);
-  function_ = handle(array->Function(frame_ix), isolate);
-  code_ = handle(array->Code(frame_ix), isolate);
-  offset_ = array->Offset(frame_ix).value();
-  cached_position_ = base::nullopt;
-
-  const int flags = array->Flags(frame_ix).value();
-  is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
-  is_strict_ = (flags & FrameArray::kIsStrict) != 0;
-  is_async_ = (flags & FrameArray::kIsAsync) != 0;
-  is_promise_all_ = (flags & FrameArray::kIsPromiseAll) != 0;
-  is_promise_any_ = (flags & FrameArray::kIsPromiseAny) != 0;
-}
-
-JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
-                           Handle<JSFunction> function,
-                           Handle<AbstractCode> code, int offset)
-    : StackFrameBase(isolate),
-      receiver_(receiver),
-      function_(function),
-      code_(code),
-      offset_(offset),
-      cached_position_(base::nullopt),
-      is_async_(false),
-      is_constructor_(false),
-      is_strict_(false) {}
-
-Handle<Object> JSStackFrame::GetFunction() const {
-  return Handle<Object>::cast(function_);
-}
-
-Handle<Object> JSStackFrame::GetFileName() {
-  if (!HasScript()) return isolate_->factory()->null_value();
-  return handle(GetScript()->name(), isolate_);
-}
-
-Handle<PrimitiveHeapObject> JSStackFrame::GetFunctionName() {
-  Handle<String> result = JSFunction::GetDebugName(function_);
-  if (result->length() != 0) return result;
-
-  if (HasScript() &&
-      GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-    return isolate_->factory()->eval_string();
-  }
-  return isolate_->factory()->null_value();
-}
-
-namespace {
-
-bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
-                     Handle<Name> name, Handle<JSFunction> fun,
-                     LookupIterator::Configuration config) {
-  LookupIterator::Key key(isolate, name);
-  LookupIterator iter(isolate, receiver, key, config);
-  if (iter.state() == LookupIterator::DATA) {
-    return iter.GetDataValue().is_identical_to(fun);
-  } else if (iter.state() == LookupIterator::ACCESSOR) {
-    Handle<Object> accessors = iter.GetAccessors();
-    if (accessors->IsAccessorPair()) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
-      return pair->getter() == *fun || pair->setter() == *fun;
-    }
-  }
-  return false;
-}
-
-Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
-  Object name_or_url = script->source_url();
-  if (!name_or_url.IsString()) name_or_url = script->name();
-  return handle(name_or_url, isolate);
-}
-
-}  // namespace
-
-Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
-  if (!HasScript()) return isolate_->factory()->null_value();
-  return ScriptNameOrSourceUrl(GetScript(), isolate_);
-}
-
-Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
-  if (receiver_->IsNullOrUndefined(isolate_)) {
-    return isolate_->factory()->null_value();
-  }
-
-  Handle<JSReceiver> receiver;
-  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
-    DCHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
-    isolate_->set_external_caught_exception(false);
-    return isolate_->factory()->null_value();
-  }
-
-  Handle<String> name(function_->shared().Name(), isolate_);
-  name = String::Flatten(isolate_, name);
-
-  // The static initializer function is not a method, so don't add a
-  // class name, just return the function name.
-  if (name->HasOneBytePrefix(CStrVector("<static_fields_initializer>"))) {
-    return name;
-  }
-
-  // ES2015 gives getters and setters name prefixes which must
-  // be stripped to find the property name.
-  if (name->HasOneBytePrefix(CStrVector("get ")) ||
-      name->HasOneBytePrefix(CStrVector("set "))) {
-    name = isolate_->factory()->NewProperSubString(name, 4, name->length());
-  }
-  if (CheckMethodName(isolate_, receiver, name, function_,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
-    return name;
-  }
-
-  HandleScope outer_scope(isolate_);
-  Handle<PrimitiveHeapObject> result;
-  for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
-       !iter.IsAtEnd(); iter.Advance()) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (!current->IsJSObject()) break;
-    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
-    if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys =
-        KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
-    for (int i = 0; i < keys->length(); i++) {
-      HandleScope inner_scope(isolate_);
-      if (!keys->get(i).IsName()) continue;
-      Handle<Name> name_key(Name::cast(keys->get(i)), isolate_);
-      if (!CheckMethodName(isolate_, current_obj, name_key, function_,
-                           LookupIterator::OWN_SKIP_INTERCEPTOR))
-        continue;
-      // Return null in case of duplicates to avoid confusion.
-      if (!result.is_null()) return isolate_->factory()->null_value();
-      result = inner_scope.CloseAndEscape(name_key);
-    }
-  }
-
-  if (!result.is_null()) return outer_scope.CloseAndEscape(result);
-  return isolate_->factory()->null_value();
-}
-
-Handle<PrimitiveHeapObject> JSStackFrame::GetTypeName() {
-  // TODO(jgruber): Check for strict/constructor here as in
-  // CallSitePrototypeGetThis.
-
-  if (receiver_->IsNullOrUndefined(isolate_)) {
-    return isolate_->factory()->null_value();
-  } else if (receiver_->IsJSProxy()) {
-    return isolate_->factory()->Proxy_string();
-  }
-
-  Handle<JSReceiver> receiver;
-  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
-    DCHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
-    isolate_->set_external_caught_exception(false);
-    return isolate_->factory()->null_value();
-  }
-
-  return JSReceiver::GetConstructorName(receiver);
-}
-
-int JSStackFrame::GetLineNumber() {
-  DCHECK_LE(0, GetPosition());
-  if (HasScript()) return Script::GetLineNumber(GetScript(), GetPosition()) + 1;
-  return kNone;
-}
-
-int JSStackFrame::GetColumnNumber() {
-  DCHECK_LE(0, GetPosition());
-  if (HasScript()) {
-    return Script::GetColumnNumber(GetScript(), GetPosition()) + 1;
-  }
-  return kNone;
-}
-
-int JSStackFrame::GetEnclosingLineNumber() {
-  if (HasScript()) {
-    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
-    return Script::GetLineNumber(GetScript(),
-                                 shared->function_token_position()) + 1;
-  } else {
-    return kNone;
-  }
-}
-
-int JSStackFrame::GetEnclosingColumnNumber() {
-  if (HasScript()) {
-    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
-    return Script::GetColumnNumber(GetScript(),
-                                   shared->function_token_position()) + 1;
-  } else {
-    return kNone;
-  }
-}
-
-int JSStackFrame::GetPromiseIndex() const {
-  return (is_promise_all_ || is_promise_any_) ? offset_ : kNone;
-}
-
-bool JSStackFrame::IsNative() {
-  return HasScript() && GetScript()->type() == Script::TYPE_NATIVE;
-}
-
-bool JSStackFrame::IsToplevel() {
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
-}
-
-int JSStackFrame::GetPosition() const {
-  if (cached_position_) return *cached_position_;
-
-  Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
-  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
-  cached_position_ = code_->SourcePosition(offset_);
-  return *cached_position_;
-}
-
-bool JSStackFrame::HasScript() const {
-  return function_->shared().script().IsScript();
-}
-
-Handle<Script> JSStackFrame::GetScript() const {
-  return handle(Script::cast(function_->shared().script()), isolate_);
-}
-
-void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
-                                    int frame_ix) {
-  // This function is called for compiled and interpreted wasm frames, and for
-  // asm.js->wasm frames.
-  DCHECK(array->IsWasmFrame(frame_ix) ||
-         array->IsAsmJsWasmFrame(frame_ix));
-  isolate_ = isolate;
-  wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
-  wasm_func_index_ = array->WasmFunctionIndex(frame_ix).value();
-  // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
-  auto global_wasm_code_ref =
-      Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
-  code_ = global_wasm_code_ref.get()->code();
-  offset_ = array->Offset(frame_ix).value();
-}
-
-Handle<Object> WasmStackFrame::GetReceiver() const { return wasm_instance_; }
-
-Handle<Object> WasmStackFrame::GetFunction() const {
-  return handle(Smi::FromInt(wasm_func_index_), isolate_);
-}
-
-Handle<PrimitiveHeapObject> WasmStackFrame::GetFunctionName() {
-  Handle<PrimitiveHeapObject> name;
-  Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
-                                         isolate_);
-  if (!WasmModuleObject::GetFunctionNameOrNull(isolate_, module_object,
-                                               wasm_func_index_)
-           .ToHandle(&name)) {
-    name = isolate_->factory()->null_value();
-  }
-  return name;
-}
-
-Handle<Object> WasmStackFrame::GetScriptNameOrSourceUrl() {
-  Handle<Script> script = GetScript();
-  DCHECK_EQ(Script::TYPE_WASM, script->type());
-  return ScriptNameOrSourceUrl(script, isolate_);
-}
-
-Handle<PrimitiveHeapObject> WasmStackFrame::GetWasmModuleName() {
-  Handle<PrimitiveHeapObject> module_name;
-  Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
-                                         isolate_);
-  if (!WasmModuleObject::GetModuleNameOrNull(isolate_, module_object)
-           .ToHandle(&module_name)) {
-    module_name = isolate_->factory()->null_value();
-  }
-  return module_name;
-}
-
-Handle<HeapObject> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
-
-int WasmStackFrame::GetPosition() const {
-  return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
-}
-
-int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
-
-int WasmStackFrame::GetEnclosingColumnNumber() {
-  const int function_offset =
-      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
-  return function_offset;
-}
-
-int WasmStackFrame::GetModuleOffset() const {
-  const int function_offset =
-      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
-  return function_offset + GetPosition();
-}
-
-Handle<Object> WasmStackFrame::GetFileName() { return Null(); }
-
-Handle<PrimitiveHeapObject> WasmStackFrame::Null() const {
-  return isolate_->factory()->null_value();
-}
-
-bool WasmStackFrame::HasScript() const { return true; }
-
-Handle<Script> WasmStackFrame::GetScript() const {
-  return handle(wasm_instance_->module_object().script(), isolate_);
-}
-
-void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
-                                         Handle<FrameArray> array,
-                                         int frame_ix) {
-  DCHECK(array->IsAsmJsWasmFrame(frame_ix));
-  WasmStackFrame::FromFrameArray(isolate, array, frame_ix);
-  is_at_number_conversion_ =
-      array->Flags(frame_ix).value() & FrameArray::kAsmJsAtNumberConversion;
-}
-
-Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
-  return isolate_->global_proxy();
-}
-
-Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
-  // TODO(clemensb): Return lazily created JSFunction.
-  return Null();
-}
-
-Handle<Object> AsmJsWasmStackFrame::GetFileName() {
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  return handle(script->name(), isolate_);
-}
-
-Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK_EQ(Script::TYPE_NORMAL, script->type());
-  return ScriptNameOrSourceUrl(script, isolate_);
-}
-
-int AsmJsWasmStackFrame::GetPosition() const {
-  DCHECK_LE(0, offset_);
-  int byte_offset = code_->GetSourcePositionBefore(offset_);
-  const wasm::WasmModule* module = wasm_instance_->module();
-  return GetSourcePosition(module, wasm_func_index_, byte_offset,
-                           is_at_number_conversion_);
-}
-
-int AsmJsWasmStackFrame::GetLineNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  return Script::GetLineNumber(script, GetPosition()) + 1;
-}
-
-int AsmJsWasmStackFrame::GetColumnNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  return Script::GetColumnNumber(script, GetPosition()) + 1;
-}
-
-int AsmJsWasmStackFrame::GetEnclosingLineNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  int byte_offset = GetSourcePosition(wasm_instance_->module(),
-                                      wasm_func_index_, 0,
-                                      is_at_number_conversion_);
-  return Script::GetLineNumber(script, byte_offset) + 1;
-}
-
-int AsmJsWasmStackFrame::GetEnclosingColumnNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  int byte_offset = GetSourcePosition(wasm_instance_->module(),
-                                      wasm_func_index_, 0,
-                                      is_at_number_conversion_);
-  return Script::GetColumnNumber(script, byte_offset) + 1;
-}
-
-FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
-                                       Handle<FrameArray> array, int frame_ix)
-    : isolate_(isolate), array_(array), frame_ix_(frame_ix) {}
-
-bool FrameArrayIterator::HasFrame() const {
-  return (frame_ix_ < array_->FrameCount());
-}
-
-void FrameArrayIterator::Advance() { frame_ix_++; }
-
-StackFrameBase* FrameArrayIterator::Frame() {
-  DCHECK(HasFrame());
-  const int flags = array_->Flags(frame_ix_).value();
-  int flag_mask = FrameArray::kIsWasmFrame | FrameArray::kIsAsmJsWasmFrame;
-  switch (flags & flag_mask) {
-    case 0:
-      js_frame_.FromFrameArray(isolate_, array_, frame_ix_);
-      return &js_frame_;
-    case FrameArray::kIsWasmFrame:
-      wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
-      return &wasm_frame_;
-    case FrameArray::kIsAsmJsWasmFrame:
-      asm_wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
-      return &asm_wasm_frame_;
-    default:
-      UNREACHABLE();
-  }
-}
-
-namespace {
-
-MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
-                                      Handle<StackTraceFrame> frame) {
-  Handle<JSFunction> target =
-      handle(isolate->native_context()->callsite_function(), isolate);
-
-  Handle<JSObject> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, target, Handle<AllocationSite>::null()), Object);
-
-  // TODO(szuend): Introduce a new symbol "call_site_frame_symbol" and set
-  //               it to the StackTraceFrame. The CallSite API builtins can then
-  //               be implemented using StackFrameInfo objects.
-
-  Handle<FrameArray> frame_array(FrameArray::cast(frame->frame_array()),
-                                 isolate);
-  int frame_index = frame->frame_index();
-
-  Handle<Symbol> key = isolate->factory()->call_site_frame_array_symbol();
-  RETURN_ON_EXCEPTION(isolate,
-                      JSObject::SetOwnPropertyIgnoreAttributes(
-                          obj, key, frame_array, DONT_ENUM),
-                      Object);
-
-  key = isolate->factory()->call_site_frame_index_symbol();
-  Handle<Object> value(Smi::FromInt(frame_index), isolate);
-  RETURN_ON_EXCEPTION(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(obj, key, value, DONT_ENUM),
-      Object);
-
-  return obj;
-}
-
 // Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
 // a JSArray of JSCallSite objects.
 MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
-                                    Handle<FixedArray> elems) {
-  const int frame_count = elems->length();
-
-  Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
-  for (int i = 0; i < frame_count; i++) {
-    Handle<Object> site;
-    Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
-                                  isolate);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, site, ConstructCallSite(isolate, frame),
-                               JSArray);
-    frames->set(i, *site);
+                                    Handle<FixedArray> frames) {
+  int frame_count = frames->length();
+  Handle<JSFunction> constructor = isolate->callsite_function();
+  Handle<FixedArray> sites = isolate->factory()->NewFixedArray(frame_count);
+  for (int i = 0; i < frame_count; ++i) {
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), isolate);
+    Handle<JSObject> site;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, site,
+        JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
+        JSArray);
+    RETURN_ON_EXCEPTION(isolate,
+                        JSObject::SetOwnPropertyIgnoreAttributes(
+                            site, isolate->factory()->call_site_info_symbol(),
+                            frame, DONT_ENUM),
+                        JSArray);
+    sites->set(i, *site);
   }
 
-  return isolate->factory()->NewJSArrayWithElements(frames);
+  return isolate->factory()->NewJSArrayWithElements(sites);
 }
 
 MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
@@ -822,10 +260,10 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
       isolate->set_external_caught_exception(false);
-      builder->AppendCString("<error>");
+      builder->AppendCStringLiteral("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
-      builder->AppendCString("<error: ");
+      builder->AppendCStringLiteral("<error: ");
       builder->AppendString(err_str.ToHandleChecked());
       builder->AppendCharacter('>');
     }
@@ -836,7 +274,7 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
   return error;
 }
 
-class PrepareStackTraceScope {
+class V8_NODISCARD PrepareStackTraceScope {
  public:
   explicit PrepareStackTraceScope(Isolate* isolate) : isolate_(isolate) {
     DCHECK(!isolate_->formatting_stack_trace());
@@ -845,10 +283,11 @@ class PrepareStackTraceScope {
 
   ~PrepareStackTraceScope() { isolate_->set_formatting_stack_trace(false); }
 
+  PrepareStackTraceScope(const PrepareStackTraceScope&) = delete;
+  PrepareStackTraceScope& operator=(const PrepareStackTraceScope&) = delete;
+
  private:
   Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrepareStackTraceScope);
 };
 
 }  // namespace
@@ -857,12 +296,17 @@ class PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    return isolate->factory()->empty_string();
+  }
   DCHECK(raw_stack->IsFixedArray());
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
-  if (!in_recursion) {
-    Handle<Context> error_context = error->GetCreationContext();
+  const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
+  Handle<Context> error_context;
+  if (!in_recursion && !has_overflowed &&
+      error->GetCreationContext().ToHandle(&error_context)) {
     DCHECK(error_context->IsNativeContext());
 
     if (isolate->HasPrepareStackTraceCallback()) {
@@ -901,7 +345,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                    GetStackFrames(isolate, elems), Object);
 
         const int argc = 2;
-        ScopedVector<Handle<Object>> argv(argc);
+        base::ScopedVector<Handle<Object>> argv(argc);
         argv[0] = error;
         argv[1] = sites;
 
@@ -919,20 +363,16 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   }
 
   // Otherwise, run our internal formatting logic.
-
   IncrementalStringBuilder builder(isolate);
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
-  wasm::WasmCodeRefScope wasm_code_ref_scope;
-
   for (int i = 0; i < elems->length(); ++i) {
-    builder.AppendCString("\n    at ");
+    builder.AppendCStringLiteral("\n    at ");
 
-    Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
-                                  isolate);
-    SerializeStackTraceFrame(isolate, frame, &builder);
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(elems->get(i)), isolate);
+    SerializeCallSiteInfo(isolate, frame, &builder);
 
     if (isolate->has_pending_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been
@@ -949,12 +389,12 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
 
-        builder.AppendCString("<error>");
+        builder.AppendCStringLiteral("<error>");
       } else {
         // Formatted thrown exception successfully, append it.
-        builder.AppendCString("<error: ");
+        builder.AppendCStringLiteral("<error: ");
         builder.AppendString(exception_string.ToHandleChecked());
-        builder.AppendCString("<error>");
+        builder.AppendCStringLiteral("<error>");
       }
     }
   }
@@ -985,7 +425,7 @@ Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    return factory->InternalizeString(StaticCharVector("<error>"));
+    return factory->InternalizeString(base::StaticCharVector("<error>"));
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it
@@ -1045,7 +485,8 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
 MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
                                             Handle<JSFunction> target,
                                             Handle<Object> new_target,
-                                            Handle<Object> message) {
+                                            Handle<Object> message,
+                                            Handle<Object> options) {
   FrameSkipMode mode = SKIP_FIRST;
   Handle<Object> caller;
 
@@ -1057,15 +498,15 @@ MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
     caller = new_target;
   }
 
-  return ErrorUtils::Construct(isolate, target, new_target, message, mode,
-                               caller,
-                               ErrorUtils::StackTraceCollection::kDetailed);
+  return ErrorUtils::Construct(isolate, target, new_target, message, options,
+                               mode, caller,
+                               ErrorUtils::StackTraceCollection::kEnabled);
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-    StackTraceCollection stack_trace_collection) {
+    Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
+    Handle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (FLAG_correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
     // accross correctness-fuzzing scenarios.
@@ -1098,7 +539,6 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   //     true, [[Enumerable]]: false, [[Configurable]]: true}.
   //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
   // 4. Return O.
-
   if (!message->IsUndefined(isolate)) {
     Handle<String> msg_string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
@@ -1110,17 +550,39 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
         JSObject);
   }
 
+  if (FLAG_harmony_error_cause && !options->IsUndefined(isolate)) {
+    // If Type(options) is Object and ? HasProperty(options, "cause") then
+    //   a. Let cause be ? Get(options, "cause").
+    //   b. Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
+    Handle<Name> cause_string = isolate->factory()->cause_string();
+    if (options->IsJSReceiver()) {
+      Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
+      Maybe<bool> has_cause =
+          JSObject::HasProperty(isolate, js_options, cause_string);
+      if (has_cause.IsNothing()) {
+        DCHECK((isolate)->has_pending_exception());
+        return MaybeHandle<JSObject>();
+      }
+      if (has_cause.ToChecked()) {
+        Handle<Object> cause;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, cause,
+            JSObject::GetProperty(isolate, js_options, cause_string), JSObject);
+        RETURN_ON_EXCEPTION(isolate,
+                            JSObject::SetOwnPropertyIgnoreAttributes(
+                                err, cause_string, cause, DONT_ENUM),
+                            JSObject);
+      }
+    }
+  }
+
   switch (stack_trace_collection) {
-    case StackTraceCollection::kDetailed:
-      RETURN_ON_EXCEPTION(
-          isolate, isolate->CaptureAndSetDetailedStackTrace(err), JSObject);
-      V8_FALLTHROUGH;
-    case StackTraceCollection::kSimple:
-      RETURN_ON_EXCEPTION(
-          isolate, isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
-          JSObject);
+    case StackTraceCollection::kEnabled:
+      RETURN_ON_EXCEPTION(isolate,
+                          isolate->CaptureAndSetErrorStack(err, mode, caller),
+                          JSObject);
       break;
-    case StackTraceCollection::kNone:
+    case StackTraceCollection::kDisabled:
       break;
   }
   return err;
@@ -1193,7 +655,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
   // the code unit 0x0020 (SPACE), and msg.
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(name);
-  builder.AppendCString(": ");
+  builder.AppendCStringLiteral(": ");
   builder.AppendString(msg);
 
   Handle<String> result;
@@ -1238,14 +700,15 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     isolate->clear_pending_exception();
   }
   Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
+  Handle<Object> options = isolate->factory()->undefined_value();
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
   // The call below can't fail because constructor is a builtin.
   DCHECK(constructor->shared().HasBuiltinId());
-  return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
-                               no_caller, StackTraceCollection::kDetailed)
+  return ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
+                               mode, no_caller, StackTraceCollection::kEnabled)
       .ToHandleChecked();
 }
 
@@ -1279,20 +742,28 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
 
   builder.AppendString(Object::TypeOf(isolate, object));
   if (object->IsString()) {
-    builder.AppendCString(" \"");
-    builder.AppendString(Handle<String>::cast(object));
-    builder.AppendCString("\"");
+    builder.AppendCStringLiteral(" \"");
+    Handle<String> string = Handle<String>::cast(object);
+    // This threshold must be sufficiently far below String::kMaxLength that
+    // the {builder}'s result can never exceed that limit.
+    constexpr int kMaxPrintedStringLength = 100;
+    if (string->length() <= kMaxPrintedStringLength) {
+      builder.AppendString(string);
+    } else {
+      string = isolate->factory()->NewProperSubString(string, 0,
+                                                      kMaxPrintedStringLength);
+      builder.AppendString(string);
+      builder.AppendCStringLiteral("<...>");
+    }
+    builder.AppendCStringLiteral("\"");
   } else if (object->IsNull(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->null_string());
+    builder.AppendCStringLiteral(" null");
   } else if (object->IsTrue(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->true_string());
+    builder.AppendCStringLiteral(" true");
   } else if (object->IsFalse(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->false_string());
+    builder.AppendCStringLiteral(" false");
   } else if (object->IsNumber()) {
-    builder.AppendCString(" ");
+    builder.AppendCharacter(' ');
     builder.AppendString(isolate->factory()->NumberToString(object));
   }
 
@@ -1305,8 +776,9 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   if (ComputeLocation(isolate, location)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location->shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location->shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
@@ -1337,19 +809,18 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
     case CallPrinter::ErrorHint::kNone:
       return default_id;
   }
-  return default_id;
 }
 
 }  // namespace
 
-Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
-                                            Handle<Object> source) {
+Handle<JSObject> ErrorUtils::NewIteratorError(Isolate* isolate,
+                                              Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
 
-  if (hint == CallPrinter::kNone) {
+  if (hint == CallPrinter::ErrorHint::kNone) {
     Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
     return isolate->factory()->NewTypeError(id, callsite, iterator_symbol);
   }
@@ -1365,8 +836,9 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
   if (ComputeLocation(isolate, &location)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location.shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
@@ -1387,34 +859,30 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
     }
   }
 
-  Handle<Object> exception =
-      isolate->factory()->NewTypeError(id, callsite, object);
-  return isolate->Throw(*exception, &location);
+  isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
+                   &location);
+  return ReadOnlyRoots(isolate).exception();
 }
 
-Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
-                                                     Handle<Object> source) {
+Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
+                                                       Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kCalledNonCallable;
   id = UpdateErrorTemplate(hint, id);
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Handle<Object> ErrorUtils::NewConstructedNonConstructable(
+Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
     Isolate* isolate, Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kNotConstructor;
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                                Handle<Object> object) {
-  return ThrowLoadFromNullOrUndefined(isolate, object, MaybeHandle<Object>());
-}
 Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                                 Handle<Object> object,
                                                 MaybeHandle<Object> key) {
@@ -1427,6 +895,9 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
   if (key.ToHandle(&key_handle)) {
     if (key_handle->IsString()) {
       maybe_property_name = Handle<String>::cast(key_handle);
+    } else {
+      maybe_property_name =
+          Object::NoSideEffectsToMaybeString(isolate, key_handle);
     }
   }
 
@@ -1442,8 +913,9 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
 
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location.shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
@@ -1487,7 +959,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     callsite = BuildDefaultCallSite(isolate, object);
   }
 
-  Handle<Object> error;
+  Handle<JSObject> error;
   Handle<String> property_name;
   if (is_destructuring) {
     if (maybe_property_name.ToHandle(&property_name)) {
@@ -1499,19 +971,89 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                                callsite, object);
     }
   } else {
-    Handle<Object> key_handle;
-    if (!key.ToHandle(&key_handle)) {
-      key_handle = ReadOnlyRoots(isolate).undefined_value_handle();
-    }
-    if (*key_handle == ReadOnlyRoots(isolate).iterator_symbol()) {
+    if (!key.ToHandle(&key_handle) ||
+        !maybe_property_name.ToHandle(&property_name)) {
+      error = isolate->factory()->NewTypeError(
+          MessageTemplate::kNonObjectPropertyLoad, object);
+    } else if (*key_handle == ReadOnlyRoots(isolate).iterator_symbol()) {
       error = NewIteratorError(isolate, object);
     } else {
       error = isolate->factory()->NewTypeError(
-          MessageTemplate::kNonObjectPropertyLoad, key_handle, object);
+          MessageTemplate::kNonObjectPropertyLoadWithProperty, object,
+          property_name);
     }
   }
 
-  return isolate->Throw(*error, location_computed ? &location : nullptr);
+  if (location_computed) {
+    isolate->ThrowAt(error, &location);
+  } else {
+    isolate->Throw(*error);
+  }
+  return ReadOnlyRoots(isolate).exception();
+}
+
+// static
+MaybeHandle<Object> ErrorUtils::GetFormattedStack(
+    Isolate* isolate, Handle<JSObject> error_object) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      isolate, error_object, isolate->factory()->error_stack_symbol());
+  if (error_stack->IsErrorStackData()) {
+    Handle<ErrorStackData> error_stack_data =
+        Handle<ErrorStackData>::cast(error_stack);
+    if (error_stack_data->HasFormattedStack()) {
+      return handle(error_stack_data->formatted_stack(), isolate);
+    }
+    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
+    Handle<Object> formatted_stack;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, formatted_stack,
+        FormatStackTrace(isolate, error_object,
+                         handle(error_stack_data->call_site_infos(), isolate)),
+        Object);
+    error_stack_data->set_formatted_stack(*formatted_stack);
+    return formatted_stack;
+  }
+
+  if (error_stack->IsFixedArray()) {
+    Handle<Object> formatted_stack;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, formatted_stack,
+        FormatStackTrace(isolate, error_object,
+                         Handle<FixedArray>::cast(error_stack)),
+        Object);
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSObject::SetProperty(isolate, error_object,
+                              isolate->factory()->error_stack_symbol(),
+                              formatted_stack, StoreOrigin::kMaybeKeyed,
+                              Just(ShouldThrow::kThrowOnError)),
+        Object);
+    return formatted_stack;
+  }
+
+  return error_stack;
+}
+
+// static
+void ErrorUtils::SetFormattedStack(Isolate* isolate,
+                                   Handle<JSObject> error_object,
+                                   Handle<Object> formatted_stack) {
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      isolate, error_object, isolate->factory()->error_stack_symbol());
+  if (error_stack->IsErrorStackData()) {
+    Handle<ErrorStackData> error_stack_data =
+        Handle<ErrorStackData>::cast(error_stack);
+    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
+    error_stack_data->set_formatted_stack(*formatted_stack);
+  } else {
+    JSObject::SetProperty(isolate, error_object,
+                          isolate->factory()->error_stack_symbol(),
+                          formatted_stack, StoreOrigin::kMaybeKeyed,
+                          Just(ShouldThrow::kThrowOnError))
+        .Check();
+  }
 }
 
 }  // namespace internal

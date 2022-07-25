@@ -22,16 +22,18 @@ certificate request or CRL version
 =head1 DESCRIPTION
 
 X509_get_version() returns the numerical value of the version field of
-certificate B<x>. Note: this is defined by standards (X.509 et al) to be one
-less than the certificate version. So a version 3 certificate will return 2 and
-a version 1 certificate will return 0.
+certificate B<x>. These correspond to the constants B<X509_VERSION_1>,
+B<X509_VERSION_2>, and B<X509_VERSION_3>. Note: the values of these constants
+are defined by standards (X.509 et al) to be one less than the certificate
+version. So B<X509_VERSION_3> has value 2 and B<X509_VERSION_1> has value 0.
 
 X509_set_version() sets the numerical value of the version field of certificate
 B<x> to B<version>.
 
 Similarly X509_REQ_get_version(), X509_REQ_set_version(),
 X509_CRL_get_version() and X509_CRL_set_version() get and set the version
-number of certificate requests and CRLs.
+number of certificate requests and CRLs. They use constants
+B<X509_REQ_VERSION_1>, B<X509_CRL_VERSION_1>, and B<X509_CRL_VERSION_2>.
 
 =head1 NOTES
 
@@ -73,9 +75,9 @@ functions in OpenSSL 1.1.0, in previous versions they were macros.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -60,7 +60,7 @@ enum {
      * Ignore white space within patterns unless quoted or escaped.
      * @stable ICU 2.4
      */
-    USET_IGNORE_SPACE = 1,
+    USET_IGNORE_SPACE = 1,  
 
     /**
      * Enable case insensitive matching.  E.g., "[ab]" with this flag
@@ -88,7 +88,7 @@ enum {
      *
      * @stable ICU 2.4
      */
-    USET_CASE_INSENSITIVE = 2,
+    USET_CASE_INSENSITIVE = 2,  
 
     /**
      * Enable case insensitive matching.  E.g., "[ab]" with this flag
@@ -268,7 +268,7 @@ uset_openEmpty(void);
 
 /**
  * Creates a USet object that contains the range of characters
- * start..end, inclusive.  If <code>start > end</code>
+ * start..end, inclusive.  If <code>start > end</code> 
  * then an empty set is created (same as using uset_openEmpty()).
  * @param start first character of the range, inclusive
  * @param end last character of the range, inclusive
@@ -405,11 +405,11 @@ uset_set(USet* set,
 
 /**
  * Modifies the set to represent the set specified by the given
- * pattern. See the UnicodeSet class description for the syntax of
+ * pattern. See the UnicodeSet class description for the syntax of 
  * the pattern language. See also the User Guide chapter about UnicodeSet.
  * <em>Empties the set passed before applying the pattern.</em>
  * A frozen set will not be modified.
- * @param set               The set to which the pattern is to be applied.
+ * @param set               The set to which the pattern is to be applied. 
  * @param pattern           A pointer to UChar string specifying what characters are in the set.
  *                          The character at pattern[0] must be a '['.
  * @param patternLength     The length of the UChar string. -1 if NUL terminated.
@@ -417,14 +417,14 @@ uset_set(USet* set,
  *                          Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
  * @param status            Returns an error if the pattern cannot be parsed.
  * @return                  Upon successful parse, the value is either
- *                          the index of the character after the closing ']'
+ *                          the index of the character after the closing ']' 
  *                          of the parsed pattern.
- *                          If the status code indicates failure, then the return value
+ *                          If the status code indicates failure, then the return value 
  *                          is the index of the error in the source.
  *
  * @stable ICU 2.8
  */
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 uset_applyPattern(USet *set,
                   const UChar *pattern, int32_t patternLength,
                   uint32_t options,
@@ -582,8 +582,8 @@ U_CAPI void U_EXPORT2
 uset_addString(USet* set, const UChar* str, int32_t strLen);
 
 /**
- * Adds each of the characters in this string to the set. Thus "ch" => {"c", "h"}
- * If this set already any particular character, it has no effect on that character.
+ * Adds each of the characters in this string to the set. Note: "ch" => {"c", "h"}
+ * If this set already contains any particular character, it has no effect on that character.
  * A frozen set will not be modified.
  * @param set the object to which to add the character
  * @param str the source string
@@ -629,6 +629,18 @@ U_CAPI void U_EXPORT2
 uset_removeString(USet* set, const UChar* str, int32_t strLen);
 
 /**
+ * Removes EACH of the characters in this string. Note: "ch" == {"c", "h"}
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param str the string
+ * @param length the length of the string, or -1 if NUL-terminated
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_removeAllCodePoints(USet *set, const UChar *str, int32_t length);
+
+/**
  * Removes from this set all of its elements that are contained in the
  * specified set.  This operation effectively modifies this
  * set so that its value is the <i>asymmetric set difference</i> of
@@ -650,14 +662,38 @@ uset_removeAll(USet* set, const USet* removeSet);
  * A frozen set will not be modified.
  *
  * @param set the object for which to retain only the specified range
- * @param start first character, inclusive, of range to be retained
- * to this set.
- * @param end last character, inclusive, of range to be retained
- * to this set.
+ * @param start first character, inclusive, of range
+ * @param end last character, inclusive, of range
  * @stable ICU 3.2
  */
 U_CAPI void U_EXPORT2
 uset_retain(USet* set, UChar32 start, UChar32 end);
+
+/**
+ * Retains only the specified string from this set if it is present.
+ * Upon return this set will be empty if it did not contain s, or
+ * will only contain s if it did contain s.
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param str the string
+ * @param length the length of the string, or -1 if NUL-terminated
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_retainString(USet *set, const UChar *str, int32_t length);
+
+/**
+ * Retains EACH of the characters in this string. Note: "ch" == {"c", "h"}
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param str the string
+ * @param length the length of the string, or -1 if NUL-terminated
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_retainAllCodePoints(USet *set, const UChar *str, int32_t length);
 
 /**
  * Retains only the elements in this set that are contained in the
@@ -679,22 +715,68 @@ uset_retainAll(USet* set, const USet* retain);
  * possible space, without changing this object's value.
  * A frozen set will not be modified.
  *
- * @param set the object on which to perfrom the compact
+ * @param set the object on which to perform the compact
  * @stable ICU 3.2
  */
 U_CAPI void U_EXPORT2
 uset_compact(USet* set);
 
 /**
- * Inverts this set.  This operation modifies this set so that
- * its value is its complement.  This operation does not affect
- * the multicharacter strings, if any.
+ * This is equivalent to
+ * <code>uset_complementRange(set, 0, 0x10FFFF)</code>.
+ *
+ * <strong>Note:</strong> This performs a symmetric difference with all code points
+ * <em>and thus retains all multicharacter strings</em>.
+ * In order to achieve a “code point complement” (all code points minus this set),
+ * the easiest is to <code>uset_complement(set); uset_removeAllStrings(set);</code>.
+ *
  * A frozen set will not be modified.
  * @param set the set
  * @stable ICU 2.4
  */
 U_CAPI void U_EXPORT2
 uset_complement(USet* set);
+
+/**
+ * Complements the specified range in this set.  Any character in
+ * the range will be removed if it is in this set, or will be
+ * added if it is not in this set.  If <code>start > end</code>
+ * then an empty range is complemented, leaving the set unchanged.
+ * This is equivalent to a boolean logic XOR.
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param start first character, inclusive, of range
+ * @param end last character, inclusive, of range
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_complementRange(USet *set, UChar32 start, UChar32 end);
+
+/**
+ * Complements the specified string in this set.
+ * The string will be removed if it is in this set, or will be added if it is not in this set.
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param str the string
+ * @param length the length of the string, or -1 if NUL-terminated
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_complementString(USet *set, const UChar *str, int32_t length);
+
+/**
+ * Complements EACH of the characters in this string. Note: "ch" == {"c", "h"}
+ * A frozen set will not be modified.
+ *
+ * @param set the object to be modified
+ * @param str the string
+ * @param length the length of the string, or -1 if NUL-terminated
+ * @stable ICU 69
+ */
+U_CAPI void U_EXPORT2
+uset_complementAllCodePoints(USet *set, const UChar *str, int32_t length);
 
 /**
  * Complements in this set all elements contained in the specified
@@ -768,6 +850,16 @@ uset_removeAllStrings(USet* set);
 U_CAPI UBool U_EXPORT2
 uset_isEmpty(const USet* set);
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * @param set the set
+ * @return true if this set contains multi-character strings or the empty string.
+ * @draft ICU 70
+ */
+U_CAPI UBool U_EXPORT2
+uset_hasStrings(const USet *set);
+#endif  // U_HIDE_DRAFT_API
+
 /**
  * Returns true if the given USet contains the given character.
  * This function works faster with a frozen set.
@@ -818,8 +910,13 @@ uset_indexOf(const USet* set, UChar32 c);
 /**
  * Returns the character at the given index within this set, where
  * the set is ordered by ascending code point.  If the index is
- * out of range, return (UChar32)-1.  The inverse of this method is
- * <code>indexOf()</code>.
+ * out of range for characters, returns (UChar32)-1.
+ * The inverse of this method is <code>indexOf()</code>.
+ *
+ * For iteration, this is slower than uset_getRangeCount()/uset_getItemCount()
+ * with uset_getItem(), because for each call it skips linearly over <code>index</code>
+ * characters in the ranges.
+ *
  * @param set the set
  * @param charIndex an index from 0..size()-1 to obtain the char for
  * @return the character at the given index, or (UChar32)-1.
@@ -829,15 +926,33 @@ U_CAPI UChar32 U_EXPORT2
 uset_charAt(const USet* set, int32_t charIndex);
 
 /**
- * Returns the number of characters and strings contained in the given
- * USet.
+ * Returns the number of characters and strings contained in this set.
+ * The last (uset_getItemCount() - uset_getRangeCount()) items are strings.
+ *
+ * This is slower than uset_getRangeCount() and uset_getItemCount() because
+ * it counts the code points of all ranges.
+ *
  * @param set the set
  * @return a non-negative integer counting the characters and strings
  * contained in set
  * @stable ICU 2.4
+ * @see uset_getRangeCount
  */
 U_CAPI int32_t U_EXPORT2
 uset_size(const USet* set);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * @param set the set
+ * @return the number of ranges in this set.
+ * @draft ICU 70
+ * @see uset_getItemCount
+ * @see uset_getItem
+ * @see uset_size
+ */
+U_CAPI int32_t U_EXPORT2
+uset_getRangeCount(const USet *set);
+#endif  // U_HIDE_DRAFT_API
 
 /**
  * Returns the number of items in this set.  An item is either a range
@@ -852,20 +967,30 @@ uset_getItemCount(const USet* set);
 
 /**
  * Returns an item of this set.  An item is either a range of
- * characters or a single multicharacter string.
+ * characters or a single multicharacter string (which can be the empty string).
+ *
+ * If <code>itemIndex</code> is less than uset_getRangeCount(), then this function returns 0,
+ * and the range is <code>*start</code>..<code>*end</code>.
+ *
+ * If <code>itemIndex</code> is at least uset_getRangeCount() and less than uset_getItemCount(), then
+ * this function copies the string into <code>str[strCapacity]</code> and
+ * returns the length of the string (0 for the empty string).
+ *
+ * If <code>itemIndex</code> is out of range, then this function returns -1.
+ *
+ * Note that 0 is returned for each range as well as for the empty string.
+ *
  * @param set the set
- * @param itemIndex a non-negative integer in the range 0..
- * uset_getItemCount(set)-1
- * @param start pointer to variable to receive first character
- * in range, inclusive
- * @param end pointer to variable to receive last character in range,
- * inclusive
+ * @param itemIndex a non-negative integer in the range 0..uset_getItemCount(set)-1
+ * @param start pointer to variable to receive first character in range, inclusive;
+ *              can be NULL for a string item
+ * @param end pointer to variable to receive last character in range, inclusive;
+ *            can be NULL for a string item
  * @param str buffer to receive the string, may be NULL
  * @param strCapacity capacity of str, or 0 if str is NULL
- * @param ec error code
- * @return the length of the string (>= 2), or 0 if the item is a
- * range, in which case it is the range *start..*end, or -1 if
- * itemIndex is out of range
+ * @param ec error code; U_INDEX_OUTOFBOUNDS_ERROR if the itemIndex is out of range
+ * @return the length of the string (0 or >= 2), or 0 if the item is a range,
+ *         or -1 if the itemIndex is out of range
  * @stable ICU 2.4
  */
 U_CAPI int32_t U_EXPORT2

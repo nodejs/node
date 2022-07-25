@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -184,7 +184,7 @@ static const BN_ULONG _nist_p_521_sqr[] = {
 # error "unsupported BN_BITS2"
 #endif
 
-static const BIGNUM _bignum_nist_p_192 = {
+static const BIGNUM ossl_bignum_nist_p_192 = {
     (BN_ULONG *)_nist_p_192[0],
     BN_NIST_192_TOP,
     BN_NIST_192_TOP,
@@ -192,7 +192,7 @@ static const BIGNUM _bignum_nist_p_192 = {
     BN_FLG_STATIC_DATA
 };
 
-static const BIGNUM _bignum_nist_p_224 = {
+static const BIGNUM ossl_bignum_nist_p_224 = {
     (BN_ULONG *)_nist_p_224[0],
     BN_NIST_224_TOP,
     BN_NIST_224_TOP,
@@ -200,7 +200,7 @@ static const BIGNUM _bignum_nist_p_224 = {
     BN_FLG_STATIC_DATA
 };
 
-static const BIGNUM _bignum_nist_p_256 = {
+static const BIGNUM ossl_bignum_nist_p_256 = {
     (BN_ULONG *)_nist_p_256[0],
     BN_NIST_256_TOP,
     BN_NIST_256_TOP,
@@ -208,7 +208,7 @@ static const BIGNUM _bignum_nist_p_256 = {
     BN_FLG_STATIC_DATA
 };
 
-static const BIGNUM _bignum_nist_p_384 = {
+static const BIGNUM ossl_bignum_nist_p_384 = {
     (BN_ULONG *)_nist_p_384[0],
     BN_NIST_384_TOP,
     BN_NIST_384_TOP,
@@ -216,7 +216,7 @@ static const BIGNUM _bignum_nist_p_384 = {
     BN_FLG_STATIC_DATA
 };
 
-static const BIGNUM _bignum_nist_p_521 = {
+static const BIGNUM ossl_bignum_nist_p_521 = {
     (BN_ULONG *)_nist_p_521,
     BN_NIST_521_TOP,
     BN_NIST_521_TOP,
@@ -226,40 +226,51 @@ static const BIGNUM _bignum_nist_p_521 = {
 
 const BIGNUM *BN_get0_nist_prime_192(void)
 {
-    return &_bignum_nist_p_192;
+    return &ossl_bignum_nist_p_192;
 }
 
 const BIGNUM *BN_get0_nist_prime_224(void)
 {
-    return &_bignum_nist_p_224;
+    return &ossl_bignum_nist_p_224;
 }
 
 const BIGNUM *BN_get0_nist_prime_256(void)
 {
-    return &_bignum_nist_p_256;
+    return &ossl_bignum_nist_p_256;
 }
 
 const BIGNUM *BN_get0_nist_prime_384(void)
 {
-    return &_bignum_nist_p_384;
+    return &ossl_bignum_nist_p_384;
 }
 
 const BIGNUM *BN_get0_nist_prime_521(void)
 {
-    return &_bignum_nist_p_521;
+    return &ossl_bignum_nist_p_521;
 }
 
-static void nist_cp_bn_0(BN_ULONG *dst, const BN_ULONG *src, int top, int max)
-{
-    int i;
-
-#ifdef BN_DEBUG
-    (void)ossl_assert(top <= max);
-#endif
-    for (i = 0; i < top; i++)
-        dst[i] = src[i];
-    for (; i < max; i++)
-        dst[i] = 0;
+/*
+ * To avoid more recent compilers (specifically clang-14) from treating this
+ * code as a violation of the strict aliasing conditions and omiting it, this
+ * cannot be declared as a function.  Moreover, the dst parameter cannot be
+ * cached in a local since this no longer references the union and again falls
+ * foul of the strict aliasing criteria.  Refer to #18225 for the initial
+ * diagnostics and llvm/llvm-project#55255 for the later discussions with the
+ * LLVM developers.  The problem boils down to if an array in the union is
+ * converted to a pointer or if it is used directly.
+ *
+ * This function was inlined regardless, so there is no space cost to be
+ * paid for making it a macro.
+ */
+#define nist_cp_bn_0(dst, src_in, top, max) \
+{                                           \
+    int ii;                                 \
+    const BN_ULONG *src = src_in;           \
+                                            \
+    for (ii = 0; ii < top; ii++)            \
+        (dst)[ii] = src[ii];                \
+    for (; ii < max; ii++)                  \
+        (dst)[ii] = 0;                      \
 }
 
 static void nist_cp_bn(BN_ULONG *dst, const BN_ULONG *src, int top)
@@ -328,16 +339,16 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     } buf;
     BN_ULONG c_d[BN_NIST_192_TOP], *res;
     PTR_SIZE_INT mask;
-    static const BIGNUM _bignum_nist_p_192_sqr = {
+    static const BIGNUM ossl_bignum_nist_p_192_sqr = {
         (BN_ULONG *)_nist_p_192_sqr,
         OSSL_NELEM(_nist_p_192_sqr),
         OSSL_NELEM(_nist_p_192_sqr),
         0, BN_FLG_STATIC_DATA
     };
 
-    field = &_bignum_nist_p_192; /* just to make sure */
+    field = &ossl_bignum_nist_p_192; /* just to make sure */
 
-    if (BN_is_negative(a) || BN_ucmp(a, &_bignum_nist_p_192_sqr) >= 0)
+    if (BN_is_negative(a) || BN_ucmp(a, &ossl_bignum_nist_p_192_sqr) >= 0)
         return BN_nnmod(r, a, field, ctx);
 
     i = BN_ucmp(field, a);
@@ -473,16 +484,16 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         bn_addsub_f f;
         PTR_SIZE_INT p;
     } u;
-    static const BIGNUM _bignum_nist_p_224_sqr = {
+    static const BIGNUM ossl_bignum_nist_p_224_sqr = {
         (BN_ULONG *)_nist_p_224_sqr,
         OSSL_NELEM(_nist_p_224_sqr),
         OSSL_NELEM(_nist_p_224_sqr),
         0, BN_FLG_STATIC_DATA
     };
 
-    field = &_bignum_nist_p_224; /* just to make sure */
+    field = &ossl_bignum_nist_p_224; /* just to make sure */
 
-    if (BN_is_negative(a) || BN_ucmp(a, &_bignum_nist_p_224_sqr) >= 0)
+    if (BN_is_negative(a) || BN_ucmp(a, &ossl_bignum_nist_p_224_sqr) >= 0)
         return BN_nnmod(r, a, field, ctx);
 
     i = BN_ucmp(field, a);
@@ -654,16 +665,16 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         bn_addsub_f f;
         PTR_SIZE_INT p;
     } u;
-    static const BIGNUM _bignum_nist_p_256_sqr = {
+    static const BIGNUM ossl_bignum_nist_p_256_sqr = {
         (BN_ULONG *)_nist_p_256_sqr,
         OSSL_NELEM(_nist_p_256_sqr),
         OSSL_NELEM(_nist_p_256_sqr),
         0, BN_FLG_STATIC_DATA
     };
 
-    field = &_bignum_nist_p_256; /* just to make sure */
+    field = &ossl_bignum_nist_p_256; /* just to make sure */
 
-    if (BN_is_negative(a) || BN_ucmp(a, &_bignum_nist_p_256_sqr) >= 0)
+    if (BN_is_negative(a) || BN_ucmp(a, &ossl_bignum_nist_p_256_sqr) >= 0)
         return BN_nnmod(r, a, field, ctx);
 
     i = BN_ucmp(field, a);
@@ -900,16 +911,16 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         bn_addsub_f f;
         PTR_SIZE_INT p;
     } u;
-    static const BIGNUM _bignum_nist_p_384_sqr = {
+    static const BIGNUM ossl_bignum_nist_p_384_sqr = {
         (BN_ULONG *)_nist_p_384_sqr,
         OSSL_NELEM(_nist_p_384_sqr),
         OSSL_NELEM(_nist_p_384_sqr),
         0, BN_FLG_STATIC_DATA
     };
 
-    field = &_bignum_nist_p_384; /* just to make sure */
+    field = &ossl_bignum_nist_p_384; /* just to make sure */
 
-    if (BN_is_negative(a) || BN_ucmp(a, &_bignum_nist_p_384_sqr) >= 0)
+    if (BN_is_negative(a) || BN_ucmp(a, &ossl_bignum_nist_p_384_sqr) >= 0)
         return BN_nnmod(r, a, field, ctx);
 
     i = BN_ucmp(field, a);
@@ -1158,16 +1169,16 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     int top = a->top, i;
     BN_ULONG *r_d, *a_d = a->d, t_d[BN_NIST_521_TOP], val, tmp, *res;
     PTR_SIZE_INT mask;
-    static const BIGNUM _bignum_nist_p_521_sqr = {
+    static const BIGNUM ossl_bignum_nist_p_521_sqr = {
         (BN_ULONG *)_nist_p_521_sqr,
         OSSL_NELEM(_nist_p_521_sqr),
         OSSL_NELEM(_nist_p_521_sqr),
         0, BN_FLG_STATIC_DATA
     };
 
-    field = &_bignum_nist_p_521; /* just to make sure */
+    field = &ossl_bignum_nist_p_521; /* just to make sure */
 
-    if (BN_is_negative(a) || BN_ucmp(a, &_bignum_nist_p_521_sqr) >= 0)
+    if (BN_is_negative(a) || BN_ucmp(a, &ossl_bignum_nist_p_521_sqr) >= 0)
         return BN_nnmod(r, a, field, ctx);
 
     i = BN_ucmp(field, a);
@@ -1225,15 +1236,15 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
 
 int (*BN_nist_mod_func(const BIGNUM *p)) (BIGNUM *r, const BIGNUM *a,
                                           const BIGNUM *field, BN_CTX *ctx) {
-    if (BN_ucmp(&_bignum_nist_p_192, p) == 0)
+    if (BN_ucmp(&ossl_bignum_nist_p_192, p) == 0)
         return BN_nist_mod_192;
-    if (BN_ucmp(&_bignum_nist_p_224, p) == 0)
+    if (BN_ucmp(&ossl_bignum_nist_p_224, p) == 0)
         return BN_nist_mod_224;
-    if (BN_ucmp(&_bignum_nist_p_256, p) == 0)
+    if (BN_ucmp(&ossl_bignum_nist_p_256, p) == 0)
         return BN_nist_mod_256;
-    if (BN_ucmp(&_bignum_nist_p_384, p) == 0)
+    if (BN_ucmp(&ossl_bignum_nist_p_384, p) == 0)
         return BN_nist_mod_384;
-    if (BN_ucmp(&_bignum_nist_p_521, p) == 0)
+    if (BN_ucmp(&ossl_bignum_nist_p_521, p) == 0)
         return BN_nist_mod_521;
     return 0;
 }

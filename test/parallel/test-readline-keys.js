@@ -136,7 +136,6 @@ addTest('a\x1baA\x1bA', [
 ]);
 
 // xterm/gnome ESC [ letter (with modifiers)
-/* eslint-disable max-len */
 addTest('\x1b[2P\x1b[3P\x1b[4P\x1b[5P\x1b[6P\x1b[7P\x1b[8P\x1b[3Q\x1b[8Q\x1b[3R\x1b[8R\x1b[3S\x1b[8S', [
   { name: 'f1', sequence: '\x1b[2P', code: '[P', shift: true, meta: false, ctrl: false },
   { name: 'f1', sequence: '\x1b[3P', code: '[P', shift: false, meta: true, ctrl: false },
@@ -152,7 +151,6 @@ addTest('\x1b[2P\x1b[3P\x1b[4P\x1b[5P\x1b[6P\x1b[7P\x1b[8P\x1b[3Q\x1b[8Q\x1b[3R\
   { name: 'f4', sequence: '\x1b[3S', code: '[S', meta: true },
   { name: 'f4', sequence: '\x1b[8S', code: '[S', shift: true, meta: true, ctrl: true },
 ]);
-/* eslint-enable max-len */
 
 // xterm/gnome ESC O letter
 addTest('\x1bOP\x1bOQ\x1bOR\x1bOS', [
@@ -250,7 +248,6 @@ addTest('\x1b[A\x1b[B\x1b[2A\x1b[2B', [
 ]);
 
 // `rxvt` keys with modifiers.
-// eslint-disable-next-line max-len
 addTest('\x1b[20~\x1b[2$\x1b[2^\x1b[3$\x1b[3^\x1b[5$\x1b[5^\x1b[6$\x1b[6^\x1b[7$\x1b[7^\x1b[8$\x1b[8^', [
   { name: 'f9', sequence: '\x1b[20~', code: '[20~' },
   { name: 'insert', sequence: '\x1b[2$', code: '[2$', shift: true },
@@ -332,15 +329,15 @@ addTest('\x1bOa\x1bOb\x1bOc\x1bOd\x1bOe', [
 const runKeyIntervalTests = [
   // Escape character
   addKeyIntervalTest('\x1b', [
-    { name: 'escape', sequence: '\x1b', meta: true }
+    { name: 'escape', sequence: '\x1b', meta: true },
   ]),
   // Chain of escape characters.
   addKeyIntervalTest('\x1b\x1b\x1b\x1b'.split(''), [
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true },
-    { name: 'escape', sequence: '\x1b', meta: true }
-  ])
+    { name: 'escape', sequence: '\x1b', meta: true },
+  ]),
 ].reverse().reduce((acc, fn) => fn(acc), () => {});
 
 // Run key interval tests one after another.

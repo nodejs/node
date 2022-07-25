@@ -3,8 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/extensions/vtunedomain-support-extension.h"
+
 #include <string>
 #include <vector>
+
+#include "include/v8-isolate.h"
+#include "include/v8-template.h"
 
 namespace v8 {
 namespace internal {
@@ -109,10 +113,9 @@ void VTuneDomainSupportExtension::Mark(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 3 || !args[0]->IsString() || !args[1]->IsString() ||
       !args[2]->IsString()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
+    args.GetIsolate()->ThrowError(
         "Parameter number should be exactly three, first domain name"
-        "second task name, third start/end"));
+        "second task name, third start/end");
     return;
   }
 
@@ -130,7 +133,7 @@ void VTuneDomainSupportExtension::Mark(
 
   int r = 0;
   if ((r = libvtune::invoke(params.str().c_str())) != 0) {
-    args.GetIsolate()->ThrowException(
+    args.GetIsolate()->ThrowError(
         v8::String::NewFromUtf8(args.GetIsolate(), std::to_string(r).c_str())
             .ToLocalChecked());
   }

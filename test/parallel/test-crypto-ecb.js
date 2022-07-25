@@ -27,6 +27,10 @@ if (!common.hasCrypto)
 if (common.hasFipsCrypto)
   common.skip('BF-ECB is not FIPS 140-2 compatible');
 
+if (common.hasOpenSSL3)
+  common.skip('Blowfish is only available with the legacy provider in ' +
+    'OpenSSl 3.x');
+
 const assert = require('assert');
 const crypto = require('crypto');
 

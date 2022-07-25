@@ -8,6 +8,10 @@ RSA_sign_ASN1_OCTET_STRING, RSA_verify_ASN1_OCTET_STRING - RSA signatures
 
  #include <openssl/rsa.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  int RSA_sign_ASN1_OCTET_STRING(int dummy, unsigned char *m,
                                 unsigned int m_len, unsigned char *sigret,
                                 unsigned int *siglen, RSA *rsa);
@@ -17,6 +21,9 @@ RSA_sign_ASN1_OCTET_STRING, RSA_verify_ASN1_OCTET_STRING - RSA signatures
                                   unsigned int siglen, RSA *rsa);
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use EVP PKEY APIs.
 
 RSA_sign_ASN1_OCTET_STRING() signs the octet string B<m> of size
 B<m_len> using the private key B<rsa> represented in DER using PKCS #1
@@ -55,11 +62,15 @@ L<RAND_bytes(3)>, L<RSA_sign(3)>,
 L<RSA_verify(3)>,
 L<RAND(7)>
 
+=head1 HISTORY
+
+All of these functions were deprecated in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

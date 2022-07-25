@@ -48,10 +48,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() {
-  return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
-}
-
 void RelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
@@ -143,25 +139,17 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(index);
 }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(DecompressTaggedAny(
-        host_.address(),
+        cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return HeapObject::cast(
         Object(Assembler::target_address_at(pc_, constant_pool_)));
-  }
-}
-
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(DecompressTaggedAny(
-        isolate,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
-  } else {
-    return target_object();
   }
 }
 
@@ -173,7 +161,9 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsRelativeCodeTarget(rmode_) || IsCodeTarget(rmode_) ||
          IsEmbeddedObjectMode(rmode_));
-  if (IsCodeTarget(rmode_) || IsRelativeCodeTarget(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+  } else if (IsCodeTarget(rmode_) || IsRelativeCodeTarget(rmode_)) {
     return Handle<HeapObject>::cast(origin->code_target_object_handle_at(pc_));
   } else {
     if (IsCompressedEmbeddedObject(rmode_)) {
@@ -188,7 +178,10 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    WriteUnalignedValue(pc_, target.ptr());
+    // No need to flush icache since no instructions were changed.
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
   } else {
@@ -254,7 +247,7 @@ void RelocInfo::WipeOut() {
 }
 
 // Operand constructors
-Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 
 // Fetch the 32bit value from the FIXED_SEQUENCE IIHF / IILF
 Address Assembler::target_address_at(Address pc, Address constant_pool) {

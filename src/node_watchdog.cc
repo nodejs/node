@@ -102,6 +102,7 @@ void Watchdog::Timer(uv_timer_t* timer) {
 SigintWatchdog::SigintWatchdog(
   v8::Isolate* isolate, bool* received_signal)
     : isolate_(isolate), received_signal_(received_signal) {
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(this);
   // Start the helper thread, if that has not already happened.
@@ -110,6 +111,7 @@ SigintWatchdog::SigintWatchdog(
 
 
 SigintWatchdog::~SigintWatchdog() {
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
 }
@@ -124,19 +126,12 @@ void TraceSigintWatchdog::Init(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
   constructor->InstanceTemplate()->SetInternalFieldCount(
       TraceSigintWatchdog::kInternalFieldCount);
-  Local<v8::String> js_sigint_watch_dog =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "TraceSigintWatchdog");
-  constructor->SetClassName(js_sigint_watch_dog);
   constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(constructor, "start", Start);
   env->SetProtoMethod(constructor, "stop", Stop);
 
-  target
-      ->Set(env->context(),
-            js_sigint_watch_dog,
-            constructor->GetFunction(env->context()).ToLocalChecked())
-      .Check();
+  env->SetConstructorFunction(target, "TraceSigintWatchdog", constructor);
 }
 
 void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {
@@ -151,6 +146,7 @@ void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {
 void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
   ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(watchdog);
   // Start the helper thread, if that has not already happened.
@@ -161,6 +157,7 @@ void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
 void TraceSigintWatchdog::Stop(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
   ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(watchdog);
   SigintWatchdogHelper::GetInstance()->Stop();
 }
@@ -222,6 +219,7 @@ void TraceSigintWatchdog::HandleInterrupt() {
   signal_flag_ = SignalFlags::None;
   interrupting = false;
 
+  Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
   raise(SIGINT);
@@ -420,6 +418,7 @@ SigintWatchdogHelper::~SigintWatchdogHelper() {
 }
 
 SigintWatchdogHelper SigintWatchdogHelper::instance;
+Mutex SigintWatchdogHelper::instance_action_mutex_;
 
 namespace watchdog {
 static void Initialize(Local<Object> target,

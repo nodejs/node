@@ -3,55 +3,45 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class FixedArrayBase extends HeapObject {
   // length of the array.
   const length: Smi;
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }
 
 type EmptyFixedArray extends FixedArray;
 
-@generateCppClass
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  objects[length]: MaybeObject;
+  @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
-@generateCppClass
-extern class ByteArray extends FixedArrayBase {
-  bytes[length]: uint8;
-}
+extern class ByteArray extends FixedArrayBase { bytes[length]: uint8; }
 
 @hasSameInstanceTypeAsParent
-@generateCppClass
 @doNotGenerateCast
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
-@generateCppClass
 @doNotGenerateCast
 extern class TemplateList extends FixedArray {
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
-  objects[capacity]: MaybeObject;
+  @cppRelaxedLoad objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
@@ -96,10 +86,11 @@ extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
 extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
-    a: FixedDoubleArray, i: Smi, v: Number) {
+    a: FixedDoubleArray, i: Smi, v: Number): void {
   a.floats[i] = Convert<float64_or_hole>(Convert<float64>(v));
 }
-operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
+operator '[]=' macro StoreFixedArrayDirect(
+    a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
 
@@ -125,7 +116,7 @@ extern macro CopyFixedArrayElements(
 macro ExtractFixedArray(
     source: FixedArray, first: intptr, count: intptr,
     capacity: intptr): FixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
@@ -135,7 +126,7 @@ macro ExtractFixedArray(
 macro ExtractFixedDoubleArray(
     source: FixedDoubleArray, first: intptr, count: intptr,
     capacity: intptr): FixedDoubleArray|EmptyFixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedDoubleArray(
       capacity,
       IteratorSequence<float64_or_hole>(

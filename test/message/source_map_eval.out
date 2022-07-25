@@ -1,0 +1,12 @@
+ReferenceError: alert is not defined
+    at Object.eval (*tabs.coffee:26:2)
+    at eval (*tabs.coffee:1:14)
+    at Object.<anonymous> (*source_map_eval.js:8:1)
+    at Module._compile (node:internal/modules/cjs/loader:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module.load (node:internal/modules/cjs/loader:*)
+    at Module._load (node:internal/modules/cjs/loader:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*)
+    at node:internal/main/run_main_module:*
+
+Node.js *

@@ -11,6 +11,7 @@ namespace compiler {
 
 // PPC-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
+
 #define TARGET_ARCH_OPCODE_LIST(V)   \
   V(PPC_Peek)                        \
   V(PPC_Sync)                        \
@@ -120,30 +121,24 @@ namespace compiler {
   V(PPC_LoadWordU16)                 \
   V(PPC_LoadWordS32)                 \
   V(PPC_LoadWordU32)                 \
+  V(PPC_LoadByteRev32)               \
   V(PPC_LoadWord64)                  \
+  V(PPC_LoadByteRev64)               \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
   V(PPC_LoadSimd128)                 \
+  V(PPC_LoadReverseSimd128RR)        \
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
+  V(PPC_StoreByteRev32)              \
   V(PPC_StoreWord64)                 \
+  V(PPC_StoreByteRev64)              \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
   V(PPC_StoreSimd128)                \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
-  V(PPC_CompressSigned)              \
-  V(PPC_CompressPointer)             \
-  V(PPC_CompressAny)                 \
-  V(PPC_AtomicStoreUint8)            \
-  V(PPC_AtomicStoreUint16)           \
-  V(PPC_AtomicStoreWord32)           \
-  V(PPC_AtomicStoreWord64)           \
-  V(PPC_AtomicLoadUint8)             \
-  V(PPC_AtomicLoadUint16)            \
-  V(PPC_AtomicLoadWord32)            \
-  V(PPC_AtomicLoadWord64)            \
   V(PPC_AtomicExchangeUint8)         \
   V(PPC_AtomicExchangeUint16)        \
   V(PPC_AtomicExchangeWord32)        \
@@ -213,12 +208,15 @@ namespace compiler {
   V(PPC_F64x2Ceil)                   \
   V(PPC_F64x2Floor)                  \
   V(PPC_F64x2Trunc)                  \
-  V(PPC_F64x2NearestInt)             \
+  V(PPC_F64x2Pmin)                   \
+  V(PPC_F64x2Pmax)                   \
+  V(PPC_F64x2ConvertLowI32x4S)       \
+  V(PPC_F64x2ConvertLowI32x4U)       \
+  V(PPC_F64x2PromoteLowF32x4)        \
   V(PPC_F32x4Splat)                  \
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
   V(PPC_F32x4Add)                    \
-  V(PPC_F32x4AddHoriz)               \
   V(PPC_F32x4Sub)                    \
   V(PPC_F32x4Mul)                    \
   V(PPC_F32x4Eq)                     \
@@ -238,32 +236,39 @@ namespace compiler {
   V(PPC_F32x4Ceil)                   \
   V(PPC_F32x4Floor)                  \
   V(PPC_F32x4Trunc)                  \
-  V(PPC_F32x4NearestInt)             \
+  V(PPC_F32x4Pmin)                   \
+  V(PPC_F32x4Pmax)                   \
+  V(PPC_F32x4Qfma)                   \
+  V(PPC_F32x4Qfms)                   \
+  V(PPC_F32x4DemoteF64x2Zero)        \
   V(PPC_I64x2Splat)                  \
   V(PPC_I64x2ExtractLane)            \
   V(PPC_I64x2ReplaceLane)            \
   V(PPC_I64x2Add)                    \
   V(PPC_I64x2Sub)                    \
   V(PPC_I64x2Mul)                    \
-  V(PPC_I64x2MinS)                   \
-  V(PPC_I64x2MinU)                   \
-  V(PPC_I64x2MaxS)                   \
-  V(PPC_I64x2MaxU)                   \
   V(PPC_I64x2Eq)                     \
   V(PPC_I64x2Ne)                     \
   V(PPC_I64x2GtS)                    \
-  V(PPC_I64x2GtU)                    \
-  V(PPC_I64x2GeU)                    \
   V(PPC_I64x2GeS)                    \
   V(PPC_I64x2Shl)                    \
   V(PPC_I64x2ShrS)                   \
   V(PPC_I64x2ShrU)                   \
   V(PPC_I64x2Neg)                    \
+  V(PPC_I64x2BitMask)                \
+  V(PPC_I64x2SConvertI32x4Low)       \
+  V(PPC_I64x2SConvertI32x4High)      \
+  V(PPC_I64x2UConvertI32x4Low)       \
+  V(PPC_I64x2UConvertI32x4High)      \
+  V(PPC_I64x2ExtMulLowI32x4S)        \
+  V(PPC_I64x2ExtMulHighI32x4S)       \
+  V(PPC_I64x2ExtMulLowI32x4U)        \
+  V(PPC_I64x2ExtMulHighI32x4U)       \
+  V(PPC_I64x2Abs)                    \
   V(PPC_I32x4Splat)                  \
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \
   V(PPC_I32x4Add)                    \
-  V(PPC_I32x4AddHoriz)               \
   V(PPC_I32x4Sub)                    \
   V(PPC_I32x4Mul)                    \
   V(PPC_I32x4MinS)                   \
@@ -287,14 +292,21 @@ namespace compiler {
   V(PPC_I32x4SConvertI16x8High)      \
   V(PPC_I32x4UConvertI16x8Low)       \
   V(PPC_I32x4UConvertI16x8High)      \
-  V(PPC_F32x4Qfma)                   \
-  V(PPC_F32x4Qfms)                   \
+  V(PPC_I32x4BitMask)                \
+  V(PPC_I32x4DotI16x8S)              \
+  V(PPC_I32x4ExtAddPairwiseI16x8S)   \
+  V(PPC_I32x4ExtAddPairwiseI16x8U)   \
+  V(PPC_I32x4ExtMulLowI16x8S)        \
+  V(PPC_I32x4ExtMulHighI16x8S)       \
+  V(PPC_I32x4ExtMulLowI16x8U)        \
+  V(PPC_I32x4ExtMulHighI16x8U)       \
+  V(PPC_I32x4TruncSatF64x2SZero)     \
+  V(PPC_I32x4TruncSatF64x2UZero)     \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \
   V(PPC_I16x8ReplaceLane)            \
   V(PPC_I16x8Add)                    \
-  V(PPC_I16x8AddHoriz)               \
   V(PPC_I16x8Sub)                    \
   V(PPC_I16x8Mul)                    \
   V(PPC_I16x8MinS)                   \
@@ -318,18 +330,25 @@ namespace compiler {
   V(PPC_I16x8SConvertI8x16High)      \
   V(PPC_I16x8UConvertI8x16Low)       \
   V(PPC_I16x8UConvertI8x16High)      \
-  V(PPC_I16x8AddSaturateS)           \
-  V(PPC_I16x8SubSaturateS)           \
-  V(PPC_I16x8AddSaturateU)           \
-  V(PPC_I16x8SubSaturateU)           \
+  V(PPC_I16x8AddSatS)                \
+  V(PPC_I16x8SubSatS)                \
+  V(PPC_I16x8AddSatU)                \
+  V(PPC_I16x8SubSatU)                \
   V(PPC_I16x8RoundingAverageU)       \
+  V(PPC_I16x8BitMask)                \
+  V(PPC_I16x8ExtAddPairwiseI8x16S)   \
+  V(PPC_I16x8ExtAddPairwiseI8x16U)   \
+  V(PPC_I16x8Q15MulRSatS)            \
+  V(PPC_I16x8ExtMulLowI8x16S)        \
+  V(PPC_I16x8ExtMulHighI8x16S)       \
+  V(PPC_I16x8ExtMulLowI8x16U)        \
+  V(PPC_I16x8ExtMulHighI8x16U)       \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \
   V(PPC_I8x16ReplaceLane)            \
   V(PPC_I8x16Add)                    \
   V(PPC_I8x16Sub)                    \
-  V(PPC_I8x16Mul)                    \
   V(PPC_I8x16MinS)                   \
   V(PPC_I8x16MinU)                   \
   V(PPC_I8x16MaxS)                   \
@@ -347,28 +366,49 @@ namespace compiler {
   V(PPC_I8x16Abs)                    \
   V(PPC_I8x16SConvertI16x8)          \
   V(PPC_I8x16UConvertI16x8)          \
-  V(PPC_I8x16AddSaturateS)           \
-  V(PPC_I8x16SubSaturateS)           \
-  V(PPC_I8x16AddSaturateU)           \
-  V(PPC_I8x16SubSaturateU)           \
+  V(PPC_I8x16AddSatS)                \
+  V(PPC_I8x16SubSatS)                \
+  V(PPC_I8x16AddSatU)                \
+  V(PPC_I8x16SubSatU)                \
   V(PPC_I8x16RoundingAverageU)       \
   V(PPC_I8x16Shuffle)                \
   V(PPC_I8x16Swizzle)                \
-  V(PPC_V64x2AnyTrue)                \
-  V(PPC_V32x4AnyTrue)                \
-  V(PPC_V16x8AnyTrue)                \
-  V(PPC_V8x16AnyTrue)                \
-  V(PPC_V64x2AllTrue)                \
-  V(PPC_V32x4AllTrue)                \
-  V(PPC_V16x8AllTrue)                \
-  V(PPC_V8x16AllTrue)                \
+  V(PPC_I8x16BitMask)                \
+  V(PPC_I8x16Popcnt)                 \
+  V(PPC_I64x2AllTrue)                \
+  V(PPC_I32x4AllTrue)                \
+  V(PPC_I16x8AllTrue)                \
+  V(PPC_I8x16AllTrue)                \
+  V(PPC_V128AnyTrue)                 \
   V(PPC_S128And)                     \
   V(PPC_S128Or)                      \
   V(PPC_S128Xor)                     \
+  V(PPC_S128Const)                   \
   V(PPC_S128Zero)                    \
+  V(PPC_S128AllOnes)                 \
   V(PPC_S128Not)                     \
   V(PPC_S128Select)                  \
   V(PPC_S128AndNot)                  \
+  V(PPC_S128Load8Splat)              \
+  V(PPC_S128Load16Splat)             \
+  V(PPC_S128Load32Splat)             \
+  V(PPC_S128Load64Splat)             \
+  V(PPC_S128Load8x8S)                \
+  V(PPC_S128Load8x8U)                \
+  V(PPC_S128Load16x4S)               \
+  V(PPC_S128Load16x4U)               \
+  V(PPC_S128Load32x2S)               \
+  V(PPC_S128Load32x2U)               \
+  V(PPC_S128Load32Zero)              \
+  V(PPC_S128Load64Zero)              \
+  V(PPC_S128Load8Lane)               \
+  V(PPC_S128Load16Lane)              \
+  V(PPC_S128Load32Lane)              \
+  V(PPC_S128Load64Lane)              \
+  V(PPC_S128Store8Lane)              \
+  V(PPC_S128Store16Lane)             \
+  V(PPC_S128Store32Lane)             \
+  V(PPC_S128Store64Lane)             \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
   V(PPC_LoadDecompressTaggedPointer) \

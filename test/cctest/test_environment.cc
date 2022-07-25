@@ -1,13 +1,17 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
+#include "util.h"
 
 #include <string>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
+#include <stdio.h>
+#include <cstdio>
 
 using node::AtExit;
 using node::RunAtExit;
+using node::USE;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -66,7 +70,34 @@ TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
       "})()");
 }
 
+class RedirectStdErr {
+ public:
+  explicit RedirectStdErr(const char* filename) : filename_(filename) {
+    fflush(stderr);
+    fgetpos(stderr, &pos_);
+    fd_ = dup(fileno(stderr));
+    USE(freopen(filename_, "w", stderr));
+  }
+
+  ~RedirectStdErr() {
+    fflush(stderr);
+    dup2(fd_, fileno(stderr));
+    close(fd_);
+    remove(filename_);
+    clearerr(stderr);
+    fsetpos(stderr, &pos_);
+  }
+
+ private:
+  int fd_;
+  fpos_t pos_;
+  const char* filename_;
+};
+
 TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
+  // The following line will cause stderr to get redirected to avoid the
+  // error that would otherwise be printed to the console by this test.
+  RedirectStdErr redirect_scope("environment_test.log");
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
   Env env {handle_scope, argv, node::EnvironmentFlags::kNoRegisterESMLoader};
@@ -300,8 +331,8 @@ static void at_exit_js(void* arg) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  assert(!obj.IsEmpty());  // Assert VM is still alive.
-  assert(obj->IsObject());
+  EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
+  EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
 }
 
@@ -548,4 +579,140 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
   }
 
   EXPECT_EQ(called, 1);
+}
+
+#ifndef _WIN32  // No SIGINT on Windows.
+TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
+  // We need to go through the whole setup dance here because we want to
+  // set only_terminate_in_safe_scope.
+  // Allocate and initialize Isolate.
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  create_params.only_terminate_in_safe_scope = true;
+  v8::Isolate* isolate = v8::Isolate::Allocate();
+  CHECK_NOT_NULL(isolate);
+  platform->RegisterIsolate(isolate, &current_loop);
+  v8::Isolate::Initialize(isolate, create_params);
+
+  // Try creating Context + IsolateData + Environment.
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+
+    auto context = node::NewContext(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+
+    std::unique_ptr<node::IsolateData, decltype(&node::FreeIsolateData)>
+      isolate_data{node::CreateIsolateData(isolate,
+                                           &current_loop,
+                                           platform.get()),
+                   node::FreeIsolateData};
+    CHECK(isolate_data);
+
+    std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)>
+      environment{node::CreateEnvironment(isolate_data.get(),
+                                          context,
+                                          {},
+                                          {}),
+                  node::FreeEnvironment};
+    CHECK(environment);
+    EXPECT_EQ(node::GetEnvironmentIsolateData(environment.get()),
+              isolate_data.get());
+    EXPECT_EQ(node::GetArrayBufferAllocator(isolate_data.get()), nullptr);
+
+    v8::Local<v8::Value> main_ret =
+        node::LoadEnvironment(environment.get(),
+            "'use strict';\n"
+            "const { runInThisContext } = require('vm');\n"
+            "try {\n"
+            "  runInThisContext("
+            "    `process.kill(process.pid, 'SIGINT'); while(true){}`, "
+            "    { breakOnSigint: true });\n"
+            "  return 'unreachable';\n"
+            "} catch (err) {\n"
+            "  return err.code;\n"
+            "}").ToLocalChecked();
+    node::Utf8Value main_ret_str(isolate, main_ret);
+    EXPECT_EQ(std::string(*main_ret_str), "ERR_SCRIPT_EXECUTION_INTERRUPTED");
+  }
+
+  // Cleanup.
+  platform->UnregisterIsolate(isolate);
+  isolate->Dispose();
+}
+#endif  // _WIN32
+
+TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
+      isolate_, v8::MicrotasksPolicy::kExplicit);
+  v8::Local<v8::Context> context = v8::Context::New(
+      isolate_, nullptr, {}, {}, {}, queue.get());
+  node::InitializeContext(context);
+  v8::Context::Scope context_scope(context);
+
+  using IntVec = std::vector<int>;
+  IntVec callback_calls;
+  v8::Local<v8::Function> must_call = v8::Function::New(
+      context,
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        IntVec* callback_calls = static_cast<IntVec*>(
+            info.Data().As<v8::External>()->Value());
+        callback_calls->push_back(info[0].As<v8::Int32>()->Value());
+      },
+      v8::External::New(isolate_, static_cast<void*>(&callback_calls)))
+          .ToLocalChecked();
+  context->Global()->Set(
+      context,
+      v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
+      must_call).Check();
+
+  node::IsolateData* isolate_data = node::CreateIsolateData(
+      isolate_, &NodeTestFixture::current_loop, platform.get());
+  CHECK_NE(nullptr, isolate_data);
+
+  node::Environment* env = node::CreateEnvironment(
+      isolate_data, context, {}, {});
+  CHECK_NE(nullptr, env);
+
+  v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
+      env,
+      "mustCall(1);\n"
+      "Promise.resolve().then(() => mustCall(2));\n"
+      "require('vm').runInNewContext("
+      "    'Promise.resolve().then(() => mustCall(3))',"
+      "    { mustCall },"
+      "    { microtaskMode: 'afterEvaluate' }"
+      ");\n"
+      "require('vm').runInNewContext("
+      "    'Promise.resolve().then(() => mustCall(4))',"
+      "    { mustCall }"
+      ");\n"
+      "setTimeout(() => {"
+      "  Promise.resolve().then(() => mustCall(5));"
+      "}, 10);\n"
+      "mustCall(6);\n"
+      "return eval;\n").ToLocalChecked().As<v8::Function>();
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
+  v8::Local<v8::Value> queue_microtask_code = v8::String::NewFromUtf8Literal(
+      isolate_, "queueMicrotask(() => mustCall(7));");
+  eval_in_env->Call(context,
+                    v8::Null(isolate_),
+                    1,
+                    &queue_microtask_code).ToLocalChecked();
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
+  isolate_->PerformMicrotaskCheckpoint();
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4 }));
+  queue->PerformCheckpoint(isolate_);
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7 }));
+
+  int exit_code = SpinEventLoop(env).FromJust();
+  EXPECT_EQ(exit_code, 0);
+  EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
+
+  node::FreeEnvironment(env);
+  node::FreeIsolateData(isolate_data);
 }

@@ -266,6 +266,7 @@ void   RBBINode::findNodes(UVector *dest, RBBINode::NodeType kind, UErrorCode &s
     if (U_FAILURE(status)) {
         return;
     }
+    U_ASSERT(!dest->hasDeleter());
     if (fType == kind) {
         dest->addElement(this, status);
     }
@@ -343,7 +344,7 @@ U_CFUNC void RBBI_DEBUG_printUnicodeString(const UnicodeString &s, int minWidth)
 void RBBINode::printNodeHeader() {
     RBBIDebugPrintf(" Address   serial        type     LeftChild  RightChild   Parent   position value\n");
 }
-
+    
 void RBBINode::printTree(const RBBINode *node, UBool printHeading) {
     if (printHeading) {
         printNodeHeader();
@@ -351,12 +352,12 @@ void RBBINode::printTree(const RBBINode *node, UBool printHeading) {
     printNode(node);
     if (node != NULL) {
         // Only dump the definition under a variable reference if asked to.
-        // Unconditinally dump children of all other node types.
+        // Unconditionally dump children of all other node types.
         if (node->fType != varRef) {
             if (node->fLeftChild != NULL) {
                 printTree(node->fLeftChild, FALSE);
             }
-
+            
             if (node->fRightChild != NULL) {
                 printTree(node->fRightChild, FALSE);
             }

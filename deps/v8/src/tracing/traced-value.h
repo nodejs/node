@@ -25,6 +25,8 @@ class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat
 {
  public:
   ~TracedValue() override;
+  TracedValue(const TracedValue&) = delete;
+  TracedValue& operator=(const TracedValue&) = delete;
 
   static std::unique_ptr<TracedValue> Create();
 
@@ -78,8 +80,6 @@ class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat
 
   std::string data_;
   bool first_item_;
-
-  DISALLOW_COPY_AND_ASSIGN(TracedValue);
 };
 
 }  // namespace tracing

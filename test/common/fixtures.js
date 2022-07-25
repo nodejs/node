@@ -1,13 +1,17 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 const fixturesDir = path.join(__dirname, '..', 'fixtures');
 
 function fixturesPath(...args) {
   return path.join(fixturesDir, ...args);
+}
+
+function fixturesFileURL(...args) {
+  return pathToFileURL(fixturesPath(...args));
 }
 
 function readFixtureSync(args, enc) {
@@ -27,6 +31,7 @@ function readFixtureKeys(enc, ...names) {
 module.exports = {
   fixturesDir,
   path: fixturesPath,
+  fileURL: fixturesFileURL,
   readSync: readFixtureSync,
   readKey: readFixtureKey,
   readKeys: readFixtureKeys,

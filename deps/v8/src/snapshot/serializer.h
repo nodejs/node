@@ -5,17 +5,17 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_H_
 
-#include <map>
-
 #include "src/codegen/external-reference-encoder.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/logging/log.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/serializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/snapshot.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -45,6 +45,8 @@ class CodeAddressMap : public CodeEventLogger {
   class NameMap {
    public:
     NameMap() : impl_() {}
+    NameMap(const NameMap&) = delete;
+    NameMap& operator=(const NameMap&) = delete;
 
     ~NameMap() {
       for (base::HashMap::Entry* p = impl_.Start(); p != nullptr;
@@ -112,8 +114,6 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
     base::HashMap impl_;
-
-    DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
   void LogRecordedBuffer(Handle<AbstractCode> code,
@@ -122,65 +122,87 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Insert(code->address(), name, length);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override {
     UNREACHABLE();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   NameMap address_to_name_map_;
 };
 
 class ObjectCacheIndexMap {
  public:
-  ObjectCacheIndexMap() : map_(), next_index_(0) {}
+  explicit ObjectCacheIndexMap(Heap* heap) : map_(heap), next_index_(0) {}
+  ObjectCacheIndexMap(const ObjectCacheIndexMap&) = delete;
+  ObjectCacheIndexMap& operator=(const ObjectCacheIndexMap&) = delete;
 
   // If |obj| is in the map, immediately return true.  Otherwise add it to the
   // map and return false. In either case set |*index_out| to the index
   // associated with the map.
   bool LookupOrInsert(HeapObject obj, int* index_out) {
-    Maybe<uint32_t> maybe_index = map_.Get(obj);
-    if (maybe_index.IsJust()) {
-      *index_out = maybe_index.FromJust();
-      return true;
+    auto find_result = map_.FindOrInsert(obj);
+    if (!find_result.already_exists) {
+      *find_result.entry = next_index_++;
     }
-    *index_out = next_index_;
-    map_.Set(obj, next_index_++);
-    return false;
+    *index_out = *find_result.entry;
+    return find_result.already_exists;
+  }
+  bool LookupOrInsert(Handle<HeapObject> obj, int* index_out) {
+    return LookupOrInsert(*obj, index_out);
   }
 
+  bool Lookup(HeapObject obj, int* index_out) const {
+    int* index = map_.Find(obj);
+    if (index == nullptr) {
+      return false;
+    }
+    *index_out = *index;
+    return true;
+  }
+
+  Handle<FixedArray> Values(Isolate* isolate);
+
+  int size() const { return next_index_; }
+
  private:
-  DisallowHeapAllocation no_allocation_;
-
-  HeapObjectToIndexHashMap map_;
+  IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
 };
 
 class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
-
-  std::vector<SerializedData::Reservation> EncodeReservations() const {
-    return allocator_.EncodeReservations();
-  }
+  ~Serializer() override { DCHECK_EQ(unresolved_forward_refs_, 0); }
+  Serializer(const Serializer&) = delete;
+  Serializer& operator=(const Serializer&) = delete;
 
   const std::vector<byte>* Payload() const { return sink_.data(); }
 
-  bool ReferenceMapContains(HeapObject o) {
-    return reference_map()
-        ->LookupReference(reinterpret_cast<void*>(o.ptr()))
-        .is_valid();
+  bool ReferenceMapContains(Handle<HeapObject> o) {
+    return reference_map()->LookupReference(o) != nullptr;
   }
 
   Isolate* isolate() const { return isolate_; }
 
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
+  int TotalAllocationSize() const;
+
  protected:
-  using PendingObjectReference =
-      std::map<HeapObject, std::vector<int>>::iterator;
+  using PendingObjectReferences = std::vector<int>*;
 
   class ObjectSerializer;
-  class RecursionScope {
+  class V8_NODISCARD RecursionScope {
    public:
     explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
       serializer_->recursion_depth_++;
@@ -195,8 +217,13 @@ class Serializer : public SerializerDeserializer {
     Serializer* serializer_;
   };
 
+  // Compares obj with not_mapped_symbol root. When V8_EXTERNAL_CODE_SPACE is
+  // enabled it compares full pointers.
+  V8_INLINE bool IsNotMappedSymbol(HeapObject obj) const;
+
   void SerializeDeferredObjects();
-  virtual void SerializeObject(HeapObject o) = 0;
+  void SerializeObject(Handle<HeapObject> o);
+  virtual void SerializeObjectImpl(Handle<HeapObject> o) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -204,18 +231,16 @@ class Serializer : public SerializerDeserializer {
                          FullObjectSlot start, FullObjectSlot end) override;
   void SerializeRootObject(FullObjectSlot slot);
 
-  void PutRoot(RootIndex root_index, HeapObject object);
+  void PutRoot(RootIndex root_index);
   void PutSmiRoot(FullObjectSlot slot);
   void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
-  // Emit alignment prefix if necessary, return required padding space in bytes.
-  int PutAlignmentPrefix(HeapObject object);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
 
   // Emit a marker noting that this slot is a forward reference to the an
   // object which has not yet been serialized.
-  void PutPendingForwardReferenceTo(PendingObjectReference reference);
+  void PutPendingForwardReference(PendingObjectReferences& ref);
   // Resolve the given previously registered forward reference to the current
   // object.
   void ResolvePendingForwardReference(int obj);
@@ -235,9 +260,8 @@ class Serializer : public SerializerDeserializer {
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject obj) const;
 
-  ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
-    return external_reference_encoder_.Encode(addr);
-  }
+  ExternalReferenceEncoder::Value EncodeExternalReference(Address addr);
+
   Maybe<ExternalReferenceEncoder::Value> TryEncodeExternalReference(
       Address addr) {
     return external_reference_encoder_.TryEncode(addr);
@@ -254,35 +278,31 @@ class Serializer : public SerializerDeserializer {
   Code CopyCode(Code code);
 
   void QueueDeferredObject(HeapObject obj) {
-    DCHECK(!reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
-                .is_valid());
-    deferred_objects_.push_back(obj);
+    DCHECK_NULL(reference_map_.LookupReference(obj));
+    deferred_objects_.Push(obj);
   }
 
   // Register that the the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
-  PendingObjectReference RegisterObjectIsPending(HeapObject obj);
+  void RegisterObjectIsPending(HeapObject obj);
 
   // Resolve the given pending object reference with the current object.
-  void ResolvePendingObject(PendingObjectReference ref);
+  void ResolvePendingObject(HeapObject obj);
 
   void OutputStatistics(const char* name);
 
-#ifdef OBJECT_PRINT
-  void CountInstanceType(Map map, int size, SnapshotSpace space);
-#endif  // OBJECT_PRINT
+  void CountAllocation(Map map, int size, SnapshotSpace space);
 
 #ifdef DEBUG
-  void PushStack(HeapObject o) { stack_.push_back(o); }
-  void PopStack() { stack_.pop_back(); }
+  void PushStack(Handle<HeapObject> o) { stack_.Push(*o); }
+  void PopStack();
   void PrintStack();
   void PrintStack(std::ostream&);
 #endif  // DEBUG
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
   const RootIndexMap* root_index_map() const { return &root_index_map_; }
-  SerializerAllocator* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
@@ -293,18 +313,71 @@ class Serializer : public SerializerDeserializer {
     return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
   }
 
+  bool reconstruct_read_only_and_shared_object_caches_for_testing() const {
+    return (flags_ &
+            Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting) != 0;
+  }
+
  private:
+  // A circular queue of hot objects. This is added to in the same order as in
+  // Deserializer::HotObjectsList, but this stores the objects as an array of
+  // raw addresses that are considered strong roots. This allows objects to be
+  // added to the list without having to extend their handle's lifetime.
+  //
+  // We should never allow this class to return Handles to objects in the queue,
+  // as the object in the queue may change if kSize other objects are added to
+  // the queue during that Handle's lifetime.
+  class HotObjectsList {
+   public:
+    explicit HotObjectsList(Heap* heap);
+    ~HotObjectsList();
+    HotObjectsList(const HotObjectsList&) = delete;
+    HotObjectsList& operator=(const HotObjectsList&) = delete;
+
+    void Add(HeapObject object) {
+      circular_queue_[index_] = object.ptr();
+      index_ = (index_ + 1) & kSizeMask;
+    }
+
+    static const int kNotFound = -1;
+
+    int Find(HeapObject object) {
+      DCHECK(!AllowGarbageCollection::IsAllowed());
+      for (int i = 0; i < kSize; i++) {
+        if (circular_queue_[i] == object.ptr()) {
+          return i;
+        }
+      }
+      return kNotFound;
+    }
+
+   private:
+    static const int kSize = kHotObjectCount;
+    static const int kSizeMask = kSize - 1;
+    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    Heap* heap_;
+    StrongRootsEntry* strong_roots_entry_;
+    Address circular_queue_[kSize] = {kNullAddress};
+    int index_ = 0;
+  };
+
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
-  DisallowHeapAllocation no_gc;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   Isolate* isolate_;
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
+  HotObjectsList hot_objects_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
   std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
-  std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
+  GlobalHandleVector<HeapObject>
+      deferred_objects_;  // To handle stack overflow.
+  int num_back_refs_ = 0;
 
   // Objects which have started being serialized, but haven't yet been allocated
   // with the allocator, are considered "pending". References to them don't have
@@ -319,34 +392,40 @@ class Serializer : public SerializerDeserializer {
   // forward refs remaining.
   int next_forward_ref_id_ = 0;
   int unresolved_forward_refs_ = 0;
-  std::map<HeapObject, std::vector<int>> forward_refs_per_pending_object_;
+  IdentityMap<PendingObjectReferences, base::DefaultAllocationPolicy>
+      forward_refs_per_pending_object_;
+
+  // Used to keep track of the off-heap backing stores used by TypedArrays/
+  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
+  // TypedArray has an on-heap backing store, the backing_store pointer in the
+  // corresponding ArrayBuffer will be null, which makes it indistinguishable
+  // from index 0.
+  uint32_t seen_backing_stores_index_ = 1;
 
   int recursion_depth_ = 0;
   const Snapshot::SerializerFlags flags_;
-  SerializerAllocator allocator_;
 
+  size_t allocation_size_[kNumberOfSnapshotSpaces] = {0};
 #ifdef OBJECT_PRINT
   static constexpr int kInstanceTypes = LAST_TYPE + 1;
-  std::unique_ptr<int[]> instance_type_count_[kNumberOfSpaces];
-  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSpaces];
+  std::unique_ptr<int[]> instance_type_count_[kNumberOfSnapshotSpaces];
+  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSnapshotSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
-  std::vector<HeapObject> stack_;
+  GlobalHandleVector<HeapObject> back_refs_;
+  GlobalHandleVector<HeapObject> stack_;
 #endif  // DEBUG
-
-  friend class SerializerAllocator;
-
-  DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
 class RelocInfoIterator;
 
 class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
-  ObjectSerializer(Serializer* serializer, HeapObject obj,
+  ObjectSerializer(Serializer* serializer, Handle<HeapObject> obj,
                    SnapshotByteSink* sink)
-      : serializer_(serializer),
+      : isolate_(serializer->isolate()),
+        serializer_(serializer),
         object_(obj),
         sink_(sink),
         bytes_processed_so_far_(0) {
@@ -354,7 +433,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
     serializer_->PushStack(obj);
 #endif  // DEBUG
   }
-  // NOLINTNEXTLINE (modernize-use-equals-default)
   ~ObjectSerializer() override {
 #ifdef DEBUG
     serializer_->PopStack();
@@ -367,32 +445,40 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
   void VisitEmbeddedPointer(Code host, RelocInfo* target) override;
   void VisitExternalReference(Foreign host, Address* p) override;
   void VisitExternalReference(Code host, RelocInfo* rinfo) override;
+  void VisitExternalPointer(HeapObject host, ExternalPointer_t ptr) override;
   void VisitInternalReference(Code host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code host, RelocInfo* reloc) override;
   void VisitOffHeapTarget(Code host, RelocInfo* target) override;
 
+  Isolate* isolate() { return isolate_; }
+
  private:
+  class RelocInfoObjectPreSerializer;
+
   void SerializePrologue(SnapshotSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
-  void OutputExternalReference(Address target, int target_size,
-                               bool sandboxify);
+  void OutputExternalReference(Address target, int target_size, bool sandboxify,
+                               ExternalPointerTag tag);
   void OutputRawData(Address up_to);
-  void OutputCode(int size);
-  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  void SerializeCode(Map map, int size);
+  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
+                                 Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 
+  Isolate* isolate_;
   Serializer* serializer_;
-  HeapObject object_;
+  Handle<HeapObject> object_;
   SnapshotByteSink* sink_;
   int bytes_processed_so_far_;
 };

@@ -1,0 +1,39 @@
+.\"
+.\" Copyright 2010 by Ben Greear <greearb@candelatech.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_SET_LOCAL_DEV 3 "30 June 2010"
+.SH NAME
+ares_set_local_dev \- Bind to a specific network device when creating sockets.
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B void ares_set_local_dev(ares_channel \fIchannel\fP, const char* \fIlocal_dev_name\fP)
+.fi
+.SH DESCRIPTION
+The \fBares_set_local_dev\fP function causes all future sockets
+to be bound to this device with SO_BINDTODEVICE.  This forces communications
+to go over a certain interface, which can be useful on multi-homed machines.
+This option is only supported on Linux, and root privileges are required
+for the option to work.  If SO_BINDTODEVICE is not supported or the
+setsocktop call fails (probably because of permissions), the error is
+silently ignored.
+.SH SEE ALSO
+.BR ares_set_local_ip4 (3)
+.BR ares_set_local_ip6 (3)
+.SH NOTES
+This function was added in c-ares 1.7.4
+.SH AUTHOR
+Ben Greear

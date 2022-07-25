@@ -31,7 +31,8 @@ class HeapGrowing::HeapGrowingImpl final
     : public StatsCollector::AllocationObserver {
  public:
   HeapGrowingImpl(GarbageCollector*, StatsCollector*,
-                  cppgc::Heap::ResourceConstraints);
+                  cppgc::Heap::ResourceConstraints, cppgc::Heap::MarkingType,
+                  cppgc::Heap::SweepingType);
   ~HeapGrowingImpl();
 
   HeapGrowingImpl(const HeapGrowingImpl&) = delete;
@@ -60,14 +61,21 @@ class HeapGrowing::HeapGrowingImpl final
   SingleThreadedHandle gc_task_handle_;
 
   bool disabled_for_testing_ = false;
+
+  const cppgc::Heap::MarkingType marking_support_;
+  const cppgc::Heap::SweepingType sweeping_support_;
 };
 
 HeapGrowing::HeapGrowingImpl::HeapGrowingImpl(
     GarbageCollector* collector, StatsCollector* stats_collector,
-    cppgc::Heap::ResourceConstraints constraints)
+    cppgc::Heap::ResourceConstraints constraints,
+    cppgc::Heap::MarkingType marking_support,
+    cppgc::Heap::SweepingType sweeping_support)
     : collector_(collector),
       stats_collector_(stats_collector),
-      gc_task_handle_(SingleThreadedHandle::NonEmptyTag{}) {
+      gc_task_handle_(SingleThreadedHandle::NonEmptyTag{}),
+      marking_support_(marking_support),
+      sweeping_support_(sweeping_support) {
   if (constraints.initial_heap_size_bytes > 0) {
     initial_heap_size_ = constraints.initial_heap_size_bytes;
   }
@@ -85,10 +93,15 @@ void HeapGrowing::HeapGrowingImpl::AllocatedObjectSizeIncreased(size_t) {
   size_t allocated_object_size = stats_collector_->allocated_object_size();
   if (allocated_object_size > limit_for_atomic_gc_) {
     collector_->CollectGarbage(
-        GarbageCollector::Config::ConservativeAtomicConfig());
+        {GarbageCollector::Config::CollectionType::kMajor,
+         GarbageCollector::Config::StackState::kMayContainHeapPointers,
+         GarbageCollector::Config::MarkingType::kAtomic, sweeping_support_});
   } else if (allocated_object_size > limit_for_incremental_gc_) {
+    if (marking_support_ == cppgc::Heap::MarkingType::kAtomic) return;
     collector_->StartIncrementalGarbageCollection(
-        GarbageCollector::Config::ConservativeIncrementalConfig());
+        {GarbageCollector::Config::CollectionType::kMajor,
+         GarbageCollector::Config::StackState::kMayContainHeapPointers,
+         marking_support_, sweeping_support_});
   }
 }
 
@@ -133,9 +146,12 @@ void HeapGrowing::HeapGrowingImpl::DisableForTesting() {
 
 HeapGrowing::HeapGrowing(GarbageCollector* collector,
                          StatsCollector* stats_collector,
-                         cppgc::Heap::ResourceConstraints constraints)
+                         cppgc::Heap::ResourceConstraints constraints,
+                         cppgc::Heap::MarkingType marking_support,
+                         cppgc::Heap::SweepingType sweeping_support)
     : impl_(std::make_unique<HeapGrowing::HeapGrowingImpl>(
-          collector, stats_collector, constraints)) {}
+          collector, stats_collector, constraints, marking_support,
+          sweeping_support)) {}
 
 HeapGrowing::~HeapGrowing() = default;
 

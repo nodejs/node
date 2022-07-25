@@ -27,9 +27,6 @@ bool BinaryOperationHintToNumberOperationHint(
     case BinaryOperationHint::kSignedSmallInputs:
       *number_hint = NumberOperationHint::kSignedSmallInputs;
       return true;
-    case BinaryOperationHint::kSigned32:
-      *number_hint = NumberOperationHint::kSigned32;
-      return true;
     case BinaryOperationHint::kNumber:
       *number_hint = NumberOperationHint::kNumber;
       return true;
@@ -50,7 +47,6 @@ bool BinaryOperationHintToBigIntOperationHint(
   switch (binop_hint) {
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
-    case BinaryOperationHint::kSigned32:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball:
     case BinaryOperationHint::kAny:
@@ -119,21 +115,21 @@ class JSSpeculativeBinopBuilder final {
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSignedSmall) {
           return simplified()->SpeculativeSafeIntegerAdd(hint);
         } else {
           return simplified()->SpeculativeNumberAdd(hint);
         }
       case IrOpcode::kJSSubtract:
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSignedSmall) {
           return simplified()->SpeculativeSafeIntegerSubtract(hint);
         } else {
           return simplified()->SpeculativeNumberSubtract(hint);
         }
       case IrOpcode::kJSMultiply:
         return simplified()->SpeculativeNumberMultiply(hint);
+      case IrOpcode::kJSExponentiate:
+        return simplified()->SpeculativeNumberPow(hint);
       case IrOpcode::kJSDivide:
         return simplified()->SpeculativeNumberDivide(hint);
       case IrOpcode::kJSModulus:
@@ -157,6 +153,7 @@ class JSSpeculativeBinopBuilder final {
   }
 
   const Operator* SpeculativeBigIntOp(BigIntOperationHint hint) {
+    DCHECK(jsgraph()->machine()->Is64());
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
         return simplified()->SpeculativeBigIntAdd(hint);
@@ -210,6 +207,7 @@ class JSSpeculativeBinopBuilder final {
   }
 
   Node* TryBuildBigIntBinop() {
+    DCHECK(jsgraph()->machine()->Is64());
     BigIntOperationHint hint;
     if (GetBinaryBigIntOperationHint(&hint)) {
       const Operator* op = SpeculativeBigIntOp(hint);
@@ -279,7 +277,7 @@ CompareOperationHint JSTypeHintLowering::GetCompareOperationHint(
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
     const Operator* op, Node* operand, Node* effect, Node* control,
     FeedbackSlot slot) const {
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForUnaryOperation)) {
     return LoweringResult::Exit(node);
@@ -325,10 +323,12 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
           jsgraph()->SmiConstant(-1), effect, control, slot);
       node = b.TryBuildNumberBinop();
       if (!node) {
-        if (GetBinaryOperationHint(slot) == BinaryOperationHint::kBigInt) {
-          const Operator* op = jsgraph()->simplified()->SpeculativeBigIntNegate(
-              BigIntOperationHint::kBigInt);
-          node = jsgraph()->graph()->NewNode(op, operand, effect, control);
+        if (jsgraph()->machine()->Is64()) {
+          if (GetBinaryOperationHint(slot) == BinaryOperationHint::kBigInt) {
+            op = jsgraph()->simplified()->SpeculativeBigIntNegate(
+                BigIntOperationHint::kBigInt);
+            node = jsgraph()->graph()->NewNode(op, operand, effect, control);
+          }
         }
       }
       break;
@@ -349,7 +349,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     FeedbackSlot slot) const {
   switch (op->opcode()) {
     case IrOpcode::kJSStrictEqual: {
-      if (Node* node = TryBuildSoftDeopt(
+      if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
               slot, effect, control,
               DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
         return LoweringResult::Exit(node);
@@ -363,7 +363,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThanOrEqual: {
-      if (Node* node = TryBuildSoftDeopt(
+      if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
               slot, effect, control,
               DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
         return LoweringResult::Exit(node);
@@ -375,7 +375,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       break;
     }
     case IrOpcode::kJSInstanceOf: {
-      if (Node* node = TryBuildSoftDeopt(
+      if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
               slot, effect, control,
               DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
         return LoweringResult::Exit(node);
@@ -394,8 +394,9 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     case IrOpcode::kJSSubtract:
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus: {
-      if (Node* node = TryBuildSoftDeopt(
+    case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate: {
+      if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
               slot, effect, control,
               DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation)) {
         return LoweringResult::Exit(node);
@@ -406,19 +407,12 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       }
       if (op->opcode() == IrOpcode::kJSAdd ||
           op->opcode() == IrOpcode::kJSSubtract) {
-        if (Node* node = b.TryBuildBigIntBinop()) {
-          return LoweringResult::SideEffectFree(node, node, control);
+        if (jsgraph()->machine()->Is64()) {
+          if (Node* node = b.TryBuildBigIntBinop()) {
+            return LoweringResult::SideEffectFree(node, node, control);
+          }
         }
       }
-      break;
-    }
-    case IrOpcode::kJSExponentiate: {
-      if (Node* node = TryBuildSoftDeopt(
-              slot, effect, control,
-              DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation)) {
-        return LoweringResult::Exit(node);
-      }
-      // TODO(neis): Introduce a SpeculativeNumberPow operator?
       break;
     }
     default:
@@ -430,7 +424,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceForInNextOperation(
     Node* receiver, Node* cache_array, Node* cache_type, Node* index,
     Node* effect, Node* control, FeedbackSlot slot) const {
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForForIn)) {
     return LoweringResult::Exit(node);
@@ -442,7 +436,7 @@ JSTypeHintLowering::LoweringResult
 JSTypeHintLowering::ReduceForInPrepareOperation(Node* enumerator, Node* effect,
                                                 Node* control,
                                                 FeedbackSlot slot) const {
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForForIn)) {
     return LoweringResult::Exit(node);
@@ -469,7 +463,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceCallOperation(
     Node* control, FeedbackSlot slot) const {
   DCHECK(op->opcode() == IrOpcode::kJSCall ||
          op->opcode() == IrOpcode::kJSCallWithSpread);
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
     return LoweringResult::Exit(node);
@@ -482,7 +476,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceConstructOperation(
     Node* control, FeedbackSlot slot) const {
   DCHECK(op->opcode() == IrOpcode::kJSConstruct ||
          op->opcode() == IrOpcode::kJSConstructWithSpread);
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForConstruct)) {
     return LoweringResult::Exit(node);
@@ -497,14 +491,12 @@ JSTypeHintLowering::ReduceGetIteratorOperation(const Operator* op,
                                                FeedbackSlot load_slot,
                                                FeedbackSlot call_slot) const {
   DCHECK_EQ(IrOpcode::kJSGetIterator, op->opcode());
-  // Insert soft deopt if the load feedback is invalid.
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           load_slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
     return LoweringResult::Exit(node);
   }
-  // Insert soft deopt if the call feedback is invalid.
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           call_slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
     return LoweringResult::Exit(node);
@@ -513,10 +505,10 @@ JSTypeHintLowering::ReduceGetIteratorOperation(const Operator* op,
 }
 
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadNamedOperation(
-    const Operator* op, Node* receiver, Node* effect, Node* control,
-    FeedbackSlot slot) const {
-  DCHECK_EQ(IrOpcode::kJSLoadNamed, op->opcode());
-  if (Node* node = TryBuildSoftDeopt(
+    const Operator* op, Node* effect, Node* control, FeedbackSlot slot) const {
+  DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
+         op->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
     return LoweringResult::Exit(node);
@@ -528,7 +520,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadKeyedOperation(
     const Operator* op, Node* obj, Node* key, Node* effect, Node* control,
     FeedbackSlot slot) const {
   DCHECK_EQ(IrOpcode::kJSLoadProperty, op->opcode());
-  if (Node* node = TryBuildSoftDeopt(
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
     return LoweringResult::Exit(node);
@@ -541,9 +533,9 @@ JSTypeHintLowering::ReduceStoreNamedOperation(const Operator* op, Node* obj,
                                               Node* val, Node* effect,
                                               Node* control,
                                               FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSStoreNamed ||
-         op->opcode() == IrOpcode::kJSStoreNamedOwn);
-  if (Node* node = TryBuildSoftDeopt(
+  DCHECK(op->opcode() == IrOpcode::kJSSetNamedProperty ||
+         op->opcode() == IrOpcode::kJSDefineNamedOwnProperty);
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
     return LoweringResult::Exit(node);
@@ -556,10 +548,11 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
                                               Node* key, Node* val,
                                               Node* effect, Node* control,
                                               FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSStoreProperty ||
+  DCHECK(op->opcode() == IrOpcode::kJSSetKeyedProperty ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
-  if (Node* node = TryBuildSoftDeopt(
+         op->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
+         op->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
+  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
     return LoweringResult::Exit(node);
@@ -567,24 +560,16 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
   return LoweringResult::NoChange();
 }
 
-Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackSlot slot, Node* effect,
-                                            Node* control,
-                                            DeoptimizeReason reason) const {
+Node* JSTypeHintLowering::BuildDeoptIfFeedbackIsInsufficient(
+    FeedbackSlot slot, Node* effect, Node* control,
+    DeoptimizeReason reason) const {
   if (!(flags() & kBailoutOnUninitialized)) return nullptr;
 
   FeedbackSource source(feedback_vector(), slot);
-  // TODO(mythria): Think of adding flags to specify if we need a soft deopt for
-  // calls instead of using FLAG_turboprop here.
-  if (FLAG_turboprop &&
-      broker()->GetFeedbackSlotKind(source) == FeedbackSlotKind::kCall) {
-    return nullptr;
-  }
-
   if (!broker()->FeedbackIsInsufficient(source)) return nullptr;
 
   Node* deoptimize = jsgraph()->graph()->NewNode(
-      jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason,
-                                      FeedbackSource()),
+      jsgraph()->common()->Deoptimize(reason, FeedbackSource()),
       jsgraph()->Dead(), effect, control);
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(deoptimize, jsgraph()->Dead());

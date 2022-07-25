@@ -3,7 +3,7 @@
  * @author Nicholas C. Zakas
  */
 
-/* eslint-disable class-methods-use-this*/
+/* eslint class-methods-use-this: off -- Methods desired on instance */
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -11,7 +11,11 @@
 //------------------------------------------------------------------------------
 
 const levn = require("levn"),
-    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops");
+    {
+        Legacy: {
+            ConfigOps
+        }
+    } = require("@eslint/eslintrc/universal");
 
 const debug = require("debug")("eslint:config-comment-parser");
 

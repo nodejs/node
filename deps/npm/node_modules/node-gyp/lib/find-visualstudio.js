@@ -2,6 +2,7 @@
 
 const log = require('npmlog')
 const execFile = require('child_process').execFile
+const fs = require('fs')
 const path = require('path').win32
 const logWithPrefix = require('./util').logWithPrefix
 const regSearchKeys = require('./util').regSearchKeys
@@ -257,6 +258,10 @@ VisualStudioFinder.prototype = {
       ret.versionYear = 2019
       return ret
     }
+    if (ret.versionMajor === 17) {
+      ret.versionYear = 2022
+      return ret
+    }
     this.log.silly('- unsupported version:', ret.versionMajor)
     return {}
   },
@@ -264,14 +269,19 @@ VisualStudioFinder.prototype = {
   // Helper - process MSBuild information
   getMSBuild: function getMSBuild (info, versionYear) {
     const pkg = 'Microsoft.VisualStudio.VC.MSBuild.Base'
+    const msbuildPath = path.join(info.path, 'MSBuild', 'Current', 'Bin', 'MSBuild.exe')
     if (info.packages.indexOf(pkg) !== -1) {
       this.log.silly('- found VC.MSBuild.Base')
       if (versionYear === 2017) {
         return path.join(info.path, 'MSBuild', '15.0', 'Bin', 'MSBuild.exe')
       }
       if (versionYear === 2019) {
-        return path.join(info.path, 'MSBuild', 'Current', 'Bin', 'MSBuild.exe')
+        return msbuildPath
       }
+    }
+    // visual studio 2022 don't has msbuild pkg
+    if (fs.existsSync(msbuildPath)) {
+      return msbuildPath
     }
     return null
   },
@@ -293,6 +303,8 @@ VisualStudioFinder.prototype = {
       return 'v141'
     } else if (versionYear === 2019) {
       return 'v142'
+    } else if (versionYear === 2022) {
+      return 'v143'
     }
     this.log.silly('- invalid versionYear:', versionYear)
     return null
@@ -399,7 +411,7 @@ VisualStudioFinder.prototype = {
     })
   },
 
-  // After finding a usable version of Visual Stuido:
+  // After finding a usable version of Visual Studio:
   // - add it to validVersions to be displayed at the end if a specific
   //   version was requested and not found;
   // - check if this is the version that was requested.

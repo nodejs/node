@@ -12,7 +12,7 @@ function listener(event, exec_state, event_data, data) {
     // Access scope details to check the context is correct.
     var scope_count = exec_state.frame().scopeCount();
     // Do steps until we reach the global scope again.
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   }
 }
 

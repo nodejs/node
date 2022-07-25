@@ -9,7 +9,7 @@ const http2 = require('http2');
 
 for (const chunkSequence of [
   [ '' ],
-  [ '', '' ]
+  [ '', '' ],
 ]) {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {

@@ -1,6 +1,6 @@
 /**
  * @fileoverview We shouldn't use global built-in object for security and
- *               performance reason. This linter rule reports replacable codes
+ *               performance reason. This linter rule reports replaceable codes
  *               that can be replaced with primordials.
  * @author Leko <leko.noor@gmail.com>
  */
@@ -23,10 +23,7 @@ function isTarget(map, varName) {
 }
 
 function isIgnored(map, varName, propName) {
-  if (!map.has(varName) || !map.get(varName).has(propName)) {
-    return false;
-  }
-  return map.get(varName).get(propName).ignored;
+  return map.get(varName)?.get(propName)?.ignored ?? false;
 }
 
 function getReportName({ name, parentName, into }) {
@@ -57,11 +54,21 @@ function getDestructuringAssignmentParent(scope, node) {
   ) {
     return null;
   }
-  return declaration.defs[0].node.init.name;
+  return declaration.defs[0].node.init;
 }
 
-const identifierSelector =
-  '[type!=VariableDeclarator][type!=MemberExpression]>Identifier';
+const parentSelectors = [
+  // We want to select identifiers that refer to other references, not the ones
+  // that create a new reference.
+  'ClassDeclaration',
+  'FunctionDeclaration',
+  'LabeledStatement',
+  'MemberExpression',
+  'MethodDefinition',
+  'SwitchCase',
+  'VariableDeclarator',
+];
+const identifierSelector = parentSelectors.map((selector) => `[type!=${selector}]`).join('') + '>Identifier';
 
 module.exports = {
   meta: {
@@ -71,43 +78,52 @@ module.exports = {
   },
   create(context) {
     const globalScope = context.getSourceCode().scopeManager.globalScope;
-    const nameMap = context.options.reduce((acc, option) =>
-      acc.set(
+
+    const nameMap = new Map();
+    const renameMap = new Map();
+
+    for (const option of context.options) {
+      const names = option.ignore || [];
+      nameMap.set(
         option.name,
-        (option.ignore || [])
-          .reduce((acc, name) => acc.set(name, {
-            ignored: true
-          }), new Map())
-      )
-    , new Map());
-    const renameMap = context.options
-      .filter((option) => option.into)
-      .reduce((acc, option) =>
-        acc.set(option.name, option.into)
-      , new Map());
+        new Map(names.map((name) => [name, { ignored: true }]))
+      );
+      if (option.into) {
+        renameMap.set(option.name, option.into);
+      }
+    }
+
     let reported;
 
     return {
       Program() {
-        reported = new Map();
+        reported = new Set();
       },
       [identifierSelector](node) {
+        if (node.parent.type === 'Property' && node.parent.key === node) {
+          // If the identifier is the key for this property declaration, it
+          // can't be referring to a primordials member.
+          return;
+        }
         if (reported.has(node.range[0])) {
           return;
         }
         const name = node.name;
-        const parentName = getDestructuringAssignmentParent(
+        const parent = getDestructuringAssignmentParent(
           context.getScope(),
           node
         );
+        const parentName = parent?.name;
         if (!isTarget(nameMap, name) && !isTarget(nameMap, parentName)) {
           return;
         }
 
-        const defs = (globalScope.set.get(name) || {}).defs || null;
+        const defs = globalScope.set.get(name)?.defs;
         if (parentName && isTarget(nameMap, parentName)) {
-          if (!defs || defs[0].name.name !== 'primordials') {
-            reported.set(node.range[0], true);
+          if (defs?.[0].name.name !== 'primordials' &&
+              !reported.has(parent.range[0]) &&
+              parent.parent?.id?.type !== 'Identifier') {
+            reported.add(node.range[0]);
             const into = renameMap.get(name);
             context.report({
               node,
@@ -120,7 +136,7 @@ module.exports = {
           return;
         }
         if (defs.length === 0 || defs[0].node.init.name !== 'primordials') {
-          reported.set(node.range[0], true);
+          reported.add(node.range[0]);
           const into = renameMap.get(name);
           context.report({
             node,
@@ -149,7 +165,20 @@ module.exports = {
             }
           });
         }
-      }
+      },
+      VariableDeclarator(node) {
+        const name = node.init?.name;
+        if (name !== undefined && isTarget(nameMap, name) &&
+            node.id.type === 'Identifier' &&
+            !globalScope.set.get(name)?.defs.length) {
+          reported.add(node.init.range[0]);
+          context.report({
+            node,
+            messageId: 'error',
+            data: { name },
+          });
+        }
+      },
     };
   }
 };

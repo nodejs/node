@@ -79,3 +79,16 @@
   %OptimizeFunctionOnNextCall(f);
   assertEquals(false, f(1073741824));
 })();
+
+(function() {
+  function f(str) {
+    return str.startsWith('');
+  }
+
+  %PrepareFunctionForOptimization(f);
+  f('foo');
+  f('');
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(f('foo'), true);
+  assertEquals(f(''), true);
+})();

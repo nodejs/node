@@ -22,7 +22,7 @@ extern macro UnsafeLoadFixedArrayElement(
 transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
     regexp: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
   if constexpr (isFastPath) {
-    assert(Is<FastJSRegExp>(regexp));
+    dcheck(Is<FastJSRegExp>(regexp));
   }
 
   const isGlobal: bool = FlagGetter(regexp, Flag::kGlobal, isFastPath);
@@ -32,7 +32,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
                         RegExpExec(regexp, string);
   }
 
-  assert(isGlobal);
+  dcheck(isGlobal);
   const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath);
 
   StoreLastIndex(regexp, 0, isFastPath);
@@ -74,7 +74,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
               string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
         }
       } else {
-        assert(!isFastPath);
+        dcheck(!isFastPath);
         const resultTemp = RegExpExec(regexp, string);
         if (resultTemp == Null) {
           goto IfDidNotMatch;
@@ -96,7 +96,7 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
       }
       let lastIndex = LoadLastIndex(regexp, isFastPath);
       if constexpr (isFastPath) {
-        assert(TaggedIsPositiveSmi(lastIndex));
+        dcheck(TaggedIsPositiveSmi(lastIndex));
       } else {
         lastIndex = ToLength_Inline(lastIndex);
       }
@@ -108,10 +108,8 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
         // On the fast path, we can be certain that lastIndex can never be
         // incremented to overflow the Smi range since the maximal string
         // length is less than the maximal Smi value.
-        const kMaxStringLengthFitsSmi: constexpr bool =
-            kStringMaxLengthUintptr < kSmiMaxValue;
-        static_assert(kMaxStringLengthFitsSmi);
-        assert(TaggedIsPositiveSmi(newLastIndex));
+        StaticAssertStringLengthFitsSmi();
+        dcheck(TaggedIsPositiveSmi(newLastIndex));
       }
 
       StoreLastIndex(regexp, newLastIndex, isFastPath);

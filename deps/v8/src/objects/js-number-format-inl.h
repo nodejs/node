@@ -18,11 +18,16 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-number-format-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat)
 
 ACCESSORS(JSNumberFormat, icu_number_formatter,
           Managed<icu::number::LocalizedNumberFormatter>,
           kIcuNumberFormatterOffset)
+ACCESSORS(JSNumberFormat, icu_number_range_formatter,
+          Managed<icu::number::LocalizedNumberRangeFormatter>,
+          kIcuNumberRangeFormatterOffset)
 
 }  // namespace internal
 }  // namespace v8

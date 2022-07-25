@@ -5,19 +5,19 @@
 
 // Make sure we inline the callback, pick up all possible TurboFan
 // optimizations.
-function RunOptFast(multiple) {
-  // Use of variable multiple in the callback function forces
+function RunOptFast(value) {
+  // Use of variable {value} in the callback function forces
   // context creation without escape analysis.
   //
   // Also, the arrow function requires inlining based on
   // SharedFunctionInfo.
-  result = array.findIndex((v, i, a) => v === `value ${multiple}`);
+  result = array.findIndex((v, i, a) => v === value);
 }
 
 // Don't optimize because I want to optimize RunOptFast with a parameter
 // to be used in the callback.
 %NeverOptimizeFunction(OptFast);
-function OptFast() { RunOptFast(max_index); }
+function OptFast() { RunOptFast(max_index_value); }
 
 function side_effect(a) { return a; }
 %NeverOptimizeFunction(side_effect);
@@ -59,7 +59,7 @@ DefineHigherOrderTests([
   ['SmiFindIndex', newClosure('findIndex'), SmiSetup, v => v === max_index],
   [
     'FastFindIndex', newClosure('findIndex'), FastSetup,
-    v => v === `value ${max_index}`
+    v => v === max_index_value
   ],
   [
     'GenericFindIndex', newClosure('findIndex', true), ObjectSetup,

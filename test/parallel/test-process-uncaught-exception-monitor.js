@@ -55,15 +55,15 @@ process.on(
 process.on('uncaughtException', common.mustCall((err, origin) => {
   assert.strictEqual(origin, 'uncaughtException');
   assert.strictEqual(err, theErr);
-}));
 
-process.nextTick(common.mustCall(() => {
-  // Test with uncaughtExceptionCaptureCallback installed
-  process.setUncaughtExceptionCaptureCallback(common.mustCall(
-    (err) => assert.strictEqual(err, theErr))
-  );
+  process.nextTick(common.mustCall(() => {
+    // Test with uncaughtExceptionCaptureCallback installed
+    process.setUncaughtExceptionCaptureCallback(common.mustCall(
+      (err) => assert.strictEqual(err, theErr))
+    );
 
-  throw theErr;
+    throw theErr;
+  }));
 }));
 
 throw theErr;

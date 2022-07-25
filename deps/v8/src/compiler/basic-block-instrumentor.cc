@@ -92,6 +92,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   } else {
     counters_array = graph->NewNode(PointerConstant(&common, data->counts()));
   }
+  Node* zero = graph->NewNode(common.Int32Constant(0));
   Node* one = graph->NewNode(common.Int32Constant(1));
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
@@ -114,16 +115,27 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
         graph->NewNode(machine.Load(MachineType::Uint32()), counters_array,
                        offset_to_counter, graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
-    Node* store = graph->NewNode(
-        machine.Store(StoreRepresentation(MachineRepresentation::kWord32,
-                                          kNoWriteBarrier)),
-        counters_array, offset_to_counter, inc, graph->start(), graph->start());
+
+    // Branchless saturation, because we've already run the scheduler, so
+    // introducing extra control flow here would be surprising.
+    Node* overflow = graph->NewNode(machine.Uint32LessThan(), inc, load);
+    Node* overflow_mask = graph->NewNode(machine.Int32Sub(), zero, overflow);
+    Node* saturated_inc =
+        graph->NewNode(machine.Word32Or(), inc, overflow_mask);
+
+    Node* store =
+        graph->NewNode(machine.Store(StoreRepresentation(
+                           MachineRepresentation::kWord32, kNoWriteBarrier)),
+                       counters_array, offset_to_counter, saturated_inc,
+                       graph->start(), graph->start());
     // Insert the new nodes.
-    static const int kArraySize = 6;
-    Node* to_insert[kArraySize] = {counters_array, one, offset_to_counter,
-                                   load,           inc, store};
-    // The first two Nodes are constant across all blocks.
-    int insertion_start = block_number == 0 ? 0 : 2;
+    static const int kArraySize = 10;
+    Node* to_insert[kArraySize] = {
+        counters_array, zero, one,      offset_to_counter,
+        load,           inc,  overflow, overflow_mask,
+        saturated_inc,  store};
+    // The first three Nodes are constant across all blocks.
+    int insertion_start = block_number == 0 ? 0 : 3;
     NodeVector::iterator insertion_point = FindInsertionPoint(block);
     block->InsertNodes(insertion_point, &to_insert[insertion_start],
                        &to_insert[kArraySize]);

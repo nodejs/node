@@ -55,9 +55,9 @@ const joinTests = [
      [['/', '//foo'], '/foo'],
      [['/', '', '/foo'], '/foo'],
      [['', '/', 'foo'], '/foo'],
-     [['', '/', '/foo'], '/foo']
-    ]
-  ]
+     [['', '/', '/foo'], '/foo'],
+    ],
+  ],
 ];
 
 // Windows-specific join tests
@@ -109,9 +109,9 @@ joinTests.push([
       [['c:.', '/'], 'c:.\\'],
       [['c:.', 'file'], 'c:file'],
       [['c:', '/'], 'c:\\'],
-      [['c:', 'file'], 'c:\\file']
+      [['c:', 'file'], 'c:\\file'],
     ]
-  )
+  ),
 ]);
 joinTests.forEach((test) => {
   if (!Array.isArray(test[0]))

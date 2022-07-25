@@ -26,16 +26,16 @@ U_NAMESPACE_BEGIN
 class CharsetRecog_UTF8: public CharsetRecognizer {
 
  public:
+		
+    virtual ~CharsetRecog_UTF8();		 
 
-    virtual ~CharsetRecog_UTF8();
-
-    const char *getName() const;
+    const char *getName() const override;
 
     /* (non-Javadoc)
      * @see com.ibm.icu.text.CharsetRecognizer#match(com.ibm.icu.text.CharsetDetector)
      */
-    UBool match(InputText *input, CharsetMatch *results) const;
-
+    UBool match(InputText *input, CharsetMatch *results) const override;
+	
 };
 
 U_NAMESPACE_END

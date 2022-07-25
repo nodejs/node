@@ -28,6 +28,12 @@ namespace per_process {
 extern unsigned int reverted_cve;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// MSVC C4065: switch statement contains 'default' but no 'case' labels
+#pragma warning(disable : 4065)
+#endif
+
 inline const char* RevertMessage(const reversion cve) {
 #define V(code, label, msg) case SECURITY_REVERT_##code: return label ": " msg;
   switch (cve) {
@@ -37,6 +43,10 @@ inline const char* RevertMessage(const reversion cve) {
   }
 #undef V
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 inline void Revert(const reversion cve) {
   per_process::reverted_cve |= 1 << cve;

@@ -13,7 +13,6 @@ for (let locale  of invalid_locales) {
 }
 
 var not_so_long_locales = [
-  "bs-u-nu-bzcu-cab-cabs-avnlubs-avnihu-zcu-cab-cbs-avnllubs-avnihq-zcu-cab-cbs-ubs-avnihu-cabs-flus-xxd-vnluy",
   "bs-u-nu-bzcu-cab-cabs-avnlubs-avnihu-zcu-cab-cbs-avnllubs-avnihq-zcu-cab-cbs-ubs-avnihu-cabs-flus-xxd",
   "bs-u-nu-bzcu-cab-cabs-avnlubs-avnihu-zcu",
 ];

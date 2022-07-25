@@ -269,6 +269,7 @@ function TestBadAssignmentLHS() {
   assertThrows("if (false) { /17/ **= 10; }", SyntaxError);
   assertThrows("if (false) { ({ valueOf() { return 17; } } **= 10); }",
                SyntaxError);
+  assertThrows("async function f() { await 1 ** 2; }", SyntaxError);
   // TODO(caitp): a Call expression as LHS should be an early SyntaxError!
   // assertThrows("if (false) { Array() **= 10; }", SyntaxError);
   assertThrows(() => Array() **= 10, ReferenceError);

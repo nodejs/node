@@ -11,7 +11,10 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -20,9 +23,11 @@ HandlerTable::HandlerTable(Code code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 
+#if V8_ENABLE_WEBASSEMBLY
 HandlerTable::HandlerTable(const wasm::WasmCode* code)
     : HandlerTable(code->handler_table(), code->handler_table_size(),
                    kReturnAddressBasedEncoding) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array.handler_table()) {}
@@ -142,7 +147,7 @@ int HandlerTable::LengthForRange(int entries) {
 
 // static
 int HandlerTable::EmitReturnTableStart(Assembler* masm) {
-  masm->DataAlign(sizeof(int32_t));  // Make sure entries are aligned.
+  masm->DataAlign(Code::kMetadataAlignment);
   masm->RecordComment(";;; Exception handler table.");
   int table_start = masm->pc_offset();
   return table_start;
@@ -204,6 +209,8 @@ int HandlerTable::LookupReturn(int pc_offset) {
     bool operator==(const Iterator& other) const {
       return index == other.index;
     }
+    // GLIBCXX_DEBUG checks uses the <= comparator.
+    bool operator<=(const Iterator& other) { return index <= other.index; }
     Iterator& operator++() {
       index++;
       return *this;

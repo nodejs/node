@@ -19,7 +19,7 @@ var call_imported_idx = builder.addFunction('call_func', kSig_v_v)
 // Open a block in order to make the positions more interesting...
 builder.addFunction('main', kSig_v_v)
   .addBody(
-    [kExprBlock, kWasmStmt, kExprCallFunction, call_imported_idx, kExprEnd])
+    [kExprBlock, kWasmVoid, kExprCallFunction, call_imported_idx, kExprEnd])
   .exportAs('main');
 
 var module_bytes = builder.toArray();

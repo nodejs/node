@@ -1,83 +1,44 @@
 # -*- coding: utf-8 -*-
+"""Jinja is a template engine written in pure Python. It provides a
+non-XML syntax that supports inline expressions and an optional
+sandboxed environment.
 """
-    jinja2
-    ~~~~~~
+from markupsafe import escape
+from markupsafe import Markup
 
-    Jinja2 is a template engine written in pure Python.  It provides a
-    Django inspired non-XML syntax but supports inline expressions and
-    an optional sandboxed environment.
+from .bccache import BytecodeCache
+from .bccache import FileSystemBytecodeCache
+from .bccache import MemcachedBytecodeCache
+from .environment import Environment
+from .environment import Template
+from .exceptions import TemplateAssertionError
+from .exceptions import TemplateError
+from .exceptions import TemplateNotFound
+from .exceptions import TemplateRuntimeError
+from .exceptions import TemplatesNotFound
+from .exceptions import TemplateSyntaxError
+from .exceptions import UndefinedError
+from .filters import contextfilter
+from .filters import environmentfilter
+from .filters import evalcontextfilter
+from .loaders import BaseLoader
+from .loaders import ChoiceLoader
+from .loaders import DictLoader
+from .loaders import FileSystemLoader
+from .loaders import FunctionLoader
+from .loaders import ModuleLoader
+from .loaders import PackageLoader
+from .loaders import PrefixLoader
+from .runtime import ChainableUndefined
+from .runtime import DebugUndefined
+from .runtime import make_logging_undefined
+from .runtime import StrictUndefined
+from .runtime import Undefined
+from .utils import clear_caches
+from .utils import contextfunction
+from .utils import environmentfunction
+from .utils import evalcontextfunction
+from .utils import is_undefined
+from .utils import select_autoescape
 
-    Nutshell
-    --------
-
-    Here a small example of a Jinja2 template::
-
-        {% extends 'base.html' %}
-        {% block title %}Memberlist{% endblock %}
-        {% block content %}
-          <ul>
-          {% for user in users %}
-            <li><a href="{{ user.url }}">{{ user.username }}</a></li>
-          {% endfor %}
-          </ul>
-        {% endblock %}
-
-
-    :copyright: (c) 2017 by the Jinja Team.
-    :license: BSD, see LICENSE for more details.
-"""
-__docformat__ = 'restructuredtext en'
-__version__ = '2.10'
-
-# high level interface
-from jinja2.environment import Environment, Template
-
-# loaders
-from jinja2.loaders import BaseLoader, FileSystemLoader, PackageLoader, \
-     DictLoader, FunctionLoader, PrefixLoader, ChoiceLoader, \
-     ModuleLoader
-
-# bytecode caches
-from jinja2.bccache import BytecodeCache, FileSystemBytecodeCache, \
-     MemcachedBytecodeCache
-
-# undefined types
-from jinja2.runtime import Undefined, DebugUndefined, StrictUndefined, \
-     make_logging_undefined
-
-# exceptions
-from jinja2.exceptions import TemplateError, UndefinedError, \
-     TemplateNotFound, TemplatesNotFound, TemplateSyntaxError, \
-     TemplateAssertionError, TemplateRuntimeError
-
-# decorators and public utilities
-from jinja2.filters import environmentfilter, contextfilter, \
-     evalcontextfilter
-from jinja2.utils import Markup, escape, clear_caches, \
-     environmentfunction, evalcontextfunction, contextfunction, \
-     is_undefined, select_autoescape
-
-__all__ = [
-    'Environment', 'Template', 'BaseLoader', 'FileSystemLoader',
-    'PackageLoader', 'DictLoader', 'FunctionLoader', 'PrefixLoader',
-    'ChoiceLoader', 'BytecodeCache', 'FileSystemBytecodeCache',
-    'MemcachedBytecodeCache', 'Undefined', 'DebugUndefined',
-    'StrictUndefined', 'TemplateError', 'UndefinedError', 'TemplateNotFound',
-    'TemplatesNotFound', 'TemplateSyntaxError', 'TemplateAssertionError',
-    'TemplateRuntimeError',
-    'ModuleLoader', 'environmentfilter', 'contextfilter', 'Markup', 'escape',
-    'environmentfunction', 'contextfunction', 'clear_caches', 'is_undefined',
-    'evalcontextfilter', 'evalcontextfunction', 'make_logging_undefined',
-    'select_autoescape',
-]
-
-
-def _patch_async():
-    from jinja2.utils import have_async_gen
-    if have_async_gen:
-        from jinja2.asyncsupport import patch_all
-        patch_all()
-
-
-_patch_async()
-del _patch_async
+__version__ = "2.11.3"

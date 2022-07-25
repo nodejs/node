@@ -1,7 +1,7 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -22,7 +22,7 @@ int TS_RESP_set_status_info(TS_RESP *a, TS_STATUS_INFO *status_info)
         return 1;
     new_status_info = TS_STATUS_INFO_dup(status_info);
     if (new_status_info == NULL) {
-        TSerr(TS_F_TS_RESP_SET_STATUS_INFO, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     TS_STATUS_INFO_free(a->status_info);
@@ -73,7 +73,7 @@ int TS_TST_INFO_set_policy_id(TS_TST_INFO *a, ASN1_OBJECT *policy)
         return 1;
     new_policy = OBJ_dup(policy);
     if (new_policy == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_POLICY_ID, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_OBJECT_free(a->policy_id);
@@ -94,7 +94,7 @@ int TS_TST_INFO_set_msg_imprint(TS_TST_INFO *a, TS_MSG_IMPRINT *msg_imprint)
         return 1;
     new_msg_imprint = TS_MSG_IMPRINT_dup(msg_imprint);
     if (new_msg_imprint == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_MSG_IMPRINT, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     TS_MSG_IMPRINT_free(a->msg_imprint);
@@ -115,7 +115,7 @@ int TS_TST_INFO_set_serial(TS_TST_INFO *a, const ASN1_INTEGER *serial)
         return 1;
     new_serial = ASN1_INTEGER_dup(serial);
     if (new_serial == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_SERIAL, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_INTEGER_free(a->serial);
@@ -136,7 +136,7 @@ int TS_TST_INFO_set_time(TS_TST_INFO *a, const ASN1_GENERALIZEDTIME *gtime)
         return 1;
     new_time = ASN1_STRING_dup(gtime);
     if (new_time == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_TIME, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_GENERALIZEDTIME_free(a->time);
@@ -157,7 +157,7 @@ int TS_TST_INFO_set_accuracy(TS_TST_INFO *a, TS_ACCURACY *accuracy)
         return 1;
     new_accuracy = TS_ACCURACY_dup(accuracy);
     if (new_accuracy == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_ACCURACY, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     TS_ACCURACY_free(a->accuracy);
@@ -178,7 +178,7 @@ int TS_ACCURACY_set_seconds(TS_ACCURACY *a, const ASN1_INTEGER *seconds)
         return 1;
     new_seconds = ASN1_INTEGER_dup(seconds);
     if (new_seconds == NULL) {
-        TSerr(TS_F_TS_ACCURACY_SET_SECONDS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_INTEGER_free(a->seconds);
@@ -200,7 +200,7 @@ int TS_ACCURACY_set_millis(TS_ACCURACY *a, const ASN1_INTEGER *millis)
     if (millis != NULL) {
         new_millis = ASN1_INTEGER_dup(millis);
         if (new_millis == NULL) {
-            TSerr(TS_F_TS_ACCURACY_SET_MILLIS, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
             return 0;
         }
     }
@@ -223,7 +223,7 @@ int TS_ACCURACY_set_micros(TS_ACCURACY *a, const ASN1_INTEGER *micros)
     if (micros != NULL) {
         new_micros = ASN1_INTEGER_dup(micros);
         if (new_micros == NULL) {
-            TSerr(TS_F_TS_ACCURACY_SET_MICROS, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
             return 0;
         }
     }
@@ -256,7 +256,7 @@ int TS_TST_INFO_set_nonce(TS_TST_INFO *a, const ASN1_INTEGER *nonce)
         return 1;
     new_nonce = ASN1_INTEGER_dup(nonce);
     if (new_nonce == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_NONCE, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ASN1_INTEGER_free(a->nonce);
@@ -277,7 +277,7 @@ int TS_TST_INFO_set_tsa(TS_TST_INFO *a, GENERAL_NAME *tsa)
         return 1;
     new_tsa = GENERAL_NAME_dup(tsa);
     if (new_tsa == NULL) {
-        TSerr(TS_F_TS_TST_INFO_SET_TSA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     GENERAL_NAME_free(a->tsa);

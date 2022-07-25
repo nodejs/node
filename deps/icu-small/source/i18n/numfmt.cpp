@@ -13,7 +13,7 @@
 *   Date        Name        Description
 *   02/19/97    aliu        Converted from java.
 *   03/18/97    clhuang     Implemented with C++ APIs.
-*   04/17/97    aliu        Enlarged MAX_INTEGER_DIGITS to fully accomodate the
+*   04/17/97    aliu        Enlarged MAX_INTEGER_DIGITS to fully accommodate the
 *                           largest double, by default.
 *                           Changed DigitCount to int per code review.
 *    07/20/98    stephen        Changed operator== to check for grouping
@@ -122,7 +122,7 @@ static const UChar * const gLastResortNumberPatterns[UNUM_FORMAT_STYLE_COUNT] = 
     gLastResortIsoCurrencyPat,  // UNUM_CURRENCY_ISO
     gLastResortPluralCurrencyPat,  // UNUM_CURRENCY_PLURAL
     gLastResortAccountingCurrencyPat, // UNUM_CURRENCY_ACCOUNTING
-    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY
+    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY 
     NULL,  // UNUM_DECIMAL_COMPACT_SHORT
     NULL,  // UNUM_DECIMAL_COMPACT_LONG
     gLastResortCurrencyPat,  // UNUM_CURRENCY_STANDARD
@@ -285,7 +285,7 @@ NumberFormat::operator=(const NumberFormat& rhs)
 
 // -------------------------------------
 
-UBool
+bool
 NumberFormat::operator==(const Format& that) const
 {
     // Format::operator== guarantees this cast is safe
@@ -434,13 +434,13 @@ NumberFormat::format(int64_t number,
 
 
 // -------------------------------------
-// Decimal Number format() default implementation
+// Decimal Number format() default implementation 
 // Subclasses do not normally override this function, but rather the DigitList
 // formatting functions..
 //   The expected call chain from here is
 //      this function ->
 //      NumberFormat::format(Formattable  ->
-//      DecimalFormat::format(DigitList
+//      DecimalFormat::format(DigitList    
 //
 //   Or, for subclasses of Formattable that do not know about DigitList,
 //       this Function ->
@@ -860,7 +860,7 @@ class ICUNumberFormatFactory : public ICUResourceBundleFactory {
 public:
     virtual ~ICUNumberFormatFactory();
 protected:
-    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /* service */, UErrorCode& status) const {
+    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /* service */, UErrorCode& status) const override {
         return NumberFormat::makeInstance(loc, (UNumberFormatStyle)kind, status);
     }
 };
@@ -884,7 +884,7 @@ public:
 
     virtual ~NFFactory();
 
-    virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const
+    virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const override
     {
         if (handlesKey(key, status)) {
             const LocaleKey& lkey = (const LocaleKey&)key;
@@ -907,7 +907,7 @@ protected:
      * otherwise).  This can be called often and might need to be
      * cached if it is expensive to create.
      */
-    virtual const Hashtable* getSupportedIDs(UErrorCode& status) const
+    virtual const Hashtable* getSupportedIDs(UErrorCode& status) const override
     {
         if (U_SUCCESS(status)) {
             if (!_ids) {
@@ -943,11 +943,11 @@ public:
 
     virtual ~ICUNumberFormatService();
 
-    virtual UObject* cloneInstance(UObject* instance) const {
+    virtual UObject* cloneInstance(UObject* instance) const override {
         return ((NumberFormat*)instance)->clone();
     }
 
-    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /* actualID */, UErrorCode& status) const {
+    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /* actualID */, UErrorCode& status) const override {
         LocaleKey& lkey = (LocaleKey&)key;
         int32_t kind = lkey.kind();
         Locale loc;
@@ -955,7 +955,7 @@ public:
         return NumberFormat::makeInstance(loc, (UNumberFormatStyle)kind, status);
     }
 
-    virtual UBool isDefault() const {
+    virtual UBool isDefault() const override {
         return countFactories() == 1;
     }
 };
@@ -1066,7 +1066,7 @@ NumberFormat::createInstance(const Locale& loc, UNumberFormatStyle kind, UErrorC
     }
     return result;
 }
-
+    
 
 // -------------------------------------
 // Checks if the thousand/10 thousand grouping is used in the
@@ -1412,7 +1412,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
     if (U_FAILURE(status)) {
         return NULL;
     }
-    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING
+    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING 
         || style == UNUM_CASH_CURRENCY || style == UNUM_CURRENCY_STANDARD){
         const UChar* currPattern = symbolsToAdopt->getCurrencyPattern();
         if(currPattern!=NULL){

@@ -15,6 +15,10 @@ InspectorTest.runAsyncTestSuite([
     return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, __proto__: { a: 3, c: 4, get d() {return 6;} }})', { ownProperties: false });
   },
 
+  function testNotOwnSet() {
+    return logExpressionProperties('new Set([1, 2, 3])', { ownProperties: false });
+  },
+
   function testAccessorsOnly() {
     return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, c: \'c\', set d(_){} })', { ownProperties: true, accessorPropertiesOnly: true});
   },
@@ -45,13 +49,30 @@ InspectorTest.runAsyncTestSuite([
     let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
-      if (prop.name === '__proto__')
-        continue;
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
     }
     for (let prop of props.result.internalProperties) {
-      InspectorTest.log(prop.name + ' ' + prop.value.value);
+      InspectorTest.log(prop.name);
+      if (prop.value.objectId)
+        await logGetPropertiesResult(prop.value.objectId);
+    }
+  },
+
+  async function testArrayBufferFromWebAssemblyMemory() {
+    let objectId = await evaluateToObjectId('new WebAssembly.Memory({initial: 1}).buffer');
+    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
+    for (let prop of props.result.result) {
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
+    }
+    for (let prop of props.result.internalProperties) {
+      InspectorTest.log(prop.name);
+      // Skip printing the values of the virtual typed arrays.
+      if (/\[\[.*Array\]\]/.test(prop.name))
+        continue;
+      if (prop.value.objectId)
+        await logGetPropertiesResult(prop.value.objectId);
     }
   },
 
@@ -63,8 +84,6 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({ expression: 'b', generatePreview: true })
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
-      if (prop.name === '__proto__')
-        continue;
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
     }
@@ -83,6 +102,18 @@ InspectorTest.runAsyncTestSuite([
       this.Uint8Array = this.uint8array_old;
       delete this.uint8array_old;
     })()`);
+  },
+
+  async function testObjectWithProtoProperty() {
+    await logExpressionProperties('Object.defineProperty({}, "__proto__", {enumerable: true, value: {b:"aaa"}})');
+  },
+
+  function testArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('[1, 2]', {nonIndexedPropertiesOnly: true, ownProperties: true});
+  },
+
+  function testTypedArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('new Int8Array(1)', {nonIndexedPropertiesOnly: true, ownProperties: true});
   }
 ]);
 
@@ -111,7 +142,7 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     var v = p.value;
     var own = p.isOwn ? "own" : "inherited";
     if (v)
-      InspectorTest.log("  " + p.name + " " + own + " " + v.type + " " + v.value);
+      InspectorTest.log(`  ${p.name} ${own} ${v.type} ${v.value}`);
     else
       InspectorTest.log("  " + p.name + " " + own + " no value" +
         (hasGetterSetter(p, "get") ? ", getter" : "") + (hasGetterSetter(p, "set") ? ", setter" : ""));
@@ -124,7 +155,7 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     for (var i = 0; i < array.length; i++) {
       var p = array[i];
       var v = p.value;
-      InspectorTest.log('  ' + p.name + ' ' + v.type + ' ' + v.value);
+      InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
     }
   }
 

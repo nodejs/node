@@ -1,11 +1,14 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* We need to use some  deprecated APIs */
+#include "internal/deprecated.h"
 
 #include "eng_local.h"
 #include <openssl/evp.h>
@@ -63,7 +66,8 @@ int ENGINE_set_default_pkey_meths(ENGINE *e)
  */
 ENGINE *ENGINE_get_pkey_meth_engine(int nid)
 {
-    return engine_table_select(&pkey_meth_table, nid);
+    return ossl_engine_table_select(&pkey_meth_table, nid,
+                                    OPENSSL_FILE, OPENSSL_LINE);
 }
 
 /* Obtains a pkey_meth implementation from an ENGINE functional reference */
@@ -72,8 +76,7 @@ const EVP_PKEY_METHOD *ENGINE_get_pkey_meth(ENGINE *e, int nid)
     EVP_PKEY_METHOD *ret;
     ENGINE_PKEY_METHS_PTR fn = ENGINE_get_pkey_meths(e);
     if (!fn || !fn(e, &ret, NULL, nid)) {
-        ENGINEerr(ENGINE_F_ENGINE_GET_PKEY_METH,
-                  ENGINE_R_UNIMPLEMENTED_PUBLIC_KEY_METHOD);
+        ERR_raise(ERR_LIB_ENGINE, ENGINE_R_UNIMPLEMENTED_PUBLIC_KEY_METHOD);
         return NULL;
     }
     return ret;

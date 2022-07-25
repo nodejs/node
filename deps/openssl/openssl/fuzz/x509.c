@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -14,14 +14,12 @@
 #include <openssl/rand.h>
 #include "fuzzer.h"
 
-#include "rand.inc"
-
 int FuzzerInitialize(int *argc, char ***argv)
 {
-    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-    ERR_get_state();
-    CRYPTO_free_ex_index(0, -1);
     FuzzerSetRand();
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+    ERR_clear_error();
+    CRYPTO_free_ex_index(0, -1);
     return 1;
 }
 
@@ -37,6 +35,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         X509_print(bio, x509);
         BIO_free(bio);
 
+        X509_issuer_and_serial_hash(x509);
+
         i2d_X509(x509, &der);
         OPENSSL_free(der);
 
@@ -48,4 +48,5 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
 void FuzzerCleanup(void)
 {
+    FuzzerClearRand();
 }

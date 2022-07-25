@@ -35,8 +35,8 @@ child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
   assert.strictEqual(stdout.trim(), '');
-  assert(/Warning: Enabling --trace-tls can expose sensitive/.test(stderr));
-  assert(/Sent Record/.test(stderr));
+  assert.match(stderr, /Warning: Enabling --trace-tls can expose sensitive/);
+  assert.match(stderr, /Sent Record/);
 }));
 
 function test() {

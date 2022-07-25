@@ -159,6 +159,14 @@ static bool supportsSTFLE() {
 #endif
 }
 
+bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
+  return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 256;
@@ -239,8 +247,15 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   USE(supportsCPUFeature);
   supported_ |= (1u << VECTOR_FACILITY);
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
+  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
 #endif
   supported_ |= (1u << FPU);
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
@@ -360,8 +375,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
-    : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(ip.bit()) {
+    : AssemblerBase(options, std::move(buffer)), scratch_register_list_({ip}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
@@ -370,6 +384,15 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   EmitRelocations();
 
   int code_comments_size = WriteCodeComments();
@@ -390,7 +413,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -416,7 +439,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -460,7 +482,7 @@ int Assembler::target_at(int pos) {
     if (imm16 == 0) return kEndOfChain;
     return pos + imm16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     int32_t imm32 =
         static_cast<int32_t>(instr & (static_cast<uint64_t>(0xFFFFFFFF)));
     if (LLILF != opcode)
@@ -498,7 +520,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     DCHECK(is_int16(imm16));
     instr_at_put<FourByteInstr>(pos, instr | (imm16 >> 1));
     return;
-  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode) {
+  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode ||
+             LGRL == opcode) {
     // Immediate is in # of halfwords
     int32_t imm32 = target_pos - pos;
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
@@ -534,7 +557,7 @@ int Assembler::max_reach_from(int pos) {
       BRXHG == opcode) {
     return 16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     return 31;  // Using 31 as workaround instead of 32 as
                 // is_intn(x,32) doesn't work on 32-bit platforms.
                 // llilf: Emitted label constant, not part of
@@ -624,9 +647,10 @@ void Assembler::load_label_offset(Register r1, Label* L) {
 }
 
 // Pseudo op - branch on condition
-void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound) {
+void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound,
+                             bool force_long_branch) {
   int offset_in_halfwords = branch_offset / 2;
-  if (is_bound && is_int16(offset_in_halfwords)) {
+  if (is_bound && is_int16(offset_in_halfwords) && !force_long_branch) {
     brc(c, Operand(offset_in_halfwords));  // short jump
   } else {
     brcl(c, Operand(offset_in_halfwords));  // long jump
@@ -673,6 +697,10 @@ void Assembler::nop(int type) {
 // Load Address Relative Long
 void Assembler::larl(Register r1, Label* l) {
   larl(r1, Operand(branch_offset(l)));
+}
+
+void Assembler::lgrl(Register r1, Label* l) {
+  lgrl(r1, Operand(branch_offset(l)));
 }
 
 void Assembler::EnsureSpaceFor(int space_needed) {
@@ -771,20 +799,35 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value) {
+void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
 }
 
-void Assembler::dp(uintptr_t data) {
+void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNoInfo(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uintptr_t*>(pc_) = data;
   pc_ += sizeof(uintptr_t);
 }
@@ -841,11 +884,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
 }
 }  // namespace internal
 }  // namespace v8

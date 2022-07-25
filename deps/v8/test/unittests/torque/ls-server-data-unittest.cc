@@ -43,14 +43,20 @@ TEST(LanguageServer, GotoTypeDefinition) {
 
   // Find the definition for type 'T1' of argument 'a' on line 4.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {4, 19});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(4, 19));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(2, 5),
+                            LineAndColumn::WithUnknownOffset(2, 7)}));
 
   // Find the defintion for type 'T2' of argument 'b' on line 4.
-  maybe_position = LanguageServerData::FindDefinition(id, {4, 26});
+  maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(4, 26));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {3, 5}, {3, 7}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(3, 5),
+                            LineAndColumn::WithUnknownOffset(3, 7)}));
 }
 
 TEST(LanguageServer, GotoTypeDefinitionExtends) {
@@ -65,9 +71,12 @@ TEST(LanguageServer, GotoTypeDefinitionExtends) {
 
   // Find the definition for 'T1' of the extends clause on line 3.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 16});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(3, 16));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(2, 5),
+                            LineAndColumn::WithUnknownOffset(2, 7)}));
 }
 
 TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
@@ -76,7 +85,8 @@ TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
   SourceId test_id = SourceFileMap::AddSource("test.tq");
 
   // Regression test, this step should not crash.
-  EXPECT_FALSE(LanguageServerData::FindDefinition(test_id, {0, 0}));
+  EXPECT_FALSE(LanguageServerData::FindDefinition(
+      test_id, LineAndColumn::WithUnknownOffset(0, 0)));
 }
 
 // TODO(almuthanna): This test was skipped because it causes a crash when it is
@@ -90,7 +100,7 @@ TEST(LanguageServer, GotoLabelDefinitionInSignature) {
       "macro Foo(): never labels Fail {\n"
       "  goto Fail;\n"
       "}\n"
-      "macro Bar() labels Bailout {\n"
+      "macro Bar(): void labels Bailout {\n"
       "  Foo() otherwise Bailout;\n"
       "}\n";
 
@@ -99,9 +109,12 @@ TEST(LanguageServer, GotoLabelDefinitionInSignature) {
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 18});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(6, 18));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {5, 19}, {5, 26}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(5, 25),
+                            LineAndColumn::WithUnknownOffset(5, 32)}));
 }
 #endif
 
@@ -112,7 +125,7 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
       "macro Foo(): never labels Fail {\n"
       "  goto Fail;\n"
       "}\n"
-      "macro Bar() {\n"
+      "macro Bar(): void {\n"
       "  try { Foo() otherwise Bailout; }\n"
       "  label Bailout {}\n"
       "}\n";
@@ -122,9 +135,12 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 25});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(6, 25));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(7, 8),
+                            LineAndColumn::WithUnknownOffset(7, 15)}));
 }
 
 // TODO(almuthanna): This test was skipped because it causes a crash when it is
@@ -143,9 +159,12 @@ TEST(LanguageServer, GotoDefinitionClassSuperType) {
 
   // Find the definition for 'Tagged' of the 'extends' on line 3.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 33});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(3, 33));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 11}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(2, 5),
+                            LineAndColumn::WithUnknownOffset(2, 11)}));
 }
 #endif
 
@@ -162,16 +181,19 @@ TEST(LanguageServer, GotoLabelDefinitionInSignatureGotoStmt) {
 
   // Find the definition for 'Fail' of the goto statement on line 3.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 7});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(3, 7));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 26}, {2, 30}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(2, 26),
+                            LineAndColumn::WithUnknownOffset(2, 30)}));
 }
 
 TEST(LanguageServer, GotoLabelDefinitionInTryBlockGoto) {
   const std::string source =
       "type void;\n"
       "type never;\n"
-      "macro Bar() {\n"
+      "macro Bar(): void {\n"
       "  try { goto Bailout; }\n"
       "  label Bailout {}\n"
       "}\n";
@@ -181,9 +203,12 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlockGoto) {
 
   // Find the definition for 'Bailout' of the goto statement on line 3.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 13});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(3, 13));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {4, 8}, {4, 15}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(4, 8),
+                            LineAndColumn::WithUnknownOffset(4, 15)}));
 }
 
 TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
@@ -193,7 +218,7 @@ TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
       "macro Foo(): never labels Fail {\n"
       "  goto Fail;\n"
       "}\n"
-      "macro Bar() {\n"
+      "macro Bar(): void {\n"
       "  try { Foo() otherwise goto Bailout; }\n"
       "  label Bailout {}\n"
       "}\n";
@@ -203,9 +228,12 @@ TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
   const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
-  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 30});
+  auto maybe_position = LanguageServerData::FindDefinition(
+      id, LineAndColumn::WithUnknownOffset(6, 30));
   ASSERT_TRUE(maybe_position.has_value());
-  EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
+  EXPECT_EQ(*maybe_position,
+            (SourcePosition{id, LineAndColumn::WithUnknownOffset(7, 8),
+                            LineAndColumn::WithUnknownOffset(7, 15)}));
 }
 
 TEST(LanguageServer, SymbolsArePopulated) {

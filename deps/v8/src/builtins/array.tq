@@ -16,20 +16,21 @@ type FastSmiOrObjectElements extends ElementsKind;
 type FastDoubleElements extends ElementsKind;
 type DictionaryElements extends ElementsKind;
 
-macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
-  assert(IsFastElementsKind(array.map.elements_kind));
+macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray):
+    void {
+  dcheck(IsFastElementsKind(array.map.elements_kind));
 
   const elements: FixedArrayBase = array.elements;
   if (elements.map != kCOWMap) return;
 
   // There are no COW *_DOUBLE_ELEMENTS arrays, so we are allowed to always
   // extract FixedArrays and don't have to worry about FixedDoubleArrays.
-  assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
+  dcheck(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
   const length = Convert<intptr>(Cast<Smi>(array.length) otherwise unreachable);
   array.elements =
       ExtractFixedArray(UnsafeCast<FixedArray>(elements), 0, length, length);
-  assert(array.elements.map != kCOWMap);
+  dcheck(array.elements.map != kCOWMap);
 }
 
 macro LoadElementOrUndefined(implicit context: Context)(
@@ -51,7 +52,7 @@ macro StoreArrayHole(elements: FixedArray, k: Smi): void {
   elements.objects[k] = TheHole;
 }
 
-extern macro SetPropertyLength(implicit context: Context)(JSAny, Number);
+extern macro SetPropertyLength(implicit context: Context)(JSAny, Number): void;
 
 const kLengthDescriptorIndex:
     constexpr int31 generates 'JSArray::kLengthDescriptorIndex';
@@ -72,7 +73,7 @@ macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
   const descriptors: DescriptorArray = map.instance_descriptors;
   const descriptor:&DescriptorEntry =
       &descriptors.descriptors[kLengthDescriptorIndex];
-  assert(TaggedEqual(descriptor->key, LengthStringConstant()));
+  dcheck(TaggedEqual(descriptor->key, LengthStringConstant()));
   const details: Smi = UnsafeCast<Smi>(descriptor->details);
   if ((details & kAttributesReadOnlyMask) != 0) {
     goto Bailout;

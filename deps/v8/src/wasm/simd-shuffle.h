@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_SIMD_SHUFFLE_H_
 #define V8_WASM_SIMD_SHUFFLE_H_
 
@@ -51,6 +55,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
     return true;
   }
 
+  // Tries to match a 32x4 rotate, only makes sense if the inputs are equal
+  // (is_swizzle). A rotation is a shuffle like [1, 2, 3, 0]. This will always
+  // match a Concat, but can have better codegen.
+  static bool TryMatch32x4Rotate(const uint8_t* shuffle, uint8_t* shuffle32x4,
+                                 bool is_swizzle);
+
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
   // successful, it writes the 32x4 shuffle word indices. E.g.
   // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]
@@ -85,6 +95,14 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
 };
+
+class V8_EXPORT_PRIVATE SimdSwizzle {
+ public:
+  // Checks if all the immediates are in range (< kSimd128Size), and if they are
+  // not, the top bit is set.
+  static bool AllInRangeOrTopBitSet(std::array<uint8_t, kSimd128Size> shuffle);
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

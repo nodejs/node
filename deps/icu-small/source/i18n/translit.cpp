@@ -170,6 +170,7 @@ Transliterator* Transliterator::clone() const {
  * Assignment operator.
  */
 Transliterator& Transliterator::operator=(const Transliterator& other) {
+    if (this == &other) { return *this; }  // self-assignment: no-op
     ID = other.ID;
     // NUL-terminate the ID string
     ID.getTerminatedBuffer();
@@ -248,7 +249,7 @@ void Transliterator::transliterate(Replaceable& text) const {
  * pending transliterations, clients should call {@link
  * #finishKeyboardTransliteration} after the last call to this
  * method has been made.
- *
+ * 
  * @param text the buffer holding transliterated and untransliterated text
  * @param index an array of three integers.
  *
@@ -452,7 +453,7 @@ void Transliterator::filteredTransliterate(Replaceable& text,
     // the changes made during the pass, extends the pass by one code point,
     // and tries again.
     //----------------------------------------------------------------------
-
+    
     // globalLimit is the limit value for the entire operation.  We
     // set index.limit to the end of each unfiltered run before
     // calling handleTransliterate(), so we need to maintain the real
@@ -460,7 +461,7 @@ void Transliterator::filteredTransliterate(Replaceable& text,
     // update globalLimit for insertions or deletions that have
     // happened.
     int32_t globalLimit = index.limit;
-
+    
     // If there is a non-null filter, then break the input text up.  Say the
     // input text has the form:
     //   xxxabcxxdefxx
@@ -470,7 +471,7 @@ void Transliterator::filteredTransliterate(Replaceable& text,
     // Each pass through the loop consumes a run of filtered
     // characters (which are ignored) and a subsequent run of
     // unfiltered characters (which are transliterated).
-
+    
     for (;;) {
 
         if (filter != NULL) {
@@ -506,7 +507,7 @@ void Transliterator::filteredTransliterate(Replaceable& text,
         // complete the transliteration for this run.
         UBool isIncrementalRun =
             (index.limit < globalLimit ? FALSE : incremental);
-
+        
         int32_t delta;
 
         // Implement rollback.  To understand the need for rollback,
@@ -932,15 +933,15 @@ Transliterator::createInstance(const UnicodeString& ID,
         return NULL;
     }
     LocalPointer<UnicodeSet> lpGlobalFilter(globalFilter);
-
+    
     TransliteratorIDParser::instantiateList(list, status);
     if (U_FAILURE(status)) {
         return NULL;
     }
-
+    
     U_ASSERT(list.size() > 0);
     Transliterator* t = NULL;
-
+    
     if (list.size() > 1 || canonID.indexOf(ID_DELIM) >= 0) {
         // [NOTE: If it's a compoundID, we instantiate a CompoundTransliterator even if it only
         // has one child transliterator.  This is so that toRules() will return the right thing
@@ -1092,6 +1093,8 @@ Transliterator::createFromRules(const UnicodeString& ID,
     }
     else {
         UVector transliterators(status);
+        // TODO ICU-21701 missing U_FAILURE check here.
+        //      Error and nullptr checking through this whole block looks suspect.
         int32_t passNumber = 1;
 
         int32_t limit = parser.idBlockVector.size();
@@ -1107,10 +1110,15 @@ Transliterator::createFromRules(const UnicodeString& ID,
                         delete temp;
                         return nullptr;
                     }
-                    if (temp != NULL && typeid(*temp) != typeid(NullTransliterator))
+                    if (temp != NULL && typeid(*temp) != typeid(NullTransliterator)) {
                         transliterators.addElement(temp, status);
-                    else
+                        if (U_FAILURE(status)) {
+                            delete temp;
+                            return nullptr;
+                        }
+                    } else {
                         delete temp;
+                    }
                 }
             }
             if (!parser.dataVector.isEmpty()) {
@@ -1126,6 +1134,13 @@ Transliterator::createFromRules(const UnicodeString& ID,
                     return t;
                 }
                 transliterators.addElement(temprbt, status);
+                if (U_FAILURE(status)) {
+                    delete temprbt;
+                    return t;
+                }
+                // TODO: ICU-21701 the transliterators vector will leak its contents if anything goes wrong.
+                //       Under normal operation, the CompoundTransliterator constructor adopts the
+                //       the contents of the vector.
             }
         }
 
@@ -1289,7 +1304,7 @@ void Transliterator::_registerAlias(const UnicodeString& aliasID,
 /**
  * Unregisters a transliterator or class.  This may be either
  * a system transliterator or a user transliterator or class.
- *
+ * 
  * @param ID the ID of the transliterator or class
  * @see #registerInstance
 
@@ -1493,13 +1508,13 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
      * <id> is the ID of the system transliterator being defined.  These
      * are public IDs enumerated by Transliterator.getAvailableIDs(),
      * unless the second field is "internal".
-     *
+     * 
      * <resource> is a ResourceReader resource name.  Currently these refer
      * to file names under com/ibm/text/resources.  This string is passed
      * directly to ResourceReader, together with <encoding>.
-     *
+     * 
      * <direction> is either "FORWARD" or "REVERSE".
-     *
+     * 
      * <getInstanceArg> is a string to be passed directly to
      * Transliterator.getInstance().  The returned Transliterator object
      * then has its ID changed to <id> and is returned.
@@ -1545,10 +1560,10 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
                         // 'file' or 'internal';
                         // row[2]=resource, row[3]=direction
                         {
-
+                            
                             resString = ures_getStringByKey(res, "resource", &len, &lstatus);
                             UBool visible = (type == 0x0066 /*f*/);
-                            UTransDirection dir =
+                            UTransDirection dir = 
                                 (ures_getUnicodeStringByKey(res, "direction", &lstatus).charAt(0) ==
                                  0x0046 /*F*/) ?
                                 UTRANS_FORWARD : UTRANS_REVERSE;
@@ -1574,7 +1589,7 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
     // Manually add prototypes that the system knows about to the
     // cache.  This is how new non-rule-based transliterators are
     // added to the system.
-
+    
     // This is to allow for null pointer check
     NullTransliterator* tempNullTranslit = new NullTransliterator();
     LowercaseTransliterator* tempLowercaseTranslit = new LowercaseTransliterator();
@@ -1588,7 +1603,7 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
 #endif
     // Check for null pointers
     if (tempNullTranslit == NULL || tempLowercaseTranslit == NULL || tempUppercaseTranslit == NULL ||
-        tempTitlecaseTranslit == NULL || tempUnicodeTranslit == NULL ||
+        tempTitlecaseTranslit == NULL || tempUnicodeTranslit == NULL || 
 #if !UCONFIG_NO_BREAK_ITERATION
         tempBreakTranslit == NULL ||
 #endif

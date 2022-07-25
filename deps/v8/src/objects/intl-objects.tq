@@ -2,157 +2,129 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include 'src/objects/js-break-iterator.h'
-#include 'src/objects/js-collator.h'
-#include 'src/objects/js-date-time-format.h'
-#include 'src/objects/js-display-names.h'
-#include 'src/objects/js-list-format.h'
-#include 'src/objects/js-locale.h'
-#include 'src/objects/js-number-format.h'
 #include 'src/objects/js-objects.h'
-#include 'src/objects/js-plural-rules.h'
-#include 'src/objects/js-relative-time-format.h'
-#include 'src/objects/js-segment-iterator.h'
-#include 'src/objects/js-segmenter.h'
-#include 'src/objects/js-segments.h'
+#include 'src/objects/intl-objects.h'
 
-type DateTimeStyle extends int32 constexpr 'JSDateTimeFormat::DateTimeStyle';
-type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
-bitfield struct JSDateTimeFormatFlags extends uint31 {
-  hour_cycle: HourCycle: 3 bit;
-  date_style: DateTimeStyle: 3 bit;
-  time_style: DateTimeStyle: 3 bit;
+extern macro IntlAsciiCollationWeightsL1(): RawPtr<uint8>;
+extern macro IntlAsciiCollationWeightsL3(): RawPtr<uint8>;
+const kIntlAsciiCollationWeightsLength:
+    constexpr int31 generates 'Intl::kAsciiCollationWeightsLength';
+
+macro IntlAsciiCollationWeightL1(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL1(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
 }
 
-@generateCppClass
-extern class JSDateTimeFormat extends JSObject {
-  locale: String;
-  icu_locale: Foreign;                // Managed<icu::Locale>
-  icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
-  icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
-  bound_format: JSFunction|Undefined;
-  flags: SmiTagged<JSDateTimeFormatFlags>;
+macro IntlAsciiCollationWeightL3(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL3(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
 }
 
-type JSDisplayNamesStyle extends int32 constexpr 'JSDisplayNames::Style';
-type JSDisplayNamesFallback extends int32
-constexpr 'JSDisplayNames::Fallback';
-bitfield struct JSDisplayNamesFlags extends uint31 {
-  style: JSDisplayNamesStyle: 2 bit;
-  fallback: JSDisplayNamesFallback: 1 bit;
+macro CheckEmptyOr1Byte(
+    _it: torque_internal::SliceIterator<char8, const &char8>):
+    void labels _Bailout {
+  // char8 is always within 0xFF.
+}
+macro CheckEmptyOr1Byte(
+    it: torque_internal::SliceIterator<char16, const &char16>):
+    void labels Bailout {
+  let it = it;
+  if ((it.Next() otherwise return ) > 0xFF) goto Bailout;
 }
 
-@generateCppClass
-extern class JSDisplayNames extends JSObject {
-  internal: Foreign;  // Managed<DisplayNamesInternal>
-  flags: SmiTagged<JSDisplayNamesFlags>;
+// This fast path works for ASCII-only strings and is based on the assumption
+// that most strings are either bytewise equal or differ on L1 (i.e., not just
+// in capitalization). So we first compare the strings on L1 and only afterwards
+// consider L3. This makes use of the 256-entry L1 and L3 tables defined in
+// src/objects/intl-objects.cc.
+macro LocaleCompareFastPath<T1: type, T2: type>(
+    left: ConstSlice<T1>, right: ConstSlice<T2>): Number labels Bailout {
+  if (EqualContent(left, right)) return 0;
+  let leftIt = left.Iterator();
+  let rightIt = right.Iterator();
+  while (true) {
+    try {
+      const lChar = leftIt.Next() otherwise goto LeftExhausted;
+      const leftWeight = IntlAsciiCollationWeightL1(lChar) otherwise Bailout;
+      if (leftWeight == 0) goto Bailout;
+      // If rightIt is exhausted, we already checked that the next char of the
+      // left string has non-zero weight, so it cannot be ignorable or a
+      // combining character.
+      // Return 1 because right string is shorter and L1 is equal.
+      const rChar = rightIt.Next() otherwise return 1;
+      const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+      if (rightWeight == 0) goto Bailout;
+      if (leftWeight == rightWeight) continue;
+      // The result is only valid if the last processed character is not
+      // followed by a unicode combining character (we are overly strict and
+      // restrict to code points up to 0xFF).
+      CheckEmptyOr1Byte(leftIt) otherwise Bailout;
+      CheckEmptyOr1Byte(rightIt) otherwise Bailout;
+      if (leftWeight < rightWeight) return -1;
+      return 1;
+    } label LeftExhausted {
+      const rChar = rightIt.Next() otherwise break;
+      const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+      // If the following character might be ignorable or a combining character,
+      // we bail out because the strings might still be considered equal.
+      if (rightWeight == 0) goto Bailout;
+      // Return -1 because left string is shorter and L1 is equal.
+      return -1;
+    }
+  }
+  leftIt = left.Iterator();
+  rightIt = right.Iterator();
+  while (true) {
+    const lChar = leftIt.Next() otherwise unreachable;
+    const leftWeight = IntlAsciiCollationWeightL3(lChar) otherwise unreachable;
+    dcheck(leftWeight != 0);
+    const rChar = rightIt.Next() otherwise unreachable;
+    const rightWeight = IntlAsciiCollationWeightL3(rChar) otherwise unreachable;
+    dcheck(rightWeight != 0);
+    dcheck(
+        IntlAsciiCollationWeightL1(lChar) otherwise unreachable ==
+        IntlAsciiCollationWeightL1(rChar) otherwise unreachable);
+    if (leftWeight == rightWeight) continue;
+    if (leftWeight < rightWeight) return -1;
+    return 1;
+  }
+  VerifiedUnreachable();
 }
 
-type JSListFormatStyle extends int32 constexpr 'JSListFormat::Style';
-type JSListFormatType extends int32 constexpr 'JSListFormat::Type';
-bitfield struct JSListFormatFlags extends uint31 {
-  style: JSListFormatStyle: 2 bit;
-  Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
-}
-
-@generateCppClass
-extern class JSListFormat extends JSObject {
-  locale: String;
-  icu_formatter: Foreign;  // Managed<icu::ListFormatter>
-  flags: SmiTagged<JSListFormatFlags>;
-}
-
-@generateCppClass
-extern class JSNumberFormat extends JSObject {
-  locale: String;
-  icu_number_formatter:
-      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
-  bound_format: JSFunction|Undefined;
-}
-
-type JSPluralRulesType extends int32 constexpr 'JSPluralRules::Type';
-bitfield struct JSPluralRulesFlags extends uint31 {
-  Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
-}
-
-@generateCppClass
-extern class JSPluralRules extends JSObject {
-  locale: String;
-  flags: SmiTagged<JSPluralRulesFlags>;
-  icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
-  icu_number_formatter:
-      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
-}
-
-type JSRelativeTimeFormatNumeric extends int32
-constexpr 'JSRelativeTimeFormat::Numeric';
-bitfield struct JSRelativeTimeFormatFlags extends uint31 {
-  numeric: JSRelativeTimeFormatNumeric: 1 bit;
-}
-
-@generateCppClass
-extern class JSRelativeTimeFormat extends JSObject {
-  locale: String;
-  numberingSystem: String;
-  icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
-  flags: SmiTagged<JSRelativeTimeFormatFlags>;
-}
-
-@generateCppClass
-extern class JSLocale extends JSObject {
-  icu_locale: Foreign;  // Managed<icu::Locale>
-}
-
-type JSSegmenterGranularity extends int32
-constexpr 'JSSegmenter::Granularity';
-bitfield struct JSSegmenterFlags extends uint31 {
-  granularity: JSSegmenterGranularity: 2 bit;
-}
-
-@generateCppClass
-extern class JSSegmenter extends JSObject {
-  locale: String;
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
-  flags: SmiTagged<JSSegmenterFlags>;
-}
-
-bitfield struct JSSegmentsFlags extends uint31 {
-  granularity: JSSegmenterGranularity: 2 bit;
-}
-
-@generateCppClass
-extern class JSSegments extends JSObject {
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
-  unicode_string: Foreign;      // Managed<icu::UnicodeString>
-  flags: SmiTagged<JSSegmentsFlags>;
-}
-
-bitfield struct JSSegmentIteratorFlags extends uint31 {
-  granularity: JSSegmenterGranularity: 2 bit;
-}
-
-@generateCppClass
-extern class JSSegmentIterator extends JSObject {
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
-  unicode_string: Foreign;      // Managed<icu::UnicodeString>
-  flags: SmiTagged<JSSegmentIteratorFlags>;
-}
-
-@generateCppClass
-extern class JSV8BreakIterator extends JSObject {
-  locale: String;
-  break_iterator: Foreign;  // Managed<icu::BreakIterator>;
-  unicode_string: Foreign;  // Managed<icu::UnicodeString>;
-  bound_adopt_text: Undefined|JSFunction;
-  bound_first: Undefined|JSFunction;
-  bound_next: Undefined|JSFunction;
-  bound_current: Undefined|JSFunction;
-  bound_break_type: Undefined|JSFunction;
-}
-
-@generateCppClass
-extern class JSCollator extends JSObject {
-  icu_collator: Foreign;  // Managed<icu::Collator>
-  bound_compare: Undefined|JSFunction;
-  locale: String;
+transitioning builtin StringFastLocaleCompare(implicit context: Context)(
+    localeCompareFn: JSFunction, left: JSAny, right: JSAny,
+    locales: JSAny): JSAny {
+  try {
+    const left = Cast<String>(left) otherwise Bailout;
+    if (TaggedEqual(left, right)) return SmiConstant(0);
+    StringToSlice(left) otherwise LeftOneByte, LeftTwoByte;
+  } label LeftOneByte(leftSlice: ConstSlice<char8>) {
+    try {
+      const right = Cast<String>(right) otherwise Bailout;
+      StringToSlice(right) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    }
+  } label LeftTwoByte(leftSlice: ConstSlice<char16>) {
+    try {
+      const right = Cast<String>(right) otherwise Bailout;
+      StringToSlice(right) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    }
+  } label Bailout deferred {
+    return Call(context, localeCompareFn, left, right, locales);
+  }
 }

@@ -11,6 +11,10 @@
 #if !defined(_MSC_VER)
 #include <unistd.h>  // setuid, getuid
 #endif
+#ifdef __linux__
+#include <linux/capability.h>
+#include <sys/syscall.h>
+#endif  // __linux__
 
 namespace node {
 
@@ -33,23 +37,57 @@ bool linux_at_secure = false;
 
 namespace credentials {
 
-// Look up environment variable unless running as setuid root.
-bool SafeGetenv(const char* key, std::string* text, Environment* env) {
+#if defined(__linux__)
+// Returns true if the current process only has the passed-in capability.
+bool HasOnly(int capability) {
+  DCHECK(cap_valid(capability));
+
+  struct __user_cap_data_struct cap_data[2];
+  struct __user_cap_header_struct cap_header_data = {
+    _LINUX_CAPABILITY_VERSION_3,
+    getpid()};
+
+
+  if (syscall(SYS_capget, &cap_header_data, &cap_data) != 0) {
+    return false;
+  }
+  if (capability < 32) {
+    return cap_data[0].permitted ==
+        static_cast<unsigned int>(CAP_TO_MASK(capability));
+  }
+  return cap_data[1].permitted ==
+      static_cast<unsigned int>(CAP_TO_MASK(capability));
+}
+#endif
+
+// Look up the environment variable and allow the lookup if the current
+// process only has the capability CAP_NET_BIND_SERVICE set. If the current
+// process does not have any capabilities set and the process is running as
+// setuid root then lookup will not be allowed.
+bool SafeGetenv(const char* key,
+                std::string* text,
+                std::shared_ptr<KVStore> env_vars,
+                v8::Isolate* isolate) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
+#if defined(__linux__)
+  if ((!HasOnly(CAP_NET_BIND_SERVICE) && per_process::linux_at_secure) ||
+      getuid() != geteuid() || getgid() != getegid())
+#else
   if (per_process::linux_at_secure || getuid() != geteuid() ||
       getgid() != getegid())
+#endif
     goto fail;
 #endif
 
-  if (env != nullptr) {
-    HandleScope handle_scope(env->isolate());
-    TryCatch ignore_errors(env->isolate());
-    MaybeLocal<String> maybe_value = env->env_vars()->Get(
-        env->isolate(),
-        String::NewFromUtf8(env->isolate(), key).ToLocalChecked());
+  if (env_vars != nullptr) {
+    DCHECK_NOT_NULL(isolate);
+    HandleScope handle_scope(isolate);
+    TryCatch ignore_errors(isolate);
+    MaybeLocal<String> maybe_value = env_vars->Get(
+        isolate, String::NewFromUtf8(isolate, key).ToLocalChecked());
     Local<String> value;
     if (!maybe_value.ToLocal(&value)) goto fail;
-    String::Utf8Value utf8_value(env->isolate(), value);
+    String::Utf8Value utf8_value(isolate, value);
     if (*utf8_value == nullptr) goto fail;
     *text = std::string(*utf8_value, utf8_value.length());
     return true;
@@ -86,7 +124,7 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env)) return;
+  if (!SafeGetenv(*strenvtag, &text, env->env_vars(), isolate)) return;
   Local<Value> result =
       ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
   args.GetReturnValue().Set(result);

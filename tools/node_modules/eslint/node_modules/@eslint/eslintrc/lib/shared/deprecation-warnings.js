@@ -2,14 +2,12 @@
  * @fileoverview Provide the function that emits deprecation warnings.
  * @author Toru Nagashima <http://github.com/mysticatea>
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const path = require("path");
-const lodash = require("lodash");
+import path from "path";
 
 //------------------------------------------------------------------------------
 // Private
@@ -28,6 +26,8 @@ const deprecationWarningMessages = {
         "projects in order to avoid loading '~/.eslintrc.*' accidentally."
 };
 
+const sourceFileErrorCache = new Set();
+
 /**
  * Emits a deprecation warning containing a given filepath. A new deprecation warning is emitted
  * for each unique file path, but repeated invocations with the same file path have no effect.
@@ -36,7 +36,14 @@ const deprecationWarningMessages = {
  * @param {string} errorCode The warning message to show.
  * @returns {void}
  */
-const emitDeprecationWarning = lodash.memoize((source, errorCode) => {
+function emitDeprecationWarning(source, errorCode) {
+    const cacheKey = JSON.stringify({ source, errorCode });
+
+    if (sourceFileErrorCache.has(cacheKey)) {
+        return;
+    }
+    sourceFileErrorCache.add(cacheKey);
+
     const rel = path.relative(process.cwd(), source);
     const message = deprecationWarningMessages[errorCode];
 
@@ -45,12 +52,12 @@ const emitDeprecationWarning = lodash.memoize((source, errorCode) => {
         "DeprecationWarning",
         errorCode
     );
-}, (...args) => JSON.stringify(args));
+}
 
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
-module.exports = {
+export {
     emitDeprecationWarning
 };

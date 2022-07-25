@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 // Tests of sampler functionalities.
 
-#include "src/libsampler/sampler.h"
-
+#include "include/v8-external.h"
+#include "include/v8-function.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/libsampler/sampler.h"
 #include "test/cctest/cctest.h"
-
 
 namespace v8 {
 namespace sampler {
@@ -97,8 +97,10 @@ static const char* sampler_test_source = "function start(count) {\n"
 
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
                                            const char* name) {
-  return v8::Local<v8::Function>::Cast(
-      env->Global()->Get(env, v8_str(name)).ToLocalChecked());
+  return env->Global()
+      ->Get(env, v8_str(name))
+      .ToLocalChecked()
+      .As<v8::Function>();
 }
 
 

@@ -364,7 +364,7 @@ MeasureFormat::MeasureFormat(
         const Locale &locale,
         UMeasureFormatWidth w,
         NumberFormat *nfToAdopt,
-        UErrorCode &status)
+        UErrorCode &status) 
         : cache(NULL),
           numberFormat(NULL),
           pluralRules(NULL),
@@ -427,12 +427,12 @@ MeasureFormat::~MeasureFormat() {
     delete listFormatter;
 }
 
-UBool MeasureFormat::operator==(const Format &other) const {
+bool MeasureFormat::operator==(const Format &other) const {
     if (this == &other) { // Same object, equal
-        return TRUE;
+        return true;
     }
     if (!Format::operator==(other)) {
-        return FALSE;
+        return false;
     }
     const MeasureFormat &rhs = static_cast<const MeasureFormat &>(other);
 
@@ -441,7 +441,7 @@ UBool MeasureFormat::operator==(const Format &other) const {
 
     // differing widths aren't equivalent
     if (fWidth != rhs.fWidth) {
-        return FALSE;
+        return false;
     }
     // Width the same check locales.
     // We don't need to check locales if both objects have same cache.
@@ -451,10 +451,10 @@ UBool MeasureFormat::operator==(const Format &other) const {
         const char *rhsLocaleId = rhs.getLocaleID(status);
         if (U_FAILURE(status)) {
             // On failure, assume not equal
-            return FALSE;
+            return false;
         }
         if (uprv_strcmp(localeId, rhsLocaleId) != 0) {
-            return FALSE;
+            return false;
         }
     }
     // Locales same, check NumberFormat if shared data differs.
@@ -581,7 +581,10 @@ void MeasureFormat::initMeasureFormat(
         UMeasureFormatWidth w,
         NumberFormat *nfToAdopt,
         UErrorCode &status) {
-    static const char *listStyles[] = {"unit", "unit-short", "unit-narrow"};
+    static const UListFormatterWidth listWidths[] = {
+        ULISTFMT_WIDTH_WIDE,
+        ULISTFMT_WIDTH_SHORT,
+        ULISTFMT_WIDTH_NARROW};
     LocalPointer<NumberFormat> nf(nfToAdopt);
     if (U_FAILURE(status)) {
         return;
@@ -620,7 +623,8 @@ void MeasureFormat::initMeasureFormat(
     delete listFormatter;
     listFormatter = ListFormatter::createInstance(
             locale,
-            listStyles[getRegularWidth(fWidth)],
+            ULISTFMT_TYPE_UNITS,
+            listWidths[getRegularWidth(fWidth)],
             status);
 }
 
@@ -645,7 +649,7 @@ UBool MeasureFormat::setMeasureFormatLocale(const Locale &locale, UErrorCode &st
     }
     initMeasureFormat(locale, fWidth, NULL, status);
     return U_SUCCESS(status);
-}
+} 
 
 const NumberFormat &MeasureFormat::getNumberFormatInternal() const {
     return **numberFormat;

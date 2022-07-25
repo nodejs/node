@@ -34,7 +34,7 @@ U_NAMESPACE_USE
 /**
  * Verify that fmt is a SimpleDateFormat. Invalid error if not.
  * @param fmt the UDateFormat, definitely a DateFormat, maybe something else
- * @param status error code, will be set to failure if there is a familure or the fmt is NULL.
+ * @param status error code, will be set to failure if there is a failure or the fmt is NULL.
  */
 static void verifyIsSimpleDateFormat(const UDateFormat* fmt, UErrorCode *status) {
    if(U_SUCCESS(*status) &&
@@ -425,8 +425,8 @@ udat_setLenient(    UDateFormat*    fmt,
 }
 
 U_CAPI UBool U_EXPORT2
-udat_getBooleanAttribute(const UDateFormat* fmt,
-                         UDateFormatBooleanAttribute attr,
+udat_getBooleanAttribute(const UDateFormat* fmt, 
+                         UDateFormatBooleanAttribute attr, 
                          UErrorCode* status)
 {
     if(U_FAILURE(*status)) return FALSE;
@@ -435,9 +435,9 @@ udat_getBooleanAttribute(const UDateFormat* fmt,
 }
 
 U_CAPI void U_EXPORT2
-udat_setBooleanAttribute(UDateFormat *fmt,
-                         UDateFormatBooleanAttribute attr,
-                         UBool newValue,
+udat_setBooleanAttribute(UDateFormat *fmt, 
+                         UDateFormatBooleanAttribute attr, 
+                         UBool newValue, 
                          UErrorCode* status)
 {
     if(U_FAILURE(*status)) return;
@@ -457,7 +457,7 @@ udat_setCalendar(UDateFormat*    fmt,
     ((DateFormat*)fmt)->setCalendar(*((Calendar*)calendarToSet));
 }
 
-U_CAPI const UNumberFormat* U_EXPORT2
+U_CAPI const UNumberFormat* U_EXPORT2 
 udat_getNumberFormatForField(const UDateFormat* fmt, UChar field)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -472,7 +472,7 @@ udat_getNumberFormat(const UDateFormat* fmt)
     return (const UNumberFormat*) ((DateFormat*)fmt)->getNumberFormat();
 }
 
-U_CAPI void U_EXPORT2
+U_CAPI void U_EXPORT2 
 udat_adoptNumberFormatForFields(           UDateFormat*    fmt,
                                     const  UChar*          fields,
                                            UNumberFormat*  numberFormatToSet,
@@ -480,7 +480,7 @@ udat_adoptNumberFormatForFields(           UDateFormat*    fmt,
 {
     verifyIsSimpleDateFormat(fmt, status);
     if (U_FAILURE(*status)) return;
-
+    
     if (fields!=NULL) {
         UnicodeString overrideFields(fields);
         ((SimpleDateFormat*)fmt)->adoptNumberFormat(overrideFields, (NumberFormat*)numberFormatToSet, *status);
@@ -587,7 +587,7 @@ udat_applyPattern(  UDateFormat     *format,
     if(U_FAILURE(status)) {
         return;
     }
-
+    
     if(localized)
         ((SimpleDateFormat*)format)->applyLocalizedPattern(pat, status);
     else
@@ -704,6 +704,10 @@ udat_getSymbols(const   UDateFormat     *fmt,
         res = syms->getQuarters(count, DateFormatSymbols::FORMAT, DateFormatSymbols::ABBREVIATED);
         break;
 
+    case UDAT_NARROW_QUARTERS:
+        res = syms->getQuarters(count, DateFormatSymbols::FORMAT, DateFormatSymbols::NARROW);
+        break;
+        
     case UDAT_STANDALONE_QUARTERS:
         res = syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::WIDE);
         break;
@@ -712,6 +716,10 @@ udat_getSymbols(const   UDateFormat     *fmt,
         res = syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::ABBREVIATED);
         break;
 
+    case UDAT_STANDALONE_NARROW_QUARTERS:
+        res = syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::NARROW);
+        break;
+        
     case UDAT_CYCLIC_YEARS_WIDE:
         res = syms->getYearNames(count, DateFormatSymbols::FORMAT, DateFormatSymbols::WIDE);
         break;
@@ -842,6 +850,10 @@ udat_countSymbols(    const    UDateFormat                *fmt,
         syms->getQuarters(count, DateFormatSymbols::FORMAT, DateFormatSymbols::ABBREVIATED);
         break;
 
+    case UDAT_NARROW_QUARTERS:
+        syms->getQuarters(count, DateFormatSymbols::FORMAT, DateFormatSymbols::NARROW);
+        break;
+        
     case UDAT_STANDALONE_QUARTERS:
         syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::WIDE);
         break;
@@ -850,6 +862,10 @@ udat_countSymbols(    const    UDateFormat                *fmt,
         syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::ABBREVIATED);
         break;
 
+    case UDAT_STANDALONE_NARROW_QUARTERS:
+        syms->getQuarters(count, DateFormatSymbols::STANDALONE, DateFormatSymbols::NARROW);
+        break;
+        
     case UDAT_CYCLIC_YEARS_WIDE:
         syms->getYearNames(count, DateFormatSymbols::FORMAT, DateFormatSymbols::WIDE);
         break;
@@ -1049,6 +1065,13 @@ public:
     }
 
     static void
+        setNarrowQuarter(DateFormatSymbols *syms, int32_t index,
+        const UChar *value, int32_t valueLength, UErrorCode &errorCode)
+    {
+        setSymbol(syms->fNarrowQuarters, syms->fNarrowQuartersCount, index, value, valueLength, errorCode);
+    }
+    
+    static void
         setStandaloneQuarter(DateFormatSymbols *syms, int32_t index,
         const UChar *value, int32_t valueLength, UErrorCode &errorCode)
     {
@@ -1062,6 +1085,13 @@ public:
         setSymbol(syms->fStandaloneShortQuarters, syms->fStandaloneShortQuartersCount, index, value, valueLength, errorCode);
     }
 
+    static void
+        setStandaloneNarrowQuarter(DateFormatSymbols *syms, int32_t index,
+        const UChar *value, int32_t valueLength, UErrorCode &errorCode)
+    {
+        setSymbol(syms->fStandaloneNarrowQuarters, syms->fStandaloneNarrowQuartersCount, index, value, valueLength, errorCode);
+    }
+    
     static void
         setShortYearNames(DateFormatSymbols *syms, int32_t index,
         const UChar *value, int32_t valueLength, UErrorCode &errorCode)
@@ -1179,6 +1209,10 @@ udat_setSymbols(    UDateFormat             *format,
         DateFormatSymbolsSingleSetter::setShortQuarter(syms, index, value, valueLength, *status);
         break;
 
+    case UDAT_NARROW_QUARTERS:
+        DateFormatSymbolsSingleSetter::setNarrowQuarter(syms, index, value, valueLength, *status);
+        break;
+        
     case UDAT_STANDALONE_QUARTERS:
         DateFormatSymbolsSingleSetter::setStandaloneQuarter(syms, index, value, valueLength, *status);
         break;
@@ -1187,6 +1221,10 @@ udat_setSymbols(    UDateFormat             *format,
         DateFormatSymbolsSingleSetter::setStandaloneShortQuarter(syms, index, value, valueLength, *status);
         break;
 
+    case UDAT_STANDALONE_NARROW_QUARTERS:
+        DateFormatSymbolsSingleSetter::setStandaloneNarrowQuarter(syms, index, value, valueLength, *status);
+        break;
+        
     case UDAT_CYCLIC_YEARS_ABBREVIATED:
         DateFormatSymbolsSingleSetter::setShortYearNames(syms, index, value, valueLength, *status);
         break;
@@ -1206,7 +1244,7 @@ udat_setSymbols(    UDateFormat             *format,
     default:
         *status = U_UNSUPPORTED_ERROR;
         break;
-
+        
     }
 }
 
@@ -1247,7 +1285,7 @@ udat_getContext(const UDateFormat* fmt, UDisplayContextType type, UErrorCode* st
 /**
  * Verify that fmt is a RelativeDateFormat. Invalid error if not.
  * @param fmt the UDateFormat, definitely a DateFormat, maybe something else
- * @param status error code, will be set to failure if there is a familure or the fmt is NULL.
+ * @param status error code, will be set to failure if there is a failure or the fmt is NULL.
  */
 static void verifyIsRelativeDateFormat(const UDateFormat* fmt, UErrorCode *status) {
    if(U_SUCCESS(*status) &&
@@ -1257,7 +1295,7 @@ static void verifyIsRelativeDateFormat(const UDateFormat* fmt, UErrorCode *statu
 }
 
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 udat_toPatternRelativeDate(const UDateFormat *fmt,
                            UChar             *result,
                            int32_t           resultLength,
@@ -1282,7 +1320,7 @@ udat_toPatternRelativeDate(const UDateFormat *fmt,
     return datePattern.extract(result, resultLength, *status);
 }
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 udat_toPatternRelativeTime(const UDateFormat *fmt,
                            UChar             *result,
                            int32_t           resultLength,
@@ -1307,7 +1345,7 @@ udat_toPatternRelativeTime(const UDateFormat *fmt,
     return timePattern.extract(result, resultLength, *status);
 }
 
-U_CAPI void U_EXPORT2
+U_CAPI void U_EXPORT2 
 udat_applyPatternRelative(UDateFormat *format,
                           const UChar *datePattern,
                           int32_t     datePatternLength,

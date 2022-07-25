@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -12,7 +12,6 @@
    Then it outputs a possible build order.
 """
 
-from __future__ import print_function
 
 import os
 import re

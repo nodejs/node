@@ -35,13 +35,13 @@ class NFSubstitution : public UObject {
     int32_t pos;
     const NFRuleSet* ruleSet;
     DecimalFormat* numberFormat;
-
+    
 protected:
     NFSubstitution(int32_t pos,
         const NFRuleSet* ruleSet,
         const UnicodeString& description,
         UErrorCode& status);
-
+    
     /**
      * Get the Ruleset of the object.
      * @return the Ruleset of the object.
@@ -53,28 +53,28 @@ protected:
      * @return the numberformat of this object.
      */
     const DecimalFormat* getNumberFormat() const { return numberFormat; }
-
+    
 public:
-    static NFSubstitution* makeSubstitution(int32_t pos,
-        const NFRule* rule,
+    static NFSubstitution* makeSubstitution(int32_t pos, 
+        const NFRule* rule, 
         const NFRule* predecessor,
-        const NFRuleSet* ruleSet,
-        const RuleBasedNumberFormat* rbnf,
+        const NFRuleSet* ruleSet, 
+        const RuleBasedNumberFormat* rbnf, 
         const UnicodeString& description,
         UErrorCode& status);
-
+    
     /**
      * Destructor.
      */
     virtual ~NFSubstitution();
-
+    
     /**
      * Return true if the given Format objects are semantically equal.
      * Objects of different subclasses are considered unequal.
      * @param rhs    the object to be compared with.
      * @return       true if the given Format objects are semantically equal.
      */
-    virtual UBool operator==(const NFSubstitution& rhs) const;
+    virtual bool operator==(const NFSubstitution& rhs) const;
 
     /**
      * Return true if the given Format objects are semantically unequal.
@@ -82,8 +82,8 @@ public:
      * @param rhs    the object to be compared with.
      * @return       true if the given Format objects are semantically unequal.
      */
-    UBool operator!=(const NFSubstitution& rhs) const { return !operator==(rhs); }
-
+    bool operator!=(const NFSubstitution& rhs) const { return !operator==(rhs); }
+    
     /**
      * Sets the substitution's divisor.  Used by NFRule.setBaseValue().
      * A no-op for all substitutions except multiplier and modulus
@@ -92,19 +92,19 @@ public:
      * @param exponent The exponent of the divisor
      */
     virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status);
-
+    
     /**
      * Replaces result with the string describing the substitution.
      * @param result    Output param which will receive the string.
      */
     virtual void toString(UnicodeString& result) const;
-
+    
     void setDecimalFormatSymbols(const DecimalFormatSymbols &newSymbols, UErrorCode& status);
 
     //-----------------------------------------------------------------------
     // formatting
     //-----------------------------------------------------------------------
-
+    
     /**
      * Performs a mathematical operation on the number, formats it using
      * either ruleSet or decimalFormat, and inserts the result into
@@ -128,7 +128,7 @@ public:
      * position to determine exactly where to insert the new text)
      */
     virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
-
+    
 protected:
     /**
      * Subclasses override this function to perform some kind of
@@ -151,12 +151,12 @@ protected:
      * @return The result of performing the opreration on the number
      */
     virtual double transformNumber(double number) const = 0;
-
+    
 public:
     //-----------------------------------------------------------------------
     // parsing
     //-----------------------------------------------------------------------
-
+    
     /**
      * Parses a string using the rule set or DecimalFormat belonging
      * to this substitution.  If there's a match, a mathematical
@@ -186,14 +186,14 @@ public:
      * no match this is new Long(0) (not null), and parsePosition
      * is left unchanged.
      */
-    virtual UBool doParse(const UnicodeString& text,
-        ParsePosition& parsePosition,
+    virtual UBool doParse(const UnicodeString& text, 
+        ParsePosition& parsePosition, 
         double baseValue,
-        double upperBound,
+        double upperBound, 
         UBool lenientParse,
         uint32_t nonNumericalExecutedRuleMask,
         Formattable& result) const;
-
+    
     /**
      * Derives a new value from the two values passed in.  The two values
      * are typically either the base values of two rules (the one containing
@@ -207,7 +207,7 @@ public:
      * partial parse result
      */
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const = 0;
-
+    
     /**
      * Calculates an upper bound when searching for a rule that matches
      * this substitution.  Rules with base values greater than or equal
@@ -218,24 +218,24 @@ public:
      *                         this substitution.
      */
     virtual double calcUpperBound(double oldUpperBound) const = 0;
-
+    
     //-----------------------------------------------------------------------
     // simple accessors
     //-----------------------------------------------------------------------
-
+    
     /**
      * Returns the substitution's position in the rule that owns it.
      * @return The substitution's position in the rule that owns it.
      */
     int32_t getPos() const { return pos; }
-
+    
     /**
      * Returns the character used in the textual representation of
      * substitutions of this type.  Used by toString().
      * @return This substitution's token character.
      */
     virtual UChar tokenChar() const = 0;
-
+    
     /**
      * Returns true if this is a modulus substitution.  (We didn't do this
      * with instanceof partially because it causes source files to
@@ -243,14 +243,14 @@ public:
      * @return true if this object is an instance of ModulusSubstitution
      */
     virtual UBool isModulusSubstitution() const;
-
+    
 private:
     NFSubstitution(const NFSubstitution &other); // forbid copying of this class
     NFSubstitution &operator=(const NFSubstitution &other); // forbid copying of this class
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 U_NAMESPACE_END

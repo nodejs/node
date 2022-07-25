@@ -1,30 +1,37 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Shell script to update ESLint in the source tree to the latest release.
 
-# Depends on npm, npx, and node being in $PATH.
+# This script must be in the tools directory when it runs because it uses the
+# script source file path to determine directories to work in.
 
-# This script must be be in the tools directory when it runs because it uses
-# $BASH_SOURCE[0] to determine directories to work in.
+set -ex
 
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd "$( dirname "$0" )" || exit
 rm -rf node_modules/eslint
-mkdir eslint-tmp
-cd eslint-tmp
-npm init --yes
+(
+    rm -rf eslint-tmp
+    mkdir eslint-tmp
+    cd eslint-tmp || exit
 
-npm install --global-style --no-bin-links --production --no-package-lock eslint@latest
-cd node_modules/eslint
+    ROOT="$PWD/../.."
+    [ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+    [ -x "$NODE" ] || NODE=$(command -v node)
+    NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
-npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
-cd ../..
+    "$NODE" "$NPM" init --yes
 
-# Use dmn to remove some unneeded files.
-npx dmn@2.2.2 -f clean
-# Use removeNPMAbsolutePaths to remove unused data in package.json.
-# This avoids churn as absolute paths can change from one dev to another.
-npx removeNPMAbsolutePaths@1.0.4 .
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts eslint
+    # Uninstall plugins that we want to install so that they are removed from devDependencies.
+    # Otherwise --production will cause them to be skipped.
+    (cd node_modules/eslint && "$NODE" "$NPM" uninstall --ignore-scripts eslint-plugin-jsdoc eslint-plugin-markdown @babel/core @babel/eslint-parser @babel/plugin-syntax-import-assertions)
+    (cd node_modules/eslint && "$NODE" "$NPM" install --no-save --no-bin-links --ignore-scripts --production --omit=peer eslint-plugin-jsdoc eslint-plugin-markdown @babel/core @babel/eslint-parser @babel/plugin-syntax-import-assertions)
+    # Use dmn to remove some unneeded files.
+    "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
+    # TODO: Get this into dmn.
+    find node_modules -name .package-lock.json -exec rm {} \;
+    find node_modules -name 'README*' -exec rm {} \;
+)
 
-cd ..
 mv eslint-tmp/node_modules/eslint node_modules/eslint
 rm -rf eslint-tmp/

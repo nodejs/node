@@ -56,12 +56,15 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
 
     bool hasBody() const U_OVERRIDE;
 
+    bool currencyAsDecimal() const U_OVERRIDE;
+
   private:
     UnicodeString posPrefix;
     UnicodeString posSuffix;
     UnicodeString negPrefix;
     UnicodeString negSuffix;
     bool isCurrencyPattern;
+    bool fCurrencyAsDecimal;
 
     PropertiesAffixPatternProvider() = default; // puts instance in valid but undefined state
 
@@ -106,6 +109,8 @@ class CurrencyPluralInfoAffixProvider : public AffixPatternProvider, public UMem
     bool containsSymbolType(AffixPatternType, UErrorCode&) const U_OVERRIDE;
 
     bool hasBody() const U_OVERRIDE;
+
+    bool currencyAsDecimal() const U_OVERRIDE;
 
   private:
     PropertiesAffixPatternProvider affixesByPlural[StandardPlural::COUNT];

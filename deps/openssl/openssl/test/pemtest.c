@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -27,6 +27,8 @@ static TESTDATA b64_pem_data[] = {
 };
 
 static const char *pemtype = "PEMTESTDATA";
+
+static char *pemfile;
 
 static int test_b64(int idx)
 {
@@ -83,9 +85,23 @@ static int test_invalid(void)
     return 1;
 }
 
+static int test_cert_key_cert(void)
+{
+    EVP_PKEY *key;
+
+    if (!TEST_ptr(key = load_pkey_pem(pemfile, NULL)))
+        return 0;
+
+    EVP_PKEY_free(key);
+    return 1;
+}
+
 int setup_tests(void)
 {
+    if (!TEST_ptr(pemfile = test_get_argument(0)))
+        return 0;
     ADD_ALL_TESTS(test_b64, OSSL_NELEM(b64_pem_data));
     ADD_TEST(test_invalid);
+    ADD_TEST(test_cert_key_cert);
     return 1;
 }

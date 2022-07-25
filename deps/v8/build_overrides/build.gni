@@ -32,9 +32,6 @@ use_perfetto_client_library = false
 # Some non-Chromium builds don't support building java targets.
 enable_java_templates = false
 
-# Some non-Chromium builds don't use Chromium's third_party/binutils.
-linux_use_bundled_binutils_override = true
-
 # Allows different projects to specify their own suppressions files.
 asan_suppressions_file = "//build/sanitizers/asan_suppressions.cc"
 lsan_suppressions_file = "//build/sanitizers/lsan_suppressions.cc"

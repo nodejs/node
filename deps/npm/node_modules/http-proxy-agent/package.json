@@ -1,6 +1,6 @@
 {
   "name": "http-proxy-agent",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "description": "An HTTP(s) proxy `http.Agent` implementation for HTTP",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,13 +30,13 @@
     "url": "https://github.com/TooTallNate/node-http-proxy-agent/issues"
   },
   "dependencies": {
-    "@tootallnate/once": "1",
+    "@tootallnate/once": "2",
     "agent-base": "6",
     "debug": "4"
   },
   "devDependencies": {
     "@types/debug": "4",
-    "@types/node": "^12.12.11",
+    "@types/node": "^12.19.2",
     "@typescript-eslint/eslint-plugin": "1.6.0",
     "@typescript-eslint/parser": "1.1.0",
     "eslint": "5.16.0",
@@ -49,7 +49,7 @@
     "mocha": "^6.2.2",
     "proxy": "1",
     "rimraf": "^3.0.0",
-    "typescript": "^3.5.3"
+    "typescript": "^4.4.3"
   },
   "engines": {
     "node": ">= 6"

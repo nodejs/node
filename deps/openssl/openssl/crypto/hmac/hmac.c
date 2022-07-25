@@ -1,18 +1,25 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+/*
+ * HMAC low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "internal/cryptlib.h"
-#include <openssl/hmac.h>
 #include <openssl/opensslconf.h>
+#include <openssl/hmac.h>
+#include <openssl/core_names.h>
 #include "hmac_local.h"
 
 int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
@@ -28,26 +35,27 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     if (md != NULL && md != ctx->md && (key == NULL || len < 0))
         return 0;
 
-    if (md != NULL) {
+    if (md != NULL)
         ctx->md = md;
-    } else if (ctx->md) {
+    else if (ctx->md != NULL)
         md = ctx->md;
-    } else {
+    else
         return 0;
-    }
 
     /*
-     * The HMAC construction is not allowed  to be used with the
+     * The HMAC construction is not allowed to be used with the
      * extendable-output functions (XOF) shake128 and shake256.
      */
-    if ((EVP_MD_meth_get_flags(md) & EVP_MD_FLAG_XOF) != 0)
+    if ((EVP_MD_get_flags(md) & EVP_MD_FLAG_XOF) != 0)
         return 0;
 
     if (key != NULL) {
         reset = 1;
 
-        j = EVP_MD_block_size(md);
+        j = EVP_MD_get_block_size(md);
         if (!ossl_assert(j <= (int)sizeof(keytmp)))
+            return 0;
+        if (j < 0)
             return 0;
         if (j < len) {
             if (!EVP_DigestInit_ex(ctx->md_ctx, md, impl)
@@ -68,13 +76,15 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x36 ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->i_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->i_ctx, pad, EVP_MD_block_size(md)))
+                || !EVP_DigestUpdate(ctx->i_ctx, pad,
+                                     EVP_MD_get_block_size(md)))
             goto err;
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x5c ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->o_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->o_ctx, pad, EVP_MD_block_size(md)))
+                || !EVP_DigestUpdate(ctx->o_ctx, pad,
+                                     EVP_MD_get_block_size(md)))
             goto err;
     }
     if (!EVP_MD_CTX_copy_ex(ctx->md_ctx, ctx->i_ctx))
@@ -88,7 +98,7 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     return rv;
 }
 
-#if OPENSSL_API_COMPAT < 0x10100000L
+#ifndef OPENSSL_NO_DEPRECATED_1_1_0
 int HMAC_Init(HMAC_CTX *ctx, const void *key, int len, const EVP_MD *md)
 {
     if (key && md)
@@ -127,7 +137,7 @@ int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
 
 size_t HMAC_size(const HMAC_CTX *ctx)
 {
-    int size = EVP_MD_size((ctx)->md);
+    int size = EVP_MD_get_size((ctx)->md);
 
     return (size < 0) ? 0 : size;
 }
@@ -209,34 +219,22 @@ int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx)
 }
 
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
-                    const unsigned char *d, size_t n, unsigned char *md,
-                    unsigned int *md_len)
+                    const unsigned char *data, size_t data_len,
+                    unsigned char *md, unsigned int *md_len)
 {
-    HMAC_CTX *c = NULL;
-    static unsigned char m[EVP_MAX_MD_SIZE];
-    static const unsigned char dummy_key[1] = {'\0'};
+    static unsigned char static_md[EVP_MAX_MD_SIZE];
+    int size = EVP_MD_get_size(evp_md);
+    size_t temp_md_len = 0;
+    unsigned char *ret = NULL;
 
-    if (md == NULL)
-        md = m;
-    if ((c = HMAC_CTX_new()) == NULL)
-        goto err;
-
-    /* For HMAC_Init_ex, NULL key signals reuse. */
-    if (key == NULL && key_len == 0) {
-        key = dummy_key;
+    if (size >= 0) {
+        ret = EVP_Q_mac(NULL, "HMAC", NULL, EVP_MD_get0_name(evp_md), NULL,
+                        key, key_len, data, data_len,
+                        md == NULL ? static_md : md, size, &temp_md_len);
+        if (md_len != NULL)
+            *md_len = (unsigned int)temp_md_len;
     }
-
-    if (!HMAC_Init_ex(c, key, key_len, evp_md, NULL))
-        goto err;
-    if (!HMAC_Update(c, d, n))
-        goto err;
-    if (!HMAC_Final(c, md, md_len))
-        goto err;
-    HMAC_CTX_free(c);
-    return md;
- err:
-    HMAC_CTX_free(c);
-    return NULL;
+    return ret;
 }
 
 void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags)

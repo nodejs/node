@@ -7,7 +7,7 @@ Overview
 
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
 was primarily developed for use by `Node.js`_, but it's also used by `Luvit`_,
-`Julia`_, `pyuv`_, and `others`_.
+`Julia`_, `uvloop`_, and `others`_.
 
 .. note::
     In case you find errors in this documentation you can help by sending
@@ -16,8 +16,8 @@ was primarily developed for use by `Node.js`_, but it's also used by `Luvit`_,
 .. _Node.js: https://nodejs.org
 .. _Luvit: https://luvit.io
 .. _Julia: https://julialang.org
-.. _pyuv: https://github.com/saghul/pyuv
-.. _others: https://github.com/libuv/libuv/wiki/Projects-that-use-libuv
+.. _uvloop: https://github.com/MagicStack/uvloop
+.. _others: https://github.com/libuv/libuv/blob/v1.x/LINKS.md
 
 
 Features

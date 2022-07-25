@@ -14,8 +14,8 @@ $	INSTALLTOP_ = F$PARSE("A.;",INSTALLTOP,,,"NO_CONCEAL") -
 $	OPENSSLDIR_ = F$PARSE("A.;",OPENSSLDIR,,,"NO_CONCEAL") -
 		     - ".][000000" - "[000000." - "][" - "]A.;" + "."
 $
-$	v    := {- sprintf "%02d%02d", split(/\./, $config{version}) -}
-$	pz   := {- $config{pointer_size} -}
+$	v    := {- sprintf "%02d", split(/\./, $config{version}) -}
+$	pz   := {- $target{pointer_size} -}
 $	
 $	@'INSTALLTOP_'SYS$STARTUP]openssl_startup'v'
 $	@'INSTALLTOP_'SYS$STARTUP]openssl_utils'v'
@@ -40,6 +40,12 @@ $	openssl version -a
 $
 $	! FUTURE ENHANCEMENT: Verify that engines are where they should be.
 $	! openssl engine -c -t checker
+$
+$	! Verify that the built in providers are reachable.  If they aren't,
+$	! then we're likely to get an image activation error here
+$	openssl list -provider base -providers
+$	openssl list -provider default -providers
+$	openssl list -provider legacy -providers
 $
 $	WRITE SYS$ERROR "OpenSSL IVP passed"
 $	EXIT %x10000001

@@ -13,8 +13,32 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
+
+class PropertyKey {
+ public:
+  inline PropertyKey(Isolate* isolate, double index);
+  // {name} might be a string representation of an element index.
+  inline PropertyKey(Isolate* isolate, Handle<Name> name);
+  // {valid_key} is a Name or Number.
+  inline PropertyKey(Isolate* isolate, Handle<Object> valid_key);
+  // {key} could be anything.
+  PropertyKey(Isolate* isolate, Handle<Object> key, bool* success);
+
+  inline bool is_element() const;
+  Handle<Name> name() const { return name_; }
+  size_t index() const { return index_; }
+  inline Handle<Name> GetName(Isolate* isolate);
+
+ private:
+  Handle<Name> name_;
+  size_t index_;
+};
 
 class V8_EXPORT_PRIVATE LookupIterator final {
  public:
@@ -45,26 +69,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  class Key {
-   public:
-    inline Key(Isolate* isolate, double index);
-    // {name} might be a string representation of an element index.
-    inline Key(Isolate* isolate, Handle<Name> name);
-    // {valid_key} is a Name or Number.
-    inline Key(Isolate* isolate, Handle<Object> valid_key);
-    // {key} could be anything.
-    Key(Isolate* isolate, Handle<Object> key, bool* success);
-
-    bool is_element() { return index_ != LookupIterator::kInvalidIndex; }
-    Handle<Name> name() const { return name_; }
-    size_t index() const { return index_; }
-    inline Handle<Name> GetName(Isolate* isolate);
-
-   private:
-    Handle<Name> name_;
-    size_t index_;
-  };
-
   // {name} is guaranteed to be a property name (and not e.g. "123").
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name,
@@ -80,9 +84,11 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Configuration configuration = DEFAULT);
 
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        const Key& key, Configuration configuration = DEFAULT);
+                        const PropertyKey& key,
+                        Configuration configuration = DEFAULT);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        const Key& key, Handle<Object> lookup_start_object,
+                        const PropertyKey& key,
+                        Handle<Object> lookup_start_object,
                         Configuration configuration = DEFAULT);
 
   void Restart() {
@@ -172,9 +178,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   }
   PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
-  Handle<Map> GetFieldOwnerMap() const;
   FieldIndex GetFieldIndex() const;
-  Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
@@ -184,18 +188,31 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> GetDataValue(AllocationPolicy allocation_policy =
                                   AllocationPolicy::kAllocationAllowed) const;
   void WriteDataValue(Handle<Object> value, bool initializing_store);
+  Handle<Object> GetDataValue(SeqCstAccessTag tag) const;
+  void WriteDataValue(Handle<Object> value, SeqCstAccessTag tag);
+  Handle<Object> SwapDataValue(Handle<Object> value, SeqCstAccessTag tag);
   inline void UpdateProtector();
   static inline void UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Fetches type of WasmStruct's field or WasmArray's elements, it
+  // is used for preparing the value for storing into WasmObjects.
+  wasm::ValueType wasm_value_type() const;
+  void WriteDataValueToWasmObject(Handle<Object> value);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
+  bool TryLookupCachedProperty(Handle<AccessorPair> accessor);
   bool TryLookupCachedProperty();
-  bool LookupCachedProperty();
 
  private:
+  friend PropertyKey;
+
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
+  bool LookupCachedProperty(Handle<AccessorPair> accessor);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, size_t index,
                         Handle<Object> lookup_start_object,
@@ -245,6 +262,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> FetchValue(AllocationPolicy allocation_policy =
                                 AllocationPolicy::kAllocationAllowed) const;
   bool IsConstFieldValueEqualTo(Object value) const;
+  bool IsConstDictValueEqualTo(Object value) const;
+
   template <bool is_element>
   void ReloadPropertyInformation();
 
@@ -287,6 +306,63 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   const Handle<Object> lookup_start_object_;
   const size_t index_;
   InternalIndex number_ = InternalIndex::NotFound();
+};
+
+// Similar to the LookupIterator, but for concurrent accesses from a background
+// thread.
+//
+// Note: This is a work in progress, intended to bundle code related to
+// concurrent lookups here. In its current state, the class is obviously not an
+// 'iterator'. Still, keeping the name for now, with the intent to clarify
+// names and implementation once we've gotten some experience with more
+// involved logic.
+// TODO(jgruber, v8:7790): Consider using a LookupIterator-style interface.
+// TODO(jgruber, v8:7790): Consider merging back into the LookupIterator once
+// functionality and constraints are better known.
+class ConcurrentLookupIterator final : public AllStatic {
+ public:
+  // Tri-state to distinguish between 'not-present' and 'who-knows' failures.
+  enum Result {
+    kPresent,     // The value was found.
+    kNotPresent,  // No value exists.
+    kGaveUp,      // The operation can't be completed.
+  };
+
+  // Implements the own data property lookup for the specialized case of
+  // fixed_cow_array backing stores (these are only in use for array literal
+  // boilerplates). The contract is that the elements, elements kind, and array
+  // length passed to this function should all be read from the same JSArray
+  // instance; but due to concurrency it's possible that they may not be
+  // consistent among themselves (e.g. the elements kind may not match the
+  // given elements backing store). We are thus extra-careful to handle
+  // exceptional situations.
+  V8_EXPORT_PRIVATE static base::Optional<Object> TryGetOwnCowElement(
+      Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
+      int array_length, size_t index);
+
+  // As above, the contract is that the elements and elements kind should be
+  // read from the same holder, but this function is implemented defensively to
+  // tolerate concurrency issues.
+  V8_EXPORT_PRIVATE static Result TryGetOwnConstantElement(
+      Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+      JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
+      size_t index);
+
+  // Implements the own data property lookup for the specialized case of
+  // strings.
+  V8_EXPORT_PRIVATE static Result TryGetOwnChar(String* result_out,
+                                                Isolate* isolate,
+                                                LocalIsolate* local_isolate,
+                                                String string, size_t index);
+
+  // This method reimplements the following sequence in a concurrent setting:
+  //
+  // LookupIterator it(holder, isolate, name, LookupIterator::OWN);
+  // it.TryLookupCachedProperty();
+  // if (it.state() == LookupIterator::DATA) it.GetPropertyCell();
+  V8_EXPORT_PRIVATE static base::Optional<PropertyCell> TryGetPropertyCell(
+      Isolate* isolate, LocalIsolate* local_isolate,
+      Handle<JSGlobalObject> holder, Handle<Name> name);
 };
 
 }  // namespace internal

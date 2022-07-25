@@ -1,7 +1,13 @@
 Tests that setting breakpoint before enabling debugger produces an error
-setBreakpointByUrl error: undefined
+setBreakpointByUrl error: {
+  "code": -32000,
+  "message": "Debugger agent is not enabled"
+}
 setBreakpoint error: {
-  "code": -32602,
-  "message": "Invalid parameters",
-  "data": "Failed to deserialize params.location - BINDINGS: mandatory field missing at <some position>"
+  "code": -32000,
+  "message": "Debugger agent is not enabled"
+}
+setBreakpointOnFunctionCall error: {
+  "code": -32000,
+  "message": "Debugger agent is not enabled"
 }

@@ -29,6 +29,8 @@ class ListFormatter;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-list-format-tq.inc"
+
 class JSListFormat
     : public TorqueGeneratedJSListFormat<JSListFormat, JSObject> {
  public:
@@ -44,12 +46,12 @@ class JSListFormat
   // ecma402 #sec-formatlist
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatList(
       Isolate* isolate, Handle<JSListFormat> format_holder,
-      Handle<JSArray> list);
+      Handle<FixedArray> list);
 
   // ecma42 #sec-formatlisttoparts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatListToParts(
       Isolate* isolate, Handle<JSListFormat> format_holder,
-      Handle<JSArray> list);
+      Handle<FixedArray> list);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 

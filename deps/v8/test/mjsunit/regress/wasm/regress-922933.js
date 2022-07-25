@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const sig = builder.addType(makeSig([kWasmI64], [kWasmI64]));
 builder.addFunction(undefined, sig)
   .addLocals(kWasmI32, 14).addLocals(kWasmI64, 17).addLocals(kWasmF32, 14)
   .addBody([
-    kExprBlock, kWasmStmt,
+    kExprBlock, kWasmVoid,
       kExprBr, 0x00,
       kExprEnd,
-    kExprBlock, kWasmStmt,
+    kExprBlock, kWasmVoid,
       kExprI32Const, 0x00,
       kExprLocalSet, 0x09,
       kExprI32Const, 0x00,
-      kExprIf, kWasmStmt,
-        kExprBlock, kWasmStmt,
+      kExprIf, kWasmVoid,
+        kExprBlock, kWasmVoid,
           kExprI32Const, 0x00,
           kExprLocalSet, 0x0a,
           kExprBr, 0x00,
           kExprEnd,
-        kExprBlock, kWasmStmt,
-          kExprBlock, kWasmStmt,
+        kExprBlock, kWasmVoid,
+          kExprBlock, kWasmVoid,
             kExprLocalGet, 0x00,
             kExprLocalSet, 0x12,
             kExprBr, 0x00,

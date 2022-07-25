@@ -30,13 +30,6 @@ const util = require('util');
 
 const tls = require('tls');
 
-common.expectWarning('DeprecationWarning', [
-  ['The URI http://[a.b.a.com]/ found in cert.subjectaltname ' +
-  'is not a valid URI, and is supported in the tls module ' +
-  'solely for compatibility.',
-   'DEP0109'],
-]);
-
 const tests = [
   // False-y values.
   {
@@ -124,12 +117,13 @@ const tests = [
     cert: { subject: { CN: '*n.b.com' } },
     error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
   },
-  { host: 'b.a.com', cert: {
-    subjectaltname: 'DNS:omg.com',
-    subject: { CN: '*.a.com' } },
+  { host: 'b.a.com',
+    cert: {
+      subjectaltname: 'DNS:omg.com',
+      subject: { CN: '*.a.com' },
+    },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:omg.com'
-  },
+           'DNS:omg.com' },
   {
     host: 'b.a.com',
     cert: { subject: { CN: 'b*b.a.com' } },
@@ -140,7 +134,7 @@ const tests = [
   {
     host: 'a.com',
     cert: { },
-    error: 'Cert is empty'
+    error: 'Cert does not contain a DNS name'
   },
 
   // Empty Subject w/DNS name
@@ -154,7 +148,8 @@ const tests = [
   {
     host: 'a.b.a.com', cert: {
       subjectaltname: 'URI:http://a.b.a.com/',
-    }
+    },
+    error: 'Cert does not contain a DNS name'
   },
 
   // Multiple CN fields
@@ -271,22 +266,15 @@ const tests = [
     host: 'a.b.a.com', cert: {
       subjectaltname: 'URI:http://a.b.a.com/',
       subject: {}
-    }
+    },
+    error: 'Cert does not contain a DNS name'
   },
   {
     host: 'a.b.a.com', cert: {
       subjectaltname: 'URI:http://*.b.a.com/',
       subject: {}
     },
-    error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
-           'URI:http://*.b.a.com/'
-  },
-  // Invalid URI
-  {
-    host: 'a.b.a.com', cert: {
-      subjectaltname: 'URI:http://[a.b.a.com]/',
-      subject: {}
-    }
+    error: 'Cert does not contain a DNS name'
   },
   // IP addresses
   {
@@ -294,8 +282,7 @@ const tests = [
       subjectaltname: 'IP Address:127.0.0.1',
       subject: {}
     },
-    error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
-           'IP Address:127.0.0.1'
+    error: 'Cert does not contain a DNS name'
   },
   {
     host: '127.0.0.1', cert: {

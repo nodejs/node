@@ -14,7 +14,7 @@ class Isolate;
 
 // Scope intercepts only interrupt which is part of its interrupt_mask and does
 // not affect other interrupts.
-class InterruptsScope {
+class V8_NODISCARD InterruptsScope {
  public:
   enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
 
@@ -45,7 +45,7 @@ class InterruptsScope {
 // postpone scope is left the interrupts will be re-enabled and any
 // interrupts that occurred while in the scope will be taken into
 // account.
-class PostponeInterruptsScope : public InterruptsScope {
+class V8_NODISCARD PostponeInterruptsScope : public InterruptsScope {
  public:
   PostponeInterruptsScope(Isolate* isolate,
                           int intercept_mask = StackGuard::ALL_INTERRUPTS)
@@ -57,7 +57,7 @@ class PostponeInterruptsScope : public InterruptsScope {
 // Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
 // innermost scope is SafeForInterruptsScope ignoring any outer
 // PostponeInterruptsScopes.
-class SafeForInterruptsScope : public InterruptsScope {
+class V8_NODISCARD SafeForInterruptsScope : public InterruptsScope {
  public:
   SafeForInterruptsScope(Isolate* isolate,
                          int intercept_mask = StackGuard::ALL_INTERRUPTS)

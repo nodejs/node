@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -68,11 +68,12 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
     ssl_conf_section = CONF_imodule_get_value(md);
     cmd_lists = NCONF_get_section(cnf, ssl_conf_section);
     if (sk_CONF_VALUE_num(cmd_lists) <= 0) {
-        if (cmd_lists == NULL)
-            CONFerr(CONF_F_SSL_MODULE_INIT, CONF_R_SSL_SECTION_NOT_FOUND);
-        else
-            CONFerr(CONF_F_SSL_MODULE_INIT, CONF_R_SSL_SECTION_EMPTY);
-        ERR_add_error_data(2, "section=", ssl_conf_section);
+        int rcode =
+            cmd_lists == NULL
+            ? CONF_R_SSL_SECTION_NOT_FOUND
+            : CONF_R_SSL_SECTION_EMPTY;
+
+        ERR_raise_data(ERR_LIB_CONF, rcode, "section=%s", ssl_conf_section);
         goto err;
     }
     cnt = sk_CONF_VALUE_num(cmd_lists);
@@ -87,13 +88,13 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
         STACK_OF(CONF_VALUE) *cmds = NCONF_get_section(cnf, sect->value);
 
         if (sk_CONF_VALUE_num(cmds) <= 0) {
-            if (cmds == NULL)
-                CONFerr(CONF_F_SSL_MODULE_INIT,
-                        CONF_R_SSL_COMMAND_SECTION_NOT_FOUND);
-            else
-                CONFerr(CONF_F_SSL_MODULE_INIT,
-                        CONF_R_SSL_COMMAND_SECTION_EMPTY);
-            ERR_add_error_data(4, "name=", sect->name, ", value=", sect->value);
+            int rcode =
+                cmds == NULL
+                ? CONF_R_SSL_COMMAND_SECTION_NOT_FOUND
+                : CONF_R_SSL_COMMAND_SECTION_EMPTY;
+
+            ERR_raise_data(ERR_LIB_CONF, rcode,
+                           "name=%s, value=%s", sect->name, sect->value);
             goto err;
         }
         ssl_name->name = OPENSSL_strdup(sect->name);
@@ -175,7 +176,7 @@ void conf_ssl_get_cmd(const SSL_CONF_CMD *cmd, size_t idx, char **cmdstr,
     *arg = cmd[idx].arg;
 }
 
-void conf_add_ssl_module(void)
+void ossl_config_add_ssl_module(void)
 {
     CONF_module_add("ssl_conf", ssl_module_init, ssl_module_free);
 }

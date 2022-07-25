@@ -43,9 +43,7 @@ async function validateReadFileProc() {
 }
 
 function validateReadFileAbortLogicBefore() {
-  const controller = new AbortController();
-  const signal = controller.signal;
-  controller.abort();
+  const signal = AbortSignal.abort();
   assert.rejects(readFile(fn, { signal }), {
     name: 'AbortError'
   });
@@ -60,10 +58,22 @@ function validateReadFileAbortLogicDuring() {
   });
 }
 
+async function validateWrongSignalParam() {
+  // Verify that if something different than Abortcontroller.signal
+  // is passed, ERR_INVALID_ARG_TYPE is thrown
+
+  await assert.rejects(async () => {
+    const callback = common.mustNotCall(() => {});
+    await readFile(fn, { signal: 'hello' }, callback);
+  }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+
+}
+
 (async () => {
   await createLargeFile();
   await validateReadFile();
   await validateReadFileProc();
   await validateReadFileAbortLogicBefore();
   await validateReadFileAbortLogicDuring();
+  await validateWrongSignalParam();
 })().then(common.mustCall());

@@ -29,8 +29,8 @@ const checkRequest = (socket, server) => {
     result += chunk;
   }));
   socket.on('end', common.mustCall(() => {
-    assert(expectedHeader.test(result));
-    assert(expectedBody.test(result));
+    assert.match(result, expectedHeader);
+    assert.match(result, expectedBody);
     server.close();
   }));
 };
@@ -112,7 +112,7 @@ function createServer() {
     const options = null;
     const socket = agent.createConnection(port, host, options);
     socket.on('error', common.mustCall((e) => {
-      assert(expectCertError.test(e.toString()));
+      assert.match(e.toString(), expectCertError);
       server.close();
     }));
   }));
@@ -127,7 +127,7 @@ function createServer() {
     const options = undefined;
     const socket = agent.createConnection(port, host, options);
     socket.on('error', common.mustCall((e) => {
-      assert(expectCertError.test(e.toString()));
+      assert.match(e.toString(), expectCertError);
       server.close();
     }));
   }));
@@ -139,19 +139,16 @@ function createServer() {
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const host = 'localhost';
-    const options = {
+    const options = common.mustNotMutateObjectDeep({
       port: 3000,
-      rejectUnauthorized: false
-    };
+      rejectUnauthorized: false,
+    });
 
     const socket = agent.createConnection(port, host, options);
     socket.on('connect', common.mustCall((data) => {
       socket.end();
     }));
     socket.on('end', common.mustCall(() => {
-      assert.deepStrictEqual(options, {
-        port: 3000, rejectUnauthorized: false
-      });
       server.close();
     }));
   }));

@@ -48,3 +48,37 @@ const shifted = list.shift();
 testIterator(list, 0);
 assert.strictEqual(shifted, buf);
 assert.deepStrictEqual(list, new BufferList());
+
+{
+  const list = new BufferList();
+  list.push('foo');
+  list.push('bar');
+  list.push('foo');
+  list.push('bar');
+  assert.strictEqual(list.consume(6, true), 'foobar');
+  assert.strictEqual(list.consume(6, true), 'foobar');
+}
+
+{
+  const list = new BufferList();
+  list.push('foo');
+  list.push('bar');
+  assert.strictEqual(list.consume(5, true), 'fooba');
+}
+
+{
+  const list = new BufferList();
+  list.push(buf);
+  list.push(buf);
+  list.push(buf);
+  list.push(buf);
+  assert.strictEqual(list.consume(6).toString(), 'foofoo');
+  assert.strictEqual(list.consume(6).toString(), 'foofoo');
+}
+
+{
+  const list = new BufferList();
+  list.push(buf);
+  list.push(buf);
+  assert.strictEqual(list.consume(5).toString(), 'foofo');
+}

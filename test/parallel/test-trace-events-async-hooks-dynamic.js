@@ -31,8 +31,7 @@ const proc = cp.spawnSync(
     cwd: tmpdir.path,
     env: { ...process.env,
            'NODE_DEBUG_NATIVE': 'tracing',
-           'NODE_DEBUG': 'tracing'
-    }
+           'NODE_DEBUG': 'tracing' }
   });
 
 console.log('process exit with signal:', proc.signal);

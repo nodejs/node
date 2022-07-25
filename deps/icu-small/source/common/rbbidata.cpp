@@ -170,17 +170,17 @@ RBBIDataWrapper::~RBBIDataWrapper() {
 //                  should still be ==.
 //
 //-----------------------------------------------------------------------------
-UBool RBBIDataWrapper::operator ==(const RBBIDataWrapper &other) const {
+bool RBBIDataWrapper::operator ==(const RBBIDataWrapper &other) const {
     if (fHeader == other.fHeader) {
-        return TRUE;
+        return true;
     }
     if (fHeader->fLength != other.fHeader->fLength) {
-        return FALSE;
+        return false;
     }
     if (uprv_memcmp(fHeader, other.fHeader, fHeader->fLength) == 0) {
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 int32_t  RBBIDataWrapper::hashCode() {
@@ -283,7 +283,7 @@ void  RBBIDataWrapper::printData() {
     printTable("Forward State Transition Table", fForwardTable);
     printTable("Reverse State Transition Table", fReverseTable);
 
-    RBBIDebugPrintf("\nOrignal Rules source:\n");
+    RBBIDebugPrintf("\nOriginal Rules source:\n");
     for (int32_t c=0; fRuleSource[c] != 0; c++) {
         RBBIDebugPrintf("%c", fRuleSource[c]);
     }
@@ -345,7 +345,7 @@ ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outD
     //
     const uint8_t  *inBytes =(const uint8_t *)inData+headerSize;
     RBBIDataHeader *rbbiDH = (RBBIDataHeader *)inBytes;
-    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 ||
+    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 || 
             !RBBIDataWrapper::isDataVersionAcceptable(rbbiDH->fFormatVersion) ||
             ds->readUInt32(rbbiDH->fLength)  <  sizeof(RBBIDataHeader)) {
         udata_printError(ds, "ubrk_swap(): RBBI Data header is invalid.\n");

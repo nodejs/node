@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
@@ -25,16 +26,21 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/contexts-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
 CAST_ACCESSOR(ScriptContextTable)
 
-int ScriptContextTable::synchronized_used() const {
-  return Smi::ToInt(synchronized_get(kUsedSlotIndex));
+int ScriptContextTable::used(AcquireLoadTag tag) const {
+  return Smi::ToInt(get(kUsedSlotIndex, tag));
 }
 
-void ScriptContextTable::synchronized_set_used(int used) {
-  synchronized_set(kUsedSlotIndex, Smi::FromInt(used));
+void ScriptContextTable::set_used(int used, ReleaseStoreTag tag) {
+  set(kUsedSlotIndex, Smi::FromInt(used), tag);
 }
+
+ACCESSORS(ScriptContextTable, names_to_context_index, NameToIndexHashTable,
+          kHashTableOffset)
 
 // static
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
@@ -44,91 +50,92 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 }
 
 Context ScriptContextTable::get_context(int i) const {
-  DCHECK_LT(i, synchronized_used());
-  return Context::cast(this->get(i + kFirstContextSlotIndex));
+  DCHECK_LT(i, used(kAcquireLoad));
+  return Context::cast(get(i + kFirstContextSlotIndex));
 }
 
-OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
-NEVER_READ_ONLY_SPACE_IMPL(Context)
-CAST_ACCESSOR(Context)
+Context ScriptContextTable::get_context(int i, AcquireLoadTag tag) const {
+  DCHECK_LT(i, used(kAcquireLoad));
+  return Context::cast(get(i + kFirstContextSlotIndex, tag));
+}
 
-SMI_ACCESSORS(Context, length, kLengthOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
+NEVER_READ_ONLY_SPACE_IMPL(Context)
+
 CAST_ACCESSOR(NativeContext)
 
+RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
+
 Object Context::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object Context::get(const Isolate* isolate, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
-  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+Object Context::get(PtrComprCageBase cage_base, int index) const {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(length(kRelaxedLoad)));
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
-void Context::set(int index, Object value) {
-  DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  WRITE_BARRIER(*this, offset, value);
-}
-
 void Context::set(int index, Object value, WriteBarrierMode mode) {
-  DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
-  int offset = OffsetOfElementAt(index);
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(length(kRelaxedLoad)));
+  const int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void Context::set_scope_info(ScopeInfo scope_info) {
-  set(SCOPE_INFO_INDEX, scope_info);
+Object Context::get(int index, AcquireLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index, tag);
 }
 
-Object Context::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return synchronized_get(isolate, index);
-}
-
-Object Context::synchronized_get(const Isolate* isolate, int index) const {
+Object Context::get(PtrComprCageBase cage_base, int index,
+                    AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(this->length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
-void Context::synchronized_set(int index, Object value) {
+void Context::set(int index, Object value, WriteBarrierMode mode,
+                  ReleaseStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(this->length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   const int offset = OffsetOfElementAt(index);
   RELEASE_WRITE_FIELD(*this, offset, value);
-  WRITE_BARRIER(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-Object Context::unchecked_previous() { return get(PREVIOUS_INDEX); }
+void NativeContext::set(int index, Object value, WriteBarrierMode mode,
+                        ReleaseStoreTag tag) {
+  Context::set(index, value, mode, tag);
+}
 
-Context Context::previous() {
+ACCESSORS(Context, scope_info, ScopeInfo, kScopeInfoOffset)
+
+Object Context::unchecked_previous() const { return get(PREVIOUS_INDEX); }
+
+Context Context::previous() const {
   Object result = get(PREVIOUS_INDEX);
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
   return Context::unchecked_cast(result);
 }
-void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
+void Context::set_previous(Context context, WriteBarrierMode mode) {
+  set(PREVIOUS_INDEX, context, mode);
+}
 
-Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
+Object Context::next_context_link() const {
+  return get(Context::NEXT_CONTEXT_LINK);
+}
 
-bool Context::has_extension() {
+bool Context::has_extension() const {
   return scope_info().HasContextExtensionSlot() && !extension().IsUndefined();
 }
 
-HeapObject Context::extension() {
+HeapObject Context::extension() const {
   DCHECK(scope_info().HasContextExtensionSlot());
   return HeapObject::cast(get(EXTENSION_INDEX));
-}
-
-void Context::set_extension(HeapObject object) {
-  DCHECK(scope_info().HasContextExtensionSlot());
-  set(EXTENSION_INDEX, object);
 }
 
 NativeContext Context::native_context() const {
@@ -176,18 +183,22 @@ bool Context::HasSameSecurityTokenAs(Context that) const {
          that.native_context().security_token();
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void Context::set_##name(type value) {                  \
-    DCHECK(IsNativeContext());                            \
-    set(index, value);                                    \
-  }                                                       \
-  bool Context::is_##name(type value) const {             \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index)) == value;               \
-  }                                                       \
-  type Context::name() const {                            \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index));                        \
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
+  void Context::set_##name(type value) {                    \
+    DCHECK(IsNativeContext());                              \
+    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore); \
+  }                                                         \
+  bool Context::is_##name(type value) const {               \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index)) == value;                 \
+  }                                                         \
+  type Context::name() const {                              \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index));                          \
+  }                                                         \
+  type Context::name(AcquireLoadTag tag) const {            \
+    DCHECK(IsNativeContext());                              \
+    return type::cast(get(index, tag));                     \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
@@ -199,7 +210,7 @@ NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
   CHECK_FOLLOWS2(v3, v4)
 
 int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
-                              bool has_shared_name, bool needs_home_object) {
+                              bool has_shared_name) {
   if (IsClassConstructor(kind)) {
     // Like the strict function map, but with no 'name' accessor. 'name'
     // needs to be the last property and it is added during instantiation,
@@ -209,37 +220,27 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 
   int base = 0;
   if (IsGeneratorFunction(kind)) {
-    CHECK_FOLLOWS4(GENERATOR_FUNCTION_MAP_INDEX,
-                   GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX,
-                   GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
-                   GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
-    CHECK_FOLLOWS4(
-        ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
-        ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX,
-        ASYNC_GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
-        ASYNC_GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+    CHECK_FOLLOWS2(GENERATOR_FUNCTION_MAP_INDEX,
+                   GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX);
+    CHECK_FOLLOWS2(ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
+                   ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX);
 
     base = IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
                                  : GENERATOR_FUNCTION_MAP_INDEX;
 
   } else if (IsAsyncFunction(kind) || IsAsyncModule(kind)) {
-    CHECK_FOLLOWS4(ASYNC_FUNCTION_MAP_INDEX, ASYNC_FUNCTION_WITH_NAME_MAP_INDEX,
-                   ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
-                   ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+    CHECK_FOLLOWS2(ASYNC_FUNCTION_MAP_INDEX,
+                   ASYNC_FUNCTION_WITH_NAME_MAP_INDEX);
 
     base = ASYNC_FUNCTION_MAP_INDEX;
 
   } else if (IsStrictFunctionWithoutPrototype(kind)) {
-    DCHECK_IMPLIES(IsArrowFunction(kind), !needs_home_object);
-    CHECK_FOLLOWS4(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
-                   METHOD_WITH_NAME_MAP_INDEX,
-                   METHOD_WITH_HOME_OBJECT_MAP_INDEX,
-                   METHOD_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
+    CHECK_FOLLOWS2(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+                   METHOD_WITH_NAME_MAP_INDEX);
 
     base = STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
 
   } else {
-    DCHECK(!needs_home_object);
     CHECK_FOLLOWS2(SLOPPY_FUNCTION_MAP_INDEX,
                    SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX);
     CHECK_FOLLOWS2(STRICT_FUNCTION_MAP_INDEX,
@@ -248,9 +249,8 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
     base = is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
                                     : SLOPPY_FUNCTION_MAP_INDEX;
   }
-  int offset = static_cast<int>(!has_shared_name) |
-               (static_cast<int>(needs_home_object) << 1);
-  DCHECK_EQ(0, offset & ~3);
+  int offset = static_cast<int>(!has_shared_name);
+  DCHECK_EQ(0, offset & ~1);
 
   return base + offset;
 }
@@ -261,37 +261,55 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext());
   if (!IsFastElementsKind(kind)) return Map();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map.IsUndefined());
   return Map::cast(initial_js_array_map);
 }
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
-  ExternalPointer_t encoded_value =
-      ReadField<ExternalPointer_t>(kMicrotaskQueueOffset);
-  return reinterpret_cast<MicrotaskQueue*>(
-      DecodeExternalPointer(isolate, encoded_value));
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  return reinterpret_cast<MicrotaskQueue*>(ReadExternalPointerField(
+      kMicrotaskQueueOffset, isolate, kNativeContextMicrotaskQueueTag));
+}
+
+void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate,
+                           kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,
                                         MicrotaskQueue* microtask_queue) {
-  ExternalPointer_t encoded_value = EncodeExternalPointer(
-      isolate, reinterpret_cast<Address>(microtask_queue));
-  WriteField<ExternalPointer_t>(kMicrotaskQueueOffset, encoded_value);
+  WriteExternalPointerField(kMicrotaskQueueOffset, isolate,
+                            reinterpret_cast<Address>(microtask_queue),
+                            kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::synchronized_set_script_context_table(
     ScriptContextTable script_context_table) {
-  synchronized_set(SCRIPT_CONTEXT_TABLE_INDEX, script_context_table);
+  set(SCRIPT_CONTEXT_TABLE_INDEX, script_context_table, UPDATE_WRITE_BARRIER,
+      kReleaseStore);
 }
 
 ScriptContextTable NativeContext::synchronized_script_context_table() const {
-  return ScriptContextTable::cast(synchronized_get(SCRIPT_CONTEXT_TABLE_INDEX));
+  return ScriptContextTable::cast(
+      get(SCRIPT_CONTEXT_TABLE_INDEX, kAcquireLoad));
 }
 
-OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
-  return OSROptimizedCodeCache::cast(osr_code_cache());
+void NativeContext::SetOptimizedCodeListHead(Object head) {
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+}
+
+Object NativeContext::OptimizedCodeListHead() {
+  return get(OPTIMIZED_CODE_LIST);
+}
+
+void NativeContext::SetDeoptimizedCodeListHead(Object head) {
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+}
+
+Object NativeContext::DeoptimizedCodeListHead() {
+  return get(DEOPTIMIZED_CODE_LIST);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

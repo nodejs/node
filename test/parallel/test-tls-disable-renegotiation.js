@@ -61,12 +61,12 @@ server.listen(0, common.mustCall(() => {
     });
 
     assert.throws(() => client.renegotiate({}, false), {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
     });
 
     assert.throws(() => client.renegotiate({}, null), {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
     });
 

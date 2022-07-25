@@ -1,8 +1,9 @@
-#include "node_internals.h"
+#include "base_object-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
 #include "util-inl.h"
-#include "base_object-inl.h"
 
 namespace node {
 
@@ -26,7 +27,7 @@ using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
 
-namespace {
+namespace serdes {
 
 class SerializerContext : public BaseObject,
                           public ValueSerializer::Delegate {
@@ -169,6 +170,10 @@ Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
 
 void SerializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    return THROW_ERR_CONSTRUCT_CALL_REQUIRED(
+        env, "Class constructor Serializer cannot be invoked without 'new'");
+  }
 
   new SerializerContext(env, args.This());
 }
@@ -319,6 +324,10 @@ MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
 
 void DeserializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    return THROW_ERR_CONSTRUCT_CALL_REQUIRED(
+        env, "Class constructor Deserializer cannot be invoked without 'new'");
+  }
 
   if (!args[0]->IsArrayBufferView()) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
@@ -435,7 +444,7 @@ void DeserializerContext::ReadRawBytes(
   CHECK_GE(position, ctx->data_);
   CHECK_LE(position + length, ctx->data_ + ctx->length_);
 
-  const uint32_t offset = position - ctx->data_;
+  const uint32_t offset = static_cast<uint32_t>(position - ctx->data_);
   CHECK_EQ(ctx->data_ + offset, position);
 
   args.GetReturnValue().Set(offset);
@@ -467,12 +476,8 @@ void Initialize(Local<Object> target,
                       "_setTreatArrayBufferViewsAsHostObjects",
                       SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
 
-  Local<String> serializerString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer");
-  ser->SetClassName(serializerString);
-  target->Set(env->context(),
-              serializerString,
-              ser->GetFunction(env->context()).ToLocalChecked()).Check();
+  ser->ReadOnlyPrototype();
+  env->SetConstructorFunction(target, "Serializer", ser);
 
   Local<FunctionTemplate> des =
       env->NewFunctionTemplate(DeserializerContext::New);
@@ -494,15 +499,37 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(des, "readDouble", DeserializerContext::ReadDouble);
   env->SetProtoMethod(des, "_readRawBytes", DeserializerContext::ReadRawBytes);
 
-  Local<String> deserializerString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer");
-  des->SetClassName(deserializerString);
-  target->Set(env->context(),
-              deserializerString,
-              des->GetFunction(env->context()).ToLocalChecked()).Check();
+  des->SetLength(1);
+  des->ReadOnlyPrototype();
+  env->SetConstructorFunction(target, "Deserializer", des);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SerializerContext::New);
+
+  registry->Register(SerializerContext::WriteHeader);
+  registry->Register(SerializerContext::WriteValue);
+  registry->Register(SerializerContext::ReleaseBuffer);
+  registry->Register(SerializerContext::TransferArrayBuffer);
+  registry->Register(SerializerContext::WriteUint32);
+  registry->Register(SerializerContext::WriteUint64);
+  registry->Register(SerializerContext::WriteDouble);
+  registry->Register(SerializerContext::WriteRawBytes);
+  registry->Register(SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
+
+  registry->Register(DeserializerContext::New);
+  registry->Register(DeserializerContext::ReadHeader);
+  registry->Register(DeserializerContext::ReadValue);
+  registry->Register(DeserializerContext::GetWireFormatVersion);
+  registry->Register(DeserializerContext::TransferArrayBuffer);
+  registry->Register(DeserializerContext::ReadUint32);
+  registry->Register(DeserializerContext::ReadUint64);
+  registry->Register(DeserializerContext::ReadDouble);
+  registry->Register(DeserializerContext::ReadRawBytes);
+}
+
+}  // namespace serdes
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::serdes::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(serdes, node::serdes::RegisterExternalReferences)

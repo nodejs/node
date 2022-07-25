@@ -23,7 +23,7 @@ dat = read.csv(
 dat = data.frame(dat);
 
 dat$nameTwoLines = paste0(dat$filename, '\n', dat$configuration);
-dat$name = paste0(dat$filename, dat$configuration);
+dat$name = paste0(dat$filename, ' ', dat$configuration);
 
 # Create a box plot
 if (!is.null(plot.filename)) {
@@ -35,14 +35,14 @@ if (!is.null(plot.filename)) {
   ggsave(plot.filename, p);
 }
 
-# computes the shared standard error, as used in the welch t-test
+# Computes the shared standard error, as used in Welch's t-test.
 welch.sd = function (old.rate, new.rate) {
   old.se.squared = var(old.rate) / length(old.rate)
   new.se.squared = var(new.rate) / length(new.rate)
   return(sqrt(old.se.squared + new.se.squared))
 }
 
-# calculate the improvement confidence interval. The improvement is calculated
+# Calculate the improvement confidence interval. The improvement is calculated
 # by dividing by old.mu and not new.mu, because old.mu is what the mean
 # improvement is calculated relative to.
 confidence.interval = function (shared.se, old.mu, w, risk) {
@@ -50,7 +50,7 @@ confidence.interval = function (shared.se, old.mu, w, risk) {
   return(sprintf("±%.2f%%", (interval / old.mu) * 100))
 }
 
-# Print a table with results
+# Calculate the statistics table.
 statistics = ddply(dat, "name", function(subdat) {
   old.rate = subset(subdat, binary == "old")$rate;
   new.rate = subset(subdat, binary == "new")$rate;
@@ -68,14 +68,14 @@ statistics = ddply(dat, "name", function(subdat) {
     "(***)" = "NA"
   );
 
-  # Check if there is enough data to calculate the calculate the p-value
+  # Check if there is enough data to calculate the p-value.
   if (length(old.rate) > 1 && length(new.rate) > 1) {
-    # Perform a statistics test to see of there actually is a difference in
+    # Perform a statistical test to see if there actually is a difference in
     # performance.
     w = t.test(rate ~ binary, data=subdat);
     shared.se = welch.sd(old.rate, new.rate)
 
-    # Add user friendly stars to the table. There should be at least one star
+    # Add user-friendly stars to the table. There should be at least one star
     # before you can say that there is an improvement.
     confidence = '';
     if (w$p.value < 0.001) {
@@ -99,7 +99,7 @@ statistics = ddply(dat, "name", function(subdat) {
 });
 
 
-# Set the benchmark names as the row.names to left align them in the print
+# Set the benchmark names as the row.names to left align them in the print.
 row.names(statistics) = statistics$name;
 statistics$name = NULL;
 
@@ -108,7 +108,7 @@ print(statistics);
 cat("\n")
 cat(sprintf(
 "Be aware that when doing many comparisons the risk of a false-positive
-result increases. In this case there are %d comparisons, you can thus
+result increases. In this case, there are %d comparisons, you can thus
 expect the following amount of false-positive results:
   %.2f false positives, when considering a   5%% risk acceptance (*, **, ***),
   %.2f false positives, when considering a   1%% risk acceptance (**, ***),

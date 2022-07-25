@@ -61,6 +61,8 @@ class NonFinalizable : public GarbageCollected<NonFinalizable<Size>> {
 using NormalNonFinalizable = NonFinalizable<32>;
 using LargeNonFinalizable = NonFinalizable<kLargeObjectSizeThreshold * 2>;
 
+}  // namespace
+
 class ConcurrentSweeperTest : public testing::TestWithHeap {
  public:
   ConcurrentSweeperTest() { g_destructor_callcount = 0; }
@@ -70,10 +72,21 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     ResetLinearAllocationBuffers();
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
-    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();
-    sweeper.Start(Sweeper::Config::kIncrementalAndConcurrent);
+    const Sweeper::SweepingConfig sweeping_config{
+        Sweeper::SweepingConfig::SweepingType::kIncrementalAndConcurrent,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper.Start(sweeping_config);
+  }
+
+  void WaitForConcurrentSweeping() {
+    Heap* heap = Heap::From(GetHeap());
+    Sweeper& sweeper = heap->sweeper();
+    sweeper.WaitForConcurrentSweepingForTesting();
   }
 
   void FinishSweeping() {
@@ -103,30 +116,28 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     }
   }
 
-  void CheckPageRemoved(const BasePage* page) {
+  bool PageInBackend(const BasePage* page) {
     const Heap* heap = Heap::From(GetHeap());
     const PageBackend* backend = heap->page_backend();
-    EXPECT_EQ(nullptr, backend->Lookup(reinterpret_cast<ConstAddress>(page)));
+    return backend->Lookup(reinterpret_cast<ConstAddress>(page));
   }
 
-  bool FreeListContains(const BaseSpace* space,
+  bool FreeListContains(const BaseSpace& space,
                         const std::vector<void*>& objects) {
     const Heap* heap = Heap::From(GetHeap());
     const PageBackend* backend = heap->page_backend();
-    const auto& freelist = NormalPageSpace::From(space)->free_list();
+    const auto& freelist = NormalPageSpace::From(space).free_list();
 
     for (void* object : objects) {
       // The corresponding page could be removed.
       if (!backend->Lookup(static_cast<ConstAddress>(object))) continue;
 
-      if (!freelist.Contains({object, 0})) return false;
+      if (!freelist.ContainsForTesting({object, 0})) return false;
     }
 
     return true;
   }
 };
-
-}  // namespace
 
 TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
   // Non finalizable objects are swept right away.
@@ -134,10 +145,10 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
+  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
 
   auto* page = BasePage::FromPayload(unmarked_object);
-  auto* space = page->space();
+  auto& space = page->space();
 
   // The test requires objects to be allocated on the same page;
   ASSERT_EQ(page, BasePage::FromPayload(marked_object));
@@ -145,14 +156,14 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
   StartSweeping();
 
   // Wait for concurrent sweeping to finish.
-  GetPlatform().WaitAllBackgroundTasks();
+  WaitForConcurrentSweeping();
 
 #if !defined(CPPGC_YOUNG_GENERATION)
   // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #else
   // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #endif
 
   // Check that free list entries are created right away for non-finalizable
@@ -168,40 +179,44 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 }
 
 TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
-  // Non finalizable objects are swept right away.
+  // Non finalizable objects are swept right away but the page is only returned
+  // from the main thread.
   using GCedType = LargeNonFinalizable;
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
+  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
 
   auto* unmarked_page = BasePage::FromPayload(unmarked_object);
   auto* marked_page = BasePage::FromPayload(marked_object);
-  auto* space = unmarked_page->space();
+  auto& space = unmarked_page->space();
 
-  ASSERT_EQ(space, marked_page->space());
+  ASSERT_EQ(&space, &marked_page->space());
 
   StartSweeping();
 
   // Wait for concurrent sweeping to finish.
-  GetPlatform().WaitAllBackgroundTasks();
+  WaitForConcurrentSweeping();
 
 #if !defined(CPPGC_YOUNG_GENERATION)
   // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #else
   // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #endif
+
+  // The page should not have been removed on the background threads.
+  EXPECT_TRUE(PageInBackend(unmarked_page));
+
+  FinishSweeping();
 
   // Check that free list entries are created right away for non-finalizable
   // objects, but not immediately returned to the space's freelist.
-  CheckPageRemoved(unmarked_page);
+  EXPECT_FALSE(PageInBackend(unmarked_page));
 
   // Check that marked pages are returned to space right away.
-  EXPECT_NE(space->end(), std::find(space->begin(), space->end(), marked_page));
-
-  FinishSweeping();
+  EXPECT_NE(space.end(), std::find(space.begin(), space.end(), marked_page));
 }
 
 TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
@@ -218,20 +233,20 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
     objects.push_back(object);
     auto* page = BasePage::FromPayload(object);
     pages.insert(page);
-    if (!space) space = page->space();
+    if (!space) space = &page->space();
   }
 
   StartSweeping();
 
   // Wait for concurrent sweeping to finish.
-  GetPlatform().WaitAllBackgroundTasks();
+  WaitForConcurrentSweeping();
 
   // Check that pages are not returned right away.
   for (auto* page : pages) {
     EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
   }
   // Check that finalizable objects are left intact in pages.
-  EXPECT_FALSE(FreeListContains(space, objects));
+  EXPECT_FALSE(FreeListContains(*space, objects));
   // No finalizers have been executed.
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -240,7 +255,7 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
   // Check that finalizable objects are swept and turned into freelist entries.
   CheckFreeListEntries(objects);
   // Check that space's freelist contains these entries.
-  EXPECT_TRUE(FreeListContains(space, objects));
+  EXPECT_TRUE(FreeListContains(*space, objects));
   // Check that finalizers have been executed.
   EXPECT_EQ(kNumberOfObjects, g_destructor_callcount);
 }
@@ -251,15 +266,15 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfLargePage) {
   auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
 
   auto* page = BasePage::FromPayload(object);
-  auto* space = page->space();
+  auto& space = page->space();
 
   StartSweeping();
 
   // Wait for concurrent sweeping to finish.
-  GetPlatform().WaitAllBackgroundTasks();
+  WaitForConcurrentSweeping();
 
   // Check that the page is not returned to the space.
-  EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  EXPECT_EQ(space.end(), std::find(space.begin(), space.end(), page));
   // Check that no destructors have been executed yet.
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -268,7 +283,29 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfLargePage) {
   // Check that the destructor was executed.
   EXPECT_EQ(1u, g_destructor_callcount);
   // Check that page was unmapped.
-  CheckPageRemoved(page);
+  EXPECT_FALSE(PageInBackend(page));
+}
+
+TEST_F(ConcurrentSweeperTest, DestroyLargePageOnMainThread) {
+  // This test fails with TSAN when large pages are destroyed concurrently
+  // without proper support by the backend.
+  using GCedType = LargeNonFinalizable;
+
+  auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
+  auto* page = BasePage::FromPayload(object);
+
+  StartSweeping();
+
+  // Allocating another large object should not race here.
+  MakeGarbageCollected<GCedType>(GetAllocationHandle());
+
+  // Wait for concurrent sweeping to finish.
+  WaitForConcurrentSweeping();
+
+  FinishSweeping();
+
+  // Check that page was unmapped.
+  EXPECT_FALSE(PageInBackend(page));
 }
 
 TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
@@ -288,9 +325,8 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
       MakeGarbageCollected<LargeFinalizable>(GetAllocationHandle());
 
   auto& marked_normal_header =
-      HeapObjectHeader::FromPayload(marked_normal_object);
-  auto& marked_large_header =
-      HeapObjectHeader::FromPayload(marked_large_object);
+      HeapObjectHeader::FromObject(marked_normal_object);
+  auto& marked_large_header = HeapObjectHeader::FromObject(marked_large_object);
 
   marked_normal_header.TryMarkAtomic();
   marked_large_header.TryMarkAtomic();
@@ -302,7 +338,7 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
   EXPECT_TRUE(marked_large_header.IsMarked());
 
   // Wait for incremental sweeper to finish.
-  GetPlatform().WaitAllForegroundTasks();
+  GetPlatform().RunAllForegroundTasks();
 
   EXPECT_EQ(2u, g_destructor_callcount);
 #if !defined(CPPGC_YOUNG_GENERATION)

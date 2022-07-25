@@ -83,7 +83,7 @@ const stat = promisify(fs.stat);
     callback(null, 'foo', 'bar');
   }
   promisify(fn)().then(common.mustCall((value) => {
-    assert.deepStrictEqual(value, 'foo');
+    assert.strictEqual(value, 'foo');
   }));
 }
 
@@ -193,7 +193,7 @@ const stat = promisify(fs.stat);
     }),
     b.then(assert.fail, function(e) {
       assert.strictEqual(err, e);
-    })
+    }),
   ]);
 }
 

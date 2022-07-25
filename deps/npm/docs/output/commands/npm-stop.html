@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-stop</title>
 <style>
 body {
@@ -141,14 +142,63 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm stop [-- &lt;args&gt;]
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
-<p>This runs a package’s “stop” script, if one was provided.</p>
+<p>This runs a predefined command specified in the "stop" property of a
+package's "scripts" object.</p>
+<p>Unlike with <a href="../commands/npm-start.html">npm start</a>, there is no default script
+that will run if the <code>"stop"</code> property is not defined.</p>
+<h3 id="example">Example</h3>
+<pre lang="json"><code>{
+  "scripts": {
+    "stop": "node bar.js"
+  }
+}
+</code></pre>
+<pre lang="bash"><code>npm stop
+
+&gt; npm@x.x.x stop
+&gt; node bar.js
+
+(bar.js output would be here)
+
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="script-shell"><code>script-shell</code></h4>
+<ul>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
+<li>Type: null or String</li>
+</ul>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>

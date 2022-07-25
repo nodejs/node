@@ -22,7 +22,7 @@ function useFor(n, items, count) {
 function useForOf(n, items) {
   bench.start();
   for (let i = 0; i < n; i++) {
-    // eslint-disable-next-line no-unused-vars
+    // eslint-disable-next-line no-unused-vars, no-empty
     for (const item of items) {}
   }
   bench.end(n);

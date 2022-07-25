@@ -17,7 +17,7 @@
 
 /**
  * \file
- * \brief C API: ICU Plugin API
+ * \brief C API: ICU Plugin API 
  *
  * <h2>C API: ICU Plugin API</h2>
  *
@@ -25,31 +25,31 @@
  *
  * <h3>Loading and Configuration</h3>
  *
- * <p>At ICU startup time, the environment variable "ICU_PLUGINS" will be
- * queried for a directory name.  If it is not set, the preprocessor symbol
+ * <p>At ICU startup time, the environment variable "ICU_PLUGINS" will be 
+ * queried for a directory name.  If it is not set, the preprocessor symbol 
  * "DEFAULT_ICU_PLUGINS" will be checked for a default value.</p>
  *
- * <p>Within the above-named directory, the file  "icuplugins##.txt" will be
- * opened, if present, where ## is the major+minor number of the currently
+ * <p>Within the above-named directory, the file  "icuplugins##.txt" will be 
+ * opened, if present, where ## is the major+minor number of the currently 
  * running ICU (such as, 44 for ICU 4.4, thus icuplugins44.txt)</p>
  *
  * <p>The configuration file has this format:</p>
  *
  * <ul>
  * <li>Hash (#) begins a comment line</li>
- *
+ * 
  * <li>Non-comment lines have two or three components:
  * LIBRARYNAME     ENTRYPOINT     [ CONFIGURATION .. ]</li>
  *
  * <li>Tabs or spaces separate the three items.</li>
  *
- * <li>LIBRARYNAME is the name of a shared library, either a short name if
+ * <li>LIBRARYNAME is the name of a shared library, either a short name if 
  * it is on the loader path,  or a full pathname.</li>
  *
- * <li>ENTRYPOINT is the short (undecorated) symbol name of the plugin's
+ * <li>ENTRYPOINT is the short (undecorated) symbol name of the plugin's 
  * entrypoint, as above.</li>
  *
- * <li>CONFIGURATION is the entire rest of the line . It's passed as-is to
+ * <li>CONFIGURATION is the entire rest of the line . It's passed as-is to 
  * the plugin.</li>
  * </ul>
  *
@@ -59,25 +59,25 @@
  * # this is icuplugins44.txt
  * testplug.dll    myPlugin        hello=world
  * \endcode
- * <p>Plugins are categorized as "high" or "low" level.  Low level are those
- * which must be run BEFORE high level plugins, and before any operations
- * which cause ICU to be 'initialized'.  If a plugin is low level but
- * causes ICU to allocate memory or become initialized, that plugin is said
+ * <p>Plugins are categorized as "high" or "low" level.  Low level are those 
+ * which must be run BEFORE high level plugins, and before any operations 
+ * which cause ICU to be 'initialized'.  If a plugin is low level but 
+ * causes ICU to allocate memory or become initialized, that plugin is said 
  * to cause a 'level change'. </p>
  *
- * <p>At load time, ICU first queries all plugins to determine their level,
- * then loads all 'low' plugins first, and then loads all 'high' plugins.
+ * <p>At load time, ICU first queries all plugins to determine their level, 
+ * then loads all 'low' plugins first, and then loads all 'high' plugins.  
  * Plugins are otherwise loaded in the order listed in the configuration file.</p>
- *
+ * 
  * <h3>Implementing a Plugin</h3>
  * \code
- * U_CAPI UPlugTokenReturn U_EXPORT2
+ * U_CAPI UPlugTokenReturn U_EXPORT2 
  * myPlugin (UPlugData *plug, UPlugReason reason, UErrorCode *status) {
  *   if(reason==UPLUG_REASON_QUERY) {
  *      uplug_setPlugName(plug, "Simple Plugin");
  *      uplug_setPlugLevel(plug, UPLUG_LEVEL_HIGH);
  *    } else if(reason==UPLUG_REASON_LOAD) {
- *       ... Set up some ICU things here....
+ *       ... Set up some ICU things here.... 
  *    } else if(reason==UPLUG_REASON_UNLOAD) {
  *       ... unload, clean up ...
  *    }
@@ -85,20 +85,20 @@
  *  }
  * \endcode
  *
- * <p>The UPlugData*  is an opaque pointer to the plugin-specific data, and is
+ * <p>The UPlugData*  is an opaque pointer to the plugin-specific data, and is 
  * used in all other API calls.</p>
  *
  * <p>The API contract is:</p>
- * <ol><li>The plugin MUST always return UPLUG_TOKEN as a return value- to
+ * <ol><li>The plugin MUST always return UPLUG_TOKEN as a return value- to 
  * indicate that it is a valid plugin.</li>
  *
- * <li>When the 'reason' parameter is set to UPLUG_REASON_QUERY,  the
- * plugin MUST call uplug_setPlugLevel() to indicate whether it is a high
+ * <li>When the 'reason' parameter is set to UPLUG_REASON_QUERY,  the 
+ * plugin MUST call uplug_setPlugLevel() to indicate whether it is a high 
  * level or low level plugin.</li>
  *
- * <li>When the 'reason' parameter is UPLUG_REASON_QUERY, the plugin
+ * <li>When the 'reason' parameter is UPLUG_REASON_QUERY, the plugin 
  * SHOULD call uplug_setPlugName to indicate a human readable plugin name.</li></ol>
- *
+ * 
  *
  * \internal ICU 4.4 Technology Preview
  */
@@ -117,20 +117,19 @@
 /* === Basic types === */
 
 #ifndef U_HIDE_INTERNAL_API
+struct UPlugData;
 /**
  * @{
- * Opaque structure passed to/from a plugin.
- * use the APIs to access it.
+ * Typedef for opaque structure passed to/from a plugin. 
+ * Use the APIs to access it.
  * @internal ICU 4.4 Technology Preview
  */
-
-struct UPlugData;
 typedef struct UPlugData UPlugData;
 
 /** @} */
 
 /**
- * Random Token to identify a valid ICU plugin. Plugins must return this
+ * Random Token to identify a valid ICU plugin. Plugins must return this 
  * from the entrypoint.
  * @internal ICU 4.4 Technology Preview
  */
@@ -144,7 +143,7 @@ typedef struct UPlugData UPlugData;
 
 
 /**
- * Return value from a plugin entrypoint.
+ * Return value from a plugin entrypoint. 
  * Must always be set to UPLUG_TOKEN
  * @see UPLUG_TOKEN
  * @internal ICU 4.4 Technology Preview
@@ -188,7 +187,7 @@ typedef enum {
 
 /**
  * Entrypoint for an ICU plugin.
- * @param plug the UPlugData handle.
+ * @param plug the UPlugData handle. 
  * @param status the plugin's extended status code.
  * @return A valid plugin must return UPLUG_TOKEN
  * @internal ICU 4.4 Technology Preview
@@ -208,7 +207,7 @@ typedef UPlugTokenReturn (U_EXPORT2 UPlugEntrypoint) (
  * @param dontUnload  set true if this plugin can't be unloaded
  * @internal ICU 4.4 Technology Preview
  */
-U_CAPI void U_EXPORT2
+U_CAPI void U_EXPORT2 
 uplug_setPlugNoUnload(UPlugData *plug, UBool dontUnload);
 
 /**
@@ -246,7 +245,7 @@ uplug_getCurrentLevel(void);
  * @internal ICU 4.4 Technology Preview
  */
 U_CAPI UErrorCode U_EXPORT2
-uplug_getPlugLoadStatus(UPlugData *plug);
+uplug_getPlugLoadStatus(UPlugData *plug); 
 
 /**
  * Set the human-readable name of this plugin.
@@ -287,7 +286,7 @@ uplug_getLibraryName(UPlugData *plug, UErrorCode *status);
 
 /**
  * Return the library used for this plugin, if known.
- * Plugins could use this to load data out of their
+ * Plugins could use this to load data out of their 
  * @param plug plugin data handle
  * @return the library, or NULL
  * @internal ICU 4.4 Technology Preview
@@ -334,7 +333,7 @@ uplug_getConfiguration(UPlugData *plug);
  *    }
  * \endcode
  * Not thread safe- do not call while plugs are added or removed.
- * @param prior pass in 'NULL' to get the first (most recent) plug,
+ * @param prior pass in 'NULL' to get the first (most recent) plug, 
  *  otherwise pass the value returned on a prior call to uplug_nextPlug
  * @return the next oldest plugin, or NULL if no more.
  * @internal ICU 4.4 Technology Preview
@@ -344,7 +343,7 @@ uplug_nextPlug(UPlugData *prior);
 
 /**
  * Inject a plugin as if it were loaded from a library.
- * This is useful for testing plugins.
+ * This is useful for testing plugins. 
  * Note that it will have a 'NULL' library pointer associated
  * with it, and therefore no llibrary will be closed at cleanup time.
  * Low level plugins may not be able to load, as ordering can't be enforced.
@@ -372,7 +371,7 @@ U_CAPI UPlugData* U_EXPORT2
 uplug_loadPlugFromLibrary(const char *libName, const char *sym, const char *config, UErrorCode *status);
 
 /**
- * Remove a plugin.
+ * Remove a plugin. 
  * Will request the plugin to be unloaded, and close the library if needed
  * @param plug plugin handle to close
  * @param status error result
@@ -385,3 +384,4 @@ uplug_removePlug(UPlugData *plug, UErrorCode *status);
 #endif /* UCONFIG_ENABLE_PLUGINS */
 
 #endif /* _ICUPLUG */
+

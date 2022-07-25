@@ -50,6 +50,7 @@ function doTest(testOptions, callback) {
     requestCert: true,
     rejectUnauthorized: false,
     secureProtocol: 'TLS_method',
+    ciphers: 'RSA@SECLEVEL=0'
   };
   let requestCount = 0;
   let resumeCount = 0;
@@ -103,7 +104,7 @@ function doTest(testOptions, callback) {
       '-servername', 'ohgod',
       '-key', fixtures.path('keys/rsa_private.pem'),
       '-cert', fixtures.path('keys/rsa_cert.crt'),
-      '-reconnect'
+      '-reconnect',
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 
     function spawnClient() {

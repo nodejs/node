@@ -1,31 +1,28 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const LOGS = []
+const OUTPUT = []
+const output = (...msg) => OUTPUT.push(msg)
+const auditError = t.mock('../../../lib/utils/audit-error.js', {
+  'proc-log': {
+    warn: (...msg) => LOGS.push(msg),
+  },
+})
+
 const npm = {
   command: null,
   flatOptions: {},
-  log: {
-    warn: (...msg) => LOGS.push(msg),
-  },
+  output,
 }
-const OUTPUT = []
-const output = (...msg) => OUTPUT.push(msg)
-const auditError = requireInject('../../../lib/utils/audit-error.js', {
-  '../../../lib/npm.js': npm,
-  '../../../lib/utils/output.js': output,
-})
-
-t.afterEach(cb => {
+t.afterEach(() => {
   npm.flatOptions = {}
   OUTPUT.length = 0
   LOGS.length = 0
-  cb()
 })
 
 t.test('no error, not audit command', t => {
   npm.command = 'install'
-  t.equal(auditError({}), false, 'no error')
+  t.equal(auditError(npm, {}), false, 'no error')
   t.strictSame(OUTPUT, [], 'no output')
   t.strictSame(LOGS, [], 'no warnings')
   t.end()
@@ -33,7 +30,7 @@ t.test('no error, not audit command', t => {
 
 t.test('error, not audit command', t => {
   npm.command = 'install'
-  t.equal(auditError({
+  t.equal(auditError(npm, {
     error: {
       message: 'message',
       body: Buffer.from('body'),
@@ -53,7 +50,7 @@ t.test('error, not audit command', t => {
 t.test('error, audit command, not json', t => {
   npm.command = 'audit'
   npm.flatOptions.json = false
-  t.throws(() => auditError({
+  t.throws(() => auditError(npm, {
     error: {
       message: 'message',
       body: Buffer.from('body'),
@@ -74,7 +71,7 @@ t.test('error, audit command, not json', t => {
 t.test('error, audit command, json', t => {
   npm.command = 'audit'
   npm.flatOptions.json = true
-  t.throws(() => auditError({
+  t.throws(() => auditError(npm, {
     error: {
       message: 'message',
       body: { response: 'body' },

@@ -320,7 +320,7 @@ void
 TimeUnitFormat::setup(UErrorCode& err) {
     initDataMembers(err);
 
-    UVector pluralCounts(0, uhash_compareUnicodeString, 6, err);
+    UVector pluralCounts(nullptr, uhash_compareUnicodeString, 6, err);
     LocalPointer<StringEnumeration> keywords(getPluralRules().getKeywords(err), err);
     if (U_FAILURE(err)) {
         return;
@@ -362,7 +362,7 @@ struct TimeUnitFormatReadSink : public ResourceSink {
 
     virtual ~TimeUnitFormatReadSink();
 
-    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) override {
         // Skip all put() calls except the first one -- discard all fallback data.
         if (beenHere) {
             return;

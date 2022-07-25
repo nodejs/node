@@ -88,6 +88,10 @@ extern char** environ;
 # define uv__accept4 accept4
 #endif
 
+#if defined(__linux__) && defined(__SANITIZE_THREAD__) && defined(__clang__)
+# include <sanitizer/linux_syscall_hooks.h>
+#endif
+
 static int uv__run_pending(uv_loop_t* loop);
 
 /* Verify that uv_buf_t is ABI-compatible with struct iovec. */
@@ -539,7 +543,13 @@ int uv__close_nocancel(int fd) {
   return close$NOCANCEL$UNIX2003(fd);
 #endif
 #pragma GCC diagnostic pop
-#elif defined(__linux__)
+#elif defined(__linux__) && defined(__SANITIZE_THREAD__) && defined(__clang__)
+  long rc;
+  __sanitizer_syscall_pre_close(fd);
+  rc = syscall(SYS_close, fd);
+  __sanitizer_syscall_post_close(rc, fd);
+  return rc;
+#elif defined(__linux__) && !defined(__SANITIZE_THREAD__)
   return syscall(SYS_close, fd);
 #else
   return close(fd);
@@ -574,7 +584,7 @@ int uv__close(int fd) {
   return uv__close_nocheckstdio(fd);
 }
 
-
+#if UV__NONBLOCK_IS_IOCTL
 int uv__nonblock_ioctl(int fd, int set) {
   int r;
 
@@ -589,7 +599,6 @@ int uv__nonblock_ioctl(int fd, int set) {
 }
 
 
-#if !defined(__CYGWIN__) && !defined(__MSYS__) && !defined(__HAIKU__)
 int uv__cloexec_ioctl(int fd, int set) {
   int r;
 
@@ -925,13 +934,12 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if (w->pevents == 0) {
     QUEUE_REMOVE(&w->watcher_queue);
     QUEUE_INIT(&w->watcher_queue);
+    w->events = 0;
 
-    if (loop->watchers[w->fd] != NULL) {
-      assert(loop->watchers[w->fd] == w);
+    if (w == loop->watchers[w->fd]) {
       assert(loop->nfds > 0);
       loop->watchers[w->fd] = NULL;
       loop->nfds--;
-      w->events = 0;
     }
   }
   else if (QUEUE_EMPTY(&w->watcher_queue))
@@ -1175,7 +1183,9 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
     if (buf == NULL)
       return UV_ENOMEM;
 
-    r = getpwuid_r(uid, &pw, buf, bufsize, &result);
+    do
+      r = getpwuid_r(uid, &pw, buf, bufsize, &result);
+    while (r == EINTR);
 
     if (r != ERANGE)
       break;
@@ -1185,7 +1195,7 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
 
   if (r != 0) {
     uv__free(buf);
-    return -r;
+    return UV__ERR(r);
   }
 
   if (result == NULL) {
@@ -1571,7 +1581,7 @@ int uv__search_path(const char* prog, char* buf, size_t* buflen) {
     buf[*buflen] = '\0';
 
     return 0;
-  } 
+  }
 
   /* Case iii). Search PATH environment variable */
   cloned_path = NULL;

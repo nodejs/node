@@ -17,7 +17,7 @@
 *   Date        Name        Description
 *   6/18/98     hshih       Created
 *   09/08/98    stephen     Added include for ctype, for Mac Port
-*   11/15/99    helena      Integrated S/390 IEEE changes.
+*   11/15/99    helena      Integrated S/390 IEEE changes. 
 ******************************************************************************
 */
 
@@ -161,15 +161,15 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
     uint8_t   digit;
     int32_t   length = 0;
     uint32_t  uval;
-
+    
     U_ASSERT(radix>=2 && radix<=16);
     uval = (uint32_t) v;
     if(v<0 && radix == 10) {
         /* Only in base 10 do we conside numbers to be signed. */
-        uval = (uint32_t)(-v);
+        uval = (uint32_t)(-v); 
         buffer[length++] = '-';
     }
-
+    
     tbx = sizeof(tbuf)-1;
     tbuf[tbx] = 0;   /* We are generating the digits backwards.  Null term the end. */
     do {
@@ -177,7 +177,7 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
         tbuf[--tbx] = (char)(T_CString_itosOffset(digit));
         uval  = uval / radix;
     } while (uval != 0);
-
+    
     /* copy converted number into user buffer  */
     uprv_strcpy(buffer+length, tbuf+tbx);
     length += sizeof(tbuf) - tbx -1;
@@ -199,15 +199,15 @@ T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
     uint8_t   digit;
     int32_t   length = 0;
     uint64_t  uval;
-
+    
     U_ASSERT(radix>=2 && radix<=16);
     uval = (uint64_t) v;
     if(v<0 && radix == 10) {
         /* Only in base 10 do we conside numbers to be signed. */
-        uval = (uint64_t)(-v);
+        uval = (uint64_t)(-v); 
         buffer[length++] = '-';
     }
-
+    
     tbx = sizeof(tbuf)-1;
     tbuf[tbx] = 0;   /* We are generating the digits backwards.  Null term the end. */
     do {
@@ -215,7 +215,7 @@ T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
         tbuf[--tbx] = (char)(T_CString_itosOffset(digit));
         uval  = uval / radix;
     } while (uval != 0);
-
+    
     /* copy converted number into user buffer  */
     uprv_strcpy(buffer+length, tbuf+tbx);
     length += sizeof(tbuf) - tbx -1;
@@ -331,7 +331,7 @@ uprv_strndup(const char *src, int32_t n) {
         dup = uprv_strdup(src);
     } else {
         dup = (char*)uprv_malloc(n+1);
-        if (dup) {
+        if (dup) { 
             uprv_memcpy(dup, src, n);
             dup[n] = 0;
         }

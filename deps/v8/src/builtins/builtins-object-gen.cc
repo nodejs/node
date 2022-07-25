@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
@@ -27,10 +28,13 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void ReturnToStringFormat(TNode<Context> context, TNode<String> string);
-  void AddToDictionaryIf(TNode<BoolT> condition,
-                         TNode<NameDictionary> name_dictionary,
-                         Handle<Name> name, TNode<Object> value,
-                         Label* bailout);
+
+  // TODO(v8:11167) remove |context| and |object| once OrderedNameDictionary
+  // supported.
+  void AddToDictionaryIf(TNode<BoolT> condition, TNode<Context> context,
+                         TNode<Object> object,
+                         TNode<HeapObject> name_dictionary, Handle<Name> name,
+                         TNode<Object> value, Label* bailout);
   TNode<JSObject> FromPropertyDescriptor(TNode<Context> context,
                                          TNode<PropertyDescriptorObject> desc);
   TNode<JSObject> FromPropertyDetails(TNode<Context> context,
@@ -148,12 +152,14 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindAccessor(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kAccessor));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kAccessor)));
 }
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kData));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kData)));
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
@@ -245,8 +251,9 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   BIND(&if_has_enum_cache);
   {
     GotoIf(WordEqual(object_enum_length, IntPtrConstant(0)), if_no_properties);
-    TNode<FixedArray> values_or_entries = CAST(AllocateFixedArray(
-        PACKED_ELEMENTS, object_enum_length, kAllowLargeObjectAllocation));
+    TNode<FixedArray> values_or_entries =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, object_enum_length,
+                                AllocationFlag::kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
     // we can't detect accessor of object until loop through descriptors.
@@ -274,7 +281,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     {
       // Currently, we will not invoke getters,
       // so, map will not be changed.
-      CSA_ASSERT(this, TaggedEqual(map, LoadMap(object)));
+      CSA_DCHECK(this, TaggedEqual(map, LoadMap(object)));
       TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
       TNode<Name> next_key =
           LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
@@ -289,7 +296,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       // If property is accessor, we escape fast path and call runtime.
       GotoIf(IsPropertyKindAccessor(kind), if_call_runtime_with_fast_path);
-      CSA_ASSERT(this, IsPropertyKindData(kind));
+      CSA_DCHECK(this, IsPropertyKindData(kind));
 
       // If desc is not undefined and desc.[[Enumerable]] is true, then skip to
       // the next descriptor.
@@ -316,7 +323,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
             IntPtrConstant(2));
         StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
         StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
-        value = TNode<JSArray>::UncheckedCast(array);
+        value = array;
       }
 
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
@@ -342,17 +349,17 @@ TNode<JSArray>
 ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
     TNode<Context> context, TNode<FixedArray> result, TNode<IntPtrT> size,
     TNode<Map> array_map, Label* if_empty) {
-  CSA_ASSERT(this, IsJSArrayMap(array_map));
+  CSA_DCHECK(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
   TNode<JSArray> array = AllocateJSArray(array_map, result, SmiTag(size));
-  return TNode<JSArray>::UncheckedCast(array);
+  return array;
 }
 
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto object = Parameter<Object>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label call_runtime(this), return_true(this), return_false(this),
       to_primitive(this);
@@ -421,10 +428,10 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 // ES #sec-object.assign
 TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<Object> target = args.GetOptionalArgumentValue(0);
 
   // 1. Let to be ? ToObject(target).
@@ -432,14 +439,16 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
   Label done(this);
   // 2. If only one argument was passed, return to.
-  GotoIf(UintPtrLessThanOrEqual(argc, IntPtrConstant(1)), &done);
+  GotoIf(UintPtrLessThanOrEqual(args.GetLengthWithoutReceiver(),
+                                IntPtrConstant(1)),
+         &done);
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
       [=](TNode<Object> next_source) {
-        CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
+        CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
   Goto(&done);
@@ -451,8 +460,8 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.keys
 TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   TVARIABLE(Smi, var_length);
   TVARIABLE(FixedArrayBase, var_elements);
@@ -471,7 +480,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
       &if_slow);
 
   // Ensure that the {object} doesn't have any elements.
-  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  CSA_DCHECK(this, IsJSObjectMap(object_map));
   TNode<FixedArrayBase> object_elements = LoadElements(CAST(object));
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
@@ -539,10 +548,40 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   }
 }
 
+// https://github.com/tc39/proposal-accessible-object-hasownproperty
+TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
+  // Object.prototype.hasOwnProperty()
+  // 1. Let obj be ? ToObject(O).
+  // 2. Let key be ? ToPropertyKey(P).
+  // 3. Return ? HasOwnProperty(obj, key).
+  //
+  // ObjectPrototypeHasOwnProperty has similar semantics with steps 1 and 2
+  // swapped. We check if ToObject can fail and delegate the rest of the
+  // execution to ObjectPrototypeHasOwnProperty.
+
+  auto target = Parameter<Object>(Descriptor::kJSTarget);
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  // ToObject can only fail when object is undefined or null.
+  Label undefined_or_null(this), not_undefined_nor_null(this);
+  Branch(IsNullOrUndefined(object), &undefined_or_null,
+         &not_undefined_nor_null);
+
+  BIND(&undefined_or_null);
+  ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject);
+
+  BIND(&not_undefined_nor_null);
+  Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
+                     new_target, JSParameterCount(1), object, key));
+}
+
 // ES #sec-object.getOwnPropertyNames
 TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   TVARIABLE(Smi, var_length);
   TVARIABLE(FixedArrayBase, var_elements);
@@ -650,26 +689,22 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ObjectValues, ObjectEntriesValuesBuiltinsAssembler) {
-  TNode<JSObject> object =
-      TNode<JSObject>::UncheckedCast(Parameter(Descriptor::kObject));
-  TNode<Context> context =
-      TNode<Context>::UncheckedCast(Parameter(Descriptor::kContext));
+  auto object = UncheckedParameter<JSObject>(Descriptor::kObject);
+  auto context = UncheckedParameter<Context>(Descriptor::kContext);
   GetOwnValuesOrEntries(context, object, CollectType::kValues);
 }
 
 TF_BUILTIN(ObjectEntries, ObjectEntriesValuesBuiltinsAssembler) {
-  TNode<JSObject> object =
-      TNode<JSObject>::UncheckedCast(Parameter(Descriptor::kObject));
-  TNode<Context> context =
-      TNode<Context>::UncheckedCast(Parameter(Descriptor::kContext));
+  auto object = UncheckedParameter<JSObject>(Descriptor::kObject);
+  auto context = UncheckedParameter<Context>(Descriptor::kContext);
   GetOwnValuesOrEntries(context, object, CollectType::kEntries);
 }
 
 // ES #sec-object.prototype.isprototypeof
 TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
   Label if_receiverisnullorundefined(this, Label::kDeferred),
       if_valueisnotreceiver(this, Label::kDeferred);
 
@@ -723,8 +758,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
       if_symbol(this, Label::kDeferred), if_value(this),
       if_bigint(this, Label::kDeferred);
 
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   TVARIABLE(String, var_default);
   TVARIABLE(HeapObject, var_holder);
@@ -737,16 +772,15 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   var_holder = receiver_heap_object;
   TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
+  GotoIf(IsFunctionInstanceType(receiver_instance_type), &if_function);
   const struct {
     InstanceType value;
     Label* label;
   } kJumpTable[] = {{JS_OBJECT_TYPE, &if_object},
                     {JS_ARRAY_TYPE, &if_array},
-                    {JS_FUNCTION_TYPE, &if_function},
                     {JS_REG_EXP_TYPE, &if_regexp},
                     {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
                     {JS_DATE_TYPE, &if_date},
-                    {JS_BOUND_FUNCTION_TYPE, &if_function},
                     {JS_API_OBJECT_TYPE, &if_object},
                     {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
                     {JS_PROXY_TYPE, &if_proxy},
@@ -822,7 +856,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_object);
   {
-    CSA_ASSERT(this, IsJSReceiver(CAST(receiver)));
+    CSA_DCHECK(this, IsJSReceiver(CAST(receiver)));
     var_default = ObjectToStringConstant();
     Goto(&checkstringtag);
   }
@@ -837,7 +871,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     GotoIf(IsHeapNumberMap(receiver_map), &if_number);
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
-    CSA_ASSERT(this, IsNull(receiver));
+    CSA_DCHECK(this, IsNull(receiver));
     Return(NullToStringConstant());
 
     BIND(&return_undefined);
@@ -949,7 +983,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadMapInstanceType(receiver_value_map);
     GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
            &if_value_is_bigint);
-    CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
+    CSA_DCHECK(this, IsStringInstanceType(receiver_value_instance_type));
     Goto(&if_value_is_string);
 
     BIND(&if_value_is_number);
@@ -1024,15 +1058,16 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPropertiesArg = 1;
 
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);
   TNode<Object> properties = args.GetOptionalArgumentValue(kPropertiesArg);
-  TNode<NativeContext> native_context = CAST(Parameter(Descriptor::kContext));
+  auto native_context = Parameter<NativeContext>(Descriptor::kContext);
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
+
   {
     Comment("Argument 1 check: prototype");
     GotoIf(IsNull(prototype), &prototype_valid);
@@ -1064,7 +1099,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   BIND(&no_properties);
   {
     TVARIABLE(Map, map);
-    TVARIABLE(HeapObject, properties);
+    TVARIABLE(HeapObject, new_properties);
     Label null_proto(this), non_null_proto(this), instantiate_map(this);
 
     Branch(IsNull(prototype), &null_proto, &non_null_proto);
@@ -1072,13 +1107,19 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        new_properties =
+            AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
+      } else {
+        new_properties =
+            AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      }
       Goto(&instantiate_map);
     }
 
     BIND(&non_null_proto);
     {
-      properties = EmptyFixedArrayConstant();
+      new_properties = EmptyFixedArrayConstant();
       map = LoadObjectFunctionInitialMap(native_context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
@@ -1096,7 +1137,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&instantiate_map);
     {
       TNode<JSObject> instance =
-          AllocateJSObjectFromMap(map.value(), properties.value());
+          AllocateJSObjectFromMap(map.value(), new_properties.value());
       args.PopAndReturn(instance);
     }
   }
@@ -1111,8 +1152,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.is
 TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
-  const TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
-  const TNode<Object> right = CAST(Parameter(Descriptor::kRight));
+  const auto left = Parameter<Object>(Descriptor::kLeft);
+  const auto right = Parameter<Object>(Descriptor::kRight);
 
   Label return_true(this), return_false(this);
   BranchIfSameValue(left, right, &return_true, &return_false);
@@ -1125,9 +1166,9 @@ TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
-  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  const TNode<Oddball> done = CAST(Parameter(Descriptor::kDone));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto done = Parameter<Oddball>(Descriptor::kDone);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> map = CAST(
@@ -1142,53 +1183,56 @@ TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  TNode<Object> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Return(HasProperty(context, object, key, kHasProperty));
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> callable = CAST(Parameter(Descriptor::kRight));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto object = Parameter<Object>(Descriptor::kLeft);
+  auto callable = Parameter<Object>(Descriptor::kRight);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Return(InstanceOf(object, callable, context));
 }
 
 TF_BUILTIN(InstanceOf_WithFeedback, ObjectBuiltinsAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> callable = CAST(Parameter(Descriptor::kRight));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<UintPtrT> slot = UncheckedCast<UintPtrT>(Parameter(Descriptor::kSlot));
+  auto object = Parameter<Object>(Descriptor::kLeft);
+  auto callable = Parameter<Object>(Descriptor::kRight);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
-  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot);
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
+  Return(InstanceOf(object, callable, context));
+}
+
+TF_BUILTIN(InstanceOf_Baseline, ObjectBuiltinsAssembler) {
+  auto object = Parameter<Object>(Descriptor::kLeft);
+  auto callable = Parameter<Object>(Descriptor::kRight);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
   Return(InstanceOf(object, callable, context));
 }
 
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
 TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
-  TNode<Object> constructor = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> object = CAST(Parameter(Descriptor::kRight));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto constructor = Parameter<Object>(Descriptor::kLeft);
+  auto object = Parameter<Object>(Descriptor::kRight);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Return(OrdinaryHasInstance(context, constructor, object));
 }
 
-TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
-  TNode<JSFunction> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Return(GetSuperConstructor(context, object));
-}
-
 TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
-  TNode<JSFunction> closure = CAST(Parameter(Descriptor::kClosure));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto closure = Parameter<JSFunction>(Descriptor::kClosure);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // Get the initial map from the function, jumping to the runtime if we don't
   // have one.
@@ -1204,21 +1248,21 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
 
-  TNode<IntPtrT> formal_parameter_count =
-      ChangeInt32ToIntPtr(LoadObjectField<Uint16T>(
-          shared, SharedFunctionInfo::kFormalParameterCountOffset));
+  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared));
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(
       LoadObjectField<Int32T>(bytecode_array, BytecodeArray::kFrameSizeOffset));
   TNode<IntPtrT> size =
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);
-  TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, size);
+  TNode<FixedArrayBase> parameters_and_registers = AllocateFixedArray(
+      HOLEY_ELEMENTS, size, AllocationFlag::kAllowLargeObjectAllocation);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  TNode<JSObject> result = AllocateJSObjectFromMap(
-      map, base::nullopt, base::nullopt, kNone, kWithSlackTracking);
+  TNode<JSObject> result =
+      AllocateJSObjectFromMap(map, base::nullopt, base::nullopt,
+                              AllocationFlag::kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
@@ -1253,10 +1297,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
 // ES6 section 19.1.2.7 Object.getOwnPropertyDescriptor ( O, P )
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  CSA_DCHECK(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> object_input = args.GetOptionalArgumentValue(0);
@@ -1266,12 +1309,13 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   TNode<JSReceiver> object = ToObject_Inline(context, object_input);
 
   // 2. Let key be ? ToPropertyKey(P).
-  key = CallBuiltin(Builtins::kToName, context, key);
+  key = CallBuiltin(Builtin::kToName, context, key);
 
   // 3. Let desc be ? obj.[[GetOwnProperty]](key).
   Label if_keyisindex(this), if_iskeyunique(this),
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
+
   TNode<Map> map = LoadMap(object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
@@ -1345,13 +1389,17 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   args.PopAndReturn(UndefinedConstant());
 }
 
+// TODO(v8:11167) remove remove |context| and |object| parameters once
+// OrderedNameDictionary supported.
 void ObjectBuiltinsAssembler::AddToDictionaryIf(
-    TNode<BoolT> condition, TNode<NameDictionary> name_dictionary,
-    Handle<Name> name, TNode<Object> value, Label* bailout) {
+    TNode<BoolT> condition, TNode<Context> context, TNode<Object> object,
+    TNode<HeapObject> name_dictionary, Handle<Name> name, TNode<Object> value,
+    Label* bailout) {
   Label done(this);
   GotoIfNot(condition, &done);
 
-  Add<NameDictionary>(name_dictionary, HeapConstant(name), value, bailout);
+  Add<PropertyDictionary>(CAST(name_dictionary), HeapConstant(name), value,
+                          bailout);
   Goto(&done);
 
   BIND(&done);
@@ -1407,7 +1455,10 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP));
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
-    TNode<NameDictionary> properties = AllocateNameDictionary(6);
+    TNode<HeapObject> properties =
+        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+            ? TNode<HeapObject>(AllocateSwissNameDictionary(6))
+            : AllocateNameDictionary(6);
     TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);
@@ -1415,33 +1466,33 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Factory* factory = isolate()->factory();
     TNode<Object> value =
         LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
-    AddToDictionaryIf(IsNotTheHole(value), properties, factory->value_string(),
-                      value, &bailout);
+    AddToDictionaryIf(IsNotTheHole(value), context, js_desc, properties,
+                      factory->value_string(), value, &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags),
-        properties, factory->writable_string(),
+        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags), context,
+        js_desc, properties, factory->writable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
         &bailout);
 
     TNode<Object> get =
         LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
-    AddToDictionaryIf(IsNotTheHole(get), properties, factory->get_string(), get,
-                      &bailout);
+    AddToDictionaryIf(IsNotTheHole(get), context, js_desc, properties,
+                      factory->get_string(), get, &bailout);
     TNode<Object> set =
         LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
-    AddToDictionaryIf(IsNotTheHole(set), properties, factory->set_string(), set,
-                      &bailout);
+    AddToDictionaryIf(IsNotTheHole(set), context, js_desc, properties,
+                      factory->set_string(), set, &bailout);
 
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags),
-        properties, factory->enumerable_string(),
+        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags), context,
+        js_desc, properties, factory->enumerable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)),
         &bailout);
     AddToDictionaryIf(
         IsSetWord32<PropertyDescriptorObject::HasConfigurableBit>(flags),
-        properties, factory->configurable_string(),
+        context, js_desc, properties, factory->configurable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)),
         &bailout);
@@ -1450,7 +1501,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Goto(&return_desc);
 
     BIND(&bailout);
-    CSA_ASSERT(this, Int32Constant(0));
+    CSA_DCHECK(this, Int32Constant(0));
     Unreachable();
   }
 

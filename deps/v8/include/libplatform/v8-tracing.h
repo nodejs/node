@@ -37,7 +37,6 @@ const int kTraceMaxNumArgs = 2;
 class V8_PLATFORM_EXPORT TraceObject {
  public:
   union ArgValue {
-    V8_DEPRECATED("use as_uint ? true : false") bool as_bool;
     uint64_t as_uint;
     int64_t as_int;
     double as_double;
@@ -124,6 +123,8 @@ class V8_PLATFORM_EXPORT TraceWriter {
   static TraceWriter* CreateJSONTraceWriter(std::ostream& stream);
   static TraceWriter* CreateJSONTraceWriter(std::ostream& stream,
                                             const std::string& tag);
+
+  static TraceWriter* CreateSystemInstrumentationTraceWriter();
 
  private:
   // Disallow copy and assign

@@ -24,7 +24,7 @@
 // The goal of this test is to cover the Workers' implementation of
 // Worker.prototype.destroy. Worker.prototype.destroy is called within
 // the worker's context: once when the worker is still connected to the
-// master, and another time when it's not connected to it, so that we cover
+// primary, and another time when it's not connected to it, so that we cover
 // both code paths.
 
 const common = require('../common');
@@ -32,7 +32,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 let worker1, worker2;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   worker1 = cluster.fork();
   worker2 = cluster.fork();
 

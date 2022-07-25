@@ -10,70 +10,94 @@
 namespace node {
 
 void Histogram::Reset() {
+  Mutex::ScopedLock lock(mutex_);
   hdr_reset(histogram_.get());
+  exceeds_ = 0;
+  count_ = 0;
+  prev_ = 0;
 }
 
-bool Histogram::Record(int64_t value) {
-  return hdr_record_value(histogram_.get(), value);
+double Histogram::Add(const Histogram& other) {
+  Mutex::ScopedLock lock(mutex_);
+  count_ += other.count_;
+  exceeds_ += other.exceeds_;
+  if (other.prev_ > prev_)
+    prev_ = other.prev_;
+  return static_cast<double>(hdr_add(histogram_.get(), other.histogram_.get()));
 }
 
-int64_t Histogram::Min() {
+size_t Histogram::Count() const {
+  Mutex::ScopedLock lock(mutex_);
+  return count_;
+}
+
+int64_t Histogram::Min() const {
+  Mutex::ScopedLock lock(mutex_);
   return hdr_min(histogram_.get());
 }
 
-int64_t Histogram::Max() {
+int64_t Histogram::Max() const {
+  Mutex::ScopedLock lock(mutex_);
   return hdr_max(histogram_.get());
 }
 
-double Histogram::Mean() {
+double Histogram::Mean() const {
+  Mutex::ScopedLock lock(mutex_);
   return hdr_mean(histogram_.get());
 }
 
-double Histogram::Stddev() {
+double Histogram::Stddev() const {
+  Mutex::ScopedLock lock(mutex_);
   return hdr_stddev(histogram_.get());
 }
 
-double Histogram::Percentile(double percentile) {
+int64_t Histogram::Percentile(double percentile) const {
+  Mutex::ScopedLock lock(mutex_);
   CHECK_GT(percentile, 0);
   CHECK_LE(percentile, 100);
-  return static_cast<double>(
-      hdr_value_at_percentile(histogram_.get(), percentile));
+  return hdr_value_at_percentile(histogram_.get(), percentile);
 }
 
 template <typename Iterator>
 void Histogram::Percentiles(Iterator&& fn) {
+  Mutex::ScopedLock lock(mutex_);
   hdr_iter iter;
   hdr_iter_percentile_init(&iter, histogram_.get(), 1);
   while (hdr_iter_next(&iter)) {
     double key = iter.specifics.percentiles.percentile;
-    double value = static_cast<double>(iter.value);
-    fn(key, value);
+    fn(key, iter.value);
   }
 }
 
-bool HistogramBase::RecordDelta() {
+bool Histogram::Record(int64_t value) {
+  Mutex::ScopedLock lock(mutex_);
+  bool recorded = hdr_record_value(histogram_.get(), value);
+  if (!recorded)
+    exceeds_++;
+  else
+    count_++;
+  return recorded;
+}
+
+uint64_t Histogram::RecordDelta() {
+  Mutex::ScopedLock lock(mutex_);
   uint64_t time = uv_hrtime();
-  bool ret = true;
+  int64_t delta = 0;
   if (prev_ > 0) {
-    int64_t delta = time - prev_;
-    if (delta > 0) {
-      ret = Record(delta);
-      TraceDelta(delta);
-      if (!ret) {
-        if (exceeds_ < 0xFFFFFFFF)
-          exceeds_++;
-        TraceExceeds(delta);
-      }
-    }
+    CHECK_GE(time, prev_);
+    delta = time - prev_;
+    if (hdr_record_value(histogram_.get(), delta))
+      count_++;
+    else
+      exceeds_++;
   }
   prev_ = time;
-  return ret;
+  return delta;
 }
 
-void HistogramBase::ResetState() {
-  Reset();
-  exceeds_ = 0;
-  prev_ = 0;
+size_t Histogram::GetMemorySize() const {
+  Mutex::ScopedLock lock(mutex_);
+  return hdr_get_memory_size(histogram_.get());
 }
 
 }  // namespace node

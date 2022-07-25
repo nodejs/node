@@ -24,7 +24,7 @@ const good = [
   },
   // Test vectors from https://tools.ietf.org/html/rfc7914#page-13 that
   // should pass.  Note that the test vector with N=1048576 is omitted
-  // because it takes too long to complete and uses over 1 GB of memory.
+  // because it takes too long to complete and uses over 1 GiB of memory.
   {
     pass: '',
     salt: '',
@@ -99,7 +99,7 @@ const bad = [
   { N: 3, p: 1, r: 1 },         // Not power of 2.
   { N: 1, cost: 1 },            // Both N and cost
   { p: 1, parallelization: 1 }, // Both p and parallelization
-  { r: 1, blockSize: 1 }        // Both r and blocksize
+  { r: 1, blockSize: 1 },        // Both r and blocksize
 ];
 
 // Test vectors where 128*N*r exceeds maxmem.
@@ -141,6 +141,10 @@ const badargs = [
   },
   {
     args: ['', '', -42],
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+  },
+  {
+    args: ['', '', 2147485780],
     expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
   },
 ];
@@ -207,7 +211,7 @@ for (const { args, expected } of badargs) {
 }
 
 {
-  const expected = { code: 'ERR_INVALID_CALLBACK' };
+  const expected = { code: 'ERR_INVALID_ARG_TYPE' };
   assert.throws(() => crypto.scrypt('', '', 42, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}), expected);
@@ -259,6 +263,6 @@ for (const { args, expected } of badargs) {
   [
     ['N', 16384], ['cost', 16384],
     ['r', 8], ['blockSize', 8],
-    ['p', 1], ['parallelization', 1]
+    ['p', 1], ['parallelization', 1],
   ].forEach((arg) => testParameter(...arg));
 }
