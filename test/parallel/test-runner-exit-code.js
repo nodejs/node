@@ -17,7 +17,12 @@ async function runAndKill(file) {
   const { 0: { 0: code, 1: signal } } = await Promise.all([once(child, 'exit'), finished(child.stdout)]);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
-  return stdout;
+  if (common.isWindows) {
+    common.printSkipMessage('signals are not supported in windows');
+  } else {
+    assert.match(stdout, /not ok 1/);
+    assert.match(stdout, /# cancelled 1\n/);
+  }
 }
 
 if (process.argv[2] === 'child') {
@@ -46,20 +51,6 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 
-  runAndKill(fixtures.path('test-runner', 'never_ending_sync.js')).then(common.mustCall(async (stdout) => {
-    if (common.isWindows) {
-      common.printSkipMessage('signals are not supported in windows');
-    } else {
-      assert.match(stdout, /not ok 1/);
-      assert.match(stdout, /# cancelled 1\n/);
-    }
-  }));
-  runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall(async (stdout) => {
-    if (common.isWindows) {
-      common.printSkipMessage('signals are not supported in windows');
-    } else {
-      assert.match(stdout, /not ok 1/);
-      assert.match(stdout, /# cancelled 1\n/);
-    }
-  }));
+  runAndKill(fixtures.path('test-runner', 'never_ending_sync.js')).then(common.mustCall());
+  runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall());
 }
