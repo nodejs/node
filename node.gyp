@@ -163,14 +163,6 @@
         'deps/histogram/histogram.gyp:histogram',
       ],
 
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
-      ],
-
       'msvs_settings': {
         'VCLinkerTool': {
           'GenerateMapFile': 'true', # /MAP
@@ -460,14 +452,6 @@
         'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
       ],
 
       'sources': [
@@ -927,18 +911,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
       ],
 
       'includes': [
@@ -951,14 +923,6 @@
         'deps/cares/include',
         'deps/uv/include',
         'test/cctest',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'include_dirs': [
-            'deps/uvwasi/include',
-          ],
-        }],
       ],
 
       'defines': [
@@ -990,18 +954,6 @@
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
       ],
 
       'includes': [
@@ -1015,14 +967,6 @@
         'deps/cares/include',
         'deps/uv/include',
         'test/cctest',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'include_dirs': [
-            'deps/uvwasi/include',
-          ],
-        }],
       ],
 
       'defines': [
@@ -1103,18 +1047,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
       ],
 
       'includes': [
@@ -1128,14 +1060,6 @@
         'deps/cares/include',
         'deps/uv/include',
         'test/embedding',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'include_dirs': [
-            'deps/uvwasi/include',
-          ],
-        }],
       ],
 
       'sources': [
@@ -1170,50 +1094,6 @@
       'target_name': 'overlapped-checker',
       'type': 'executable',
 
-      'dependencies': [
-        '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
-      ],
-
-      'includes': [
-        'node.gypi'
-      ],
-
-      'include_dirs': [
-        'src',
-        'tools/msvs/genfiles',
-        'deps/v8/include',
-        'deps/cares/include',
-        'deps/uv/include',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'include_dirs': [
-            'deps/uvwasi/include',
-          ],
-        }],
-      ],
-
-      'defines': [
-        'NODE_WANT_INTERNALS=1'
-      ],
-      'sources': [
-        'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
-        'tools/code_cache/mkcodecache.cc',
-        'tools/code_cache/cache_builder.cc',
-        'tools/code_cache/cache_builder.h',
-      ],
-
       'conditions': [
         ['OS=="win"', {
           'sources': [
@@ -1235,14 +1115,6 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
       ],
- 
-     'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [
-            'deps/uvwasi/uvwasi.gyp:uvwasi'
-          ],
-        }],
-      ],
 
       'includes': [
         'node.gypi'
@@ -1254,14 +1126,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-      ],
-
-      'conditions': [
-        [ 'node_shared_uvwasi=="false"', {
-          'include_dirs': [
-            'deps/uvwasi/include',
-          ],
-        }],
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
