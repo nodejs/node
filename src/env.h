@@ -594,6 +594,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
+              std::shared_ptr<PerIsolateOptions> options,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
               const IsolateDataSerializeInfo* isolate_data_info = nullptr);
@@ -668,9 +669,9 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
+  std::shared_ptr<PerIsolateOptions> options_;
   NodeArrayBufferAllocator* const node_allocator_;
   MultiIsolatePlatform* platform_;
-  std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
 };
 

@@ -330,7 +330,10 @@ IsolateData* CreateIsolateData(Isolate* isolate,
                                uv_loop_t* loop,
                                MultiIsolatePlatform* platform,
                                ArrayBufferAllocator* allocator) {
-  return new IsolateData(isolate, loop, platform, allocator);
+  auto options = std::make_shared<PerIsolateOptions>(
+      *(per_process::cli_options->per_isolate));
+  return new IsolateData(
+      isolate, loop, std::move(options), platform, allocator);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {

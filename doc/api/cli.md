@@ -1125,6 +1125,20 @@ added: v18.0.0
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 
+### `--thread-max-old-space-size`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets the max memory size of V8's old memory section for the main thread (in
+megabytes). As memory consumption approaches the limit, V8 will spend more time
+on garbage collection in an effort to free unused memory.
+
+Unlike [`--max-old-space-size`][], this option doesn't affect any additional
+[worker threads][]. To configure the old space size for worker threads, pass in
+an appropriate [`resourceLimits`][] to their constructor.
+
 ### `--throw-deprecation`
 
 <!-- YAML
@@ -1719,6 +1733,7 @@ Node.js options that are allowed are:
 * `--secure-heap-min`
 * `--secure-heap`
 * `--test-only`
+* `--thread-max-old-space-size`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -2051,6 +2066,9 @@ Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
+Unlike [`--thread-max-old-space-size`][], this sets the max old space size of
+all [worker threads][].
+
 On a machine with 2 GiB of memory, consider setting this to
 1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
@@ -2103,8 +2121,10 @@ done
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
+[`--max-old-space-size`]: #--max-old-space-sizesize-in-megabytes
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile
+[`--thread-max-old-space-size`]: #--thread-max-old-space-size
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
@@ -2117,6 +2137,7 @@ done
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import` specifier]: esm.md#import-specifiers
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`resourceLimits`]: worker_threads.md#new-workerfilename-options
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
@@ -2136,3 +2157,4 @@ done
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
+[worker threads]: worker_threads.md

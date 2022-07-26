@@ -661,6 +661,12 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             &PerIsolateOptions::track_heap_objects,
             kAllowedInEnvironment);
 
+  AddOption(
+      "--thread-max-old-space-size",
+      "set the maximum old space heap size (in megabytes) for this isolate",
+      &PerIsolateOptions::thread_max_old_space_size,
+      kAllowedInEnvironment);
+
   // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
   AddOption("--abort-on-uncaught-exception",
             "aborting instead of exiting causes a core file to be generated "

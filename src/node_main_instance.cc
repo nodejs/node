@@ -40,8 +40,10 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       platform_(platform),
       isolate_data_(nullptr),
       snapshot_data_(nullptr) {
-  isolate_data_ =
-      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
+  auto options = std::make_shared<PerIsolateOptions>(
+      *(per_process::cli_options->per_isolate));
+  isolate_data_ = std::make_unique<IsolateData>(
+      isolate_, event_loop, std::move(options), platform, nullptr);
 
   SetIsolateMiscHandlers(isolate_, {});
 }
@@ -77,16 +79,28 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
 
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
+
+  auto options = std::make_shared<PerIsolateOptions>(
+      *(per_process::cli_options->per_isolate));
+
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate_, event_loop);
   SetIsolateCreateParamsForNode(isolate_params_.get());
+
+  size_t thread_max_old_space_size = options->thread_max_old_space_size;
+  if (thread_max_old_space_size != 0) {
+    isolate_params_->constraints.set_max_old_generation_size_in_bytes(
+        thread_max_old_space_size * 1024 * 1024);
+  }
+
   Isolate::Initialize(isolate_, *isolate_params_);
 
   // If the indexes are not nullptr, we are not deserializing
   isolate_data_ = std::make_unique<IsolateData>(
       isolate_,
       event_loop,
+      std::move(options),
       platform,
       array_buffer_allocator_.get(),
       snapshot_data == nullptr ? nullptr : &(snapshot_data->isolate_data_info));
