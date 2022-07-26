@@ -32,8 +32,6 @@ test-tls-psk-client: PASS, FLAKY
 test-tls-securepair-client: PASS, FLAKY
 
 [$arch==arm]
-# https://github.com/nodejs/node/issues/43638
-test-gc-http-client-timeout: PASS,FLAKY
 
 [$arch==s390x]
 # https://github.com/nodejs/node/issues/41286
