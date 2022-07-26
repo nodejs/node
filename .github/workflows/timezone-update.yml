@@ -15,6 +15,10 @@ jobs:
         with:
           fetch-depth: '0'
           persist-credentials: false
+      - uses: actions/checkout@v3
+        with:
+          name: 'unicode-org/icu-data'
+          ref: refs/heads/release
       - run: tools/update-timezone.mjs  # Run the timezone tool
       - uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f  # Create a PR or update the Action's existing PR
         env:

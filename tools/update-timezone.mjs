@@ -11,8 +11,6 @@ const fileNames = [
   'timezoneTypes.res',
   'metaZones.res',
 ];
-execSync('rm -rf icu-data');
-execSync('git clone https://github.com/unicode-org/icu-data');
 const dirs = spawnSync(
   'ls', {
     cwd: 'icu-data/tzdata/icunew',
@@ -41,12 +39,11 @@ fileNames.forEach((file) => {
       'icudt*.dat',
     ], { cwd: 'deps/icu-small/source/data/in/' }
   );
+  spawnSync(
+    'rm', [
+      file
+    ], { cwd: 'deps/icu-small/source/data/in/' }
+  )
 });
 execSync('bzip2 -z deps/icu-small/source/data/in/icudt*.dat');
-fileNames.forEach((file) => {
-  renameSync(
-    `deps/icu-small/source/data/in/${file}`,
-    `icu-data/tzdata/icunew/${latestVersion}/44/le/${file}`
-  );
-});
 execSync('rm -rf icu-data');
