@@ -13,3 +13,14 @@ const test = require('node:test');
   // Valid values should not throw.
   test({ timeout });
 });
+
+[Symbol(), {}, [], () => {}, 1n, '1'].forEach((concurrency) => {
+  assert.throws(() => test({ concurrency }), { code: 'ERR_INVALID_ARG_TYPE' });
+});
+[-1, 0, 1.1, -Infinity, NaN, 2 ** 33, Number.MAX_SAFE_INTEGER].forEach((concurrency) => {
+  assert.throws(() => test({ concurrency }), { code: 'ERR_OUT_OF_RANGE' });
+});
+[null, undefined, 1, 2 ** 31, true, false].forEach((concurrency) => {
+  // Valid values should not throw.
+  test({ concurrency });
+});
