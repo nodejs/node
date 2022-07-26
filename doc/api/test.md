@@ -504,7 +504,8 @@ test('top level test', (t) => {
 added: REPLACEME
 -->
 
-* {AbortSignal} Can be used to abort test subtasks when the test has been aborted.
+* {AbortSignal} Can be used to abort test subtasks when the test has been
+  aborted.
 
 ```js
 test('top level test', async (t) => {
@@ -622,7 +623,8 @@ exposed as part of the API.
 added: REPLACEME
 -->
 
-* {AbortSignal} Can be used to abort test subtasks when the test has been aborted.
+* {AbortSignal} Can be used to abort test subtasks when the test has been
+  aborted.
 
 [TAP]: https://testanything.org/
 [`--test-only`]: cli.md#--test-only
