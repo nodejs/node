@@ -84,11 +84,11 @@ describe('ESM: Errors for unexpected exports', { concurrently: true }, () => {
 
       assert.strictEqual(code, 1);
 
-      if (errorNeedle) stderr.includes(errorNeedle);
+      if (errorNeedle) assert.match(stderr, new RegExp(errorNeedle));
 
-      const includesNote = stderr.includes(expectedNote);
+      const shouldIncludeNote = stderr.includes(expectedNote);
       assert.ok(
-        includeNote ? includesNote : !includesNote,
+        includeNote ? shouldIncludeNote : !shouldIncludeNote,
         `${filePath} ${getMessage(stderr)}`,
       );
     });
