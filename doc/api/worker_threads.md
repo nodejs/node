@@ -987,11 +987,15 @@ changes:
     are passed in `workerData`, a `transferList` is required for those
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
     See [`port.postMessage()`][] for more information.
-  * `resourceLimits` {Object} An optional set of resource limits for the new
-    JS engine instance. Reaching these limits leads to termination of the
-    `Worker` instance. These limits only affect the JS engine, and no external
-    data, including no `ArrayBuffer`s. Even if these limits are set, the process
-    may still abort if it encounters a global out-of-memory situation.
+  * `resourceLimits` {Object} An optional set of resource limits for the new JS
+    engine instance. Reaching these limits leads to termination of the `Worker`
+    instance. These limits only affect the JS engine, and no external data,
+    including no `ArrayBuffer`s. Even if these limits are set, the process may
+    still abort if it encounters a global out-of-memory situation.  These
+    limits can be overriden by V8 arguments passed to the main thread. In
+    particular, [`--max-old-space-size`][] overrides `maxOldGenerationSizeMb`
+    and [`--max-semi-space-size`][] overrides `maxYoungGenerationSizeMb` for
+    all created threads.
     * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in MB.
     * `maxYoungGenerationSizeMb` {number} The maximum size of a heap space for
       recently created objects.
@@ -1332,6 +1336,8 @@ thread spawned will spawn another until the application crashes.
 [`'close'` event]: #event-close
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
+[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-megabytes
+[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-megabytes
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
