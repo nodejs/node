@@ -283,7 +283,7 @@ modifying the stack trace.
 ### `--experimental-global-customevent`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 Expose the [CustomEvent Web API][] on the global scope.

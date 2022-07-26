@@ -1409,7 +1409,7 @@ type other than {net.Socket}.
 ### Event: `'dropRequest'`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in

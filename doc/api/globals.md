@@ -383,7 +383,7 @@ only if the Node.js binary was compiled with including support for the
 ## `CustomEvent`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
