@@ -41,9 +41,9 @@ fileNames.forEach((file) => {
   );
   spawnSync(
     'rm', [
-      file
+      file,
     ], { cwd: 'deps/icu-small/source/data/in/' }
-  )
+  );
 });
 execSync('bzip2 -z deps/icu-small/source/data/in/icudt*.dat');
 execSync('rm -rf icu-data');

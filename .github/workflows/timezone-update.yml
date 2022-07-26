@@ -10,24 +10,34 @@ jobs:
   timezone_update:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: checkout repo
+        uses: actions/checkout@v3
         with:
           fetch-depth: '0'
           persist-credentials: false
-      - uses: actions/checkout@v3
+
+      - name: fetch icu-data
+        uses: actions/checkout@v3
         with:
-          name: 'unicode-org/icu-data'
-          ref: refs/heads/release
-      - run: tools/update-timezone.mjs  # Run the timezone tool
-      - uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f  # Create a PR or update the Action's existing PR
+          fetch-depth: '0'
+          path: icu-data
+          persist-credentials: false
+          repository: unicode-org/icu-data
+
+      - name: update icudata file
+        run: tools/update-timezone.mjs
+
+      - name: open pull request
+        uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: >
             updates the ICU files
-          branch: actions/timezone-update  # Custom branch *just* for this Action.
+          branch: actions/timezone-update
           commit-message: 'meta: update timezone'
           labels: meta
           title: 'meta: update timezone'
