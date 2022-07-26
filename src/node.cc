@@ -864,13 +864,6 @@ static std::atomic_bool init_called{false};
 
 int InitializeNodeWithArgs(std::vector<std::string>* argv,
                            std::vector<std::string>* exec_argv,
-                           std::vector<std::string>* errors) {
-  return InitializeNodeWithArgs(argv, exec_argv, errors,
-                                ProcessFlags::kNoFlags);
-}
-
-int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                           std::vector<std::string>* exec_argv,
                            std::vector<std::string>* errors,
                            ProcessFlags::Flags flags) {
   // Make sure InitializeNodeWithArgs() is called only once.

@@ -253,13 +253,8 @@ NODE_EXTERN int Stop(Environment* env);
 NODE_EXTERN int InitializeNodeWithArgs(
     std::vector<std::string>* argv,
     std::vector<std::string>* exec_argv,
-    std::vector<std::string>* errors);
-// TODO(zcbenz): Turn above overloaded version into below's default argument.
-NODE_EXTERN int InitializeNodeWithArgs(
-    std::vector<std::string>* argv,
-    std::vector<std::string>* exec_argv,
     std::vector<std::string>* errors,
-    ProcessFlags::Flags flags);
+    ProcessFlags::Flags flags = ProcessFlags::kNoFlags);
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,
