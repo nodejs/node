@@ -7,6 +7,10 @@ const { once } = require('events');
 const { finished } = require('stream/promises');
 
 async function runAndKill(file) {
+  if (common.isWindows) {
+    common.printSkipMessage(`signals are not supported in windows, skipping ${file}`);
+    return;
+  }
   let stdout = '';
   const child = spawn(process.execPath, ['--test', file]);
   child.stdout.setEncoding('utf8');
@@ -16,14 +20,10 @@ async function runAndKill(file) {
   });
   const [code, signal] = await once(child, 'exit');
   await finished(child.stdout);
-  if (common.isWindows) {
-    common.printSkipMessage('signals are not supported in windows');
-  } else {
-    assert.strictEqual(signal, null);
-    assert.strictEqual(code, 1);
-    assert.match(stdout, /not ok 1/);
-    assert.match(stdout, /# cancelled 1\n/);
-  }
+  assert.match(stdout, /not ok 1/);
+  assert.match(stdout, /# cancelled 1\n/);
+  assert.strictEqual(signal, null);
+  assert.strictEqual(code, 1);
 }
 
 if (process.argv[2] === 'child') {
