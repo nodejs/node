@@ -50,10 +50,10 @@ const hashes = {
 
 for (const name in hashes) {
   const group = crypto.getDiffieHellman(name);
-  const private_key = group.getPrime('hex');
+  const prime = group.getPrime('hex');
   const hash1 = hashes[name];
   const hash2 = crypto.createHash('sha1')
-                    .update(private_key.toUpperCase()).digest('hex');
+                    .update(prime.toUpperCase()).digest('hex');
   assert.strictEqual(hash1, hash2);
   assert.strictEqual(group.getGenerator('hex'), '02');
 }
