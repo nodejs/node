@@ -84,6 +84,7 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/loader',
   'NativeModule internal/modules/esm/module_job',
   'NativeModule internal/modules/esm/module_map',
+  'NativeModule internal/modules/esm/package_config',
   'NativeModule internal/modules/esm/resolve',
   'NativeModule internal/modules/esm/translators',
   'NativeModule internal/modules/package_json_reader',
