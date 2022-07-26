@@ -29,7 +29,7 @@ if (cluster.isPrimary) {
       if (common.isOSX) {
         assert(['EPIPE', 'ENOTCONN'].includes(err.code), err);
       } else {
-        assert.strictEqual(err.code, 'EPIPE');
+        assert(['EPIPE', 'ECONNRESET'].includes(err.code), err);
       }
     });
 
