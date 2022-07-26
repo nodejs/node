@@ -215,7 +215,7 @@ ByteSource ConvertSignatureToDER(
 
   CHECK_NOT_NULL(data);
 
-  return ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+  return ByteSource::Allocated(data, len);
 }
 
 void CheckThrow(Environment* env, SignBase::Error error) {
