@@ -1029,7 +1029,7 @@ equality.
 <!-- YAML
 added: v18.3.0
 changes:
-  - version: REPLACEME
+  - version: v18.7.0
     pr-url: https://github.com/nodejs/node/pull/43459
     description: add support for returning detailed parse information
                  using `tokens` in input `config` and returned properties.

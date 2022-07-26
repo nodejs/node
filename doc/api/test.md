@@ -322,11 +322,11 @@ internally.
 added: v18.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/43505
-    description: Add a `timeout` option.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
+  - version: v18.7.0
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -501,7 +501,7 @@ test('top level test', (t) => {
 ### `context.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
@@ -558,11 +558,11 @@ test('top level test', (t) => {
 added: v18.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/43505
-    description: Add a `timeout` option.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
+  - version: v18.7.0
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
@@ -610,7 +610,7 @@ test('top level test', async (t) => {
 ## Class: `SuiteContext`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 An instance of `SuiteContext` is passed to each suite function in order to
@@ -620,7 +620,7 @@ exposed as part of the API.
 ### `context.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v18.7.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
