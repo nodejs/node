@@ -30,7 +30,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
         [/specifier resolution/, '--experimental-specifier-resolution=node'],
       ]
     ) {
-      it(`should print for ${experiment.toString().replaceAll(/\//g, '')}`, async () => {
+      it(`should print for ${experiment.toString().replaceAll('/', '')}`, async () => {
         const { code, signal, stderr } = await spawnPromisified(execPath, [
           arg,
           '--input-type=module',
