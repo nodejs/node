@@ -109,11 +109,11 @@ module.exports = {
               testRange.start = testRange.start + 'RegexpPrototype'.length;
               testRange.end = testRange.start + 'Test'.length;
               return [
-                fixer.replaceTextRange(node.range, 'Exec'),
+                fixer.replaceTextRange(testRange, 'Exec'),
                 fixer.insertTextAfter(node, ' !== null'),
               ];
             }
-          }]
+          }],
         });
       },
       [`${CallExpression}[expression.callee.name=${/^RegExpPrototypeSymbol(Match|MatchAll|Search)$/}]`](node) {
@@ -142,9 +142,33 @@ module.exports = {
         }
         context.report({
           node,
-          message: 'Proxy handler must be a null-prototype object'
+          message: 'Proxy handler must be a null-prototype object',
         });
-      }
+      },
+
+      [`${CallExpression}[expression.callee.name=PromisePrototypeCatch]`](node) {
+        context.report({
+          node,
+          message: '%Promise.prototype.catch% look up the `then` property of ' +
+                   'the `this` argument, use PromisePrototypeThen instead',
+        });
+      },
+
+      [`${CallExpression}[expression.callee.name=PromisePrototypeFinally]`](node) {
+        context.report({
+          node,
+          message: '%Promise.prototype.finally% look up the `then` property of ' +
+                   'the `this` argument, use SafePromisePrototypeFinally or ' +
+                   'try/finally instead',
+        });
+      },
+
+      [`${CallExpression}[expression.callee.name=${/^Promise(All(Settled)?|Any|Race)/}]`](node) {
+        context.report({
+          node,
+          message: `Use Safe${node.expression.callee.name} instead of ${node.expression.callee.name}`,
+        });
+      },
     };
   },
 };

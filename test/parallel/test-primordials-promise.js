@@ -5,7 +5,6 @@ const common = require('../common');
 const assert = require('assert');
 
 const {
-  PromisePrototypeCatch,
   PromisePrototypeThen,
   SafePromiseAll,
   SafePromiseAllSettled,
@@ -14,16 +13,15 @@ const {
   SafePromiseRace,
 } = require('internal/test/binding').primordials;
 
-Array.prototype[Symbol.iterator] = common.mustNotCall();
-Promise.all = common.mustNotCall();
-Promise.allSettled = common.mustNotCall();
-Promise.any = common.mustNotCall();
-Promise.race = common.mustNotCall();
-Promise.prototype.catch = common.mustNotCall();
-Promise.prototype.finally = common.mustNotCall();
-Promise.prototype.then = common.mustNotCall();
+Array.prototype[Symbol.iterator] = common.mustNotCall('%Array.prototype%[@@iterator]');
+Promise.all = common.mustNotCall('%Promise%.all');
+Promise.allSettled = common.mustNotCall('%Promise%.allSettled');
+Promise.any = common.mustNotCall('%Promise%.any');
+Promise.race = common.mustNotCall('%Promise%.race');
+Promise.prototype.catch = common.mustNotCall('%Promise.prototype%.catch');
+Promise.prototype.finally = common.mustNotCall('%Promise.prototype%.finally');
+Promise.prototype.then = common.mustNotCall('%Promise.prototype%.then');
 
-assertIsPromise(PromisePrototypeCatch(Promise.reject(), common.mustCall()));
 assertIsPromise(PromisePrototypeThen(test(), common.mustCall()));
 assertIsPromise(SafePromisePrototypeFinally(test(), common.mustCall()));
 
