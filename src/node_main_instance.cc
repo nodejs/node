@@ -88,7 +88,7 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
   platform->RegisterIsolate(isolate_, event_loop);
   SetIsolateCreateParamsForNode(isolate_params_.get());
 
-  size_t thread_max_old_space_size = options->thread_max_old_space_size;
+  size_t thread_max_old_space_size = static_cast<size_t>(options->thread_max_old_space_size);
   if (thread_max_old_space_size != 0) {
     isolate_params_->constraints.set_max_old_generation_size_in_bytes(
         thread_max_old_space_size * 1024 * 1024);
