@@ -25,12 +25,7 @@ const availableVersions = dirs.stdout
       .toString()
       .split('\n')
       .filter((_) => _);
-
-const latestVersion =
-  availableVersions
-  .reduce(
-    (acc, version) => (version > acc ? version : acc),
-    availableVersions[0]);
+const latestVersion = availableVersions.sort()[0];
 
 if (latestVersion === currentVersion) {
   exit();
@@ -39,8 +34,6 @@ if (latestVersion === currentVersion) {
 execSync('bzip2 -d deps/icu-small/source/data/in/icudt*.dat.bz2');
 fileNames.forEach((file) => {
   renameSync(`icu-data/tzdata/icunew/${latestVersion}/44/le/${file}`, `deps/icu-small/source/data/in/${file}`);
-});
-fileNames.forEach((file) => {
   spawnSync(
     'icupkg', [
       '-a',
