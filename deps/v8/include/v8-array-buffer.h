@@ -256,6 +256,12 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
+  /**
+   * More efficient shortcut for GetBackingStore()->Data(). The returned pointer
+   * is valid as long as the ArrayBuffer is alive.
+   */
+  void* Data() const;
+
   V8_INLINE static ArrayBuffer* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
@@ -413,6 +419,12 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * should not attempt to manage lifetime of the storage through other means.
    */
   std::shared_ptr<BackingStore> GetBackingStore();
+
+  /**
+   * More efficient shortcut for GetBackingStore()->Data(). The returned pointer
+   * is valid as long as the ArrayBuffer is alive.
+   */
+  void* Data() const;
 
   V8_INLINE static SharedArrayBuffer* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

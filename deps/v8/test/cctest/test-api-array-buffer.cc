@@ -366,6 +366,7 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
 
   // Should not move the pointer
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
+  CHECK_EQ(ab->Data(), store_ptr);
 
   CcTest::array_buffer_allocator()->Free(buffer, 100);
 }
@@ -394,8 +395,8 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  // Use `ab` to silence compiler warning
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
+  CHECK_EQ(ab->Data(), store_ptr);
 }
 
 THREADED_TEST(Regress1006600) {
@@ -418,6 +419,7 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
   CHECK(!backing_store->IsShared());
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
@@ -430,6 +432,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   Local<v8::SharedArrayBuffer> ab =
       v8::SharedArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
 static void* backing_store_custom_data = nullptr;
