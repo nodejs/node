@@ -7,8 +7,15 @@
 import cp from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
+import { parseArgs } from 'node:util';
 
-const SINCE = process.argv[2] || '18 months ago';
+const args = parseArgs({
+  allowPositionals: true,
+  options: { verbose: { type: 'boolean', short: 'v' } }
+});
+
+const verbose = args.values.verbose;
+const SINCE = args.positionals[0] || '18 months ago';
 
 async function runGitCommand(cmd, mapFn) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -176,11 +183,12 @@ async function moveCollaboratorToEmeritus(peopleToMove) {
 // Get list of current collaborators from README.md.
 const collaborators = await getCollaboratorsFromReadme();
 
-console.log(`Since ${SINCE}:\n`);
-console.log(`* ${authors.size.toLocaleString()} authors have made commits.`);
-console.log(`* ${approvingReviewers.size.toLocaleString()} reviewers have approved landed commits.`);
-console.log(`* ${collaborators.length.toLocaleString()} collaborators currently in the project.`);
-
+if (verbose) {
+  console.log(`Since ${SINCE}:\n`);
+  console.log(`* ${authors.size.toLocaleString()} authors have made commits.`);
+  console.log(`* ${approvingReviewers.size.toLocaleString()} reviewers have approved landed commits.`);
+  console.log(`* ${collaborators.length.toLocaleString()} collaborators currently in the project.`);
+}
 const inactive = collaborators.filter((collaborator) =>
   !authors.has(collaborator.mailmap) &&
   !approvingReviewers.has(collaborator.name)
