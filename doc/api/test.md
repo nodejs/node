@@ -321,6 +321,9 @@ internally.
 <!-- YAML
 added: v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43554
+    description: Add a `signal` option.
   - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
@@ -553,6 +556,9 @@ test('top level test', (t) => {
 <!-- YAML
 added: v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43554
+    description: Add a `signal` option.
   - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
@@ -569,6 +575,7 @@ changes:
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
+  * `signal` {AbortSignal} Allows aborting an in-progress test
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
