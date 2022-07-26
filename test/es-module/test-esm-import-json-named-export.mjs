@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: named JSON exports', { concurrency: true }, () => {
   it('should throw, citing named import', async () => {
-    const { code, stderr } = await spawn(execPath, [
+    const { code, stderr } = await spawnPromisified(execPath, [
       fixtures.path('es-modules', 'import-json-named-export.mjs'),
     ]);
 

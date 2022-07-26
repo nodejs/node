@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: ensure initialisation happens only once', { concurrency: true }, () => {
   it(async () => {
-    const { code, stderr, stdout } = await spawn(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--loader',
       fixtures.fileURL('es-module-loaders', 'loader-resolve-passthru.mjs'),
       '--no-warnings',

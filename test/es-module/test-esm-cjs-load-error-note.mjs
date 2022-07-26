@@ -1,10 +1,8 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
-
-import spawn from './helper.spawnAsPromised.mjs';
 
 
 // Expect note to be included in the error output
@@ -21,7 +19,7 @@ const mustNotIncludeMessage = {
   includeNote: false,
 };
 
-describe('ESM: ', { concurrently: true }, () => {
+describe('ESM: Errors for unexpected exports', { concurrently: true }, () => {
   for (
     const { errorNeedle, filePath, getMessage, includeNote }
     of [
@@ -82,7 +80,7 @@ describe('ESM: ', { concurrently: true }, () => {
     ]
   ) {
     it(`should ${includeNote ? '' : 'NOT'} include note`, async () => {
-      const { code, stderr } = await spawn(execPath, [filePath]);
+      const { code, stderr } = await spawnPromisified(execPath, [filePath]);
 
       assert.strictEqual(code, 1);
 

@@ -1,17 +1,15 @@
-import { mustCall } from '../common/index.mjs';
+import { mustCall, spawnPromisified } from '../common/index.mjs';
 import { match, notStrictEqual } from 'node:assert';
 import { spawn as spawnAsync } from 'node:child_process';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
-
-import spawn from './helper.spawnAsPromised.mjs';
 
 
 describe('ESM: http import via CLI', { concurrency: true }, () => {
   const disallowedSpecifier = 'http://example.com';
 
   it('should throw disallowed error for insecure protocol', async () => {
-    const { code, stderr } = await spawn(execPath, [
+    const { code, stderr } = await spawnPromisified(execPath, [
       '--experimental-network-imports',
       '--input-type=module',
       '--eval',

@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
 import { doesNotMatch, match, strictEqual } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
   it('should not print warnings when no experimental features are enabled or used', async () => {
-    const { code, signal, stderr } = await spawn(execPath, [
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--input-type=module',
       '--eval',
       `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
@@ -33,7 +31,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
       ]
     ) {
       it(`should print for ${experiment.toString().replaceAll(/\//g, '')}`, async () => {
-        const { code, signal, stderr } = await spawn(execPath, [
+        const { code, signal, stderr } = await spawnPromisified(execPath, [
           arg,
           '--input-type=module',
           '--eval',

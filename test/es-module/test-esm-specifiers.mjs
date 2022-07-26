@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { match, strictEqual } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
   it(async () => {
-    const { code, stderr, stdout } = await spawn(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-specifier-resolution=node',
       '--input-type=module',
@@ -37,7 +35,7 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
   });
 
   it('should throw when the file doesn\'t exist', async () => {
-    const { code, stderr, stdout } = await spawn(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       fixtures.path('es-module-specifiers/do-not-exist.js'),
     ]);
@@ -48,7 +46,7 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
   });
 
   it('should throw when the omitted file extension is .mjs (legacy loader doesn\'t support it)', async () => {
-    const { code, stderr, stdout } = await spawn(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-specifier-resolution=node',
       '--input-type=module',
@@ -69,7 +67,7 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
       '/index',
     ]
   ) it('should ', async () => {
-    const { code } = await spawn(execPath, [
+    const { code } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-specifier-resolution=node',
       '--es-module-specifier-resolution=node',

@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
 import { strictEqual, match } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: WASM modules', { concurrency: true }, () => {
   it('should load exports', async () => {
-    const { code, stderr, stdout } = await spawn(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-wasm-modules',
       '--input-type=module',
@@ -32,7 +30,7 @@ describe('ESM: WASM modules', { concurrency: true }, () => {
   });
 
   it('should emit experimental warning', async () => {
-    const { code, signal, stderr } = await spawn(execPath, [
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--experimental-wasm-modules',
       path('/es-modules/wasm-modules.mjs'),
     ]);

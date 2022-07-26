@@ -1,10 +1,9 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
 
 const importStatement = 'import { foo, notfound } from \'./module-named-exports.mjs\';';
 const importStatementMultiline = `import {
@@ -28,7 +27,7 @@ describe('ESM: nonexistent exports', { concurrency: true }, () => {
     ]
   ) {
     it(`should throw for nonexistent exports via ${name}`, async () => {
-      const { code, stderr } = await spawn(execPath, [
+      const { code, stderr } = await spawnPromisified(execPath, [
         '--input-type=module',
         '--eval',
         input,

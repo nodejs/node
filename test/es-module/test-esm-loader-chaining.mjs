@@ -1,10 +1,8 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
-
-import spawn from './helper.spawnAsPromised.mjs';
 
 
 const setupArgs = [
@@ -20,7 +18,7 @@ const commonArgs = [
 
 describe('ESM: loader chaining', { concurrency: true }, () => {
   it('should load unadulterated source when there are no loaders', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         ...setupArgs,
@@ -35,7 +33,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should load properly different source when only load changes something', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -57,7 +55,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should result in proper output from multiple changes in resolve hooks', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -80,7 +78,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should respect modified context within resolve chain', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -104,7 +102,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should result in proper output from multiple changes in resolve hooks', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -127,7 +125,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should provide the correct "next" fn when multiple calls to next within same loader', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -151,7 +149,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should use the correct `name` for next<HookName>\'s function', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -171,7 +169,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw for incomplete resolve chain, citing errant loader & hook', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -192,7 +190,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should NOT throw when nested resolve hook signaled a short circuit', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -212,7 +210,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should NOT throw when nested load hook signaled a short circuit', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -234,7 +232,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when the resolve chain is broken', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -256,7 +254,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw for incomplete load chain, citing errant loader & hook', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -278,7 +276,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when the load chain is broken', async () => {
-    const { code, stderr, stdout } = await spawn(
+    const { code, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -300,7 +298,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when invalid `specifier` argument passed to `nextResolve`', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -319,7 +317,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when resolve hook is invalid', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -340,7 +338,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when invalid `context` argument passed to `nextResolve`', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -359,7 +357,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when load hook is invalid', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -380,7 +378,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when invalid `url` argument passed to `nextLoad`', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -399,7 +397,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when invalid `url` argument passed to `nextLoad`', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',
@@ -418,7 +416,7 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
   });
 
   it('should throw when invalid `context` argument passed to `nextLoad`', async () => {
-    const { code, stderr } = await spawn(
+    const { code, stderr } = await spawnPromisified(
       execPath,
       [
         '--loader',

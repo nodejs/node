@@ -1,11 +1,10 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 import secret from '../fixtures/experimental.json' assert { type: 'json' };
-import spawn from './helper.spawnAsPromised.mjs';
 
 
 describe('ESM: importing JSON', () => {
@@ -14,7 +13,7 @@ describe('ESM: importing JSON', () => {
   });
 
   it('should print an experimental warning', async () => {
-    const { code, signal, stderr } = await spawn(execPath, [
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
       fixtures.path('/es-modules/json-modules.mjs'),
     ]);
 

@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
 import assert from 'node:assert';
 import http from 'node:http';
@@ -6,8 +6,6 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { promisify } from 'node:util';
 import { describe, it } from 'node:test';
-
-import spawn from './helper.spawnAsPromised.mjs';
 
 
 const files = {
@@ -51,7 +49,7 @@ const {
 describe('ESM: http import via loader', () => {
   it('should work', async () => {
     // ! MUST NOT use spawnSync to avoid blocking the event loop
-    const { code, signal, stderr, stdout } = await spawn(
+    const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,
       [
         '--no-warnings',

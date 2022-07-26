@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
 import { match, notStrictEqual } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: deprecation warnings for obsolete hooks', { concurrency: true }, () => {
   it(async () => {
-    const { code, stderr } = await spawn(execPath, [
+    const { code, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--throw-deprecation',
       '--experimental-loader',

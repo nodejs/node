@@ -1,15 +1,13 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
 import { strictEqual } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-import spawn from './helper.spawnAsPromised.mjs';
-
 
 describe('ESM: experiemental warning for import.meta.resolve', { concurrency: true }, () => {
   it('should not warn when caught', async () => {
-    const { code, signal, stderr } = await spawn(execPath, [
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--experimental-import-meta-resolve',
       path('es-modules/import-resolve-exports.mjs'),
     ]);
