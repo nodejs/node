@@ -9,7 +9,7 @@ const { describe, it } = require('node:test');
 
 
 describe('ESM: REPL runs', { concurrency: true }, () => {
-  it(() => {
+  it((context, done) => {
     const child = spawn(execPath, [
       '--interactive',
     ], {
@@ -22,6 +22,7 @@ describe('ESM: REPL runs', { concurrency: true }, () => {
 
     child.on('exit', mustCall((code) => {
       assert.strictEqual(code, 0);
+      done();
     }));
   });
 });
