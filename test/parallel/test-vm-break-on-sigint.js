@@ -16,7 +16,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   }
 } else {
   const ctx = vm.createContext({});
-  for (let i = 0; i < 10000; i++) {
+  for (let i = 0; i < 100; i++) {
     vm.runInContext('console.log(1)', ctx, { breakOnSigint: true });
   }
 }
