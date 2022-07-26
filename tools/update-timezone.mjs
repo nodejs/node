@@ -23,7 +23,7 @@ const availableVersions = dirs.stdout
       .toString()
       .split('\n')
       .filter((_) => _);
-const latestVersion = availableVersions.sort()[0];
+const latestVersion = availableVersions.sort().reverse()[0];
 
 if (latestVersion === currentVersion) {
   exit();
