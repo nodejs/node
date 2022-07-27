@@ -12,32 +12,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout repo
+      - name: Checkout nodejs/node
         uses: actions/checkout@v3
         with:
-          fetch-depth: '0'
           persist-credentials: false
 
-      - name: fetch icu-data
+      - name: Checkout unicode-org/icu-data
         uses: actions/checkout@v3
         with:
-          fetch-depth: '0'
           path: icu-data
           persist-credentials: false
           repository: unicode-org/icu-data
 
-      - name: update icudata file
-        run: tools/update-timezone.mjs
+      - run: ./tools/update-timezone.mjs
 
-      - name: open pull request
+      - name: Open Pull Request
         uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: >
-            updates the ICU files
+          body: Updates the ICU files.
           branch: actions/timezone-update
-          commit-message: 'meta: update timezone'
-          labels: meta
-          title: 'meta: update timezone'
+          commit-message: 'deps: update timezone'
+          labels: dependencies
+          title: 'deps: update timezone'
