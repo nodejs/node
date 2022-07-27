@@ -991,14 +991,13 @@ changes:
     engine instance. Reaching these limits leads to termination of the `Worker`
     instance. These limits only affect the JS engine, and no external data,
     including no `ArrayBuffer`s. Even if these limits are set, the process may
-    still abort if it encounters a global out-of-memory situation.  These
-    limits can be overriden by V8 arguments passed to the main thread. In
-    particular, [`--max-old-space-size`][] overrides `maxOldGenerationSizeMb`
-    and [`--max-semi-space-size`][] overrides `maxYoungGenerationSizeMb` for
-    all created threads.
-    * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in MB.
+    still abort if it encounters a global out-of-memory situation.
+    * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in
+      MB. If the command-line argument [`--max-old-space-size`][] is set, it
+      overrides this setting.
     * `maxYoungGenerationSizeMb` {number} The maximum size of a heap space for
-      recently created objects.
+      recently created objects. If the command-line argument
+      [`--max-semi-space-size`][] is set, it overrides this setting.
     * `codeRangeSizeMb` {number} The size of a pre-allocated memory range
       used for generated code.
     * `stackSizeMb` {number} The default maximum stack size for the thread.
