@@ -19,7 +19,7 @@ const mustNotIncludeMessage = {
   includeNote: false,
 };
 
-describe('ESM: Errors for unexpected exports', { concurrently: true }, () => {
+describe('ESM: Errors for unexpected exports', { concurrency: true }, () => {
   for (
     const { errorNeedle, filePath, getMessage, includeNote }
     of [
