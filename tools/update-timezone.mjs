@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Usage: tools/update-timezone.mjs [--dry]
-// Passing --dry will redirect output to stdout.
+// Usage: tools/update-timezone.mjs
 import { execSync, spawnSync } from 'node:child_process';
 import { renameSync } from 'node:fs';
 import { exit } from 'node:process';
