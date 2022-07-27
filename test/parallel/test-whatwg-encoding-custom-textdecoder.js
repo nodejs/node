@@ -200,7 +200,7 @@ if (common.hasIntl) {
   assert.strictEqual(str, 'foo\ufffd');
 }
 
-{
+if (common.hasIntl) {
   const decoder = new TextDecoder('Shift_JIS');
   const chunk = new Uint8Array([-1]);
   const str = decoder.decode(chunk);
