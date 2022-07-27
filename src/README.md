@@ -619,7 +619,7 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
 
   for (uint32_t i = 0; i < array_of_integers->Length(); i++) {
     v8::Local<v8::Value> entry;
-    if (array_of_integers->Get(context, i).ToLocal(&entry)) {
+    if (!array_of_integers->Get(context, i).ToLocal(&entry)) {
       // Oops, we might have hit a getter that throws an exception!
       // It's better to not continue return an empty (“nothing”) Maybe.
       return v8::Nothing<double>();
