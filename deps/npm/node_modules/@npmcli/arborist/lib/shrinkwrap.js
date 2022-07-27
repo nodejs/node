@@ -815,7 +815,7 @@ class Shrinkwrap {
       const pathFixed = !resolved ? null
         : !/^file:/.test(resolved) ? resolved
         // resolve onto the metadata path
-        : `file:${resolve(this.path, resolved.slice(5))}`
+        : `file:${resolve(this.path, resolved.slice(5)).replace(/#/g, '%23')}`
 
       // if we have one, only set the other if it matches
       // otherwise it could be for a completely different thing.
@@ -996,7 +996,7 @@ class Shrinkwrap {
       : npa.resolve(node.name, edge.spec, edge.from.realpath)
 
     if (node.isLink) {
-      lock.version = `file:${relpath(this.path, node.realpath)}`
+      lock.version = `file:${relpath(this.path, node.realpath).replace(/#/g, '%23')}`
     } else if (spec && (spec.type === 'file' || spec.type === 'remote')) {
       lock.version = spec.saveSpec
     } else if (spec && spec.type === 'git' || rSpec.type === 'git') {
@@ -1074,7 +1074,7 @@ class Shrinkwrap {
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
             const p = resolve(node.realpath, spec.slice('file:'.length))
-            set[k] = `file:${relpath(node.realpath, p)}`
+            set[k] = `file:${relpath(node.realpath, p).replace(/#/g, '%23')}`
           } else {
             set[k] = spec
           }

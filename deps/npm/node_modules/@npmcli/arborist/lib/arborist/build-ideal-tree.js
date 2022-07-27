@@ -484,7 +484,7 @@ Try using the package name instead, e.g:
             .catch(/* istanbul ignore next */ er => null)
           if (st && st.isSymbolicLink()) {
             const target = await readlink(dir)
-            const real = resolve(dirname(dir), target)
+            const real = resolve(dirname(dir), target).replace(/#/g, '%23')
             tree.package.dependencies[name] = `file:${real}`
           } else {
             tree.package.dependencies[name] = '*'
@@ -603,7 +603,7 @@ Try using the package name instead, e.g:
     if (filepath) {
       const { name } = spec
       const tree = this.idealTree.target
-      spec = npa(`file:${relpath(tree.path, filepath)}`, tree.path)
+      spec = npa(`file:${relpath(tree.path, filepath).replace(/#/g, '%23')}`, tree.path)
       spec.name = name
     }
     return spec
