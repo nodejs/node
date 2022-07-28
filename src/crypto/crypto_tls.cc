@@ -246,13 +246,13 @@ int SelectALPNCallback(
       in,
       inlen);
 
-  // According to 3.2. Protocol Selection of RFC7301, fatal
-  // no_application_protocol alert shall be sent but OpenSSL 1.0.2 does not
-  // support it yet. See
-  // https://rt.openssl.org/Ticket/Display.html?id=3463&user=guest&pass=guest
-  return status == OPENSSL_NPN_NEGOTIATED
-      ? SSL_TLSEXT_ERR_OK
-      : SSL_TLSEXT_ERR_NOACK;
+  // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
+  // match was found. This would neither cause a fatal alert nor would it result
+  // in a useful ALPN response as part of the Server Hello message.
+  // We now return SSL_TLSEXT_ERR_ALERT_FATAL in that case as per Section 3.2
+  // of RFC 7301, which causes a fatal no_application_protocol alert.
+  return status == OPENSSL_NPN_NEGOTIATED ? SSL_TLSEXT_ERR_OK
+                                          : SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 
 int TLSExtStatusCallback(SSL* s, void* arg) {
