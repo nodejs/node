@@ -99,12 +99,9 @@ ByteSource ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
   if (!sp)
     return ByteSource();
 
-  char* buf = nullptr;
-  ASN1_STRING_to_UTF8(
-    reinterpret_cast<unsigned char**>(&buf),
-    sp->spkac->challenge);
-
-  return ByteSource::Allocated(buf, strlen(buf));
+  unsigned char* buf = nullptr;
+  int buf_size = ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
+  return (buf_size >= 0) ? ByteSource::Allocated(buf, buf_size) : ByteSource();
 }
 
 void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
