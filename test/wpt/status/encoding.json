@@ -61,12 +61,7 @@
     "requires": ["small-icu"]
   },
   "streams/decode-utf8.any.js": {
-    "requires": ["small-icu"],
-    "fail": {
-      "expected": [
-        "decoding a transferred ArrayBuffer chunk should give no output"
-      ]
-    }
+    "requires": ["small-icu"]
   },
   "streams/decode-bad-chunks.any.js": {
     "fail": {
