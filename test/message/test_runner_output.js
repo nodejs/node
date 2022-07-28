@@ -349,3 +349,25 @@ test('large timeout async test is ok', { timeout: 30_000_000 }, async (t) => {
 test('large timeout callback test is ok', { timeout: 30_000_000 }, (t, done) => {
   setTimeout(done, 10);
 });
+
+test('successful thenable', () => {
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (successHandler) => successHandler();
+    },
+  };
+});
+
+test('rejected thenable', () => {
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (_, errorHandler) => errorHandler('custom error');
+    },
+  };
+});
