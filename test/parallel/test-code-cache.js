@@ -12,7 +12,7 @@ const {
 } = require('internal/test/binding');
 const {
   getCacheUsage,
-  moduleCategories: { canBeRequired, cannotBeRequired }
+  moduleCategories: { canBeRequired }
 } = internalBinding('native_module');
 
 for (const key of canBeRequired) {
@@ -54,20 +54,12 @@ if (!process.features.cached_builtins) {
 } else {  // Native compiled
   assert(process.config.variables.node_use_node_code_cache);
 
-  if (!isMainThread) {
-    for (const key of [ 'internal/bootstrap/pre_execution' ]) {
-      canBeRequired.add(key);
-      cannotBeRequired.delete(key);
-    }
-  }
-
   const wrong = [];
   for (const key of loadedModules) {
-    if (cannotBeRequired.has(key) && !compiledWithoutCache.has(key)) {
-      wrong.push(`"${key}" should've been compiled **without** code cache`);
+    if (key.startsWith('internal/deps/v8/tools')) {
+      continue;
     }
-    if (canBeRequired.has(key) &&
-      !compiledWithCache.has(key) &&
+    if (!compiledWithCache.has(key) &&
       compiledInSnapshot.indexOf(key) === -1) {
       wrong.push(`"${key}" should've been compiled **with** code cache`);
     }

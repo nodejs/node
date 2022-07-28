@@ -45,10 +45,11 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
                          v8::Local<v8::Context> context,
                          void* priv);
 
+  // The parameters used to compile the scripts are detected based on
+  // the pattern of the id.
   static v8::MaybeLocal<v8::Function> LookupAndCompile(
       v8::Local<v8::Context> context,
       const char* id,
-      std::vector<v8::Local<v8::String>>* parameters,
       Environment* optional_env);
 
   static v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
@@ -57,7 +58,7 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   static bool Exists(const char* id);
   static bool Add(const char* id, const UnionBytes& source);
 
-  static bool CompileAllModules(v8::Local<v8::Context> context);
+  static bool CompileAllBuiltins(v8::Local<v8::Context> context);
   static void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
   static void CopyCodeCache(std::vector<CodeCacheInfo>* out);
 
@@ -100,9 +101,6 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
       const char* id,
       std::vector<v8::Local<v8::String>>* parameters,
       Result* result);
-  v8::MaybeLocal<v8::Function> CompileAsModule(v8::Local<v8::Context> context,
-                                               const char* id,
-                                               Result* result);
 
   static void RecordResult(const char* id,
                            NativeModuleLoader::Result result,

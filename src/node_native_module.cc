@@ -184,21 +184,6 @@ ScriptCompiler::CachedData* NativeModuleLoader::GetCodeCache(
   return it->second.get();
 }
 
-MaybeLocal<Function> NativeModuleLoader::CompileAsModule(
-    Local<Context> context,
-    const char* id,
-    NativeModuleLoader::Result* result) {
-  Isolate* isolate = context->GetIsolate();
-  std::vector<Local<String>> parameters = {
-      FIXED_ONE_BYTE_STRING(isolate, "exports"),
-      FIXED_ONE_BYTE_STRING(isolate, "require"),
-      FIXED_ONE_BYTE_STRING(isolate, "module"),
-      FIXED_ONE_BYTE_STRING(isolate, "process"),
-      FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-      FIXED_ONE_BYTE_STRING(isolate, "primordials")};
-  return LookupAndCompileInternal(context, id, &parameters, result);
-}
-
 #ifdef NODE_BUILTIN_MODULES_PATH
 static std::string OnDiskFileName(const char* id) {
   std::string filename = NODE_BUILTIN_MODULES_PATH;
@@ -360,29 +345,84 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompileInternal(
 MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
     Environment* optional_env) {
   Result result;
-  MaybeLocal<Function> maybe =
-      GetInstance()->LookupAndCompileInternal(context, id, parameters, &result);
+  std::vector<Local<String>> parameters;
+  Isolate* isolate = context->GetIsolate();
+  // Detects parameters of the scripts based on module ids.
+  // internal/bootstrap/loaders: process, getLinkedBinding,
+  //                             getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+  } else if (strncmp(id,
+                     "internal/per_context/",
+                     strlen("internal/per_context/")) == 0) {
+    // internal/per_context/*: global, exports, primordials
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "global"),
+        FIXED_ONE_BYTE_STRING(isolate, "exports"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+  } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0) {
+    // internal/main/*: process, require, internalBinding, primordials
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "require"),
+        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+  } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+    // Synthetic embedder main scripts from LoadEnvironment(): process, require
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "require"),
+    };
+  } else if (strncmp(id,
+                     "internal/bootstrap/",
+                     strlen("internal/bootstrap/")) == 0) {
+    // internal/bootstrap/*: process, require, internalBinding, primordials
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "require"),
+        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+  } else {
+    // others: exports, require, module, process, internalBinding, primordials
+    parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "exports"),
+        FIXED_ONE_BYTE_STRING(isolate, "require"),
+        FIXED_ONE_BYTE_STRING(isolate, "module"),
+        FIXED_ONE_BYTE_STRING(isolate, "process"),
+        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+    };
+  }
+
+  MaybeLocal<Function> maybe = GetInstance()->LookupAndCompileInternal(
+      context, id, &parameters, &result);
   if (optional_env != nullptr) {
     RecordResult(id, result, optional_env);
   }
   return maybe;
 }
 
-bool NativeModuleLoader::CompileAllModules(Local<Context> context) {
+bool NativeModuleLoader::CompileAllBuiltins(Local<Context> context) {
   NativeModuleLoader* loader = GetInstance();
   std::vector<std::string> ids = loader->GetModuleIds();
   bool all_succeeded = true;
+  std::string v8_tools_prefix = "internal/deps/v8/tools/";
   for (const auto& id : ids) {
-    // TODO(joyeecheung): compile non-module scripts here too.
-    if (!loader->CanBeRequired(id.c_str())) {
+    if (id.compare(0, v8_tools_prefix.size(), v8_tools_prefix) == 0) {
       continue;
     }
     v8::TryCatch bootstrapCatch(context->GetIsolate());
-    Result result;
-    USE(loader->CompileAsModule(context, id.c_str(), &result));
+    USE(loader->LookupAndCompile(context, id.c_str(), nullptr));
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
                          "Failed to compile code cache for %s\n",
@@ -538,16 +578,15 @@ void NativeModuleLoader::RecordResult(const char* id,
     env->native_modules_without_cache.insert(id);
   }
 }
+
 void NativeModuleLoader::CompileFunction(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
   node::Utf8Value id_v(env->isolate(), args[0].As<String>());
   const char* id = *id_v;
-  NativeModuleLoader::Result result;
   MaybeLocal<Function> maybe =
-      GetInstance()->CompileAsModule(env->context(), id, &result);
-  RecordResult(id, result, env);
+      GetInstance()->LookupAndCompile(env->context(), id, env);
   Local<Function> fn;
   if (maybe.ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
