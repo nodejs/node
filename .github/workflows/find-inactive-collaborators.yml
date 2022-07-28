@@ -1,10 +1,6 @@
 name: Find inactive collaborators
 
 on:
-  schedule:
-    # Run every Monday at 4:05 AM UTC.
-    - cron: 5 4 * * 1
-
   workflow_dispatch:
 
 env:

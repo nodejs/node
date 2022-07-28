@@ -1,27 +1,7 @@
 name: Build from tarball
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - .mailmap
-      - '**.md'
-      - AUTHORS
-      - doc/**
-      - .github/**
-      - '!.github/workflows/build-tarball.yml'
-  push:
-    branches:
-      - main
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
-    paths-ignore:
-      - .mailmap
-      - '**.md'
-      - AUTHORS
-      - doc/**
-      - .github/**
-      - '!.github/workflows/build-tarball.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

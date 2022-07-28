@@ -1,25 +1,7 @@
 name: Coverage Linux
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/*
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

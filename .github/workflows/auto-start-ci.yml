@@ -1,12 +1,7 @@
 name: Auto Start CI
 
 on:
-  schedule:
-    # Runs every five minutes (fastest the scheduler can run). Five minutes is
-    # optimistic, it can take longer to run.
-    # To understand why `schedule` is used instead of other events, refer to
-    # ./doc/contributing/commit-queue.md
-    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}
 

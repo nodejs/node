@@ -1,7 +1,5 @@
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 name: Notify on Force Push
 permissions:

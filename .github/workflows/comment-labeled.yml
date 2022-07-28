@@ -1,9 +1,6 @@
 name: Comment on issues and PRs when labeled
 on:
-  issues:
-    types: [labeled]
-  pull_request_target:
-    types: [labeled]
+  workflow_dispatch:
 
 env:
   STALE_MESSAGE: >

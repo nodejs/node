@@ -2,9 +2,7 @@ name: Node.js daily job
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: 0 0 * * *
-
+  
 env:
   NODE_VERSION: lts/*
 

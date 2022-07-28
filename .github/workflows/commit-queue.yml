@@ -10,8 +10,7 @@ on:
   # `pull_request` event is triggered on a PR from a fork, GITHUB_TOKEN will
   # be read-only, and the Action won't have access to any other repository
   # secrets, which it needs to access Jenkins API.
-  schedule:
-    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}
 

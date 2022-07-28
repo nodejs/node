@@ -1,8 +1,7 @@
 name: Label PRs
 
 on:
-  pull_request_target:
-    types: [opened]
+  workflow_dispatch:
 
 permissions:
   contents: read
