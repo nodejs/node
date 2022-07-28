@@ -17,4 +17,8 @@ delete require.cache[require
 // Re-enable.
 process.setSourceMapsEnabled(true);
 
-require('../fixtures/source-map/enclosing-call-site-min.js');
+try {
+  require('../fixtures/source-map/enclosing-call-site-min.js');
+} catch (e) {
+  console.log(e);
+}
