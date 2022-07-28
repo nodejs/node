@@ -311,7 +311,7 @@ into a tarball (b).
     can be any valid semver range or exact version, and npm will look for
     any tags or refs matching that range in the remote repository, much as
     it would for a registry dependency. If neither `#<commit-ish>` or
-    `#semver:<semver>` is specified, then `master` is used.
+    `#semver:<semver>` is specified, then the default branch is used.
 
     As with regular git dependencies, `dependencies` and `devDependencies`
     will be installed if the package has a `prepare` script before the
