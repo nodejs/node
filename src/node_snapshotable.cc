@@ -986,7 +986,8 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
-      if (!native_module::NativeModuleLoader::CompileAllModules(main_context)) {
+      if (!native_module::NativeModuleLoader::CompileAllBuiltins(
+              main_context)) {
         return UNCAUGHT_EXCEPTION_ERROR;
       }
       native_module::NativeModuleLoader::CopyCodeCache(&(out->code_cache));
@@ -1221,7 +1222,6 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "compileSerializeMain", CompileSerializeMain);
-  env->SetMethod(target, "markBootstrapComplete", MarkBootstrapComplete);
   env->SetMethod(target, "setSerializeCallback", SetSerializeCallback);
   env->SetMethod(target, "setDeserializeCallback", SetDeserializeCallback);
   env->SetMethod(
@@ -1230,7 +1230,6 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CompileSerializeMain);
-  registry->Register(MarkBootstrapComplete);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);
   registry->Register(SetDeserializeMainFunction);
