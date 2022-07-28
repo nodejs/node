@@ -15,11 +15,11 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
       [
         'import { strictEqual } from "node:assert";',
         // commonJS index.js
-        `import commonjs from "${fixtures.path('es-module-specifiers/package-type-commonjs')}";`,
+        `import commonjs from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-commonjs'))};`,
         // esm index.js
-        `import module from "${fixtures.path('es-module-specifiers/package-type-module')}";`,
+        `import module from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-module'))};`,
         // Notice the trailing slash
-        `import success, { explicit, implicit, implicitModule } from "${fixtures.path('es-module-specifiers/')}";`,
+        `import success, { explicit, implicit, implicitModule } from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/'))};`,
         'strictEqual(commonjs, "commonjs");',
         'strictEqual(module, "module");',
         'strictEqual(success, "success");',
@@ -51,7 +51,7 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
       '--experimental-specifier-resolution=node',
       '--input-type=module',
       '--eval',
-      `import whatever from "${fixtures.path('es-module-specifiers/implicit-main-type-commonjs')}";`,
+      `import whatever from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/implicit-main-type-commonjs'))};`,
     ]);
 
     match(stderr, /ERR_MODULE_NOT_FOUND/);
