@@ -105,7 +105,7 @@ static std::string GetErrorSource(Isolate* isolate,
   if (has_source_map_url && env != nullptr && env->source_maps_enabled()) {
     std::string source = GetSourceMapErrorSource(
         isolate, context, message, added_exception_line);
-    return added_exception_line ? source : sourceline;
+    return *added_exception_line ? source : sourceline;
   }
 
   // Because of how node modules work, all scripts are wrapped with a
