@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import { strictEqual, match } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -14,8 +14,8 @@ describe('ESM: WASM modules', { concurrency: true }, () => {
       '--eval',
       [
         'import { strictEqual, match } from "node:assert";',
-        `import { add, addImported } from "${path('es-modules/simple.wasm')}";`,
-        `import { state } from "${path('es-modules/wasm-dep.mjs')}";`,
+        `import { add, addImported } from ${JSON.stringify(fixtures.fileURL('es-modules/simple.wasm'))};`,
+        `import { state } from ${JSON.stringify(fixtures.fileURL('es-modules/wasm-dep.mjs'))};`,
         'strictEqual(state, "WASM Start Executed");',
         'strictEqual(add(10, 20), 30);',
         'strictEqual(addImported(0), 42);',
@@ -32,7 +32,7 @@ describe('ESM: WASM modules', { concurrency: true }, () => {
   it('should emit experimental warning', async () => {
     const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--experimental-wasm-modules',
-      path('/es-modules/wasm-modules.mjs'),
+      fixtures.path('es-modules/wasm-modules.mjs'),
     ]);
 
     strictEqual(code, 0);

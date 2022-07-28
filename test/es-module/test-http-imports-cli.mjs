@@ -13,7 +13,7 @@ describe('ESM: http import via CLI', { concurrency: true }, () => {
       '--experimental-network-imports',
       '--input-type=module',
       '--eval',
-      `import "${disallowedSpecifier}"`,
+      `import ${JSON.stringify(disallowedSpecifier)}`,
     ]);
 
     notStrictEqual(code, 0);
