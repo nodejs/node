@@ -17,7 +17,7 @@ permissions:
 jobs:
   test-macOS:
     if: github.event.pull_request.draft == false
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
       - uses: actions/checkout@v3
         with:
