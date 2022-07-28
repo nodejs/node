@@ -46,7 +46,7 @@ const {
  * ! `afterAll` teardown in which to close the server.
  */
 
-describe('ESM: http import via loader', () => {
+describe('ESM: http import via loader', { concurrency: false }, () => {
   it('should work', async () => {
     // ! MUST NOT use spawnSync to avoid blocking the event loop
     const { code, signal, stderr, stdout } = await spawnPromisified(
