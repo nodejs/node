@@ -30,7 +30,7 @@ describe('ESM: http import via CLI', { concurrency: true }, () => {
       '--experimental-network-imports',
       '--input-type=module',
     ]);
-    child.stdin.end(`import "${disallowedSpecifier}"`);
+    child.stdin.end(`import ${JSON.stringify(disallowedSpecifier)}`);
 
     let stderr = '';
     child.stderr.setEncoding('utf8');
