@@ -21,7 +21,7 @@ describe('ESM: http import via CLI', { concurrency: true }, () => {
     // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
     //   …/[eval1] is not supported: http can only be used to load local
     // resources (use https instead).
-    match(stderr, /\[ERR_NETWORK_IMPORT_DISALLOWED\]/);
+    match(stderr, /ERR_NETWORK_IMPORT_DISALLOWED/);
     ok(stderr.includes(disallowedSpecifier));
   });
 
