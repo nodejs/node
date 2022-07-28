@@ -622,7 +622,7 @@ commit. If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <c
 be any valid semver range or exact version, and npm will look for any tags
 or refs matching that range in the remote repository, much as it would for
 a registry dependency. If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is
-specified, then <code>master</code> is used.</p>
+specified, then the default branch is used.</p>
 <p>Examples:</p>
 <pre lang="bash"><code>git+ssh://git@github.com:npm/cli.git#v1.0.27
 git+ssh://git@github.com:npm/cli#semver:^5.0
