@@ -26,7 +26,7 @@ CC_VER="4.9"
 case $ARCH in
     arm)
         DEST_CPU="arm"
-        TOOLCHAIN_NAME="armv7-linux-androideabi"
+        TOOLCHAIN_NAME="armv7a-linux-androideabi"
         ;;
     x86)
         DEST_CPU="ia32"
