@@ -125,7 +125,6 @@ using native_module::NativeModuleLoader;
 
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -170,11 +169,10 @@ void SignalExit(int signo, siginfo_t* info, void* ucontext) {
 
 MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       const char* id,
-                                      std::vector<Local<String>>* parameters,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      NativeModuleLoader::LookupAndCompile(env->context(), id, parameters, env);
+      NativeModuleLoader::LookupAndCompile(env->context(), id, env);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -293,12 +291,8 @@ void Environment::InitializeDiagnostics() {
 MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
   EscapableHandleScope scope(isolate_);
 
-  // Create binding loaders
-  std::vector<Local<String>> loaders_params = {
-      process_string(),
-      FIXED_ONE_BYTE_STRING(isolate_, "getLinkedBinding"),
-      FIXED_ONE_BYTE_STRING(isolate_, "getInternalBinding"),
-      primordials_string()};
+  // Arguments must match the parameters specified in
+  // NativeModuleLoader::LookupAndCompile().
   std::vector<Local<Value>> loaders_args = {
       process_object(),
       NewFunctionTemplate(isolate_, binding::GetLinkedBinding)
@@ -311,8 +305,7 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 
   // Bootstrap internal loaders
   Local<Value> loader_exports;
-  if (!ExecuteBootstrapper(
-           this, "internal/bootstrap/loaders", &loaders_params, &loaders_args)
+  if (!ExecuteBootstrapper(this, "internal/bootstrap/loaders", &loaders_args)
            .ToLocal(&loader_exports)) {
     return MaybeLocal<Value>();
   }
@@ -334,28 +327,25 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
+  // Arguments must match the parameters specified in
+  // NativeModuleLoader::LookupAndCompile().
   // process, require, internalBinding, primordials
-  std::vector<Local<String>> node_params = {
-      process_string(),
-      require_string(),
-      internal_binding_string(),
-      primordials_string()};
   std::vector<Local<Value>> node_args = {
       process_object(),
       native_module_require(),
       internal_binding_loader(),
       primordials()};
 
-  MaybeLocal<Value> result = ExecuteBootstrapper(
-      this, "internal/bootstrap/node", &node_params, &node_args);
+  MaybeLocal<Value> result =
+      ExecuteBootstrapper(this, "internal/bootstrap/node", &node_args);
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
   }
 
   if (!no_browser_globals()) {
-    result = ExecuteBootstrapper(
-        this, "internal/bootstrap/browser", &node_params, &node_args);
+    result =
+        ExecuteBootstrapper(this, "internal/bootstrap/browser", &node_args);
 
     if (result.IsEmpty()) {
       return MaybeLocal<Value>();
@@ -366,8 +356,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
   auto thread_switch_id =
       is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
                        : "internal/bootstrap/switches/is_not_main_thread";
-  result =
-      ExecuteBootstrapper(this, thread_switch_id, &node_params, &node_args);
+  result = ExecuteBootstrapper(this, thread_switch_id, &node_args);
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
@@ -377,8 +366,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       owns_process_state()
           ? "internal/bootstrap/switches/does_own_process_state"
           : "internal/bootstrap/switches/does_not_own_process_state";
-  result = ExecuteBootstrapper(
-      this, process_state_switch_id, &node_params, &node_args);
+  result = ExecuteBootstrapper(this, process_state_switch_id, &node_args);
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
@@ -420,35 +408,20 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
   return scope.Escape(result);
 }
 
-void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->performance_state()->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
-}
-
 static
 MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
   CHECK_NOT_NULL(main_script_id);
 
-  std::vector<Local<String>> parameters = {
-      env->process_string(),
-      env->require_string(),
-      env->internal_binding_string(),
-      env->primordials_string(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
-
-  std::vector<Local<Value>> arguments = {
-      env->process_object(),
-      env->native_module_require(),
-      env->internal_binding_loader(),
-      env->primordials(),
-      NewFunctionTemplate(env->isolate(), MarkBootstrapComplete)
-          ->GetFunction(env->context())
-          .ToLocalChecked()};
+  // Arguments must match the parameters specified in
+  // NativeModuleLoader::LookupAndCompile().
+  std::vector<Local<Value>> arguments = {env->process_object(),
+                                         env->native_module_require(),
+                                         env->internal_binding_loader(),
+                                         env->primordials()};
 
   return scope.EscapeMaybe(
-      ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
+      ExecuteBootstrapper(env, main_script_id, &arguments));
 }
 
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
@@ -461,8 +434,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
 
-    if (StartExecution(env, "internal/bootstrap/environment").IsEmpty())
-      return {};
+    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
 
     StartExecutionCallbackInfo info = {
       env->process_object(),
