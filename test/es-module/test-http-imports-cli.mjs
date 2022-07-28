@@ -1,5 +1,5 @@
 import { mustCall, spawnPromisified } from '../common/index.mjs';
-import { match, notStrictEqual } from 'node:assert';
+import { ok, match, notStrictEqual } from 'node:assert';
 import { spawn as spawnAsync } from 'node:child_process';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -21,8 +21,8 @@ describe('ESM: http import via CLI', { concurrency: true }, () => {
     // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
     //   …/[eval1] is not supported: http can only be used to load local
     // resources (use https instead).
-    match(stderr, /[ERR_NETWORK_IMPORT_DISALLOWED]/);
-    match(stderr, new RegExp(disallowedSpecifier));
+    match(stderr, /\[ERR_NETWORK_IMPORT_DISALLOWED\]/);
+    ok(stderr.includes(disallowedSpecifier));
   });
 
   it('should throw disallowed error for insecure protocol in REPL', () => {
@@ -41,8 +41,8 @@ describe('ESM: http import via CLI', { concurrency: true }, () => {
       // [ERR_NETWORK_IMPORT_DISALLOWED]: import of 'http://example.com/' by
       //   …/[stdin] is not supported: http can only be used to load local
       // resources (use https instead).
-      match(stderr, /[ERR_NETWORK_IMPORT_DISALLOWED]/);
-      match(stderr, new RegExp(disallowedSpecifier));
+      match(stderr, /\[ERR_NETWORK_IMPORT_DISALLOWED\]/);
+      ok(stderr.includes(disallowedSpecifier));
     }));
   });
 });

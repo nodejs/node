@@ -57,25 +57,25 @@ describe('ESM: Errors for unexpected exports', { concurrently: true }, () => {
         // name: '',
         filePath: fixtures.path('/es-modules/es-note-error-1.mjs'),
         ...mustNotIncludeMessage,
-        errorNeedle: 'Error: some error',
+        errorNeedle: /Error: some error/,
       },
       {
         // name: '',
         filePath: fixtures.path('/es-modules/es-note-error-2.mjs'),
         ...mustNotIncludeMessage,
-        errorNeedle: 'string',
+        errorNeedle: /string/,
       },
       {
         // name: '',
         filePath: fixtures.path('/es-modules/es-note-error-3.mjs'),
         ...mustNotIncludeMessage,
-        errorNeedle: 'null',
+        errorNeedle: /null/,
       },
       {
         // name: '',
         filePath: fixtures.path('/es-modules/es-note-error-4.mjs'),
         ...mustNotIncludeMessage,
-        errorNeedle: 'undefined',
+        errorNeedle: /undefined/,
       },
     ]
   ) {
@@ -84,7 +84,7 @@ describe('ESM: Errors for unexpected exports', { concurrently: true }, () => {
 
       assert.strictEqual(code, 1);
 
-      if (errorNeedle) assert.match(stderr, new RegExp(errorNeedle));
+      if (errorNeedle != null) assert.match(stderr, errorNeedle);
 
       const shouldIncludeNote = stderr.includes(expectedNote);
       assert.ok(
