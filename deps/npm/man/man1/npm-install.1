@@ -320,7 +320,7 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
   can be any valid semver range or exact version, and npm will look for
   any tags or refs matching that range in the remote repository, much as
   it would for a registry dependency\. If neither \fB#<commit\-ish>\fP or
-  \fB#semver:<semver>\fP is specified, then \fBmaster\fP is used\.
+  \fB#semver:<semver>\fP is specified, then the default branch is used\.
   As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP
   will be installed if the package has a \fBprepare\fP script before the
   package is done installing\.

@@ -85,8 +85,13 @@ class Init extends BaseCommand {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
+    // Only a scope, possibly with a version
     if (/^@[^/]+$/.test(initerName)) {
-      packageName = initerName + '/create'
+      const [, scope, version] = initerName.split('@')
+      packageName = `@${scope}/create`
+      if (version) {
+        packageName = `${packageName}@${version}`
+      }
     } else {
       const req = npa(initerName)
       if (req.type === 'git' && req.hosted) {
