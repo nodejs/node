@@ -265,6 +265,12 @@ void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
       Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
 }
 
+void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->performance_state()->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -304,6 +310,7 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getTimeOrigin", GetTimeOrigin);
   SetMethod(context, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
   SetMethod(context, target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(context, target, "markBootstrapComplete", MarkBootstrapComplete);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -358,6 +365,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetTimeOrigin);
   registry->Register(GetTimeOriginTimeStamp);
   registry->Register(CreateELDHistogram);
+  registry->Register(MarkBootstrapComplete);
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
 }
