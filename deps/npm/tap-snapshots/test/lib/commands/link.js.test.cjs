@@ -5,6 +5,11 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/commands/link.js TAP hash character in working directory path > should create a global link to current pkg, even within path with hash 1`] = `
+{CWD}/test/lib/commands/tap-testdir-link-hash-character-in-working-directory-path/global-prefix/lib/node_modules/test-pkg-link -> {CWD}/test/lib/commands/tap-testdir-link-hash-character-in-working-directory-path/i_like_#_in_my_paths/test-pkg-link
+
+`
+
 exports[`test/lib/commands/link.js TAP link global linked pkg to local nm when using args > should create a local symlink to global pkg 1`] = `
 {CWD}/test/lib/commands/tap-testdir-link-link-global-linked-pkg-to-local-nm-when-using-args/my-project/node_modules/@myscope/bar -> {CWD}/test/lib/commands/tap-testdir-link-link-global-linked-pkg-to-local-nm-when-using-args/global-prefix/lib/node_modules/@myscope/bar
 {CWD}/test/lib/commands/tap-testdir-link-link-global-linked-pkg-to-local-nm-when-using-args/my-project/node_modules/@myscope/linked -> {CWD}/test/lib/commands/tap-testdir-link-link-global-linked-pkg-to-local-nm-when-using-args/scoped-linked
