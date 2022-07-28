@@ -824,7 +824,7 @@ class Node {
     }
 
     for (const [name, path] of this[_workspaces].entries()) {
-      new Edge({ from: this, name, spec: `file:${path}`, type: 'workspace' })
+      new Edge({ from: this, name, spec: `file:${path.replace(/#/g, '%23')}`, type: 'workspace' })
     }
   }
 

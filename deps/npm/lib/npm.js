@@ -241,16 +241,18 @@ class Npm extends EventEmitter {
     await this.time('npm:load:configload', () => this.config.load())
 
     // mkdir this separately since the logs dir can be set to
-    // a different location. an error here should be surfaced
-    // right away since it will error in cacache later
+    // a different location. if this fails, then we don't have
+    // a cache dir, but we don't want to fail immediately since
+    // the command might not need a cache dir (like `npm --version`)
     await this.time('npm:load:mkdirpcache', () =>
-      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' }))
+      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' })
+        .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
 
     // its ok if this fails. user might have specified an invalid dir
     // which we will tell them about at the end
     await this.time('npm:load:mkdirplogs', () =>
       fs.mkdir(this.logsDir, { recursive: true, owner: 'inherit' })
-        .catch((e) => log.warn('logfile', `could not create logs-dir: ${e}`)))
+        .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
 
     // note: this MUST be shorter than the actual argv length, because it
     // uses the same memory, so node will truncate it if it's too long.

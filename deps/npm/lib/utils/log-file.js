@@ -204,7 +204,9 @@ class LogFiles {
       this.#files.push(logStream.path)
       return logStream
     } catch (e) {
-      log.warn('logfile', `could not be created: ${e}`)
+      // If the user has a readonly logdir then we don't want to
+      // warn this on every command so it should be verbose
+      log.verbose('logfile', `could not be created: ${e}`)
     }
   }
 
@@ -226,7 +228,7 @@ class LogFiles {
       )
 
       // Always ignore the currently written files
-      const files = await glob(globify(logGlob), { ignore: this.#files.map(globify) })
+      const files = await glob(globify(logGlob), { ignore: this.#files.map(globify), silent: true })
       const toDelete = files.length - this.#logsMax
 
       if (toDelete <= 0) {

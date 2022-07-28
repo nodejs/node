@@ -170,6 +170,8 @@ follows:</p>
 <li><code>npm init foo</code> -&gt; <code>npm exec create-foo</code></li>
 <li><code>npm init @usr/foo</code> -&gt; <code>npm exec @usr/create-foo</code></li>
 <li><code>npm init @usr</code> -&gt; <code>npm exec @usr/create</code></li>
+<li><code>npm init @usr@2.0.0</code> -&gt; <code>npm exec @usr/create@2.0.0</code></li>
+<li><code>npm init @usr/foo@2.0.0</code> -&gt; <code>npm exec @usr/create-foo@2.0.0</code></li>
 </ul>
 <p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall
 back to legacy init behavior. It will ask you a bunch of questions, and

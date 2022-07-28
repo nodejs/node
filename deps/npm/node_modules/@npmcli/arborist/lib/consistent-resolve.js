@@ -20,8 +20,8 @@ const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
       raw,
     } = npa(resolved, fromPath)
     const isPath = type === 'file' || type === 'directory'
-    return isPath && !relPaths ? `file:${fetchSpec}`
-      : isPath ? 'file:' + (toPath ? relpath(toPath, fetchSpec) : fetchSpec)
+    return isPath && !relPaths ? `file:${fetchSpec.replace(/#/g, '%23')}`
+      : isPath ? 'file:' + (toPath ? relpath(toPath, fetchSpec.replace(/#/g, '%23')) : fetchSpec.replace(/#/g, '%23'))
       : hosted ? `git+${
         hosted.auth ? hosted.https(hostedOpt) : hosted.sshurl(hostedOpt)
       }`

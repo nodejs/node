@@ -136,6 +136,44 @@ t.test('npm init @scope/name', async t => {
   await init.exec(['@npmcli/something'])
 })
 
+t.test('npm init @scope@spec', async t => {
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../../lib/commands/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create@foo'],
+        'should npx with scoped packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
+  await init.exec(['@npmcli@foo'])
+})
+
+t.test('npm init @scope/name@spec', async t => {
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../../lib/commands/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create-something@foo'],
+        'should npx with scoped packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
+  await init.exec(['@npmcli/something@foo'])
+})
+
 t.test('npm init git spec', async t => {
   t.plan(1)
   npm.localPrefix = t.testdir({})

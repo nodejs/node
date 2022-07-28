@@ -162,7 +162,7 @@ module.exports = cls => class VirtualLoader extends cls {
       lockfile: s.data,
     })
     for (const [name, path] of workspaces.entries()) {
-      lockWS.push(['workspace', name, `file:${path}`])
+      lockWS.push(['workspace', name, `file:${path.replace(/#/g, '%23')}`])
     }
 
     const lockEdges = [

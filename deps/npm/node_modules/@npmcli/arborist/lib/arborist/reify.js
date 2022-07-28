@@ -1241,7 +1241,7 @@ module.exports = cls => class Reifier extends cls {
             // path initially, in which case we can end up with the wrong
             // thing, so just get the ultimate fetchSpec and relativize it.
             const p = req.fetchSpec.replace(/^file:/, '')
-            const rel = relpath(addTree.realpath, p)
+            const rel = relpath(addTree.realpath, p).replace(/#/g, '%23')
             newSpec = `file:${rel}`
           }
         } else {

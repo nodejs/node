@@ -3,6 +3,7 @@ const { resolve, dirname, join } = require('path')
 
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const mockGlobals = require('../fixtures/mock-globals')
+const fs = require('@npmcli/fs')
 
 // delete this so that we don't have configs from the fact that it
 // is being run by 'npm test'
@@ -435,23 +436,42 @@ t.test('debug log', async t => {
     t.match(debug, log2.join(' '), 'after load log appears')
   })
 
-  t.test('with bad dir', async t => {
-    const { npm } = await loadMockNpm(t, {
+  t.test('can load with bad dir', async t => {
+    const { npm, testdir } = await loadMockNpm(t, {
+      load: false,
       config: {
-        'logs-dir': 'LOGS_DIR',
-      },
-      mocks: {
-        '@npmcli/fs': {
-          mkdir: async (dir) => {
-            if (dir.includes('LOGS_DIR')) {
-              throw new Error('err')
-            }
-          },
-        },
+        'logs-dir': (c) => join(c.testdir, 'my_logs_dir'),
       },
     })
+    const logsDir = join(testdir, 'my_logs_dir')
 
-    t.equal(npm.logFiles.length, 0, 'no log file')
+    // make logs dir a file before load so it files
+    await fs.writeFile(logsDir, 'A_TEXT_FILE')
+    await t.resolves(npm.load(), 'loads with invalid logs dir')
+
+    t.equal(npm.logFiles.length, 0, 'no log files array')
+    t.strictSame(fs.readFileSync(logsDir, 'utf-8'), 'A_TEXT_FILE')
+  })
+})
+
+t.test('cache dir', async t => {
+  t.test('creates a cache dir', async t => {
+    const { npm } = await loadMockNpm(t)
+
+    t.ok(fs.existsSync(npm.cache), 'cache dir exists')
+  })
+
+  t.test('can load with a bad cache dir', async t => {
+    const { npm, cache } = await loadMockNpm(t, {
+      load: false,
+      // The easiest way to make mkdir(cache) fail is to make it a file.
+      // This will have the same effect as if its read only or inaccessible.
+      cacheDir: 'A_TEXT_FILE',
+    })
+
+    await t.resolves(npm.load(), 'loads with cache dir as a file')
+
+    t.equal(fs.readFileSync(cache, 'utf-8'), 'A_TEXT_FILE')
   })
 })
 
