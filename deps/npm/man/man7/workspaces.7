@@ -143,6 +143,8 @@ nested workspaces to be consumed elsewhere\.
 .P
 You can use the \fBworkspace\fP configuration option to run commands in the context
 of a configured workspace\.
+Additionally, if your current directory is in a workspace, the \fBworkspace\fP
+configuration is implicitly set, and \fBprefix\fP is set to the root workspace\.
 .P
 Following is a quick example on how to use the \fBnpm run\fP command in the context
 of nested workspaces\. For a project containing multiple workspaces, e\.g:
@@ -168,7 +170,15 @@ npm run test \-\-workspace=a
 .fi
 .RE
 .P
-This will run the \fBtest\fP script defined within the
+You could also run the command within the workspace\.
+.P
+.RS 2
+.nf
+cd packages/a && npm run test
+.fi
+.RE
+.P
+Either will run the \fBtest\fP script defined within the
 \fB\|\./packages/a/package\.json\fP file\.
 .P
 Please note that you can also specify this argument multiple times in the

@@ -44,7 +44,7 @@ npm@@VERSION@ /path/to/npm
 It will print out extraneous, missing, and invalid packages.
 
 If a project specifies git urls for dependencies these are shown
-in parentheses after the name@version to make it easier for users to
+in parentheses after the `name@version` to make it easier for users to
 recognize potential forks of a project.
 
 The tree shown is the logical dependency tree, based on package
@@ -62,7 +62,7 @@ disk would be roughly identical.
 With the advent of automatic install-time deduplication of dependencies in
 npm v3, the `ls` output was modified to display the logical dependency
 graph as a tree structure, since this was more useful to most users.
-However, without using `npm ls -l`, it became impossible show _where_ a
+However, without using `npm ls -l`, it became impossible to show _where_ a
 package was actually installed much of the time!
 
 With the advent of automatic installation of `peerDependencies` in npm v7,

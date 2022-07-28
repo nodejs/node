@@ -106,7 +106,7 @@ class Diff extends BaseCommand {
       const pkgName = await this.packageName(this.prefix)
       return [
         `${pkgName}@${this.npm.config.get('tag')}`,
-        `file:${this.prefix}`,
+        `file:${this.prefix.replace(/#/g, '%23')}`,
       ]
     }
 
@@ -134,7 +134,7 @@ class Diff extends BaseCommand {
       }
       return [
         `${pkgName}@${a}`,
-        `file:${this.prefix}`,
+        `file:${this.prefix.replace(/#/g, '%23')}`,
       ]
     }
 
@@ -165,7 +165,7 @@ class Diff extends BaseCommand {
         }
         return [
           `${spec.name}@${spec.fetchSpec}`,
-          `file:${this.prefix}`,
+          `file:${this.prefix.replace(/#/g, '%23')}`,
         ]
       }
 
@@ -178,7 +178,7 @@ class Diff extends BaseCommand {
         }
       }
 
-      const aSpec = `file:${node.realpath}`
+      const aSpec = `file:${node.realpath.replace(/#/g, '%23')}`
 
       // finds what version of the package to compare against, if a exact
       // version or tag was passed than it should use that, otherwise
@@ -211,8 +211,8 @@ class Diff extends BaseCommand {
       ]
     } else if (spec.type === 'directory') {
       return [
-        `file:${spec.fetchSpec}`,
-        `file:${this.prefix}`,
+        `file:${spec.fetchSpec.replace(/#/g, '%23')}`,
+        `file:${this.prefix.replace(/#/g, '%23')}`,
       ]
     } else {
       throw this.usageError(`Spec type ${spec.type} not supported.`)
@@ -279,7 +279,7 @@ class Diff extends BaseCommand {
 
       const res = !node || !node.package || !node.package.version
         ? spec.fetchSpec
-        : `file:${node.realpath}`
+        : `file:${node.realpath.replace(/#/g, '%23')}`
 
       return `${spec.name}@${res}`
     })

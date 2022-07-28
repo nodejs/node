@@ -38,6 +38,8 @@ follows:
 * `npm init foo` -> `npm exec create-foo`
 * `npm init @usr/foo` -> `npm exec @usr/create-foo`
 * `npm init @usr` -> `npm exec @usr/create`
+* `npm init @usr@2.0.0` -> `npm exec @usr/create@2.0.0`
+* `npm init @usr/foo@2.0.0` -> `npm exec @usr/create-foo@2.0.0`
 
 If the initializer is omitted (by just calling `npm init`), init will fall
 back to legacy init behavior. It will ask you a bunch of questions, and

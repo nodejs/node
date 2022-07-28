@@ -137,6 +137,8 @@ nested workspaces to be consumed elsewhere.
 
 You can use the `workspace` configuration option to run commands in the context
 of a configured workspace.
+Additionally, if your current directory is in a workspace, the `workspace`
+configuration is implicitly set, and `prefix` is set to the root workspace.
 
 Following is a quick example on how to use the `npm run` command in the context
 of nested workspaces. For a project containing multiple workspaces, e.g:
@@ -158,7 +160,13 @@ given command in the context of that specific workspace. e.g:
 npm run test --workspace=a
 ```
 
-This will run the `test` script defined within the
+You could also run the command within the workspace.
+
+```
+cd packages/a && npm run test
+```
+
+Either will run the `test` script defined within the
 `./packages/a/package.json` file.
 
 Please note that you can also specify this argument multiple times in the

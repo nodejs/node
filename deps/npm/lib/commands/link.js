@@ -122,7 +122,7 @@ class Link extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       prune: false,
       path: this.npm.prefix,
-      add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
+      add: names.map(l => `file:${resolve(globalTop, 'node_modules', l).replace(/#/g, '%23')}`),
       save,
       workspaces: this.workspaceNames,
     })
@@ -133,7 +133,7 @@ class Link extends ArboristWorkspaceCmd {
   async linkPkg () {
     const wsp = this.workspacePaths
     const paths = wsp && wsp.length ? wsp : [this.npm.prefix]
-    const add = paths.map(path => `file:${path}`)
+    const add = paths.map(path => `file:${path.replace(/#/g, '%23')}`)
     const globalTop = resolve(this.npm.globalDir, '..')
     const arb = new Arborist({
       ...this.npm.flatOptions,

@@ -9,16 +9,13 @@ const log = require('../utils/log-shim.js')
 const validateLockfile = require('../utils/validate-lockfile.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
+const Install = require('./install.js')
 
 class CI extends ArboristWorkspaceCmd {
   static description = 'Clean install a project'
   static name = 'ci'
-  static params = [
-    'audit',
-    'foreground-scripts',
-    'ignore-scripts',
-    'script-shell',
-  ]
+
+  static params = Install.params
 
   async exec () {
     if (this.npm.global) {

@@ -514,3 +514,39 @@ t.test('--global option', async t => {
     'should throw an useful error'
   )
 })
+
+t.test('hash character in working directory path', async t => {
+  const testdir = t.testdir({
+    'global-prefix': {
+      lib: {
+        node_modules: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    },
+    'i_like_#_in_my_paths': {
+      'test-pkg-link': {
+        'package.json': JSON.stringify({
+          name: 'test-pkg-link',
+          version: '1.0.0',
+        }),
+      },
+    },
+  })
+  npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
+  npm.prefix = resolve(testdir, 'i_like_#_in_my_paths', 'test-pkg-link')
+
+  link.workspacePaths = null
+  await link.exec([])
+  const links = await printLinks({
+    path: resolve(npm.globalDir, '..'),
+    global: true,
+  })
+
+  t.matchSnapshot(links, 'should create a global link to current pkg, even within path with hash')
+})
