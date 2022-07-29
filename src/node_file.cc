@@ -780,43 +780,6 @@ void AfterScanDir(uv_fs_t* req) {
   if (!after.Proceed()) {
     return;
   }
-  Environment* env = req_wrap->env();
-  Local<Value> error;
-  int r;
-  std::vector<Local<Value>> name_v;
-
-  for (;;) {
-    uv_dirent_t ent;
-
-    r = uv_fs_scandir_next(req, &ent);
-    if (r == UV_EOF)
-      break;
-    if (r != 0) {
-      return req_wrap->Reject(UVException(
-          env->isolate(), r, nullptr, req_wrap->syscall(), req->path));
-    }
-
-    MaybeLocal<Value> filename =
-      StringBytes::Encode(env->isolate(),
-          ent.name,
-          req_wrap->encoding(),
-          &error);
-    if (filename.IsEmpty())
-      return req_wrap->Reject(error);
-
-    name_v.push_back(filename.ToLocalChecked());
-  }
-
-  req_wrap->Resolve(Array::New(env->isolate(), name_v.data(), name_v.size()));
-}
-
-void AfterScanDirWithTypes(uv_fs_t* req) {
-  FSReqBase* req_wrap = FSReqBase::from_req(req);
-  FSReqAfterScope after(req_wrap, req);
-
-  if (!after.Proceed()) {
-    return;
-  }
 
   Environment* env = req_wrap->env();
   Isolate* isolate = env->isolate();
@@ -825,6 +788,8 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
 
   std::vector<Local<Value>> name_v;
   std::vector<Local<Value>> type_v;
+
+  const bool with_file_types = req_wrap->with_file_types();
 
   for (;;) {
     uv_dirent_t ent;
@@ -837,23 +802,23 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
           UVException(isolate, r, nullptr, req_wrap->syscall(), req->path));
     }
 
-    MaybeLocal<Value> filename =
-      StringBytes::Encode(isolate,
-          ent.name,
-          req_wrap->encoding(),
-          &error);
-    if (filename.IsEmpty())
+    Local<Value> filename;
+    if (!StringBytes::Encode(isolate, ent.name, req_wrap->encoding(), &error)
+             .ToLocal(&filename)) {
       return req_wrap->Reject(error);
+    }
+    name_v.push_back(filename);
 
-    name_v.push_back(filename.ToLocalChecked());
-    type_v.emplace_back(Integer::New(isolate, ent.type));
+    if (with_file_types) type_v.emplace_back(Integer::New(isolate, ent.type));
   }
 
-  Local<Value> result[] = {
-    Array::New(isolate, name_v.data(), name_v.size()),
-    Array::New(isolate, type_v.data(), type_v.size())
-  };
-  req_wrap->Resolve(Array::New(isolate, result, arraysize(result)));
+  if (with_file_types) {
+    Local<Value> result[] = {Array::New(isolate, name_v.data(), name_v.size()),
+                             Array::New(isolate, type_v.data(), type_v.size())};
+    req_wrap->Resolve(Array::New(isolate, result, arraysize(result)));
+  } else {
+    req_wrap->Resolve(Array::New(isolate, name_v.data(), name_v.size()));
+  }
 }
 
 void Access(const FunctionCallbackInfo<Value>& args) {
@@ -1650,13 +1615,16 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // readdir(path, encoding, withTypes, req)
-    if (with_types) {
-      AsyncCall(env, req_wrap_async, args, "scandir", encoding,
-                AfterScanDirWithTypes, uv_fs_scandir, *path, 0 /*flags*/);
-    } else {
-      AsyncCall(env, req_wrap_async, args, "scandir", encoding,
-                AfterScanDir, uv_fs_scandir, *path, 0 /*flags*/);
-    }
+    req_wrap_async->set_with_file_types(with_types);
+    AsyncCall(env,
+              req_wrap_async,
+              args,
+              "scandir",
+              encoding,
+              AfterScanDir,
+              uv_fs_scandir,
+              *path,
+              0 /*flags*/);
   } else {  // readdir(path, encoding, withTypes, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;

@@ -89,8 +89,10 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   enum encoding encoding() const { return encoding_; }
   bool use_bigint() const { return use_bigint_; }
   bool is_plain_open() const { return is_plain_open_; }
+  bool with_file_types() const { return with_file_types_; }
 
   void set_is_plain_open(bool value) { is_plain_open_ = value; }
+  void set_with_file_types(bool value) { with_file_types_ = value; }
 
   FSContinuationData* continuation_data() const {
     return continuation_data_.get();
@@ -116,6 +118,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool has_data_ = false;
   bool use_bigint_ = false;
   bool is_plain_open_ = false;
+  bool with_file_types_ = false;
   const char* syscall_ = nullptr;
 
   BaseObjectPtr<BindingData> binding_data_;
