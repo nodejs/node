@@ -44,21 +44,23 @@ The high level developer experience we are working towards was captured in the
 [next-10 TypeScript mini-summit](https://github.com/nodejs/next-10/pull/150)
 and is as follows:
 
-1. Users can ask Node.js to execute a file which is not one of the types it
-   can execute by default (.js, .mjs, etc.). For example `node script.ts`.
-2. On startup, Node.js will look for a config which is in the scope of the
-   file being executed.
-3. If no config is found, Node.js will echo either:
+1. When Node.js is started with an entry point that is not a file type that
+   Node.js recognizes, for example `node script.ts`, an informative error
+   message is printed that directs users to a webpage where they can
+   learn how to configure Node.js to support that file type.
    * If the file was a TypeScript file, a TypeScript specific message with a
-     reference to a link on Nodejs.org on how to install required components
-     for TypeScript and how to add the associated config.
-   * If the file was not a TypeScript file, a generic message.
-4. If a config is found, Node.js will extract the Node.js options for
-   that config and apply them as if they had been provided on the command
-   line.
-5. Assuming the options associated with the config add support for the
-   type of file being loaded, Node.js will execute the file as if it was one
-   of the file types it can execute by default.
+     reference to a link on Nodejs.org specific on learning how to 
+     configure TypeScript will be provided.
+   * For other file types a generic message and shared webpage will be
+     used.
+2. Node.js gains support for loading configuration from a file. Most, if not
+   all, of the configuration supported by `NODE_OPTIONS` would be
+   supported in this file (which might be the `package.json` that lives
+   near the entry point file). The webpage with instructions would tell
+   users what configuration to put in this file to get Node.js to support
+   their file type.
+3. When Node.js is run with the correct configuration, either in a file or
+   `NODE_OPTIONS` or flags, the unknown file type is executed as expected. 
 
 Some additional specifics around the current approach include:
 
