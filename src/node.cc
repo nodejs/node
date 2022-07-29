@@ -125,7 +125,6 @@ using native_module::NativeModuleLoader;
 
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
