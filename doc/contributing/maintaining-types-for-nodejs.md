@@ -60,7 +60,7 @@ and is as follows:
    type of file being loaded, Node.js will execute the file as if it was one
    of the file types it can execute by default.
 
-Some additional specifics around the current thinking include:
+Some additional specifics around the current approach include:
 
 * loaders already provide a number of the components needed to
   satisfy the requirements above. They already provide the Node.js
