@@ -170,6 +170,7 @@ const expectedModules = new Set([
   'NativeModule v8',
   'NativeModule internal/v8/startup_snapshot',
   'NativeModule vm',
+  'NativeModule diagnostics_channel',
 ]);
 
 if (!common.isMainThread) {
