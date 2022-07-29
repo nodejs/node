@@ -425,7 +425,11 @@ void ConverterObject::Create(const FunctionCallbackInfo<Value>& args) {
                         nullptr, nullptr, nullptr, &status);
   }
 
-  new ConverterObject(env, obj, conv, flags);
+  auto converter = new ConverterObject(env, obj, conv, flags);
+  size_t sublen = ucnv_getMinCharSize(conv);
+  std::string sub(sublen, '?');
+  converter->set_subst_chars(sub.c_str());
+
   args.GetReturnValue().Set(obj);
 }
 
