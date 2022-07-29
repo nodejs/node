@@ -62,7 +62,7 @@ and is as follows:
 
 Some additional specifics around the current approach include:
 
-* loaders already provide a number of the components needed to
+* Loaders already provide a number of the components needed to
   satisfy the requirements above. They already provide the Node.js
   options that are needed to achieve many of the requirements above.
 * package.json as the location for the config is potentially a good
