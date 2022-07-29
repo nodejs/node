@@ -36,7 +36,7 @@ is identified specifically, a secondary goal is that what we provide to improve
 development experience with TypeScript would apply to other type
 systems as well.
 
-We have agreed that the approach will `NOT` include bundling TypeScript
+We have agreed that the approach will **NOT** include bundling TypeScript
 tools with Node.js but instead improve the developer experience for how
 those tools are installed/configured to work with Node.js.
 
