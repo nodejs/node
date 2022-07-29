@@ -1,30 +1,28 @@
-import { mustCall } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { match, notStrictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { match, notStrictEqual } from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const child = spawn(execPath, [
-  '--no-warnings',
-  '--throw-deprecation',
-  '--experimental-loader',
-  fileURL('es-module-loaders', 'hooks-obsolete.mjs').href,
-  path('print-error-message.js'),
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: deprecation warnings for obsolete hooks', { concurrency: true }, () => {
+  it(async () => {
+    const { code, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--throw-deprecation',
+      '--experimental-loader',
+      fileURL('es-module-loaders', 'hooks-obsolete.mjs').href,
+      path('print-error-message.js'),
+    ]);
+
+    // DeprecationWarning: Obsolete loader hook(s) supplied and will be ignored:
+    // dynamicInstantiate, getFormat, getSource, transformSource
+    match(stderr, /DeprecationWarning:/);
+    match(stderr, /dynamicInstantiate/);
+    match(stderr, /getFormat/);
+    match(stderr, /getSource/);
+    match(stderr, /transformSource/);
+
+    notStrictEqual(code, 0);
+  });
 });
-child.on('close', mustCall((code, _signal) => {
-  notStrictEqual(code, 0);
-
-  // DeprecationWarning: Obsolete loader hook(s) supplied and will be ignored:
-  // dynamicInstantiate, getFormat, getSource, transformSource
-  match(stderr, /DeprecationWarning:/);
-  match(stderr, /dynamicInstantiate/);
-  match(stderr, /getFormat/);
-  match(stderr, /getSource/);
-  match(stderr, /transformSource/);
-}));

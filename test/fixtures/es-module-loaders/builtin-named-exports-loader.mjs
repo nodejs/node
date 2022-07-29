@@ -35,7 +35,7 @@ export function load(url, context, next) {
       format: 'module',
     };
   }
-  return next(url, context);
+  return next(url);
 }
 
 function generateBuiltinModule(builtinName) {

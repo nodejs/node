@@ -1,24 +1,20 @@
-import { mustCall } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { match, ok, notStrictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { match, ok, notStrictEqual } from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const child = spawn(execPath, [
-  '--experimental-loader',
-  fileURL('es-module-loaders', 'syntax-error.mjs').href,
-  path('print-error-message.js'),
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: loader with syntax error', { concurrency: true }, () => {
+  it('should crash the node process', async () => {
+    const { code, stderr } = await spawnPromisified(execPath, [
+      '--experimental-loader',
+      fileURL('es-module-loaders', 'syntax-error.mjs').href,
+      path('print-error-message.js'),
+    ]);
+
+    match(stderr, /SyntaxError:/);
+    ok(!stderr.includes('Bad command or file name'));
+    notStrictEqual(code, 0);
+  });
 });
-child.on('close', mustCall((code, _signal) => {
-  notStrictEqual(code, 0);
-
-  match(stderr, /SyntaxError:/);
-
-  ok(!stderr.includes('Bad command or file name'));
-}));
