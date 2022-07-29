@@ -46,7 +46,7 @@ and is as follows:
 
 1. Users can ask Node.js to execute a file which is not one of the types it
    can execute by default (.js, .mjs, etc.). For example `node script.ts`.
-2. On startup Node.js will look for a config which is in the scope of the
+2. On startup, Node.js will look for a config which is in the scope of the
    file being executed.
 3. If no config is found, Node.js will echo either:
    * If the file was a TypeScript file, a TypeScript specific message with a
