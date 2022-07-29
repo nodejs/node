@@ -3633,6 +3633,16 @@ try {
 }
 ```
 
+## `http.setMaxIdleHTTPParsers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Set the maximum number of idle HTTP parsers. **Default:** `1000`.
+
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
