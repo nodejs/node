@@ -1110,7 +1110,7 @@ Implementors should not override this method, but instead implement
 ##### `readable.closed`
 
 <!-- YAML
-added: v8.0.0
+added: v18.0.0
 -->
 
 * {boolean}
@@ -1120,7 +1120,7 @@ Is `true` after `'close'` has been emitted.
 ##### `readable.destroyed`
 
 <!-- YAML
-added: v18.0.0
+added: v8.0.0
 -->
 
 * {boolean}
