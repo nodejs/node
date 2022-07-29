@@ -56,10 +56,10 @@ export function load(url, context, next) {
     source: `export const message = 'Woohoo!'.toUpperCase();`,
   };
 
-  return next(url, context, next);
+  return next(url);
 }
 
-export function resolve(specifier, context, next) {
+export function resolve(specifier, { importAssertions }, next) {
   let format = '';
 
   if (specifier === 'esmHook/format.false') format = false;
@@ -70,8 +70,8 @@ export function resolve(specifier, context, next) {
     format,
     shortCircuit: true,
     url: pathToFileURL(specifier).href,
-    importAssertions: context.importAssertions,
+    importAssertions,
   };
 
-  return next(specifier, context, next);
+  return next(specifier);
 }

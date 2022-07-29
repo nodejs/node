@@ -28,7 +28,7 @@ export function resolve(specifier, context, next) {
       url: specifier,
     };
   }
-  return next(specifier, context);
+  return next(specifier);
 }
 
 export function load(href, context, next) {
@@ -39,5 +39,5 @@ export function load(href, context, next) {
       source: SOURCES[href],
     };
   }
-  return next(href, context);
+  return next(href);
 }
