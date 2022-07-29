@@ -52,7 +52,7 @@ and is as follows:
    * If the file was a TypeScript file, a TypeScript specific message with a
      reference to a link on Nodejs.org on how to install required components
      for TypeScript and how to add the associated config.
-   * If the file was not a TypeScript file, a generic message
+   * If the file was not a TypeScript file, a generic message.
 4. If a config is found, Node.js will extract the Node.js options for
    that config and apply them as if they had been provided on the command
    line.
