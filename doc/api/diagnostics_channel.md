@@ -428,6 +428,24 @@ Emitted when server receives a request.
 
 Emitted when server sends a response.
 
+`net.client.socket`
+
+* `socket` {net.Socket}
+
+Emitted when a new TCP or pipe client socket is created.
+
+`net.server.socket`
+
+* `socket` {net.Socket}
+
+Emitted when a new TCP or pipe connection is received.
+
+`udp.socket`
+
+* `socket` {dgram.Socket}
+
+Emitted when a new UDP socket is created.
+
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
