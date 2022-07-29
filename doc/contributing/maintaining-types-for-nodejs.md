@@ -73,8 +73,8 @@ Some additional specifics around the current approach include:
   that should be explored after the initial steps are complete.
 * It will be important that as part of the messaging around this
   functionality that we avoid confusion that could lead people to ship
-  TypeScript files (ex `script.ts`) instead of the processed files
-  (ex `script.js`).
+  TypeScript files (e.g. `script.ts`) instead of the processed files
+  (e.g. `script.js`).
 
 ## Generation/Consumption of machine readable JSON files
 
