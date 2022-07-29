@@ -34,7 +34,7 @@ The number of people using TypeScript with Node.js is significant enough
 that providing a good developer experience is important. While TypeScript
 is identified specifically, a secondary goal is that what we provide to improve
 development experience with TypeScript would apply to other type
-systems as well.
+systems and transpiled languages as well.
 
 We have agreed that the approach will **NOT** include bundling TypeScript
 tools with Node.js but instead improve the developer experience for how
