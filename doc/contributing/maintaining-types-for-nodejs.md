@@ -65,7 +65,7 @@ Some additional specifics around the current approach include:
 * Loaders already provide a number of the components needed to
   satisfy the requirements above. They already provide the Node.js
   options that are needed to achieve many of the requirements above.
-* package.json as the location for the config is potentially a good
+* `package.json` as the location for the config is potentially a good
   choice as Node.js already looks for it as part of startup.
 * The implementation chosen should allow for difference configuration in
   for different enronments/conditions like prod,dev, etc.
