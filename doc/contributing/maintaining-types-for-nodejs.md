@@ -33,7 +33,7 @@ The agreement was that the ideal flow would be as follows:
 The number of people using TypeScript with Node.js is significant enough
 that providing a good developer experience is important. While TypeScript
 is identified specifically, a secondary goal is that what we provide to improve
-development experience with TypeScrtipt would apply to other type
+development experience with TypeScript would apply to other type
 systems as well.
 
 We have agreed that the approach will `NOT` include bundling TypeScript
