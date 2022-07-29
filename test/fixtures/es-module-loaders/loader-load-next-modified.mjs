@@ -2,7 +2,7 @@ export async function load(url, context, next) {
   const {
     format,
     source,
-  } = await next(url, context);
+  } = await next(url);
 
   return {
     format,

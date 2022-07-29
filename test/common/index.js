@@ -24,7 +24,7 @@
 const process = global.process;  // Some tests tamper with the process global.
 
 const assert = require('assert');
-const { exec, execSync, spawnSync } = require('child_process');
+const { exec, execSync, spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
@@ -842,6 +842,36 @@ function requireNoPackageJSONAbove(dir = __dirname) {
   }
 }
 
+function spawnPromisified(...args) {
+  let stderr = '';
+  let stdout = '';
+
+  const child = spawn(...args);
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (data) => { stderr += data; });
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (data) => { stdout += data; });
+
+  return new Promise((resolve, reject) => {
+    child.on('close', (code, signal) => {
+      resolve({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+    child.on('error', (code, signal) => {
+      reject({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+  });
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -891,6 +921,7 @@ const common = {
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfWorker,
+  spawnPromisified,
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

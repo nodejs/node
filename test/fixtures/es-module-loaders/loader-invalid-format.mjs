@@ -1,11 +1,11 @@
-export async function resolve(specifier, { parentURL, importAssertions }, defaultResolve) {
+export async function resolve(specifier, { parentURL, importAssertions }, next) {
   if (parentURL && specifier === '../fixtures/es-modules/test-esm-ok.mjs') {
     return {
       shortCircuit: true,
       url: 'file:///asdf',
     };
   }
-  return defaultResolve(specifier, {parentURL, importAssertions}, defaultResolve);
+  return next(specifier);
 }
 
 export async function load(url, context, next) {
@@ -16,5 +16,5 @@ export async function load(url, context, next) {
       source: '',
     }
   }
-  return next(url, context, next);
+  return next(url);
 }
