@@ -3,6 +3,11 @@
 const common = require('../common');
 const { ok, strictEqual } = require('assert');
 const { setImmediate: pause } = require('timers/promises');
+const {
+  transferableAbortSignal,
+  transferableAbortController,
+} = require('util');
+
 
 function deferred() {
   let res;
@@ -11,7 +16,7 @@ function deferred() {
 }
 
 (async () => {
-  const ac = new AbortController();
+  const ac = transferableAbortController();
   const mc = new MessageChannel();
 
   const deferred1 = deferred();
@@ -54,7 +59,7 @@ function deferred() {
 })().then(common.mustCall());
 
 {
-  const signal = AbortSignal.abort('boom');
+  const signal = transferableAbortSignal(AbortSignal.abort('boom'));
   ok(signal.aborted);
   strictEqual(signal.reason, 'boom');
   const mc = new MessageChannel();
@@ -70,7 +75,7 @@ function deferred() {
 {
   // The cloned AbortSignal does not keep the event loop open
   // waiting for the abort to be triggered.
-  const ac = new AbortController();
+  const ac = transferableAbortController();
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall();
   mc.port2.postMessage(ac.signal, [ac.signal]);
