@@ -1,10 +1,11 @@
-import { mustCall } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
-import { strictEqual } from 'node:assert';
-import { spawn } from 'node:child_process';
+import assert from 'node:assert';
 import http from 'node:http';
 import path from 'node:path';
+import { execPath } from 'node:process';
 import { promisify } from 'node:util';
+import { describe, it } from 'node:test';
 
 
 const files = {
@@ -40,33 +41,31 @@ const {
   port,
 } = server.address();
 
-{ // Verify nested HTTP imports work
-  const child = spawn( // ! `spawn` MUST be used (vs `spawnSync`) to avoid blocking the event loop
-    process.execPath,
-    [
-      '--no-warnings',
-      '--loader',
-      fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
-      '--input-type=module',
-      '--eval',
-      `import * as main from 'http://${host}:${port}/main.mjs'; console.log(main)`,
-    ]
-  );
+/**
+ * ! If more cases are added to this test, they cannot (yet) be concurrent because there is no
+ * ! `afterAll` teardown in which to close the server.
+ */
 
-  let stderr = '';
-  let stdout = '';
+describe('ESM: http import via loader', { concurrency: false }, () => {
+  it('should work', async () => {
+    // ! MUST NOT use spawnSync to avoid blocking the event loop
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--no-warnings',
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
+        '--input-type=module',
+        '--eval',
+        `import * as main from 'http://${host}:${port}/main.mjs'; console.log(main)`,
+      ]
+    );
 
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => stderr += data);
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (data) => stdout += data);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '[Module: null prototype] { sum: [Function: sum] }\n');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
 
-  child.on('close', mustCall((code, signal) => {
-    strictEqual(stderr, '');
-    strictEqual(stdout, '[Module: null prototype] { sum: [Function: sum] }\n');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
-
-    server.close();
-  }));
-}
+    server.close(); // ! This MUST come after the final test, but inside the async `it` function
+  });
+});

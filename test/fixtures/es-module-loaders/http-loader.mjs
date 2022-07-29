@@ -15,7 +15,7 @@ export function resolve(specifier, context, nextResolve) {
     };
   }
 
-  return nextResolve(specifier, context);
+  return nextResolve(specifier);
 }
 
 export function load(url, context, nextLoad) {
@@ -36,5 +36,5 @@ export function load(url, context, nextLoad) {
     });
   }
 
-  return nextLoad(url, context);
+  return nextLoad(url);
 }
