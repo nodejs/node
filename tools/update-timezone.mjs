@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Usage: tools/update-timezone.mjs
 import { execSync, spawnSync } from 'node:child_process';
-import { renameSync } from 'node:fs';
+import { renameSync, readdirSync } from 'node:fs';
 import { exit } from 'node:process';
 
 const fileNames = [
@@ -10,18 +10,12 @@ const fileNames = [
   'timezoneTypes.res',
   'metaZones.res',
 ];
-const dirs = spawnSync(
-  'ls', {
-    cwd: 'icu-data/tzdata/icunew',
-    stdio: ['inherit', 'pipe', 'inherit']
-  }
-);
+
+const availableVersions = readdirSync('icu-data/tzdata/icunew', { withFileTypes: true })
+.filter((dirent) => dirent.isDirectory())
+.map((dirent) => dirent.name);
 
 const currentVersion = process.versions.tz;
-const availableVersions = dirs.stdout
-      .toString()
-      .split('\n')
-      .filter((_) => _);
 const latestVersion = availableVersions.sort().reverse()[0];
 
 if (latestVersion === currentVersion) {
