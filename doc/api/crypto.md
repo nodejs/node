@@ -674,7 +674,8 @@ const iv = Buffer.alloc(16, 0); // Initialization vector.
 const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
-decipher.on('readable', (chunk) => {
+decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
@@ -710,7 +711,8 @@ const iv = Buffer.alloc(16, 0); // Initialization vector.
 const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
-decipher.on('readable', (chunk) => {
+decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
