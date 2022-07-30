@@ -8,6 +8,7 @@
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
@@ -125,9 +126,12 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Initialize(Environment* env, Local<Object> target) {
-  env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
-  env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
-  env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
+  Local<Context> context = env->context();
+  SetMethodNoSideEffect(context, target, "certVerifySpkac", VerifySpkac);
+  SetMethodNoSideEffect(
+      context, target, "certExportPublicKey", ExportPublicKey);
+  SetMethodNoSideEffect(
+      context, target, "certExportChallenge", ExportChallenge);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

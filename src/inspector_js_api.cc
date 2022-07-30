@@ -102,17 +102,17 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   static void Bind(Environment* env, Local<Object> target) {
+    Isolate* isolate = env->isolate();
     Local<FunctionTemplate> tmpl =
-        env->NewFunctionTemplate(JSBindingsConnection::New);
+        NewFunctionTemplate(isolate, JSBindingsConnection::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         JSBindingsConnection::kInternalFieldCount);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
-    env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-    env->SetConstructorFunction(
-        target,
-        ConnectionType::GetClassName(env),
-        tmpl);
+    SetProtoMethod(isolate, tmpl, "dispatch", JSBindingsConnection::Dispatch);
+    SetProtoMethod(
+        isolate, tmpl, "disconnect", JSBindingsConnection::Disconnect);
+    SetConstructorFunction(
+        env->context(), target, ConnectionType::GetClassName(env), tmpl);
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -314,37 +314,47 @@ void Url(const FunctionCallbackInfo<Value>& args) {
 void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   v8::Local<v8::Function> consoleCallFunc =
-      env->NewFunctionTemplate(InspectorConsoleCall, v8::Local<v8::Signature>(),
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasSideEffect)
+      NewFunctionTemplate(isolate,
+                          InspectorConsoleCall,
+                          v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
           ->GetFunction(context)
           .ToLocalChecked();
-  auto name_string = FIXED_ONE_BYTE_STRING(env->isolate(), "consoleCall");
+  auto name_string = FIXED_ONE_BYTE_STRING(isolate, "consoleCall");
   target->Set(context, name_string, consoleCallFunc).Check();
   consoleCallFunc->SetName(name_string);
 
-  env->SetMethod(
-      target, "setConsoleExtensionInstaller", SetConsoleExtensionInstaller);
-  env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
-  env->SetMethod(target, "open", Open);
-  env->SetMethodNoSideEffect(target, "url", Url);
-  env->SetMethod(target, "waitForDebugger", WaitForDebugger);
+  SetMethod(context,
+            target,
+            "setConsoleExtensionInstaller",
+            SetConsoleExtensionInstaller);
+  SetMethod(context, target, "callAndPauseOnStart", CallAndPauseOnStart);
+  SetMethod(context, target, "open", Open);
+  SetMethodNoSideEffect(context, target, "url", Url);
+  SetMethod(context, target, "waitForDebugger", WaitForDebugger);
 
-  env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
-  env->SetMethod(target, "asyncTaskCanceled",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
-  env->SetMethod(target, "asyncTaskStarted",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
-  env->SetMethod(target, "asyncTaskFinished",
-      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
+  SetMethod(context, target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
+  SetMethod(context,
+            target,
+            "asyncTaskCanceled",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
+  SetMethod(context,
+            target,
+            "asyncTaskStarted",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
+  SetMethod(context,
+            target,
+            "asyncTaskFinished",
+            InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
 
-  env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
-  env->SetMethodNoSideEffect(target, "isEnabled", IsEnabled);
+  SetMethod(context, target, "registerAsyncHook", RegisterAsyncHookWrapper);
+  SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
 
-  Local<String> console_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "console");
+  Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
   // Grab the console from the binding object and expose those to our binding
   // layer.

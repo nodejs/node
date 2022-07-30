@@ -2030,8 +2030,9 @@ void TLSWrap::Initialize(
     Local<Context> context,
     void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "wrap", TLSWrap::Wrap);
+  SetMethod(context, target, "wrap", TLSWrap::Wrap);
 
   NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
 
@@ -2054,54 +2055,56 @@ void TLSWrap::Initialize(
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "certCbDone", CertCbDone);
-  env->SetProtoMethod(t, "destroySSL", DestroySSL);
-  env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
-  env->SetProtoMethod(t, "endParser", EndParser);
-  env->SetProtoMethod(t, "enableKeylogCallback", EnableKeylogCallback);
-  env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
-  env->SetProtoMethod(t, "enableTrace", EnableTrace);
-  env->SetProtoMethod(t, "getServername", GetServername);
-  env->SetProtoMethod(t, "loadSession", LoadSession);
-  env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
-  env->SetProtoMethod(t, "receive", Receive);
-  env->SetProtoMethod(t, "renegotiate", Renegotiate);
-  env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
-  env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
-  env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
-  env->SetProtoMethod(t, "setServername", SetServername);
-  env->SetProtoMethod(t, "setSession", SetSession);
-  env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
-  env->SetProtoMethod(t, "start", Start);
+  SetProtoMethod(isolate, t, "certCbDone", CertCbDone);
+  SetProtoMethod(isolate, t, "destroySSL", DestroySSL);
+  SetProtoMethod(isolate, t, "enableCertCb", EnableCertCb);
+  SetProtoMethod(isolate, t, "endParser", EndParser);
+  SetProtoMethod(isolate, t, "enableKeylogCallback", EnableKeylogCallback);
+  SetProtoMethod(isolate, t, "enableSessionCallbacks", EnableSessionCallbacks);
+  SetProtoMethod(isolate, t, "enableTrace", EnableTrace);
+  SetProtoMethod(isolate, t, "getServername", GetServername);
+  SetProtoMethod(isolate, t, "loadSession", LoadSession);
+  SetProtoMethod(isolate, t, "newSessionDone", NewSessionDone);
+  SetProtoMethod(isolate, t, "receive", Receive);
+  SetProtoMethod(isolate, t, "renegotiate", Renegotiate);
+  SetProtoMethod(isolate, t, "requestOCSP", RequestOCSP);
+  SetProtoMethod(isolate, t, "setALPNProtocols", SetALPNProtocols);
+  SetProtoMethod(isolate, t, "setOCSPResponse", SetOCSPResponse);
+  SetProtoMethod(isolate, t, "setServername", SetServername);
+  SetProtoMethod(isolate, t, "setSession", SetSession);
+  SetProtoMethod(isolate, t, "setVerifyMode", SetVerifyMode);
+  SetProtoMethod(isolate, t, "start", Start);
 
-  env->SetProtoMethodNoSideEffect(t, "exportKeyingMaterial",
-                                  ExportKeyingMaterial);
-  env->SetProtoMethodNoSideEffect(t, "isSessionReused", IsSessionReused);
-  env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
-                                  GetALPNNegotiatedProto);
-  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate);
-  env->SetProtoMethodNoSideEffect(t, "getX509Certificate", GetX509Certificate);
-  env->SetProtoMethodNoSideEffect(t, "getCipher", GetCipher);
-  env->SetProtoMethodNoSideEffect(t, "getEphemeralKeyInfo",
-                                  GetEphemeralKeyInfo);
-  env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
-  env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
-  env->SetProtoMethodNoSideEffect(t, "getPeerX509Certificate",
-                                  GetPeerX509Certificate);
-  env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
-  env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
-  env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);
-  env->SetProtoMethodNoSideEffect(t, "getSharedSigalgs", GetSharedSigalgs);
-  env->SetProtoMethodNoSideEffect(t, "getTLSTicket", GetTLSTicket);
-  env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "exportKeyingMaterial", ExportKeyingMaterial);
+  SetProtoMethodNoSideEffect(isolate, t, "isSessionReused", IsSessionReused);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
+  SetProtoMethodNoSideEffect(isolate, t, "getCertificate", GetCertificate);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getX509Certificate", GetX509Certificate);
+  SetProtoMethodNoSideEffect(isolate, t, "getCipher", GetCipher);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
+  SetProtoMethodNoSideEffect(isolate, t, "getFinished", GetFinished);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getPeerCertificate", GetPeerCertificate);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getPeerX509Certificate", GetPeerX509Certificate);
+  SetProtoMethodNoSideEffect(isolate, t, "getPeerFinished", GetPeerFinished);
+  SetProtoMethodNoSideEffect(isolate, t, "getProtocol", GetProtocol);
+  SetProtoMethodNoSideEffect(isolate, t, "getSession", GetSession);
+  SetProtoMethodNoSideEffect(isolate, t, "getSharedSigalgs", GetSharedSigalgs);
+  SetProtoMethodNoSideEffect(isolate, t, "getTLSTicket", GetTLSTicket);
+  SetProtoMethodNoSideEffect(isolate, t, "verifyError", VerifyError);
 
 #ifdef SSL_set_max_send_fragment
-  env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
+  SetProtoMethod(isolate, t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
 #ifndef OPENSSL_NO_PSK
-  env->SetProtoMethod(t, "enablePskCallback", EnablePskCallback);
-  env->SetProtoMethod(t, "setPskIdentityHint", SetPskIdentityHint);
+  SetProtoMethod(isolate, t, "enablePskCallback", EnablePskCallback);
+  SetProtoMethod(isolate, t, "setPskIdentityHint", SetPskIdentityHint);
 #endif  // !OPENSSL_NO_PSK
 
   StreamBase::AddMethods(env, t);

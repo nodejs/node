@@ -17,6 +17,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -325,17 +326,18 @@ Sign::Sign(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {
 }
 
 void Sign::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", SignInit);
-  env->SetProtoMethod(t, "update", SignUpdate);
-  env->SetProtoMethod(t, "sign", SignFinal);
+  SetProtoMethod(isolate, t, "init", SignInit);
+  SetProtoMethod(isolate, t, "update", SignUpdate);
+  SetProtoMethod(isolate, t, "sign", SignFinal);
 
-  env->SetConstructorFunction(target, "Sign", t);
+  SetConstructorFunction(env->context(), target, "Sign", t);
 
   SignJob::Initialize(env, target);
 
@@ -454,17 +456,18 @@ Verify::Verify(Environment* env, Local<Object> wrap)
 }
 
 void Verify::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", VerifyInit);
-  env->SetProtoMethod(t, "update", VerifyUpdate);
-  env->SetProtoMethod(t, "verify", VerifyFinal);
+  SetProtoMethod(isolate, t, "init", VerifyInit);
+  SetProtoMethod(isolate, t, "update", VerifyUpdate);
+  SetProtoMethod(isolate, t, "verify", VerifyFinal);
 
-  env->SetConstructorFunction(target, "Verify", t);
+  SetConstructorFunction(env->context(), target, "Verify", t);
 }
 
 void Verify::RegisterExternalReferences(ExternalReferenceRegistry* registry) {

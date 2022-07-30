@@ -443,12 +443,15 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       v8::FunctionCallback new_fn,
       Environment* env,
       v8::Local<v8::Object> target) {
-    v8::Local<v8::FunctionTemplate> job = env->NewFunctionTemplate(new_fn);
+    v8::Isolate* isolate = env->isolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env->context();
+    v8::Local<v8::FunctionTemplate> job = NewFunctionTemplate(isolate, new_fn);
     job->Inherit(AsyncWrap::GetConstructorTemplate(env));
     job->InstanceTemplate()->SetInternalFieldCount(
         AsyncWrap::kInternalFieldCount);
-    env->SetProtoMethod(job, "run", Run);
-    env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
+    SetProtoMethod(isolate, job, "run", Run);
+    SetConstructorFunction(context, target, CryptoJobTraits::JobName, job);
   }
 
   static void RegisterExternalReferences(v8::FunctionCallback new_fn,

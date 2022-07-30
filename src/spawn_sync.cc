@@ -363,8 +363,7 @@ void SyncProcessRunner::Initialize(Local<Object> target,
                                    Local<Value> unused,
                                    Local<Context> context,
                                    void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "spawn", Spawn);
+  SetMethod(context, target, "spawn", Spawn);
 }
 
 

@@ -52,6 +52,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Uint32Array;
@@ -1256,21 +1257,22 @@ CompressionError BrotliDecoderContext::GetErrorInfo() const {
 template <typename Stream>
 struct MakeClass {
   static void Make(Environment* env, Local<Object> target, const char* name) {
-    Local<FunctionTemplate> z = env->NewFunctionTemplate(Stream::New);
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> z = NewFunctionTemplate(isolate, Stream::New);
 
     z->InstanceTemplate()->SetInternalFieldCount(
         Stream::kInternalFieldCount);
     z->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(z, "write", Stream::template Write<true>);
-    env->SetProtoMethod(z, "writeSync", Stream::template Write<false>);
-    env->SetProtoMethod(z, "close", Stream::Close);
+    SetProtoMethod(isolate, z, "write", Stream::template Write<true>);
+    SetProtoMethod(isolate, z, "writeSync", Stream::template Write<false>);
+    SetProtoMethod(isolate, z, "close", Stream::Close);
 
-    env->SetProtoMethod(z, "init", Stream::Init);
-    env->SetProtoMethod(z, "params", Stream::Params);
-    env->SetProtoMethod(z, "reset", Stream::Reset);
+    SetProtoMethod(isolate, z, "init", Stream::Init);
+    SetProtoMethod(isolate, z, "params", Stream::Params);
+    SetProtoMethod(isolate, z, "reset", Stream::Reset);
 
-    env->SetConstructorFunction(target, name, z);
+    SetConstructorFunction(env->context(), target, name, z);
   }
 
   static void Make(ExternalReferenceRegistry* registry) {

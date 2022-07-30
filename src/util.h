@@ -856,6 +856,66 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 // Returns a non-zero code if it fails to open or read the file,
 // aborts if it fails to close the file.
 int ReadFileSync(std::string* result, const char* path);
+
+v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::FunctionCallback callback,
+    v8::Local<v8::Signature> signature = v8::Local<v8::Signature>(),
+    v8::ConstructorBehavior behavior = v8::ConstructorBehavior::kAllow,
+    v8::SideEffectType side_effect = v8::SideEffectType::kHasSideEffect,
+    const v8::CFunction* c_function = nullptr);
+
+// Convenience methods for NewFunctionTemplate().
+void SetMethod(v8::Local<v8::Context> context,
+               v8::Local<v8::Object> that,
+               const char* name,
+               v8::FunctionCallback callback);
+
+void SetFastMethod(v8::Local<v8::Context> context,
+                   v8::Local<v8::Object> that,
+                   const char* name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function);
+
+void SetProtoMethod(v8::Isolate* isolate,
+                    v8::Local<v8::FunctionTemplate> that,
+                    const char* name,
+                    v8::FunctionCallback callback);
+
+void SetInstanceMethod(v8::Isolate* isolate,
+                       v8::Local<v8::FunctionTemplate> that,
+                       const char* name,
+                       v8::FunctionCallback callback);
+
+// Safe variants denote the function has no side effects.
+void SetMethodNoSideEffect(v8::Local<v8::Context> context,
+                           v8::Local<v8::Object> that,
+                           const char* name,
+                           v8::FunctionCallback callback);
+void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
+                                v8::Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback);
+
+enum class SetConstructorFunctionFlag {
+  NONE,
+  SET_CLASS_NAME,
+};
+
+void SetConstructorFunction(v8::Local<v8::Context> context,
+                            v8::Local<v8::Object> that,
+                            const char* name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Local<v8::Context> context,
+                            v8::Local<v8::Object> that,
+                            v8::Local<v8::String> name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
