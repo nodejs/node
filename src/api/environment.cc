@@ -5,6 +5,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_platform.h"
+#include "node_realm-inl.h"
 #include "node_shadow_realm.h"
 #include "node_v8_platform-inl.h"
 #include "node_wasm_web_api.h"
@@ -378,7 +379,7 @@ Environment* CreateEnvironment(
   }
 #endif
 
-  if (env->RunBootstrapping().IsEmpty()) {
+  if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
     return nullptr;
   }
@@ -453,11 +454,13 @@ MaybeLocal<Value> LoadEnvironment(
         builtins::BuiltinLoader::Add(
             name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
         env->set_main_utf16(std::move(main_utf16));
+        Realm* realm = env->principal_realm();
+
         // Arguments must match the parameters specified in
         // BuiltinLoader::LookupAndCompile().
-        std::vector<Local<Value>> args = {env->process_object(),
-                                          env->builtin_module_require()};
-        return ExecuteBootstrapper(env, name.c_str(), &args);
+        std::vector<Local<Value>> args = {realm->process_object(),
+                                          realm->builtin_module_require()};
+        return realm->ExecuteBootstrapper(name.c_str(), &args);
       });
 }
 
