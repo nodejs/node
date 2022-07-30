@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Usage: tools/update-timezone.mjs
 import { execSync, spawnSync } from 'node:child_process';
-import { renameSync, readdirSync } from 'node:fs';
+import { renameSync, readdirSync, rmSync } from 'node:fs';
 import { exit } from 'node:process';
 
 const fileNames = [
@@ -32,11 +32,7 @@ fileNames.forEach((file) => {
       'icudt*.dat',
     ], { cwd: 'deps/icu-small/source/data/in/' }
   );
-  spawnSync(
-    'rm', [
-      file,
-    ], { cwd: 'deps/icu-small/source/data/in/' }
-  );
+  rmSync(`deps/icu-small/source/data/in/${file}`);
 });
 execSync('bzip2 -z deps/icu-small/source/data/in/icudt*.dat');
-execSync('rm -rf icu-data');
+rmSync('icu-data', { recursive: true });
