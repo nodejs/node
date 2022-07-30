@@ -444,17 +444,16 @@ void IsolateData::CreateProperties() {
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
+                         std::shared_ptr<PerIsolateOptions> options,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
                          const IsolateDataSerializeInfo* isolate_data_info)
     : isolate_(isolate),
       event_loop_(event_loop),
+      options_(options),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
       platform_(platform) {
-  options_.reset(
-      new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
-
   if (isolate_data_info == nullptr) {
     CreateProperties();
   } else {

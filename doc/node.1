@@ -394,6 +394,11 @@ Starts the Node.js command line test runner.
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 .
+.It Fl -thread-max-old-space-size
+Sets the max memory size of V8's old memory section for the main thread (in
+megabytes). As memory consumption approaches the limit, V8 will spend more time
+on garbage collection in an effort to free unused memory.
+.
 .It Fl -throw-deprecation
 Throw errors for deprecations.
 .

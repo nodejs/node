@@ -1,12 +1,9 @@
+// Flags: --thread-max-old-space-size=1024
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { Worker, resourceLimits, isMainThread } = require('worker_threads');
+const { Worker, resourceLimits } = require('worker_threads');
 const { allocateUntilCrash } = require('../common/allocate-and-check-limits');
-
-if (isMainThread) {
-  assert.deepStrictEqual(resourceLimits, {});
-}
 
 const testResourceLimits = {
   maxOldGenerationSizeMb: 16,
@@ -33,4 +30,6 @@ if (!process.env.HAS_STARTED_WORKER) {
 }
 
 assert.deepStrictEqual(resourceLimits, testResourceLimits);
+// resourceLimits should be used; --thread-max-old-space-size should only
+// affect the main thread.
 allocateUntilCrash(resourceLimits);
