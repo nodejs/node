@@ -605,7 +605,7 @@ Preload the specified module at startup.
 
 Follows [ECMAScript module][] resolution rules.
 Use [`--require`][] to load a [CommonJS module][].
-modules preloaded with `--require` will run before modules preloaded with `--import`
+Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 ### `--input-type=type`
 
@@ -1542,7 +1542,7 @@ rules. `module` may be either a path to a file, or a node module name.
 
 Only CommonJS modules are supported.
 Use [`--import`][] to preload an [ECMAScript module][].
-modules preloaded with `--require` will run before modules preloaded with `--import`
+Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 ### `-v`, `--version`
 

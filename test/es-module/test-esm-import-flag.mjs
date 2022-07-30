@@ -152,6 +152,22 @@ describe('import modules using --import', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
+  it('should import --require before --import', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--import', mjsImport,
+        '--require', cjsEntry,
+        '--eval', 'console.log("log")',
+      ]
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^\.cjs file\r?\n\.mjs file\r?\nlog\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
   it('should import a module with top level await', async () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,
