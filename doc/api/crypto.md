@@ -395,11 +395,11 @@ Example: Using `Cipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 
 import {
   pipeline
-} from 'stream';
+} from 'node:stream';
 
 const {
   scrypt,
@@ -675,6 +675,7 @@ const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
@@ -711,6 +712,7 @@ const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
@@ -733,7 +735,7 @@ Example: Using `Decipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 import { Buffer } from 'node:buffer';
 const {
   scryptSync,
@@ -3311,7 +3313,7 @@ Example: generating the sha256 sum of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 import { argv } from 'node:process';
 const {
   createHash
@@ -3397,7 +3399,7 @@ Example: generating the sha256 HMAC of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 import { argv } from 'node:process';
 const {
   createHmac
