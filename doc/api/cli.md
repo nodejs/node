@@ -445,7 +445,8 @@ Only the root context is supported. There is no guarantee that
 `globalThis.Array` is indeed the default intrinsic reference. Code may break
 under this flag.
 
-To allow polyfills to be added, `--require` runs before freezing intrinsics.
+To allow polyfills to be added,
+[`--require`][] and [`--import`][] both run before freezing intrinsics.
 
 ### `--force-node-api-uncaught-exceptions-policy`
 
@@ -593,6 +594,18 @@ added: v0.11.15
 -->
 
 Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
+
+### `--import=module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Preload the specified module at startup.
+
+Follows [ECMAScript module][] resolution rules.
+Use [`--require`][] to load a [CommonJS module][].
+Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 ### `--input-type=type`
 
@@ -1527,8 +1540,9 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
-Only CommonJS modules are supported. Attempting to preload a
-ES6 Module using `--require` will fail with an error.
+Only CommonJS modules are supported.
+Use [`--import`][] to preload an [ECMAScript module][].
+Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 ### `-v`, `--version`
 
@@ -1682,6 +1696,7 @@ Node.js options that are allowed are:
 * `--heapsnapshot-signal`
 * `--http-parser`
 * `--icu-data-dir`
+* `--import`
 * `--input-type`
 * `--insecure-http-parser`
 * `--inspect-brk`
@@ -2086,7 +2101,9 @@ done
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
+[CommonJS module]: modules.md
 [CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
+[ECMAScript module]: esm.md#modules-ecmascript-modules
 [ECMAScript module loader]: esm.md#loaders
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [Modules loaders]: packages.md#modules-loaders
@@ -2103,8 +2120,10 @@ done
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
+[`--import`]: #--importmodule
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile
+[`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
