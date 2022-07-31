@@ -601,6 +601,8 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 Preload the specified module at startup.
 
 Follows [ECMAScript module][] resolution rules.
