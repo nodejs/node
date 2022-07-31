@@ -15,11 +15,8 @@
 #include <atomic>
 #include <sstream>
 
+namespace node {
 namespace report {
-using node::Environment;
-using node::Mutex;
-using node::SetMethod;
-using node::Utf8Value;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -77,48 +74,48 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
 }
 
 static void GetCompact(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  info.GetReturnValue().Set(node::per_process::cli_options->report_compact);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  info.GetReturnValue().Set(per_process::cli_options->report_compact);
 }
 
 static void SetCompact(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
   bool compact = info[0]->ToBoolean(isolate)->Value();
-  node::per_process::cli_options->report_compact = compact;
+  per_process::cli_options->report_compact = compact;
 }
 
 static void GetDirectory(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(info);
-  std::string directory = node::per_process::cli_options->report_directory;
+  std::string directory = per_process::cli_options->report_directory;
   auto result = String::NewFromUtf8(env->isolate(), directory.c_str());
   info.GetReturnValue().Set(result.ToLocalChecked());
 }
 
 static void SetDirectory(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(info);
   CHECK(info[0]->IsString());
   Utf8Value dir(env->isolate(), info[0].As<String>());
-  node::per_process::cli_options->report_directory = *dir;
+  per_process::cli_options->report_directory = *dir;
 }
 
 static void GetFilename(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(info);
-  std::string filename = node::per_process::cli_options->report_filename;
+  std::string filename = per_process::cli_options->report_filename;
   auto result = String::NewFromUtf8(env->isolate(), filename.c_str());
   info.GetReturnValue().Set(result.ToLocalChecked());
 }
 
 static void SetFilename(const FunctionCallbackInfo<Value>& info) {
-  node::Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(info);
   CHECK(info[0]->IsString());
   Utf8Value name(env->isolate(), info[0].As<String>());
-  node::per_process::cli_options->report_filename = *name;
+  per_process::cli_options->report_filename = *name;
 }
 
 static void GetSignal(const FunctionCallbackInfo<Value>& info) {
@@ -136,15 +133,14 @@ static void SetSignal(const FunctionCallbackInfo<Value>& info) {
 }
 
 static void ShouldReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
-  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  info.GetReturnValue().Set(
-      node::per_process::cli_options->report_on_fatalerror);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  info.GetReturnValue().Set(per_process::cli_options->report_on_fatalerror);
 }
 
 static void SetReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
   CHECK(info[0]->IsBoolean());
-  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  node::per_process::cli_options->report_on_fatalerror = info[0]->IsTrue();
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  per_process::cli_options->report_on_fatalerror = info[0]->IsTrue();
 }
 
 static void ShouldReportOnSignal(const FunctionCallbackInfo<Value>& info) {
@@ -201,7 +197,7 @@ static void Initialize(Local<Object> exports,
             SetReportOnUncaughtException);
 }
 
-void RegisterExternalReferences(node::ExternalReferenceRegistry* registry) {
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteReport);
   registry->Register(GetReport);
   registry->Register(GetCompact);
@@ -221,6 +217,7 @@ void RegisterExternalReferences(node::ExternalReferenceRegistry* registry) {
 }
 
 }  // namespace report
+}  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(report, report::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(report, report::RegisterExternalReferences)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(report, node::report::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(report, node::report::RegisterExternalReferences)
