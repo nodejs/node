@@ -19,8 +19,8 @@ onboarding session.
 
 * Prior to the onboarding session, add the new Collaborator to
   [the collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
-* Ask them if they want to join any subsystem teams. See
-  [Who to CC in the issue tracker][who-to-cc].
+* Ask them if they want to join any [subsystem teams](https://github.com/orgs/nodejs/teams/core/teams)
+  and add them accordingly. See [Who to CC in the issue tracker][who-to-cc].
 
 ## Onboarding session
 
