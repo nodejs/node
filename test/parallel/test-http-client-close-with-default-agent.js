@@ -20,4 +20,4 @@ server.listen(0, common.mustCall(() => {
 }));
 
 // This timer should never go off as the server will close the socket
-setTimeout(common.mustNotCall(), common.platformTimeout(10000)).unref();
+setTimeout(common.mustNotCall(), common.platformTimeout(1000)).unref();
