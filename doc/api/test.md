@@ -154,7 +154,7 @@ Running tests can also be done using `describe` to declare a suite
 and `it` to declare a test.
 A suite is used to organize and group related tests together.
 `it` is an alias for `test`, except there is no test context passed,
-since nesting is done using suites, as demonstrated in this example:
+since nesting is done using suites.
 
 ```js
 describe('A thing', () => {
