@@ -233,7 +233,7 @@ This class is used to create a TCP or [IPC][] server.
 ### `new net.Server([options][, connectionListener])`
 
 * `options` {Object} See
-  [`net.createServer([options][, connectionListener])`][`net.createServer()`].
+  [`net.createServer()`][`net.createServer()`].
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
 * Returns: {net.Server}
@@ -1472,11 +1472,29 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
-## `net.createServer([options][, connectionListener])`
 
+## `net.createServer()`
 <!-- YAML
 added: v0.5.0
 -->
+Creates a new TCP or [IPC][] server.
+
+Possible signatures:
+
+* [`net.createServer([connectionListener])`][`net.createServer(connectionListener)`]
+* [`net.createServer([options][, connectionListener])`][`net.createServer(otions,connectionListener)`]
+
+
+### `net.createServer([connectionListener])`
+  
+* `connectionListener` {Function} Automatically set as a listener for the
+  [`'connection'`][] event.
+
+* Returns: {net.Server}
+
+
+
+### `net.createServer([options][, connectionListener])`
 
 * `options` {Object}
   * `allowHalfOpen` {boolean} If set to `false`, then the socket will
@@ -1498,7 +1516,8 @@ added: v0.5.0
 
 * Returns: {net.Server}
 
-Creates a new TCP or [IPC][] server.
+
+
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
 signals the end of transmission, the server will only send back the end of
@@ -1641,7 +1660,9 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(options)`]: #netcreateconnectionoptions-connectlistener
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
-[`net.createServer()`]: #netcreateserveroptions-connectionlistener
+[`net.createServer()`]: #netcreateserver
+[`net.createServer(otions,connectionListener)`]: #netcreateserveroptions-connectionlistener
+[`net.createServer(connectionListener)`]: #netcreateserverconnectionlistener
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback
