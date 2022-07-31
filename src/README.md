@@ -416,7 +416,7 @@ void Initialize(Local<Object> target,
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
-  SetConstructorFunction(isolate, target, "ChannelWrap", channel_wrap);
+  SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
 // Run the `Initialize` function when loading this module through
