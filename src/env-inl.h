@@ -371,6 +371,14 @@ inline bool Environment::force_context_aware() const {
   return options_->force_context_aware;
 }
 
+inline void Environment::set_exiting(bool value) {
+  exiting_[0] = value ? 1 : 0;
+}
+
+inline AliasedUint32Array& Environment::exiting() {
+  return exiting_;
+}
+
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }

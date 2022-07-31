@@ -813,6 +813,7 @@ Environment::Environment(IsolateData* isolate_data,
       exec_argv_(exec_args),
       argv_(args),
       exec_path_(GetExecPath(args)),
+      exiting_(isolate_, 1, MAYBE_FIELD_PTR(env_info, exiting)),
       should_abort_on_uncaught_toggle_(
           isolate_,
           1,
@@ -919,6 +920,9 @@ void Environment::InitializeMainContext(Local<Context> context,
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
+
+  // The process is not exiting by default.
+  set_exiting(false);
 
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT,
                            time_origin_);
@@ -1811,6 +1815,7 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
+  info.exiting = exiting_.Serialize(ctx, creator);
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
@@ -1858,6 +1863,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << "// -- performance_state begins --\n"
          << i.performance_state << ",\n"
          << "// -- performance_state ends --\n"
+         << i.exiting << ",  // exiting\n"
          << i.stream_base_state << ",  // stream_base_state\n"
          << i.should_abort_on_uncaught_toggle
          << ",  // should_abort_on_uncaught_toggle\n"
@@ -1901,6 +1907,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
   performance_state_->Deserialize(ctx);
+  exiting_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 
@@ -2121,6 +2128,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
                       native_modules_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
+  tracker->TrackField("exiting", exiting_);
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
