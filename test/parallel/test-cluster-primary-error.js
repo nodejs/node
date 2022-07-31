@@ -23,12 +23,18 @@
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
+const fs = require('fs');
+const http = require('http');
 
 const totalWorkers = 2;
 
 // Cluster setup
 if (cluster.isWorker) {
-  const http = require('http');
+  const filepath = `${process.env.filedir}/${process.pid}-test-cluster-primary-error`;
+  fs.writeFileSync(filepath, 'hello');
+  process.on('exit', () => {
+    fs.unlinkSync(filepath);
+  });
   http.Server(() => {}).listen(0, '127.0.0.1');
 } else if (process.argv[2] === 'cluster') {
   // Send PID to testcase process
@@ -66,14 +72,20 @@ if (cluster.isWorker) {
   cluster.fork();
 } else {
   // This is the testcase
-
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  // Make sure the child process have write permission
+  fs.chmodSync(tmpdir.path, 0o777);
   const fork = require('child_process').fork;
 
   // List all workers
   const workers = [];
 
   // Spawn a cluster process
-  const primary = fork(process.argv[1], ['cluster'], { silent: true });
+  const primary = fork(process.argv[1], ['cluster'], {
+    silent: true,
+    env: { filedir: tmpdir.path }
+  });
 
   // Handle messages from the cluster
   primary.on('message', common.mustCall((data) => {
@@ -87,13 +99,16 @@ if (cluster.isWorker) {
   primary.on('exit', common.mustCall((code) => {
     // Check that the cluster died accidentally (non-zero exit code)
     assert.strictEqual(code, 1);
-
     // XXX(addaleax): The fact that this uses raw PIDs makes the test inherently
     // flaky – another process might end up being started right after the
-    // workers finished and receive the same PID.
+    // workers finished and receive the same PID. So we also need to determine
+    // whether the file created by the process still exists
     const pollWorkers = () => {
       // When primary is dead all workers should be dead too
-      if (workers.some((pid) => common.isAlive(pid))) {
+      if (workers.some((pid) => {
+        const filepath = `${tmpdir.path}/${pid}-test-cluster-primary-error`;
+        return common.isAlive(pid) && fs.existsSync(filepath);
+      })) {
         setTimeout(pollWorkers, 50);
       }
     };
