@@ -1516,9 +1516,6 @@ Possible signatures:
 
 * Returns: {net.Server}
 
-
-
-
 If `allowHalfOpen` is set to `true`, when the other end of the socket
 signals the end of transmission, the server will only send back the end of
 transmission when [`socket.end()`][] is explicitly called. For example, in the
