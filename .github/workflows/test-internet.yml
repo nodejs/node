@@ -29,6 +29,7 @@ permissions:
 
 jobs:
   test-internet:
+    if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
