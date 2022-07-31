@@ -666,10 +666,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("-pe", { "--print", "--eval" });
   AddAlias("-p", "--print");
   AddOption("--require",
-            "module to preload (option can be repeated)",
-            &EnvironmentOptions::preload_modules,
+            "CommonJS module to preload (option can be repeated)",
+            &EnvironmentOptions::preload_cjs_modules,
             kAllowedInEnvvar);
   AddAlias("-r", "--require");
+  AddOption("--import",
+            "ES module to preload (option can be repeated)",
+            &EnvironmentOptions::preload_esm_modules,
+            kAllowedInEnvironment);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
