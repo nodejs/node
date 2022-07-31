@@ -16,7 +16,7 @@ const availableVersions = readdirSync('icu-data/tzdata/icunew', { withFileTypes:
 .map((dirent) => dirent.name);
 
 const currentVersion = process.versions.tz;
-const latestVersion = availableVersions.sort().reverse()[0];
+const latestVersion = availableVersions.sort().at(-1);
 
 if (latestVersion === currentVersion) {
   exit();
