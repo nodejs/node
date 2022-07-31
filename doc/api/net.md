@@ -233,7 +233,7 @@ This class is used to create a TCP or [IPC][] server.
 ### `new net.Server([options][, connectionListener])`
 
 * `options` {Object} See
-  [`net.createServer([options][, connectionListener])`][`net.createServer()`].
+  [`net.createServer()`][`net.createServer()`].
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
 * Returns: {net.Server}
@@ -858,7 +858,7 @@ changes:
     - v17.7.0
     - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
-    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
                  options are supported now.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
@@ -1472,7 +1472,27 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
-## `net.createServer([options][, connectionListener])`
+
+## `net.createServer()`
+
+Creates a new TCP or [IPC][] server.
+
+Possible signatures:
+
+* [`net.createServer([connectionListener])`][`net.createServer(connectionListener)`]
+* [`net.createServer([options][, connectionListener])`][`net.createServer(otions,connectionListener)`]
+
+### `net.createServer([connectionListener])`
+
+<!-- YAML
+added: v0.5.0
+-->
+
+* `connectionListener` {Function} Automatically set as a listener for the
+  [`'connection'`][] event.
+* Returns: {net.Server}
+
+### `net.createServer([options][, connectionListener])`
 
 <!-- YAML
 added: v0.5.0
@@ -1492,13 +1512,10 @@ added: v0.5.0
     **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
     the first keepalive probe is sent on an idle socket.**Default:** `0`.
-
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
 
 * Returns: {net.Server}
-
-Creates a new TCP or [IPC][] server.
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
 signals the end of transmission, the server will only send back the end of
@@ -1641,7 +1658,9 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(options)`]: #netcreateconnectionoptions-connectlistener
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
-[`net.createServer()`]: #netcreateserveroptions-connectionlistener
+[`net.createServer()`]: #netcreateserver
+[`net.createServer(connectionListener)`]: #netcreateserverconnectionlistener
+[`net.createServer(otions,connectionListener)`]: #netcreateserveroptions-connectionlistener
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback
