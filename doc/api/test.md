@@ -154,7 +154,7 @@ Running tests can also be done using `describe` to declare a suite
 and `it` to declare a test.
 A suite is used to organize and group related tests together.
 `it` is an alias for `test`, except there is no test context passed,
-since nesting is done using suites, as demonstrated in this example
+since nesting is done using suites.
 
 ```js
 describe('A thing', () => {
@@ -174,7 +174,7 @@ describe('A thing', () => {
 });
 ```
 
-`describe` and `it` are imported from the `node:test` module
+`describe` and `it` are imported from the `node:test` module.
 
 ```mjs
 import { describe, it } from 'node:test';
@@ -398,7 +398,7 @@ thus prevent the scheduled cancellation.
   results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
   does not have a name.
 * `options` {Object} Configuration options for the suite.
-  supports the same options as `test([name][, options][, fn])`
+  supports the same options as `test([name][, options][, fn])`.
 * `fn` {Function|AsyncFunction} The function under suite
   declaring all subtests and subsuites.
   The first argument to this function is a [`SuiteContext`][] object.
@@ -409,7 +409,7 @@ The `describe()` function imported from the `node:test` module. Each
 invocation of this function results in the creation of a Subtest
 and a test point in the TAP output.
 After invocation of top level `describe` functions,
-all top level tests and suites will execute
+all top level tests and suites will execute.
 
 ## `describe.skip([name][, options][, fn])`
 
@@ -458,7 +458,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -486,7 +486,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -514,7 +514,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -543,7 +543,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -582,7 +582,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -614,7 +614,7 @@ added: REPLACEME
   function.
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
-  * `signal` {AbortSignal} Allows aborting an in-progress hook
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
   * `timeout` {number} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -658,7 +658,7 @@ test('top level test', (t) => {
 added: REPLACEME
 -->
 
-The name of the test
+The name of the test.
 
 ### `context.runOnly(shouldRunOnlyTests)`
 
@@ -809,7 +809,7 @@ exposed as part of the API.
 added: REPLACEME
 -->
 
-The name of the suite
+The name of the suite.
 
 ### `context.signal`
 
