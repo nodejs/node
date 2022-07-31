@@ -1661,8 +1661,8 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
 [`net.createServer()`]: #netcreateserver
-[`net.createServer(otions,connectionListener)`]: #netcreateserveroptions-connectionlistener
 [`net.createServer(connectionListener)`]: #netcreateserverconnectionlistener
+[`net.createServer(otions,connectionListener)`]: #netcreateserveroptions-connectionlistener
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback
