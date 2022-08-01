@@ -405,7 +405,7 @@ For information about the governance of the Node.js project, see
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
-  **Ruy Adorno** <<ruyadorno@github.com>> (he/him)
+  **Ruy Adorno** <<ruyadorno@google.com>> (he/him)
 * [rvagg](https://github.com/rvagg) -
   **Rod Vagg** <<rod@vagg.org>>
 * [ryzokuken](https://github.com/ryzokuken) -
