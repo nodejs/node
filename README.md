@@ -310,6 +310,8 @@ For information about the governance of the Node.js project, see
   **Daniele Belardi** <<dwon.dnl@gmail.com>> (he/him)
 * [edsadr](https://github.com/edsadr) -
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
+* [erickwendel](https://github.com/erickwendel) -
+  **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [evanlucas](https://github.com/evanlucas) -
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
