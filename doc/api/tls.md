@@ -1098,17 +1098,17 @@ changes:
   * `name` {string} OpenSSL name for the cipher suite.
   * `standardName` {string} IETF name for the cipher suite.
   * `version` {string} The minimum TLS protocol version supported by this cipher
-    suite.
+    suite. For the actual negotiated protocol, see [`tls.TLSSocket.getProtocol()`][].
 
 Returns an object containing information on the negotiated cipher suite.
 
-For example:
+For example, a TLSv1.2 protocol with AES256-SHA cipher:
 
 ```json
 {
-    "name": "AES128-SHA256",
-    "standardName": "TLS_RSA_WITH_AES_128_CBC_SHA256",
-    "version": "TLSv1.2"
+    "name": "AES256-SHA",
+    "standardName": "TLS_RSA_WITH_AES_256_CBC_SHA",
+    "version": "SSLv3"
 }
 ```
 
@@ -2258,6 +2258,7 @@ added: v11.4.0
 [`tls.Server`]: #class-tlsserver
 [`tls.TLSSocket.enableTrace()`]: #tlssocketenabletrace
 [`tls.TLSSocket.getPeerCertificate()`]: #tlssocketgetpeercertificatedetailed
+[`tls.TLSSocket.getProtocol()`]: #tlssocketgetprotocol
 [`tls.TLSSocket.getSession()`]: #tlssocketgetsession
 [`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
 [`tls.TLSSocket`]: #class-tlstlssocket
