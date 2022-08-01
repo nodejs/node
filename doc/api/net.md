@@ -1480,7 +1480,7 @@ Creates a new TCP or [IPC][] server.
 Possible signatures:
 
 * [`net.createServer([connectionListener])`][`net.createServer(connectionListener)`]
-* [`net.createServer([options][, connectionListener])`][`net.createServer(otions,connectionListener)`]
+* [`net.createServer([options][, connectionListener])`][`net.createServer(options, connectionListener)`]
 
 ### `net.createServer([connectionListener])`
 
