@@ -1111,14 +1111,15 @@ Local<FunctionTemplate> GetMessagePortConstructorTemplate(Environment* env) {
     return templ;
 
   {
-    Local<FunctionTemplate> m = env->NewFunctionTemplate(MessagePort::New);
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> m = NewFunctionTemplate(isolate, MessagePort::New);
     m->SetClassName(env->message_port_constructor_string());
     m->InstanceTemplate()->SetInternalFieldCount(
         MessagePort::kInternalFieldCount);
     m->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
-    env->SetProtoMethod(m, "start", MessagePort::Start);
+    SetProtoMethod(isolate, m, "postMessage", MessagePort::PostMessage);
+    SetProtoMethod(isolate, m, "start", MessagePort::Start);
 
     env->set_message_port_constructor_template(m);
   }
@@ -1451,38 +1452,43 @@ static void InitMessaging(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   {
-    env->SetConstructorFunction(
-        target,
-        "MessageChannel",
-        env->NewFunctionTemplate(MessageChannel));
+    SetConstructorFunction(context,
+                           target,
+                           "MessageChannel",
+                           NewFunctionTemplate(isolate, MessageChannel));
   }
 
   {
-    Local<FunctionTemplate> t = env->NewFunctionTemplate(JSTransferable::New);
+    Local<FunctionTemplate> t =
+        NewFunctionTemplate(isolate, JSTransferable::New);
     t->Inherit(BaseObject::GetConstructorTemplate(env));
     t->InstanceTemplate()->SetInternalFieldCount(
         JSTransferable::kInternalFieldCount);
-    env->SetConstructorFunction(target, "JSTransferable", t);
+    SetConstructorFunction(context, target, "JSTransferable", t);
   }
 
-  env->SetConstructorFunction(
-      target,
-      env->message_port_constructor_string(),
-      GetMessagePortConstructorTemplate(env));
+  SetConstructorFunction(context,
+                         target,
+                         env->message_port_constructor_string(),
+                         GetMessagePortConstructorTemplate(env));
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
-  env->SetMethod(target, "stopMessagePort", MessagePort::Stop);
-  env->SetMethod(target, "checkMessagePort", MessagePort::CheckType);
-  env->SetMethod(target, "drainMessagePort", MessagePort::Drain);
-  env->SetMethod(target, "receiveMessageOnPort", MessagePort::ReceiveMessage);
-  env->SetMethod(target, "moveMessagePortToContext",
-                 MessagePort::MoveToContext);
-  env->SetMethod(target, "setDeserializerCreateObjectFunction",
-                 SetDeserializerCreateObjectFunction);
-  env->SetMethod(target, "broadcastChannel", BroadcastChannel);
+  SetMethod(context, target, "stopMessagePort", MessagePort::Stop);
+  SetMethod(context, target, "checkMessagePort", MessagePort::CheckType);
+  SetMethod(context, target, "drainMessagePort", MessagePort::Drain);
+  SetMethod(
+      context, target, "receiveMessageOnPort", MessagePort::ReceiveMessage);
+  SetMethod(
+      context, target, "moveMessagePortToContext", MessagePort::MoveToContext);
+  SetMethod(context,
+            target,
+            "setDeserializerCreateObjectFunction",
+            SetDeserializerCreateObjectFunction);
+  SetMethod(context, target, "broadcastChannel", BroadcastChannel);
 
   {
     Local<Function> domexception = GetDOMException(context).ToLocalChecked();

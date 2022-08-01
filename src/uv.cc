@@ -110,10 +110,8 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  env->SetConstructorFunction(
-      target,
-      "errname",
-      env->NewFunctionTemplate(ErrName));
+  SetConstructorFunction(
+      context, target, "errname", NewFunctionTemplate(isolate, ErrName));
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.
@@ -129,7 +127,7 @@ void Initialize(Local<Object> target,
     target->DefineOwnProperty(context, name, value, attributes).Check();
   }
 
-  env->SetMethod(target, "getErrorMap", GetErrMap);
+  SetMethod(context, target, "getErrorMap", GetErrMap);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

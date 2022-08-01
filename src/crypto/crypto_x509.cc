@@ -21,6 +21,7 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -54,35 +55,36 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->x509_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = FunctionTemplate::New(env->isolate());
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "X509Certificate"));
-    env->SetProtoMethod(tmpl, "subject", Subject);
-    env->SetProtoMethod(tmpl, "subjectAltName", SubjectAltName);
-    env->SetProtoMethod(tmpl, "infoAccess", InfoAccess);
-    env->SetProtoMethod(tmpl, "issuer", Issuer);
-    env->SetProtoMethod(tmpl, "validTo", ValidTo);
-    env->SetProtoMethod(tmpl, "validFrom", ValidFrom);
-    env->SetProtoMethod(tmpl, "fingerprint", Fingerprint);
-    env->SetProtoMethod(tmpl, "fingerprint256", Fingerprint256);
-    env->SetProtoMethod(tmpl, "fingerprint512", Fingerprint512);
-    env->SetProtoMethod(tmpl, "keyUsage", KeyUsage);
-    env->SetProtoMethod(tmpl, "serialNumber", SerialNumber);
-    env->SetProtoMethod(tmpl, "pem", Pem);
-    env->SetProtoMethod(tmpl, "raw", Raw);
-    env->SetProtoMethod(tmpl, "publicKey", PublicKey);
-    env->SetProtoMethod(tmpl, "checkCA", CheckCA);
-    env->SetProtoMethod(tmpl, "checkHost", CheckHost);
-    env->SetProtoMethod(tmpl, "checkEmail", CheckEmail);
-    env->SetProtoMethod(tmpl, "checkIP", CheckIP);
-    env->SetProtoMethod(tmpl, "checkIssued", CheckIssued);
-    env->SetProtoMethod(tmpl, "checkPrivateKey", CheckPrivateKey);
-    env->SetProtoMethod(tmpl, "verify", Verify);
-    env->SetProtoMethod(tmpl, "toLegacy", ToLegacy);
-    env->SetProtoMethod(tmpl, "getIssuerCert", GetIssuerCert);
+    SetProtoMethod(isolate, tmpl, "subject", Subject);
+    SetProtoMethod(isolate, tmpl, "subjectAltName", SubjectAltName);
+    SetProtoMethod(isolate, tmpl, "infoAccess", InfoAccess);
+    SetProtoMethod(isolate, tmpl, "issuer", Issuer);
+    SetProtoMethod(isolate, tmpl, "validTo", ValidTo);
+    SetProtoMethod(isolate, tmpl, "validFrom", ValidFrom);
+    SetProtoMethod(isolate, tmpl, "fingerprint", Fingerprint);
+    SetProtoMethod(isolate, tmpl, "fingerprint256", Fingerprint256);
+    SetProtoMethod(isolate, tmpl, "fingerprint512", Fingerprint512);
+    SetProtoMethod(isolate, tmpl, "keyUsage", KeyUsage);
+    SetProtoMethod(isolate, tmpl, "serialNumber", SerialNumber);
+    SetProtoMethod(isolate, tmpl, "pem", Pem);
+    SetProtoMethod(isolate, tmpl, "raw", Raw);
+    SetProtoMethod(isolate, tmpl, "publicKey", PublicKey);
+    SetProtoMethod(isolate, tmpl, "checkCA", CheckCA);
+    SetProtoMethod(isolate, tmpl, "checkHost", CheckHost);
+    SetProtoMethod(isolate, tmpl, "checkEmail", CheckEmail);
+    SetProtoMethod(isolate, tmpl, "checkIP", CheckIP);
+    SetProtoMethod(isolate, tmpl, "checkIssued", CheckIssued);
+    SetProtoMethod(isolate, tmpl, "checkPrivateKey", CheckPrivateKey);
+    SetProtoMethod(isolate, tmpl, "verify", Verify);
+    SetProtoMethod(isolate, tmpl, "toLegacy", ToLegacy);
+    SetProtoMethod(isolate, tmpl, "getIssuerCert", GetIssuerCert);
     env->set_x509_constructor_template(tmpl);
   }
   return tmpl;
@@ -543,7 +545,7 @@ std::unique_ptr<worker::TransferData> X509Certificate::CloneForMessaging()
 
 
 void X509Certificate::Initialize(Environment* env, Local<Object> target) {
-  env->SetMethod(target, "parseX509", X509Certificate::Parse);
+  SetMethod(env->context(), target, "parseX509", X509Certificate::Parse);
 
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT);
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_NEVER_CHECK_SUBJECT);

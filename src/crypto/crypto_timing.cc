@@ -47,7 +47,8 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Initialize(Environment* env, Local<Object> target) {
-  env->SetMethodNoSideEffect(target, "timingSafeEqual", TimingSafeEqual);
+  SetMethodNoSideEffect(
+      env->context(), target, "timingSafeEqual", TimingSafeEqual);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TimingSafeEqual);

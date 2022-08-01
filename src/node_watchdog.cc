@@ -34,6 +34,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -123,15 +124,17 @@ SignalPropagation SigintWatchdog::HandleSigint() {
 }
 
 void TraceSigintWatchdog::Init(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
   constructor->InstanceTemplate()->SetInternalFieldCount(
       TraceSigintWatchdog::kInternalFieldCount);
   constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(constructor, "start", Start);
-  env->SetProtoMethod(constructor, "stop", Stop);
+  SetProtoMethod(isolate, constructor, "start", Start);
+  SetProtoMethod(isolate, constructor, "stop", Stop);
 
-  env->SetConstructorFunction(target, "TraceSigintWatchdog", constructor);
+  SetConstructorFunction(
+      env->context(), target, "TraceSigintWatchdog", constructor);
 }
 
 void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {

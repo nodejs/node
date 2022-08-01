@@ -179,7 +179,7 @@ void NativeModuleEnv::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   target
-      ->SetAccessor(env->context(),
+      ->SetAccessor(context,
                     env->config_string(),
                     ConfigStringGetter,
                     nullptr,
@@ -189,7 +189,7 @@ void NativeModuleEnv::Initialize(Local<Object> target,
                     SideEffectType::kHasNoSideEffect)
       .Check();
   target
-      ->SetAccessor(env->context(),
+      ->SetAccessor(context,
                     FIXED_ONE_BYTE_STRING(env->isolate(), "moduleIds"),
                     ModuleIdsGetter,
                     nullptr,
@@ -200,7 +200,7 @@ void NativeModuleEnv::Initialize(Local<Object> target,
       .Check();
 
   target
-      ->SetAccessor(env->context(),
+      ->SetAccessor(context,
                     FIXED_ONE_BYTE_STRING(env->isolate(), "moduleCategories"),
                     GetModuleCategories,
                     nullptr,
@@ -210,9 +210,10 @@ void NativeModuleEnv::Initialize(Local<Object> target,
                     SideEffectType::kHasNoSideEffect)
       .Check();
 
-  env->SetMethod(target, "getCacheUsage", NativeModuleEnv::GetCacheUsage);
-  env->SetMethod(target, "compileFunction", NativeModuleEnv::CompileFunction);
-  env->SetMethod(target, "hasCachedBuiltins", HasCachedBuiltins);
+  SetMethod(context, target, "getCacheUsage", NativeModuleEnv::GetCacheUsage);
+  SetMethod(
+      context, target, "compileFunction", NativeModuleEnv::CompileFunction);
+  SetMethod(context, target, "hasCachedBuiltins", HasCachedBuiltins);
   // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
