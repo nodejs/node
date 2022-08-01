@@ -507,11 +507,11 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
-  env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
-  env->SetMethod(target, "takeCoverage", TakeCoverage);
-  env->SetMethod(target, "stopCoverage", StopCoverage);
+  SetMethod(context, target, "setCoverageDirectory", SetCoverageDirectory);
+  SetMethod(
+      context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
+  SetMethod(context, target, "takeCoverage", TakeCoverage);
+  SetMethod(context, target, "stopCoverage", StopCoverage);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

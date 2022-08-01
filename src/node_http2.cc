@@ -3201,10 +3201,10 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kSessionHasAltsvcListeners);
 
   // Method to fetch the nghttp2 string description of an nghttp2 error code
-  env->SetMethod(target, "nghttp2ErrorString", HttpErrorString);
-  env->SetMethod(target, "refreshDefaultSettings", RefreshDefaultSettings);
-  env->SetMethod(target, "packSettings", PackSettings);
-  env->SetMethod(target, "setCallbackFunctions", SetCallbackFunctions);
+  SetMethod(context, target, "nghttp2ErrorString", HttpErrorString);
+  SetMethod(context, target, "refreshDefaultSettings", RefreshDefaultSettings);
+  SetMethod(context, target, "packSettings", PackSettings);
+  SetMethod(context, target, "setCallbackFunctions", SetCallbackFunctions);
 
   Local<FunctionTemplate> ping = FunctionTemplate::New(env->isolate());
   ping->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Ping"));
@@ -3220,50 +3220,54 @@ void Initialize(Local<Object> target,
   env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
-  env->SetProtoMethod(stream, "id", Http2Stream::GetID);
-  env->SetProtoMethod(stream, "destroy", Http2Stream::Destroy);
-  env->SetProtoMethod(stream, "priority", Http2Stream::Priority);
-  env->SetProtoMethod(stream, "pushPromise", Http2Stream::PushPromise);
-  env->SetProtoMethod(stream, "info", Http2Stream::Info);
-  env->SetProtoMethod(stream, "trailers", Http2Stream::Trailers);
-  env->SetProtoMethod(stream, "respond", Http2Stream::Respond);
-  env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
-  env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
+  SetProtoMethod(isolate, stream, "id", Http2Stream::GetID);
+  SetProtoMethod(isolate, stream, "destroy", Http2Stream::Destroy);
+  SetProtoMethod(isolate, stream, "priority", Http2Stream::Priority);
+  SetProtoMethod(isolate, stream, "pushPromise", Http2Stream::PushPromise);
+  SetProtoMethod(isolate, stream, "info", Http2Stream::Info);
+  SetProtoMethod(isolate, stream, "trailers", Http2Stream::Trailers);
+  SetProtoMethod(isolate, stream, "respond", Http2Stream::Respond);
+  SetProtoMethod(isolate, stream, "rstStream", Http2Stream::RstStream);
+  SetProtoMethod(isolate, stream, "refreshState", Http2Stream::RefreshState);
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
   streamt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
   env->set_http2stream_constructor_template(streamt);
-  env->SetConstructorFunction(target, "Http2Stream", stream);
+  SetConstructorFunction(context, target, "Http2Stream", stream);
 
   Local<FunctionTemplate> session =
-      env->NewFunctionTemplate(Http2Session::New);
+      NewFunctionTemplate(isolate, Http2Session::New);
   session->InstanceTemplate()->SetInternalFieldCount(
       Http2Session::kInternalFieldCount);
   session->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetProtoMethod(session, "origin", Http2Session::Origin);
-  env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
-  env->SetProtoMethod(session, "ping", Http2Session::Ping);
-  env->SetProtoMethod(session, "consume", Http2Session::Consume);
-  env->SetProtoMethod(session, "receive", Http2Session::Receive);
-  env->SetProtoMethod(session, "destroy", Http2Session::Destroy);
-  env->SetProtoMethod(session, "goaway", Http2Session::Goaway);
-  env->SetProtoMethod(session, "settings", Http2Session::Settings);
-  env->SetProtoMethod(session, "request", Http2Session::Request);
-  env->SetProtoMethod(session, "setNextStreamID",
-                      Http2Session::SetNextStreamID);
-  env->SetProtoMethod(session, "setLocalWindowSize",
-                      Http2Session::SetLocalWindowSize);
-  env->SetProtoMethod(session, "updateChunksSent",
-                      Http2Session::UpdateChunksSent);
-  env->SetProtoMethod(session, "refreshState", Http2Session::RefreshState);
-  env->SetProtoMethod(
-      session, "localSettings",
+  SetProtoMethod(isolate, session, "origin", Http2Session::Origin);
+  SetProtoMethod(isolate, session, "altsvc", Http2Session::AltSvc);
+  SetProtoMethod(isolate, session, "ping", Http2Session::Ping);
+  SetProtoMethod(isolate, session, "consume", Http2Session::Consume);
+  SetProtoMethod(isolate, session, "receive", Http2Session::Receive);
+  SetProtoMethod(isolate, session, "destroy", Http2Session::Destroy);
+  SetProtoMethod(isolate, session, "goaway", Http2Session::Goaway);
+  SetProtoMethod(isolate, session, "settings", Http2Session::Settings);
+  SetProtoMethod(isolate, session, "request", Http2Session::Request);
+  SetProtoMethod(
+      isolate, session, "setNextStreamID", Http2Session::SetNextStreamID);
+  SetProtoMethod(
+      isolate, session, "setLocalWindowSize", Http2Session::SetLocalWindowSize);
+  SetProtoMethod(
+      isolate, session, "updateChunksSent", Http2Session::UpdateChunksSent);
+  SetProtoMethod(isolate, session, "refreshState", Http2Session::RefreshState);
+  SetProtoMethod(
+      isolate,
+      session,
+      "localSettings",
       Http2Session::RefreshSettings<nghttp2_session_get_local_settings>);
-  env->SetProtoMethod(
-      session, "remoteSettings",
+  SetProtoMethod(
+      isolate,
+      session,
+      "remoteSettings",
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
-  env->SetConstructorFunction(target, "Http2Session", session);
+  SetConstructorFunction(context, target, "Http2Session", session);
 
   Local<Object> constants = Object::New(isolate);
 

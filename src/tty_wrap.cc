@@ -36,6 +36,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -53,22 +54,24 @@ void TTYWrap::Initialize(Local<Object> target,
                          Local<Context> context,
                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   Local<String> ttyString = FIXED_ONE_BYTE_STRING(env->isolate(), "TTY");
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->SetClassName(ttyString);
   t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);
-  env->SetProtoMethod(t, "setRawMode", SetRawMode);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getWindowSize", TTYWrap::GetWindowSize);
+  SetProtoMethod(isolate, t, "setRawMode", SetRawMode);
 
-  env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
+  SetMethodNoSideEffect(context, target, "isTTY", IsTTY);
 
   Local<Value> func;
-  if (t->GetFunction(env->context()).ToLocal(&func) &&
-      target->Set(env->context(), ttyString, func).IsJust()) {
+  if (t->GetFunction(context).ToLocal(&func) &&
+      target->Set(context, ttyString, func).IsJust()) {
     env->set_tty_constructor_template(t);
   }
 }

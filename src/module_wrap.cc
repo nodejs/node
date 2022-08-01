@@ -765,31 +765,37 @@ void ModuleWrap::Initialize(Local<Object> target,
                             Local<Context> context,
                             void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> tpl = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> tpl = NewFunctionTemplate(isolate, New);
   tpl->InstanceTemplate()->SetInternalFieldCount(
       ModuleWrap::kInternalFieldCount);
   tpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(tpl, "link", Link);
-  env->SetProtoMethod(tpl, "instantiate", Instantiate);
-  env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetProtoMethod(tpl, "setExport", SetSyntheticExport);
-  env->SetProtoMethodNoSideEffect(tpl, "createCachedData", CreateCachedData);
-  env->SetProtoMethodNoSideEffect(tpl, "getNamespace", GetNamespace);
-  env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
-  env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
-  env->SetProtoMethodNoSideEffect(tpl, "getStaticDependencySpecifiers",
-                                  GetStaticDependencySpecifiers);
+  SetProtoMethod(isolate, tpl, "link", Link);
+  SetProtoMethod(isolate, tpl, "instantiate", Instantiate);
+  SetProtoMethod(isolate, tpl, "evaluate", Evaluate);
+  SetProtoMethod(isolate, tpl, "setExport", SetSyntheticExport);
+  SetProtoMethodNoSideEffect(
+      isolate, tpl, "createCachedData", CreateCachedData);
+  SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
+  SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
+  SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
+  SetProtoMethodNoSideEffect(isolate,
+                             tpl,
+                             "getStaticDependencySpecifiers",
+                             GetStaticDependencySpecifiers);
 
-  env->SetConstructorFunction(target, "ModuleWrap", tpl);
+  SetConstructorFunction(context, target, "ModuleWrap", tpl);
 
-  env->SetMethod(target,
-                 "setImportModuleDynamicallyCallback",
-                 SetImportModuleDynamicallyCallback);
-  env->SetMethod(target,
-                 "setInitializeImportMetaObjectCallback",
-                 SetInitializeImportMetaObjectCallback);
+  SetMethod(context,
+            target,
+            "setImportModuleDynamicallyCallback",
+            SetImportModuleDynamicallyCallback);
+  SetMethod(context,
+            target,
+            "setInitializeImportMetaObjectCallback",
+            SetInitializeImportMetaObjectCallback);
 
 #define V(name)                                                                \
     target->Set(context,                                                       \

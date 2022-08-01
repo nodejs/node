@@ -13,6 +13,7 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -25,15 +26,16 @@ Local<Function> WasmStreamingObject::Initialize(Environment* env) {
     return templ;
   }
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       WasmStreamingObject::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "setURL", SetURL);
-  env->SetProtoMethod(t, "push", Push);
-  env->SetProtoMethod(t, "finish", Finish);
-  env->SetProtoMethod(t, "abort", Abort);
+  SetProtoMethod(isolate, t, "setURL", SetURL);
+  SetProtoMethod(isolate, t, "push", Push);
+  SetProtoMethod(isolate, t, "finish", Finish);
+  SetProtoMethod(isolate, t, "abort", Abort);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   env->set_wasm_streaming_object_constructor(function);
@@ -194,8 +196,7 @@ void Initialize(Local<Object> target,
                 Local<Value>,
                 Local<Context> context,
                 void*) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "setImplementation", SetImplementation);
+  SetMethod(context, target, "setImplementation", SetImplementation);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
