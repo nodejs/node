@@ -14,12 +14,14 @@ namespace node {
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::ConstructorBehavior;
+using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -57,8 +59,10 @@ DiffieHellman::DiffieHellman(Environment* env, Local<Object> wrap)
 }
 
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
-  auto make = [&] (Local<String> name, FunctionCallback callback) {
-    Local<FunctionTemplate> t = env->NewFunctionTemplate(callback);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  auto make = [&](Local<String> name, FunctionCallback callback) {
+    Local<FunctionTemplate> t = NewFunctionTemplate(isolate, callback);
 
     const PropertyAttribute attributes =
         static_cast<PropertyAttribute>(ReadOnly | DontDelete);
@@ -67,17 +71,17 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
         DiffieHellman::kInternalFieldCount);
     t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(t, "generateKeys", GenerateKeys);
-    env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-    env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
-    env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
-    env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
-    env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
-    env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
-    env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
+    SetProtoMethod(isolate, t, "generateKeys", GenerateKeys);
+    SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);
+    SetProtoMethodNoSideEffect(isolate, t, "getPrime", GetPrime);
+    SetProtoMethodNoSideEffect(isolate, t, "getGenerator", GetGenerator);
+    SetProtoMethodNoSideEffect(isolate, t, "getPublicKey", GetPublicKey);
+    SetProtoMethodNoSideEffect(isolate, t, "getPrivateKey", GetPrivateKey);
+    SetProtoMethod(isolate, t, "setPublicKey", SetPublicKey);
+    SetProtoMethod(isolate, t, "setPrivateKey", SetPrivateKey);
 
     Local<FunctionTemplate> verify_error_getter_templ =
-        FunctionTemplate::New(env->isolate(),
+        FunctionTemplate::New(isolate,
                               DiffieHellman::VerifyErrorGetter,
                               Local<Value>(),
                               Signature::New(env->isolate(), t),
@@ -91,14 +95,15 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
         Local<FunctionTemplate>(),
         attributes);
 
-    env->SetConstructorFunction(target, name, t);
+    SetConstructorFunction(context, target, name, t);
   };
 
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
        DiffieHellmanGroup);
 
-  env->SetMethodNoSideEffect(target, "statelessDH", DiffieHellman::Stateless);
+  SetMethodNoSideEffect(
+      context, target, "statelessDH", DiffieHellman::Stateless);
   DHKeyPairGenJob::Initialize(env, target);
   DHKeyExportJob::Initialize(env, target);
   DHBitsJob::Initialize(env, target);

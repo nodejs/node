@@ -18,6 +18,7 @@
 namespace report {
 using node::Environment;
 using node::Mutex;
+using node::SetMethod;
 using node::Utf8Value;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -175,26 +176,29 @@ static void Initialize(Local<Object> exports,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-
-  env->SetMethod(exports, "writeReport", WriteReport);
-  env->SetMethod(exports, "getReport", GetReport);
-  env->SetMethod(exports, "getCompact", GetCompact);
-  env->SetMethod(exports, "setCompact", SetCompact);
-  env->SetMethod(exports, "getDirectory", GetDirectory);
-  env->SetMethod(exports, "setDirectory", SetDirectory);
-  env->SetMethod(exports, "getFilename", GetFilename);
-  env->SetMethod(exports, "setFilename", SetFilename);
-  env->SetMethod(exports, "getSignal", GetSignal);
-  env->SetMethod(exports, "setSignal", SetSignal);
-  env->SetMethod(exports, "shouldReportOnFatalError", ShouldReportOnFatalError);
-  env->SetMethod(exports, "setReportOnFatalError", SetReportOnFatalError);
-  env->SetMethod(exports, "shouldReportOnSignal", ShouldReportOnSignal);
-  env->SetMethod(exports, "setReportOnSignal", SetReportOnSignal);
-  env->SetMethod(exports, "shouldReportOnUncaughtException",
-                 ShouldReportOnUncaughtException);
-  env->SetMethod(exports, "setReportOnUncaughtException",
-                 SetReportOnUncaughtException);
+  SetMethod(context, exports, "writeReport", WriteReport);
+  SetMethod(context, exports, "getReport", GetReport);
+  SetMethod(context, exports, "getCompact", GetCompact);
+  SetMethod(context, exports, "setCompact", SetCompact);
+  SetMethod(context, exports, "getDirectory", GetDirectory);
+  SetMethod(context, exports, "setDirectory", SetDirectory);
+  SetMethod(context, exports, "getFilename", GetFilename);
+  SetMethod(context, exports, "setFilename", SetFilename);
+  SetMethod(context, exports, "getSignal", GetSignal);
+  SetMethod(context, exports, "setSignal", SetSignal);
+  SetMethod(
+      context, exports, "shouldReportOnFatalError", ShouldReportOnFatalError);
+  SetMethod(context, exports, "setReportOnFatalError", SetReportOnFatalError);
+  SetMethod(context, exports, "shouldReportOnSignal", ShouldReportOnSignal);
+  SetMethod(context, exports, "setReportOnSignal", SetReportOnSignal);
+  SetMethod(context,
+            exports,
+            "shouldReportOnUncaughtException",
+            ShouldReportOnUncaughtException);
+  SetMethod(context,
+            exports,
+            "setReportOnUncaughtException",
+            SetReportOnUncaughtException);
 }
 
 void RegisterExternalReferences(node::ExternalReferenceRegistry* registry) {

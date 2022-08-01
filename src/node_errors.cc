@@ -964,21 +964,27 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(
-      target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
-  env->SetMethod(
-      target, "setGetSourceMapErrorSource", SetGetSourceMapErrorSource);
-  env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
-  env->SetMethod(target,
-                 "setMaybeCacheGeneratedSourceMap",
-                 SetMaybeCacheGeneratedSourceMap);
-  env->SetMethod(target,
-                 "setEnhanceStackForFatalException",
-                 SetEnhanceStackForFatalException);
-  env->SetMethodNoSideEffect(
-      target, "noSideEffectsToString", NoSideEffectsToString);
-  env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(context,
+            target,
+            "setPrepareStackTraceCallback",
+            SetPrepareStackTraceCallback);
+  SetMethod(context,
+            target,
+            "setGetSourceMapErrorSource",
+            SetGetSourceMapErrorSource);
+  SetMethod(context, target, "setSourceMapsEnabled", SetSourceMapsEnabled);
+  SetMethod(context,
+            target,
+            "setMaybeCacheGeneratedSourceMap",
+            SetMaybeCacheGeneratedSourceMap);
+  SetMethod(context,
+            target,
+            "setEnhanceStackForFatalException",
+            SetEnhanceStackForFatalException);
+  SetMethodNoSideEffect(
+      context, target, "noSideEffectsToString", NoSideEffectsToString);
+  SetMethod(
+      context, target, "triggerUncaughtException", TriggerUncaughtException);
 }
 
 void DecorateErrorStack(Environment* env,

@@ -36,6 +36,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -51,16 +52,17 @@ class ProcessWrap : public HandleWrap {
                          Local<Context> context,
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         ProcessWrap::kInternalFieldCount);
 
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(constructor, "spawn", Spawn);
-    env->SetProtoMethod(constructor, "kill", Kill);
+    SetProtoMethod(isolate, constructor, "spawn", Spawn);
+    SetProtoMethod(isolate, constructor, "kill", Kill);
 
-    env->SetConstructorFunction(target, "Process", constructor);
+    SetConstructorFunction(context, target, "Process", constructor);
   }
 
   SET_NO_MEMORY_INFO()

@@ -144,7 +144,7 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
 
   // process._rawDebug: may be overwritten later in JS land, but should be
   // available from the beginning for debugging purposes
-  env->SetMethod(process, "_rawDebug", RawDebug);
+  SetMethod(context, process, "_rawDebug", RawDebug);
 
   return scope.Escape(process);
 }

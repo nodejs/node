@@ -110,8 +110,8 @@ UDPWrapBase* UDPWrapBase::FromObject(Local<Object> obj) {
 }
 
 void UDPWrapBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
-  env->SetProtoMethod(t, "recvStart", RecvStart);
-  env->SetProtoMethod(t, "recvStop", RecvStop);
+  SetProtoMethod(env->isolate(), t, "recvStart", RecvStart);
+  SetProtoMethod(env->isolate(), t, "recvStop", RecvStop);
 }
 
 UDPWrap::UDPWrap(Environment* env, Local<Object> object)
@@ -134,21 +134,19 @@ void UDPWrap::Initialize(Local<Object> target,
                          Local<Context> context,
                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()->SetInternalFieldCount(
       UDPWrapBase::kInternalFieldCount);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
-  Local<Signature> signature = Signature::New(env->isolate(), t);
+  Local<Signature> signature = Signature::New(isolate, t);
 
   Local<FunctionTemplate> get_fd_templ =
-      FunctionTemplate::New(env->isolate(),
-                            UDPWrap::GetFD,
-                            Local<Value>(),
-                            signature);
+      FunctionTemplate::New(isolate, UDPWrap::GetFD, Local<Value>(), signature);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
                                               get_fd_templ,
@@ -156,44 +154,47 @@ void UDPWrap::Initialize(Local<Object> target,
                                               attributes);
 
   UDPWrapBase::AddMethods(env, t);
-  env->SetProtoMethod(t, "open", Open);
-  env->SetProtoMethod(t, "bind", Bind);
-  env->SetProtoMethod(t, "connect", Connect);
-  env->SetProtoMethod(t, "send", Send);
-  env->SetProtoMethod(t, "bind6", Bind6);
-  env->SetProtoMethod(t, "connect6", Connect6);
-  env->SetProtoMethod(t, "send6", Send6);
-  env->SetProtoMethod(t, "disconnect", Disconnect);
-  env->SetProtoMethod(t, "getpeername",
-                      GetSockOrPeerName<UDPWrap, uv_udp_getpeername>);
-  env->SetProtoMethod(t, "getsockname",
-                      GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
-  env->SetProtoMethod(t, "addMembership", AddMembership);
-  env->SetProtoMethod(t, "dropMembership", DropMembership);
-  env->SetProtoMethod(t, "addSourceSpecificMembership",
-                      AddSourceSpecificMembership);
-  env->SetProtoMethod(t, "dropSourceSpecificMembership",
-                      DropSourceSpecificMembership);
-  env->SetProtoMethod(t, "setMulticastInterface", SetMulticastInterface);
-  env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
-  env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
-  env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
-  env->SetProtoMethod(t, "setTTL", SetTTL);
-  env->SetProtoMethod(t, "bufferSize", BufferSize);
+  SetProtoMethod(isolate, t, "open", Open);
+  SetProtoMethod(isolate, t, "bind", Bind);
+  SetProtoMethod(isolate, t, "connect", Connect);
+  SetProtoMethod(isolate, t, "send", Send);
+  SetProtoMethod(isolate, t, "bind6", Bind6);
+  SetProtoMethod(isolate, t, "connect6", Connect6);
+  SetProtoMethod(isolate, t, "send6", Send6);
+  SetProtoMethod(isolate, t, "disconnect", Disconnect);
+  SetProtoMethod(isolate,
+                 t,
+                 "getpeername",
+                 GetSockOrPeerName<UDPWrap, uv_udp_getpeername>);
+  SetProtoMethod(isolate,
+                 t,
+                 "getsockname",
+                 GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
+  SetProtoMethod(isolate, t, "addMembership", AddMembership);
+  SetProtoMethod(isolate, t, "dropMembership", DropMembership);
+  SetProtoMethod(
+      isolate, t, "addSourceSpecificMembership", AddSourceSpecificMembership);
+  SetProtoMethod(
+      isolate, t, "dropSourceSpecificMembership", DropSourceSpecificMembership);
+  SetProtoMethod(isolate, t, "setMulticastInterface", SetMulticastInterface);
+  SetProtoMethod(isolate, t, "setMulticastTTL", SetMulticastTTL);
+  SetProtoMethod(isolate, t, "setMulticastLoopback", SetMulticastLoopback);
+  SetProtoMethod(isolate, t, "setBroadcast", SetBroadcast);
+  SetProtoMethod(isolate, t, "setTTL", SetTTL);
+  SetProtoMethod(isolate, t, "bufferSize", BufferSize);
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  env->SetConstructorFunction(target, "UDP", t);
-  env->set_udp_constructor_function(
-      t->GetFunction(env->context()).ToLocalChecked());
+  SetConstructorFunction(context, target, "UDP", t);
+  env->set_udp_constructor_function(t->GetFunction(context).ToLocalChecked());
 
   // Create FunctionTemplate for SendWrap
   Local<FunctionTemplate> swt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   swt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "SendWrap", swt);
+  SetConstructorFunction(context, target, "SendWrap", swt);
 
-  Local<Object> constants = Object::New(env->isolate());
+  Local<Object> constants = Object::New(isolate);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEADDR);
   target->Set(context,

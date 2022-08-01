@@ -390,32 +390,33 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "getaddrinfo", GetAddrInfo);
-  env->SetMethod(target, "getnameinfo", GetNameInfo);
+  SetMethod(context, target, "getaddrinfo", GetAddrInfo);
+  SetMethod(context, target, "getnameinfo", GetNameInfo);
 
   // 'SetMethodNoSideEffect' means that debuggers can safely execute this
   // function for e.g. previews.
-  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
+  SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
 
   // ... more code ...
 
+  Isolate* isolate = env->isolate();
   // Building the `ChannelWrap` class for JS:
   Local<FunctionTemplate> channel_wrap =
-      env->NewFunctionTemplate(ChannelWrap::New);
+      NewFunctionTemplate(isolate, ChannelWrap::New);
   // Allow for 1 internal field, see `BaseObject` for details on this:
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(1);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   // Set various methods on the class (i.e. on the prototype):
-  env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
-  env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
+  SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
-  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
+  SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
 // Run the `Initialize` function when loading this module through

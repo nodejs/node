@@ -1175,11 +1175,12 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
   BindingData* const binding_data =
       env->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),
@@ -1223,30 +1224,31 @@ void InitializeHttpParser(Local<Object> target,
               methods).Check();
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetProtoMethod(t, "close", Parser::Close);
-  env->SetProtoMethod(t, "free", Parser::Free);
-  env->SetProtoMethod(t, "remove", Parser::Remove);
-  env->SetProtoMethod(t, "execute", Parser::Execute);
-  env->SetProtoMethod(t, "finish", Parser::Finish);
-  env->SetProtoMethod(t, "initialize", Parser::Initialize);
-  env->SetProtoMethod(t, "pause", Parser::Pause<true>);
-  env->SetProtoMethod(t, "resume", Parser::Pause<false>);
-  env->SetProtoMethod(t, "consume", Parser::Consume);
-  env->SetProtoMethod(t, "unconsume", Parser::Unconsume);
-  env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);
-  env->SetProtoMethod(t, "duration", Parser::Duration);
-  env->SetProtoMethod(t, "headersCompleted", Parser::HeadersCompleted);
+  SetProtoMethod(isolate, t, "close", Parser::Close);
+  SetProtoMethod(isolate, t, "free", Parser::Free);
+  SetProtoMethod(isolate, t, "remove", Parser::Remove);
+  SetProtoMethod(isolate, t, "execute", Parser::Execute);
+  SetProtoMethod(isolate, t, "finish", Parser::Finish);
+  SetProtoMethod(isolate, t, "initialize", Parser::Initialize);
+  SetProtoMethod(isolate, t, "pause", Parser::Pause<true>);
+  SetProtoMethod(isolate, t, "resume", Parser::Pause<false>);
+  SetProtoMethod(isolate, t, "consume", Parser::Consume);
+  SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
+  SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
+  SetProtoMethod(isolate, t, "duration", Parser::Duration);
+  SetProtoMethod(isolate, t, "headersCompleted", Parser::HeadersCompleted);
 
-  env->SetConstructorFunction(target, "HTTPParser", t);
+  SetConstructorFunction(context, target, "HTTPParser", t);
 
-  Local<FunctionTemplate> c = env->NewFunctionTemplate(ConnectionsList::New);
+  Local<FunctionTemplate> c =
+      NewFunctionTemplate(isolate, ConnectionsList::New);
   c->InstanceTemplate()
     ->SetInternalFieldCount(ConnectionsList::kInternalFieldCount);
-  env->SetProtoMethod(c, "all", ConnectionsList::All);
-  env->SetProtoMethod(c, "idle", ConnectionsList::Idle);
-  env->SetProtoMethod(c, "active", ConnectionsList::Active);
-  env->SetProtoMethod(c, "expired", ConnectionsList::Expired);
-  env->SetConstructorFunction(target, "ConnectionsList", c);
+  SetProtoMethod(isolate, c, "all", ConnectionsList::All);
+  SetProtoMethod(isolate, c, "idle", ConnectionsList::Idle);
+  SetProtoMethod(isolate, c, "active", ConnectionsList::Active);
+  SetProtoMethod(isolate, c, "expired", ConnectionsList::Expired);
+  SetConstructorFunction(context, target, "ConnectionsList", c);
 }
 
 }  // anonymous namespace

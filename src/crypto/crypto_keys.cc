@@ -24,6 +24,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -906,23 +907,24 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   if (!templ.IsEmpty()) {
     return templ;
   }
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObjectHandle::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", Init);
-  env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
-                                  GetSymmetricKeySize);
-  env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyType",
-                                  GetAsymmetricKeyType);
-  env->SetProtoMethod(t, "export", Export);
-  env->SetProtoMethod(t, "exportJwk", ExportJWK);
-  env->SetProtoMethod(t, "initECRaw", InitECRaw);
-  env->SetProtoMethod(t, "initEDRaw", InitEDRaw);
-  env->SetProtoMethod(t, "initJwk", InitJWK);
-  env->SetProtoMethod(t, "keyDetail", GetKeyDetail);
-  env->SetProtoMethod(t, "equals", Equals);
+  SetProtoMethod(isolate, t, "init", Init);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getSymmetricKeySize", GetSymmetricKeySize);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getAsymmetricKeyType", GetAsymmetricKeyType);
+  SetProtoMethod(isolate, t, "export", Export);
+  SetProtoMethod(isolate, t, "exportJwk", ExportJWK);
+  SetProtoMethod(isolate, t, "initECRaw", InitECRaw);
+  SetProtoMethod(isolate, t, "initEDRaw", InitEDRaw);
+  SetProtoMethod(isolate, t, "initJwk", InitJWK);
+  SetProtoMethod(isolate, t, "keyDetail", GetKeyDetail);
+  SetProtoMethod(isolate, t, "equals", Equals);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   env->set_crypto_key_object_handle_constructor(function);
@@ -1317,8 +1319,10 @@ void KeyObjectHandle::ExportJWK(
 }
 
 void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {
-  env->SetMethod(target, "createNativeKeyObjectClass",
-                 NativeKeyObject::CreateNativeKeyObjectClass);
+  SetMethod(env->context(),
+            target,
+            "createNativeKeyObjectClass",
+            NativeKeyObject::CreateNativeKeyObjectClass);
 }
 
 void NativeKeyObject::RegisterExternalReferences(
@@ -1338,12 +1342,14 @@ void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
 void NativeKeyObject::CreateNativeKeyObjectClass(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   CHECK_EQ(args.Length(), 1);
   Local<Value> callback = args[0];
   CHECK(callback->IsFunction());
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(NativeKeyObject::New);
+  Local<FunctionTemplate> t =
+      NewFunctionTemplate(isolate, NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObjectHandle::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));

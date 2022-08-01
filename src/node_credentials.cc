@@ -448,23 +448,23 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "safeGetenv", SafeGetenv);
+  SetMethod(context, target, "safeGetenv", SafeGetenv);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   READONLY_TRUE_PROPERTY(target, "implementsPosixCredentials");
-  env->SetMethodNoSideEffect(target, "getuid", GetUid);
-  env->SetMethodNoSideEffect(target, "geteuid", GetEUid);
-  env->SetMethodNoSideEffect(target, "getgid", GetGid);
-  env->SetMethodNoSideEffect(target, "getegid", GetEGid);
-  env->SetMethodNoSideEffect(target, "getgroups", GetGroups);
+  SetMethodNoSideEffect(context, target, "getuid", GetUid);
+  SetMethodNoSideEffect(context, target, "geteuid", GetEUid);
+  SetMethodNoSideEffect(context, target, "getgid", GetGid);
+  SetMethodNoSideEffect(context, target, "getegid", GetEGid);
+  SetMethodNoSideEffect(context, target, "getgroups", GetGroups);
 
   if (env->owns_process_state()) {
-    env->SetMethod(target, "initgroups", InitGroups);
-    env->SetMethod(target, "setegid", SetEGid);
-    env->SetMethod(target, "seteuid", SetEUid);
-    env->SetMethod(target, "setgid", SetGid);
-    env->SetMethod(target, "setuid", SetUid);
-    env->SetMethod(target, "setgroups", SetGroups);
+    SetMethod(context, target, "initgroups", InitGroups);
+    SetMethod(context, target, "setegid", SetEGid);
+    SetMethod(context, target, "seteuid", SetEUid);
+    SetMethod(context, target, "setgid", SetGid);
+    SetMethod(context, target, "setuid", SetUid);
+    SetMethod(context, target, "setgroups", SetGroups);
   }
 #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 }

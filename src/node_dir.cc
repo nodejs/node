@@ -351,17 +351,18 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "opendir", OpenDir);
+  SetMethod(context, target, "opendir", OpenDir);
 
   // Create FunctionTemplate for DirHandle
-  Local<FunctionTemplate> dir = env->NewFunctionTemplate(DirHandle::New);
+  Local<FunctionTemplate> dir = NewFunctionTemplate(isolate, DirHandle::New);
   dir->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetProtoMethod(dir, "read", DirHandle::Read);
-  env->SetProtoMethod(dir, "close", DirHandle::Close);
+  SetProtoMethod(isolate, dir, "read", DirHandle::Read);
+  SetProtoMethod(isolate, dir, "close", DirHandle::Close);
   Local<ObjectTemplate> dirt = dir->InstanceTemplate();
   dirt->SetInternalFieldCount(DirHandle::kInternalFieldCount);
-  env->SetConstructorFunction(target, "DirHandle", dir);
+  SetConstructorFunction(context, target, "DirHandle", dir);
   env->set_dir_instance_template(dirt);
 }
 

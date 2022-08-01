@@ -1160,8 +1160,9 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  env->SetMethodNoSideEffect(target, "getCLIOptions", GetCLIOptions);
-  env->SetMethodNoSideEffect(target, "getEmbedderOptions", GetEmbedderOptions);
+  SetMethodNoSideEffect(context, target, "getCLIOptions", GetCLIOptions);
+  SetMethodNoSideEffect(
+      context, target, "getEmbedderOptions", GetEmbedderOptions);
 
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvironment);

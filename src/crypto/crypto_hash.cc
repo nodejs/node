@@ -11,8 +11,10 @@
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -51,18 +53,20 @@ void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hash::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "update", HashUpdate);
-  env->SetProtoMethod(t, "digest", HashDigest);
+  SetProtoMethod(isolate, t, "update", HashUpdate);
+  SetProtoMethod(isolate, t, "digest", HashDigest);
 
-  env->SetConstructorFunction(target, "Hash", t);
+  SetConstructorFunction(context, target, "Hash", t);
 
-  env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
+  SetMethodNoSideEffect(context, target, "getHashes", GetHashes);
 
   HashJob::Initialize(env, target);
 }

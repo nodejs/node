@@ -464,8 +464,9 @@ v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
 v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
 
 void BindingData::AddMethods() {
-  env()->SetFastMethod(object(), "hrtime", SlowNumber, &fast_number_);
-  env()->SetFastMethod(object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+  Local<Context> ctx = env()->context();
+  SetFastMethod(ctx, object(), "hrtime", SlowNumber, &fast_number_);
+  SetFastMethod(ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(
@@ -560,31 +561,31 @@ static void Initialize(Local<Object> target,
 
   // define various internal methods
   if (env->owns_process_state()) {
-    env->SetMethod(target, "_debugProcess", DebugProcess);
-    env->SetMethod(target, "_debugEnd", DebugEnd);
-    env->SetMethod(target, "abort", Abort);
-    env->SetMethod(target, "causeSegfault", CauseSegfault);
-    env->SetMethod(target, "chdir", Chdir);
+    SetMethod(context, target, "_debugProcess", DebugProcess);
+    SetMethod(context, target, "_debugEnd", DebugEnd);
+    SetMethod(context, target, "abort", Abort);
+    SetMethod(context, target, "causeSegfault", CauseSegfault);
+    SetMethod(context, target, "chdir", Chdir);
   }
 
-  env->SetMethod(target, "umask", Umask);
-  env->SetMethod(target, "_rawDebug", RawDebug);
-  env->SetMethod(target, "memoryUsage", MemoryUsage);
-  env->SetMethod(target, "rss", Rss);
-  env->SetMethod(target, "cpuUsage", CPUUsage);
-  env->SetMethod(target, "resourceUsage", ResourceUsage);
+  SetMethod(context, target, "umask", Umask);
+  SetMethod(context, target, "_rawDebug", RawDebug);
+  SetMethod(context, target, "memoryUsage", MemoryUsage);
+  SetMethod(context, target, "rss", Rss);
+  SetMethod(context, target, "cpuUsage", CPUUsage);
+  SetMethod(context, target, "resourceUsage", ResourceUsage);
 
-  env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
-  env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
-  env->SetMethod(target, "_kill", Kill);
+  SetMethod(context, target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
+  SetMethod(context, target, "_getActiveRequests", GetActiveRequests);
+  SetMethod(context, target, "_getActiveHandles", GetActiveHandles);
+  SetMethod(context, target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
+  SetMethod(context, target, "_kill", Kill);
 
-  env->SetMethodNoSideEffect(target, "cwd", Cwd);
-  env->SetMethod(target, "dlopen", binding::DLOpen);
-  env->SetMethod(target, "reallyExit", ReallyExit);
-  env->SetMethodNoSideEffect(target, "uptime", Uptime);
-  env->SetMethod(target, "patchProcessObject", PatchProcessObject);
+  SetMethodNoSideEffect(context, target, "cwd", Cwd);
+  SetMethod(context, target, "dlopen", binding::DLOpen);
+  SetMethod(context, target, "reallyExit", ReallyExit);
+  SetMethodNoSideEffect(context, target, "uptime", Uptime);
+  SetMethod(context, target, "patchProcessObject", PatchProcessObject);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

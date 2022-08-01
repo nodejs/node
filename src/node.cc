@@ -301,10 +301,10 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       primordials_string()};
   std::vector<Local<Value>> loaders_args = {
       process_object(),
-      NewFunctionTemplate(binding::GetLinkedBinding)
+      NewFunctionTemplate(isolate_, binding::GetLinkedBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
-      NewFunctionTemplate(binding::GetInternalBinding)
+      NewFunctionTemplate(isolate_, binding::GetInternalBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
       primordials()};
@@ -443,7 +443,7 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       env->native_module_require(),
       env->internal_binding_loader(),
       env->primordials(),
-      env->NewFunctionTemplate(MarkBootstrapComplete)
+      NewFunctionTemplate(env->isolate(), MarkBootstrapComplete)
           ->GetFunction(env->context())
           .ToLocalChecked()};
 

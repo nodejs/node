@@ -21,9 +21,11 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
+using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
@@ -60,22 +62,25 @@ int GetOKPCurveFromName(const char* name) {
 }
 
 void ECDH::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "generateKeys", GenerateKeys);
-  env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
-  env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
-  env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
+  SetProtoMethod(isolate, t, "generateKeys", GenerateKeys);
+  SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);
+  SetProtoMethodNoSideEffect(isolate, t, "getPublicKey", GetPublicKey);
+  SetProtoMethodNoSideEffect(isolate, t, "getPrivateKey", GetPrivateKey);
+  SetProtoMethod(isolate, t, "setPublicKey", SetPublicKey);
+  SetProtoMethod(isolate, t, "setPrivateKey", SetPrivateKey);
 
-  env->SetConstructorFunction(target, "ECDH", t);
+  SetConstructorFunction(context, target, "ECDH", t);
 
-  env->SetMethodNoSideEffect(target, "ECDHConvertKey", ECDH::ConvertKey);
-  env->SetMethodNoSideEffect(target, "getCurves", ECDH::GetCurves);
+  SetMethodNoSideEffect(context, target, "ECDHConvertKey", ECDH::ConvertKey);
+  SetMethodNoSideEffect(context, target, "getCurves", ECDH::GetCurves);
 
   ECDHBitsJob::Initialize(env, target);
   ECKeyPairGenJob::Initialize(env, target);

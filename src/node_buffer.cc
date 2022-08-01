@@ -1275,54 +1275,60 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "setBufferPrototype", SetBufferPrototype);
-  env->SetMethodNoSideEffect(target, "createFromString", CreateFromString);
+  SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
+  SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
 
-  env->SetMethodNoSideEffect(target, "byteLengthUtf8", ByteLengthUtf8);
-  env->SetMethod(target, "copy", Copy);
-  env->SetMethodNoSideEffect(target, "compare", Compare);
-  env->SetMethodNoSideEffect(target, "compareOffset", CompareOffset);
-  env->SetMethod(target, "fill", Fill);
-  env->SetMethodNoSideEffect(target, "indexOfBuffer", IndexOfBuffer);
-  env->SetMethodNoSideEffect(target, "indexOfNumber", IndexOfNumber);
-  env->SetMethodNoSideEffect(target, "indexOfString", IndexOfString);
+  SetMethodNoSideEffect(context, target, "byteLengthUtf8", ByteLengthUtf8);
+  SetMethod(context, target, "copy", Copy);
+  SetMethodNoSideEffect(context, target, "compare", Compare);
+  SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
+  SetMethod(context, target, "fill", Fill);
+  SetMethodNoSideEffect(context, target, "indexOfBuffer", IndexOfBuffer);
+  SetMethodNoSideEffect(context, target, "indexOfNumber", IndexOfNumber);
+  SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
-  env->SetMethod(target, "detachArrayBuffer", DetachArrayBuffer);
-  env->SetMethod(target, "copyArrayBuffer", CopyArrayBuffer);
+  SetMethod(context, target, "detachArrayBuffer", DetachArrayBuffer);
+  SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
 
-  env->SetMethod(target, "swap16", Swap16);
-  env->SetMethod(target, "swap32", Swap32);
-  env->SetMethod(target, "swap64", Swap64);
+  SetMethod(context, target, "swap16", Swap16);
+  SetMethod(context, target, "swap32", Swap32);
+  SetMethod(context, target, "swap64", Swap64);
 
-  env->SetMethod(target, "encodeInto", EncodeInto);
-  env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
+  SetMethod(context, target, "encodeInto", EncodeInto);
+  SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Number::New(env->isolate(), kMaxLength)).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kMaxLength"),
+            Number::New(isolate, kMaxLength))
+      .Check();
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
-              Integer::New(env->isolate(), String::kMaxLength)).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kStringMaxLength"),
+            Integer::New(isolate, String::kMaxLength))
+      .Check();
 
-  env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
-  env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
-  env->SetMethodNoSideEffect(target, "base64urlSlice", StringSlice<BASE64URL>);
-  env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
-  env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
-  env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
-  env->SetMethodNoSideEffect(target, "utf8Slice", StringSlice<UTF8>);
+  SetMethodNoSideEffect(context, target, "asciiSlice", StringSlice<ASCII>);
+  SetMethodNoSideEffect(context, target, "base64Slice", StringSlice<BASE64>);
+  SetMethodNoSideEffect(
+      context, target, "base64urlSlice", StringSlice<BASE64URL>);
+  SetMethodNoSideEffect(context, target, "latin1Slice", StringSlice<LATIN1>);
+  SetMethodNoSideEffect(context, target, "hexSlice", StringSlice<HEX>);
+  SetMethodNoSideEffect(context, target, "ucs2Slice", StringSlice<UCS2>);
+  SetMethodNoSideEffect(context, target, "utf8Slice", StringSlice<UTF8>);
 
-  env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
-  env->SetMethod(target, "base64Write", StringWrite<BASE64>);
-  env->SetMethod(target, "base64urlWrite", StringWrite<BASE64URL>);
-  env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
-  env->SetMethod(target, "hexWrite", StringWrite<HEX>);
-  env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
-  env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
+  SetMethod(context, target, "asciiWrite", StringWrite<ASCII>);
+  SetMethod(context, target, "base64Write", StringWrite<BASE64>);
+  SetMethod(context, target, "base64urlWrite", StringWrite<BASE64URL>);
+  SetMethod(context, target, "latin1Write", StringWrite<LATIN1>);
+  SetMethod(context, target, "hexWrite", StringWrite<HEX>);
+  SetMethod(context, target, "ucs2Write", StringWrite<UCS2>);
+  SetMethod(context, target, "utf8Write", StringWrite<UTF8>);
 
-  env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
+  SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
 
 }  // anonymous namespace

@@ -34,6 +34,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -52,15 +53,16 @@ class SignalWrap : public HandleWrap {
                          Local<Context> context,
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         SignalWrap::kInternalFieldCount);
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(constructor, "start", Start);
-    env->SetProtoMethod(constructor, "stop", Stop);
+    SetProtoMethod(isolate, constructor, "start", Start);
+    SetProtoMethod(isolate, constructor, "stop", Stop);
 
-    env->SetConstructorFunction(target, "Signal", constructor);
+    SetConstructorFunction(context, target, "Signal", constructor);
   }
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

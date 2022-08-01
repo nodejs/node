@@ -291,19 +291,21 @@ void Initialize(Local<Object> target,
   target->Set(context, performanceEntryString, fn).Check();
   env->set_performance_entry_template(fn);
 
-  env->SetMethod(target, "markMilestone", MarkMilestone);
-  env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
-  env->SetMethod(target,
-                 "installGarbageCollectionTracking",
-                 InstallGarbageCollectionTracking);
-  env->SetMethod(target,
-                 "removeGarbageCollectionTracking",
-                 RemoveGarbageCollectionTracking);
-  env->SetMethod(target, "notify", Notify);
-  env->SetMethod(target, "loopIdleTime", LoopIdleTime);
-  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
-  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  env->SetMethod(target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(context, target, "markMilestone", MarkMilestone);
+  SetMethod(context, target, "setupObservers", SetupPerformanceObservers);
+  SetMethod(context,
+            target,
+            "installGarbageCollectionTracking",
+            InstallGarbageCollectionTracking);
+  SetMethod(context,
+            target,
+            "removeGarbageCollectionTracking",
+            RemoveGarbageCollectionTracking);
+  SetMethod(context, target, "notify", Notify);
+  SetMethod(context, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(context, target, "getTimeOrigin", GetTimeOrigin);
+  SetMethod(context, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  SetMethod(context, target, "createELDHistogram", CreateELDHistogram);
 
   Local<Object> constants = Object::New(isolate);
 

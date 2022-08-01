@@ -448,11 +448,10 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-
-  env->SetMethod(target, "buildEmbedderGraph", BuildEmbedderGraph);
-  env->SetMethod(target, "triggerHeapSnapshot", TriggerHeapSnapshot);
-  env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
+  SetMethod(context, target, "buildEmbedderGraph", BuildEmbedderGraph);
+  SetMethod(context, target, "triggerHeapSnapshot", TriggerHeapSnapshot);
+  SetMethod(
+      context, target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
