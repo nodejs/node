@@ -148,6 +148,98 @@ class SocketAddress : public MemoryRetainer {
   sockaddr_storage address_;
 };
 
+class SocketAddressMask : public MemoryRetainer {
+ public:
+  struct Hash {
+    size_t operator()(const SocketAddressMask& mask) const;
+  };
+
+  inline bool operator==(const SocketAddressMask& other) const;
+  inline bool operator!=(const SocketAddressMask& other) const;
+
+  static bool New(
+      SocketAddress* network,
+      int prefix,
+      SocketAddressMask* mask);
+
+  SocketAddressMask() = default;
+
+  inline SocketAddressMask& operator=(const SocketAddressMask& other);
+  inline const SocketAddressMask& operator*() const;
+  inline const SocketAddressMask* operator->() const;
+
+  inline int family() const;
+  inline std::string address() const;
+  inline const SocketAddress* network() const;
+  inline int prefix() const;
+
+  // Returns true if the subnet specified by this SocketAddressMask
+  // contains the given SocketAddress
+  bool contains_address(const SocketAddress& address) const;
+
+  inline v8::Local<v8::Object> ToJS(
+      Environment* env,
+      v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
+
+  inline std::string ToString() const;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SocketAddressMask)
+  SET_SELF_SIZE(SocketAddressMask)
+
+  template <typename T>
+  using Map = std::unordered_map<SocketAddressMask, T, Hash>;
+
+ private:
+  SocketAddress network_;
+  int prefix_;
+};
+
+class SocketAddressRange : public MemoryRetainer {
+ public:
+  struct Hash {
+    size_t operator()(const SocketAddressRange& range) const;
+  };
+
+  inline bool operator==(const SocketAddressRange& other) const;
+  inline bool operator!=(const SocketAddressRange& other) const;
+
+  static bool New(
+      SocketAddress* start,
+      SocketAddress* end,
+      SocketAddressRange* range);
+
+  SocketAddressRange() = default;
+
+  inline SocketAddressRange& operator=(const SocketAddressRange& other);
+  inline const SocketAddressRange& operator*() const;
+  inline const SocketAddressRange* operator->() const;
+
+  inline const SocketAddress* start() const;
+  inline const SocketAddress* end() const;
+
+  // Returns true if the given SocketAddress falls within
+  // this SocketAddressRange
+  bool contains_address(const SocketAddress& address) const;
+
+  inline v8::Local<v8::Object> ToJS(
+      Environment* env,
+      v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
+
+  inline std::string ToString() const;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SocketAddressRange)
+  SET_SELF_SIZE(SocketAddressRange)
+
+  template <typename T>
+  using Map = std::unordered_map<SocketAddressRange, T, Hash>;
+
+ private:
+  SocketAddress start_;
+  SocketAddress end_;
+};
+
 class SocketAddressBase : public BaseObject {
  public:
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
@@ -258,7 +350,15 @@ class SocketAddressBlockList : public MemoryRetainer {
       const std::shared_ptr<SocketAddress>& start,
       const std::shared_ptr<SocketAddress>& end);
 
+  void RemoveSocketAddressRange(
+      const std::shared_ptr<SocketAddress>& start,
+      const std::shared_ptr<SocketAddress>& end);
+
   void AddSocketAddressMask(
+      const std::shared_ptr<SocketAddress>& address,
+      int prefix);
+
+  void RemoveSocketAddressMask(
       const std::shared_ptr<SocketAddress>& address,
       int prefix);
 
@@ -288,12 +388,10 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressRangeRule final : Rule {
-    std::shared_ptr<SocketAddress> start;
-    std::shared_ptr<SocketAddress> end;
+    std::shared_ptr<SocketAddressRange> range;
 
     SocketAddressRangeRule(
-        const std::shared_ptr<SocketAddress>& start,
-        const std::shared_ptr<SocketAddress>& end);
+        const std::shared_ptr<SocketAddressRange>& range);
 
     bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
@@ -304,12 +402,10 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressMaskRule final : Rule {
-    std::shared_ptr<SocketAddress> network;
-    int prefix;
+    std::shared_ptr<SocketAddressMask> mask;
 
     SocketAddressMaskRule(
-        const std::shared_ptr<SocketAddress>& address,
-        int prefix);
+        const std::shared_ptr<SocketAddressMask>& mask);
 
     bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
@@ -332,6 +428,12 @@ class SocketAddressBlockList : public MemoryRetainer {
   std::list<std::unique_ptr<Rule>> rules_;
   SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> address_rules_;
 
+  SocketAddressMask::Map
+    <std::list<std::unique_ptr<Rule>>::iterator> subnet_rules_;
+
+  SocketAddressRange::Map
+    <std::list<std::unique_ptr<Rule>>::iterator> range_rules_;
+
   Mutex mutex_;
 };
 
@@ -352,8 +454,11 @@ class SocketAddressBlockListWrap : public BaseObject {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
 

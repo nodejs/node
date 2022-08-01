@@ -70,6 +70,37 @@ const util = require('util');
 
 {
   const blockList = new BlockList();
+  const sa = new SocketAddress({
+    address: '8592:757c:efae:4e45:fb5d:d62a:0d00:8e17',
+    family: 'ipv6'
+  });
+
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress(sa);
+
+  assert(blockList.removeAddress('1.1.1.1'));
+  assert(blockList.removeAddress(sa));
+
+  assert(!blockList.check('1.1.1.1'));
+  assert(!blockList.check('8592:757c:efae:4e45:fb5d:d62a:0d00:8e17', 'ipv6'));
+}
+
+{
+  const blockList = new BlockList();
+
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress('1.1.1.1');
+
+  assert.deepStrictEqual(blockList.rules, [
+    'Address: IPv4 1.1.1.1',
+  ]);
+
+  assert(blockList.removeAddress('1.1.1.1'));
+  assert(!blockList.check('1.1.1.1'));
+}
+
+{
+  const blockList = new BlockList();
   const sa1 = new SocketAddress({ address: '1.1.1.1' });
   const sa2 = new SocketAddress({
     address: '8592:757c:efae:4e45:fb5d:d62a:0d00:8e17',
@@ -118,6 +149,62 @@ const util = require('util');
 
 {
   const blockList = new BlockList();
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('::1', '::f', 'ipv6');
+
+  {
+    const rulesCheck = [
+      'Range: IPv6 ::1-::f',
+      'Range: IPv4 1.1.1.1-1.1.1.10',
+    ];
+    assert.deepStrictEqual(blockList.rules, rulesCheck);
+  }
+
+  assert(!blockList.removeRange('1.1.1.1', '1.1.1.11'));
+  assert(blockList.removeRange('::1', '::f', 'ipv6'));
+
+  {
+    const rulesCheck = [
+      'Range: IPv4 1.1.1.1-1.1.1.10',
+    ];
+    assert.deepStrictEqual(blockList.rules, rulesCheck);
+  }
+
+  assert(!blockList.check('1.1.1.0'));
+  for (let n = 1; n <= 10; n++)
+    assert(blockList.check(`1.1.1.${n}`));
+  assert(!blockList.check('1.1.1.11'));
+
+  for (let n = 0x1; n <= 0xf; n++) {
+    assert(!blockList.check(`::${n.toString(16)}`, 'ipv6'),
+           `::${n.toString(16)} check failed`);
+  }
+}
+
+{
+  const blockList = new BlockList();
+  const sa = new SocketAddress({ address: '1.1.1.10' });
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('1.1.1.1', sa);
+
+  const rulesCheck = [
+    'Range: IPv4 1.1.1.1-1.1.1.10',
+  ];
+  assert.deepStrictEqual(blockList.rules, rulesCheck);
+}
+
+{
+  const blockList = new BlockList();
+  const sa = new SocketAddress({ address: '1.1.1.10' });
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('1.1.1.1', sa);
+
+  assert(blockList.removeRange('1.1.1.1', sa));
+  assert.deepStrictEqual(blockList.rules, []);
+}
+
+{
+  const blockList = new BlockList();
   const sa1 = new SocketAddress({ address: '1.1.1.1' });
   const sa2 = new SocketAddress({ address: '1.1.1.10' });
   const sa3 = new SocketAddress({ address: '::1', family: 'ipv6' });
@@ -148,6 +235,44 @@ const util = require('util');
   assert(blockList.check('1.1.1.1'));
   assert(!blockList.check('1.2.0.1'));
   assert(blockList.check('::ffff:1.1.0.1', 'ipv6'));
+
+  assert(blockList.check('8592:757c:efae:4e45:f::', 'ipv6'));
+  assert(blockList.check('8592:757c:efae:4e45::f', 'ipv6'));
+  assert(!blockList.check('8592:757c:efae:4f45::f', 'ipv6'));
+}
+
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('1.1.1.0', 16);
+  blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+
+  assert(blockList.removeSubnet('1.1.1.0', 16));
+  assert(!blockList.removeSubnet('8592:757c:efae:4e45::', 32, 'ipv6'));
+
+  const rulesCheck = [
+    'Subnet: IPv6 8592:757c:efae:4e45::/64',
+  ];
+  assert.deepStrictEqual(blockList.rules, rulesCheck);
+
+  assert(!blockList.check('1.1.0.1'));
+  assert(!blockList.check('1.1.1.1'));
+  assert(!blockList.check('1.2.0.1'));
+  assert(!blockList.check('::ffff:1.1.0.1', 'ipv6'));
+
+  assert(blockList.check('8592:757c:efae:4e45:f::', 'ipv6'));
+  assert(blockList.check('8592:757c:efae:4e45::f', 'ipv6'));
+  assert(!blockList.check('8592:757c:efae:4f45::f', 'ipv6'));
+}
+
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+  blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+
+  const rulesCheck = [
+    'Subnet: IPv6 8592:757c:efae:4e45::/64',
+  ];
+  assert.deepStrictEqual(blockList.rules, rulesCheck);
 
   assert(blockList.check('8592:757c:efae:4e45:f::', 'ipv6'));
   assert(blockList.check('8592:757c:efae:4e45::f', 'ipv6'));

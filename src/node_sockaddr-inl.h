@@ -190,6 +190,64 @@ bool SocketAddress::operator>=(const SocketAddress& other) const {
   return compare(other) >= CompareResult::SAME;
 }
 
+const SocketAddressMask& SocketAddressMask::operator*() const {
+  return *this;
+}
+
+const SocketAddressMask* SocketAddressMask::operator->() const {
+  return this;
+}
+
+bool SocketAddressMask::operator==(const SocketAddressMask& other) const {
+  return (this->network_ == other->network_ &&
+          this->prefix_ == other->prefix_);
+}
+
+bool SocketAddressMask::operator!=(const SocketAddressMask& other) const {
+  return !(*this == other);
+}
+
+int SocketAddressMask::family() const {
+  return network_.family();
+}
+
+std::string SocketAddressMask::address() const {
+  return network_.address();
+}
+
+const SocketAddress* SocketAddressMask::network() const {
+  return &network_;
+}
+
+int SocketAddressMask::prefix() const {
+  return prefix_;
+}
+
+const SocketAddressRange& SocketAddressRange::operator*() const {
+  return *this;
+}
+
+const SocketAddressRange* SocketAddressRange::operator->() const {
+  return this;
+}
+
+bool SocketAddressRange::operator==(const SocketAddressRange& other) const {
+  return (this->start_ == other->start_ &&
+          this->end_ == other->end_);
+}
+
+bool SocketAddressRange::operator!=(const SocketAddressRange& other) const {
+  return !(*this == other);
+}
+
+const SocketAddress* SocketAddressRange::start() const {
+  return &start_;
+}
+
+const SocketAddress* SocketAddressRange::end() const {
+  return &end_;
+}
+
 template <typename T>
 SocketAddressLRU<T>::SocketAddressLRU(
     size_t max_size)
