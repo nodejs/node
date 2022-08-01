@@ -31,6 +31,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -157,13 +158,14 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
 Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->handle_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HandleWrap"));
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "close", HandleWrap::Close);
-    env->SetProtoMethodNoSideEffect(tmpl, "hasRef", HandleWrap::HasRef);
-    env->SetProtoMethod(tmpl, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(tmpl, "unref", HandleWrap::Unref);
+    SetProtoMethod(isolate, tmpl, "close", HandleWrap::Close);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "hasRef", HandleWrap::HasRef);
+    SetProtoMethod(isolate, tmpl, "ref", HandleWrap::Ref);
+    SetProtoMethod(isolate, tmpl, "unref", HandleWrap::Unref);
     env->set_handle_wrap_ctor_template(tmpl);
   }
   return tmpl;

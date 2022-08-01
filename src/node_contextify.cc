@@ -255,16 +255,19 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
 
 void ContextifyContext::Init(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
   Local<FunctionTemplate> function_template =
-      FunctionTemplate::New(env->isolate());
+      NewFunctionTemplate(isolate, nullptr);
   function_template->InstanceTemplate()->SetInternalFieldCount(
       ContextifyContext::kInternalFieldCount);
   env->set_script_data_constructor_function(
       function_template->GetFunction(env->context()).ToLocalChecked());
 
-  env->SetMethod(target, "makeContext", MakeContext);
-  env->SetMethod(target, "isContext", IsContext);
-  env->SetMethod(target, "compileFunction", CompileFunction);
+  SetMethod(context, target, "makeContext", MakeContext);
+  SetMethod(context, target, "isContext", IsContext);
+  SetMethod(context, target, "compileFunction", CompileFunction);
 }
 
 void ContextifyContext::RegisterExternalReferences(
@@ -665,16 +668,17 @@ void ContextifyContext::IndexedPropertyDeleterCallback(
 }
 
 void ContextifyScript::Init(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
   HandleScope scope(env->isolate());
   Local<String> class_name =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
 
-  Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> script_tmpl = NewFunctionTemplate(isolate, New);
   script_tmpl->InstanceTemplate()->SetInternalFieldCount(
       ContextifyScript::kInternalFieldCount);
   script_tmpl->SetClassName(class_name);
-  env->SetProtoMethod(script_tmpl, "createCachedData", CreateCachedData);
-  env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
+  SetProtoMethod(isolate, script_tmpl, "createCachedData", CreateCachedData);
+  SetProtoMethod(isolate, script_tmpl, "runInContext", RunInContext);
 
   Local<Context> context = env->context();
 
@@ -1270,12 +1274,14 @@ void MicrotaskQueueWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 void MicrotaskQueueWrap::Init(Environment* env, Local<Object> target) {
-  HandleScope scope(env->isolate());
-  Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(
       ContextifyScript::kInternalFieldCount);
   env->set_microtask_queue_ctor_template(tmpl);
-  env->SetConstructorFunction(target, "MicrotaskQueue", tmpl);
+  SetConstructorFunction(context, target, "MicrotaskQueue", tmpl);
 }
 
 void MicrotaskQueueWrap::RegisterExternalReferences(
@@ -1293,11 +1299,11 @@ void Initialize(Local<Object> target,
   ContextifyScript::Init(env, target);
   MicrotaskQueueWrap::Init(env, target);
 
-  env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
-  env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
+  SetMethod(context, target, "startSigintWatchdog", StartSigintWatchdog);
+  SetMethod(context, target, "stopSigintWatchdog", StopSigintWatchdog);
   // Used in tests.
-  env->SetMethodNoSideEffect(
-      target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+  SetMethodNoSideEffect(
+      context, target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
 
   {
     Local<FunctionTemplate> tpl = FunctionTemplate::New(env->isolate());
@@ -1333,7 +1339,7 @@ void Initialize(Local<Object> target,
 
   target->Set(context, env->constants_string(), constants).Check();
 
-  env->SetMethod(target, "measureMemory", MeasureMemory);
+  SetMethod(context, target, "measureMemory", MeasureMemory);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

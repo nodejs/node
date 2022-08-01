@@ -11,6 +11,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -313,17 +314,18 @@ void InitializeStreamPipe(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   // Create FunctionTemplate for FileHandle::CloseReq
-  Local<FunctionTemplate> pipe = env->NewFunctionTemplate(StreamPipe::New);
-  env->SetProtoMethod(pipe, "unpipe", StreamPipe::Unpipe);
-  env->SetProtoMethod(pipe, "start", StreamPipe::Start);
-  env->SetProtoMethod(pipe, "isClosed", StreamPipe::IsClosed);
-  env->SetProtoMethod(pipe, "pendingWrites", StreamPipe::PendingWrites);
+  Local<FunctionTemplate> pipe = NewFunctionTemplate(isolate, StreamPipe::New);
+  SetProtoMethod(isolate, pipe, "unpipe", StreamPipe::Unpipe);
+  SetProtoMethod(isolate, pipe, "start", StreamPipe::Start);
+  SetProtoMethod(isolate, pipe, "isClosed", StreamPipe::IsClosed);
+  SetProtoMethod(isolate, pipe, "pendingWrites", StreamPipe::PendingWrites);
   pipe->Inherit(AsyncWrap::GetConstructorTemplate(env));
   pipe->InstanceTemplate()->SetInternalFieldCount(
       StreamPipe::kInternalFieldCount);
-  env->SetConstructorFunction(target, "StreamPipe", pipe);
+  SetConstructorFunction(context, target, "StreamPipe", pipe);
 }
 
 }  // anonymous namespace

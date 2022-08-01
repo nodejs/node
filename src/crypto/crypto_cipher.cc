@@ -13,10 +13,12 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Uint32;
@@ -270,43 +272,54 @@ void CipherBase::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       CipherBase::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", Init);
-  env->SetProtoMethod(t, "initiv", InitIv);
-  env->SetProtoMethod(t, "update", Update);
-  env->SetProtoMethod(t, "final", Final);
-  env->SetProtoMethod(t, "setAutoPadding", SetAutoPadding);
-  env->SetProtoMethodNoSideEffect(t, "getAuthTag", GetAuthTag);
-  env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
-  env->SetProtoMethod(t, "setAAD", SetAAD);
-  env->SetConstructorFunction(target, "CipherBase", t);
+  SetProtoMethod(isolate, t, "init", Init);
+  SetProtoMethod(isolate, t, "initiv", InitIv);
+  SetProtoMethod(isolate, t, "update", Update);
+  SetProtoMethod(isolate, t, "final", Final);
+  SetProtoMethod(isolate, t, "setAutoPadding", SetAutoPadding);
+  SetProtoMethodNoSideEffect(isolate, t, "getAuthTag", GetAuthTag);
+  SetProtoMethod(isolate, t, "setAuthTag", SetAuthTag);
+  SetProtoMethod(isolate, t, "setAAD", SetAAD);
+  SetConstructorFunction(context, target, "CipherBase", t);
 
-  env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
-  env->SetMethodNoSideEffect(target, "getCiphers", GetCiphers);
+  SetMethodNoSideEffect(context, target, "getSSLCiphers", GetSSLCiphers);
+  SetMethodNoSideEffect(context, target, "getCiphers", GetCiphers);
 
-  env->SetMethod(target, "publicEncrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                         EVP_PKEY_encrypt_init,
-                                         EVP_PKEY_encrypt>);
-  env->SetMethod(target, "privateDecrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                         EVP_PKEY_decrypt_init,
-                                         EVP_PKEY_decrypt>);
-  env->SetMethod(target, "privateEncrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                         EVP_PKEY_sign_init,
-                                         EVP_PKEY_sign>);
-  env->SetMethod(target, "publicDecrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                         EVP_PKEY_verify_recover_init,
-                                         EVP_PKEY_verify_recover>);
+  SetMethod(context,
+            target,
+            "publicEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    EVP_PKEY_encrypt_init,
+                                    EVP_PKEY_encrypt>);
+  SetMethod(context,
+            target,
+            "privateDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    EVP_PKEY_decrypt_init,
+                                    EVP_PKEY_decrypt>);
+  SetMethod(context,
+            target,
+            "privateEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    EVP_PKEY_sign_init,
+                                    EVP_PKEY_sign>);
+  SetMethod(context,
+            target,
+            "publicDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    EVP_PKEY_verify_recover_init,
+                                    EVP_PKEY_verify_recover>);
 
-  env->SetMethodNoSideEffect(target, "getCipherInfo", GetCipherInfo);
+  SetMethodNoSideEffect(context, target, "getCipherInfo", GetCipherInfo);
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherEncrypt);
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherDecrypt);

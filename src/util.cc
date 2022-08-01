@@ -317,4 +317,161 @@ std::string DiagnosticFilename::MakeFilename(
   return oss.str();
 }
 
+Local<v8::FunctionTemplate> NewFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::FunctionCallback callback,
+    Local<v8::Signature> signature,
+    v8::ConstructorBehavior behavior,
+    v8::SideEffectType side_effect_type,
+    const v8::CFunction* c_function) {
+  return v8::FunctionTemplate::New(isolate,
+                                   callback,
+                                   Local<v8::Value>(),
+                                   signature,
+                                   0,
+                                   behavior,
+                                   side_effect_type,
+                                   c_function);
+}
+
+void SetMethod(Local<v8::Context> context,
+               Local<v8::Object> that,
+               const char* name,
+               v8::FunctionCallback callback) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void SetFastMethod(Local<v8::Context> context,
+                   Local<v8::Object> that,
+                   const char* name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          c_function)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
+void SetMethodNoSideEffect(Local<v8::Context> context,
+                           Local<v8::Object> that,
+                           const char* name,
+                           v8::FunctionCallback callback) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void SetProtoMethod(v8::Isolate* isolate,
+                    Local<v8::FunctionTemplate> that,
+                    const char* name,
+                    v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
+                                Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+void SetInstanceMethod(v8::Isolate* isolate,
+                       Local<v8::FunctionTemplate> that,
+                       const char* name,
+                       v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->InstanceTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
+void SetConstructorFunction(Local<v8::Context> context,
+                            Local<v8::Object> that,
+                            const char* name,
+                            Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  Isolate* isolate = context->GetIsolate();
+  SetConstructorFunction(
+      context, that, OneByteString(isolate, name), tmpl, flag);
+}
+
+void SetConstructorFunction(Local<v8::Context> context,
+                            Local<v8::Object> that,
+                            Local<v8::String> name,
+                            Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
+}
+
 }  // namespace node

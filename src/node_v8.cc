@@ -217,15 +217,21 @@ void Initialize(Local<Object> target,
       env->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
-  env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
-                             CachedDataVersionTag);
-  env->SetMethod(
-      target, "updateHeapStatisticsBuffer", UpdateHeapStatisticsBuffer);
-  env->SetMethodNoSideEffect(target, "setHeapSnapshotNearHeapLimit",
-                             SetHeapSnapshotNearHeapLimit);
+  SetMethodNoSideEffect(
+      context, target, "cachedDataVersionTag", CachedDataVersionTag);
+  SetMethod(context,
+            target,
+            "updateHeapStatisticsBuffer",
+            UpdateHeapStatisticsBuffer);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "setHeapSnapshotNearHeapLimit",
+                        SetHeapSnapshotNearHeapLimit);
 
-  env->SetMethod(
-      target, "updateHeapCodeStatisticsBuffer", UpdateHeapCodeStatisticsBuffer);
+  SetMethod(context,
+            target,
+            "updateHeapCodeStatisticsBuffer",
+            UpdateHeapCodeStatisticsBuffer);
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
@@ -238,19 +244,21 @@ void Initialize(Local<Object> target,
     heap_spaces[i] = String::NewFromUtf8(env->isolate(), s.space_name())
                                              .ToLocalChecked();
   }
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-              Array::New(env->isolate(),
-                         heap_spaces.out(),
-                         number_of_heap_spaces)).Check();
+  target
+      ->Set(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
+          Array::New(env->isolate(), heap_spaces.out(), number_of_heap_spaces))
+      .Check();
 
-  env->SetMethod(target,
-                 "updateHeapSpaceStatisticsBuffer",
-                 UpdateHeapSpaceStatisticsBuffer);
+  SetMethod(context,
+            target,
+            "updateHeapSpaceStatisticsBuffer",
+            UpdateHeapSpaceStatisticsBuffer);
 
 #define V(i, _, name)                                                          \
   target                                                                       \
-      ->Set(env->context(),                                                    \
+      ->Set(context,                                                           \
             FIXED_ONE_BYTE_STRING(env->isolate(), #name),                      \
             Uint32::NewFromUnsigned(env->isolate(), i))                        \
       .Check();
@@ -261,7 +269,7 @@ void Initialize(Local<Object> target,
 #undef V
 
   // Export symbols used by v8.setFlagsFromString()
-  env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
+  SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
