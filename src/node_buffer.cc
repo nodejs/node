@@ -1240,7 +1240,7 @@ std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
     pointer = ab->Data();
     byte_length = ab->ByteLength();
   } else {
-    CHECK(false);  // Caller must validate.
+    UNREACHABLE();  // Caller must validate.
   }
   return {pointer, byte_length};
 }
