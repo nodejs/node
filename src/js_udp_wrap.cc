@@ -17,6 +17,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -198,18 +199,19 @@ void JSUDPWrap::Initialize(Local<Object> target,
                            Local<Context> context,
                            void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()
     ->SetInternalFieldCount(UDPWrapBase::kUDPWrapBaseField + 1);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   UDPWrapBase::AddMethods(env, t);
-  env->SetProtoMethod(t, "emitReceived", EmitReceived);
-  env->SetProtoMethod(t, "onSendDone", OnSendDone);
-  env->SetProtoMethod(t, "onAfterBind", OnAfterBind);
+  SetProtoMethod(isolate, t, "emitReceived", EmitReceived);
+  SetProtoMethod(isolate, t, "onSendDone", OnSendDone);
+  SetProtoMethod(isolate, t, "onAfterBind", OnAfterBind);
 
-  env->SetConstructorFunction(target, "JSUDPWrap", t);
+  SetConstructorFunction(context, target, "JSUDPWrap", t);
 }
 
 

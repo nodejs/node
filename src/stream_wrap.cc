@@ -46,6 +46,7 @@ using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -67,9 +68,10 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
                                  Local<Context> context,
                                  void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> sw =
-      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
+      NewFunctionTemplate(isolate, IsConstructCallCallback);
   sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kInternalFieldCount);
 
   // we need to set handle and callback to null,
@@ -79,33 +81,34 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   // - oncomplete
   // - callback
   // - handle
-  sw->InstanceTemplate()->Set(
-      env->oncomplete_string(),
-      v8::Null(env->isolate()));
-  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "callback"),
-      v8::Null(env->isolate()));
-  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "handle"),
-      v8::Null(env->isolate()));
+  sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
+                              v8::Null(isolate));
+  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "handle"),
+                              v8::Null(isolate));
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  env->SetConstructorFunction(target, "ShutdownWrap", sw);
+  SetConstructorFunction(context, target, "ShutdownWrap", sw);
   env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
-      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
+      FunctionTemplate::New(isolate, IsConstructCallCallback);
   ww->InstanceTemplate()->SetInternalFieldCount(
       StreamReq::kInternalFieldCount);
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "WriteWrap", ww);
+  SetConstructorFunction(context, target, "WriteWrap", ww);
   env->set_write_wrap_template(ww->InstanceTemplate());
 
   NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
   NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
   NODE_DEFINE_CONSTANT(target, kBytesWritten);
   NODE_DEFINE_CONSTANT(target, kLastWriteWasAsync);
-  target->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "streamBaseState"),
-              env->stream_base_state().GetJSArray()).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "streamBaseState"),
+            env->stream_base_state().GetJSArray())
+      .Check();
 }
 
 void LibuvStreamWrap::RegisterExternalReferences(
@@ -134,23 +137,23 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->libuv_stream_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "LibuvStreamWrap"));
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "LibuvStreamWrap"));
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         StreamBase::kInternalFieldCount);
     Local<FunctionTemplate> get_write_queue_size =
-        FunctionTemplate::New(env->isolate(),
+        FunctionTemplate::New(isolate,
                               GetWriteQueueSize,
                               Local<Value>(),
-                              Signature::New(env->isolate(), tmpl));
+                              Signature::New(isolate, tmpl));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         env->write_queue_size_string(),
         get_write_queue_size,
         Local<FunctionTemplate>(),
         static_cast<PropertyAttribute>(ReadOnly | DontDelete));
-    env->SetProtoMethod(tmpl, "setBlocking", SetBlocking);
+    SetProtoMethod(isolate, tmpl, "setBlocking", SetBlocking);
     StreamBase::AddMethods(env, tmpl);
     env->set_libuv_stream_wrap_ctor_template(tmpl);
   }

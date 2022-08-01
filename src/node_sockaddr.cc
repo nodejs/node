@@ -17,6 +17,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -697,15 +698,16 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->blocklist_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(SocketAddressBlockListWrap::New);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, SocketAddressBlockListWrap::New);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlockList"));
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-    env->SetProtoMethod(tmpl, "addAddress", AddAddress);
-    env->SetProtoMethod(tmpl, "addRange", AddRange);
-    env->SetProtoMethod(tmpl, "addSubnet", AddSubnet);
-    env->SetProtoMethod(tmpl, "check", Check);
-    env->SetProtoMethod(tmpl, "getRules", GetRules);
+    SetProtoMethod(isolate, tmpl, "addAddress", AddAddress);
+    SetProtoMethod(isolate, tmpl, "addRange", AddRange);
+    SetProtoMethod(isolate, tmpl, "addSubnet", AddSubnet);
+    SetProtoMethod(isolate, tmpl, "check", Check);
+    SetProtoMethod(isolate, tmpl, "getRules", GetRules);
     env->set_blocklist_constructor_template(tmpl);
   }
   return tmpl;
@@ -718,11 +720,11 @@ void SocketAddressBlockListWrap::Initialize(
     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetConstructorFunction(
-      target,
-      "BlockList",
-      GetConstructorTemplate(env),
-      Environment::SetConstructorFunctionFlag::NONE);
+  SetConstructorFunction(context,
+                         target,
+                         "BlockList",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 
   SocketAddressBase::Initialize(env, target);
 
@@ -750,25 +752,26 @@ Local<FunctionTemplate> SocketAddressBase::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->socketaddress_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SocketAddress"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         SocketAddressBase::kInternalFieldCount);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "detail", Detail);
-    env->SetProtoMethod(tmpl, "legacyDetail", LegacyDetail);
-    env->SetProtoMethodNoSideEffect(tmpl, "flowlabel", GetFlowLabel);
+    SetProtoMethod(isolate, tmpl, "detail", Detail);
+    SetProtoMethod(isolate, tmpl, "legacyDetail", LegacyDetail);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "flowlabel", GetFlowLabel);
     env->set_socketaddress_constructor_template(tmpl);
   }
   return tmpl;
 }
 
 void SocketAddressBase::Initialize(Environment* env, Local<Object> target) {
-  env->SetConstructorFunction(
-      target,
-      "SocketAddress",
-      GetConstructorTemplate(env),
-      Environment::SetConstructorFunctionFlag::NONE);
+  SetConstructorFunction(env->context(),
+                         target,
+                         "SocketAddress",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 BaseObjectPtr<SocketAddressBase> SocketAddressBase::Create(

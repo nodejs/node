@@ -568,9 +568,10 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                                     Local<Context> context,
                                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   target
-      ->SetAccessor(env->context(),
+      ->SetAccessor(context,
                     env->config_string(),
                     ConfigStringGetter,
                     nullptr,
@@ -580,8 +581,8 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                     SideEffectType::kHasNoSideEffect)
       .Check();
   target
-      ->SetAccessor(env->context(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "moduleIds"),
+      ->SetAccessor(context,
+                    FIXED_ONE_BYTE_STRING(isolate, "moduleIds"),
                     ModuleIdsGetter,
                     nullptr,
                     MaybeLocal<Value>(),
@@ -591,8 +592,8 @@ void NativeModuleLoader::Initialize(Local<Object> target,
       .Check();
 
   target
-      ->SetAccessor(env->context(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "moduleCategories"),
+      ->SetAccessor(context,
+                    FIXED_ONE_BYTE_STRING(isolate, "moduleCategories"),
                     GetModuleCategories,
                     nullptr,
                     Local<Value>(),
@@ -601,10 +602,11 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                     SideEffectType::kHasNoSideEffect)
       .Check();
 
-  env->SetMethod(target, "getCacheUsage", NativeModuleLoader::GetCacheUsage);
-  env->SetMethod(
-      target, "compileFunction", NativeModuleLoader::CompileFunction);
-  env->SetMethod(target, "hasCachedBuiltins", HasCachedBuiltins);
+  SetMethod(
+      context, target, "getCacheUsage", NativeModuleLoader::GetCacheUsage);
+  SetMethod(
+      context, target, "compileFunction", NativeModuleLoader::CompileFunction);
+  SetMethod(context, target, "hasCachedBuiltins", HasCachedBuiltins);
   // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
