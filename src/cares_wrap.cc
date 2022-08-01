@@ -1886,12 +1886,13 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "getaddrinfo", GetAddrInfo);
-  env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
+  SetMethod(context, target, "getaddrinfo", GetAddrInfo);
+  SetMethod(context, target, "getnameinfo", GetNameInfo);
+  SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
 
-  env->SetMethod(target, "strerror", StrError);
+  SetMethod(context, target, "strerror", StrError);
 
   target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
               Integer::New(env->isolate(), AF_INET)).Check();
@@ -1913,44 +1914,45 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   aiw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "GetAddrInfoReqWrap", aiw);
+  SetConstructorFunction(context, target, "GetAddrInfoReqWrap", aiw);
 
   Local<FunctionTemplate> niw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   niw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "GetNameInfoReqWrap", niw);
+  SetConstructorFunction(context, target, "GetNameInfoReqWrap", niw);
 
   Local<FunctionTemplate> qrw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   qrw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "QueryReqWrap", qrw);
+  SetConstructorFunction(context, target, "QueryReqWrap", qrw);
 
   Local<FunctionTemplate> channel_wrap =
-      env->NewFunctionTemplate(ChannelWrap::New);
+      NewFunctionTemplate(isolate, ChannelWrap::New);
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(
       ChannelWrap::kInternalFieldCount);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
-  env->SetProtoMethod(channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
-  env->SetProtoMethod(channel_wrap, "queryCaa", Query<QueryCaaWrap>);
-  env->SetProtoMethod(channel_wrap, "queryCname", Query<QueryCnameWrap>);
-  env->SetProtoMethod(channel_wrap, "queryMx", Query<QueryMxWrap>);
-  env->SetProtoMethod(channel_wrap, "queryNs", Query<QueryNsWrap>);
-  env->SetProtoMethod(channel_wrap, "queryTxt", Query<QueryTxtWrap>);
-  env->SetProtoMethod(channel_wrap, "querySrv", Query<QuerySrvWrap>);
-  env->SetProtoMethod(channel_wrap, "queryPtr", Query<QueryPtrWrap>);
-  env->SetProtoMethod(channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
-  env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryCaa", Query<QueryCaaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryCname", Query<QueryCnameWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryMx", Query<QueryMxWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryNs", Query<QueryNsWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryTxt", Query<QueryTxtWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySrv", Query<QuerySrvWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryPtr", Query<QueryPtrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
+  SetProtoMethod(
+      isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
-  env->SetProtoMethod(channel_wrap, "setServers", SetServers);
-  env->SetProtoMethod(channel_wrap, "setLocalAddress", SetLocalAddress);
-  env->SetProtoMethod(channel_wrap, "cancel", Cancel);
+  SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
+  SetProtoMethod(isolate, channel_wrap, "setServers", SetServers);
+  SetProtoMethod(isolate, channel_wrap, "setLocalAddress", SetLocalAddress);
+  SetProtoMethod(isolate, channel_wrap, "cancel", Cancel);
 
-  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
+  SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
 }  // namespace cares_wrap

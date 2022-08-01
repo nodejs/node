@@ -11,6 +11,7 @@ using v8::BigInt;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Map;
 using v8::Number;
@@ -280,7 +281,8 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->histogram_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
     Local<String> classname =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Histogram");
     tmpl->SetClassName(classname);
@@ -288,26 +290,27 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
 
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);
-    env->SetProtoMethodNoSideEffect(tmpl, "count", GetCount);
-    env->SetProtoMethodNoSideEffect(tmpl, "countBigInt", GetCountBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "exceeds", GetExceeds);
-    env->SetProtoMethodNoSideEffect(tmpl, "exceedsBigInt", GetExceedsBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "min", GetMin);
-    env->SetProtoMethodNoSideEffect(tmpl, "minBigInt", GetMinBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "max", GetMax);
-    env->SetProtoMethodNoSideEffect(tmpl, "maxBigInt", GetMaxBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "mean", GetMean);
-    env->SetProtoMethodNoSideEffect(tmpl, "stddev", GetStddev);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentile", GetPercentile);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentileBigInt",
-                                    GetPercentileBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentiles", GetPercentiles);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentilesBigInt",
-                                    GetPercentilesBigInt);
-    env->SetProtoMethod(tmpl, "reset", DoReset);
-    env->SetProtoMethod(tmpl, "record", Record);
-    env->SetProtoMethod(tmpl, "recordDelta", RecordDelta);
-    env->SetProtoMethod(tmpl, "add", Add);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "maxBigInt", GetMaxBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "percentileBigInt", GetPercentileBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
+    SetProtoMethod(isolate, tmpl, "reset", DoReset);
+    SetProtoMethod(isolate, tmpl, "record", Record);
+    SetProtoMethod(isolate, tmpl, "recordDelta", RecordDelta);
+    SetProtoMethod(isolate, tmpl, "add", Add);
     env->set_histogram_ctor_template(tmpl);
   }
   return tmpl;
@@ -337,7 +340,8 @@ void HistogramBase::RegisterExternalReferences(
 }
 
 void HistogramBase::Initialize(Environment* env, Local<Object> target) {
-  env->SetConstructorFunction(target, "Histogram", GetConstructorTemplate(env));
+  SetConstructorFunction(
+      env->context(), target, "Histogram", GetConstructorTemplate(env));
 }
 
 BaseObjectPtr<BaseObject> HistogramBase::HistogramTransferData::Deserialize(
@@ -360,29 +364,31 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->intervalhistogram_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = FunctionTemplate::New(env->isolate());
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);
-    env->SetProtoMethodNoSideEffect(tmpl, "count", GetCount);
-    env->SetProtoMethodNoSideEffect(tmpl, "countBigInt", GetCountBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "exceeds", GetExceeds);
-    env->SetProtoMethodNoSideEffect(tmpl, "exceedsBigInt", GetExceedsBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "min", GetMin);
-    env->SetProtoMethodNoSideEffect(tmpl, "minBigInt", GetMinBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "max", GetMax);
-    env->SetProtoMethodNoSideEffect(tmpl, "maxBigInt", GetMaxBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "mean", GetMean);
-    env->SetProtoMethodNoSideEffect(tmpl, "stddev", GetStddev);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentile", GetPercentile);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentileBigInt",
-                                    GetPercentileBigInt);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentiles", GetPercentiles);
-    env->SetProtoMethodNoSideEffect(tmpl, "percentilesBigInt",
-                                    GetPercentilesBigInt);
-    env->SetProtoMethod(tmpl, "reset", DoReset);
-    env->SetProtoMethod(tmpl, "start", Start);
-    env->SetProtoMethod(tmpl, "stop", Stop);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "maxBigInt", GetMaxBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "percentileBigInt", GetPercentileBigInt);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
+    SetProtoMethod(isolate, tmpl, "reset", DoReset);
+    SetProtoMethod(isolate, tmpl, "start", Start);
+    SetProtoMethod(isolate, tmpl, "stop", Stop);
     env->set_intervalhistogram_constructor_template(tmpl);
   }
   return tmpl;

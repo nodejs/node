@@ -520,13 +520,14 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "compileSerializeMain", CompileSerializeMain);
-  env->SetMethod(target, "markBootstrapComplete", MarkBootstrapComplete);
-  env->SetMethod(target, "setSerializeCallback", SetSerializeCallback);
-  env->SetMethod(target, "setDeserializeCallback", SetDeserializeCallback);
-  env->SetMethod(
-      target, "setDeserializeMainFunction", SetDeserializeMainFunction);
+  SetMethod(context, target, "compileSerializeMain", CompileSerializeMain);
+  SetMethod(context, target, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(context, target, "setSerializeCallback", SetSerializeCallback);
+  SetMethod(context, target, "setDeserializeCallback", SetDeserializeCallback);
+  SetMethod(context,
+            target,
+            "setDeserializeMainFunction",
+            SetDeserializeMainFunction);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
