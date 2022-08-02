@@ -274,6 +274,10 @@ void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
   treat_array_buffer_views_as_host_objects_ = mode;
 }
 
+void ValueSerializer::SetTreatJSObjectsAsHostObjects(bool mode) {
+  treat_js_objects_as_host_objects_ = mode;
+}
+
 void ValueSerializer::WriteTag(SerializationTag tag) {
   uint8_t raw_tag = static_cast<uint8_t>(tag);
   WriteRawBytes(&raw_tag, sizeof(raw_tag));
@@ -561,8 +565,14 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_SET_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
-    case JS_API_OBJECT_TYPE:
-      return WriteJSObject(js_object);
+    case JS_API_OBJECT_TYPE: {
+      Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
+      if (JSObject::GetEmbedderFieldCount(js_object->map(isolate_))) {
+        return WriteHostObject(js_object);
+      } else {
+        return WriteJSObject(js_object);
+      }
+    }
     case JS_SPECIAL_API_OBJECT_TYPE:
       return WriteHostObject(Handle<JSObject>::cast(receiver));
     case JS_DATE_TYPE:
@@ -606,7 +616,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
-  {
+  if (treat_js_objects_as_host_objects_) {
     Maybe<bool> result = WriteHostObject(object);
     if (result.IsNothing() || result.FromMaybe(false)) {
       return result;

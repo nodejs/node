@@ -315,52 +315,6 @@ class MessagePort : public HandleWrap {
   friend class MessagePortData;
 };
 
-// Provide a base class from which JS classes that should be transferable or
-// cloneable by postMesssage() can inherit.
-// See e.g. FileHandle in internal/fs/promises.js for an example.
-class JSTransferable : public BaseObject {
- public:
-  JSTransferable(Environment* env, v8::Local<v8::Object> obj);
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  TransferMode GetTransferMode() const override;
-  std::unique_ptr<TransferData> TransferForMessaging() override;
-  std::unique_ptr<TransferData> CloneForMessaging() const override;
-  v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
-      NestedTransferables() const override;
-  v8::Maybe<bool> FinalizeTransferRead(
-      v8::Local<v8::Context> context,
-      v8::ValueDeserializer* deserializer) override;
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(JSTransferable)
-  SET_SELF_SIZE(JSTransferable)
-
- private:
-  std::unique_ptr<TransferData> TransferOrClone(TransferMode mode) const;
-
-  class Data : public TransferData {
-   public:
-    Data(std::string&& deserialize_info, v8::Global<v8::Value>&& data);
-
-    BaseObjectPtr<BaseObject> Deserialize(
-        Environment* env,
-        v8::Local<v8::Context> context,
-        std::unique_ptr<TransferData> self) override;
-    v8::Maybe<bool> FinalizeTransferWrite(
-        v8::Local<v8::Context> context,
-        v8::ValueSerializer* serializer) override;
-
-    SET_NO_MEMORY_INFO()
-    SET_MEMORY_INFO_NAME(JSTransferableTransferData)
-    SET_SELF_SIZE(Data)
-
-   private:
-    std::string deserialize_info_;
-    v8::Global<v8::Value> data_;
-  };
-};
-
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
     Environment* env);
 

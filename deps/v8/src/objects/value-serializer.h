@@ -94,6 +94,8 @@ class ValueSerializer {
    */
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
+  void SetTreatJSObjectsAsHostObjects(bool mode);
+
  private:
   friend class WebSnapshotSerializer;
 
@@ -171,6 +173,7 @@ class ValueSerializer {
   size_t buffer_capacity_ = 0;
   const bool supports_shared_values_;
   bool treat_array_buffer_views_as_host_objects_ = false;
+  bool treat_js_objects_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
 
