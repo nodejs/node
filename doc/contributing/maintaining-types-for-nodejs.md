@@ -49,7 +49,7 @@ and is as follows:
    message is printed that directs users to a webpage where they can
    learn how to configure Node.js to support that file type.
    * If the file was a TypeScript file, a TypeScript specific message with a
-     reference to a link on Nodejs.org specific on learning how to 
+     reference to a link on Nodejs.org specific on learning how to
      configure TypeScript will be provided.
    * For other file types a generic message and shared webpage will be
      used.
