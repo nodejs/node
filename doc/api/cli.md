@@ -344,7 +344,9 @@ of `--enable-source-maps`.
 ### `--experimental-global-customevent`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 Expose the [CustomEvent Web API][] on the global scope.
@@ -512,7 +514,9 @@ To allow polyfills to be added,
 ### `--force-node-api-uncaught-exceptions-policy`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 Enforces `uncaughtException` event on Node-API asynchronous callbacks.
@@ -872,7 +876,9 @@ against FIPS-enabled OpenSSL.
 ### `--openssl-shared-config`
 
 <!-- YAML
-added: v18.5.0
+added:
+  - v18.5.0
+  - v16.17.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
@@ -887,7 +893,9 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 ### `--openssl-legacy-provider`
 
 <!-- YAML
-added: v17.0.0
+added:
+  - v17.0.0
+  - v16.17.0
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
@@ -1210,7 +1218,9 @@ If they don't match, Node.js would refuse to load the snapshot and exit with 1.
 ### `--test`
 
 <!-- YAML
-added: v18.1.0
+added:
+  - v18.1.0
+  - v16.17.0
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
@@ -1220,7 +1230,9 @@ on [running tests from the command line][] for more details.
 ### `--test-only`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 Configures the test runner to only execute top level tests that have the `only`

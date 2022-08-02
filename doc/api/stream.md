@@ -599,7 +599,9 @@ the stream has not been destroyed, errored or ended.
 ##### `writable.writableAborted`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 > Stability: 1 - Experimental
@@ -1986,7 +1988,9 @@ console.log('done'); // Stream has finished
 ##### `readable.find(fn[, options])`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.17.0
 -->
 
 > Stability: 1 - Experimental

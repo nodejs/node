@@ -319,12 +319,16 @@ internally.
 ## `test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -563,7 +567,9 @@ describe('tests', async () => {
 ## Class: `TestContext`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 An instance of `TestContext` is passed to each test function in order to
@@ -637,7 +643,9 @@ test('top level test', async (t) => {
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Message to be displayed as a TAP diagnostic.
@@ -663,7 +671,9 @@ The name of the test.
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
@@ -687,7 +697,9 @@ test('top level test', (t) => {
 ### `context.signal`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
@@ -702,7 +714,9 @@ test('top level test', async (t) => {
 ### `context.skip([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional skip message to be displayed in TAP output.
@@ -722,7 +736,9 @@ test('top level test', (t) => {
 ### `context.todo([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional `TODO` message to be displayed in TAP output.
@@ -741,12 +757,16 @@ test('top level test', (t) => {
 ### `context.test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -796,7 +816,9 @@ test('top level test', async (t) => {
 ## Class: `SuiteContext`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 An instance of `SuiteContext` is passed to each suite function in order to
@@ -814,7 +836,9 @@ The name of the suite.
 ### `context.signal`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
