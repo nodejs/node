@@ -20,7 +20,11 @@ var registeredAlgorithmNames = [
     "SHA-384",
     "SHA-512",
     "HKDF-CTR",
-    "PBKDF2"
+    "PBKDF2",
+    "Ed25519",
+    "Ed448",
+    "X25519",
+    "X448"
 ];
 
 
@@ -177,6 +181,8 @@ function allAlgorithmSpecifiersFor(algorithmName) {
         curves.forEach(function(curveName) {
             results.push({name: algorithmName, namedCurve: curveName});
         });
+    } else if (algorithmName.toUpperCase().substring(0, 1) === "X" || algorithmName.toUpperCase().substring(0, 2) === "ED") {
+        results.push({ name: algorithmName });
     }
 
     return results;
@@ -216,6 +222,9 @@ function allValidUsages(validUsages, emptyIsValid, mandatoryUsages) {
     return okaySubsets;
 }
 
+function unique(names) {
+    return [...new Set(names)];
+}
 
 // Algorithm name specifiers are case-insensitive. Generate several
 // case variations of a given name.
@@ -227,5 +236,5 @@ function allNameVariants(name, slowTest) {
     // for slow tests effectively cut the amount of work in third by only
     // returning one variation
     if (slowTest) return [mixedCaseName];
-    return [upCaseName, lowCaseName, mixedCaseName];
+    return unique([upCaseName, lowCaseName, mixedCaseName]);
 }
