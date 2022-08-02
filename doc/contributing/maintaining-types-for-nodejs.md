@@ -70,7 +70,14 @@ Some additional specifics around the current approach include:
 * `package.json` as the location for the config is potentially a good
   choice as Node.js already looks for it as part of startup.
 * The implementation chosen should allow for different configuration
-  in/for different environments/conditions like `prod`, `dev`, etc.
+  in/for different environments/conditions such as production
+  versus development, or different types of hosted environments
+  such as serverless vs traditional, etc.; Node.js would not make
+  any recommendations or have any expectations as to what the
+  separate configuration blocks should be named or what their
+  purposes should be, just that a configuration file should have
+  the ability to provide different configurations for user-defined
+  conditions.
 * We don't have consensus on provding an opinionated default but
   that should be explored after the initial steps are complete.
 * It will be important that as part of the messaging around this
