@@ -50,12 +50,12 @@ test(() => {
 }, "externref, immutable")
 
 test(() => {
-    assert_type({"value": "anyfunc", "mutable": true})
-}, "anyfunc, mutable")
+    assert_type({"value": "funcref", "mutable": true})
+}, "funcref, mutable")
 
 test(() => {
-    assert_type({"value": "anyfunc", "mutable": false})
-}, "anyfunc, immutable")
+    assert_type({"value": "funcref", "mutable": false})
+}, "funcref, immutable")
 
 test(() => {
     const myglobal = new WebAssembly.Global({"value": "i32", "mutable": true});

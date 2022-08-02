@@ -88,6 +88,11 @@ test(() => {
 }, "Invalid type argument");
 
 test(() => {
+  const argument = { "value": "v128" };
+  assert_throws_js(TypeError, () => new WebAssembly.Global(argument));
+}, "Construct v128 global");
+
+test(() => {
   const argument = { "value": "i64" };
   const global = new WebAssembly.Global(argument);
   assert_Global(global, 0n);

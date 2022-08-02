@@ -68,7 +68,7 @@
     "path": "user-timing"
   },
   "wasm/jsapi": {
-    "commit": "1dd414c79616489ea021c800eb0375a709e8114e",
+    "commit": "d8dbe6990bed03ec03beee25069a9347d4c3d6d5",
     "path": "wasm/jsapi"
   },
   "wasm/webapi": {

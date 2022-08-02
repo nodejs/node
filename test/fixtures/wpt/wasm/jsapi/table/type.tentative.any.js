@@ -10,17 +10,17 @@ function assert_type(argument) {
 }
 
 test(() => {
-    assert_type({ "minimum": 0, "element": "anyfunc"});
+    assert_type({ "minimum": 0, "element": "funcref"});
 }, "Zero initial, no maximum");
 
 test(() => {
-    assert_type({ "minimum": 5, "element": "anyfunc" });
+    assert_type({ "minimum": 5, "element": "funcref" });
 }, "Non-zero initial, no maximum");
 
 test(() => {
-    assert_type({ "minimum": 0, "maximum": 0, "element": "anyfunc" });
+    assert_type({ "minimum": 0, "maximum": 0, "element": "funcref" });
 }, "Zero maximum");
 
 test(() => {
-    assert_type({ "minimum": 0, "maximum": 5, "element": "anyfunc" });
+    assert_type({ "minimum": 0, "maximum": 5, "element": "funcref" });
 }, "Non-zero maximum");
