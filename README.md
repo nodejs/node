@@ -674,6 +674,8 @@ maintaining the Node.js project.
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>>
+* [ShrujalShah28](https://github.com/ShrujalShah28) -
+  **Shrujal Shah** <<shrujalshah@hotmail.com>>
 * [VoltrexMaster](https://github.com/VoltrexMaster) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
