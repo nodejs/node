@@ -1,4 +1,4 @@
-TAP version 13
+TAP version 14
 # Subtest: describe timeout signal
     # Subtest: ok 1
     ok 1 - ok 1

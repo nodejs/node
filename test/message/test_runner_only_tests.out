@@ -1,4 +1,4 @@
-TAP version 13
+TAP version 14
 # Subtest: only = undefined
 ok 1 - only = undefined # SKIP 'only' option not set
   ---
