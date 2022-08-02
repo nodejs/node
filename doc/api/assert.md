@@ -2006,6 +2006,34 @@ argument, then `error` is assumed to be omitted and the string will be used for
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
+## `assert.snapshot(value[, name])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `value` {string} the value to snapshot
+* `name` {string} the name of snapshot.
+  in case order of snapshots is non-deterministic,
+  it is recommended to use named snapshots
+  **Default:** ordinal number of the snapshot.
+* Returns: {Promise}
+
+reads a snapshot from a file, and compares `value` to the snapshot.
+If the value is not strictly equal to the snapshot,
+`assert.snapshot()` will return a rejected `Promise`
+with an [`AssertionError`][].
+
+If the snapshot file does not exist, the snapshot is written.
+
+In case it is needed to force a snapshot update,
+set `process.env.NODE_UPDATE_SNAPSHOT=1`;
+
+By default, a snapshot is read and written to a file,
+using the same name as the main entrypoint with `.snapshot` as the extension.
+
 ## `assert.strictEqual(actual, expected[, message])`
 
 <!-- YAML
