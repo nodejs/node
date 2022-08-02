@@ -2129,7 +2129,7 @@ for more information.
 ### `ERR_LOADER_CHAIN_INCOMPLETE`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 An ESM loader hook returned without calling `next()` and without explicitly
@@ -2399,7 +2399,7 @@ cannot be imported through the package resolution, unless using an absolute URL.
 ### `ERR_PARSE_ARGS_INVALID_OPTION_VALUE`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 When `strict` set to `true`, thrown by [`util.parseArgs()`][] if a {boolean}
@@ -2411,7 +2411,7 @@ value is provided for an option of type {boolean}.
 ### `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Thrown by [`util.parseArgs()`][], when a positional argument is provided and
@@ -2422,7 +2422,7 @@ Thrown by [`util.parseArgs()`][], when a positional argument is provided and
 ### `ERR_PARSE_ARGS_UNKNOWN_OPTION`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 When `strict` set to `true`, thrown by [`util.parseArgs()`][] if an argument
@@ -3409,7 +3409,7 @@ The module must be successfully linked before instantiation.
 
 <!-- YAML
 added: v10.0.0
-removed: REPLACEME
+removed: v16.17.0
 -->
 
 The linker function returned a module for which linking has failed.

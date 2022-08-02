@@ -589,7 +589,7 @@ the stream has not been destroyed, errored or ended.
 ##### `writable.writableAborted`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 > Stability: 1 - Experimental
@@ -1933,7 +1933,7 @@ console.log('done'); // Stream has finished
 ##### `readable.find(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 > Stability: 1 - Experimental

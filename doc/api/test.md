@@ -1,6 +1,6 @@
 # Test runner
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v16.17.0-->
 
 > Stability: 1 - Experimental
 
@@ -319,9 +319,9 @@ internally.
 ## `test([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -446,7 +446,7 @@ same as [`it([name], { todo: true }[, fn])`][it options].
 ## Class: `TestContext`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 An instance of `TestContext` is passed to each test function in order to
@@ -456,7 +456,7 @@ exposed as part of the API.
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `message` {string} Message to be displayed as a TAP diagnostic.
@@ -474,7 +474,7 @@ test('top level test', (t) => {
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
@@ -498,7 +498,7 @@ test('top level test', (t) => {
 ### `context.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * <AbortSignal> Can be used to abort test subtasks when the test has been aborted.
@@ -512,7 +512,7 @@ test('top level test', async (t) => {
 ### `context.skip([message])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `message` {string} Optional skip message to be displayed in TAP output.
@@ -532,7 +532,7 @@ test('top level test', (t) => {
 ### `context.todo([message])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `message` {string} Optional `TODO` message to be displayed in TAP output.
@@ -551,9 +551,9 @@ test('top level test', (t) => {
 ### `context.test([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -602,7 +602,7 @@ test('top level test', async (t) => {
 ## Class: `SuiteContext`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 An instance of `SuiteContext` is passed to each suite function in order to
@@ -612,7 +612,7 @@ exposed as part of the API.
 ### `context.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * <AbortSignal> Can be used to abort test subtasks when the test has been aborted.

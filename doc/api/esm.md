@@ -8,7 +8,7 @@
 added: v8.5.0
 changes:
   - version:
-    - REPLACEME
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining loaders.
   - version:
@@ -672,7 +672,7 @@ of Node.js applications.
 added: v8.8.0
 changes:
   - version:
-    - REPLACEME
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining loaders.
   - version: v16.12.0
@@ -723,7 +723,7 @@ prevent unintentional breaks in the chain.
 <!-- YAML
 changes:
   - version:
-    - REPLACEME
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining resolve hooks. Each hook must either
       call `nextResolve()` or include a `shortCircuit` property set to `true`
@@ -814,7 +814,7 @@ export async function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining load hooks. Each hook must either
       call `nextLoad()` or include a `shortCircuit` property set to `true` in
@@ -912,7 +912,7 @@ source to a supported one (see [Examples](#examples) below).
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining globalPreload hooks.
 -->

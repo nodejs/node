@@ -1981,7 +1981,7 @@ Removes the `listener` from the list of handlers for event `type`.
 ### Class: `CustomEvent`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 > Stability: 1 - Experimental.
@@ -1994,7 +1994,7 @@ Instances are created internally by Node.js.
 #### `event.detail`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 > Stability: 1 - Experimental.

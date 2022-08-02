@@ -151,7 +151,7 @@ const channel = diagnostics_channel.channel('my-channel');
 
 <!-- YAML
 added:
- - REPLACEME
+ - v16.17.0
 -->
 
 * `name` {string|symbol} The channel name
@@ -183,7 +183,7 @@ diagnostics_channel.subscribe('my-channel', (message, name) => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v16.17.0
 -->
 
 * `name` {string|symbol} The channel name
@@ -308,7 +308,7 @@ channel.publish({
 added:
  - v15.1.0
  - v14.17.0
-deprecated: REPLACEME
+deprecated: v16.17.0
 -->
 
 > Stability: 0 - Deprecated: Use [`diagnostics_channel.subscribe(name, onMessage)`][]
@@ -347,7 +347,7 @@ channel.subscribe((message, name) => {
 added:
  - v15.1.0
  - v14.17.0
-deprecated: REPLACEME
+deprecated: v16.17.0
 changes:
   - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40433

@@ -1399,7 +1399,7 @@ type other than {net.Socket}.
 ### Event: `'dropRequest'`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
@@ -2353,7 +2353,7 @@ header name:
 ### `message.headersDistinct`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * {Object}
@@ -2505,7 +2505,7 @@ The request/response trailers object. Only populated at the `'end'` event.
 ### `message.trailersDistinct`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * {Object}
@@ -2628,7 +2628,7 @@ will result in a `TypeError` being thrown.
 ### `outgoingMessage.appendHeader(name, value)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 * `name` {string} Header name

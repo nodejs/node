@@ -283,7 +283,7 @@ Enable experimental support for the [Fetch API][].
 ### `--experimental-global-customevent`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Expose the [CustomEvent Web API][] on the global scope.
@@ -430,7 +430,7 @@ To allow polyfills to be added, `--require` runs before freezing intrinsics.
 ### `--force-node-api-uncaught-exceptions-policy`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Enforces `uncaughtException` event on Node-API asynchronous callbacks.
@@ -762,7 +762,7 @@ against FIPS-enabled OpenSSL.
 ### `--openssl-shared-config`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
@@ -777,7 +777,7 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 ### `--openssl-legacy-provider`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Enable OpenSSL 3.0 legacy provider when dynamically linking to OpenSSL 3.x.
@@ -1075,7 +1075,7 @@ The value given must be a power of two.
 ### `--test`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
@@ -1085,7 +1085,7 @@ on [running tests from the command line][] for more details.
 ### `--test-only`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 Configures the test runner to only execute top level tests that have the `only`

@@ -760,7 +760,7 @@ port2.postMessage(new URL('https://example.org'));
 ### `port.hasRef()`
 
 <!-- YAML
-added: REPLACEME
+added: v16.17.0
 -->
 
 > Stability: 1 - Experimental
