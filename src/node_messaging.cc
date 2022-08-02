@@ -288,6 +288,10 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
+    if (object->InternalFieldCount() == 0) {
+      return Just(false);
+    }
+
     if (env_->base_object_ctor_template()->HasInstance(object)) {
       return WriteHostObject(
           BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });

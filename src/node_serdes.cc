@@ -146,6 +146,10 @@ Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
 
 Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
                                                Local<Object> input) {
+  if (input->InternalFieldCount() == 0 && !input->IsArrayBufferView()) {
+    return Just(false);
+  }
+
   MaybeLocal<Value> ret;
   Local<Value> args[1] = { input };
 
