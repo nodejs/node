@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<title>WebAssembly.Module cannot cross agent clusters, BroadcastChannel edition</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+<script>
+async_test(t => {
+  const channel = new BroadcastChannel("anne was here"),
+        dw = new Worker("resources/broadcastchannel-worker.js"),
+        sw = new SharedWorker("resources/broadcastchannel-sharedworker.js");
+  let startCounter = 0,
+      dwStatus = "unknown",
+      swStatus = "unknown";
+
+  channel.onmessage = t.step_func(({ data }) => {
+    if(data === "hi") {
+      startCounter++;
+      if(startCounter === 2) {
+        createWasmModule().then(module => {
+          channel.postMessage(module);
+        });
+      } else if(startCounter > 2) {
+        assert_unreached();
+      }
+    } else if(data === "dw-success") {
+      dwStatus = "success";
+    } else if(data === "sw-success") {
+      swStatus = "success";
+    } else {
+      assert_unreached();
+    }
+    if(dwStatus === "success" && swStatus === "success") {
+      t.done();
+    }
+  });
+});
+</script>

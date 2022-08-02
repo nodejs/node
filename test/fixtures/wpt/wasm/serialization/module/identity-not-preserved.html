@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<meta charset="utf-8">
+<title>WebAssembly.Modules, when cloned, do not give back the same object</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+
+async_test(t => {
+  createWasmModule().then(module => {
+    window.addEventListener("message", t.step_func(({ data }) => {
+      if (data.testId !== 1) {
+        return;
+      }
+
+      assert_not_equals(data.module, module);
+
+      t.done();
+    }));
+
+    window.postMessage({ module, testId: 1 }, "*");
+  });
+}, "postMessaging to this window does not give back the same WebAssembly.Module");
+
+async_test(t => {
+  createWasmModule().then(module => {
+    const worker = new Worker("resources/echo-worker.js");
+
+    worker.addEventListener("message", t.step_func(({ data }) => {
+      if (data.testId !== 2) {
+        return;
+      }
+
+      assert_not_equals(data.module, module);
+      t.done();
+    }));
+
+    worker.postMessage({ testId: 2, module });
+  });
+}, "postMessaging to a worker and back does not give back the same WebAssembly.Module");
+
+async_test(t => {
+  createWasmModule().then(module => {
+    window.addEventListener("message", t.step_func(({ data }) => {
+      if (data.testId !== 3) {
+        return;
+      }
+
+      assert_not_equals(data.module, module);
+      t.done();
+    }));
+
+    const iframe = document.createElement("iframe");
+    iframe.onload = t.step_func(() => {
+      iframe.contentWindow.postMessage({ testId: 3, module }, "*");
+    });
+    iframe.src = "resources/echo-iframe.html";
+    document.body.appendChild(iframe);
+  });
+}, "postMessaging to an iframe and back does not give back the same WebAssembly.Module");
+</script>

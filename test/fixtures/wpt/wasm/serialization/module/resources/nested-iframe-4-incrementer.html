@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>A test page that is sent a WebAssembly Module, nested 4 levels deep in iframes</title>
+<script src="/resources/testharness.js"></script>
+<script src="test-incrementer.js"></script>
+
+<script>
+"use strict";
+
+setupDestinationIncrementer(self, parent.parent.parent.parent.parent, "*");
+</script>

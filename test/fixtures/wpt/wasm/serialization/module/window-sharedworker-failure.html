@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<title>WebAssembly.Modules cannot cross agent clusters, shared worker edition</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/create-empty-wasm-module.js"></script>
+<script>
+async_test(t => {
+  const sw = new SharedWorker("resources/sharedworker-failure.js")
+  let state = ""
+  sw.port.onmessage = t.step_func(e => {
+    if(e.data === "send-sw-failure") {
+      sw.port.postMessage(createEmptyWasmModule())
+    } else if(e.data === "send-sw-failure-success") {
+      state = "send-window-failure"
+      sw.port.postMessage(state)
+    } else {
+      assert_unreached()
+    }
+  })
+  sw.port.onmessageerror = t.step_func(e => {
+    if(state === "send-window-failure") {
+      assert_equals(e.data, null, "data")
+      assert_equals(e.origin, "", "origin")
+      assert_equals(e.source, null, "source")
+      assert_equals(e.ports.length, 0, "ports length")
+      t.done()
+    } else {
+      assert_unreached()
+    }
+  })
+})
+</script>

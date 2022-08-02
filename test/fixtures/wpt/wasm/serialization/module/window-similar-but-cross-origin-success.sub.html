@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<meta charset="utf-8">
+<title>Structured cloning of WebAssembly.Module to similar-origin, but not same-origin, windows</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+document.domain = "{{host}}";
+
+promise_test(t => {
+  return new Promise(resolve => {
+    const iframe = document.createElement("iframe");
+    iframe.onload = t.step_func(() => {
+      resolve(testSharingViaIncrementerScript(t, window, "window", iframe.contentWindow, "iframe", "*"));
+    });
+    iframe.src = "//{{domains[www1]}}:{{location[port]}}/wasm/serialization/module/resources/incrementer-iframe.html";
+    document.body.appendChild(iframe);
+  });
+}, "postMessaging to a not same-origin-domain, but similar origin, iframe allows them to instantiate");
+</script>

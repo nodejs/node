@@ -1,0 +1,5 @@
+<title>A test page that is sent a WebAssembly Module cross-origin cannot receive it</title>
+
+<script>
+self.onmessageerror = () => parent.postMessage('messageerror received', "*");
+</script>

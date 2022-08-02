@@ -1,0 +1,31 @@
+<title>Postmessage of a WebAssembly.Module cross-origin fails with a messageerror</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+
+<body></body>
+
+<script>
+promise_test(async t => {
+  // Create an iframe. It will notify this document when the "messageerror"
+  // event is triggered.
+  const iframe = document.createElement("iframe");
+  iframe.src = "//{{domains[www1]}}:{{location[port]}}" +
+    "/wasm/serialization/module/resources/incrementer-iframe-failure.html";
+
+  // Instantiate and wait for the document to be loaded.
+  const iframeLoaded = new Promise(resolve => iframe.onload = resolve);
+  document.body.appendChild(iframe);
+  await iframeLoaded;
+
+  const module = await createWasmModule();
+  const messageErrorReceived = new Promise(resolve => {
+    window.onmessage = ({data}) => {
+      if (data == 'messageerror received')
+        resolve();
+    };
+  });
+  iframe.contentWindow.postMessage({message: 'send module', module}, "*");
+  await messageErrorReceived;
+}, "postMessaging a wasm module to a cross-origin iframe fails");
+</script>

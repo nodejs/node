@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<meta charset="utf-8">
+<title>Structured cloning of WebAssembly.Module: BroadcastChannel within the same agent cluster</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/test-incrementer.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+
+promise_test(t => {
+  return createWasmModule().then(module => {
+    let loadedIframes = 0;
+    return Promise.all([
+      createIFrame("resources/broadcastchannel-iframe.html"),
+      createIFrame("resources/broadcastchannel-iframe.html"),
+      createIFrame("resources/broadcastchannel-iframe.html")
+    ]).then(() => {
+      const thisIframe = loadedIframes++;
+      const channel = new BroadcastChannel("channel name");
+
+      return new Promise(resolve => {
+        let soFar = 0;
+        channel.onmessage = t.step_func(msg => {
+          if (msg.module) {
+            // We only care about "broadcasts" from the workers.
+            return;
+          }
+
+          let {i, result} = msg.data;
+
+          assert_in_array(i, [0, 1, 2], "Any message events must come from expected sources");
+          assert_equals(result, i + 1, `iframe ${i} must return ${i+1}`);
+          ++soFar;
+
+          if (soFar === 3) {
+            resolve();
+          }
+        });
+
+        channel.postMessage({ module, i: thisIframe });
+      });
+    });
+  });
+});
+
+function createIFrame(src) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.src = src;
+    iframe.onload = () => resolve(iframe);
+    iframe.onerror = () => reject(`iframe with URL ${src} failed to load`);
+    document.body.appendChild(iframe);
+  });
+}
+</script>

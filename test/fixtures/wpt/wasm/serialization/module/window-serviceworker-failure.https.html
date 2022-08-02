@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<title>WebAssembly.Module cannot cross agent clusters, service worker edition</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script src="./resources/create-empty-wasm-module.js"></script>
+
+<script>
+"use strict";
+promise_test(t => {
+  const scope = "resources/blank.html";
+  return service_worker_unregister_and_register(t, "resources/serviceworker-failure.js", scope)
+  .then(reg => {
+    t.add_cleanup(() => service_worker_unregister(t, scope));
+    return wait_for_state(t, reg.installing, "activated");
+  })
+  .then(() => with_iframe(scope))
+  .then(iframe => {
+    t.add_cleanup(() => iframe.remove());
+    const sw = iframe.contentWindow.navigator.serviceWorker;
+    let state = "start in window";
+
+    return new Promise(resolve => {
+      sw.onmessage = t.step_func(e => {
+        if (e.data === "start in worker") {
+          assert_equals(state, "start in window");
+          sw.controller.postMessage(createEmptyWasmModule());
+          state = "we are expecting confirmation of an onmessageerror in the worker";
+        } else if (e.data === "onmessageerror was received in worker") {
+          assert_equals(state, "we are expecting confirmation of an onmessageerror in the worker");
+          state = "we are expecting a messageerror due to the worker sending us a WebAssembly.Module";
+          sw.controller.postMessage(state);
+        } else {
+          assert_unreached("Got an unexpected message from the service worker: " + e.data);
+        }
+      });
+
+      sw.onmessageerror = t.step_func(e => {
+        assert_equals(state, "we are expecting a messageerror due to the worker sending us a WebAssembly.Module");
+
+        assert_equals(e.data, null, "data");
+        assert_equals(e.origin, self.origin, "origin");
+        assert_not_equals(e.source, null, "source");
+        assert_equals(e.ports.length, 0, "ports length");
+
+        state = "done in window";
+        resolve();
+      });
+
+      sw.controller.postMessage(state);
+    });
+  });
+});
+</script>

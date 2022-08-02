@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Based on similar tests in html/infrastructure/safe-passing-of-structured-data/shared-array-buffers/ -->
+<meta charset="utf-8">
+<title>WebAssembly.Module cloning via history's methods invoking StructuredSerializeForStorage</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/create-empty-wasm-module.js"></script>
+
+<script>
+"use strict";
+
+for (const method of ["pushState", "replaceState"]) {
+  test(() => {
+    assert_throws_dom("DataCloneError", () => {
+      history[method](createEmptyWasmModule(), "dummy title");
+    });
+  }, `history.${method}(): simple case`);
+
+  test(() => {
+    let getter1Called = false;
+    let getter2Called = false;
+    assert_throws_dom("DataCloneError", () => {
+      history[method]([
+        { get x() { getter1Called = true; return 5; } },
+        createEmptyWasmModule(),
+        { get x() { getter2Called = true; return 5; } }
+      ], "dummy title");
+    });
+
+    assert_true(getter1Called, "The getter before the WebAssembly.Module must have been called");
+    assert_false(getter2Called, "The getter after the WebAssembly.Module must not have been called");
+  }, `history.${method}(): is interleaved correctly`);
+}
+</script>

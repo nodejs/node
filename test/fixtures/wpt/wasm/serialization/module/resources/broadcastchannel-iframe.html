@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>A test page that uses a given WebAssembly.Module sent from a BroadcastChannel</title>
+
+<script>
+"use strict";
+const channel = new BroadcastChannel("channel name");
+
+channel.onmessage = ({ data: { module, i }, source }) => {
+  if (!module) {
+    // We only care about "broadcasts" from the window
+    return;
+  }
+
+  let instance = new WebAssembly.Instance(module);
+  let increment = instance.exports["increment"];
+  let result = increment(i);
+  channel.postMessage({i, result});
+};
+</script>

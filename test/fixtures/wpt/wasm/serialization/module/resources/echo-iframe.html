@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>A test page that echos back anything postMessaged to it to its parent</title>
+
+<script>
+"use strict";
+
+window.onmessage = ({ data }) => {
+  parent.postMessage(data, "*");
+};
+</script>
