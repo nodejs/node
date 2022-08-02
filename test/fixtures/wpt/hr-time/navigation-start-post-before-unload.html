@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+    function busyWait(millis) {
+        const start = performance.now();
+        while (performance.now() < start + millis) {}
+    }
+    promise_test(async t => {
+        const delay = 3000;
+        const iframe = document.createElement('iframe');
+        iframe.src = './resources/now_frame.html';
+        document.body.appendChild(iframe);
+        await new Promise(resolve => iframe.addEventListener('load', resolve));
+        iframe.contentWindow.addEventListener('beforeunload', () => {
+            busyWait(delay);
+        });
+        iframe.src = './resources/post.html';
+        await new Promise(resolve => this.addEventListener('message', ({data}) => {
+            if (data === 'done')
+                resolve();
+        }));
+
+        const entry = iframe.contentWindow.performance.getEntriesByType('navigation')[0];
+        assert_less_than(entry.fetchStart, delay);
+    }, 'timeOrigin should be set after beforeunload');
+</script>
+</body>
+</html>
