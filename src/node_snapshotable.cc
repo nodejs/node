@@ -648,6 +648,7 @@ EnvSerializeInfo FileReader::Read() {
   result.immediate_info = Read<ImmediateInfo::SerializeInfo>();
   result.performance_state =
       Read<performance::PerformanceState::SerializeInfo>();
+  result.exiting = Read<AliasedBufferIndex>();
   result.stream_base_state = Read<AliasedBufferIndex>();
   result.should_abort_on_uncaught_toggle = Read<AliasedBufferIndex>();
   result.persistent_values = ReadVector<PropInfo>();
@@ -670,6 +671,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
   written_total += Write<performance::PerformanceState::SerializeInfo>(
       data.performance_state);
+  written_total += Write<AliasedBufferIndex>(data.exiting);
   written_total += Write<AliasedBufferIndex>(data.stream_base_state);
   written_total +=
       Write<AliasedBufferIndex>(data.should_abort_on_uncaught_toggle);
