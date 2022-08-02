@@ -4,7 +4,7 @@
     "path": "common"
   },
   "console": {
-    "commit": "3b1f72e99a91d31551edd2147dc7b564eaf25d72",
+    "commit": "767ae354642bee1e4d90b28df4480475b9260e14",
     "path": "console"
   },
   "dom/abort": {
