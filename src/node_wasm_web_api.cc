@@ -107,12 +107,12 @@ void WasmStreamingObject::Push(const FunctionCallbackInfo<Value>& args) {
 
   if (LIKELY(chunk->IsArrayBufferView())) {
     Local<ArrayBufferView> view = chunk.As<ArrayBufferView>();
-    bytes = view->Buffer()->GetBackingStore()->Data();
+    bytes = view->Buffer()->Data();
     offset = view->ByteOffset();
     size = view->ByteLength();
   } else if (LIKELY(chunk->IsArrayBuffer())) {
     Local<ArrayBuffer> buffer = chunk.As<ArrayBuffer>();
-    bytes = buffer->GetBackingStore()->Data();
+    bytes = buffer->Data();
     offset = 0;
     size = buffer->ByteLength();
   } else {
