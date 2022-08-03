@@ -675,15 +675,17 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       const int fd = &s - stdio;
       int err;
 
-      do s.flags = fcntl(fd, F_GETFL);
-      while (s.flags == -1 && errno == EINTR);  // NOLINT
+      do {
+        s.flags = fcntl(fd, F_GETFL);
+      } while (s.flags == -1 && errno == EINTR);  // NOLINT
       CHECK_NE(s.flags, -1);
 
       if (uv_guess_handle(fd) != UV_TTY) continue;
       s.isatty = true;
 
-      do err = tcgetattr(fd, &s.termios);
-      while (err == -1 && errno == EINTR);  // NOLINT
+      do {
+        err = tcgetattr(fd, &s.termios);
+      } while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(err, 0);
     }
   }
