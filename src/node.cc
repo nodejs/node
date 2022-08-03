@@ -262,10 +262,10 @@ static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
 
   fprintf(stderr,
           "(node:%d) [Thread %" PRIu64 "] Atomics.wait(%p + %zx, %" PRId64
-              ", %.f) %s\n",
+          ", %.f) %s\n",
           static_cast<int>(uv_os_getpid()),
           env->thread_id(),
-          array_buffer->GetBackingStore()->Data(),
+          array_buffer->Data(),
           offset_in_bytes,
           value,
           timeout_in_ms,
