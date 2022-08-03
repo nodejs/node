@@ -241,8 +241,7 @@ needs to be pointed out separately during the onboarding.
   * <https://github.com/nodejs/TSC>
   * <https://github.com/nodejs/build>
   * <https://github.com/nodejs/nodejs.org>
-  * <https://github.com/nodejs/readable-stream>
-  * <https://github.com/nodejs/LTS>
+  * <https://github.com/nodejs/Release>
   * <https://github.com/nodejs/citgm>
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
