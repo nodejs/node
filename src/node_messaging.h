@@ -316,7 +316,7 @@ class MessagePort : public HandleWrap {
 };
 
 // Provide a base class from which JS classes that should be transferable or
-// cloneable by postMesssage() can inherit.
+// cloneable by postMessage() can inherit.
 // See e.g. FileHandle in internal/fs/promises.js for an example.
 class JSTransferable : public BaseObject {
  public:

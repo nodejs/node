@@ -17,7 +17,7 @@ describe('ESM: importing CJS', { concurrency: true }, () => {
     assert.strictEqual(stdout, 'ok\n');
   });
 
-  it('should eror on invalid CJS exports', async () => {
+  it('should error on invalid CJS exports', async () => {
     const invalidEntry = fixtures.path('/es-modules/cjs-exports-invalid.mjs');
     const { code, signal, stderr } = await spawnPromisified(execPath, [invalidEntry]);
 
