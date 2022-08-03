@@ -108,6 +108,7 @@
 /benchmark/misc/startup.js @nodejs/startup
 /src/node.cc @nodejs/startup
 /src/node_native_module* @nodejs/startup
+/src/node_snapshot* @nodejs/startup
 /lib/internal/bootstrap/* @nodejs/startup
 /tools/snapshot/* @nodejs/startup
 
