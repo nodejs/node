@@ -1,6 +1,6 @@
 const { dirname, resolve } = require('path')
+const url = require('url')
 
-const fileURLToPath = require('./file-url-to-path/index.js')
 const fs = require('../fs.js')
 
 // given a path, find the owner of the nearest parent
@@ -13,7 +13,7 @@ const find = (path) => {
   // fs methods accept URL objects with a scheme of file: so we need to unwrap
   // those into an actual path string before we can resolve it
   const resolved = path != null && path.href && path.origin
-    ? resolve(fileURLToPath(path))
+    ? resolve(url.fileURLToPath(path))
     : resolve(path)
 
   let stat
